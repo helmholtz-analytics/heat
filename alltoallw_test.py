@@ -1,8 +1,20 @@
-"""Test script for alltoallw exchange using MPI4py."""
+"""
+This script demonstrates the usage of the `exchange` function to perform data exchange using MPI_Alltoallw.
+It also includes two functions, `AllToAllWResplit` and `HeatResplit`, which utilize the `exchange` function.
 
+The `AllToAllWResplit` function performs data exchange between arrays `arrayA` and `arrayB` using MPI_Alltoallw.
+The `HeatResplit` function resplits an array `a` along the specified axis.
+
+The script also includes a main section where it creates an array `a` and performs data exchange and resplit operations.
+
+Note: This script requires the `mpi4py`, `heat`, and `torch` libraries to be installed.
+"""
+
+import time
 from mpi4py import MPI
 import heat as ht
 import torch
+import perun
 
 
 def decompose(axis_size, world_size, rank):
@@ -12,18 +24,16 @@ def decompose(axis_size, world_size, rank):
     Parameters
     ----------
     axis_size : int
-        The size of the axis
+        The size of the axis.
     world_size : int
-        The number of processes in the world
+        The number of processes.
     rank : int
-        The rank of the current process
+        The rank of the current process.
 
     Returns
     -------
-    chunk_size : int
-        The size of the chunk for the current process
-    chunk_start : int
-        The starting index of the chunk for the current process
+    tuple
+        A tuple containing the chunk size and chunk start.
     """
     block_size = axis_size // world_size  # Integer division
     rest = axis_size % world_size  # Modulus (remainder)
@@ -35,25 +45,25 @@ def decompose(axis_size, world_size, rank):
 
 def subarrays(com, g_shape, l_shape, split_axis, datatype=MPI.DOUBLE):
     """
-    Create subarray types for each process based on the global shape, local shape, and split axis.
+    Create subarray datatypes for data exchange.
 
     Parameters
     ----------
     com : MPI.Comm
-        The MPI communicator
-    g_shape : list of int
-        The global shape of the array
-    l_shape : list of int
-        The local shape of the array
+        The MPI communicator.
+    g_shape : tuple
+        The global shape of the array.
+    l_shape : tuple
+        The local shape of the array.
     split_axis : int
-        The axis along which to split the array
+        The axis along which the array will be split.
     datatype : MPI.Datatype, optional
-        The datatype of the array elements (default is MPI.DOUBLE)
+        The datatype of the array elements. Default is MPI.DOUBLE.
 
     Returns
     -------
-    subarray_types : list of MPI.Datatype
-        The subarray types for each process
+    list
+        A list of subarray datatypes.
     """
     world_size = com.Get_size()
 
@@ -65,7 +75,6 @@ def subarrays(com, g_shape, l_shape, split_axis, datatype=MPI.DOUBLE):
         chunk_size, chunk_start = decompose(g_shape[split_axis], world_size, i)
         subsizes[split_axis] = chunk_size
         substarts[split_axis] = chunk_start
-        print("DEBUGGING:rank, sizes, subsizes, substarts = ", l_shape, subsizes, substarts)
         subarray_type = datatype.Create_subarray(
             list(l_shape), subsizes, substarts, order=MPI.ORDER_C
         ).Commit()
@@ -76,26 +85,26 @@ def subarrays(com, g_shape, l_shape, split_axis, datatype=MPI.DOUBLE):
 
 def exchange(comm, datatype, sizesA, arrayA, axisA, sizesB, arrayB, axisB):
     """
-    Perform data exchange between processes using MPI_Alltoallw.
+    Perform data exchange using MPI_Alltoallw.
 
     Parameters
     ----------
     comm : MPI.Comm
-        The MPI communicator
+        The MPI communicator.
     datatype : MPI.Datatype
-        The datatype of the array elements
-    sizesA : list of int
-        The size of arrayA along each dimension
-    arrayA : numpy.ndarray
-        The array to send
+        The datatype of the array elements.
+    sizesA : list
+        The sizes of arrayA.
+    arrayA : ndarray
+        The array to be sent.
     axisA : int
-        The axis along which to split arrayA
-    sizesB : list of int
-        The size of arrayB along each dimension
-    arrayB : numpy.ndarray
-        The array to receive
+        The axis along which arrayA will be split.
+    sizesB : list
+        The sizes of arrayB.
+    arrayB : ndarray
+        The array to receive the data.
     axisB : int
-        The axis along which to split arrayB
+        The axis along which arrayB will be split.
     """
     nparts = comm.Get_size()
 
@@ -107,29 +116,75 @@ def exchange(comm, datatype, sizesA, arrayA, axisA, sizesB, arrayB, axisB):
     displs = [0] * nparts
 
     # Perform the data exchange using MPI_Alltoallw
-    print(type(arrayA), type(arrayB))
     comm.Alltoallw(
         [arrayA, (counts, displs), send_subarrays],
         [arrayB, (counts, displs), recv_subarrays],
     )
 
-    print("DEBUGGING: arrayA = ", arrayA)
-    print("DEBUGGING: arrayB = ", arrayB)
     # Free the subarray datatypes
     for p in range(nparts):
         send_subarrays[p].Free()
         recv_subarrays[p].Free()
 
 
-a = ht.arange(26 * 4, split=0, dtype=ht.int32).reshape(26, 4)
-new_split = 1
-send_buf = a.larray  # .clone()
-print("Send buffer: ", send_buf)
+I = 200
+J = 200
+K = 20
+L = 4
+M = 19
+shape = (I, J, K, L, M)
+n_elements = I * J * K * L * M
 
-recv_buf_heat = ht.zeros(a.gshape, dtype=a.dtype, split=new_split, device=a.device, comm=a.comm)
-recv_buf = recv_buf_heat.larray
-print("Recv buffer: ", recv_buf)
-# send_buf = ht.MPICommunication.as_mpi_memory(send_buf)
-# recv_buf = ht.MPICommunication.as_mpi_memory(recv_buf)
 
-exchange(a.comm, MPI.INT, list(a.gshape), send_buf, a.split, list(a.gshape), recv_buf, new_split)
+@perun.monitor()
+def AllToAllWResplit(a):
+    """
+    Perform data exchange between arrays `arrayA` and `arrayB` using MPI_Alltoallw.
+
+    Parameters
+    ----------
+    a : ht.DNDarray
+        The input array.
+
+    Notes
+    -----
+    - The function resplits the array `a` along the specified axis.
+    - The function requires the `mpi4py`, `heat`, and `torch` libraries to be installed.
+    """
+    new_split = 2
+    send_buf = a.larray  # .clone()
+
+    b = ht.zeros(a.gshape, dtype=a.dtype, split=new_split, device=a.device, comm=a.comm)
+    recv_buf = b.larray
+
+    exchange(
+        a.comm, MPI.INT, list(a.gshape), send_buf, a.split, list(a.gshape), recv_buf, new_split
+    )
+    del b
+
+
+@perun.monitor()
+def HeatResplit(a):
+    """
+    Resplit an array `a` along the specified axis.
+
+    Parameters
+    ----------
+    a : ht.DNDarray
+        The input array.
+
+    Notes
+    -----
+    - The function requires the `heat` library to be installed.
+    """
+    b = a.resplit(2)
+    del b
+
+
+a = ht.arange(n_elements, dtype=ht.int32).reshape(shape).resplit(3)
+print(f"Expected memory: {1 * n_elements * 4 / 1000**3 } GB")
+time.sleep(5)
+AllToAllWResplit(a)
+time.sleep(5)
+HeatResplit(a)
+time.sleep(5)
