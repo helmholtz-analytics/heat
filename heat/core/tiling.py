@@ -5,9 +5,11 @@ Tiling functions/classes. With these classes, you can classes you can address bl
 from __future__ import annotations
 import itertools
 import torch
+from mpi4py import MPI
 from typing import List, Tuple, Union
 
 from .dndarray import DNDarray
+from .communication import MPICommunication
 
 __all__ = ["SplitTiles", "SquareDiagTiles"]
 
@@ -325,6 +327,44 @@ class SplitTiles:
         # this will set the tile values using the torch setitem function
         arr = self.__getitem__(key)
         arr.__setitem__(slice(0, None), value)
+
+    def get_subarray_types(self, split_axis):
+        """Create subarray types of the local array along a new split axis. For use with alltoallw.
+
+        Parameters
+        ----------
+        split_axis : int
+            Split axis of subarrays.
+
+        Returns
+        -------
+        List[MPI.Datatype]
+            An MPI Datatype object for each rank.
+        """
+        arr = self.__DNDarray
+        world_size = arr.comm.Get_size()
+
+        subsizes = list(arr.lshape)
+        substarts = [0] * len(arr.lshape)
+
+        tile_dimensions = self.tile_dimensions[split_axis].to(torch.int32).tolist()
+        tile_starts = [0] + self.tile_ends_g[split_axis][:-1].to(torch.int32).tolist()
+        subarray_types = []
+
+        datatype = MPICommunication.mpi_type_of(arr.larray.dtype)
+
+        for i in range(world_size):
+            chunk_size = tile_dimensions[i]
+            chunk_start = tile_starts[i]
+
+            subsizes[split_axis] = chunk_size
+            substarts[split_axis] = chunk_start
+            subarray_type = datatype.Create_subarray(
+                list(arr.lshape), subsizes, substarts, order=MPI.ORDER_C
+            ).Commit()
+            subarray_types.append(subarray_type)
+
+        return subarray_types
 
 
 class SquareDiagTiles:

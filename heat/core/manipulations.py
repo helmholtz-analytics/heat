@@ -3537,34 +3537,32 @@ def resplit(arr: DNDarray, axis: int = None) -> DNDarray:
             gathered, is_split=axis, device=arr.device, comm=arr.comm, dtype=arr.dtype
         )
         return new_arr
+
     arr_tiles = tiling.SplitTiles(arr)
+
+    # Create subarray types for original local shapes split along the new axis
+    source_subarrays_types = arr_tiles.get_subarray_types(axis)
+
     new_arr = factories.empty(arr.gshape, split=axis, dtype=arr.dtype, device=arr.device)
     new_tiles = tiling.SplitTiles(new_arr)
-    rank = arr.comm.rank
-    waits = []
-    rcv_waits = {}
-    for rpr in range(arr.comm.size):
-        # need to get where the tiles are on the new one first
-        # rpr is the destination
-        new_locs = torch.where(new_tiles.tile_locations == rpr)
-        new_locs = torch.stack([new_locs[i] for i in range(arr.ndim)], dim=1)
 
-        for i in range(new_locs.shape[0]):
-            key = tuple(new_locs[i].tolist())
-            spr = arr_tiles.tile_locations[key].item()
-            to_send = arr_tiles[key]
-            if spr == rank and spr != rpr:
-                waits.append(arr.comm.Isend(to_send.clone(), dest=rpr, tag=rank))
-            elif spr == rpr == rank:
-                new_tiles[key] = to_send.clone()
-            elif rank == rpr:
-                buf = torch.zeros_like(new_tiles[key])
-                rcv_waits[key] = [arr.comm.Irecv(buf=buf, source=spr, tag=spr), buf]
-    for w in waits:
-        w.Wait()
-    for k in rcv_waits.keys():
-        rcv_waits[k][0].Wait()
-        new_tiles[k] = rcv_waits[k][1]
+    # Create subarray types for resplit local array along the old axis
+    target_subarray_types = new_tiles.get_subarray_types(arr.split)
+
+    world_size = arr.comm.Get_size()
+    counts = [1] * world_size
+    displs = [0] * world_size
+
+    # Perform the data exchange using MPI_Alltoallw
+    arr.comm.Alltoallw(
+        [arr.larray, (counts, displs), source_subarrays_types],
+        [new_arr.larray, (counts, displs), target_subarray_types],
+    )
+
+    # Free the subarray datatypes
+    for p in range(world_size):
+        source_subarrays_types[p].Free()
+        target_subarray_types[p].Free()
 
     return new_arr
 

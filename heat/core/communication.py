@@ -244,6 +244,22 @@ class MPICommunication(Communication):
         return tuple(counts.tolist()), tuple(displs.tolist()), tuple(output_shape)
 
     @classmethod
+    def mpi_type_of(cls, dtype: torch.dtype) -> MPI.Datatype:
+        """Determines the MPI Datatype from the torch dtype.
+
+        Parameters
+        ----------
+        dtype : torch.dtype
+            _description_
+
+        Returns
+        -------
+        MPI.Datatype
+            _description_
+        """
+        return cls.__mpi_type_mappings[dtype]
+
+    @classmethod
     def mpi_type_and_elements_of(
         cls,
         obj: Union[DNDarray, torch.Tensor],
