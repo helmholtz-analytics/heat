@@ -161,63 +161,53 @@ class TestHSVD(TestCase):
                 self.assertEqual(len(ht.linalg.hsvd_rank(test_matrices[0], 5)), 2)
                 self.assertEqual(len(ht.linalg.hsvd_rtol(test_matrices[0], 5e-1)), 2)
 
-    @unittest.skipIf(torch.cuda.is_available() and torch.version.hip, "not supported for HIP")
     def test_hsvd_rank_part2(self):
-        is_mps = (
-            ht.get_device().device_type.startswith("gpu")
-            and torch.backends.mps.is_built()
-            and torch.backends.mps.is_available()
-        )
-        if not is_mps:
-            # check if hsvd_rank yields correct results for maxrank <= truerank
-            # this needs to be skipped on AMD because generation of test data relies on QR...
-            nprocs = MPI.COMM_WORLD.Get_size()
-            true_rk = max(10, nprocs)
-            test_matrices_low_rank = [
-                ht.utils.data.matrixgallery.random_known_rank(
-                    50, 15 * nprocs, true_rk, split=1, dtype=ht.float32
-                ),
-                ht.utils.data.matrixgallery.random_known_rank(
-                    50, 15 * nprocs, true_rk, split=1, dtype=ht.float32
-                ),
-                ht.utils.data.matrixgallery.random_known_rank(
-                    15 * nprocs, 50, true_rk, split=0, dtype=ht.float64
-                ),
-                ht.utils.data.matrixgallery.random_known_rank(
-                    15 * nprocs, 50, true_rk, split=0, dtype=ht.float64
-                ),
-            ]
+        # check if hsvd_rank yields correct results for maxrank <= truerank
+        nprocs = MPI.COMM_WORLD.Get_size()
+        true_rk = max(10, nprocs)
+        test_matrices_low_rank = [
+            ht.utils.data.matrixgallery.random_known_rank(
+                50, 15 * nprocs, true_rk, split=1, dtype=ht.float32
+            ),
+            ht.utils.data.matrixgallery.random_known_rank(
+                50, 15 * nprocs, true_rk, split=1, dtype=ht.float32
+            ),
+            ht.utils.data.matrixgallery.random_known_rank(
+                15 * nprocs, 50, true_rk, split=0, dtype=ht.float64
+            ),
+            ht.utils.data.matrixgallery.random_known_rank(
+                15 * nprocs, 50, true_rk, split=0, dtype=ht.float64
+            ),
+        ]
 
-            for mat in test_matrices_low_rank:
-                A = mat[0]
-                if A.dtype == ht.float64:
-                    dtype_tol = 1e-8
-                if A.dtype == ht.float32:
-                    dtype_tol = 1e-3
+        for mat in test_matrices_low_rank:
+            A = mat[0]
+            if A.dtype == ht.float64:
+                dtype_tol = 1e-8
+            if A.dtype == ht.float32:
+                dtype_tol = 1e-3
 
-                for r in [true_rk, true_rk + 2]:
-                    U, s, V, _ = ht.linalg.hsvd_rank(A, r, compute_sv=True)
-                    V = V[:, :true_rk].resplit(V.split)
-                    U = U[:, :true_rk].resplit(U.split)
-                    s = s[:true_rk]
+            for r in [true_rk, true_rk + 2]:
+                U, s, V, _ = ht.linalg.hsvd_rank(A, r, compute_sv=True)
+                V = V[:, :true_rk].resplit(V.split)
+                U = U[:, :true_rk].resplit(U.split)
+                s = s[:true_rk]
 
-                    U_orth_err = (
-                        ht.norm(
-                            U.T @ U
-                            - ht.eye(true_rk, dtype=U.dtype, split=U.T.split, device=U.device)
-                        )
-                        / true_rk**0.5
+                U_orth_err = (
+                    ht.norm(
+                        U.T @ U - ht.eye(true_rk, dtype=U.dtype, split=U.T.split, device=U.device)
                     )
-                    V_orth_err = (
-                        ht.norm(
-                            V.T @ V
-                            - ht.eye(true_rk, dtype=V.dtype, split=V.T.split, device=V.device)
-                        )
-                        / true_rk**0.5
+                    / true_rk**0.5
+                )
+                V_orth_err = (
+                    ht.norm(
+                        V.T @ V - ht.eye(true_rk, dtype=V.dtype, split=V.T.split, device=V.device)
                     )
-                    true_rel_err = ht.norm(U @ ht.diag(s) @ V.T - A) / ht.norm(A)
+                    / true_rk**0.5
+                )
+                true_rel_err = ht.norm(U @ ht.diag(s) @ V.T - A) / ht.norm(A)
 
-                    self.assertTrue(ht.norm(s - mat[1][1]) / ht.norm(mat[1][1]) <= dtype_tol)
-                    self.assertTrue(U_orth_err <= dtype_tol)
-                    self.assertTrue(V_orth_err <= dtype_tol)
-                    self.assertTrue(true_rel_err <= dtype_tol)
+                self.assertTrue(ht.norm(s - mat[1][1]) / ht.norm(mat[1][1]) <= dtype_tol)
+                self.assertTrue(U_orth_err <= dtype_tol)
+                self.assertTrue(V_orth_err <= dtype_tol)
+                self.assertTrue(true_rel_err <= dtype_tol)
