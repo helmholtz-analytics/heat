@@ -1676,8 +1676,7 @@ def hypot(
         res = _operations.__binary_op(torch.hypot, a, b, out, where)
     except RuntimeError:
         # every other possibility is caught by __binary_op
-        raise TypeError(f"Not implemented for array dtype, got {a.dtype}, {b.dtype}")
-
+        raise TypeError(f"hypot on CPU does not support Int dtype, got {a.dtype}, {b.dtype}")
     return res
 
 
@@ -1720,6 +1719,15 @@ def hypot_(t1: DNDarray, t2: DNDarray) -> DNDarray:
     def wrap_hypot_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
         return a.hypot_(b)
 
+    # catch int64 operation crash on MPS
+    if t1.device.torch_device.startswith("mps") or t2.device.torch_device.startswith("mps"):
+        t1_isint64 = getattr(t1, "dtype", None) == types.int64
+        t2_isint64 = getattr(t2, "dtype", None) == types.int64
+        if t1_isint64 or t2_isint64:
+            raise TypeError(
+                f"hypot_ on MPS does not support int64 dtype, got {t1.dtype}, {t2.dtype}"
+            )
+
     try:
         return _operations.__binary_op(wrap_hypot_, t1, t2, out=t1)
     except NotImplementedError:
@@ -1727,7 +1735,7 @@ def hypot_(t1: DNDarray, t2: DNDarray) -> DNDarray:
             f"In-place operation not allowed: operands are distributed along different axes. \n Operand 1 with shape {t1.shape} is split along axis {t1.split}. \n Operand 2 with shape {t2.shape} is split along axis {t2.split}."
         )
     except RuntimeError:
-        raise TypeError(f"Not implemented for array dtype, got {t1.dtype}, {t2.dtype}")
+        raise TypeError(f"hypot on CPU does not support Int dtype, got {t1.dtype}, {t2.dtype}")
 
 
 DNDarray.hypot_ = hypot_
