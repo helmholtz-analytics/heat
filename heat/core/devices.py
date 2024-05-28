@@ -16,13 +16,13 @@ __all__ = ["Device", "cpu", "get_device", "sanitize_device", "use_device"]
 
 class Device:
     """
-    Implements a compute device. HeAT can run computations on different compute devices or backends.
+    Implements a compute device. Heat can run computations on different compute devices or backends.
     A device describes the device type and id on which said computation should be carried out.
 
     Parameters
     ----------
     device_type : str
-        Represents HeAT's device name
+        Represents Heat's device name
     device_id : int
         The device id
     torch_device : str
