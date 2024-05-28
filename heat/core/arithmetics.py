@@ -821,6 +821,14 @@ def cumprod_(t: DNDarray, axis: int) -> DNDarray:
     def wrap_mul_(a: torch.Tensor, b: torch.Tensor, out=None) -> torch.Tensor:
         return a.mul_(b)
 
+    axis = stride_tricks.sanitize_axis(t.shape, axis)
+    if axis is None:
+        raise NotImplementedError("cumprod_ is not implemented for axis=None")
+
+    if not t.is_distributed():
+        t.larray.cumprod_(dim=axis)
+        return t
+
     return _operations.__cum_op(t, wrap_cumprod_, MPI.PROD, wrap_mul_, 1, axis, dtype=None, out=t)
 
 
