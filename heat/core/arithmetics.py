@@ -1638,8 +1638,8 @@ DNDarray.gcd_ = gcd_
 
 
 def hypot(
-    a: DNDarray,
-    b: DNDarray,
+    t1: DNDarray,
+    t2: DNDarray,
     /,
     out: Optional[DNDarray] = None,
     *,
@@ -1651,9 +1651,9 @@ def hypot(
 
     Parameters
     ----------
-    a:   DNDarray
+    t1:   DNDarray
          The first input array
-    b:   DNDarray
+    t2:   DNDarray
          the second input array
     out: DNDarray, optional
         The output array. It must have a shape that the inputs broadcast to and matching split axis.
@@ -1672,11 +1672,22 @@ def hypot(
     >>> ht.hypot(a,b)
     DNDarray([2.2361, 3.6056, 3.6056], dtype=ht.float32, device=cpu:0, split=None)
     """
+    # catch int64 operation crash on MPS
+    t1_ismps = getattr(getattr(t1, "device", "cpu"), "torch_device", "cpu").startswith("mps")
+    t2_ismps = getattr(getattr(t2, "device", "cpu"), "torch_device", "cpu").startswith("mps")
+    if t1_ismps or t2_ismps:
+        t1_isint64 = getattr(t1, "dtype", None) == types.int64
+        t2_isint64 = getattr(t2, "dtype", None) == types.int64
+        if t1_isint64 or t2_isint64:
+            raise TypeError(
+                f"hypot on MPS does not support int64 dtype, got {t1.dtype}, {t2.dtype}"
+            )
+
     try:
-        res = _operations.__binary_op(torch.hypot, a, b, out, where)
+        res = _operations.__binary_op(torch.hypot, t1, t2, out, where)
     except RuntimeError:
         # every other possibility is caught by __binary_op
-        raise TypeError(f"hypot on CPU does not support Int dtype, got {a.dtype}, {b.dtype}")
+        raise TypeError(f"hypot on CPU does not support Int dtype, got {t1.dtype}, {t2.dtype}")
     return res
 
 
@@ -1720,7 +1731,9 @@ def hypot_(t1: DNDarray, t2: DNDarray) -> DNDarray:
         return a.hypot_(b)
 
     # catch int64 operation crash on MPS
-    if t1.device.torch_device.startswith("mps") or t2.device.torch_device.startswith("mps"):
+    t1_ismps = getattr(getattr(t1, "device", "cpu"), "torch_device", "cpu").startswith("mps")
+    t2_ismps = getattr(getattr(t2, "device", "cpu"), "torch_device", "cpu").startswith("mps")
+    if t1_ismps or t2_ismps:
         t1_isint64 = getattr(t1, "dtype", None) == types.int64
         t2_isint64 = getattr(t2, "dtype", None) == types.int64
         if t1_isint64 or t2_isint64:
