@@ -899,6 +899,14 @@ def cumsum_(t: DNDarray, axis: int) -> DNDarray:
     def wrap_add_(a: torch.Tensor, b: torch.Tensor, out=None) -> torch.Tensor:
         return a.add_(b)
 
+    axis = stride_tricks.sanitize_axis(t.shape, axis)
+    if axis is None:
+        raise NotImplementedError("cumsum_ is not implemented for axis=None")
+
+    if not t.is_distributed():
+        t.larray.cumsum_(dim=axis)
+        return t
+
     return _operations.__cum_op(t, wrap_cumsum_, MPI.SUM, wrap_add_, 0, axis, dtype=None, out=t)
 
 
