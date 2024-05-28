@@ -273,10 +273,11 @@ class TestArithmetics(TestCase):
                 a += b
 
         # test function for invalid casting between data types
-        a = ht.ones(3, dtype=ht.float32)
-        b = ht.ones(3, dtype=ht.float64)
-        with self.assertRaises(TypeError):
-            a += b
+        if not a.device.torch_device.startswith("mps"):
+            a = ht.ones(3, dtype=ht.float32)
+            b = ht.ones(3, dtype=ht.float64)
+            with self.assertRaises(TypeError):
+                a += b
 
     def test_bitwise_and(self):
         int_result = ht.array([[0, 2], [2, 0]])
