@@ -1772,10 +1772,12 @@ class TestArithmetics(TestCase):
                 a /= b
 
         # test function for invalid casting between data types
-        a = ht.ones(3, dtype=ht.float32)
-        b = ht.ones(3, dtype=ht.float64)
-        with self.assertRaises(TypeError):
-            a /= b
+        # MPS does not support float64
+        if not a.device.torch_device.startswith("mps"):
+            a = ht.ones(3, dtype=ht.float32)
+            b = ht.ones(3, dtype=ht.float64)
+            with self.assertRaises(TypeError):
+                a /= b
 
     def test_divmod(self):
         # basic tests as floor_device and mod are tested separately
@@ -2068,10 +2070,12 @@ class TestArithmetics(TestCase):
                 a //= b
 
         # test function for invalid casting between data types
-        a = ht.ones(3, dtype=ht.float32)
-        b = ht.ones(3, dtype=ht.float64)
-        with self.assertRaises(TypeError):
-            a //= b
+        # MPS does not support float64
+        if not a.device.torch_device.startswith("mps"):
+            a = ht.ones(3, dtype=ht.float32)
+            b = ht.ones(3, dtype=ht.float64)
+            with self.assertRaises(TypeError):
+                a //= b
 
     def test_fmod(self):
         result = ht.array([[1.0, 0.0], [1.0, 0.0]])
@@ -2263,10 +2267,12 @@ class TestArithmetics(TestCase):
                 a.fmod_(b)
 
         # test function for invalid casting between data types
-        a = ht.ones(3, dtype=ht.float32)
-        b = ht.ones(3, dtype=ht.float64)
-        with self.assertRaises(TypeError):
-            a.fmod_(b)
+        # MPS does not support float64
+        if not a.device.torch_device.startswith("mps"):
+            a = ht.ones(3, dtype=ht.float32)
+            b = ht.ones(3, dtype=ht.float64)
+            with self.assertRaises(TypeError):
+                a.fmod_(b)
 
     def test_gcd(self):
         a = ht.array([5, 10, 15])
@@ -2436,26 +2442,28 @@ class TestArithmetics(TestCase):
                 a.gcd_(b)
 
         # test function for invalid casting between data types
-        a = ht.ones(3, dtype=ht.float32) * 6
-        b = ht.ones(3, dtype=ht.float64) * 4
-        with self.assertRaises(TypeError):
-            a.gcd_(b)
+        # MPS does not support float64
+        if not a.device.torch_device.startswith("mps"):
+            a = ht.ones(3, dtype=ht.float32) * 6
+            b = ht.ones(3, dtype=ht.float64) * 4
+            with self.assertRaises(TypeError):
+                a.gcd_(b)
 
     def test_hypot(self):
         a = ht.array([2.0])
         b = ht.array([1.0, 3.0, 5.0])
         gt = ht.array([5, 13, 29])
-        result = (ht.hypot(a, b) ** 2).astype(ht.int64)
-
-        self.assertTrue(ht.equal(gt, result))
-        self.assertEqual(result.dtype, ht.int64)
+        result = ht.hypot(a, b) ** 2
+        self.assertTrue(ht.allclose(gt, result))
 
         with self.assertRaises(TypeError):
             ht.hypot(a)
         with self.assertRaises(TypeError):
             ht.hypot("a", "b")
-        with self.assertRaises(TypeError):
-            ht.hypot(a.astype(ht.int32), b.astype(ht.int32))
+        if a.device.torch_device.startswith("cpu"):
+            # torch.hypot does not support Int datatypes on CPU
+            with self.assertRaises(TypeError):
+                ht.hypot(a.astype(ht.int32), b.astype(ht.int32))
 
     def test_hypot_(self):
         # Copies of class variables for the in-place operations
@@ -2599,10 +2607,11 @@ class TestArithmetics(TestCase):
                 a.hypot_(b)
 
         # test function for invalid casting between data types
-        a = ht.ones(3, dtype=ht.float32)
-        b = ht.ones(3, dtype=ht.float64)
-        with self.assertRaises(TypeError):
-            a.hypot_(b)
+        if not a.device.torch_device.startswith("mps"):
+            a = ht.ones(3, dtype=ht.float32)
+            b = ht.ones(3, dtype=ht.float64)
+            with self.assertRaises(TypeError):
+                a.hypot_(b)
 
     def test_invert(self):
         int8_tensor = ht.array([[0, 1], [2, -2]], dtype=ht.int8)
@@ -2863,10 +2872,11 @@ class TestArithmetics(TestCase):
                 a.lcm_(b)
 
         # test function for invalid casting between data types
-        a = ht.ones(3, dtype=ht.float32) * 2
-        b = ht.ones(3, dtype=ht.float64) * 3
-        with self.assertRaises(TypeError):
-            a.lcm_(b)
+        if not a.device.torch_device.startswith("mps"):
+            a = ht.ones(3, dtype=ht.float32) * 2
+            b = ht.ones(3, dtype=ht.float64) * 3
+            with self.assertRaises(TypeError):
+                a.lcm_(b)
 
     def test_left_shift(self):
         int_tensor = ht.array([[0, 1], [2, 3]])
@@ -3249,10 +3259,11 @@ class TestArithmetics(TestCase):
                 a *= b
 
         # test function for invalid casting between data types
-        a = ht.ones(3, dtype=ht.float32)
-        b = ht.ones(3, dtype=ht.float64)
-        with self.assertRaises(TypeError):
-            a *= b
+        if not a.device.torch_device.startswith("mps"):
+            a = ht.ones(3, dtype=ht.float32)
+            b = ht.ones(3, dtype=ht.float64)
+            with self.assertRaises(TypeError):
+                a *= b
 
     def test_nan_to_num(self):
         arr = ht.array([1, 2, 3, ht.nan, ht.inf, -ht.inf])
@@ -3438,10 +3449,12 @@ class TestArithmetics(TestCase):
         self.assertIs(an_int_vector.larray, underlying_int_torch_tensor)
         underlying_int_torch_tensor.copy_(self.an_int_vector.larray)
 
-        self.assertTrue(ht.equal(a_complex_vector.neg_(), complex_result))
-        self.assertTrue(ht.equal(a_complex_vector, complex_result))
-        self.assertIs(a_complex_vector, a_complex_vector_double)
-        self.assertIs(a_complex_vector.larray, underlying_complex_torch_tensor)
+        if not a_complex_vector.device.torch_device.startswith("mps"):
+            # TODO: test this again after upgrading to MacOS 14
+            self.assertTrue(ht.equal(a_complex_vector.neg_(), complex_result))
+            self.assertTrue(ht.equal(a_complex_vector, complex_result))
+            self.assertIs(a_complex_vector, a_complex_vector_double)
+            self.assertIs(a_complex_vector.larray, underlying_complex_torch_tensor)
 
         # Test other possible ways to call this function
         self.assertTrue(ht.equal(a_tensor.negative_(), result))
@@ -3682,10 +3695,11 @@ class TestArithmetics(TestCase):
                 a **= b
 
         # test function for invalid casting between data types
-        a = ht.ones(3, dtype=ht.float32)
-        b = ht.ones(3, dtype=ht.float64)
-        with self.assertRaises(TypeError):
-            a **= b
+        if not a.device.torch_device.startswith("mps"):
+            a = ht.ones(3, dtype=ht.float32)
+            b = ht.ones(3, dtype=ht.float64)
+            with self.assertRaises(TypeError):
+                a **= b
 
     def test_prod(self):
         array_len = 11
@@ -3997,10 +4011,11 @@ class TestArithmetics(TestCase):
                 a %= b
 
         # test function for invalid casting between data types
-        a = ht.ones(3, dtype=ht.float32)
-        b = ht.ones(3, dtype=ht.float64)
-        with self.assertRaises(TypeError):
-            a %= b
+        if not a.device.torch_device.startswith("mps"):
+            a = ht.ones(3, dtype=ht.float32)
+            b = ht.ones(3, dtype=ht.float64)
+            with self.assertRaises(TypeError):
+                a %= b
 
     def test_right_shift(self):
         int_tensor = ht.array([[0, 1], [2, 3]])
@@ -4382,10 +4397,11 @@ class TestArithmetics(TestCase):
                 a -= b
 
         # test function for invalid casting between data types
-        a = ht.ones(3, dtype=ht.float32)
-        b = ht.ones(3, dtype=ht.float64)
-        with self.assertRaises(TypeError):
-            a -= b
+        if not a.device.torch_device.startswith("mps"):
+            a = ht.ones(3, dtype=ht.float32)
+            b = ht.ones(3, dtype=ht.float64)
+            with self.assertRaises(TypeError):
+                a -= b
 
     def test_sum(self):
         array_len = 11
