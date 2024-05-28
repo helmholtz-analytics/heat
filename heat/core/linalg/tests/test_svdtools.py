@@ -162,23 +162,38 @@ class TestHSVD(TestCase):
                 self.assertEqual(len(ht.linalg.hsvd_rtol(test_matrices[0], 5e-1)), 2)
 
     def test_hsvd_rank_part2(self):
+        is_mps = (
+            ht.get_device().device_type.startswith("gpu")
+            and torch.backends.mps.is_built()
+            and torch.backends.mps.is_available()
+        )
         # check if hsvd_rank yields correct results for maxrank <= truerank
         nprocs = MPI.COMM_WORLD.Get_size()
         true_rk = max(10, nprocs)
-        test_matrices_low_rank = [
-            ht.utils.data.matrixgallery.random_known_rank(
-                50, 15 * nprocs, true_rk, split=1, dtype=ht.float32
-            ),
-            ht.utils.data.matrixgallery.random_known_rank(
-                50, 15 * nprocs, true_rk, split=1, dtype=ht.float32
-            ),
-            ht.utils.data.matrixgallery.random_known_rank(
-                15 * nprocs, 50, true_rk, split=0, dtype=ht.float64
-            ),
-            ht.utils.data.matrixgallery.random_known_rank(
-                15 * nprocs, 50, true_rk, split=0, dtype=ht.float64
-            ),
-        ]
+        if is_mps:
+            test_matrices_low_rank = [
+                ht.utils.data.matrixgallery.random_known_rank(
+                    50, 15 * nprocs, true_rk, split=1, dtype=ht.float32
+                ),
+                ht.utils.data.matrixgallery.random_known_rank(
+                    50, 15 * nprocs, true_rk, split=1, dtype=ht.float32
+                ),
+            ]
+        else:
+            test_matrices_low_rank = [
+                ht.utils.data.matrixgallery.random_known_rank(
+                    50, 15 * nprocs, true_rk, split=1, dtype=ht.float32
+                ),
+                ht.utils.data.matrixgallery.random_known_rank(
+                    50, 15 * nprocs, true_rk, split=1, dtype=ht.float32
+                ),
+                ht.utils.data.matrixgallery.random_known_rank(
+                    15 * nprocs, 50, true_rk, split=0, dtype=ht.float64
+                ),
+                ht.utils.data.matrixgallery.random_known_rank(
+                    15 * nprocs, 50, true_rk, split=0, dtype=ht.float64
+                ),
+            ]
 
         for mat in test_matrices_low_rank:
             A = mat[0]
