@@ -80,7 +80,7 @@ class TestTallSkinnySVD(TestCase):
             ht.linalg.svd("abc")
         # qr_procs_to_merge not an int
         with self.assertRaises(TypeError):
-            ht.linalg.svd(X, qr_procs_to_merge="abc")
+            ht.linalg.svd(X, qr_procs_to_merge="def")
         # qr_procs_to_merge = 1
         with self.assertRaises(ValueError):
             ht.linalg.svd(X, qr_procs_to_merge=1)
