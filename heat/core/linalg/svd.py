@@ -76,7 +76,7 @@ def svd(
             f"Array ``A`` must have a datatype of float32 or float64, but has {A.dtype}"
         )
 
-    if A.split == 0:
+    if A.is_distributed() and A.split == 0:
         if A.lshape_map[:, 0].max().item() < A.shape[1]:
             raise ValueError(
                 "Input ``A`` is split along the rows and the local chunks of data are rectangular with more columns than rows. \n This case is not supported by the current implementation of SVD in Heat."
@@ -131,7 +131,7 @@ def svd(
                     balanced=A.balanced,
                 )
                 return S
-    if A.split == 1:
+    if A.is_distributed() and A.split == 1:
 
         if A.lshape_map[:, 1].max().item() < A.shape[0]:
             raise ValueError(

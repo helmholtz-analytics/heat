@@ -12,7 +12,8 @@ class TestTallSkinnySVD(TestCase):
             tol = 1e-5 if dtype == ht.float32 else 1e-10
             X = ht.random.randn(ht.MPI_WORLD.size * 10 + 3, 10, split=0, dtype=dtype)
             U, S, Vt = ht.linalg.svd(X)
-            self.assertTrue(U.split == 0)
+            if ht.MPI_WORLD.size > 1:
+                self.assertTrue(U.split == 0)
             self.assertTrue(S.split is None)
             self.assertTrue(Vt.split is None)
             self.assertTrue(
@@ -31,7 +32,8 @@ class TestTallSkinnySVD(TestCase):
             U, S, Vt = ht.linalg.svd(X)
             self.assertTrue(U.split is None)
             self.assertTrue(S.split is None)
-            self.assertTrue(Vt.split == 1)
+            if ht.MPI_WORLD.size > 1:
+                self.assertTrue(Vt.split == 1)
             self.assertTrue(
                 ht.allclose(U.T @ U, ht.eye(U.shape[1], dtype=dtype), rtol=tol, atol=tol)
             )
@@ -65,12 +67,14 @@ class TestTallSkinnySVD(TestCase):
     def test_wrong_inputs(self):
         # split = 0 but not tall skinny
         X = ht.random.randn(10, 10, split=0)
-        with self.assertRaises(ValueError):
-            ht.linalg.svd(X)
+        if ht.MPI_WORLD.size > 1:
+            with self.assertRaises(ValueError):
+                ht.linalg.svd(X)
         # split = 1 but not short fat
         X = ht.random.randn(10, 10, split=1)
-        with self.assertRaises(ValueError):
-            ht.linalg.svd(X)
+        if ht.MPI_WORLD.size > 1:
+            with self.assertRaises(ValueError):
+                ht.linalg.svd(X)
         # full_matrices = True
         X = ht.random.rand(10 * ht.MPI_WORLD.size, 5, split=0)
         with self.assertRaises(NotImplementedError):
