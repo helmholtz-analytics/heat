@@ -1,5 +1,0 @@
-"""
-Add the decomposition routines to the ht.decomposition namespace
-"""
-
-from .pca import *
