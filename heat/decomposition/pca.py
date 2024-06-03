@@ -12,6 +12,7 @@ except ImportError:
 
 """
 The implementation is heavily inspired by the corresponding routines in scikit-learn (https://scikit-learn.org/stable/modules/decomposition.html).
+Please note that sometimes deviations cannot be avoided due to different algorithms and the distributed nature of the heat package.
 """
 
 
