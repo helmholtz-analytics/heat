@@ -3541,13 +3541,13 @@ def resplit(arr: DNDarray, axis: int = None) -> DNDarray:
     arr_tiles = tiling.SplitTiles(arr)
 
     # Create subarray types for original local shapes split along the new axis
-    source_subarrays_types = arr_tiles.get_subarray_types(axis)
+    source_subarrays_params = arr_tiles.get_subarray_params(axis)
 
     new_arr = factories.empty(arr.gshape, split=axis, dtype=arr.dtype, device=arr.device)
     new_tiles = tiling.SplitTiles(new_arr)
 
     # Create subarray types for resplit local array along the old axis
-    target_subarray_types = new_tiles.get_subarray_types(arr.split)
+    target_subarray_params = new_tiles.get_subarray_params(arr.split)
 
     world_size = arr.comm.Get_size()
     counts = [1] * world_size
@@ -3555,14 +3555,9 @@ def resplit(arr: DNDarray, axis: int = None) -> DNDarray:
 
     # Perform the data exchange using MPI_Alltoallw
     arr.comm.Alltoallw(
-        [arr.larray, (counts, displs), source_subarrays_types],
-        [new_arr.larray, (counts, displs), target_subarray_types],
+        (arr.larray, (counts, displs), source_subarrays_params),
+        (new_arr.larray, (counts, displs), target_subarray_params),
     )
-
-    # Free the subarray datatypes
-    for p in range(world_size):
-        source_subarrays_types[p].Free()
-        target_subarray_types[p].Free()
 
     return new_arr
 

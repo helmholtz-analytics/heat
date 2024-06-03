@@ -1459,6 +1459,60 @@ class MPICommunication(Communication):
 
     Alltoallv.__doc__ = MPI.Comm.Alltoallv.__doc__
 
+    def Alltoallw(
+        self,
+        sendbuf: Union[DNDarray, torch.Tensor, Any],
+        recvbuf: Union[DNDarray, torch.Tensor, Any],
+    ):
+        """
+        Generalized All-to-All communication allowing different counts, displacements and datatypes for each partner.
+
+        Parameters
+        ----------
+        sendbuf: Union[DNDarray, torch.Tensor, Any]
+            Buffer address of the send message
+        recvbuf: Union[DNDarray, torch.Tensor, Any]
+            Buffer address where to store the result
+        """
+        # Unpack sendbuffer information
+        sendbuf, (send_counts, send_displs), subarray_params_list = sendbuf
+
+        datatype = self.mpi_type_of(sendbuf.dtype)
+        source_subarray_types = []
+
+        # Commit the source subarray datatypes
+        for subarray_params in subarray_params_list:
+            lshape, subsizes, substarts = subarray_params
+
+            subarray_type = datatype.Create_subarray(
+                lshape, subsizes, substarts, order=MPI.ORDER_C
+            ).Commit()
+            source_subarray_types.append(subarray_type)
+
+        # Unpack recvbuf information
+        recvbuf, (recv_counts, recv_displs), subarray_params_list = recvbuf
+
+        # Commit the receive subarray datatypes
+        target_subarray_types = []
+        for subarray_params in subarray_params_list:
+            lshape, subsizes, substarts = subarray_params
+            target_subarray_types.append(
+                datatype.Create_subarray(lshape, subsizes, substarts, order=MPI.ORDER_C).Commit()
+            )
+
+        # Perform the Alltoallw operation
+        self.handle.Alltoallw(
+            (sendbuf, (send_counts, send_displs), source_subarray_types),
+            (recvbuf, (recv_counts, recv_displs), target_subarray_types),
+        )
+
+        # Free the subarray datatypes
+        for p in range(len(source_subarray_types)):
+            source_subarray_types[p].Free()
+            target_subarray_types[p].Free()
+
+    Alltoallw.__doc__ = MPI.Comm.Alltoallw.__doc__
+
     def Ialltoall(
         self,
         sendbuf: Union[DNDarray, torch.Tensor, Any],

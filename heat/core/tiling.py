@@ -328,7 +328,7 @@ class SplitTiles:
         arr = self.__getitem__(key)
         arr.__setitem__(slice(0, None), value)
 
-    def get_subarray_types(self, split_axis):
+    def get_subarray_params(self, split_axis: int) -> List[Tuple[List[int], List[int], List[int]]]:
         """Create subarray types of the local array along a new split axis. For use with alltoallw.
 
         Parameters
@@ -338,8 +338,8 @@ class SplitTiles:
 
         Returns
         -------
-        List[MPI.Datatype]
-            An MPI Datatype object for each rank.
+        List[Tuple[List[int], List[int], List[int]]]
+            List of subarray parameters for all processes. For use with Create_subarray.
         """
         arr = self.__DNDarray
         world_size = arr.comm.Get_size()
@@ -349,22 +349,18 @@ class SplitTiles:
 
         tile_dimensions = self.tile_dimensions[split_axis].to(torch.int32).tolist()
         tile_starts = [0] + self.tile_ends_g[split_axis][:-1].to(torch.int32).tolist()
-        subarray_types = []
 
-        datatype = MPICommunication.mpi_type_of(arr.larray.dtype)
-
+        subarray_param_list = []
+        lshape = list(arr.lshape)
         for i in range(world_size):
             chunk_size = tile_dimensions[i]
             chunk_start = tile_starts[i]
 
             subsizes[split_axis] = chunk_size
             substarts[split_axis] = chunk_start
-            subarray_type = datatype.Create_subarray(
-                list(arr.lshape), subsizes, substarts, order=MPI.ORDER_C
-            ).Commit()
-            subarray_types.append(subarray_type)
+            subarray_param_list.append((lshape, subsizes, substarts))
 
-        return subarray_types
+        return subarray_param_list
 
 
 class SquareDiagTiles:
