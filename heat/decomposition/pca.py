@@ -73,7 +73,7 @@ class PCA(ht.TransformMixin, ht.BaseEstimator):
         n_components=None,
         copy=True,
         whiten=False,
-        svd_solver="hiearchical",
+        svd_solver="hierarchical",
         tol=None,
         iterated_power="auto",
         n_oversamples=10,
@@ -159,7 +159,7 @@ class PCA(ht.TransformMixin, ht.BaseEstimator):
             U, S, V = ht.linalg.svd(X_centered, full_matrices=False)
             if isinstance(self.n_components_, int):
                 # prescribed truncation rank (including no truncation)
-                self.components_ = U[:, : self.n_components_]
+                self.components_ = V[:, : self.n_components_]
                 self.singular_values_ = S[: self.n_components_]
                 self.explained_variance_ = (S**2)[: self.n_components_]
                 self.explained_variance_ratio_ = self.explained_variance_ / (S**2).sum()
@@ -173,7 +173,7 @@ class PCA(ht.TransformMixin, ht.BaseEstimator):
                         explained_variance_cumsum <= explained_variance_threshold
                     ]
                 )
-                self.components_ = U[:, : self.n_components_]
+                self.components_ = V[:, : self.n_components_].T
                 self.singular_values_ = S[: self.n_components_]
                 self.explained_variance_ = (S**2)[: self.n_components_]
                 self.explained_variance_ratio_ = self.explained_variance_ / explained_variance_sum
@@ -196,11 +196,12 @@ class PCA(ht.TransformMixin, ht.BaseEstimator):
                 )
             if X.comm.rank == 0:
                 print(
-                    f"Hierarchical SVD has been computed with the following upper estimate for the fraction of explained variance: {info.larray().item()}."
+                    f"Hierarchical SVD has been computed with the following upper estimate for the fraction of explained variance: {info.larray.item()}."
                 )
-            self.n_components_ = U.shape[1]
-            self.components_ = U
+            self.n_components_ = V.shape[1]
+            self.components_ = V.T
             self.singular_values_ = S
+            self.explained_variance_ratio_ = info.larray.item()
 
         else:
             # here one could add other computational backends
