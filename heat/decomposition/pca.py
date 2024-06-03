@@ -15,9 +15,56 @@ The implementation is heavily inspired by the corresponding routines in scikit-l
 """
 
 
-class StandardScaler(ht.TransformMixin, ht.BaseEstimator):
+class PCA(ht.TransformMixin, ht.BaseEstimator):
     """
-    todo
+    Pricipal Component Analysis (PCA).
+
+    Linear dimensionality reduction using Singular Value Decomposition of the data to project it to a lower dimensional space.
+    The input data is centered but not scaled for each feature before applying the SVD.
+
+    Parameters
+    ----------
+    n_components : int, float, None, default=None
+        Number of components to keep. If n_components is not set all components are kept.
+        If n_components is an integer, it specifies the number of components to keep.
+        If n_components is a float between 0 and 1, it specifies the fraction of variance explained by the components to keep.
+    copy : bool, default=True
+        Centering of data is done in-place if copy=False. Please note that in-place SVD computation is not supported so far.
+    whiten : bool, default=False
+        Not yet supported.
+    svd_solver : {'full', 'hierarchical'}, default='hierarchical'
+        'full' : Full SVD is performed. In general, this is more accurate, but also slower. So far, this is only supported for tall-skinny or short-fat data.
+        'hierarchical' : Hierarchical SVD, i.e., an algorithm for computing an approximate, truncated SVD, is performed. Exact results are not guaranteed, but the computation is faster.
+    tol : float, default=None
+        Not yet necessary as iterative methods for PCA are not yet implemented.
+    iterated_power : {'auto', int}, default='auto'
+        if svd_solver='randomized', ... (not yet supported)
+    n_oversamples : int, default=10
+        if svd_solver='hierarchical', this parameter specifies the argument `safetyshift` of the underlying algorithm.
+        if svd_solver='randomized', ... (not yet supported)
+    power_iteration_normalizer : {'qr'}, default='qr'
+        if svd_solver='randomized', ... (not yet supported)
+    random_state : int, default=None
+        if svd_solver='randomized', ... (not yet supported)
+
+    Attributes
+    ----------
+    components_ : DNDarray of shape (n_components, n_features)
+        Principal axes in feature space, representing the directions of maximum variance in the data. The components are sorted by explained_variance_.
+    explained_variance_ : DNDarray of shape (n_components,)
+        The amount of variance explained by each of the selected components.
+    explained_variance_ratio_ : DNDarray of shape (n_components,)
+        Percentage of variance explained by each of the selected components.
+    singular_values_ : DNDarray of shape (n_components,)
+        The singular values corresponding to each of the selected components.
+    mean_ : DNDarray of shape (n_features,)
+        Per-feature empirical mean, estimated from the training set.
+    n_components_ : int
+        The estimated number of components.
+    n_samples_ : int
+        Number of samples in the training data.
+    noise_variance_ : float
+        not yet implemented
     """
 
     def __init__(
@@ -25,7 +72,7 @@ class StandardScaler(ht.TransformMixin, ht.BaseEstimator):
         n_components=None,
         copy=True,
         whiten=False,
-        svd_solver="hsvd",
+        svd_solver="hiearchical",
         tol=None,
         iterated_power="auto",
         n_oversamples=10,
@@ -33,8 +80,6 @@ class StandardScaler(ht.TransformMixin, ht.BaseEstimator):
         random_state=None,
     ):
         # check correctness of inputs
-        if not copy:
-            raise ValueError("In-place PCA computation is not yet supported. Please set copy=True.")
         if whiten:
             raise ValueError("Whitening is not yet supported. Please set whiten=False.")
         if not (svd_solver == "full" or svd_solver == "hierarchical"):
@@ -75,3 +120,117 @@ class StandardScaler(ht.TransformMixin, ht.BaseEstimator):
         self.n_oversamples = n_oversamples
         self.power_iteration_normalizer = power_iteration_normalizer
         self.random_state = random_state
+
+    def fit(self, X: ht.DNDarray, y=None) -> Self:
+        """
+        Fit the PCA model with data X.
+
+        Parameters
+        ----------
+        X : DNDarray of shape (n_samples, n_features)
+            Data set of which PCA has to be computed.
+        y : Ignored
+            Not used, present for API consistency by convention.
+        """
+        if not isinstance(X, ht.DNDarray):
+            raise ValueError("X must be a DNDarray.")
+        if y is not None:
+            raise ValueError(
+                "Argument y is ignored and just present for API consistency by convention."
+            )
+
+        # center data (if copy=True, X is not changed, otherwise X is centered in-place)
+        self.mean_ = X.mean(axis=0)
+        if not self.copy:
+            X -= self.mean_
+            X_centered = X
+        else:
+            X_centered = X - self.mean_
+
+        # set n_components
+        if self.n_components is None:
+            self.n_components_ = min(X.shape)
+        else:
+            self.n_components_ = self.n_components
+
+        # compute SVD via "full" SVD
+        if self.svd_solver == "full":
+            U, S, V = ht.linalg.svd(X_centered, full_matrices=False)
+            if isinstance(self.n_components_, int):
+                # prescribed truncation rank (including no truncation)
+                self.components_ = U[:, : self.n_components_]
+                self.singular_values_ = S[: self.n_components_]
+                self.explained_variance_ = (S**2)[: self.n_components_]
+                self.explained_variance_ratio_ = self.explained_variance_ / (S**2).sum()
+            else:
+                # truncation w.r.t. prescribed bound on explained variance
+                explained_variance_sum = (S**2).sum()
+                explained_variance_threshold = self.n_components_ * explained_variance_sum
+                explained_variance_cumsum = (S**2).cumsum()
+                self.n_components_ = len(
+                    explained_variance_cumsum[
+                        explained_variance_cumsum <= explained_variance_threshold
+                    ]
+                )
+                self.components_ = U[:, : self.n_components_]
+                self.singular_values_ = S[: self.n_components_]
+                self.explained_variance_ = (S**2)[: self.n_components_]
+                self.explained_variance_ratio_ = self.explained_variance_ / explained_variance_sum
+
+        # compute SVD via "hierarchical" SVD
+        elif self.svd_solver == "hierarchical":
+            if isinstance(self.n_components_, float):
+                # hierarchical SVD with prescribed upper bound on relative error
+                # note: "upper bound on relative error" (hsvd_rtol) is "1 - lower bound" (PCA)
+                U, S, V, info = ht.linalg.hsvd_rtol(
+                    X_centered,
+                    1 - self.n_components_,
+                    compute_sv=True,
+                    safetyshift=self.n_oversamples,
+                )
+            else:
+                # hierarchical SVD with prescribed, fixed rank
+                U, S, V, info = ht.linalg.hsvd_rank(
+                    X_centered, self.n_components_, compute_sv=True, safetyshift=self.n_oversamples
+                )
+            if X.comm.rank == 0:
+                print(
+                    f"Hierarchical SVD has been computed with the following upper estimate for the fraction of explained variance: {info.larray().item()}."
+                )
+            self.n_components_ = U.shape[1]
+            self.components_ = U
+            self.singular_values_ = S
+
+        else:
+            # here one could add other computational backends
+            pass
+
+        self.n_samples_ = X.shape[0]
+        self.noise_variance_ = None  # not yet implemented
+
+        return self
+
+    def transform(self, X: ht.DNDarray) -> ht.DNDarray:
+        """
+        Apply dimensionality based on PCA to X.
+
+        Parameters
+        ----------
+        X : DNDarray of shape (n_samples, n_features)
+            Data set to be transformed.
+        """
+        if not isinstance(X, ht.DNDarray):
+            raise ValueError("X must be a DNDarray.")
+        if X.shape[1] != self.mean_.shape[0]:
+            raise ValueError(
+                f"X must have the same number of features as the training data. Expected {self.mean_.shape[0]} but got {X.shape[1]}."
+            )
+
+        if self.copy:
+            # center data and apply PCA
+            X_centered = X - self.mean_
+            return X_centered @ self.components_
+        else:
+            # center data in-place, apply PCA "in-place"-like (caveat: but not fully in-place)
+            X -= self.mean_
+            X = X @ self.components_
