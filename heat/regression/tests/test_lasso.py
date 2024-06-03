@@ -37,11 +37,6 @@ class TestLasso(TestCase):
             )
 
             # normalize dataset
-            print(
-                "DEBUGGING: X.shape, ht.sqrt((ht.mean(X**2, axis=0)).shape = ",
-                X.shape,
-                ht.sqrt((ht.mean(X**2, axis=0)).shape),
-            )
             X = X / ht.sqrt((ht.mean(X**2, axis=0)))
             m, n = X.shape
             # HeAT lasso instance
