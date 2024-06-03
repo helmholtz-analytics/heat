@@ -14,7 +14,7 @@ from . import logical
 from . import stride_tricks
 from . import types
 
-from .communication import Communication
+from .communication import Communication, MPI_WORLD
 from .devices import Device
 from .dndarray import DNDarray
 from .types import datatype
@@ -24,10 +24,12 @@ __all__ = [
     "normal",
     "permutation",
     "rand",
+    "rand_fast",
     "ranf",
     "randint",
     "random_integer",
     "randn",
+    "randn_fast",
     "random",
     "random_sample",
     "randperm",
@@ -109,7 +111,7 @@ def __counter_sequence(
         c_0 = (__counter & (max_count << 64)) >> 64
     c_1 = __counter & max_count
     total_elements = torch.prod(torch.tensor(shape))
-    #if total_elements.item() > 2 * max_count:
+    # if total_elements.item() > 2 * max_count:
     #    raise ValueError(f"Shape is to big with {total_elements} elements")
 
     if split is None:
@@ -477,6 +479,45 @@ def rand(
     return DNDarray(values, shape, dtype, split, device, comm, balanced)
 
 
+def rand_fast(
+    *args: List[int],
+    dtype: Type[datatype] = types.float32,
+    split: Optional[int] = None,
+    device: Optional[Device] = None,
+    comm: Optional[Communication] = None,
+) -> DNDarray:
+    """
+    Fast version of the rand function that does not use the threefry encryption.
+    This uses a "quick-and-dirty" approach to generate random numbers.
+    """
+    # if args are not set, generate a single sample
+    if not args:
+        args = (1,)
+
+    # ensure that the passed dimensions are positive integer-likes
+    shape = tuple(int(ele) for ele in args)
+    if any(ele <= 0 for ele in shape):
+        raise ValueError("negative dimensions are not allowed")
+
+    # make sure the remaining parameters are of proper type
+    split = stride_tricks.sanitize_axis(shape, split)
+    device = devices.sanitize_device(device)
+    comm = communication.sanitize_comm(comm)
+
+    # set a local seed for torch on each device
+    torch.manual_seed(__seed)
+    if MPI_WORLD.rank == 0:
+        seed_offsets = torch.randint(
+            0, 0x7FFFFFFFFFFFFFFF, (MPI_WORLD.size,), device=device.torch_device
+        )
+    else:
+        seed_offsets = torch.empty(0)
+    seed_local_offset = MPI_WORLD.scatter(seed_offsets, root=0)
+    torch.manual_seed(__seed + seed_local_offset.item())
+    # generate and return the actual random array
+    return factories.__factory(shape, dtype, split, torch.rand, device, comm, "C")
+
+
 def randint(
     low: int,
     high: Optional[int] = None,
@@ -643,6 +684,45 @@ def randn(
     normal_tensor.larray = __kundu_transform(normal_tensor.larray)
 
     return normal_tensor
+
+
+def randn_fast(
+    *args: List[int],
+    dtype: Type[datatype] = types.float32,
+    split: Optional[int] = None,
+    device: Optional[str] = None,
+    comm: Optional[Communication] = None,
+) -> DNDarray:
+    """
+    Fast version of the randn function that does not use the threefry encryption.
+    This uses a "quick-and-dirty" approach to generate random numbers.
+    """
+    # if args are not set, generate a single sample
+    if not args:
+        args = (1,)
+
+    # ensure that the passed dimensions are positive integer-likes
+    shape = tuple(int(ele) for ele in args)
+    if any(ele <= 0 for ele in shape):
+        raise ValueError("negative dimensions are not allowed")
+
+    # make sure the remaining parameters are of proper type
+    split = stride_tricks.sanitize_axis(shape, split)
+    device = devices.sanitize_device(device)
+    comm = communication.sanitize_comm(comm)
+
+    # set a local seed for torch on each device
+    torch.manual_seed(__seed)
+    if MPI_WORLD.rank == 0:
+        seed_offsets = torch.randint(
+            0, 0x7FFFFFFFFFFFFFFF, (MPI_WORLD.size,), device=device.torch_device
+        )
+    else:
+        seed_offsets = torch.empty(0)
+    seed_local_offset = MPI_WORLD.scatter(seed_offsets, root=0)
+    torch.manual_seed(__seed + seed_local_offset.item())
+    # generate and return the actual random array
+    return factories.__factory(shape, dtype, split, torch.randn, device, comm, "C")
 
 
 def randperm(
