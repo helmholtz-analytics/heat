@@ -84,16 +84,16 @@ Local torch tensor on rank  1 :  tensor([5, 6, 7, 8, 9], dtype=torch.int32)
     conda env create -f scripts/heat_dev.yml
     conda activate heat_dev
     ```
-    Note that in case you want to use a GPU while developing on your local machine, you need to set up a CUDA environment by using `scripts/heat_dev_cuda11.yml`for CUDA 11 or `scripts/heat_dev_cuda12.yml`for CUDA 12, respectively, instead of `scripts/heat_dev.yml`. 
+    Note that in case you want to use a GPU while developing on your local machine, you need to set up a CUDA environment by using `scripts/heat_dev_cuda11.yml`for CUDA 11 or `scripts/heat_dev_cuda12.yml`for CUDA 12, respectively, instead of `scripts/heat_dev.yml`.
 
     **Setting up a dev-environment with PIP:** Create a virtual environment `heatenv` with `python -m venv <path_to_store_venvs>/heatenv`, and activate it by `source <path_to_store_venvs>/heatenv/bin/activate`. Then clone the Heat-repo from GitHub by
-   
+
     ```
     git clone https://github.com/helmholtz-analytics/heat.git
     ```
-    
+
      go to the Heat-folder (`cd heat`), and install (in editable fashion "`-e`") by
-   
+
     ```
     pip install -e '.[hdf5, netcdf]'
     ```
