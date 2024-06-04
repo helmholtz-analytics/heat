@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1717491769783,
+  "lastUpdate": 1717491780339,
   "repoUrl": "https://github.com/helmholtz-analytics/heat",
   "entries": {
     "Benchmark": [
@@ -83266,6 +83266,244 @@ window.BENCHMARK_DATA = {
             "value": 0.004095935728400946,
             "unit": "s",
             "range": 0.0020811157301068306
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Juan Pedro Gutiérrez Hermosillo Muriedas",
+            "username": "JuanPedroGHM",
+            "email": "juanpedroghm@gmail.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "8a10cf4c65d2bf56f921c6657100fb99c4199250",
+          "message": "Merge pull request #1506 from helmholtz-analytics/dependabot/github_actions/docker/login-action-3.2.0\n\nBump docker/login-action from 3.1.0 to 3.2.0",
+          "timestamp": "2024-06-04T08:12:00Z",
+          "url": "https://github.com/helmholtz-analytics/heat/commit/8a10cf4c65d2bf56f921c6657100fb99c4199250"
+        },
+        "date": 1717491778131,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "heat_benchmarks_N1_GPU - RUNTIME",
+            "value": 200.59922790527344,
+            "unit": "s",
+            "range": 55.324710845947266
+          },
+          {
+            "name": "matmul_split_0_N1_GPU - RUNTIME",
+            "value": 0.0032820410560816526,
+            "unit": "s",
+            "range": 0.00814804993569851
+          },
+          {
+            "name": "matmul_split_1_N1_GPU - RUNTIME",
+            "value": 0.0003042641910724342,
+            "unit": "s",
+            "range": 0.0001506740227341652
+          },
+          {
+            "name": "qr_split_0_N1_GPU - RUNTIME",
+            "value": 0.008217493072152138,
+            "unit": "s",
+            "range": 0.011706716381013393
+          },
+          {
+            "name": "qr_split_1_N1_GPU - RUNTIME",
+            "value": 0.003417040454223752,
+            "unit": "s",
+            "range": 0.0014937259256839752
+          },
+          {
+            "name": "lanczos_N1_GPU - RUNTIME",
+            "value": 1.0667591094970703,
+            "unit": "s",
+            "range": 0.247446209192276
+          },
+          {
+            "name": "hierachical_svd_rank_N1_GPU - RUNTIME",
+            "value": 0.11799968779087067,
+            "unit": "s",
+            "range": 0.038383856415748596
+          },
+          {
+            "name": "hierachical_svd_tol_N1_GPU - RUNTIME",
+            "value": 0.2427513152360916,
+            "unit": "s",
+            "range": 0.05634694546461105
+          },
+          {
+            "name": "kmeans_N1_GPU - RUNTIME",
+            "value": 11.464579582214355,
+            "unit": "s",
+            "range": 2.4604926109313965
+          },
+          {
+            "name": "kmedians_N1_GPU - RUNTIME",
+            "value": 33.87412643432617,
+            "unit": "s",
+            "range": 10.85175609588623
+          },
+          {
+            "name": "kmedoids_N1_GPU - RUNTIME",
+            "value": 33.318756103515625,
+            "unit": "s",
+            "range": 8.299844741821289
+          },
+          {
+            "name": "reshape_N1_GPU - RUNTIME",
+            "value": 0.0005790710565634072,
+            "unit": "s",
+            "range": 0.00025457952870056033
+          },
+          {
+            "name": "concatenate_N1_GPU - RUNTIME",
+            "value": 0.0021957396529614925,
+            "unit": "s",
+            "range": 0.0013713475782424212
+          },
+          {
+            "name": "apply_inplace_standard_scaler_and_inverse_N1_GPU - RUNTIME",
+            "value": 0.013015365228056908,
+            "unit": "s",
+            "range": 0.00913514755666256
+          },
+          {
+            "name": "apply_inplace_min_max_scaler_and_inverse_N1_GPU - RUNTIME",
+            "value": 0.0053768157958984375,
+            "unit": "s",
+            "range": 0.001861011958681047
+          },
+          {
+            "name": "apply_inplace_max_abs_scaler_and_inverse_N1_GPU - RUNTIME",
+            "value": 0.0020896911155432463,
+            "unit": "s",
+            "range": 0.0007342173485085368
+          },
+          {
+            "name": "apply_inplace_robust_scaler_and_inverse_N1_GPU - RUNTIME",
+            "value": 119.60579681396484,
+            "unit": "s",
+            "range": 38.49309539794922
+          },
+          {
+            "name": "apply_inplace_normalizer_N1_GPU - RUNTIME",
+            "value": 0.0014587402110919356,
+            "unit": "s",
+            "range": 0.0005533367511816323
+          },
+          {
+            "name": "heat_benchmarks_N4_CPU - RUNTIME",
+            "value": 29.083126068115234,
+            "unit": "s",
+            "range": 3.63337779045105
+          },
+          {
+            "name": "matmul_split_0_N4_CPU - RUNTIME",
+            "value": 0.8041594624519348,
+            "unit": "s",
+            "range": 0.15440264344215393
+          },
+          {
+            "name": "matmul_split_1_N4_CPU - RUNTIME",
+            "value": 0.8609665632247925,
+            "unit": "s",
+            "range": 0.16993646323680878
+          },
+          {
+            "name": "qr_split_0_N4_CPU - RUNTIME",
+            "value": 1.3374313116073608,
+            "unit": "s",
+            "range": 0.1758941262960434
+          },
+          {
+            "name": "qr_split_1_N4_CPU - RUNTIME",
+            "value": 0.9003656506538391,
+            "unit": "s",
+            "range": 0.08858732879161835
+          },
+          {
+            "name": "lanczos_N4_CPU - RUNTIME",
+            "value": 1.3448426723480225,
+            "unit": "s",
+            "range": 0.23494933545589447
+          },
+          {
+            "name": "hierachical_svd_rank_N4_CPU - RUNTIME",
+            "value": 0.22514355182647705,
+            "unit": "s",
+            "range": 0.04492234066128731
+          },
+          {
+            "name": "hierachical_svd_tol_N4_CPU - RUNTIME",
+            "value": 0.2985776364803314,
+            "unit": "s",
+            "range": 0.050489094108343124
+          },
+          {
+            "name": "kmeans_N4_CPU - RUNTIME",
+            "value": 2.240947723388672,
+            "unit": "s",
+            "range": 0.4165076017379761
+          },
+          {
+            "name": "kmedians_N4_CPU - RUNTIME",
+            "value": 2.7538278102874756,
+            "unit": "s",
+            "range": 0.6397191286087036
+          },
+          {
+            "name": "kmedoids_N4_CPU - RUNTIME",
+            "value": 2.7959446907043457,
+            "unit": "s",
+            "range": 0.6481031179428101
+          },
+          {
+            "name": "reshape_N4_CPU - RUNTIME",
+            "value": 0.8266572952270508,
+            "unit": "s",
+            "range": 0.1341383159160614
+          },
+          {
+            "name": "concatenate_N4_CPU - RUNTIME",
+            "value": 0.8618530035018921,
+            "unit": "s",
+            "range": 0.2777180075645447
+          },
+          {
+            "name": "apply_inplace_standard_scaler_and_inverse_N4_CPU - RUNTIME",
+            "value": 0.03618047386407852,
+            "unit": "s",
+            "range": 0.01615501195192337
+          },
+          {
+            "name": "apply_inplace_min_max_scaler_and_inverse_N4_CPU - RUNTIME",
+            "value": 0.004545307252556086,
+            "unit": "s",
+            "range": 0.0020383894443511963
+          },
+          {
+            "name": "apply_inplace_max_abs_scaler_and_inverse_N4_CPU - RUNTIME",
+            "value": 0.0023757696617394686,
+            "unit": "s",
+            "range": 0.0011490141041576862
+          },
+          {
+            "name": "apply_inplace_robust_scaler_and_inverse_N4_CPU - RUNTIME",
+            "value": 12.10645580291748,
+            "unit": "s",
+            "range": 1.7748173475265503
+          },
+          {
+            "name": "apply_inplace_normalizer_N4_CPU - RUNTIME",
+            "value": 0.0067441463470458984,
+            "unit": "s",
+            "range": 0.0027133815456181765
           }
         ]
       }
