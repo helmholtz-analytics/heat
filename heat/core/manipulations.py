@@ -4183,7 +4183,7 @@ MPI_TOPK = MPI.Op.Create(mpi_topk, commute=True)
 
 def unfold(a: DNDarray, axis: int, size: int, step: int = 1):
     """
-    Returns a DNDarray which contains all slices of size size in the axis axis.
+    Returns a DNDarray which contains all slices of size `size` in the axis `axis`.
 
     Behaves like torch.Tensor.unfold for DNDarrays. [torch.Tensor.unfold](https://pytorch.org/docs/stable/generated/torch.Tensor.unfold.html)
 
@@ -4197,6 +4197,24 @@ def unfold(a: DNDarray, axis: int, size: int, step: int = 1):
         the size of each slice that is unfolded
     step : int
         the step between each slice
+
+    Example:
+    ```
+    >>> x = ht.arange(1., 8)
+    >>> x
+    DNDarray([1., 2., 3., 4., 5., 6., 7.], dtype=ht.float32, device=cpu:0, split=e)
+    >>> ht.unfold(x, 0, 2, 1)
+    DNDarray([[1., 2.],
+              [2., 3.],
+              [3., 4.],
+              [4., 5.],
+              [5., 6.],
+              [6., 7.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> ht.unfold(x, 0, 2, 2)
+    DNDarray([[1., 2.],
+              [3., 4.],
+              [5., 6.]], dtype=ht.float32, device=cpu:0, split=None)
+    ```
 
     Note
     ---------
