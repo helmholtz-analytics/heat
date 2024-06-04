@@ -1476,40 +1476,64 @@ class MPICommunication(Communication):
         """
         # Unpack sendbuffer information
         sendbuf, (send_counts, send_displs), subarray_params_list = sendbuf
+        sendbuf, _, send_datatype = self.as_buffer(sendbuf)
 
-        datatype = self.mpi_type_of(sendbuf.dtype)
         source_subarray_types = []
 
+        print(send_counts)
         # Commit the source subarray datatypes
-        for subarray_params in subarray_params_list:
+        for idx, subarray_params in enumerate(subarray_params_list):
             lshape, subsizes, substarts = subarray_params
 
-            subarray_type = datatype.Create_subarray(
-                lshape, subsizes, substarts, order=MPI.ORDER_C
-            ).Commit()
-            source_subarray_types.append(subarray_type)
+            if np.all(np.array(subsizes) > 0):
+                print("Accepted: ", subsizes)
+                subarray_type = send_datatype.Create_subarray(
+                    lshape, subsizes, substarts, order=MPI.ORDER_C
+                ).Commit()
+                source_subarray_types.append(subarray_type)
+            else:
+                print("Denied: ", subsizes)
+                send_counts[idx] = 0
+                source_subarray_types.append(MPI.INT)
 
         # Unpack recvbuf information
         recvbuf, (recv_counts, recv_displs), subarray_params_list = recvbuf
+        recvbuf, _, recv_datatype = self.as_buffer(recvbuf)
+        print(recv_counts)
 
         # Commit the receive subarray datatypes
         target_subarray_types = []
-        for subarray_params in subarray_params_list:
+        for idx, subarray_params in enumerate(subarray_params_list):
             lshape, subsizes, substarts = subarray_params
-            target_subarray_types.append(
-                datatype.Create_subarray(lshape, subsizes, substarts, order=MPI.ORDER_C).Commit()
-            )
 
+            if np.all(np.array(subsizes) > 0):
+                print("Accepted: ", subsizes)
+                target_subarray_types.append(
+                    recv_datatype.Create_subarray(
+                        lshape, subsizes, substarts, order=MPI.ORDER_C
+                    ).Commit()
+                )
+            else:
+                print("Denied: ", subsizes)
+                recv_counts[idx] = 0
+                target_subarray_types.append(MPI.INT)
+
+        print("Sendbuf: ", sendbuf, send_counts, send_displs, source_subarray_types)
+        print("Recvbuf: ", recvbuf, recv_counts, recv_displs, target_subarray_types)
         # Perform the Alltoallw operation
+        print("Sending!")
         self.handle.Alltoallw(
-            (sendbuf, (send_counts, send_displs), source_subarray_types),
-            (recvbuf, (recv_counts, recv_displs), target_subarray_types),
+            [sendbuf, (send_counts, send_displs), source_subarray_types],
+            [recvbuf, (recv_counts, recv_displs), target_subarray_types],
         )
+        print("Got here!")
 
         # Free the subarray datatypes
         for p in range(len(source_subarray_types)):
-            source_subarray_types[p].Free()
-            target_subarray_types[p].Free()
+            if source_subarray_types[p] != MPI.INT:
+                source_subarray_types[p].Free()
+            if target_subarray_types[p] != MPI.INT:
+                target_subarray_types[p].Free()
 
     Alltoallw.__doc__ = MPI.Comm.Alltoallw.__doc__
 

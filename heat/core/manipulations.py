@@ -10,7 +10,7 @@ import warnings
 
 from typing import Iterable, Type, List, Callable, Union, Tuple, Sequence, Optional
 
-from .communication import MPI
+from .communication import MPI, Communication
 from .dndarray import DNDarray
 
 from . import arithmetics
@@ -3538,25 +3538,13 @@ def resplit(arr: DNDarray, axis: int = None) -> DNDarray:
         )
         return new_arr
 
-    arr_tiles = tiling.SplitTiles(arr)
-
-    # Create subarray types for original local shapes split along the new axis
-    source_subarrays_params = arr_tiles.get_subarray_params(axis)
-
     new_arr = factories.empty(arr.gshape, split=axis, dtype=arr.dtype, device=arr.device)
+
+    arr_tiles = tiling.SplitTiles(arr)
     new_tiles = tiling.SplitTiles(new_arr)
 
-    # Create subarray types for resplit local array along the old axis
-    target_subarray_params = new_tiles.get_subarray_params(arr.split)
-
-    world_size = arr.comm.Get_size()
-    counts = [1] * world_size
-    displs = [0] * world_size
-
-    # Perform the data exchange using MPI_Alltoallw
-    arr.comm.Alltoallw(
-        (arr.larray, (counts, displs), source_subarrays_params),
-        (new_arr.larray, (counts, displs), target_subarray_params),
+    new_arr.larray = _axis2axisResplit(
+        arr.comm, arr.split, arr.larray, arr_tiles, axis, new_arr.larray, new_tiles
     )
 
     return new_arr
@@ -3566,6 +3554,70 @@ DNDarray.resplit: Callable[[DNDarray, Optional[int]], DNDarray] = lambda self, a
     self, axis
 )
 DNDarray.resplit.__doc__ = resplit.__doc__
+
+
+def _axis2axisResplit(
+    comm: Communication,
+    source_axis: int,
+    source_array: torch.Tensor,
+    source_tiles: tiling.SplitTiles,
+    target_axis: int,
+    target_array: torch.Tensor,
+    target_tiles: tiling.SplitTiles,
+) -> torch.Tensor:
+    """
+    Resplits the input array along a new axis and performs data exchange using MPI_Alltoallw.
+
+    Parameters
+    ----------
+    comm : Communication
+        The communication object for MPI communication.
+    source_axis : int
+        The axis along which the source array is split.
+    source_array : torch.Tensor
+        The source array to be resplit.
+    source_tiles : tiling.SplitTiles
+        The tiling object containing the subarray parameters for the source array.
+    target_axis : int
+        The axis along which the target array is split.
+    target_array : torch.Tensor
+        The target array to store the resplit data.
+    target_tiles : tiling.SplitTiles
+        The tiling object containing the subarray parameters for the target array.
+
+    Returns
+    -------
+    torch.Tensor
+        The resplit target array.
+    """
+    # Create subarray types for original local shapes split along the new axis
+    source_subarray_params = source_tiles.get_subarray_params(source_axis, target_axis)
+    print("Source: ", source_subarray_params)
+
+    # Create subarray types for resplit local array along the old axis
+    target_subarray_params = target_tiles.get_subarray_params(target_axis, source_axis)
+    print("Target: ", target_subarray_params)
+
+    world_size = comm.Get_size()
+    counts = [1] * world_size
+    displs = [0] * world_size
+    print("Original array split: ", source_axis)
+    print("Original array: ", source_array)
+
+    # Perform the data exchange using MPI_Alltoallw
+    comm.Alltoallw(
+        (source_array, (counts.copy(), displs.copy()), source_subarray_params),
+        (target_array, (counts.copy(), displs.copy()), target_subarray_params),
+    )
+    print("New array split: ", target_axis)
+    print("New array: ", target_array)
+    return target_array
+
+
+DNDarray._axis2axisResplit = lambda self, comm, source_axis, source_array, source_tiles, target_axis, target_array, target_tile: _axis2axisResplit(
+    comm, source_axis, source_array, source_tiles, target_axis, target_array, target_tile
+)
+DNDarray._axis2axisResplit.__doc__ = _axis2axisResplit.__doc__
 
 
 def row_stack(arrays: Sequence[DNDarray, ...]) -> DNDarray:

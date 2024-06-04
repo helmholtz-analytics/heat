@@ -328,13 +328,17 @@ class SplitTiles:
         arr = self.__getitem__(key)
         arr.__setitem__(slice(0, None), value)
 
-    def get_subarray_params(self, split_axis: int) -> List[Tuple[List[int], List[int], List[int]]]:
+    def get_subarray_params(
+        self, from_axis: int, to_axis: int
+    ) -> List[Tuple[List[int], List[int], List[int]]]:
         """Create subarray types of the local array along a new split axis. For use with alltoallw.
 
         Parameters
         ----------
-        split_axis : int
-            Split axis of subarrays.
+        from_axis : int
+            Current split axis of global array.
+        to_axis : int
+            New split axis of of subarrays array.
 
         Returns
         -------
@@ -343,22 +347,25 @@ class SplitTiles:
         """
         arr = self.__DNDarray
         world_size = arr.comm.Get_size()
+        gshape = arr.gshape
+        from_shape = list(gshape)
+        from_shape[from_axis] = int(self.tile_dimensions[from_axis][arr.comm.rank].item())
 
-        subsizes = list(arr.lshape)
-        substarts = [0] * len(arr.lshape)
+        subsizes = from_shape
+        substarts = [0] * len(from_shape)
 
-        tile_dimensions = self.tile_dimensions[split_axis].to(torch.int32).tolist()
-        tile_starts = [0] + self.tile_ends_g[split_axis][:-1].to(torch.int32).tolist()
+        tile_dimensions = self.tile_dimensions[to_axis].to(torch.int32).tolist()
+        tile_starts = [0] + self.tile_ends_g[to_axis][:-1].to(torch.int32).tolist()
 
         subarray_param_list = []
-        lshape = list(arr.lshape)
+        lshape = from_shape.copy()
         for i in range(world_size):
             chunk_size = tile_dimensions[i]
             chunk_start = tile_starts[i]
 
-            subsizes[split_axis] = chunk_size
-            substarts[split_axis] = chunk_start
-            subarray_param_list.append((lshape, subsizes, substarts))
+            subsizes[to_axis] = chunk_size
+            substarts[to_axis] = chunk_start
+            subarray_param_list.append((lshape, subsizes.copy(), substarts.copy()))
 
         return subarray_param_list
 
