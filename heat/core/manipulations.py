@@ -4231,14 +4231,12 @@ def unfold(a: DNDarray, axis: int, size: int, step: int = 1):
         if (size - 1 > a.lshape_map[:, axis]).any():
             raise RuntimeError("Chunk-size needs to be at least size - 1.")
         a.get_halo(size - 1)
-        a_lshapes_cum = torch.hstack(
-            [
-                torch.zeros(1, dtype=torch.int32, device=tdev),
-                torch.cumsum(a.lshape_map[:, axis], 0),
-            ]
-        )
+
+        counts, displs = a.counts_displs()
+        displs = torch.tensor(displs, device=tdev)
+
         # min local index in unfold axis
-        min_index = ((a_lshapes_cum[comm.rank] - 1) // step + 1) * step - a_lshapes_cum[comm.rank]
+        min_index = ((displs[comm.rank] - 1) // step + 1) * step - displs[comm.rank]
         loc_unfold_shape = list(a.lshape)
         loc_unfold_shape[axis] -= min_index
         if loc_unfold_shape[axis] >= size:  # some unfold arrays are unfolds of the local array
