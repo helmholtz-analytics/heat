@@ -4224,9 +4224,8 @@ def unfold(a: DNDarray, axis: int, size: int, step: int = 1):
         raise ValueError("step must be >= 1.")
     if size < 1:
         raise ValueError("size must be >= 1.")
-    if axis < 0 or axis >= a.ndim:
-        raise ValueError(f"{axis} is not a valid axis of the given DNDarray.")
-    if size > a.shape[axis]:  # size too large, runtime error or value error?
+    axis = stride_tricks.sanitize_axis(a.shape, axis)
+    if size > a.shape[axis]:
         raise ValueError(
             f"maximum size for DNDarray at axis {axis} is {a.shape[axis]} but size is {size}."
         )

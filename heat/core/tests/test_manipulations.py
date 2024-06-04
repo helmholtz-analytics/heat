@@ -3760,8 +3760,6 @@ class TestManipulations(TestCase):
             n = 1000
             x = ht.arange(n, dtype=dtype)
             with self.assertRaises(ValueError):
-                ht.unfold(x, -1, 1, 1)
-            with self.assertRaises(ValueError):
                 ht.unfold(x, 0, 0, 1)
             with self.assertRaises(ValueError):
                 ht.unfold(x, 0, 1, 0)
