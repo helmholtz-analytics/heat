@@ -4181,9 +4181,9 @@ def mpi_topk(a, b, mpi_type):
 MPI_TOPK = MPI.Op.Create(mpi_topk, commute=True)
 
 
-def unfold(a: DNDarray, dimension: int, size: int, step: int = 1):
+def unfold(a: DNDarray, axis: int, size: int, step: int = 1):
     """
-    Returns a DNDarray which contains all slices of size size in the dimension dimension.
+    Returns a DNDarray which contains all slices of size size in the axis axis.
 
     Behaves like torch.Tensor.unfold for DNDarrays. [torch.Tensor.unfold](https://pytorch.org/docs/stable/generated/torch.Tensor.unfold.html)
 
@@ -4191,8 +4191,8 @@ def unfold(a: DNDarray, dimension: int, size: int, step: int = 1):
     ----------
     a : DNDarray
         array to unfold
-    dimension : int
-        dimension in which unfolding happens
+    axis : int
+        axis in which unfolding happens
     size : int
         the size of each slice that is unfolded
     step : int
@@ -4200,76 +4200,75 @@ def unfold(a: DNDarray, dimension: int, size: int, step: int = 1):
 
     Note
     ---------
-    You have to make sure that every node has at least chunk size size-1 if the split dimension of the array is the unfold dimension.
+    You have to make sure that every node has at least chunk size size-1 if the split axis of the array is the unfold axis.
     """
     if step < 1:
         raise ValueError("step must be >= 1.")
     if size < 1:
         raise ValueError("size must be >= 1.")
-    if dimension < 0 or dimension >= a.ndim:
-        raise ValueError(f"{dimension} is not a valid dimension of the given DNDarray.")
-    if size > a.shape[dimension]:  # size too large, runtime error or value error?
+    if axis < 0 or axis >= a.ndim:
+        raise ValueError(f"{axis} is not a valid axis of the given DNDarray.")
+    if size > a.shape[axis]:  # size too large, runtime error or value error?
         raise ValueError(
-            f"maximum size for DNDarray at dimension {dimension} is {a.shape[dimension]} but size is {size}."
+            f"maximum size for DNDarray at axis {axis} is {a.shape[axis]} but size is {size}."
         )
 
     comm = a.comm
     dev = a.device
     tdev = dev.torch_device
 
-    if a.split is None or comm.size == 1 or a.split != dimension:  # early out
+    if a.split is None or comm.size == 1 or a.split != axis:  # early out
         ret = factories.array(
-            a.larray.unfold(dimension, size, step), is_split=a.split, device=dev, comm=comm
+            a.larray.unfold(axis, size, step), is_split=a.split, device=dev, comm=comm
         )
 
         return ret
     else:  # comm.size > 1 and split axis == unfold axis
         # index range [0:sizedim-1-(size-1)] = [0:sizedim-size]
         # --> size of axis: ceil((sizedim-size+1) / step) = floor(sizedim-size) / step)) + 1
-        # ret_shape = (*a_shape[:dimension], int((a_shape[dimension]-size)/step) + 1, a_shape[dimension+1:], size)
+        # ret_shape = (*a_shape[:axis], int((a_shape[axis]-size)/step) + 1, a_shape[axis+1:], size)
 
-        if (size - 1 > a.lshape_map[:, dimension]).any():
+        if (size - 1 > a.lshape_map[:, axis]).any():
             raise RuntimeError("Chunk-size needs to be at least size - 1.")
         a.get_halo(size - 1)
         a_lshapes_cum = torch.hstack(
             [
                 torch.zeros(1, dtype=torch.int32, device=tdev),
-                torch.cumsum(a.lshape_map[:, dimension], 0),
+                torch.cumsum(a.lshape_map[:, axis], 0),
             ]
         )
-        # min local index in unfold dimension
+        # min local index in unfold axis
         min_index = ((a_lshapes_cum[comm.rank] - 1) // step + 1) * step - a_lshapes_cum[comm.rank]
         loc_unfold_shape = list(a.lshape)
-        loc_unfold_shape[dimension] -= min_index
-        if loc_unfold_shape[dimension] >= size:  # some unfold arrays are unfolds of the local array
+        loc_unfold_shape[axis] -= min_index
+        if loc_unfold_shape[axis] >= size:  # some unfold arrays are unfolds of the local array
             unfold_loc = a.larray[
-                dimension * (slice(None, None, None),) + (slice(min_index, None, None), Ellipsis)
-            ].unfold(dimension, size, step)
+                axis * (slice(None, None, None),) + (slice(min_index, None, None), Ellipsis)
+            ].unfold(axis, size, step)
         else:
-            loc_unfold_shape[dimension] = 0
+            loc_unfold_shape[axis] = 0
             unfold_loc = torch.zeros((*loc_unfold_shape, size), device=tdev)
         ret_larray = unfold_loc
         if (
-            comm.rank < comm.size - 1 and min_index < a.lshape[dimension]
+            comm.rank < comm.size - 1 and min_index < a.lshape[axis]
         ):  # possibly unfold with halo from next rank
-            max_index = a.lshape[dimension] - min_index - 1
-            max_index = max_index // step * step + min_index  # max local index in unfold dimension
-            rem = max_index + size - a.lshape[dimension]
+            max_index = a.lshape[axis] - min_index - 1
+            max_index = max_index // step * step + min_index  # max local index in unfold axis
+            rem = max_index + size - a.lshape[axis]
             if rem > 0:  # need data from halo
                 unfold_halo = torch.cat(
                     (
                         a.larray[
-                            dimension * (slice(None, None, None),)
+                            axis * (slice(None, None, None),)
                             + (slice(max_index, None, None), Ellipsis)
                         ],
                         a.halo_next[
-                            dimension * (slice(None, None, None),)
-                            + (slice(None, rem, None), Ellipsis)
+                            axis * (slice(None, None, None),) + (slice(None, rem, None), Ellipsis)
                         ],
                     ),
-                    dimension,
-                ).unfold(dimension, size, step)
-                ret_larray = torch.cat((unfold_loc, unfold_halo), dimension)
-        ret = factories.array(ret_larray, is_split=dimension, device=dev, comm=comm)
+                    axis,
+                ).unfold(axis, size, step)
+                ret_larray = torch.cat((unfold_loc, unfold_halo), axis)
+        ret = factories.array(ret_larray, is_split=axis, device=dev, comm=comm)
 
         return ret
