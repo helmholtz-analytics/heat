@@ -4247,43 +4247,24 @@ def unfold(a: DNDarray, axis: int, size: int, step: int = 1):
 
         if (size - 1 > a.lshape_map[:, axis]).any():
             raise RuntimeError("Chunk-size needs to be at least size - 1.")
-        a.get_halo(size - 1)
+        a.get_halo(size - 1, prev=False)
 
         counts, displs = a.counts_displs()
         displs = torch.tensor(displs, device=tdev)
 
         # min local index in unfold axis
         min_index = ((displs[comm.rank] - 1) // step + 1) * step - displs[comm.rank]
-        loc_unfold_shape = list(a.lshape)
-        loc_unfold_shape[axis] -= min_index
-        if loc_unfold_shape[axis] >= size:  # some unfold arrays are unfolds of the local array
-            unfold_loc = a.larray[
+        if min_index >= a.lshape[axis] or (
+            comm.rank == comm.size - 1 and min_index + size >= a.lshape[axis]
+        ):
+            loc_unfold_shape = list(a.lshape)
+            loc_unfold_shape[axis] = 0
+            ret_larray = torch.zeros((*loc_unfold_shape, size), device=tdev)
+        else:  # unfold has local data
+            ret_larray = a.array_with_halos[
                 axis * (slice(None, None, None),) + (slice(min_index, None, None), Ellipsis)
             ].unfold(axis, size, step)
-        else:
-            loc_unfold_shape[axis] = 0
-            unfold_loc = torch.zeros((*loc_unfold_shape, size), device=tdev)
-        ret_larray = unfold_loc
-        if (
-            comm.rank < comm.size - 1 and min_index < a.lshape[axis]
-        ):  # possibly unfold with halo from next rank
-            max_index = a.lshape[axis] - min_index - 1
-            max_index = max_index // step * step + min_index  # max local index in unfold axis
-            rem = max_index + size - a.lshape[axis]
-            if rem > 0:  # need data from halo
-                unfold_halo = torch.cat(
-                    (
-                        a.larray[
-                            axis * (slice(None, None, None),)
-                            + (slice(max_index, None, None), Ellipsis)
-                        ],
-                        a.halo_next[
-                            axis * (slice(None, None, None),) + (slice(None, rem, None), Ellipsis)
-                        ],
-                    ),
-                    axis,
-                ).unfold(axis, size, step)
-                ret_larray = torch.cat((unfold_loc, unfold_halo), axis)
+
         ret = factories.array(ret_larray, is_split=axis, device=dev, comm=comm)
 
         return ret
