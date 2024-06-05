@@ -3605,6 +3605,11 @@ def _axis2axisResplit(
         (source_array, (counts.copy(), displs.copy()), source_subarray_params),
         (target_array, (counts.copy(), displs.copy()), target_subarray_params),
     )
+
+    # If the source array was conjugated, the target array must be conjugated as well, this is because torch manages conj as a view
+    if source_array.is_conj():
+        target_array.conj_physical_()
+
     # print(f"Source axis: {source_axis}, Source array: {source_array}")
     # print(f"Target axis: {target_axis}, Target array: {target_array}")
     return target_array
