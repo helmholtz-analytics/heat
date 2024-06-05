@@ -1476,30 +1476,49 @@ class MPICommunication(Communication):
         """
         # Unpack sendbuffer information
         sendbuf, (send_counts, send_displs), subarray_params_list = sendbuf
-        sendbuf, _, send_datatype = self.as_buffer(sendbuf)
+
+        is_contiguous = sendbuf.is_contiguous()
+        print("Is contiguous: ", is_contiguous)
+        stride = sendbuf.stride()
+
+        send_datatype = self.mpi_type_of(sendbuf.dtype)
+        sendbuf = self.as_mpi_memory(sendbuf)
 
         source_subarray_types = []
 
-        print(send_counts)
-        # Commit the source subarray datatypes
-        for idx, subarray_params in enumerate(subarray_params_list):
-            lshape, subsizes, substarts = subarray_params
+        if is_contiguous:
+            # Commit the source subarray datatypes
+            for idx, subarray_params in enumerate(subarray_params_list):
+                lshape, subsizes, substarts = subarray_params
 
-            if np.all(np.array(subsizes) > 0):
-                print("Accepted: ", subsizes)
-                subarray_type = send_datatype.Create_subarray(
-                    lshape, subsizes, substarts, order=MPI.ORDER_C
-                ).Commit()
-                source_subarray_types.append(subarray_type)
-            else:
-                print("Denied: ", subsizes)
-                send_counts[idx] = 0
-                source_subarray_types.append(MPI.INT)
+                if np.all(np.array(subsizes) > 0):
+
+                    subarray_type = send_datatype.Create_subarray(
+                        lshape, subsizes, substarts, order=MPI.ORDER_C
+                    ).Commit()
+                    source_subarray_types.append(subarray_type)
+                else:
+                    send_counts[idx] = 0
+                    source_subarray_types.append(MPI.INT)
+
+        else:
+            # Create recursive vector datatype
+            for idx, subarray_params in enumerate(subarray_params_list):
+                lshape, subsizes, substarts = subarray_params
+                if np.all(np.array(subsizes) > 0):
+                    source_subarray_types.append(
+                        self._create_recursive_vectortype(
+                            send_datatype, stride, subsizes, substarts
+                        )
+                    )
+                    send_counts[idx] = subsizes[0]
+                else:
+                    send_counts[idx] = 0
+                    source_subarray_types.append(MPI.INT)
 
         # Unpack recvbuf information
         recvbuf, (recv_counts, recv_displs), subarray_params_list = recvbuf
         recvbuf, _, recv_datatype = self.as_buffer(recvbuf)
-        print(recv_counts)
 
         # Commit the receive subarray datatypes
         target_subarray_types = []
@@ -1507,26 +1526,21 @@ class MPICommunication(Communication):
             lshape, subsizes, substarts = subarray_params
 
             if np.all(np.array(subsizes) > 0):
-                print("Accepted: ", subsizes)
                 target_subarray_types.append(
                     recv_datatype.Create_subarray(
                         lshape, subsizes, substarts, order=MPI.ORDER_C
                     ).Commit()
                 )
             else:
-                print("Denied: ", subsizes)
                 recv_counts[idx] = 0
                 target_subarray_types.append(MPI.INT)
 
-        print("Sendbuf: ", sendbuf, send_counts, send_displs, source_subarray_types)
-        print("Recvbuf: ", recvbuf, recv_counts, recv_displs, target_subarray_types)
         # Perform the Alltoallw operation
-        print("Sending!")
+        print("Sendbuf: ", stride, (send_counts, send_displs), source_subarray_types)
         self.handle.Alltoallw(
             [sendbuf, (send_counts, send_displs), source_subarray_types],
             [recvbuf, (recv_counts, recv_displs), target_subarray_types],
         )
-        print("Got here!")
 
         # Free the subarray datatypes
         for p in range(len(source_subarray_types)):
@@ -1536,6 +1550,84 @@ class MPICommunication(Communication):
                 target_subarray_types[p].Free()
 
     Alltoallw.__doc__ = MPI.Comm.Alltoallw.__doc__
+
+    def _create_recursive_vectortype(
+        self, datatype: MPI.Datatype, tensor_stride, subarray_sizes, start
+    ):
+        """
+        Create a recursive vector to handle non-contiguous tensor data. The created datatype will be a recursively defined vector datatype that will enable the collection of  non-contiguous tensor data in the specified subarray sizes.
+
+        Parameters
+        ----------
+        datatype : MPI.Datatype
+            The base datatype to create the recursive vector datatype from.
+        tensor_stride : list
+            A list of tensor strides for each dimension.
+        subarray_sizes : list
+            A list of subarray sizes for each dimension.
+        start: list
+            Index of the first element of the subarray in the original array.
+
+        Returns
+        -------
+        MPI.Datatype
+            The created recursive vector datatype.
+
+        Notes
+        -----
+        This function creates a recursive vector datatype by defining vectors out of the previous datatype with specified strides and sizes. The extent of the new datatype is set to the extent of the basic datatype to allow interweaving of data.
+
+        Examples
+        --------
+        >>> datatype = MPI.INT
+        >>> tensor_stride = [1, 2, 3]
+        >>> subarray_sizes = [4, 5, 6]
+        >>> recursive_vectortype = create_recursive_vectortype(datatype, tensor_stride, subarray_sizes)
+        """
+        datatype_history = []
+        current_datatype = datatype
+
+        i = len(tensor_stride) - 1
+        while i > 0:
+            current_stride = tensor_stride[i]
+            current_size = subarray_sizes[i]
+            # Define vector out of previous datatype with stride equals to current stride
+            if i == len(tensor_stride) - 1 and current_stride == 1:
+                i -= 1
+                # Define vector out of previous datatype with stride equals to current stride
+                current_stride = tensor_stride[i]
+                next_size = subarray_sizes[i]
+                new_vector_datatype = current_datatype.Create_vector(
+                    next_size, current_size, current_stride
+                ).Commit()
+
+            else:
+                if i == len(tensor_stride) - 1:
+                    new_vector_datatype = current_datatype.Create_vector(
+                        current_size, 1, current_stride
+                    ).Commit()
+                else:
+                    new_vector_datatype = current_datatype.Create_vector(
+                        current_size, 1, 1
+                    ).Commit()
+
+            datatype_history.append(new_vector_datatype)
+            # Set extent of the new datatype to the extent of the basic datatype to allow interweaving of data
+            next_stride = tensor_stride[i - 1]
+            new_resized_vector_datatype = new_vector_datatype.Create_resized(
+                0, datatype.Get_extent()[1] * next_stride
+            ).Commit()
+            datatype_history.append(new_resized_vector_datatype)
+            current_datatype = new_resized_vector_datatype
+
+            i -= 1
+
+        displacement = sum([x * y for x, y in zip(tensor_stride, start)]) * datatype.Get_extent()[1]
+        current_datatype = current_datatype.Create_hindexed_block(1, [displacement]).Commit()
+
+        for dt in datatype_history[:-1]:
+            dt.Free()
+        return current_datatype
 
     def Ialltoall(
         self,

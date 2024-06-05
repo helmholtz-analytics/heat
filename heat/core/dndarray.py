@@ -1476,10 +1476,7 @@ class DNDarray:
 
         gshape = self.shape
         new_lshape = list(gshape)
-        print("Global shape: ", gshape)
-        print("Local shape: ", self.lshape)
         new_lshape[axis] = int(arr_tiles.tile_dimensions[axis][self.comm.rank].item())
-        print("New local shape: ", new_lshape)
 
         recv_buffer = torch.empty(
             tuple(new_lshape), dtype=self.dtype.torch_type(), device=self.device.torch_device
@@ -1492,8 +1489,6 @@ class DNDarray:
         self.__array = recv_buffer
         self.__split = axis
         self.__lshape_map = None
-        print("New array split: ", self.split)
-        print("New array: ", self.larray)
 
         return self
 

@@ -3592,25 +3592,21 @@ def _axis2axisResplit(
     """
     # Create subarray types for original local shapes split along the new axis
     source_subarray_params = source_tiles.get_subarray_params(source_axis, target_axis)
-    print("Source: ", source_subarray_params)
 
     # Create subarray types for resplit local array along the old axis
     target_subarray_params = target_tiles.get_subarray_params(target_axis, source_axis)
-    print("Target: ", target_subarray_params)
 
     world_size = comm.Get_size()
     counts = [1] * world_size
     displs = [0] * world_size
-    print("Original array split: ", source_axis)
-    print("Original array: ", source_array)
 
     # Perform the data exchange using MPI_Alltoallw
     comm.Alltoallw(
         (source_array, (counts.copy(), displs.copy()), source_subarray_params),
         (target_array, (counts.copy(), displs.copy()), target_subarray_params),
     )
-    print("New array split: ", target_axis)
-    print("New array: ", target_array)
+    # print(f"Source axis: {source_axis}, Source array: {source_array}")
+    # print(f"Target axis: {target_axis}, Target array: {target_array}")
     return target_array
 
 
