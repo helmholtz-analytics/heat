@@ -1454,7 +1454,9 @@ def percentile(
         raise TypeError("Percentile is not supported for complex data types.")
 
     # sanitize q, keep track of size of percentile dim
-    if not np.isscalar(q):
+    if np.isscalar(q):
+        q = torch.tensor(q, device=x.device.torch_device)
+    else:
         try:
             q = torch.tensor(q, device=x.device.torch_device)
         except (TypeError, IndexError):
@@ -1464,23 +1466,23 @@ def percentile(
                 q = q.larray
             else:
                 raise TypeError(f"q can be scalar, list, tuple, or DNDarray, was {type(q)}")
-        perc_size = tuple(q.shape)
-    else:
-        perc_size = ()
+    perc_size = tuple(q.shape)
 
     # sanitize axis
     axis = stride_tricks.sanitize_axis(x.shape, axis)
+    original_axis = axis
 
-    # sanitize output buffer: calculate output_shape and output_split
+    # sanitize output buffer: calculate output_shape, output_split, and output_dtype
     if axis is not None:
         # calculate output_shape
-        if not isinstance(axis, tuple):
+        if isinstance(axis, int):
             axis = (axis,)
+        # axis is tuple: multiple axes
         if keepdims:
-            output_shape = tuple(x.shape[ax] if ax != axis else 1 for ax in range(x.ndim))
+            output_shape = tuple(x.shape[ax] if ax not in axis else 1 for ax in range(x.ndim))
         else:
             # loop over non-reduced axes
-            output_shape = tuple(x.shape[ax] for ax in range(x.ndim) if ax not in tuple(axis))
+            output_shape = tuple(x.shape[ax] for ax in range(x.ndim) if ax not in axis)
         # calculate output_split
         if x.split is not None:
             split_bookkeeping = [None] * x.ndim
@@ -1494,6 +1496,7 @@ def percentile(
         else:
             output_split = None
     else:
+        # axis is None
         if keepdims:
             output_shape = (1,) * x.ndim
         else:
@@ -1501,11 +1504,15 @@ def percentile(
         output_split = None
     if len(perc_size) > 0:
         output_shape = perc_size + output_shape
+    # output data type must be float
+    output_dtype = types.float32 if x.larray.element_size() == 4 else types.float64
     if out is not None:
         sanitation.sanitize_out(out, output_shape, output_split, x.device, x.comm)
+        if output_dtype != out.dtype:
+            raise TypeError(f"Expected output buffer of dtype {output_dtype}, got {out.dtype}.")
 
     # prepare data to index/calculate percentiles along first dimension
-    original_axis = axis
+    axis = original_axis
     original_dims = x.ndim
     if axis is None:
         # percentile along flattened data
@@ -1535,9 +1542,6 @@ def percentile(
         axis = 0
         if keepdims:
             x = manipulations.expand_dims(x, axis=original_axis + 1)
-
-    # output data type must be float
-    output_dtype = types.float32 if x.larray.element_size() == 4 else types.float64
 
     # compute indices
     length = x.shape[axis]
