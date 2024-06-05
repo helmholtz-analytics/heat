@@ -35,7 +35,7 @@ setup(
     install_requires=[
         "mpi4py>=3.0.0",
         "numpy>=1.22.0",
-        "torch>=1.11.0, <2.2.3",
+        "torch>=1.12.0, <2.3.1",
         "scipy>=1.10.0",
         "pillow>=6.0.0",
         "torchvision>=0.12.0",
