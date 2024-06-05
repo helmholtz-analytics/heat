@@ -1455,20 +1455,54 @@ def percentile(
 
     # sanitize q, keep track of size of percentile dim
     if not np.isscalar(q):
-        if isinstance(q, DNDarray):
-            # q must be local for now. TODO: support distributed q after indexing update
-            q.resplit_(axis=None)
-            q = q.larray
-        elif isinstance(q, (list, tuple)):
+        try:
             q = torch.tensor(q, device=x.device.torch_device)
-        else:
-            raise TypeError(f"q can be scalar, list, tuple, or DNDarray, was {type(q)}")
+        except (TypeError, IndexError):
+            if isinstance(q, DNDarray):
+                # q must be local for now. TODO: support distributed q after indexing update
+                q.resplit_(axis=None)
+                q = q.larray
+            else:
+                raise TypeError(f"q can be scalar, list, tuple, or DNDarray, was {type(q)}")
+        perc_size = tuple(q.shape)
     else:
-        q = torch.tensor(q, device=x.device.torch_device)
-    # perc_size = tuple(q.shape)
+        perc_size = ()
 
     # sanitize axis
     axis = stride_tricks.sanitize_axis(x.shape, axis)
+
+    # sanitize output buffer: calculate output_shape and output_split
+    if axis is not None:
+        # calculate output_shape
+        if not isinstance(axis, tuple):
+            axis = (axis,)
+        if keepdims:
+            output_shape = tuple(x.shape[ax] if ax != axis else 1 for ax in range(x.ndim))
+        else:
+            # loop over non-reduced axes
+            output_shape = tuple(x.shape[ax] for ax in range(x.ndim) if ax not in tuple(axis))
+        # calculate output_split
+        if x.split is not None:
+            split_bookkeeping = [None] * x.ndim
+            split_bookkeeping[x.split] = "split"
+            split_bookkeeping = [
+                split_bookkeeping[ax] for ax in range(x.ndim) if ax not in tuple(axis)
+            ]
+            output_split = (
+                split_bookkeeping.index("split") if "split" in split_bookkeeping else None
+            )
+        else:
+            output_split = None
+    else:
+        if keepdims:
+            output_shape = (1,) * x.ndim
+        else:
+            output_shape = ()
+        output_split = None
+    if len(perc_size) > 0:
+        output_shape = perc_size + output_shape
+    if out is not None:
+        sanitation.sanitize_out(out, output_shape, output_split, x.device, x.comm)
 
     # prepare data to index/calculate percentiles along first dimension
     original_axis = axis
@@ -1528,6 +1562,8 @@ def percentile(
     sorted_x, _ = manipulations.sort(x, axis=axis)
     del _
     sorted_x = sorted_x.astype(output_dtype)
+
+    # calculate percentiles
     if perc_indices.dtype.is_floating_point:
         # interpolate linearly
         floors = sorted_x[perc_indices.floor().type(torch.int)]
