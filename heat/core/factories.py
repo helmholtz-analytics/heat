@@ -598,13 +598,13 @@ def empty_like(
 ) -> DNDarray:
     """
     Returns a new uninitialized :class:`~heat.core.dndarray.DNDarray` with the same type, shape and data distribution
-    of given object. Data type and data distribution strategy can be explicitly overriden.
+    of given object. Data type, data distribution axis, and device can be explicitly overridden.
 
     Parameters
     ----------
     a : DNDarray
-        The shape and data-type of ``a`` define these same attributes of the returned array. Uninitialized array with
-        the same shape, type and split axis as ``a`` unless overriden.
+        The shape, data-type, split axis and device of ``a`` define these same attributes of the returned array. Uninitialized array with
+        the same shape, type, split axis and device as ``a`` unless overriden.
     dtype : datatype, optional
         Overrides the data type of the result.
     split: int or None, optional
@@ -794,8 +794,7 @@ def __factory_like(
     factory : function
         Function that creates a DNDarray.
     device : str
-        Specifies the :class:`~heat.core.devices.Device` the array shall be allocated on, defaults to globally set
-        default device.
+        Specifies the :class:`~heat.core.devices.Device` the array shall be allocated on, defaults to the same device as ``a``.
     comm: Communication
         Handle to the nodes holding distributed parts or copies of this array.
     order: str, optional
@@ -833,6 +832,13 @@ def __factory_like(
         except AttributeError:
             # do not split at all
             pass
+
+    # infer the device, otherwise default to a.device
+    if device is None:
+        try:
+            device = a.device
+        except AttributeError:
+            device = devices.get_device()
 
     # use the default communicator, if not set
     comm = sanitize_comm(comm)
@@ -1057,21 +1063,20 @@ def full_like(
     order: str = "C",
 ) -> DNDarray:
     """
-    Return a full :class:`~heat.core.dndarray.DNDarray` with the same shape and type as a given array.
+    Return a full :class:`~heat.core.dndarray.DNDarray` with the same shape and type as a given array. Data type, data distribution axis, and device can be explicitly overridden.
 
     Parameters
     ----------
     a : DNDarray
-        The shape and data-type of ``a`` define these same attributes of the returned array.
+        The shape, data-type, split axis and device of ``a`` define these same attributes of the returned array.
     fill_value : scalar
         Fill value.
     dtype : datatype, optional
-        Overrides the data type of the result.
+        The data type of the result, defaults to `a.dtype`.
     split: int or None, optional
-        The axis along which the array is split and distributed; ``None`` means no distribution.
+        The axis along which the array is split and distributed; defaults to `a.split`.
     device : str or Device, optional
-        Specifies the :class:`~heat.core.devices.Device` the array shall be allocated on, defaults to globally set
-        default device.
+        Specifies the :class:`~heat.core.devices.Device` the array shall be allocated on, defaults to `a.device`.
     comm: Communication, optional
         Handle to the nodes holding distributed parts or copies of this array.
     order: str, optional
@@ -1386,19 +1391,18 @@ def ones_like(
 ) -> DNDarray:
     """
     Returns a new :class:`~heat.core.dndarray.DNDarray` filled with ones with the same type,
-    shape and data distribution of given object. Data type and data distribution strategy can be explicitly overriden.
+    shape, data distribution and device of the input object. Data type, data distribution axis, and device can be explicitly overridden.
 
     Parameters
     ----------
     a : DNDarray
-        The shape and data-type of ``a`` define these same attributes of the returned array.
+        The shape, data-type, split axis and device of ``a`` define these same attributes of the returned array.
     dtype : datatype, optional
         Overrides the data type of the result.
     split: int or None, optional
-        The axis along which the array is split and distributed; ``None`` means no distribution.
+        The axis along which the array is split and distributed; defaults to `a.split`.
     device : str or Device, optional
-        Specifies the :class:`~heat.core.devices.Device` the array shall be allocated on, defaults to globally set
-        default device.
+        Specifies the :class:`~heat.core.devices.Device` the array shall be allocated on, defaults to `a.device`.
     comm: Communication, optional
         Handle to the nodes holding distributed parts or copies of this array.
     order: str, optional
@@ -1482,20 +1486,19 @@ def zeros_like(
     order: str = "C",
 ) -> DNDarray:
     """
-    Returns a new :class:`~heat.core.dndarray.DNDarray` filled with zeros with the same type, shape and data
-    distribution of given object. Data type and data distribution strategy can be explicitly overriden.
+    Returns a new :class:`~heat.core.dndarray.DNDarray` filled with zeros with the same type, shape, data
+    distribution, and device of the input object. Data type, data distribution axis, and device can be explicitly overridden.
 
     Parameters
     ----------
     a : DNDarray
-        The shape and data-type of ``a`` define these same attributes of the returned array.
+        The shape, data-type, split axis, and device  of ``a`` define these same attributes of the returned array.
     dtype : datatype, optional
         Overrides the data type of the result.
     split: int or None, optional
-        The axis along which the array is split and distributed; ``None`` means no distribution.
+        The axis along which the array is split and distributed; defaults to `a.split`.
     device : str or Device, optional
-        Specifies the :class:`~heat.core.devices.Device` the array shall be allocated on, defaults to globally set
-        default device.
+        Specifies the :class:`~heat.core.devices.Device` the array shall be allocated on, defaults to `a.device`.
     comm: Communication, optional
         Handle to the nodes holding distributed parts or copies of this array.
     order: str, optional

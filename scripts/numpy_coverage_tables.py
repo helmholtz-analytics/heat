@@ -548,7 +548,7 @@ f.write("The following tables show the NumPy functions supported by Heat.\n")
 # create Table of Contents
 f.write("## Table of Contents\n")
 for i, header in enumerate(headers):
-    f.write(f"{i+1}. [{headers[header]}](#{headers[header].lower().replace(' ', '-')})\n")
+    f.write(f"{i + 1}. [{headers[header]}](#{headers[header].lower().replace(' ', '-')})\n")
 f.write("\n")
 
 for i, function_list in enumerate(numpy_functions):
