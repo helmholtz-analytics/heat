@@ -54,19 +54,123 @@ class TestPCA(TestCase):
             ht.decomposition.PCA(svd_solver="arpack")
 
     def test_pca_with_hierarchical_rank(self):
-        split = 1
-        data = ht.random.randn(100, 5, split=split)
-        pca = ht.decomposition.PCA(n_components=3, svd_solver="hierarchical")
+        # test fit
+        rank = 3
+        data = ht.random.randn(15 * ht.MPI_WORLD.size, 5, split=0)
+        pca = ht.decomposition.PCA(n_components=rank, svd_solver="hierarchical")
         pca.fit(data)
-        self.assertEqual(pca.components_.shape, (3, 5))
-        self.assertEqual(pca.explained_variance_.shape, (3,))
-        self.assertEqual(pca.explained_variance_ratio_.shape, (3,))
-        self.assertEqual(pca.singular_values_.shape, (3,))
+        self.assertEqual(pca.components_.shape, (rank, 5))
+        self.assertEqual(pca.n_components_, rank)
+        self.assertEqual(pca.explained_variance_, None)
+        self.assertEqual(pca.explained_variance_ratio_, None)
+        self.assertEqual(pca.singular_values_, None)
         self.assertEqual(pca.mean_.shape, (5,))
-        self.assertEqual(pca.noise_variance_, 0)
+        self.assertTrue(
+            isinstance(pca.total_explained_variance_ratio_, float)
+        )  # and pca.total_explained_variance_ratio_ > 0)
+        self.assertEqual(pca.noise_variance_, None)
+
+        # test transform
+        y0 = pca.transform(ht.random.randn(5 * ht.MPI_WORLD.size, 5, split=0))
+        y1 = pca.transform(ht.random.randn(10, 5, split=1))
+        self.assertEqual(y0.shape, (5 * ht.MPI_WORLD.size, rank))
+        self.assertEqual(y1.shape, (10, rank))
+
+        with self.assertRaises(ValueError):
+            pca.transform(ht.random.randn(5 * ht.MPI_WORLD.size, 6, split=0))
+
+        # test fit transform and inverse transform
+        y = pca.fit_transform(data)
+        self.assertEqual(y.shape, (data.shape[0], rank))
+        x = pca.inverse_transform(y)
+        self.assertEqual(x.shape, data.shape)
+        y.resplit_(1)
+        x = pca.inverse_transform(y)
+        self.assertEqual(x.shape, data.shape)
+
+        # catch split=1 as wrong input
+        with self.assertRaises(ValueError):
+            pca.inverse_transform(ht.random.randn(5 * ht.MPI_WORLD.size, 5, split=1))
 
     def test_pca_with_hiearchical_rtol(self):
-        pass
+        # test fit
+        ratio = 0.95
+        data = ht.random.randn(15 * ht.MPI_WORLD.size, 7, split=0)
+        pca = ht.decomposition.PCA(n_components=ratio, svd_solver="hierarchical")
+        pca.fit(data)
+        self.assertEqual(pca.components_.shape[1], 7)
+        self.assertTrue(0 < pca.components_.shape[0] <= 7)
+        self.assertEqual(pca.explained_variance_, None)
+        self.assertEqual(pca.explained_variance_ratio_, None)
+        self.assertEqual(pca.singular_values_, None)
+        self.assertEqual(pca.mean_.shape, (7,))
+        self.assertEqual(pca.n_components_, pca.components_.shape[0])
+        self.assertTrue(
+            isinstance(pca.total_explained_variance_ratio_, float)
+        )  # and pca.total_explained_variance_ratio_ > 0)
+        # self.assertTrue(pca.total_explained_variance_ratio_ >= ratio)
+        self.assertEqual(pca.noise_variance_, None)
 
-    def test_pca_with_full(self):
-        pass
+        # rest has already been tested for hierarchical SVD with fixed rank
+
+    def test_pca_with_full_rank(self):
+        # test fit with tall skinny data, including check for wrong inputs
+        rank = 2
+        data = ht.random.randn(15 * ht.MPI_WORLD.size, 5, split=0)
+        pca = ht.decomposition.PCA(n_components=rank, svd_solver="full")
+        pca.fit(data)
+        self.assertEqual(pca.components_.shape, (2, 5))
+        self.assertEqual(pca.n_components_, 2)
+        self.assertEqual(pca.explained_variance_.shape, (2,))
+        self.assertEqual(pca.explained_variance_ratio_.shape, (2,))
+        self.assertEqual(pca.singular_values_.shape, (2,))
+        self.assertEqual(pca.mean_.shape, (5,))
+        self.assertTrue(0 < pca.total_explained_variance_ratio_ <= 1)
+
+        with self.assertRaises(ValueError):
+            pca.fit(torch.randn(5 * ht.MPI_WORLD.size, 5))
+        with self.assertRaises(ValueError):
+            pca.fit(data, data)
+
+        # test transform, including check for wrong inputs
+        y0 = pca.transform(ht.random.randn(5 * ht.MPI_WORLD.size, 5, split=0))
+        y1 = pca.transform(ht.random.randn(10, 5, split=1))
+        self.assertEqual(y0.shape, (5 * ht.MPI_WORLD.size, rank))
+        self.assertEqual(y1.shape, (10, rank))
+
+        with self.assertRaises(ValueError):
+            pca.transform(ht.random.randn(5 * ht.MPI_WORLD.size, 6, split=0))
+        with self.assertRaises(ValueError):
+            pca.transform("abc")
+
+        # test fit transform and inverse transform, including check for wrong inputs
+        y = pca.fit_transform(data)
+        self.assertEqual(y.shape, (data.shape[0], rank))
+        x = pca.inverse_transform(y)
+        self.assertEqual(x.shape, data.shape)
+        y.resplit_(1)
+        x = pca.inverse_transform(y)
+        self.assertEqual(x.shape, data.shape)
+
+        with self.assertRaises(ValueError):
+            pca.inverse_transform("abc")
+
+    def test_pca_with_full_rtol(self):
+        # test fit
+        ratio = 0.5
+        data = ht.random.randn(15 * ht.MPI_WORLD.size, 7, split=0)
+        pca = ht.decomposition.PCA(n_components=ratio, svd_solver="full")
+        pca.fit(data)
+        self.assertEqual(pca.components_.shape[1], 7)
+        self.assertTrue(0 < pca.components_.shape[0] <= 7)
+        self.assertEqual(pca.explained_variance_.shape, (pca.n_components_,))
+        self.assertEqual(pca.explained_variance_ratio_.shape, (pca.n_components_,))
+        self.assertEqual(pca.singular_values_.shape, (pca.n_components_,))
+        self.assertEqual(pca.mean_.shape, (7,))
+        self.assertEqual(pca.n_components_, pca.components_.shape[0])
+        self.assertTrue(
+            isinstance(pca.total_explained_variance_ratio_, float)
+            and pca.total_explained_variance_ratio_ > 0
+        )
+        self.assertTrue(pca.total_explained_variance_ratio_ >= ratio)
+        self.assertEqual(pca.noise_variance_, None)
