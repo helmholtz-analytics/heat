@@ -11,36 +11,36 @@ class TestTallSkinnySVD(TestCase):
         for dtype in [ht.float32, ht.float64]:
             tol = 1e-5 if dtype == ht.float32 else 1e-10
             X = ht.random.randn(ht.MPI_WORLD.size * 10 + 3, 10, split=0, dtype=dtype)
-            U, S, Vt = ht.linalg.svd(X)
+            U, S, V = ht.linalg.svd(X)
             if ht.MPI_WORLD.size > 1:
                 self.assertTrue(U.split == 0)
             self.assertTrue(S.split is None)
-            self.assertTrue(Vt.split is None)
+            self.assertTrue(V.split is None)
             self.assertTrue(
                 ht.allclose(U.T @ U, ht.eye(U.shape[1], dtype=dtype), rtol=tol, atol=tol)
             )
             self.assertTrue(
-                ht.allclose(Vt @ Vt.T, ht.eye(Vt.shape[0], dtype=dtype), rtol=tol, atol=tol)
+                ht.allclose(V.T @ V, ht.eye(V.shape[1], dtype=dtype), rtol=tol, atol=tol)
             )
-            self.assertTrue(ht.allclose(U @ ht.diag(S) @ Vt, X, rtol=tol, atol=tol))
+            self.assertTrue(ht.allclose(U @ ht.diag(S) @ V.T, X, rtol=tol, atol=tol))
             self.assertTrue(ht.all(S >= 0))
 
     def test_shortfat_split1(self):
         for dtype in [ht.float32, ht.float64]:
             tol = 1e-5 if dtype == ht.float32 else 1e-10
             X = ht.random.randn(10, ht.MPI_WORLD.size * 10 + 3, split=1, dtype=dtype)
-            U, S, Vt = ht.linalg.svd(X)
+            U, S, V = ht.linalg.svd(X)
             self.assertTrue(U.split is None)
             self.assertTrue(S.split is None)
             if ht.MPI_WORLD.size > 1:
-                self.assertTrue(Vt.split == 1)
+                self.assertTrue(V.split == 0)
             self.assertTrue(
                 ht.allclose(U.T @ U, ht.eye(U.shape[1], dtype=dtype), rtol=tol, atol=tol)
             )
             self.assertTrue(
-                ht.allclose(Vt @ Vt.T, ht.eye(Vt.shape[0], dtype=dtype), rtol=tol, atol=tol)
+                ht.allclose(V.T @ V, ht.eye(V.shape[1], dtype=dtype), rtol=tol, atol=tol)
             )
-            self.assertTrue(ht.allclose(U @ ht.diag(S) @ Vt, X, rtol=tol, atol=tol))
+            self.assertTrue(ht.allclose(U @ ht.diag(S) @ V.T, X, rtol=tol, atol=tol))
             self.assertTrue(ht.all(S >= 0))
 
     def test_singvals_only(self):

@@ -19,7 +19,7 @@ def svd(
 ) -> Tuple[DNDarray, DNDarray, DNDarray]:
     """
     Computes the singular value decomposition of a matrix (the input array ``A``).
-    For an input DNDarray ``A`` of shape ``(M, N)``, the function returns DNDarrays ``U``, ``S``, and ``V.T`` such that ``A = U @ ht.diag(S) @ V.T``
+    For an input DNDarray ``A`` of shape ``(M, N)``, the function returns DNDarrays ``U``, ``S``, and ``V`` such that ``A = U @ ht.diag(S) @ V.T``
     with shapes ``(M, min(M,N))``, ``(min(M, N),)``, and ``(min(M,N),N)``, respectively, in the case that ``compute_uv=True``, or
     only the vector containing the singular values ``S`` of shape ``(min(M, N),)`` in the case that ``compute_uv=False``. By definition of the singular value decomposition,
     the matrix ``U`` is orthogonal, the matrix ``V`` is orthogonal, and the entries of the vector ``S``are non-negative real numbers.
@@ -106,9 +106,9 @@ def svd(
                     comm=A.comm,
                     balanced=A.balanced,
                 )
-                Vt = DNDarray(
-                    Vt_loc,
-                    Vt_loc.shape,
+                V = DNDarray(
+                    Vt_loc.T,
+                    Vt_loc.T.shape,
                     dtype=A.dtype,
                     split=None,
                     device=A.device,
@@ -116,7 +116,7 @@ def svd(
                     balanced=A.balanced,
                 )
                 U = (Utilde.T @ Q.T).T
-                return U, S, Vt
+                return U, S, V
             else:
                 # compute only singular values: first only R of QR, then singular values only of R
                 _, R = qr(A, mode="r", procs_to_merge=qr_procs_to_merge)
@@ -141,13 +141,13 @@ def svd(
             # this is the distributed, short fat case
             # apply the tall skinny SVD to the transpose of A
             if compute_uv:
-                V, S, Ut = svd(
+                V, S, U = svd(
                     A.T,
                     full_matrices=full_matrices,
                     compute_uv=True,
                     qr_procs_to_merge=qr_procs_to_merge,
                 )
-                return Ut.T, S, V.T
+                return U, S, V
             else:
                 S = svd(
                     A.T,
@@ -160,7 +160,7 @@ def svd(
     else:
         # this is the non-distributed case
         if compute_uv:
-            U_loc, S_loc, V_loc = torch.linalg.svd(A.larray, full_matrices=full_matrices)
+            U_loc, S_loc, Vt_loc = torch.linalg.svd(A.larray, full_matrices=full_matrices)
             U = DNDarray(
                 U_loc,
                 U_loc.shape,
@@ -180,8 +180,8 @@ def svd(
                 balanced=A.balanced,
             )
             V = DNDarray(
-                V_loc,
-                V_loc.shape,
+                Vt_loc.T,
+                Vt_loc.T.shape,
                 dtype=A.dtype,
                 split=None,
                 device=A.device,
@@ -201,6 +201,3 @@ def svd(
                 balanced=A.balanced,
             )
             return S
-
-    """
-    Todo: tests, correct problem with VH... """
