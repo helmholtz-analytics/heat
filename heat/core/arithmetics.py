@@ -1991,14 +1991,7 @@ def left_shift(
         elif dtypes[dt] == types.bool:
             arrs[dt] = types.int(arrs[dt])
 
-    try:
-        result = _operations.__binary_op(torch.bitwise_left_shift, t1, t2, out, where)
-    except AttributeError:  # pragma: no cover
-        result = _operations.__binary_op(
-            torch.Tensor.__lshift__, t1, t2, out, where
-        )  # pytorch < 1.10
-
-    return result
+    return _operations.__binary_op(torch.bitwise_left_shift, t1, t2, out, where)
 
 
 def _lshift(self, other):
@@ -2912,14 +2905,7 @@ def right_shift(
         elif dtypes[dt] == types.bool:
             arrs[dt] = types.int(arrs[dt])
 
-    try:
-        result = _operations.__binary_op(torch.bitwise_right_shift, t1, t2, out, where)
-    except AttributeError:  # pragma: no cover
-        result = _operations.__binary_op(
-            torch.Tensor.__rshift__, t1, t2, out, where
-        )  # pytorch < 1.10
-
-    return result
+    return _operations.__binary_op(torch.bitwise_right_shift, t1, t2, out, where)
 
 
 def _rshift(self, other):
