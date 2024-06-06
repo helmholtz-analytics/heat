@@ -134,7 +134,7 @@ else:
             data = handle[dataset]
             gshape = data.shape
             if split is not None:
-                gshape = np.array(gshape)
+                gshape = list(gshape)
                 gshape[split] = int(gshape[split] * load_fraction)
                 gshape = tuple(gshape)
             dims = len(gshape)
