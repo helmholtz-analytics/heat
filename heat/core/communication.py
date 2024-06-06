@@ -1475,14 +1475,14 @@ class MPICommunication(Communication):
             Buffer address where to store the result
         """
         # Unpack sendbuffer information
-        sendbuf, (send_counts, send_displs), subarray_params_list = sendbuf
+        sendbuf_tensor, (send_counts, send_displs), subarray_params_list = sendbuf
+        sendbuf = sendbuf_tensor if CUDA_AWARE_MPI else sendbuf_tensor.cpu()
 
         is_contiguous = sendbuf.is_contiguous()
-        print("Is contiguous: ", is_contiguous)
         stride = sendbuf.stride()
 
         send_datatype = self.mpi_type_of(sendbuf.dtype)
-        sendbuf = self.as_mpi_memory(sendbuf)
+        sendbuf_ptr = self.as_mpi_memory(sendbuf)
 
         source_subarray_types = []
 
@@ -1517,8 +1517,9 @@ class MPICommunication(Communication):
                     source_subarray_types.append(MPI.INT)
 
         # Unpack recvbuf information
-        recvbuf, (recv_counts, recv_displs), subarray_params_list = recvbuf
-        recvbuf, _, recv_datatype = self.as_buffer(recvbuf)
+        recvbuf_tensor, (recv_counts, recv_displs), subarray_params_list = recvbuf
+        recvbuf = recvbuf_tensor if CUDA_AWARE_MPI else recvbuf_tensor.cpu()
+        recvbuf_ptr, _, recv_datatype = self.as_buffer(recvbuf)
 
         # Commit the receive subarray datatypes
         target_subarray_types = []
@@ -1536,11 +1537,22 @@ class MPICommunication(Communication):
                 target_subarray_types.append(MPI.INT)
 
         # Perform the Alltoallw operation
-        print("Sendbuf: ", stride, (send_counts, send_displs), source_subarray_types)
+        # print("Sendbuf: ", stride, (send_counts, send_displs), source_subarray_types)
         self.handle.Alltoallw(
-            [sendbuf, (send_counts, send_displs), source_subarray_types],
-            [recvbuf, (recv_counts, recv_displs), target_subarray_types],
+            [sendbuf_ptr, (send_counts, send_displs), source_subarray_types],
+            [recvbuf_ptr, (recv_counts, recv_displs), target_subarray_types],
         )
+
+        # In case of NON Cuda-Aware MPI, copy the result back to the original buffer
+        if (
+            isinstance(recvbuf_tensor, torch.Tensor)
+            and recvbuf_tensor.is_cuda
+            and not CUDA_AWARE_MPI
+        ):
+            recvbuf_tensor.copy_(recvbuf)
+        else:
+            if sendbuf_tensor.is_conj():
+                recvbuf_tensor.conj_physical_()
 
         # Free the subarray datatypes
         for p in range(len(source_subarray_types)):
