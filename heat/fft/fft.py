@@ -858,11 +858,6 @@ def ihfft2(
     -----
     This function requires MPI communication if the input array is distributed and the split axis is transformed.
     """
-    torch_has_ihfftn = hasattr(torch.fft, "ihfftn")
-    if not torch_has_ihfftn:  # pragma: no cover
-        raise NotImplementedError(
-            f"n-dim inverse Hermitian FFTs not implemented for torch < 1.11.0. Your environment runs torch {torch.__version__}. Please upgrade torch."
-        )
     return __real_fftn_op(x, torch.fft.ihfft2, s=s, axes=axes, norm=norm)
 
 
@@ -896,11 +891,6 @@ def ihfftn(
     -----
     This function requires MPI communication if the input array is distributed and the split axis is transformed.
     """
-    torch_has_ihfftn = hasattr(torch.fft, "ihfftn")
-    if not torch_has_ihfftn:  # pragma: no cover
-        raise NotImplementedError(
-            f"n-dim inverse Hermitian FFTs not implemented for torch < 1.11.0. Your environment runs torch {torch.__version__}. Please upgrade torch."
-        )
     return __real_fftn_op(x, torch.fft.ihfftn, s=s, axes=axes, norm=norm)
 
 
