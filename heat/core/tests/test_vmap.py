@@ -28,13 +28,13 @@ class TestVmap(TestCase):
         self.assertTrue(torch.allclose(y1.resplit(None).larray, y1_torch))
 
         # two inputs (only one of them split), two outputs, including keyword arguments that are not vmapped
-        # output split along different axis
+        # output split along different axis, one output has different data type than input
         x0 = ht.random.randn(5 * ht.MPI_WORLD.size, 10, 10, split=0)
         x1 = ht.random.randn(10, 5 * ht.MPI_WORLD.size, split=None)
         out_dims = (0, 1)
 
         def func(x0, x1, k=2, scale=1e-2):
-            return torch.topk(torch.linalg.svdvals(x0), k)[0] ** 2, scale * x0 @ x1
+            return torch.topk(torch.linalg.svdvals(x0), k)[0] ** 2, (scale * x0 @ x1).int()
 
         vfunc = ht.vmap(func, out_dims)
         y0, y1 = vfunc(x0, x1, k=2, scale=2.2)
