@@ -9,21 +9,25 @@ from ...tests.test_suites.basic_test import TestCase
 class TestTallSkinnySVD(TestCase):
     def test_tallskinny_split0(self):
         for dtype in [ht.float32, ht.float64]:
-            tol = 1e-5 if dtype == ht.float32 else 1e-10
-            X = ht.random.randn(ht.MPI_WORLD.size * 10 + 3, 10, split=0, dtype=dtype)
-            U, S, V = ht.linalg.svd(X)
-            if ht.MPI_WORLD.size > 1:
-                self.assertTrue(U.split == 0)
-            self.assertTrue(S.split is None)
-            self.assertTrue(V.split is None)
-            self.assertTrue(
-                ht.allclose(U.T @ U, ht.eye(U.shape[1], dtype=dtype), rtol=tol, atol=tol)
-            )
-            self.assertTrue(
-                ht.allclose(V.T @ V, ht.eye(V.shape[1], dtype=dtype), rtol=tol, atol=tol)
-            )
-            self.assertTrue(ht.allclose(U @ ht.diag(S) @ V.T, X, rtol=tol, atol=tol))
-            self.assertTrue(ht.all(S >= 0))
+            for n_merge in [0, None]:
+                tol = 1e-5 if dtype == ht.float32 else 1e-10
+                X = ht.random.randn(ht.MPI_WORLD.size * 10 + 3, 10, split=0, dtype=dtype)
+                if n_merge == 0:
+                    U, S, V = ht.linalg.svd(X, qr_procs_to_merge=n_merge)
+                else:
+                    U, S, V = ht.linalg.svd(X)
+                if ht.MPI_WORLD.size > 1:
+                    self.assertTrue(U.split == 0)
+                self.assertTrue(S.split is None)
+                self.assertTrue(V.split is None)
+                self.assertTrue(
+                    ht.allclose(U.T @ U, ht.eye(U.shape[1], dtype=dtype), rtol=tol, atol=tol)
+                )
+                self.assertTrue(
+                    ht.allclose(V.T @ V, ht.eye(V.shape[1], dtype=dtype), rtol=tol, atol=tol)
+                )
+                self.assertTrue(ht.allclose(U @ ht.diag(S) @ V.T, X, rtol=tol, atol=tol))
+                self.assertTrue(ht.all(S >= 0))
 
     def test_shortfat_split1(self):
         for dtype in [ht.float32, ht.float64]:
