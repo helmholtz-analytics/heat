@@ -88,8 +88,22 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
     a = a.astype(promoted_type)
     v = v.astype(promoted_type)
 
-    if len(a.shape) != 1 or len(v.shape) != 1:
-        raise ValueError("Only 1-dimensional input DNDarrays are allowed")
+    batch_processing = False
+    if a.ndim > 1:
+        # batch processing requires 1D filter OR matching batch dimensions for signal and filter
+        batch_dims = a.shape[:-1]
+        # verify that the filter shape is consistent with the signal
+        if v.ndim > 1:
+            if v.shape[:-1] != batch_dims:
+                raise ValueError(
+                    f"Batch dimensions of signal and filter must match. Signal: {a.shape}, Filter: {v.shape}"
+                )
+        batch_processing = True
+    if not batch_processing and v.ndim > 1:
+        raise ValueError(
+            f"1-D convolution only supported for 1-dimensional signal and kernel. Signal: {a.shape}, Filter: {v.shape}"
+        )
+
     if mode == "same" and v.shape[0] % 2 == 0:
         raise ValueError("Mode 'same' cannot be used with even-sized kernel")
     if not v.is_balanced():
