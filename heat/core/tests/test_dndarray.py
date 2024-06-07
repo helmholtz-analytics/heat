@@ -1106,6 +1106,22 @@ class TestDNDarray(TestCase):
         self.assertTrue(ht.all(t1_sub == res))
         self.assertEqual(t1_sub.split, None)
 
+        # 3D non-contiguous resplit testing (Column mayor ordering)
+        torch_array = torch.arange(100).reshape((10, 5, 2))
+        heat_array = ht.array(torch_array, split=2, order="F")
+        heat_array.resplit_(axis=1)
+        res = np.arange(100).reshape(10, 5, 2)
+        self.assertTrue(ht.all(heat_array == ht.array(res)))
+        self.assertEqual(heat_array.split, 1)
+
+        # 4D non-contiguous resplit testing (from transpose
+        torch_array = torch.arange(5 * 4 * 3 * 6).reshape(5, 4, 3, 6)
+        res = torch_array.cpu().numpy().transpose((3, 1, 2, 0))
+        heat_array = ht.array(torch_array, split=2).transpose((3, 1, 2, 0))
+        heat_array.resplit_(axis=1)
+        self.assertTrue(ht.all(heat_array == ht.array(res)))
+        self.assertEqual(heat_array.split, 1)
+
     def test_setitem_getitem(self):
         # tests for bug #825
         a = ht.ones((102, 102), split=0)

@@ -1486,35 +1486,28 @@ class MPICommunication(Communication):
 
         source_subarray_types = []
 
-        if is_contiguous:
-            # Commit the source subarray datatypes
-            for idx, subarray_params in enumerate(subarray_params_list):
-                lshape, subsizes, substarts = subarray_params
+        for idx, subarray_params in enumerate(subarray_params_list):
+            lshape, subsizes, substarts = subarray_params
 
-                if np.all(np.array(subsizes) > 0):
+            if np.all(np.array(subsizes) > 0):
 
+                if is_contiguous:
+                    # Commit the source subarray datatypes
                     subarray_type = send_datatype.Create_subarray(
                         lshape, subsizes, substarts, order=MPI.ORDER_C
                     ).Commit()
                     source_subarray_types.append(subarray_type)
                 else:
-                    send_counts[idx] = 0
-                    source_subarray_types.append(MPI.INT)
-
-        else:
-            # Create recursive vector datatype
-            for idx, subarray_params in enumerate(subarray_params_list):
-                lshape, subsizes, substarts = subarray_params
-                if np.all(np.array(subsizes) > 0):
+                    # Create recursive vector datatype
                     source_subarray_types.append(
                         self._create_recursive_vectortype(
                             send_datatype, stride, subsizes, substarts
                         )
                     )
                     send_counts[idx] = subsizes[0]
-                else:
-                    send_counts[idx] = 0
-                    source_subarray_types.append(MPI.INT)
+            else:
+                send_counts[idx] = 0
+                source_subarray_types.append(MPI.INT)
 
         # Unpack recvbuf information
         recvbuf_tensor, (recv_counts, recv_displs), subarray_params_list = recvbuf
