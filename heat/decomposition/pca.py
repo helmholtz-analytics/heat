@@ -30,7 +30,7 @@ class PCA(ht.TransformMixin, ht.BaseEstimator):
         If n_components is an integer, it specifies the number of components to keep.
         If n_components is a float between 0 and 1, it specifies the fraction of variance explained by the components to keep.
     copy : bool, default=True
-        Centering of data is done in-place if copy=False. Please note that in-place SVD computation is not supported so far.
+        In-place operations are not yet supported. Please set copy=True.
     whiten : bool, default=False
         Not yet supported.
     svd_solver : {'full', 'hierarchical'}, default='hierarchical'
@@ -92,9 +92,13 @@ class PCA(ht.TransformMixin, ht.BaseEstimator):
         random_state=None,
     ):
         # check correctness of inputs
+        if not copy:
+            raise NotImplementedError(
+                "In-place operations for PCA are not supported at the moment. Please set copy=True."
+            )
         if whiten:
-            raise ValueError("Whitening is not yet supported. Please set whiten=False.")
-        if not (svd_solver == "full" or svd_solver == "hierarchical"):
+            raise NotImplementedError("Whitening is not yet supported. Please set whiten=False.")
+        if not (svd_solver == "full" or svd_solver == "hierarchical" or svd_solver == "randomized"):
             raise ValueError(
                 "At the moment, only svd_solver='full' (for tall-skinny or short-fat data) and svd_solver='hierarchical' are supported. \n An implementation of the 'full' option for arbitrarily shaped data as well as the option 'randomized' are already planned."
             )
@@ -162,13 +166,9 @@ class PCA(ht.TransformMixin, ht.BaseEstimator):
                 "Argument y is ignored and just present for API consistency by convention."
             )
 
-        # center data (if copy=True, X is not changed, otherwise X is centered in-place)
+        # center data
         self.mean_ = X.mean(axis=0)
-        if not self.copy:
-            X -= self.mean_
-            X_centered = X
-        else:
-            X_centered = X - self.mean_
+        X_centered = X - self.mean_
 
         # set n_components
         # note: n_components is an argument passed by the user to the PCA object and encodes the TARGET number of components
@@ -233,7 +233,9 @@ class PCA(ht.TransformMixin, ht.BaseEstimator):
 
         else:
             # here one could add other computational backends
-            pass
+            raise NotImplementedError(
+                f"The chosen svd_solver {self.svd_solver} is not yet implemented."
+            )
 
         self.n_samples_ = X.shape[0]
         self.noise_variance_ = None  # not yet implemented
@@ -256,14 +258,9 @@ class PCA(ht.TransformMixin, ht.BaseEstimator):
                 f"X must have the same number of features as the training data. Expected {self.mean_.shape[0]} but got {X.shape[1]}."
             )
 
-        if self.copy:
-            # center data and apply PCA
-            X_centered = X - self.mean_
-            return X_centered @ self.components_.T
-        else:
-            # center data in-place, apply PCA "in-place"-like (caveat: but not fully in-place)
-            X -= self.mean_
-            X = X @ self.components_.T
+        # center data and apply PCA
+        X_centered = X - self.mean_
+        return X_centered @ self.components_.T
 
     def inverse_transform(self, X: ht.DNDarray) -> ht.DNDarray:
         """
@@ -281,4 +278,4 @@ class PCA(ht.TransformMixin, ht.BaseEstimator):
                 f"Dimension mismatch. Expected input of shape n_points x {self.n_components_} but got {X.shape}."
             )
 
-        return X @ self.components_
+        return X @ self.components_ + self.mean_

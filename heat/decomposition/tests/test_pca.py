@@ -27,7 +27,7 @@ class TestPCA(TestCase):
 
         # check catching of invalid parameters
         # wrong withening
-        with self.assertRaises(ValueError):
+        with self.assertRaises(NotImplementedError):
             ht.decomposition.PCA(whiten=True)
         # wrong iterated power
         with self.assertRaises(ValueError):
@@ -52,6 +52,9 @@ class TestPCA(TestCase):
         # wrong svd_solver
         with self.assertRaises(ValueError):
             ht.decomposition.PCA(svd_solver="arpack")
+        # in-place not yet supported
+        with self.assertRaises(NotImplementedError):
+            ht.decomposition.PCA(copy=False)
 
     def test_pca_with_hierarchical_rank(self):
         # test fit
@@ -90,7 +93,7 @@ class TestPCA(TestCase):
 
         # catch split=1 as wrong input
         with self.assertRaises(ValueError):
-            pca.inverse_transform(ht.random.randn(5 * ht.MPI_WORLD.size, 5, split=1))
+            pca.fit(ht.random.randn(5 * ht.MPI_WORLD.size, ht.MPI_WORLD.size, split=1))
 
     def test_pca_with_hiearchical_rtol(self):
         # test fit
@@ -115,15 +118,14 @@ class TestPCA(TestCase):
 
     def test_pca_with_full_rank(self):
         # test fit with tall skinny data, including check for wrong inputs
-        rank = 2
         data = ht.random.randn(15 * ht.MPI_WORLD.size, 5, split=0)
-        pca = ht.decomposition.PCA(n_components=rank, svd_solver="full")
+        pca = ht.decomposition.PCA(n_components=None, svd_solver="full")
         pca.fit(data)
-        self.assertEqual(pca.components_.shape, (2, 5))
-        self.assertEqual(pca.n_components_, 2)
-        self.assertEqual(pca.explained_variance_.shape, (2,))
-        self.assertEqual(pca.explained_variance_ratio_.shape, (2,))
-        self.assertEqual(pca.singular_values_.shape, (2,))
+        self.assertEqual(pca.components_.shape, (5, 5))
+        self.assertEqual(pca.n_components_, 5)
+        self.assertEqual(pca.explained_variance_.shape, (5,))
+        self.assertEqual(pca.explained_variance_ratio_.shape, (5,))
+        self.assertEqual(pca.singular_values_.shape, (5,))
         self.assertEqual(pca.mean_.shape, (5,))
         self.assertTrue(0 < pca.total_explained_variance_ratio_ <= 1)
 
@@ -135,8 +137,8 @@ class TestPCA(TestCase):
         # test transform, including check for wrong inputs
         y0 = pca.transform(ht.random.randn(5 * ht.MPI_WORLD.size, 5, split=0))
         y1 = pca.transform(ht.random.randn(10, 5, split=1))
-        self.assertEqual(y0.shape, (5 * ht.MPI_WORLD.size, rank))
-        self.assertEqual(y1.shape, (10, rank))
+        self.assertEqual(y0.shape, (5 * ht.MPI_WORLD.size, 5))
+        self.assertEqual(y1.shape, (10, 5))
 
         with self.assertRaises(ValueError):
             pca.transform(ht.random.randn(5 * ht.MPI_WORLD.size, 6, split=0))
@@ -145,7 +147,7 @@ class TestPCA(TestCase):
 
         # test fit transform and inverse transform, including check for wrong inputs
         y = pca.fit_transform(data)
-        self.assertEqual(y.shape, (data.shape[0], rank))
+        self.assertEqual(y.shape, (data.shape[0], 5))
         x = pca.inverse_transform(y)
         self.assertEqual(x.shape, data.shape)
         y.resplit_(1)
@@ -174,3 +176,9 @@ class TestPCA(TestCase):
         )
         self.assertTrue(pca.total_explained_variance_ratio_ >= ratio)
         self.assertEqual(pca.noise_variance_, None)
+
+    def test_pca_randomized(self):
+        pca = ht.decomposition.PCA(n_components=2, svd_solver="randomized")
+        data = ht.random.randn(15 * ht.MPI_WORLD.size, 5, split=0)
+        with self.assertRaises(NotImplementedError):
+            pca.fit(data)
