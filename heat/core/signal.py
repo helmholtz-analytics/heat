@@ -98,37 +98,51 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
                 raise ValueError(
                     f"Batch dimensions of signal and filter must match. Signal: {a.shape}, Filter: {v.shape}"
                 )
+        if a.is_distributed():
+            if a.split == a.ndim - 1:
+                raise ValueError(
+                    "Please distribute the signal along the batch dimension, not the signal dimension. For in-place redistribution use `a.resplit_(axis=0)`"
+                )
+            if v.is_distributed():
+                if v.ndim == 1:
+                    # gather filter to all ranks
+                    v.resplit_(axis=None)
+                else:
+                    v.resplit_(axis=a.split)
         batch_processing = True
     if not batch_processing and v.ndim > 1:
         raise ValueError(
             f"1-D convolution only supported for 1-dimensional signal and kernel. Signal: {a.shape}, Filter: {v.shape}"
         )
 
-    if mode == "same" and v.shape[0] % 2 == 0:
+    if mode == "same" and v.shape[-1] % 2 == 0:
         raise ValueError("Mode 'same' cannot be used with even-sized kernel")
     if not v.is_balanced():
         raise ValueError("Only balanced kernel weights are allowed")
 
-    if v.shape[0] > a.shape[0]:
+    if v.shape[-1] > a.shape[-1]:
         a, v = v, a
 
-    # compute halo size
-    halo_size = torch.max(v.lshape_map[:, 0]).item() // 2
-
-    # pad DNDarray with zeros according to mode
+    # calculate pad size according to mode
     if mode == "full":
-        pad_size = v.shape[0] - 1
-        gshape = v.shape[0] + a.shape[0] - 1
+        pad_size = v.shape[-1] - 1
+        gshape = v.shape[-1] + a.shape[-1] - 1
     elif mode == "same":
-        pad_size = v.shape[0] // 2
-        gshape = a.shape[0]
+        pad_size = v.shape[-1] // 2
+        gshape = a.shape[-1]
     elif mode == "valid":
         pad_size = 0
-        gshape = a.shape[0] - v.shape[0] + 1
+        gshape = a.shape[-1] - v.shape[-1] + 1
     else:
         raise ValueError(f"Supported modes are 'full', 'valid', 'same', got {mode}")
 
+    # if batch_processing:
+
+    # pad signal with zeros
     a = pad(a, pad_size, "constant", 0)
+
+    # compute halo size
+    halo_size = torch.max(v.lshape_map[:, -1]).item() // 2
 
     if a.is_distributed():
         if (v.lshape_map[:, 0] > a.lshape_map[:, 0]).any():
