@@ -9,7 +9,7 @@ from typing import Tuple
 
 @unittest.skipIf(
     int(torch.__version__.split(".")[0]) <= 1 and int(torch.__version__.split(".")[1]) < 12,
-    f"ht.sparse requires torch >= 1.12. Found version {torch.__version__}.",
+    f"ht.sparse requires torch >= 2.0. Found version {torch.__version__}.",
 )
 class TestDCSC_matrix(TestCase):
     @classmethod
@@ -263,6 +263,10 @@ class TestDCSC_matrix(TestCase):
                 ).all()
             )
 
+    @unittest.skipIf(
+        int(torch.__version__.split(".")[0]) <= 1,
+        f"ht.sparse requires torch >= 2.0. Found version {torch.__version__}.",
+    )
     def test_astype(self):
         heat_sparse_csc = ht.sparse.sparse_csc_matrix(self.ref_torch_sparse_csc)
 
