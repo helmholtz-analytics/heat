@@ -88,6 +88,10 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
     a = a.astype(promoted_type)
     v = v.astype(promoted_type)
 
+    # check if the filter is longer than the signal and swap them if necessary
+    if v.shape[-1] > a.shape[-1]:
+        a, v = v, a
+
     batch_processing = False
     if a.ndim > 1:
         # batch processing requires 1D filter OR matching batch dimensions for signal and filter
@@ -120,9 +124,6 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
     if not v.is_balanced():
         raise ValueError("Only balanced kernel weights are allowed")
 
-    if v.shape[-1] > a.shape[-1]:
-        a, v = v, a
-
     # calculate pad size according to mode
     if mode == "full":
         pad_size = v.shape[-1] - 1
@@ -136,7 +137,47 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
     else:
         raise ValueError(f"Supported modes are 'full', 'valid', 'same', got {mode}")
 
-    # if batch_processing:
+    if batch_processing:
+        # all operations are local torch operations, only the last dimension is convolved
+        local_a = a.larray
+        local_v = v.larray
+        # flip filter for convolution as Pytorch conv1d computes correlations
+        local_v = torch.flip(local_v, [-1])
+        local_batch_dims = tuple(local_a.shape[:-1])
+
+        # reshape signal and filter to 3D for Pytorch conv1d function
+        local_a = local_a.reshape(
+            torch.prod(torch.tensor(local_batch_dims, device=local_a.device), dim=0).item(),
+            local_a.shape[-1],
+        )
+        channels = local_a.shape[0]
+        if v.ndim > 1:
+            local_v = local_v.reshape(
+                torch.prod(torch.tensor(local_batch_dims, device=local_v.device), dim=0).item(),
+                local_v.shape[-1],
+            )
+            local_v = local_v.unsqueeze(1)
+        else:
+            local_v = local_v.unsqueeze(0).unsqueeze(0).expand(local_a.shape[0], 1, -1)
+        # add batch dimension to signal
+        local_a = local_a.unsqueeze(0)
+
+        # cast to single-precision float if on GPU
+        if local_a.is_cuda:
+            float_type = promote_types(local_a.dtype, torch.float32)
+            local_a = local_a.to(float_type)
+            local_v = local_v.to(float_type)
+
+        # apply torch convolution operator
+        local_convolved = fc.conv1d(local_a, local_v, padding=pad_size, groups=channels)
+
+        # unpack 3D result into original shape
+        local_convolved = local_convolved.squeeze(0)
+        local_convolved = local_convolved.reshape(local_batch_dims + (-1,))
+
+        # wrap result in DNDarray
+        convolved = array(local_convolved, is_split=a.split, device=a.device, comm=a.comm)
+        return convolved
 
     # pad signal with zeros
     a = pad(a, pad_size, "constant", 0)
