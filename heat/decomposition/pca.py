@@ -181,7 +181,6 @@ class PCA(ht.TransformMixin, ht.BaseEstimator):
         # compute SVD via "full" SVD
         if self.svd_solver == "full":
             _, S, V = ht.linalg.svd(X_centered, full_matrices=False)
-            print(self.n_components_)
             if isinstance(self.n_components_, int):
                 # prescribed truncation rank (including no truncation)
                 self.components_ = V[:, : self.n_components_].T
