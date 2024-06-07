@@ -27,7 +27,7 @@ def vmap(func, out_dims=0, randomness="error", *, chunk_size=None):
         Determines how to handle randomness in the function to be vmapped. This argument is directly passed to the underlying PyTorch vmaps;
         see the corresponding PyTorch documentation for more information and the note below.
         If 'error' (default), an error is raised if the function to be mapped contains randomness.
-    chunk_size : int or sequence of int, optional
+    chunk_size : int, optional
         The size of the chunks to use for the process-local computation.
         If None (default), apply a single PyTorch vmap over the process-local chunks of data. If not None, then compute the process-local PyTorch vmap `chunk_size`
         many samples at a time. Note that `chunk_size=1` is equivalent to computing the process-local PyTorch vmap's with a for-loop.
@@ -48,6 +48,11 @@ def vmap(func, out_dims=0, randomness="error", *, chunk_size=None):
         raise ValueError(
             "The input argument `randomness` must be one of the strings 'error', 'different', or 'same'."
         )
+    if chunk_size is not None and not isinstance(chunk_size, int):
+        raise TypeError("The input argument `chunk_size` must be None or an integer.")
+    else:
+        if chunk_size is not None and chunk_size < 1:
+            raise ValueError("If an integer, the input argument `chunk_size` must be at least 1.")
 
     def vmapped_func(*args, **kwargs):
         for arg in args:
@@ -56,7 +61,6 @@ def vmap(func, out_dims=0, randomness="error", *, chunk_size=None):
                     f"All inputs to the vmapped-version of your function must be DNDarrays, but one is {type(arg)}."
                 )
         in_dims = tuple([arg.split for arg in args])
-        print(in_dims)
 
         # apply Torch vmap to the input function and the result to the local arrays of the input DNDarray
         torch_vmap_func = torch.vmap(
