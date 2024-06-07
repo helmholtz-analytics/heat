@@ -306,7 +306,7 @@ class __DCSX_matrix:
             in-place and this matrix is returned
         """
         dtype = canonical_heat_type(dtype)
-        casted_matrix = self._array.type(dtype.torch_type())
+        casted_matrix = self._array.to(dtype.torch_type(), copy=copy)
         if copy:
             return self.__class__(
                 casted_matrix,
