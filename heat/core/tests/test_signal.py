@@ -36,9 +36,9 @@ class TestSignal(TestCase):
             ht.convolve(dis_signal, filter_wrong_type, mode="full")
         with self.assertRaises(ValueError):
             ht.convolve(dis_signal, kernel_odd, mode="invalid")
-        with self.assertRaises(ValueError):
-            s = dis_signal.reshape((2, -1))
-            ht.convolve(s, kernel_odd)
+        # with self.assertRaises(ValueError):
+        #     s = dis_signal.reshape((2, -1))
+        #     ht.convolve(s, kernel_odd)
         with self.assertRaises(ValueError):
             k = ht.eye(3)
             ht.convolve(dis_signal, k)
@@ -119,3 +119,11 @@ class TestSignal(TestCase):
 
         conv = ht.convolve(1, 5)
         self.assertTrue(ht.equal(ht.array([5]), conv))
+
+        # test batched convolutions, distributed along the first axis
+        signal = ht.random.randn(1000, dtype=ht.float64)
+        batch_signal = ht.empty((10, 1000), dtype=ht.float64, split=0)
+        batch_signal.larray[:] = signal.larray
+        kernel = ht.random.randn(19, dtype=ht.float64)
+        batch_convolved = ht.convolve(batch_signal, kernel, mode="same")
+        self.assertTrue(ht.equal(ht.convolve(signal, kernel, mode="same"), batch_convolved[0]))
