@@ -146,6 +146,7 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
         local_batch_dims = tuple(local_a.shape[:-1])
 
         # reshape signal and filter to 3D for Pytorch conv1d function
+        # see https://pytorch.org/docs/stable/generated/torch.nn.functional.conv1d.html
         local_a = local_a.reshape(
             torch.prod(torch.tensor(local_batch_dims, device=local_a.device), dim=0).item(),
             local_a.shape[-1],
