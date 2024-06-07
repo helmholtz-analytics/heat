@@ -16,13 +16,16 @@ __all__ = ["convolve"]
 def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
     """
     Returns the discrete, linear convolution of two one-dimensional `DNDarray`s or scalars.
+    If the input ``DNDarray``s have more than one dimension, batch-convolution along the last dimension will be attempted. See below for details.
 
     Parameters
     ----------
     a : DNDarray or scalar
-        One-dimensional signal `DNDarray` of shape (N,) or scalar.
+        One-dimensional signal `DNDarray` of shape (N,), or scalar. If ``a`` is more than 1D, it will be treated as a batch of 1D signals.
+        Distribution along the batch dimension is required for distributed batch processing. See examples for details.
     v : DNDarray or scalar
-        One-dimensional filter weight `DNDarray` of shape (M,) or scalar.
+        One-dimensional filter weight `DNDarray` of shape (M,), or scalar. If ``v`` is more than 1D, it will be treated as a batch of 1D filter weights.
+        The batch dimension(s) of ``v`` must match the batch dimension(s) of ``a``.
     mode : str
         Can be 'full', 'valid', or 'same'. Default is 'full'.
         'full':
@@ -69,6 +72,34 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
     [0/3] DNDarray([0., 1., 3., 3.])
     [1/3] DNDarray([3., 3., 3., 3.])
     [2/3] DNDarray([3., 3., 3., 2.])
+
+    >>> a = ht.arange(50, dtype = ht.float64, split=0)
+    >>> a = a.reshape(10, 5) # 10 signals of length 5
+    >>> v = ht.arange(3)
+    >>> ht.convolve(a, v) # batch processing: 10 signals convolved with filter v
+    DNDarray([[  0.,   0.,   1.,   4.,   7.,  10.,   8.],
+          [  0.,   5.,  16.,  19.,  22.,  25.,  18.],
+          [  0.,  10.,  31.,  34.,  37.,  40.,  28.],
+          [  0.,  15.,  46.,  49.,  52.,  55.,  38.],
+          [  0.,  20.,  61.,  64.,  67.,  70.,  48.],
+          [  0.,  25.,  76.,  79.,  82.,  85.,  58.],
+          [  0.,  30.,  91.,  94.,  97., 100.,  68.],
+          [  0.,  35., 106., 109., 112., 115.,  78.],
+          [  0.,  40., 121., 124., 127., 130.,  88.],
+          [  0.,  45., 136., 139., 142., 145.,  98.]], dtype=ht.float64, device=cpu:0, split=0)
+
+    >>> v = ht.random.randint(0, 3, (10, 3), split=0) # 10 filters of length 3
+    >>> ht.convolve(a, v) # batch processing: 10 signals convolved with 10 filters
+    DNDarray([[  0.,   0.,   2.,   4.,   6.,   8.,   0.],
+            [  5.,   6.,   7.,   8.,   9.,   0.,   0.],
+            [ 20.,  42.,  56.,  61.,  66.,  41.,  14.],
+            [  0.,  15.,  16.,  17.,  18.,  19.,   0.],
+            [ 20.,  61.,  64.,  67.,  70.,  48.,   0.],
+            [ 50.,  52., 104., 108., 112.,  56.,  58.],
+            [  0.,  30.,  61.,  63.,  65.,  67.,  34.],
+            [ 35., 106., 109., 112., 115.,  78.,   0.],
+            [  0.,  40.,  81.,  83.,  85.,  87.,  44.],
+            [  0.,   0.,  45.,  46.,  47.,  48.,  49.]], dtype=ht.float64, device=cpu:0, split=0)
     """
     if np.isscalar(a):
         a = array([a])
