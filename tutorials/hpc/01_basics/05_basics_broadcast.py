@@ -15,5 +15,5 @@ a = ht.ones(
 )
 b = ht.arange(4)
 print(
-    f"broadcasing across the first dimension of  {a} with shape = (3, 4) and {b} with shape = (4): {a+b}"
+    f"broadcasting across the first dimension of  {a} with shape = (3, 4) and {b} with shape = (4): {a + b}"
 )
