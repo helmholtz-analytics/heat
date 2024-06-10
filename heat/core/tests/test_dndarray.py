@@ -1107,18 +1107,29 @@ class TestDNDarray(TestCase):
         self.assertEqual(t1_sub.split, None)
 
         # 3D non-contiguous resplit testing (Column mayor ordering)
-        torch_array = torch.arange(100).reshape((10, 5, 2))
+        torch_array = torch.arange(100, device=self.device.torch_device).reshape((10, 5, 2))
+        print(torch_array.device)
         heat_array = ht.array(torch_array, split=2, order="F")
+        print(heat_array.device)
         heat_array.resplit_(axis=1)
+        print(heat_array.device)
         res = np.arange(100).reshape(10, 5, 2)
+        print(heat_array.device)
+        print(ht.array(res).device)
+        self.assertTrue(ht.array(res).device == heat_array.device)
         self.assertTrue(ht.all(heat_array == ht.array(res)))
         self.assertEqual(heat_array.split, 1)
 
         # 4D non-contiguous resplit testing (from transpose
-        torch_array = torch.arange(5 * 4 * 3 * 6).reshape(5, 4, 3, 6)
+        torch_array = torch.arange(5 * 4 * 3 * 6, device=self.device.torch_device).reshape(
+            5, 4, 3, 6
+        )
         res = torch_array.cpu().numpy().transpose((3, 1, 2, 0))
         heat_array = ht.array(torch_array, split=2).transpose((3, 1, 2, 0))
         heat_array.resplit_(axis=1)
+        print(heat_array.device)
+        print(ht.array(res).device)
+        self.assertTrue(ht.array(res).device == heat_array.device)
         self.assertTrue(ht.all(heat_array == ht.array(res)))
         self.assertEqual(heat_array.split, 1)
 
