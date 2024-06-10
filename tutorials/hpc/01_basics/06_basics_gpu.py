@@ -1,4 +1,5 @@
 import heat as ht
+import torch
 
 # ## Parallel Processing
 # ---
@@ -13,8 +14,6 @@ import heat as ht
 #
 # Heat's array creation functions all support an additional parameter that which places the data on a specific device. By default, the CPU is selected, but it is also possible to directly allocate the data on a GPU.
 
-
-import torch
 
 if torch.cuda.is_available():
     ht.zeros(

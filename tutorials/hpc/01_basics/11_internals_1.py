@@ -11,7 +11,7 @@ import torch
 
 a = ht.random.randn(7, 4, 3, split=1)
 if a.comm.rank == 0:
-    print(f"a.com gets the communicator {a.comm} associated with DNDarray a")
+    print(f"a.comm gets the communicator {a.comm} associated with DNDarray a")
 
 # MPI size = total number of processes
 size = a.comm.size
