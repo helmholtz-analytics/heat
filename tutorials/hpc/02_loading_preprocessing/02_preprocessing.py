@@ -12,7 +12,7 @@ X = ht.random.randn(1000, 3, split=0, device="gpu")
 # print global metadata once only
 if X.comm.rank == 0:
     print(f"X is a {X.ndim}-dimensional array with shape{X.shape}")
-    print(f"X takes up {X.nbytes/1e6} MB of memory.")
+    print(f"X takes up {X.nbytes / 1e6} MB of memory.")
 
 # X is a matrix of shape *(datapoints, features)*.
 #
