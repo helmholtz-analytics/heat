@@ -11,7 +11,7 @@ The Heat conda build includes all dependencies including OpenMPI.
 ```shell
 conda create --name heat_env
 conda activate heat_env
-conda -c conda-forge heat
+conda install -c conda-forge heat
 ```
 
 [Test](#test) your installation.
