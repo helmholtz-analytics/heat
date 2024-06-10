@@ -22,7 +22,7 @@
 import heat as ht
 
 # Some random data for small scale tests
-iris = ht.load("iris.csv", sep=";", split=0)
+iris = ht.load("~/heat/tutorials/02_loading_preprocessing/iris.csv", sep=";", split=0)
 print(iris)
 
 # We have loaded the entire data onto 4 MPI processes, each with 12 cores. We have created `X` with `split=0`, so each process stores evenly-sized slices of the data along dimension 0.
