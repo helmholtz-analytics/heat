@@ -1465,7 +1465,9 @@ def percentile(
                 q.resplit_(axis=None)
                 q = q.larray
             else:
-                raise TypeError(f"q can be scalar, list, tuple, or DNDarray, was {type(q)}")
+                raise TypeError(f"q can be scalar, list, tuple, or DNDarray, was {type(q)}.")
+        except ValueError:
+            raise TypeError(f"q must be a scalar, list, tuple, or DNDarray, was {q} .")
     perc_size = tuple(q.shape)
 
     # sanitize axis
@@ -1519,7 +1521,7 @@ def percentile(
         x = x.flatten()
         axis = 0
         if keepdims:
-            x = manipulations.expand_dims(x, axis=list(range(1, original_dims + 1)))
+            x = manipulations.expand_dims(x, axis=tuple(range(1, original_dims + 1)))
     elif isinstance(axis, tuple):
         # percentile along multiple axes
         # transpose x so that the axes along which the percentiles are calculated are at the beginning

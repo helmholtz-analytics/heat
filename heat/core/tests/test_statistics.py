@@ -1157,14 +1157,15 @@ class TestStatistics(TestCase):
         q = 15.9
         for dim in range(x_ht.ndim):
             p_np = np.percentile(x_np, q, axis=dim)
+            p_np_keepdims = np.percentile(x_np, q, axis=dim, keepdims=True)
             p_ht = ht.percentile(x_ht, q, axis=dim)
             p_ht_split0 = ht.percentile(x_ht_split0, q, axis=dim)
             p_ht_split1 = ht.percentile(x_ht_split1, q, axis=dim)
-            p_ht_split2 = ht.percentile(x_ht_split2, q, axis=dim)
+            p_ht_split2 = ht.percentile(x_ht_split2, q, axis=dim, keepdims=True)
             self.assert_array_equal(p_ht, p_np)
             self.assert_array_equal(p_ht_split0, p_np)
             self.assert_array_equal(p_ht_split1, p_np)
-            self.assert_array_equal(p_ht_split2, p_np)
+            self.assert_array_equal(p_ht_split2, p_np_keepdims)
 
         # test x, q dtypes combination plus edge-case 100th percentile
         q = 100
@@ -1199,11 +1200,12 @@ class TestStatistics(TestCase):
         p_ht = ht.percentile(x_ht, q, axis=axis, interpolation="higher")
         self.assertEqual(p_ht.numpy()[6], p_np[6])
         self.assertTrue(p_ht.shape == p_np.shape)
+        # keepdims
         try:
-            p_np = np.percentile(x_np, q, axis=axis, method="nearest")
+            p_np = np.percentile(x_np, q, axis=axis, method="nearest", keepdims=True)
         except TypeError:
-            p_np = np.percentile(x_np, q, axis=axis, interpolation="nearest")
-        p_ht = ht.percentile(x_ht, q, axis=axis, interpolation="nearest")
+            p_np = np.percentile(x_np, q, axis=axis, interpolation="nearest", keepdims=True)
+        p_ht = ht.percentile(x_ht, q, axis=axis, interpolation="nearest", keepdims=True)
         self.assertEqual(p_ht.numpy()[2], p_np[2])
 
         # test split q
@@ -1221,12 +1223,22 @@ class TestStatistics(TestCase):
         p_np = np.percentile(4.5, q=q)
         self.assertEqual(p_ht.numpy().all(), p_np.all())
 
+        # test tuple axis
+        q = (20, 50, 80)
+        x_ht = ht.random.randn(3, 10, 10, dtype=ht.float64)
+        x_np = x_ht.numpy()
+        p_np = np.percentile(x_np, q, axis=(0, 1))
+        p_ht = ht.percentile(x_ht, q, axis=(0, 1))
+        self.assertTrue(np.allclose(p_ht.numpy(), p_np))
+
         # test exceptions
         with self.assertRaises(TypeError):
             ht.percentile(x_np, q)
         complex_x = ht.array([1 + 1j, 2 + 2j, 3 + 3j])
         with self.assertRaises(TypeError):
             ht.percentile(complex_x, q)
+        with self.assertRaises(TypeError):
+            ht.percentile(x_ht, q=["a", "b"])
         with self.assertRaises(ValueError):
             ht.percentile(x_ht, q, interpolation="Homer!")
         t_out = torch.empty((len(q),), dtype=torch.float64)
