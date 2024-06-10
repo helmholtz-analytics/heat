@@ -28,5 +28,13 @@ print(iris)
 # We have loaded the entire data onto 4 MPI processes, each with 12 cores. We have created `X` with `split=0`, so each process stores evenly-sized slices of the data along dimension 0.
 
 # similar for HDF5
-X = ht.load_hdf5("path_to_data/sbdb_asteroids.h5", device="gpu", dataset="data", split=0)
-print(X.shape)
+
+# first, we generate some data
+X = ht.random.randn(10000, 100, split=0)
+
+# ... and save it to file
+ht.save(X, "~/mydata.h5", "mydata", mode="a")
+
+# ... then we can load it again
+Y = ht.load_hdf5("~/mydata.h5", device="gpu", dataset="mydata", split=0)
+print(ht.allclose(X, Y))

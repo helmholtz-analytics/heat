@@ -60,9 +60,7 @@
 
 import heat as ht
 
-X = ht.load_hdf5(
-    "/p/scratch/training2404/data/JPL_SBDB/sbdb_asteroids.h5", dataset="data", split=0
-).T
+X = ht.load_hdf5("~/mydata.h5", dataset="mydata", split=0).T
 
 
 # Note that due to the transpose, `X` is distributed along the columns now; this is required by the hSVD-algorithm.
@@ -83,19 +81,12 @@ print("relative residual:", svd_with_rank[3], "rank: ", svd_with_rank[0].shape[1
 
 # Once we have computed the truncated SVD, we can use it to approximate the original data matrix `X` by the truncated matrix `X_r`.
 #
-# Check out the plot below to see how Heat's truncated SVD algorithm scales with the number of MPI processes and size of the dataset.
-
-# <div>
-#   <img src=https://github.com/helmholtz-analytics/heat/blob/main/doc/images/hSVD_bench_rank5.png?raw=true title="hSVD rank 5" width="30%" style="float:left"/>
-#   <img src=https://github.com/helmholtz-analytics/heat/blob/main/doc/images/hSVD_bench_rank50.png?raw=true title="hSVD rank 50" width="30%" style="float:center "/>
-#   <img src=https://github.com/helmholtz-analytics/heat/blob/main/doc/images/hSVD_bench_rank500.png?raw=true title="HSVD rank 500" width="30%" style="float:center"/>
-# </div>
-#
+# Check out https://helmholtz-analytics.github.io/heat/2023/06/16/new-feature-hsvd.html to see how Heat's truncated SVD algorithm scales with the number of MPI processes and size of the dataset.
 
 # ### Other factorizations
 #
 # Other common factorization algorithms are supported in Heat, such as:
-# - QR decomposition (`heat.linalg.qr`),
+# - QR decomposition (`heat.linalg.qr`)
 # - Lanczos algorithm for computing the largest eigenvalues and corresponding eigenvectors (`heat.linalg.lanczos`)
 #
 # Check out our [`linalg` PRs](https://github.com/helmholtz-analytics/heat/pulls?q=is%3Aopen+is%3Apr+label%3Alinalg) to see what's in progress.
