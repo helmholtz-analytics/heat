@@ -128,3 +128,21 @@ class TestSignal(TestCase):
         kernel = ht.random.randn(19, dtype=ht.float64)
         batch_convolved = ht.convolve(batch_signal, kernel, mode="same")
         self.assertTrue(ht.equal(ht.convolve(signal, kernel, mode="same"), batch_convolved[0]))
+
+        # distributed kernel
+        dis_kernel = ht.array(kernel, split=0)
+        batch_convolved = ht.convolve(batch_signal, dis_kernel)
+        self.assertTrue(ht.equal(ht.convolve(signal, kernel), batch_convolved[0]))
+        batch_kernel = ht.empty((10, 19), dtype=ht.float64, split=1)
+        batch_kernel.larray[:] = dis_kernel.larray
+        batch_convolved = ht.convolve(batch_signal, batch_kernel, mode="full")
+        self.assertTrue(ht.equal(ht.convolve(signal, kernel, mode="full"), batch_convolved[0]))
+
+        # test batch-convolve exceptions
+        batch_kernel_wrong_shape = ht.random.randn(3, 19, dtype=ht.float64)
+        with self.assertRaises(ValueError):
+            ht.convolve(batch_signal, batch_kernel_wrong_shape)
+        if kernel.comm.size > 1:
+            batch_signal_wrong_split = batch_signal.resplit(1)
+            with self.assertRaises(ValueError):
+                ht.convolve(batch_signal_wrong_split, kernel)
