@@ -155,6 +155,27 @@ class TestSolver(TestCase):
         c = ht.factories.asarray(ct, copy=True)
         b = ht.eye(k)
 
+        # exceptions
+        with self.assertRaises(TypeError):  # invalid datatype for b
+            ht.linalg.solve_triangular(a, 42)
+
+        with self.assertRaises(ValueError):  # a no matrix, not enough dimensions
+            ht.linalg.solve_triangular(a[1], b)
+
+        with self.assertRaises(ValueError):  # a and b different number of dimensions
+            ht.linalg.solve_triangular(a, b[1])
+
+        with self.assertRaises(ValueError):  # a no square matrix
+            ht.linalg.solve_triangular(a[1:, ...], b)
+
+        with self.assertRaises(ValueError):  # split=1 for b
+            b.resplit_(-1)
+            ht.linalg.solve_triangular(a, b)
+
+        b.resplit_(0)
+        with self.assertRaises(ValueError):  # dimension mismatch
+            ht.linalg.solve_triangular(a, b[1:, ...])
+
         for s0, s1 in (None, None), (-2, -2), (-1, -2), (-2, None), (-1, None), (None, -2):
             a.resplit_(s0)
             b.resplit_(s1)
@@ -188,6 +209,29 @@ class TestSolver(TestCase):
             ),
         ]
         m = 100  # data dimension size
+
+        # exceptions
+        batch_shape = batch_shapes[1]
+
+        at = torch.rand((*batch_shape, m, m))
+        # at += torch.eye(k)
+        at += 1e2 * torch.ones_like(at)  # make gaussian elimination more stable
+        at = torch.triu(at).to(tdev)
+        bt = torch.eye(m).expand((*batch_shape, -1, -1)).to(tdev)
+
+        ct = torch.linalg.solve_triangular(at, bt, upper=True)
+
+        a = ht.factories.asarray(at, copy=True)
+        c = ht.factories.asarray(ct, copy=True)
+        b = ht.factories.asarray(bt, copy=True)
+
+        with self.assertRaises(ValueError):  # batch dimensions of different shapes
+            ht.linalg.solve_triangular(a[1:, ...], b)
+
+        with self.assertRaises(ValueError):  # different batched split dimensions
+            a.resplit_(0)
+            b.resplit_(1)
+            ht.linalg.solve_triangular(a, b)
 
         for batch_shape in batch_shapes:
             # batch_shape = tuple() # no batch dimensions
