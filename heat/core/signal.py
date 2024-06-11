@@ -196,7 +196,7 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
 
         # cast to single-precision float if on GPU
         if local_a.is_cuda:
-            float_type = promote_types(local_a.dtype, torch.float32)
+            float_type = torch.promote_types(local_a.dtype, torch.float32)
             local_a = local_a.to(float_type)
             local_v = local_v.to(float_type)
 
