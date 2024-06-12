@@ -13,10 +13,10 @@ from heat.core.tests.test_suites.basic_test import TestCase
     int(torch.__version__.split(".")[0]) <= 1 and int(torch.__version__.split(".")[1]) < 12,
     f"ht.sparse requires torch >= 1.12. Found version {torch.__version__}.",
 )
-class TestArithmetics(TestCase):
+class TestArithmeticsCSR(TestCase):
     @classmethod
     def setUpClass(self):
-        super(TestArithmetics, self).setUpClass()
+        super(TestArithmeticsCSR, self).setUpClass()
 
         """
         A = [[0, 0, 1, 0, 2]
