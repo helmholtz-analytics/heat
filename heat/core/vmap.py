@@ -6,21 +6,31 @@ import torch
 from .dndarray import DNDarray
 from .factories import array
 from .communication import MPI_WORLD
+from typing import Union, Tuple, Optional, Callable
 
 __all__ = ["vmap"]
 
 
-def vmap(func, out_dims=0, randomness="error", *, chunk_size=None):
+def vmap(
+    func: Callable[[Tuple[torch.Tensor]], Tuple[torch.Tensor]],
+    out_dims: Union[Tuple[int], int] = 0,
+    randomness: str = "error",
+    *,
+    chunk_size: int = None,
+) -> Callable[[Tuple[DNDarray]], Tuple[DNDarray]]:
     """
     This function is used to apply a function to a DNDarray in a vectorized way.
     `heat.vmap` return a callable that can be applied to DNDarrays.
-    Vectorization will automatically take place along the split axis/axes; therefore, unlike in PyTorch, there is no argument `in_dims`.
+    Vectorization will automatically take place along the split axis/axes of the DNDarray(s);
+    therefore, unlike in PyTorch, there is no argument `in_dims`.
+    What we here refer to as "split axis/dimension" in the Heat terminology is often referred to as "batch axis/dimension" in the PyTorch terminology.
 
     Parameters
     ----------
     func : callable
-        The function to apply to the DNDarray. It must take a DNDarray as its first argument.
-    out_dims : int or sequence of int, optional
+        The function to apply in a vmapped way to the DNDarray(s). It must take PyTorch tensor(s) as positional arguments.
+        Additional parameters, not to be vmapped over, can be passed as keyword arguments.
+    out_dims : int or tuple of int, optional
         The dimensions of the output(s) that are mapped over; identical to the split dimension(s) of the output(s).
         Default is 0.
     randomness : {'error', 'different', 'same'}, optional
