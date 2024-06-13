@@ -29,7 +29,8 @@ def vmap(
     ----------
     func : callable
         The function to apply in a vmapped way to the DNDarray(s). It must take PyTorch tensor(s) as positional arguments.
-        Additional parameters, not to be vmapped over, can be passed as keyword arguments.
+        Additional parameters, not to be vmapped over, can be passed as keyword arguments. The callable returned by
+        by `heat.vmap` will also accept these keyword arguments.
     out_dims : int or tuple of int, optional
         The dimensions of the output(s) that are mapped over; identical to the split dimension(s) of the output(s).
         Default is 0.
