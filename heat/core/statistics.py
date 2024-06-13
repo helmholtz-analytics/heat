@@ -1515,7 +1515,10 @@ def percentile(
         return percentile
 
     def _create_sketch(
-        a: DNDarray, axis: Union[int, None], sketch_size: Union[int, float]
+        a: DNDarray,
+        axis: Union[int, None],
+        sketch_size_relative: Optional[float] = None,
+        sketch_size_absolute: Optional[int] = None,
     ) -> DNDarray:
         """
         Create a sketch of a DNDarray along a specified axis. The sketch is created by sampling the DNDarray along the specified axis.
@@ -1526,30 +1529,21 @@ def percentile(
             The DNDarray for which to create a sketch.
         axis : int
             The axis along which to create the sketch.
-        sketch_size : int or float
-            The size of the sketch. If an integer, it is interpreted as the number of samples to take and therefore must not exceed the size of the axis along which the sketch is taken. If a float, it is interpreted as the fraction of samples to take and must be strictly between 0 and 1.
+        sketch_size_relative : optional, float
+            The size of the sketch. Fraction of samples to take, hence between 0 and 1.
+        sketch_size_absolute : optional, int
+            The size of the sketch. Number of samples to take, hence must not exceed the size of the axis along which the sketch is taken.
         """
-        # ----------------- please do not delete this code block -----------------
-        # ------ may be used as a function in manipulation.py in the future ------
-        # if not isinstance(a, DNDarray):
-        #     raise ValueError(f"a must be a DNDarray, but is {type(a)}.")
-        # if not isinstance(axis, int) or axis < 0 or axis >= a.ndim:
-        #     raise ValueError(f"axis must be an integer between 0 and a.ndim-1, but is {axis}.")
-        # if isinstance(sketch_size, int) and sketch_size <= 0 or sketch_size > a.shape[axis]:
-        #     raise ValueError(
-        #         f"if an integer, sketch_size must be positive and less than or equal to a.shape[axis], but is {sketch_size}."
-        #     )
-        if isinstance(sketch_size, float):
-            # if sketch_size <= 0 or sketch_size >= 1:
-            #     raise ValueError(
-            #         f"if a float, sketch_size must be strictly between 0 and 1, but is {sketch_size}."
-            #     )
-            # else:
-            sketch_size = int(sketch_size * a.shape[axis])
-        # if not isinstance(sketch_size, int) and not isinstance(sketch_size, float):
-        #     raise ValueError(
-        #         f"sketch_size must be an integer or a float, but is {type(sketch_size)}."
-        #     )
+        if (sketch_size_relative is None and sketch_size_absolute is None) or (
+            sketch_size_relative is not None and sketch_size_absolute is not None
+        ):
+            raise ValueError(
+                "Exactly one of sketch_size_relative and sketch_size_absolute must be specified."
+            )
+        if sketch_size_absolute is None:
+            sketch_size = int(sketch_size_relative * a.shape[axis])
+        else:
+            sketch_size = sketch_size_absolute
 
         # create a random sample of indices
         indices = randint(0, a.shape[axis], sketch_size, device=a.device)
@@ -1565,10 +1559,6 @@ def percentile(
         raise NotImplementedError("ht.percentile(), tuple axis not implemented yet")
 
     if use_sketch_of_size is not None:
-        if axis != x.split:
-            warn(
-                f"Sketching is only advantageous in the case that axis, i.e. the axis along which to take the percentile, and the split axis of the array coincide. Consider avoiding the sketching option in the present since axis={axis}, x.split={x.split}."
-            )
         if (
             not isinstance(use_sketch_of_size, float)
             or use_sketch_of_size <= 0
