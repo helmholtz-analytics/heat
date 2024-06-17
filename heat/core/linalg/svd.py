@@ -90,7 +90,7 @@ def svd(
                 Utilde_loc, S_loc, Vt_loc = torch.linalg.svd(R.larray, full_matrices=False)
                 Utilde = DNDarray(
                     Utilde_loc,
-                    Utilde_loc.shape,
+                    tuple(Utilde_loc.shape),
                     dtype=A.dtype,
                     split=None,
                     device=A.device,
@@ -99,7 +99,7 @@ def svd(
                 )
                 S = DNDarray(
                     S_loc,
-                    S_loc.shape,
+                    tuple(S_loc.shape),
                     dtype=A.dtype,
                     split=None,
                     device=A.device,
@@ -108,7 +108,7 @@ def svd(
                 )
                 V = DNDarray(
                     Vt_loc.T,
-                    Vt_loc.T.shape,
+                    tuple(Vt_loc.T.shape),
                     dtype=A.dtype,
                     split=None,
                     device=A.device,
@@ -123,7 +123,7 @@ def svd(
                 S_loc = torch.linalg.svdvals(R.larray)
                 S = DNDarray(
                     S_loc,
-                    S_loc.shape,
+                    tuple(S_loc.shape),
                     dtype=A.dtype,
                     split=None,
                     device=A.device,
@@ -163,7 +163,7 @@ def svd(
             U_loc, S_loc, Vt_loc = torch.linalg.svd(A.larray, full_matrices=full_matrices)
             U = DNDarray(
                 U_loc,
-                U_loc.shape,
+                tuple(U_loc.shape),
                 dtype=A.dtype,
                 split=None,
                 device=A.device,
@@ -172,7 +172,7 @@ def svd(
             )
             S = DNDarray(
                 S_loc,
-                S_loc.shape,
+                tuple(S_loc.shape),
                 dtype=A.dtype,
                 split=None,
                 device=A.device,
@@ -181,7 +181,7 @@ def svd(
             )
             V = DNDarray(
                 Vt_loc.T,
-                Vt_loc.T.shape,
+                tuple(Vt_loc.T.shape),
                 dtype=A.dtype,
                 split=None,
                 device=A.device,
@@ -193,7 +193,7 @@ def svd(
             S_loc = torch.linalg.svdvals(A.larray)
             S = DNDarray(
                 S_loc,
-                S_loc.shape,
+                tuple(S_loc.shape),
                 dtype=A.dtype,
                 split=None,
                 device=A.device,
