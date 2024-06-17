@@ -1570,7 +1570,12 @@ def percentile(
         raise NotImplementedError("ht.percentile(), tuple axis not implemented yet")
 
     if sketched:
-        if not isinstance(sketch_size, float) or sketch_size <= 0 or sketch_size >= 1:
+        if (
+            not isinstance(sketch_size, float)
+            or sketch_size <= 0
+            or (MPI.COMM_WORLD.size > 1 and sketch_size == 1)
+            or sketch_size > 1
+        ):
             raise ValueError(
                 f"If sketched=True, sketch_size must be float strictly between 0 and 1, but is {sketch_size}."
             )
