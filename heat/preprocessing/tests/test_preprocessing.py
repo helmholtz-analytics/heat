@@ -365,7 +365,7 @@ class TestRobustScaler(TestCase):
                 copy=copy,
                 with_centering=with_centering,
                 with_scaling=with_scaling,
-                use_sketch_of_size=0.1,
+                sketched=True,
             )
             scaler.fit(X)
             Y = scaler.transform(X)
