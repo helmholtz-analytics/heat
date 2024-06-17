@@ -1022,13 +1022,14 @@ def median(
     x: DNDarray,
     axis: Optional[int] = None,
     keepdims: bool = False,
-    use_sketch_of_size: Optional[float] = None,
+    sketched: bool = False,
+    sketch_size: Optional[float] = 1.0 / MPI.COMM_WORLD.size,
 ) -> DNDarray:
     """
     Compute the median of the data along the specified axis.
     Returns the median of the ``DNDarray`` elements.
     Per default, the "true" median of the entire data set is computed; however, the argument
-    `use_sketch_of_size` allows to switch to a faster but inaccurate version that computes
+    `sketched` allows to switch to a faster but inaccurate version that computes
     the median only on behalf of a random subset of the data set ("sketch").
 
     Parameters
@@ -1043,19 +1044,24 @@ def median(
         If True, the axes which are reduced are left in the result as dimensions with size one.
         With this option, the result can broadcast correctly against the original array ``a``.
 
-    use_sketch_of_size : float, optional
-        If None (default), the entire data is used and no sketching is performed.
-        If float, the fraction of the data to use for estimating the median; needs to be strictly between 0 and 1.
+    sketched : bool, optional
+        If True, the median is computed on a random subset of the data set ("sketch").
+        This is faster but less accurate.  Default is False. The size of the sketch is controlled by the argument `sketch_size`.
+    sketch_size : float, optional
+        The size of the sketch as a fraction of the data set size. Default is 1./MPI.COMM_WORLD.size. Must be in the range (0, 1).
+        Ignored for sketched = False.
     """
-    return percentile(x, q=50, axis=axis, keepdims=keepdims, use_sketch_of_size=use_sketch_of_size)
+    return percentile(
+        x, q=50, axis=axis, keepdims=keepdims, sketched=sketched, sketch_size=sketch_size
+    )
 
 
-DNDarray.median: Callable[[DNDarray, int, bool], DNDarray] = (
-    lambda x, axis=None, keepdims=False, use_sketch_of_size=None: median(
-        x, axis, keepdims, use_sketch_of_size
+DNDarray.median: Callable[[DNDarray, int, bool, bool, float], DNDarray] = (
+    lambda x, axis=None, keepdims=False, sketched=False, sketch_size=1.0 / MPI.COMM_WORLD.size: median(
+        x, axis, keepdims, sketched=sketched, sketch_size=sketch_size
     )
 )
-DNDarray.mean.__doc__ = mean.__doc__
+DNDarray.median.__doc__ = median.__doc__
 
 
 def __merge_moments(
@@ -1428,13 +1434,14 @@ def percentile(
     out: Optional[DNDarray] = None,
     interpolation: str = "linear",
     keepdims: bool = False,
-    use_sketch_of_size: Optional[float] = None,
+    sketched: bool = False,
+    sketch_size: Optional[float] = 1.0 / MPI.COMM_WORLD.size,
 ) -> DNDarray:
     r"""
     Compute the q-th percentile of the data along the specified axis.
     Returns the q-th percentile(s) of the tensor elements.
     Per default, the "true" percentile(s) of the entire data set are computed; however, the argument
-    `use_sketch_of_size` allows to switch to a faster but inaccurate version that computes
+    `sketched` allows to switch to a faster but inaccurate version that computes
     the percentile only on behalf of a random subset of the data set ("sketch").
 
     Parameters
@@ -1468,9 +1475,13 @@ def percentile(
         If True, the axes which are reduced are left in the result as dimensions with size one.
         With this option, the result can broadcast correctly against the original array x.
 
-    use_sketch_of_size : float, optional
-        If None (default), the entire data is used and no sketching is performed.
-        If float, the fraction of the data to use for estimating the percentile; needs to be strictly between 0 and 1.
+    sketched : bool, optional
+        If False (default), the entire data is used and no sketching is performed.
+        If True, a fraction of the data to use for estimating the percentile. The fraction is determined by `sketch_size`.
+    sketch_size : float, optional
+        The fraction of the data to use for estimating the percentile; needs to be strictly between 0 and 1.
+        The default is 1/size of the MPI communicator, i.e., roughly the portion of the data that is anyway processed on a single process.
+        Ignored for sketched = False.
     """
 
     def _local_percentile(data: torch.Tensor, axis: int, indices: torch.Tensor) -> torch.Tensor:
@@ -1546,7 +1557,7 @@ def percentile(
             sketch_size = sketch_size_absolute
 
         # create a random sample of indices
-        indices = randint(0, a.shape[axis], sketch_size, device=a.device)
+        indices = manipulations.sort(randint(0, a.shape[axis], sketch_size, device=a.device))[0]
         sketch = a.swapaxes(0, axis)
         sketch = a[indices, ...].resplit_(None)
         return sketch.swapaxes(0, axis)
@@ -1558,17 +1569,13 @@ def percentile(
     if isinstance(axis, (list, tuple)):
         raise NotImplementedError("ht.percentile(), tuple axis not implemented yet")
 
-    if use_sketch_of_size is not None:
-        if (
-            not isinstance(use_sketch_of_size, float)
-            or use_sketch_of_size <= 0
-            or use_sketch_of_size >= 1
-        ):
+    if sketched:
+        if not isinstance(sketch_size, float) or sketch_size <= 0 or sketch_size >= 1:
             raise ValueError(
-                f"use_sketch_of_size must be None or float strictly between 0 and 1, but is {use_sketch_of_size}."
+                f"If sketched=True, sketch_size must be float strictly between 0 and 1, but is {sketch_size}."
             )
         else:
-            x = _create_sketch(x, axis, use_sketch_of_size)
+            x = _create_sketch(x, axis, sketch_size_relative=sketch_size)
 
     if axis is None:
         if x.ndim > 1:
