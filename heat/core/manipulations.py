@@ -3544,7 +3544,7 @@ def resplit(arr: DNDarray, axis: int = None) -> DNDarray:
     new_tiles = tiling.SplitTiles(new_arr)
 
     new_arr.larray = _axis2axisResplit(
-        arr.comm, arr.split, arr.larray, arr_tiles, axis, new_arr.larray, new_tiles
+        arr.comm, arr.larray, arr.split, arr_tiles, new_arr.larray, axis, new_tiles
     )
 
     return new_arr
@@ -3558,43 +3558,38 @@ DNDarray.resplit.__doc__ = resplit.__doc__
 
 def _axis2axisResplit(
     comm: Communication,
-    source_axis: int,
-    source_array: torch.Tensor,
+    source_larray: torch.Tensor,
+    source_split: int,
     source_tiles: tiling.SplitTiles,
-    target_axis: int,
-    target_array: torch.Tensor,
+    target_larray: torch.Tensor,
+    target_split: int,
     target_tiles: tiling.SplitTiles,
 ) -> torch.Tensor:
     """
-    Resplits the input array along a new axis and performs data exchange using MPI_Alltoallw.
+    Resplits the input array along a new axis and performs data exchange using MPI_Alltoallw. Returns target_larray object with the data after the exchange.
 
     Parameters
     ----------
     comm : Communication
         The communication object for MPI communication.
-    source_axis : int
-        The axis along which the source array is split.
-    source_array : torch.Tensor
+    source_larray : torch.Tensor
         The source array to be resplit.
+    source_split : int
+        The axis along which the source array is split.
     source_tiles : tiling.SplitTiles
         The tiling object containing the subarray parameters for the source array.
-    target_axis : int
-        The axis along which the target array is split.
-    target_array : torch.Tensor
+    target_larray : torch.Tensor
         The target array to store the resplit data.
+    target_split : int
+        The axis along which the target array is split.
     target_tiles : tiling.SplitTiles
         The tiling object containing the subarray parameters for the target array.
-
-    Returns
-    -------
-    torch.Tensor
-        The resplit target array.
     """
     # Create subarray types for original local shapes split along the new axis
-    source_subarray_params = source_tiles.get_subarray_params(source_axis, target_axis)
+    source_subarray_params = source_tiles.get_subarray_params(source_split, target_split)
 
     # Create subarray types for resplit local array along the old axis
-    target_subarray_params = target_tiles.get_subarray_params(target_axis, source_axis)
+    target_subarray_params = target_tiles.get_subarray_params(target_split, source_split)
 
     world_size = comm.Get_size()
     counts = [1] * world_size
@@ -3602,17 +3597,15 @@ def _axis2axisResplit(
 
     # Perform the data exchange using MPI_Alltoallw
     comm.Alltoallw(
-        (source_array, (counts.copy(), displs.copy()), source_subarray_params),
-        (target_array, (counts.copy(), displs.copy()), target_subarray_params),
+        (source_larray, (counts.copy(), displs.copy()), source_subarray_params),
+        (target_larray, (counts.copy(), displs.copy()), target_subarray_params),
     )
 
-    # print(f"Source axis: {source_axis}, Source array: {source_array}")
-    # print(f"Target axis: {target_axis}, Target array: {target_array}")
-    return target_array
+    return target_larray
 
 
-DNDarray._axis2axisResplit = lambda self, comm, source_axis, source_array, source_tiles, target_axis, target_array, target_tile: _axis2axisResplit(
-    comm, source_axis, source_array, source_tiles, target_axis, target_array, target_tile
+DNDarray._axis2axisResplit = lambda self, comm, source_larray, source_split, source_tiles, target_larray, target_split, target_tile: _axis2axisResplit(
+    comm, source_larray, source_split, source_tiles, target_larray, target_split, target_tile
 )
 DNDarray._axis2axisResplit.__doc__ = _axis2axisResplit.__doc__
 

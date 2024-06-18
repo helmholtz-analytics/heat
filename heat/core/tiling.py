@@ -331,7 +331,9 @@ class SplitTiles:
     def get_subarray_params(
         self, from_axis: int, to_axis: int
     ) -> List[Tuple[List[int], List[int], List[int]]]:
-        """Create subarray types of the local array along a new split axis. For use with alltoallw.
+        """Create subarray types of the local array along a new split axis. For use with Alltoallw.
+
+        Return type is a list of tuples, each tuple containing the shape of the local array, the shape of the subarray, and the start index of the subarray.
 
         Parameters
         ----------
@@ -339,11 +341,6 @@ class SplitTiles:
             Current split axis of global array.
         to_axis : int
             New split axis of of subarrays array.
-
-        Returns
-        -------
-        List[Tuple[List[int], List[int], List[int]]]
-            List of subarray parameters for all processes. For use with Create_subarray.
         """
         arr = self.__DNDarray
         world_size = arr.comm.Get_size()

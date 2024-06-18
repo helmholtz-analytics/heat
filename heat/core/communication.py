@@ -250,12 +250,7 @@ class MPICommunication(Communication):
         Parameters
         ----------
         dtype : torch.dtype
-            _description_
-
-        Returns
-        -------
-        MPI.Datatype
-            _description_
+            PyTorch data type
         """
         return cls.__mpi_type_mappings[dtype]
 
@@ -1465,14 +1460,15 @@ class MPICommunication(Communication):
         recvbuf: Union[DNDarray, torch.Tensor, Any],
     ):
         """
-        Generalized All-to-All communication allowing different counts, displacements and datatypes for each partner.
+        Generalized All-to-All communication allowing different counts, displacements and datatypes for each partner. See MPI standard for more information.
 
         Parameters
         ----------
         sendbuf: Union[DNDarray, torch.Tensor, Any]
-            Buffer address of the send message
+            Buffer address of the send message. The buffer is expected to be a tuple of the form (buffer, (counts, displacements), subarray_params_list), where subarray_params_list is a list of tuples of the form (lshape, subsizes, substarts).
         recvbuf: Union[DNDarray, torch.Tensor, Any]
-            Buffer address where to store the result
+            Buffer address where to store the result. The buffer is expected to be a tuple of the form (buffer, (counts, displacements), subarray_params_list), where subarray_params_list is a list of tuples of the form (lshape, subsizes, substarts).
+
         """
         # Unpack sendbuffer information
         sendbuf_tensor, (send_counts, send_displs), subarray_params_list = sendbuf
@@ -1530,7 +1526,6 @@ class MPICommunication(Communication):
                 target_subarray_types.append(MPI.INT)
 
         # Perform the Alltoallw operation
-        # print("Sendbuf: ", stride, (send_counts, send_displs), source_subarray_types)
         self.handle.Alltoallw(
             [sendbuf_ptr, (send_counts, send_displs), source_subarray_types],
             [recvbuf_ptr, (recv_counts, recv_displs), target_subarray_types],
@@ -1557,7 +1552,11 @@ class MPICommunication(Communication):
     Alltoallw.__doc__ = MPI.Comm.Alltoallw.__doc__
 
     def _create_recursive_vectortype(
-        self, datatype: MPI.Datatype, tensor_stride, subarray_sizes, start
+        self,
+        datatype: MPI.Datatype,
+        tensor_stride: Tuple[int],
+        subarray_sizes: List[int],
+        start: List[int],
     ):
         """
         Create a recursive vector to handle non-contiguous tensor data. The created datatype will be a recursively defined vector datatype that will enable the collection of  non-contiguous tensor data in the specified subarray sizes.
@@ -1566,21 +1565,16 @@ class MPICommunication(Communication):
         ----------
         datatype : MPI.Datatype
             The base datatype to create the recursive vector datatype from.
-        tensor_stride : list
+        tensor_stride : Tuple[int]
             A list of tensor strides for each dimension.
-        subarray_sizes : list
+        subarray_sizes : List[int]
             A list of subarray sizes for each dimension.
-        start: list
+        start: List[int]
             Index of the first element of the subarray in the original array.
-
-        Returns
-        -------
-        MPI.Datatype
-            The created recursive vector datatype.
 
         Notes
         -----
-        This function creates a recursive vector datatype by defining vectors out of the previous datatype with specified strides and sizes. The extent of the new datatype is set to the extent of the basic datatype to allow interweaving of data.
+        This function creates a recursive vector datatype by defining vectors out of the previous datatype with specified strides and sizes. The extent (size of the data type in bytes) of the new datatype is set to the extent of the basic datatype to allow interweaving of data.
 
         Examples
         --------
