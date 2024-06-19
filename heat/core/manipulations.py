@@ -1069,7 +1069,7 @@ def flip(a: DNDarray, axis: Union[int, Tuple[int, ...]] = None) -> DNDarray:
 
     flipped = torch.flip(a.larray, axis)
 
-    if a.split not in axis:
+    if not a.is_distributed() or a.split not in axis:
         return factories.array(
             flipped, dtype=a.dtype, is_split=a.split, device=a.device, comm=a.comm
         )
