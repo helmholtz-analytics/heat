@@ -3,5 +3,6 @@
 from .arithmetics import *
 from .dcsx_matrix import *
 from .factories import *
+from .linalg import *
 from ._operations import *
 from .manipulations import *
