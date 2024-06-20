@@ -40,7 +40,7 @@ jobs:
           egress-policy: audit
 
       - name: Checkout
-        uses: actions/checkout@v4.1.6
+        uses: actions/checkout@v4.1.7
       - name: Setup MPI
         uses: mpi4py/setup-mpi@v1.2.0
         with:
