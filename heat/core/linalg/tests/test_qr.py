@@ -8,15 +8,24 @@ from ...tests.test_suites.basic_test import TestCase
 
 class TestQR(TestCase):
     def test_qr_split1orNone(self):
+        is_mps = (
+            ht.get_device().device_type.startswith("gpu")
+            and torch.backends.mps.is_built()
+            and torch.backends.mps.is_available()
+        )
+        if is_mps:
+            dtypes = [ht.float32]
+        else:
+            dtypes = [ht.float32, ht.float64]
         for split in [1, None]:
             for mode in ["reduced", "r"]:
-                # note that split = 1 can be handeled for arbitrary shapes
+                # note that split = 1 can be handled for arbitrary shapes
                 for shape in [
                     (20 * ht.MPI_WORLD.size + 1, 40 * ht.MPI_WORLD.size),
                     (20 * ht.MPI_WORLD.size, 20 * ht.MPI_WORLD.size),
                     (40 * ht.MPI_WORLD.size - 1, 20 * ht.MPI_WORLD.size),
                 ]:
-                    for dtype in [ht.float32, ht.float64]:
+                    for dtype in dtypes:
                         dtypetol = 1e-3 if dtype == ht.float32 else 1e-6
                         mat = ht.random.randn(*shape, dtype=dtype, split=split)
                         qr = ht.linalg.qr(mat, mode=mode)
@@ -63,12 +72,21 @@ class TestQR(TestCase):
                             )
 
     def test_qr_split0(self):
+        is_mps = (
+            ht.get_device().device_type.startswith("gpu")
+            and torch.backends.mps.is_built()
+            and torch.backends.mps.is_available()
+        )
+        if is_mps:
+            dtypes = [ht.float32]
+        else:
+            dtypes = [ht.float32, ht.float64]
         split = 0
         for procs_to_merge in [0, 2, 3]:
             for mode in ["reduced", "r"]:
-                # split = 0 can be handeled only for tall skinny matrices s.t. the local chunks are at least square too
+                # split = 0 can be handled only for tall skinny matrices s.t. the local chunks are at least square too
                 for shape in [(40 * ht.MPI_WORLD.size + 1, 40), (40 * ht.MPI_WORLD.size, 20)]:
-                    for dtype in [ht.float32, ht.float64]:
+                    for dtype in dtypes:
                         dtypetol = 1e-3 if dtype == ht.float32 else 1e-6
                         mat = ht.random.randn(*shape, dtype=dtype, split=split)
 

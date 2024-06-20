@@ -80,6 +80,16 @@ class TestBatchParallelKCluster(TestCase):
             self.assertEqual(10, parallelclusterer.n_clusters)
 
     def test_spherical_clusters(self):
+        is_mps = (
+            ht.get_device().device_type.startswith("gpu")
+            and torch.backends.mps.is_built()
+            and torch.backends.mps.is_available()
+        )
+        if is_mps:
+            dtypes = [ht.float32]
+        else:
+            dtypes = [ht.float32, ht.float64]
+
         for ParallelClusterer in [ht.cluster.BatchParallelKMeans, ht.cluster.BatchParallelKMedians]:
             if ParallelClusterer is ht.cluster.BatchParallelKMeans:
                 ppinitkws = ["k-means++"]
@@ -87,7 +97,7 @@ class TestBatchParallelKCluster(TestCase):
                 ppinitkws = ["k-medians++"]
             for seed in [1, None]:
                 n = 20 * ht.MPI_WORLD.size
-                for dtype in [ht.float32, ht.float64]:
+                for dtype in dtypes:
                     data = create_spherical_dataset(
                         num_samples_cluster=n,
                         radius=1.0,

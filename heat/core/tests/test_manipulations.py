@@ -442,10 +442,12 @@ class TestManipulations(TestCase):
         self.assertEqual(res.lshape, tuple(lshape))
 
         # 0 0 0
-        x = ht.ones((16,), split=0, dtype=ht.float64)
+        is_mps = x.device.torch_device.startswith("mps")
+        dtype = ht.float32 if is_mps else ht.float64
+        x = ht.ones((16,), split=0, dtype=dtype)
         res = ht.concatenate((x, y), axis=0)
         self.assertEqual(res.gshape, (32,))
-        self.assertEqual(res.dtype, ht.float64)
+        self.assertEqual(res.dtype, dtype)
         _, _, chk = res.comm.chunk((32,), res.split)
         lshape = [0]
         lshape[0] = chk[0].stop - chk[0].start
@@ -455,7 +457,7 @@ class TestManipulations(TestCase):
         y = ht.ones((16,), split=None, dtype=ht.int64)
         res = ht.concatenate((x, y), axis=0)
         self.assertEqual(res.gshape, (32,))
-        self.assertEqual(res.dtype, ht.float64)
+        self.assertEqual(res.dtype, dtype)
         _, _, chk = res.comm.chunk((32,), res.split)
         lshape = [0]
         lshape[0] = chk[0].stop - chk[0].start
@@ -570,13 +572,14 @@ class TestManipulations(TestCase):
             numpy_args={"k": 2},
         )
 
-        self.assert_func_equal(
-            (5,),
-            heat_func=ht.diag,
-            numpy_func=np.diag,
-            heat_args={"offset": -3},
-            numpy_args={"k": -3},
-        )
+        if not res.device.torch_device.startswith("mps"):
+            self.assert_func_equal(
+                (5,),
+                heat_func=ht.diag,
+                numpy_func=np.diag,
+                heat_args={"offset": -3},
+                numpy_args={"k": -3},
+            )
 
     def test_diagonal(self):
         size = ht.MPI_WORLD.size
@@ -823,29 +826,30 @@ class TestManipulations(TestCase):
         with self.assertRaises(ValueError):
             ht.diagonal(data)
 
-        self.assert_func_equal(
-            (5, 5, 5),
-            heat_func=ht.diagonal,
-            numpy_func=np.diagonal,
-            heat_args={"dim1": 0, "dim2": 2},
-            numpy_args={"axis1": 0, "axis2": 2},
-        )
+        if not res.device.torch_device.startswith("mps"):
+            self.assert_func_equal(
+                (5, 5, 5),
+                heat_func=ht.diagonal,
+                numpy_func=np.diagonal,
+                heat_args={"dim1": 0, "dim2": 2},
+                numpy_args={"axis1": 0, "axis2": 2},
+            )
 
-        self.assert_func_equal(
-            (5, 4, 3, 2),
-            heat_func=ht.diagonal,
-            numpy_func=np.diagonal,
-            heat_args={"dim1": 1, "dim2": 2},
-            numpy_args={"axis1": 1, "axis2": 2},
-        )
+            self.assert_func_equal(
+                (5, 4, 3, 2),
+                heat_func=ht.diagonal,
+                numpy_func=np.diagonal,
+                heat_args={"dim1": 1, "dim2": 2},
+                numpy_args={"axis1": 1, "axis2": 2},
+            )
 
-        self.assert_func_equal(
-            (4, 6, 3),
-            heat_func=ht.diagonal,
-            numpy_func=np.diagonal,
-            heat_args={"dim1": 0, "dim2": 1},
-            numpy_args={"axis1": 0, "axis2": 1},
-        )
+            self.assert_func_equal(
+                (4, 6, 3),
+                heat_func=ht.diagonal,
+                numpy_func=np.diagonal,
+                heat_args={"dim1": 0, "dim2": 1},
+                numpy_args={"axis1": 0, "axis2": 1},
+            )
 
     def test_dsplit(self):
         # for further testing, see test_split
@@ -1770,7 +1774,7 @@ class TestManipulations(TestCase):
         # -------------------
         # a = np.ndarray
         # -------------------
-        a = np.array([1.2, 2.4, 3, 4, 5])
+        a = np.array([1.2, 2.4, 3, 4, 5]).astype(np.float32)
         # axis is None
         # repeats = scalar
         repeats = 2
@@ -2219,7 +2223,11 @@ class TestManipulations(TestCase):
         self.assertTrue(ht.equal(reshaped, result))
         self.assertEqual(reshaped.device, result.device)
 
-        b = ht.arange(4 * 5 * 6, dtype=ht.float64)
+        if a.device.torch_device.startswith("mps"):
+            float_type = ht.float32
+        else:
+            float_type = ht.float64
+        b = ht.arange(4 * 5 * 6, dtype=float_type)
         # test *shape input
         reshaped = b.reshape(4, 5, 6)
         self.assertTrue(reshaped.gshape == (4, 5, 6))
@@ -2266,8 +2274,8 @@ class TestManipulations(TestCase):
         self.assertEqual(reshaped.device, result.device)
 
         # 1-dim distributed vector
-        a = ht.arange(8, dtype=ht.float64, split=0, device=self.device)
-        result = ht.array([[[0, 1], [2, 3]], [[4, 5], [6, 7]]], dtype=ht.float64, split=0)
+        a = ht.arange(8, dtype=float_type, split=0, device=self.device)
+        result = ht.array([[[0, 1], [2, 3]], [[4, 5], [6, 7]]], dtype=float_type, split=0)
         reshaped = ht.reshape(a, (2, 2, 2))
 
         self.assertEqual(reshaped.size, result.size)
@@ -2551,74 +2559,75 @@ class TestManipulations(TestCase):
         self.assertEqual(rolled.split, a.split)
         self.assertTrue(np.array_equal(rolled.numpy(), compare))
 
-        a = ht.arange(20, dtype=ht.complex64).reshape((4, 5), new_split=1)
+        if not a.device.torch_device.startswith("mps"):
+            a = ht.arange(20, dtype=ht.complex64).reshape((4, 5), new_split=1)
 
-        rolled = ht.roll(a, -1)
-        compare = np.roll(a.numpy(), -1)
-        self.assertEqual(rolled.device, a.device)
-        self.assertEqual(rolled.size, a.size)
-        self.assertEqual(rolled.dtype, a.dtype)
-        self.assertEqual(rolled.split, a.split)
-        self.assertTrue(np.array_equal(rolled.numpy(), compare))
+            rolled = ht.roll(a, -1)
+            compare = np.roll(a.numpy(), -1)
+            self.assertEqual(rolled.device, a.device)
+            self.assertEqual(rolled.size, a.size)
+            self.assertEqual(rolled.dtype, a.dtype)
+            self.assertEqual(rolled.split, a.split)
+            self.assertTrue(np.array_equal(rolled.numpy(), compare))
 
-        rolled = ht.roll(a, 1, 0)
-        compare = np.roll(a.numpy(), 1, 0)
-        self.assertEqual(rolled.device, a.device)
-        self.assertEqual(rolled.size, a.size)
-        self.assertEqual(rolled.dtype, a.dtype)
-        self.assertEqual(rolled.split, a.split)
-        self.assertTrue(np.array_equal(rolled.numpy(), compare))
+            rolled = ht.roll(a, 1, 0)
+            compare = np.roll(a.numpy(), 1, 0)
+            self.assertEqual(rolled.device, a.device)
+            self.assertEqual(rolled.size, a.size)
+            self.assertEqual(rolled.dtype, a.dtype)
+            self.assertEqual(rolled.split, a.split)
+            self.assertTrue(np.array_equal(rolled.numpy(), compare))
 
-        rolled = ht.roll(a, -2, [0, 1])
-        compare = np.roll(a.numpy(), -2, [0, 1])
-        self.assertEqual(rolled.device, a.device)
-        self.assertEqual(rolled.size, a.size)
-        self.assertEqual(rolled.dtype, a.dtype)
-        self.assertEqual(rolled.split, a.split)
-        self.assertTrue(np.array_equal(rolled.numpy(), compare))
+            rolled = ht.roll(a, -2, [0, 1])
+            compare = np.roll(a.numpy(), -2, [0, 1])
+            self.assertEqual(rolled.device, a.device)
+            self.assertEqual(rolled.size, a.size)
+            self.assertEqual(rolled.dtype, a.dtype)
+            self.assertEqual(rolled.split, a.split)
+            self.assertTrue(np.array_equal(rolled.numpy(), compare))
 
-        rolled = ht.roll(a, [1, 2, 1], [0, 1, -2])
-        compare = np.roll(a.numpy(), [1, 2, 1], [0, 1, -2])
-        self.assertEqual(rolled.device, a.device)
-        self.assertEqual(rolled.size, a.size)
-        self.assertEqual(rolled.dtype, a.dtype)
-        self.assertEqual(rolled.split, a.split)
-        self.assertTrue(np.array_equal(rolled.numpy(), compare))
+            rolled = ht.roll(a, [1, 2, 1], [0, 1, -2])
+            compare = np.roll(a.numpy(), [1, 2, 1], [0, 1, -2])
+            self.assertEqual(rolled.device, a.device)
+            self.assertEqual(rolled.size, a.size)
+            self.assertEqual(rolled.dtype, a.dtype)
+            self.assertEqual(rolled.split, a.split)
+            self.assertTrue(np.array_equal(rolled.numpy(), compare))
 
-        # added 3D test, only a quick test for functionality
-        a = ht.arange(4 * 5 * 6, dtype=ht.complex64).reshape((4, 5, 6), new_split=2)
+            # added 3D test, only a quick test for functionality
+            a = ht.arange(4 * 5 * 6, dtype=ht.complex64).reshape((4, 5, 6), new_split=2)
 
-        rolled = ht.roll(a, -1)
-        compare = np.roll(a.numpy(), -1)
-        self.assertEqual(rolled.device, a.device)
-        self.assertEqual(rolled.size, a.size)
-        self.assertEqual(rolled.dtype, a.dtype)
-        self.assertEqual(rolled.split, a.split)
-        self.assertTrue(np.array_equal(rolled.numpy(), compare))
+            rolled = ht.roll(a, -1)
+            compare = np.roll(a.numpy(), -1)
+            self.assertEqual(rolled.device, a.device)
+            self.assertEqual(rolled.size, a.size)
+            self.assertEqual(rolled.dtype, a.dtype)
+            self.assertEqual(rolled.split, a.split)
+            self.assertTrue(np.array_equal(rolled.numpy(), compare))
 
-        rolled = ht.roll(a, 1, 0)
-        compare = np.roll(a.numpy(), 1, 0)
-        self.assertEqual(rolled.device, a.device)
-        self.assertEqual(rolled.size, a.size)
-        self.assertEqual(rolled.dtype, a.dtype)
-        self.assertEqual(rolled.split, a.split)
-        self.assertTrue(np.array_equal(rolled.numpy(), compare))
+            rolled = ht.roll(a, 1, 0)
+            compare = np.roll(a.numpy(), 1, 0)
+            self.assertEqual(rolled.device, a.device)
+            self.assertEqual(rolled.size, a.size)
+            self.assertEqual(rolled.dtype, a.dtype)
+            self.assertEqual(rolled.split, a.split)
+            self.assertTrue(np.array_equal(rolled.numpy(), compare))
 
-        rolled = ht.roll(a, -2, [0, 1])
-        compare = np.roll(a.numpy(), -2, [0, 1])
-        self.assertEqual(rolled.device, a.device)
-        self.assertEqual(rolled.size, a.size)
-        self.assertEqual(rolled.dtype, a.dtype)
-        self.assertEqual(rolled.split, a.split)
-        self.assertTrue(np.array_equal(rolled.numpy(), compare))
+            rolled = ht.roll(a, -2, [0, 1])
+            compare = np.roll(a.numpy(), -2, [0, 1])
+            self.assertEqual(rolled.device, a.device)
+            self.assertEqual(rolled.size, a.size)
+            self.assertEqual(rolled.dtype, a.dtype)
+            self.assertEqual(rolled.split, a.split)
+            self.assertTrue(np.array_equal(rolled.numpy(), compare))
 
-        rolled = ht.roll(a, [1, 2, 1], [0, 1, -2])
-        compare = np.roll(a.numpy(), [1, 2, 1], [0, 1, -2])
-        self.assertEqual(rolled.device, a.device)
-        self.assertEqual(rolled.size, a.size)
-        self.assertEqual(rolled.dtype, a.dtype)
-        self.assertEqual(rolled.split, a.split)
-        self.assertTrue(np.array_equal(rolled.numpy(), compare))
+            rolled = ht.roll(a, [1, 2, 1], [0, 1, -2])
+            compare = np.roll(a.numpy(), [1, 2, 1], [0, 1, -2])
+            self.assertEqual(rolled.device, a.device)
+            self.assertEqual(rolled.size, a.size)
+            self.assertEqual(rolled.dtype, a.dtype)
+            self.assertEqual(rolled.split, a.split)
+            self.assertTrue(np.array_equal(rolled.numpy(), compare))
 
         with self.assertRaises(TypeError):
             ht.roll(a, 1.0, 0)

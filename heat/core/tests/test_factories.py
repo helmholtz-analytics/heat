@@ -96,15 +96,17 @@ class TestFactories(TestCase):
         self.assertEqual(three_arg_arange_dtype_short.sum(axis=0, keepdims=True), 20)
 
         # testing setting dtype to float64
-        three_arg_arange_dtype_float64 = ht.arange(0, 10, 2, dtype=torch.float64)
-        self.assertIsInstance(three_arg_arange_dtype_float64, ht.DNDarray)
-        self.assertEqual(three_arg_arange_dtype_float64.shape, (5,))
-        self.assertLessEqual(three_arg_arange_dtype_float64.lshape[0], 5)
-        self.assertEqual(three_arg_arange_dtype_float64.dtype, ht.float64)
-        self.assertEqual(three_arg_arange_dtype_float64.larray.dtype, torch.float64)
-        self.assertEqual(three_arg_arange_dtype_float64.split, None)
-        # make an in direct check for the sequence, compare against the gaussian sum
-        self.assertEqual(three_arg_arange_dtype_float64.sum(axis=0, keepdims=True), 20.0)
+        is_mps = one_arg_arange_float.device.torch_device.startswith("mps")
+        if not is_mps:
+            three_arg_arange_dtype_float64 = ht.arange(0, 10, 2, dtype=torch.float64)
+            self.assertIsInstance(three_arg_arange_dtype_float64, ht.DNDarray)
+            self.assertEqual(three_arg_arange_dtype_float64.shape, (5,))
+            self.assertLessEqual(three_arg_arange_dtype_float64.lshape[0], 5)
+            self.assertEqual(three_arg_arange_dtype_float64.dtype, ht.float64)
+            self.assertEqual(three_arg_arange_dtype_float64.larray.dtype, torch.float64)
+            self.assertEqual(three_arg_arange_dtype_float64.split, None)
+            # make an in direct check for the sequence, compare against the gaussian sum
+            self.assertEqual(three_arg_arange_dtype_float64.sum(axis=0, keepdims=True), 20.0)
 
         # exceptions
         with self.assertRaises(ValueError):
@@ -185,10 +187,19 @@ class TestFactories(TestCase):
         )
 
         # distributed array, chunk local data (split), copy True
-        array_2d = np.array([[1.0, 2.0, 3.0], [1.0, 2.0, 3.0], [1.0, 2.0, 3.0]])
+        is_mps = d.device.torch_device.startswith("mps")
+        if is_mps:
+            np_dtype = np.float32
+            ht_dtype = ht.float32
+            torch_dtype = torch.float32
+        else:
+            np_dtype = np.float64
+            ht_dtype = ht.float64
+            torch_dtype = torch.float64
+        array_2d = np.array([[1.0, 2.0, 3.0], [1.0, 2.0, 3.0], [1.0, 2.0, 3.0]], dtype=np_dtype)
         dndarray_2d = ht.array(array_2d, split=0, copy=True)
         self.assertIsInstance(dndarray_2d, ht.DNDarray)
-        self.assertEqual(dndarray_2d.dtype, ht.float64)
+        self.assertEqual(dndarray_2d.dtype, ht_dtype)
         self.assertEqual(dndarray_2d.gshape, (3, 3))
         self.assertEqual(len(dndarray_2d.lshape), 2)
         self.assertLessEqual(dndarray_2d.lshape[0], 3)
@@ -203,12 +214,12 @@ class TestFactories(TestCase):
         # distributed array, chunk local data (split), copy False, torch devices
         array_2d = torch.tensor(
             [[1.0, 2.0, 3.0], [1.0, 2.0, 3.0], [1.0, 2.0, 3.0]],
-            dtype=torch.double,
+            dtype=torch_dtype,
             device=self.device.torch_device,
         )
-        dndarray_2d = ht.array(array_2d, split=0, copy=False, dtype=ht.double)
+        dndarray_2d = ht.array(array_2d, split=0, copy=False, dtype=ht_dtype)
         self.assertIsInstance(dndarray_2d, ht.DNDarray)
-        self.assertEqual(dndarray_2d.dtype, ht.float64)
+        self.assertEqual(dndarray_2d.dtype, ht_dtype)
         self.assertEqual(dndarray_2d.gshape, (3, 3))
         self.assertEqual(len(dndarray_2d.lshape), 2)
         self.assertLessEqual(dndarray_2d.lshape[0], 3)
@@ -224,9 +235,9 @@ class TestFactories(TestCase):
             self.assertIs(dndarray_2d.larray, array_2d)
 
         # The array should not change as all properties match
-        dndarray_2d_new = ht.array(dndarray_2d, split=0, copy=False, dtype=ht.double)
+        dndarray_2d_new = ht.array(dndarray_2d, split=0, copy=False, dtype=ht_dtype)
         self.assertIsInstance(dndarray_2d_new, ht.DNDarray)
-        self.assertEqual(dndarray_2d_new.dtype, ht.float64)
+        self.assertEqual(dndarray_2d_new.dtype, ht_dtype)
         self.assertEqual(dndarray_2d_new.gshape, (3, 3))
         self.assertEqual(len(dndarray_2d_new.lshape), 2)
         self.assertLessEqual(dndarray_2d_new.lshape[0], 3)
@@ -240,14 +251,14 @@ class TestFactories(TestCase):
         # Reuse the same array
         self.assertIs(dndarray_2d_new.larray, dndarray_2d.larray)
 
-        # Should throw exeception because of resplit it causes a resplit
+        # Should throw exeception because it causes a resplit
         with self.assertRaises(ValueError):
             dndarray_2d_new = ht.array(dndarray_2d, split=1, copy=False, dtype=ht.double)
 
         # The array should not change as all properties match
-        dndarray_2d_new = ht.array(dndarray_2d, is_split=0, copy=False, dtype=ht.double)
+        dndarray_2d_new = ht.array(dndarray_2d, is_split=0, copy=False, dtype=ht_dtype)
         self.assertIsInstance(dndarray_2d_new, ht.DNDarray)
-        self.assertEqual(dndarray_2d_new.dtype, ht.float64)
+        self.assertEqual(dndarray_2d_new.dtype, ht_dtype)
         self.assertEqual(dndarray_2d_new.gshape, (3, 3))
         self.assertEqual(len(dndarray_2d_new.lshape), 2)
         self.assertLessEqual(dndarray_2d_new.lshape[0], 3)
