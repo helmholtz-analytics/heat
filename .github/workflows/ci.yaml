@@ -24,7 +24,7 @@ jobs:
           - 'torch==2.0.1 torchvision==0.15.2 torchaudio==2.0.2'
           - 'torch==2.1.2 torchvision==0.16.2 torchaudio==2.1.2'
           - 'torch==2.2.2 torchvision==0.17.2 torchaudio==2.2.2'
-          - 'torch==2.3.0 torchvision==0.18.0 torchaudio==2.3.0'
+          - 'torch==2.3.1 torchvision==0.18.1 torchaudio==2.3.1'
         exclude:
           - py-version: '3.11'
             pytorch-version: 'torch==1.12.1+cpu torchvision==0.13.1+cpu torchaudio==0.12.1'
@@ -35,12 +35,12 @@ jobs:
     name: Python ${{ matrix.py-version }} with ${{ matrix.pytorch-version }}; options ${{ matrix.install-options }}
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@f086349bfa2bd1361f7909c78558e816508cdc10 # v2.8.0
+        uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
         with:
           egress-policy: audit
 
       - name: Checkout
-        uses: actions/checkout@v4.1.6
+        uses: actions/checkout@v4.1.7
       - name: Setup MPI
         uses: mpi4py/setup-mpi@v1.2.0
         with:
