@@ -41,7 +41,6 @@ class PCA(ht.TransformMixin, ht.BaseEstimator):
     iterated_power : {'auto', int}, default='auto'
         if svd_solver='randomized', ... (not yet supported)
     n_oversamples : int, default=10
-        if svd_solver='hierarchical', this parameter specifies the argument `safetyshift` of the underlying algorithm.
         if svd_solver='randomized', ... (not yet supported)
     power_iteration_normalizer : {'qr'}, default='qr'
         if svd_solver='randomized', ... (not yet supported)
@@ -179,20 +178,22 @@ class PCA(ht.TransformMixin, ht.BaseEstimator):
             self.n_components_ = self.n_components
 
         # compute SVD via "full" SVD
-        if self.svd_solver == "full":
+        if self.svd_solver == "full" or not X.is_distributed():
             _, S, V = ht.linalg.svd(X_centered, full_matrices=False)
             if isinstance(self.n_components_, int):
                 # prescribed truncation rank (including no truncation)
                 self.components_ = V[:, : self.n_components_].T
                 self.singular_values_ = S[: self.n_components_]
-                self.explained_variance_ = (S**2)[: self.n_components_]
-                self.explained_variance_ratio_ = self.explained_variance_ / (S**2).sum()
+
+                self.explained_variance_ = (S**2)[: self.n_components_] / (X.shape[0] - 1)
+                total_variance = (S**2).sum() / (X.shape[0] - 1)
+                self.explained_variance_ratio_ = self.explained_variance_ / total_variance
 
             else:
                 # truncation w.r.t. prescribed bound on explained variance
-                total_variance = (S**2).sum()
+                total_variance = (S**2).sum() / (X.shape[0] - 1)
                 explained_variance_threshold = self.n_components_ * total_variance.larray.item()
-                explained_variance_cumsum = (S**2).larray.cumsum(0)
+                explained_variance_cumsum = (S**2).larray.cumsum(0) / (X.shape[0] - 1)
                 self.n_components_ = (
                     len(
                         explained_variance_cumsum[
@@ -203,7 +204,7 @@ class PCA(ht.TransformMixin, ht.BaseEstimator):
                 )
                 self.components_ = V[:, : self.n_components_].T
                 self.singular_values_ = S[: self.n_components_]
-                self.explained_variance_ = (S**2)[: self.n_components_]
+                self.explained_variance_ = (S**2)[: self.n_components_] / (X.shape[0] - 1)
                 self.explained_variance_ratio_ = self.explained_variance_ / total_variance
             self.total_explained_variance_ratio_ = self.explained_variance_ratio_.sum().item()
         # compute SVD via "hierarchical" SVD
@@ -216,19 +217,16 @@ class PCA(ht.TransformMixin, ht.BaseEstimator):
                 # hierarchical SVD with prescribed upper bound on relative error
                 # note: "upper bound on relative error" (hsvd_rtol) is "1 - lower bound" (PCA)
                 _, S, V, info = ht.linalg.hsvd_rtol(
-                    X_centered,
-                    1 - self.n_components_,
-                    compute_sv=True,
-                    safetyshift=self.n_oversamples,
+                    X_centered, (1 - self.n_components_) ** 0.5, compute_sv=True, safetyshift=0
                 )
             else:
                 # hierarchical SVD with prescribed, fixed rank
                 _, S, V, info = ht.linalg.hsvd_rank(
-                    X_centered, self.n_components_, compute_sv=True, safetyshift=self.n_oversamples
+                    X_centered, self.n_components_, compute_sv=True, safetyshift=0
                 )
             self.n_components_ = V.shape[1]
             self.components_ = V.T
-            self.total_explained_variance_ratio_ = 1 - info.larray.item()
+            self.total_explained_variance_ratio_ = 1 - info.larray.item() ** 2
 
         else:
             # here one could add other computational backends
