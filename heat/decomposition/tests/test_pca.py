@@ -193,3 +193,4 @@ class TestPCA(TestCase):
         if ht.MPI_WORLD.size > 1:
             with self.assertRaises(NotImplementedError):
                 pca.fit(data)
+
