@@ -217,13 +217,7 @@ class PCA(ht.TransformMixin, ht.BaseEstimator):
                 # hierarchical SVD with prescribed upper bound on relative error
                 # note: "upper bound on relative error" (hsvd_rtol) is "1 - lower bound" (PCA)
                 _, S, V, info = ht.linalg.hsvd_rtol(
-                    X_centered,
-                    (1 - self.n_components_) ** 0.5,
-                    compute_sv=True,
-                    safetyshift=0,
-                    1 - self.n_components_,
-                    compute_sv=True,
-                    safetyshift=self.n_oversamples,
+                    X_centered, (1 - self.n_components_) ** 0.5, compute_sv=True, safetyshift=0
                 )
             else:
                 # hierarchical SVD with prescribed, fixed rank
