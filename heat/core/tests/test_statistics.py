@@ -1263,7 +1263,7 @@ class TestStatistics(TestCase):
         # 1 dim
         ht_data = ht.random.rand(50)
         np_data = ht_data.copy().numpy()
-        np_skew32 = ht.array((ss.skew(np_data, bias=False)), dtype=ht_data.dtype)
+        np_skew32 = ht.array(ss.skew(np_data, bias=False)).astype(ht_data.dtype)
         self.assertAlmostEqual(ht.skew(ht_data), np_skew32.item(), places=5)
         ht_data = ht.resplit(ht_data, 0)
         self.assertAlmostEqual(ht.skew(ht_data), np_skew32.item(), places=5)
