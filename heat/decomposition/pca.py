@@ -76,7 +76,6 @@ class PCA(ht.TransformMixin, ht.BaseEstimator):
     ------------
     Hieararchical SVD (`svd_solver = "hierarchical"`) computes and approximate, truncated SVD. Thus, the results are not exact, in general, unless the
     truncation rank chose is larger than the actual rank (matrix rank) of the underlying data; see :func:`ht.linalg.hsvd_rank` and :func:`ht.linalg.hsvd_rtol` for details.
-    Note that under certain conditions also the corresponding error estimate might perform poorly, resulting in a negative lower bound on the total explained variance ratio.
     """
 
     def __init__(
