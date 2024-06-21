@@ -184,6 +184,7 @@ class PCA(ht.TransformMixin, ht.BaseEstimator):
                 # prescribed truncation rank (including no truncation)
                 self.components_ = V[:, : self.n_components_].T
                 self.singular_values_ = S[: self.n_components_]
+
                 self.explained_variance_ = (S**2)[: self.n_components_] / (X.shape[0] - 1)
                 total_variance = (S**2).sum() / (X.shape[0] - 1)
                 self.explained_variance_ratio_ = self.explained_variance_ / total_variance
@@ -220,6 +221,9 @@ class PCA(ht.TransformMixin, ht.BaseEstimator):
                     (1 - self.n_components_) ** 0.5,
                     compute_sv=True,
                     safetyshift=0,
+                    1 - self.n_components_,
+                    compute_sv=True,
+                    safetyshift=self.n_oversamples,
                 )
             else:
                 # hierarchical SVD with prescribed, fixed rank
