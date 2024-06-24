@@ -1029,7 +1029,7 @@ def median(
     Compute the median of the data along the specified axis.
     Returns the median of the ``DNDarray`` elements.
     Per default, the "true" median of the entire data set is computed; however, the argument
-    `sketched` allows to switch to a faster but inaccurate version that computes
+    `sketched` allows to switch to a faster but less accurate version that computes
     the median only on behalf of a random subset of the data set ("sketch").
 
     Parameters
