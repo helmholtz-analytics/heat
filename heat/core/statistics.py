@@ -1048,7 +1048,7 @@ def median(
         If True, the median is computed on a random subset of the data set ("sketch").
         This is faster but less accurate.  Default is False. The size of the sketch is controlled by the argument `sketch_size`.
     sketch_size : float, optional
-        The size of the sketch as a fraction of the data set size. Default is 1./MPI.COMM_WORLD.size. Must be in the range (0, 1).
+        The size of the sketch as a fraction of the data set size. Default is `1./n_proc`  where `n_proc` is the number of MPI processes, e.g. `n_proc =  MPI.COMM_WORLD.size`. Must be in the range (0, 1).
         Ignored for sketched = False.
     """
     return percentile(
