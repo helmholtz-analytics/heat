@@ -38,7 +38,7 @@ jobs:
           RELEASE_TITLE: ${{ format('# {0} - {1}', github.event.release.tag_name, github.event.release.name) }}
           RELEASE_BODY: ${{ github.event.release.body }}
       - name: Create PR
-        uses: peter-evans/create-pull-request@6d6857d36972b65feb161a90e484f2984215f83e # v6.0.5
+        uses: peter-evans/create-pull-request@c5a7806660adbe173f04e3e038b0ccdcd758773c # v6.1.0
         with:
             base: main
             branch: post-release-changelog-update
