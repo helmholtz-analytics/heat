@@ -1489,6 +1489,7 @@ class MPICommunication(Communication):
 
                 if is_contiguous:
                     # Commit the source subarray datatypes
+                    # Subarray parameters are calculated based on the work by Dalcin et al. (https://arxiv.org/abs/1804.09536)
                     subarray_type = send_datatype.Create_subarray(
                         lshape, subsizes, substarts, order=MPI.ORDER_C
                     ).Commit()
