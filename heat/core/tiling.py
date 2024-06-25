@@ -333,6 +333,7 @@ class SplitTiles:
     ) -> List[Tuple[List[int], List[int], List[int]]]:
         """Create subarray types of the local array along a new split axis. For use with Alltoallw.
 
+        Based on the work by Dalcin et al. (https://arxiv.org/abs/1804.09536)
         Return type is a list of tuples, each tuple containing the shape of the local array, the shape of the subarray, and the start index of the subarray.
 
         Parameters
