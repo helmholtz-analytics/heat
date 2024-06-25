@@ -3563,7 +3563,7 @@ def _axis2axisResplit(
     target_larray: torch.Tensor,
     target_split: int,
     target_tiles: tiling.SplitTiles,
-    comm: Communication
+    comm: Communication,
 ) -> torch.Tensor:
     """
     Resplits the input array along a new axis and performs data exchange using MPI_Alltoallw. Returns target_larray object with the data after the exchange.
