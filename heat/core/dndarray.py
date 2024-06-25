@@ -1483,7 +1483,7 @@ class DNDarray:
         )
 
         self._axis2axisResplit(
-            self.comm, self.larray, self.split, arr_tiles, recv_buffer, axis, new_tiles
+            self.larray, self.split, arr_tiles, recv_buffer, axis, new_tiles, arr.comm
         )
 
         self.__array = recv_buffer
