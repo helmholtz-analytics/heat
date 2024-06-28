@@ -972,22 +972,24 @@ class TestManipulations(TestCase):
 
         self.assertIs(b.split, None)
 
-        # split volume with negative axis expansion after the split
+        # split volume with negative axis, multiple axis expansion after the split
         a = ht.empty((3, 4, 5), split=1)
-        b = a.expand_dims(-2)
+        b = a.expand_dims((-3, -1))
 
         self.assertIsInstance(b, ht.DNDarray)
-        self.assertEqual(len(b.shape), 4)
+        self.assertEqual(len(b.shape), 5)
 
         self.assertEqual(b.shape[0], a.shape[0])
         self.assertEqual(b.shape[1], a.shape[1])
         self.assertEqual(b.shape[2], 1)
         self.assertEqual(b.shape[3], a.shape[2])
+        self.assertEqual(b.shape[4], 1)
 
         self.assertEqual(b.lshape[0], a.shape[0])
         self.assertLessEqual(b.lshape[1], a.shape[1])
         self.assertEqual(b.lshape[2], 1)
         self.assertEqual(b.lshape[3], a.shape[2])
+        self.assertEqual(b.shape[4], 1)
 
         self.assertIs(b.split, 1)
 
