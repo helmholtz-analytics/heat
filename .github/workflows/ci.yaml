@@ -3,10 +3,14 @@ name: ci
 on:
   pull_request_review:
     types: [submitted]
+  issue_comment:
+    types: [created]
 
 jobs:
   approved:
-    if: github.event.review.state == 'approved'
+    if: |
+      github.event.review.state == 'approved' || 
+      (github.event.comment.body == 'run_ci_matrix' && github.event.issue.pull_request)
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
