@@ -1177,7 +1177,7 @@ def load_npy_from_path(
     Examples
     --------
     >>> import heat as ht
-    >>> a = ht.load_npy_from_pat('path')
+    >>> a = ht.load_npy_from_path('path')
     >>> a.shape
     [0/3] (100, 4)
     [1/3] (100, 4)
@@ -1202,7 +1202,7 @@ def load_npy_from_path(
     n_files = len(file_list)
 
     if n_files == 0:
-        raise ValueError("No NPY Files were found")
+        raise ValueError("No .npy Files were found")
     if (n_files < process_number) and (process_number > 1):
         raise RuntimeError("Number of processes can't exceed number of files")
 
