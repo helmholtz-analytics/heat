@@ -1149,9 +1149,46 @@ def load_npy_from_path(
     split: Optional[int] = None,
     device: Optional[str] = None,
     comm: Optional[Communication] = None,
-):
+) -> DNDarray:
     """
-    Abc
+    Loads multiple .npy files into one DNDarray which will be returned. The data will be concatenated along a specified axis.
+
+    Parameters
+    ----------
+    path : str
+        Directory in which .npy-files are located.
+    dtype : datatype, optional
+        Data type of the resulting array.
+    split : int or None : optional
+        Along which axis the resulting array should be split.
+        Default is ``None`` which means each node will have the full array.
+    device : str, optional
+        The device id on which to place the data, defaults to globally set default device.
+    comm : Communication, optional
+        The communication to use for the data distribution, defaults to global default
+
+    Raises
+    -------
+    TypeError
+        If any of the input parameters are not of correct type.
+    ValueError
+        If there are no .npy files in the directory.
+    RuntimeError
+        If the number of processes exceeds the number of files.
+    Examples
+    --------
+    >>> import heat as ht
+    >>> a = ht.load_npy_from_pat('path')
+    >>> a.shape
+    [0/3] (100, 4)
+    [1/3] (100, 4)
+    [2/3] (100, 4)
+    [3/3] (100, 4)
+    >>> a.lshape
+    [0/3] (25, 4)
+    [1/3] (25, 4)
+    [2/3] (25, 4)
+    [3/3] (25, 4)
     """
     if not isinstance(path, str):
         raise TypeError(f"path must be str, not {type(path)}")
