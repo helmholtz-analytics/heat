@@ -9,7 +9,7 @@ on:
 jobs:
   approved:
     if: |
-      github.event.review.state == 'approved' || 
+      github.event.review.state == 'approved' ||
       (github.event.comment.body == 'run_ci_matrix' && github.event.issue.pull_request)
     runs-on: ubuntu-latest
     strategy:
