@@ -5,7 +5,7 @@ on:
     types:
       - submitted
   issue_comment:
-    types: 
+    types:
       - created
 
 jobs:
