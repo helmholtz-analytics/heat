@@ -1174,20 +1174,6 @@ def load_npy_from_path(
         If there are no .npy files in the directory.
     RuntimeError
         If the number of processes exceeds the number of files.
-    Examples
-    --------
-    >>> import heat as ht
-    >>> a = ht.load_npy_from_path('path')
-    >>> a.shape
-    [0/3] (100, 4)
-    [1/3] (100, 4)
-    [2/3] (100, 4)
-    [3/3] (100, 4)
-    >>> a.lshape
-    [0/3] (25, 4)
-    [1/3] (25, 4)
-    [2/3] (25, 4)
-    [3/3] (25, 4)
     """
     if not isinstance(path, str):
         raise TypeError(f"path must be str, not {type(path)}")
