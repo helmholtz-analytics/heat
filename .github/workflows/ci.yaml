@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     if: |
       (github.event_name == 'pull_request_review' && github.event.review.state == 'approved') ||
-      (github.event_name == 'issue_comment' && github.event.comment.body == 'run_ci_again' && github.event.issue.pull_request)
+      (github.event_name == 'issue_comment' && github.event.comment.body == 'runcimatrix' && github.event.issue.pull_request)
     strategy:
       fail-fast: false
       matrix:
