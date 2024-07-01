@@ -1557,7 +1557,9 @@ def percentile(
             sketch_size = sketch_size_absolute
 
         # create a random sample of indices
-        indices = manipulations.sort(randint(0, a.shape[axis], sketch_size, device=a.device))[0]
+        indices = manipulations.sort(
+            randint(0, a.shape[axis], sketch_size, device=a.device, dtype=types.int64)
+        )[0]
         sketch = a.swapaxes(0, axis)
         sketch = a[indices, ...].resplit_(None)
         return sketch.swapaxes(0, axis)
