@@ -7,10 +7,10 @@ on:
     types: [created]
 
 jobs:
-  approved:
+  approved_or_commented:
     if: |
-      github.event.review.state == 'approved' ||
-      (github.event.comment.body == 'run_ci_matrix' && github.event.issue.pull_request)
+      (github.event_name == 'pull_request_review' && github.event.review.state == 'approved') || 
+      (github.event_name == 'issue_comment' && github.event.comment.body == 'run_ci_again' && github.event.issue.pull_request)
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
