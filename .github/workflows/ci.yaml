@@ -2,9 +2,11 @@ name: ci
 
 on:
   pull_request_review:
-    types: [submitted]
+    types:
+      - submitted
   issue_comment:
-    types: [created]
+    types: 
+      - created
 
 jobs:
   approved:
