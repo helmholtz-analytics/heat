@@ -22,7 +22,7 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
     ----------
     a : DNDarray or scalar
         One-dimensional signal `DNDarray` of shape (N,), or scalar. If ``a`` is more than 1D, it will be treated as a batch of 1D signals.
-        Distribution along the batch dimension is required for distributed batch processing. See examples for details.
+        Distribution along the batch dimension is required for distributed batch processing. See the examples for details.
     v : DNDarray or scalar
         One-dimensional filter weight `DNDarray` of shape (M,), or scalar. If ``v`` is more than 1D, it will be treated as a batch of 1D filter weights.
         The batch dimension(s) of ``v`` must match the batch dimension(s) of ``a``.
@@ -136,7 +136,7 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
         if a.is_distributed():
             if a.split == a.ndim - 1:
                 raise ValueError(
-                    "Please distribute the signal along the batch dimension, not the signal dimension. For in-place redistribution use `a.resplit_(axis=0)`"
+                    "Please distribute the signal along the batch dimension, not the signal dimension. For in-place redistribution use the `DNDarray.resplit_()` method with `axis=0`"
                 )
             if v.is_distributed():
                 if v.ndim == 1:
@@ -200,12 +200,16 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
             local_a = local_a.to(float_type)
             local_v = local_v.to(float_type)
 
-        # apply torch convolution operator
-        local_convolved = fc.conv1d(local_a, local_v, padding=pad_size, groups=channels)
+        # apply torch convolution operator if local signal isn't empty
+        if torch.prod(torch.tensor(local_a.shape, device=local_a.device)) > 0:
+            local_convolved = fc.conv1d(local_a, local_v, padding=pad_size, groups=channels)
+        else:
+            empty_shape = tuple(local_a.shape[:-1] + (gshape,))
+            local_convolved = torch.empty(empty_shape, dtype=local_a.dtype, device=local_a.device)
 
         # unpack 3D result into original shape
         local_convolved = local_convolved.squeeze(0)
-        local_convolved = local_convolved.reshape(local_batch_dims + (-1,))
+        local_convolved = local_convolved.reshape(local_batch_dims + (gshape,))
 
         # wrap result in DNDarray
         convolved = array(local_convolved, is_split=a.split, device=a.device, comm=a.comm)
