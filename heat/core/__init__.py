@@ -31,3 +31,4 @@ from .signal import *
 from .types import finfo, iinfo
 from . import version
 from .version import __version__
+from .vmap import *
