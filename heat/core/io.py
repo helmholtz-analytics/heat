@@ -1145,7 +1145,7 @@ DNDarray.save.__doc__ = save.__doc__
 def load_npy_from_path(
     path: str,
     dtype: datatype = types.int32,
-    split: Optional[int] = None,
+    split: int = 0,
     device: Optional[str] = None,
     comm: Optional[Communication] = None,
 ) -> DNDarray:
