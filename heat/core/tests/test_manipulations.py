@@ -556,7 +556,6 @@ class TestManipulations(TestCase):
         res = ht.diag(a)
         torch.manual_seed(size)
         i = torch.randint(size, ()).item()
-        print(size, i)
         self.assertTrue(
             torch.equal(
                 res[i, i].larray,
