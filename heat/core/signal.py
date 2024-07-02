@@ -16,15 +16,15 @@ __all__ = ["convolve"]
 def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
     """
     Returns the discrete, linear convolution of two one-dimensional `DNDarray`s or scalars.
-    If the input ``DNDarray``s have more than one dimension, batch-convolution along the last dimension will be attempted. See below for details.
+    Unlike `numpy.signal.convolve`, if ``a`` and/or ``v`` have more than one dimension, batch-convolution along the last dimension will be attempted. See `Examples` below.
 
     Parameters
     ----------
     a : DNDarray or scalar
-        One-dimensional signal `DNDarray` of shape (N,), or scalar. If ``a`` is more than 1D, it will be treated as a batch of 1D signals.
+        One- or N-dimensional signal ``DNDarray`` of shape (..., N), or scalar. If ``a`` has more than one dimension, it will be treated as a batch of 1D signals.
         Distribution along the batch dimension is required for distributed batch processing. See the examples for details.
     v : DNDarray or scalar
-        One-dimensional filter weight `DNDarray` of shape (M,), or scalar. If ``v`` is more than 1D, it will be treated as a batch of 1D filter weights.
+        One- or N-dimensional filter weight `DNDarray` of shape (..., M), or scalar. If ``v`` has more than one dimension, it will be treated as a batch of 1D filter weights.
         The batch dimension(s) of ``v`` must match the batch dimension(s) of ``a``.
     mode : str
         Can be 'full', 'valid', or 'same'. Default is 'full'.
