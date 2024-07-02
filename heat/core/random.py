@@ -512,7 +512,20 @@ def rand(
         return DNDarray(values, shape, dtype, split, device, comm, balanced)
     else:
         # use batchparallel RNG
-        return factories.__factory(shape, dtype, split, torch.rand, device, comm, "C")
+        x = factories.__factory(
+            shape if shape != () else (1,),
+            dtype,
+            split if split is not None else 0,
+            torch.rand,
+            device,
+            comm,
+            "C",
+        )
+        if split is None:
+            x = x.resplit_(None)
+        if shape == ():
+            x = x.reshape(shape)
+        return x
 
 
 def randint(
@@ -618,7 +631,20 @@ def randint(
         def _wrapped_torch_randint(*args, **kwargs):
             return torch.randint(low, high, *args, **kwargs)
 
-        return factories.__factory(shape, dtype, split, _wrapped_torch_randint, device, comm, "C")
+        x = factories.__factory(
+            shape if size != () else (1,),
+            dtype,
+            split if split is not None else 0,
+            _wrapped_torch_randint,
+            device,
+            comm,
+            "C",
+        )
+        if split is None:
+            x = x.resplit_(None)
+        if size == ():
+            x = x.reshape(size)
+        return x
 
 
 # alias
@@ -711,7 +737,20 @@ def randn(
         comm = communication.sanitize_comm(comm)
 
         # generate and return the actual random array
-        return factories.__factory(shape, dtype, split, torch.randn, device, comm, "C")
+        x = factories.__factory(
+            shape if shape != () else (1,),
+            dtype,
+            split if split is not None else 0,
+            torch.randn,
+            device,
+            comm,
+            "C",
+        )
+        if split is None:
+            x = x.resplit_(None)
+        if shape == ():
+            x = x.reshape(shape)
+        return x
 
 
 def randperm(

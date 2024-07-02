@@ -554,7 +554,9 @@ class TestManipulations(TestCase):
             data = torch.empty(0, dtype=torch.int32, device=self.device.torch_device)
         a = ht.array(data, is_split=0)
         res = ht.diag(a)
+        torch.manual_seed(size)
         i = torch.randint(size, ()).item()
+        print(size, i)
         self.assertTrue(
             torch.equal(
                 res[i, i].larray,
