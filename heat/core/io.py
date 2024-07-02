@@ -8,6 +8,7 @@ import numpy as np
 import torch
 import warnings
 import fnmatch
+import pandas as pd
 
 from typing import Dict, Iterable, List, Optional, Tuple, Union
 
@@ -1200,5 +1201,70 @@ def load_npy_from_path(
     larray = np.concatenate(array_list, split)
     larray = torch.from_numpy(larray)
 
+    x = factories.array(larray, dtype=dtype, device=device, is_split=split, comm=comm)
+    return x
+
+
+def load_csv_from_folder(
+    path: str,
+    dtype: datatype = types.int32,
+    split: int = 0,
+    device: Optional[str] = None,
+    comm: Optional[Communication] = None,
+    func: Optional[pd.DataFrame] = None,
+) -> DNDarray:
+    """
+    Loads multiple .csv files into one DNDarray which will be returned. The data will be concatenated along the split axis provided as input.
+
+    Parameters
+    ----------
+    path : str
+        Path to the directory in which .csv-files are located.
+    dtype : datatype, optional
+        Data type of the resulting array.
+    split : int
+        Along which axis the loaded arrays should be concatenated.
+    device : str, optional
+        The device id on which to place the data, defaults to globally set default device.
+    comm : Communication, optional
+        The communication to use for the data distribution, default is 'heat.MPI_WORLD'
+    func : pandas.DataFrame, optional
+        The function the files have to go through before being added to the array.
+    """
+    process_number = MPI_WORLD.size
+    file_list = []
+    for file in os.listdir(path):
+        if fnmatch.fnmatch(file, "*.csv"):
+            file_list.append(file)
+    n_files = len(file_list)
+
+    if n_files == 0:
+        raise ValueError("No .csv Files were found")
+    if (n_files < process_number) and (process_number > 1):
+        raise RuntimeError("Number of processes can't exceed number of files")
+
+    rank = MPI_WORLD.rank
+    if rank + 1 != process_number:
+        n_for_procs = n_files // process_number
+    else:
+        n_for_procs = (n_files // process_number) + (n_files % process_number)
+
+    local_list = [
+        file_list[i]
+        for i in range(
+            rank * (n_files // process_number), rank * (n_files // process_number) + n_for_procs
+        )
+    ]
+
+    array_list = []
+    for element in local_list:
+        df = pd.read_csv(element)
+        if (func is not None) and callable(func):
+            xf = func.to_numpy()
+            array_list.append(xf)
+        else:
+            array_list.append(df.to_numpy())
+    larray = np.concatenate(array_list, split)
+    larray = torch.from_numpy(larray)
     x = factories.array(larray, dtype=dtype, device=device, is_split=split, comm=comm)
     return x
