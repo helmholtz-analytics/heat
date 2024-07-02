@@ -1158,9 +1158,8 @@ def load_npy_from_path(
         Path to the directory in which .npy-files are located.
     dtype : datatype, optional
         Data type of the resulting array.
-    split : int or None : optional
-        Along which axis the resulting array should be split.
-        Default is ``None`` which means each node will have the full array.
+    split : int
+        Along which axis the loaded arrays should be concatenated.
     device : str, optional
         The device id on which to place the data, defaults to globally set default device.
     comm : Communication, optional
