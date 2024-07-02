@@ -123,6 +123,7 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
     if v.shape[-1] > a.shape[-1]:
         a, v = v, a
 
+    # assess whether to perform batch processing, default is False (no batch processing)
     batch_processing = False
     if a.ndim > 1:
         # batch processing requires 1D filter OR matching batch dimensions for signal and filter
@@ -145,6 +146,7 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
                 else:
                     v.resplit_(axis=a.split)
         batch_processing = True
+
     if not batch_processing and v.ndim > 1:
         raise ValueError(
             f"1-D convolution only supported for 1-dimensional signal and kernel. Signal: {a.shape}, Filter: {v.shape}"
