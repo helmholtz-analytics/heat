@@ -1165,15 +1165,6 @@ def load_npy_from_path(
         The device id on which to place the data, defaults to globally set default device.
     comm : Communication, optional
         The communication to use for the data distribution, default is 'heat.MPI_WORLD'
-
-    Raises
-    -------
-    TypeError
-        If any of the input parameters are not of correct type.
-    ValueError
-        If there are no .npy files in the directory.
-    RuntimeError
-        If the number of processes exceeds the number of files.
     """
     if not isinstance(path, str):
         raise TypeError(f"path must be str, not {type(path)}")
