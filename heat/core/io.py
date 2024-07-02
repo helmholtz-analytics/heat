@@ -1150,12 +1150,12 @@ def load_npy_from_path(
     comm: Optional[Communication] = None,
 ) -> DNDarray:
     """
-    Loads multiple .npy files into one DNDarray which will be returned. The data will be concatenated along a specified axis.
+    Loads multiple .npy files into one DNDarray which will be returned. The data will be concatenated along the split axis provided as input.
 
     Parameters
     ----------
     path : str
-        Directory in which .npy-files are located.
+        Path to the directory in which .npy-files are located.
     dtype : datatype, optional
         Data type of the resulting array.
     split : int or None : optional
@@ -1164,7 +1164,7 @@ def load_npy_from_path(
     device : str, optional
         The device id on which to place the data, defaults to globally set default device.
     comm : Communication, optional
-        The communication to use for the data distribution, defaults to global default
+        The communication to use for the data distribution, default is 'heat.MPI_WORLD'
 
     Raises
     -------
