@@ -7,6 +7,8 @@ from math import log10
 import numpy as np
 import torch
 import warnings
+import fnmatch
+import pandas as pd
 
 from typing import Dict, Iterable, List, Optional, Tuple, Union
 
@@ -27,7 +29,15 @@ __HDF5_EXTENSIONS = frozenset([".h5", ".hdf5"])
 __NETCDF_EXTENSIONS = frozenset([".nc", ".nc4", "netcdf"])
 __NETCDF_DIM_TEMPLATE = "{}_dim_{}"
 
-__all__ = ["load", "load_csv", "save_csv", "save", "supports_hdf5", "supports_netcdf"]
+__all__ = [
+    "load",
+    "load_csv",
+    "save_csv",
+    "save",
+    "supports_hdf5",
+    "supports_netcdf",
+    "load_npy_from_path",
+]
 
 try:
     import netCDF4 as nc
@@ -1131,3 +1141,130 @@ def save(
 
 DNDarray.save = lambda self, path, *args, **kwargs: save(self, path, *args, **kwargs)
 DNDarray.save.__doc__ = save.__doc__
+
+
+def load_npy_from_path(
+    path: str,
+    dtype: datatype = types.int32,
+    split: int = 0,
+    device: Optional[str] = None,
+    comm: Optional[Communication] = None,
+) -> DNDarray:
+    """
+    Loads multiple .npy files into one DNDarray which will be returned. The data will be concatenated along the split axis provided as input.
+
+    Parameters
+    ----------
+    path : str
+        Path to the directory in which .npy-files are located.
+    dtype : datatype, optional
+        Data type of the resulting array.
+    split : int
+        Along which axis the loaded arrays should be concatenated.
+    device : str, optional
+        The device id on which to place the data, defaults to globally set default device.
+    comm : Communication, optional
+        The communication to use for the data distribution, default is 'heat.MPI_WORLD'
+    """
+    if not isinstance(path, str):
+        raise TypeError(f"path must be str, not {type(path)}")
+    elif split is not None and not isinstance(split, int):
+        raise TypeError(f"split must be None or int, not {type(split)}")
+
+    process_number = MPI_WORLD.size
+    file_list = []
+    for file in os.listdir(path):
+        if fnmatch.fnmatch(file, "*.npy"):
+            file_list.append(file)
+    n_files = len(file_list)
+
+    if n_files == 0:
+        raise ValueError("No .npy Files were found")
+    if (n_files < process_number) and (process_number > 1):
+        raise RuntimeError("Number of processes can't exceed number of files")
+
+    rank = MPI_WORLD.rank
+    if rank + 1 != process_number:
+        n_for_procs = n_files // process_number
+    else:
+        n_for_procs = (n_files // process_number) + (n_files % process_number)
+
+    local_list = [
+        file_list[i]
+        for i in range(
+            rank * (n_files // process_number), rank * (n_files // process_number) + n_for_procs
+        )
+    ]
+    array_list = []
+    for element in local_list:
+        array_list.append(np.load(path + "/" + element))
+    larray = np.concatenate(array_list, split)
+    larray = torch.from_numpy(larray)
+
+    x = factories.array(larray, dtype=dtype, device=device, is_split=split, comm=comm)
+    return x
+
+
+def load_csv_from_folder(
+    path: str,
+    dtype: datatype = types.int32,
+    split: int = 0,
+    device: Optional[str] = None,
+    comm: Optional[Communication] = None,
+    func: Optional[pd.DataFrame] = None,
+) -> DNDarray:
+    """
+    Loads multiple .csv files into one DNDarray which will be returned. The data will be concatenated along the split axis provided as input.
+
+    Parameters
+    ----------
+    path : str
+        Path to the directory in which .csv-files are located.
+    dtype : datatype, optional
+        Data type of the resulting array.
+    split : int
+        Along which axis the loaded arrays should be concatenated.
+    device : str, optional
+        The device id on which to place the data, defaults to globally set default device.
+    comm : Communication, optional
+        The communication to use for the data distribution, default is 'heat.MPI_WORLD'
+    func : pandas.DataFrame, optional
+        The function the files have to go through before being added to the array.
+    """
+    process_number = MPI_WORLD.size
+    file_list = []
+    for file in os.listdir(path):
+        if fnmatch.fnmatch(file, "*.csv"):
+            file_list.append(file)
+    n_files = len(file_list)
+
+    if n_files == 0:
+        raise ValueError("No .csv Files were found")
+    if (n_files < process_number) and (process_number > 1):
+        raise RuntimeError("Number of processes can't exceed number of files")
+
+    rank = MPI_WORLD.rank
+    if rank + 1 != process_number:
+        n_for_procs = n_files // process_number
+    else:
+        n_for_procs = (n_files // process_number) + (n_files % process_number)
+
+    local_list = [
+        file_list[i]
+        for i in range(
+            rank * (n_files // process_number), rank * (n_files // process_number) + n_for_procs
+        )
+    ]
+
+    array_list = []
+    for element in local_list:
+        df = pd.read_csv(element)
+        if (func is not None) and callable(func):
+            xf = func.to_numpy()
+            array_list.append(xf)
+        else:
+            array_list.append(df.to_numpy())
+    larray = np.concatenate(array_list, split)
+    larray = torch.from_numpy(larray)
+    x = factories.array(larray, dtype=dtype, device=device, is_split=split, comm=comm)
+    return x
