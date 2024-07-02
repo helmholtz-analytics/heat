@@ -805,12 +805,105 @@ class TestLinalgBasics(TestCase):
             self.assertEqual(ret00.dtype, ht.int64)
             self.assertEqual(ret00.split, 0)
 
+            """
             with self.assertRaises(NotImplementedError):
                 a = ht.zeros((3, 3, 3), split=2)
                 b = a.copy()
                 a @ b
+            """
+
             with self.assertRaises(TypeError):
                 "T" @ ht.zeros((3, 3, 3))
+
+            # batched, dimension errors
+            # different number of batch dimensions
+            with self.assertRaises(ValueError):
+                a = ht.zeros((3, 3, 3))
+                b = ht.zeros((3, 3))
+                ht.matmul(a, b)
+            # different batch dimension shape
+            with self.assertRaises(ValueError):
+                a = ht.zeros((3, 3, 3), split=0)
+                b = ht.zeros((4, 3, 3), split=0)
+                ht.matmul(a, b)
+            # not implemented split
+            """
+            todo
+            with self.assertRaises(NotImplementedError):
+                a = ht.zeros((3, 3, 3))
+                b = ht.zeros((3, 3, 3))
+                ht.matmul(a, b)
+            """
+
+            # batched, split batch
+            n = 11  # number of batches
+            k = 100  # data dimension size
+            s1 = ht.arange(n, dtype=ht.int64).reshape((n, 1, 1))
+            zeros = ht.zeros((n, 1, k - 1), dtype=ht.int64)
+            a = ht.concatenate((s1, zeros), 2)
+            a.resplit_(0)
+            z1 = ht.ones((n, 1, 1), dtype=ht.int64)
+            zeros = ht.zeros((n, k - 1, 1), dtype=ht.int64)
+            b = ht.concatenate((z1, zeros), 1)
+            b.resplit_(0)
+            ret_batched = ht.matmul(a, b)
+
+            self.assertTrue(ht.equal(ret_batched, s1))
+            self.assertIsInstance(ret_batched, ht.DNDarray)
+            self.assertEqual(
+                ret_batched.shape,
+                (
+                    n,
+                    1,
+                    1,
+                ),
+            )
+            self.assertEqual(ret_batched.dtype, ht.int64)
+            self.assertEqual(ret_batched.split, 0)
+
+            # batched
+            n = 11  # number of batches
+            k = 100  # data dimension size
+            m = 100
+
+            torch.manual_seed(42)
+
+            # integer
+            at = torch.randint(0, 100, (n, m, k))
+            bt = torch.randint(0, 100, (n, k, m))
+            ct = at @ bt
+
+            a = ht.factories.asarray(at, copy=True)
+            b = ht.factories.asarray(bt, copy=True)
+            c = ht.factories.asarray(ct, copy=True)
+
+            for s0, s1 in [(0, 0), (0, 1), (1, 1)]:
+                a.resplit_(-2 + s0)
+                b.resplit_(-2 + s1)
+
+                ret_batched = ht.matmul(a, b)
+
+                self.assertTrue(ht.equal(ret_batched, c))
+
+            # float
+            at = torch.randn((n, m, k))
+            bt = torch.randn((n, k, m))
+            ct = at @ bt
+
+            a = ht.factories.asarray(at, copy=True)
+            b = ht.factories.asarray(bt, copy=True)
+            c = ht.factories.asarray(ct, copy=True)
+
+            for s0, s1 in [(0, 0), (0, 1), (1, 1)]:
+                a.resplit_(-2 + s0)
+                b.resplit_(-2 + s1)
+
+                ret_batched = ht.matmul(a, b)
+                # print(f"{s0}{s1}: {ht.max(ht.abs(ret_batched - c)).item()}")
+                max_diff = ht.max(ht.abs(ret_batched - c)).item()
+
+                # self.assertTrue(ht.allclose(ret_batched, c, 1e-2))
+                self.assertTrue(max_diff < 1e-4)
 
     def test_matrix_norm(self):
         a = ht.arange(9, dtype=ht.float) - 4
