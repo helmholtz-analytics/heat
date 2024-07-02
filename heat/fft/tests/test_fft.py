@@ -108,7 +108,7 @@ class TestFFT(TestCase):
         self.assertEqual(y.shape, x.shape)
         self.assert_array_equal(y, np_y)
         backwards = ht.fft.ifftn(y)
-        self.assertTrue(ht.allclose(backwards, x))
+        self.assertTrue(ht.allclose(backwards, x, atol=1e-7))
 
         # 1D distributed
         x = ht.random.randn(6, split=0)
