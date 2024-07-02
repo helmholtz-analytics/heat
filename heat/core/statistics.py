@@ -19,6 +19,8 @@ from . import sanitation
 from . import stride_tricks
 from . import logical
 from . import constants
+from .random import randint
+from warnings import warn
 
 __all__ = [
     "argmax",
@@ -1016,10 +1018,19 @@ DNDarray.mean: Callable[[DNDarray, Union[int, List, Tuple]], DNDarray] = lambda 
 DNDarray.mean.__doc__ = mean.__doc__
 
 
-def median(x: DNDarray, axis: Optional[int] = None, keepdims: bool = False) -> DNDarray:
+def median(
+    x: DNDarray,
+    axis: Optional[int] = None,
+    keepdims: bool = False,
+    sketched: bool = False,
+    sketch_size: Optional[float] = 1.0 / MPI.COMM_WORLD.size,
+) -> DNDarray:
     """
     Compute the median of the data along the specified axis.
     Returns the median of the ``DNDarray`` elements.
+    Per default, the "true" median of the entire data set is computed; however, the argument
+    `sketched` allows to switch to a faster but less accurate version that computes
+    the median only on behalf of a random subset of the data set ("sketch").
 
     Parameters
     ----------
@@ -1032,14 +1043,25 @@ def median(x: DNDarray, axis: Optional[int] = None, keepdims: bool = False) -> D
     keepdims : bool, optional
         If True, the axes which are reduced are left in the result as dimensions with size one.
         With this option, the result can broadcast correctly against the original array ``a``.
+
+    sketched : bool, optional
+        If True, the median is computed on a random subset of the data set ("sketch").
+        This is faster but less accurate.  Default is False. The size of the sketch is controlled by the argument `sketch_size`.
+    sketch_size : float, optional
+        The size of the sketch as a fraction of the data set size. Default is `1./n_proc`  where `n_proc` is the number of MPI processes, e.g. `n_proc =  MPI.COMM_WORLD.size`. Must be in the range (0, 1).
+        Ignored for sketched = False.
     """
-    return percentile(x, q=50, axis=axis, keepdims=keepdims)
+    return percentile(
+        x, q=50, axis=axis, keepdims=keepdims, sketched=sketched, sketch_size=sketch_size
+    )
 
 
-DNDarray.median: Callable[[DNDarray, int, bool], DNDarray] = (
-    lambda x, axis=None, keepdims=False: median(x, axis, keepdims)
+DNDarray.median: Callable[[DNDarray, int, bool, bool, float], DNDarray] = (
+    lambda x, axis=None, keepdims=False, sketched=False, sketch_size=1.0 / MPI.COMM_WORLD.size: median(
+        x, axis, keepdims, sketched=sketched, sketch_size=sketch_size
+    )
 )
-DNDarray.mean.__doc__ = mean.__doc__
+DNDarray.median.__doc__ = median.__doc__
 
 
 def __merge_moments(
@@ -1412,10 +1434,15 @@ def percentile(
     out: Optional[DNDarray] = None,
     interpolation: str = "linear",
     keepdims: bool = False,
+    sketched: bool = False,
+    sketch_size: Optional[float] = 1.0 / MPI.COMM_WORLD.size,
 ) -> DNDarray:
     r"""
     Compute the q-th percentile of the data along the specified axis.
     Returns the q-th percentile(s) of the tensor elements.
+    Per default, the "true" percentile(s) of the entire data set are computed; however, the argument
+    `sketched` allows to switch to a faster but inaccurate version that computes
+    the percentile only on behalf of a random subset of the data set ("sketch").
 
     Parameters
     ----------
@@ -1447,6 +1474,14 @@ def percentile(
     keepdims : bool, optional
         If True, the axes which are reduced are left in the result as dimensions with size one.
         With this option, the result can broadcast correctly against the original array x.
+
+    sketched : bool, optional
+        If False (default), the entire data is used and no sketching is performed.
+        If True, a fraction of the data to use for estimating the percentile. The fraction is determined by `sketch_size`.
+    sketch_size : float, optional
+        The fraction of the data to use for estimating the percentile; needs to be strictly between 0 and 1.
+        The default is 1/size of the MPI communicator, i.e., roughly the portion of the data that is anyway processed on a single process.
+        Ignored for sketched = False.
     """
 
     def _local_percentile(data: torch.Tensor, axis: int, indices: torch.Tensor) -> torch.Tensor:
@@ -1490,12 +1525,64 @@ def percentile(
 
         return percentile
 
+    def _create_sketch(
+        a: DNDarray,
+        axis: Union[int, None],
+        sketch_size_relative: Optional[float] = None,
+        sketch_size_absolute: Optional[int] = None,
+    ) -> DNDarray:
+        """
+        Create a sketch of a DNDarray along a specified axis. The sketch is created by sampling the DNDarray along the specified axis.
+
+        Parameters
+        ----------
+        a : DNDarray
+            The DNDarray for which to create a sketch.
+        axis : int
+            The axis along which to create the sketch.
+        sketch_size_relative : optional, float
+            The size of the sketch. Fraction of samples to take, hence between 0 and 1.
+        sketch_size_absolute : optional, int
+            The size of the sketch. Number of samples to take, hence must not exceed the size of the axis along which the sketch is taken.
+        """
+        if (sketch_size_relative is None and sketch_size_absolute is None) or (
+            sketch_size_relative is not None and sketch_size_absolute is not None
+        ):
+            raise ValueError(
+                "Exactly one of sketch_size_relative and sketch_size_absolute must be specified."
+            )
+        if sketch_size_absolute is None:
+            sketch_size = int(sketch_size_relative * a.shape[axis])
+        else:
+            sketch_size = sketch_size_absolute
+
+        # create a random sample of indices
+        indices = manipulations.sort(
+            randint(0, a.shape[axis], sketch_size, device=a.device, dtype=types.int64)
+        )[0]
+        sketch = a.swapaxes(0, axis)
+        sketch = a[indices, ...].resplit_(None)
+        return sketch.swapaxes(0, axis)
+
     # SANITATION
     # sanitize input
     if not isinstance(x, DNDarray):
         raise TypeError(f"expected x to be a DNDarray, but was {type(x)}")
     if isinstance(axis, (list, tuple)):
         raise NotImplementedError("ht.percentile(), tuple axis not implemented yet")
+
+    if sketched:
+        if (
+            not isinstance(sketch_size, float)
+            or sketch_size <= 0
+            or (MPI.COMM_WORLD.size > 1 and sketch_size == 1)
+            or sketch_size > 1
+        ):
+            raise ValueError(
+                f"If sketched=True, sketch_size must be float strictly between 0 and 1, but is {sketch_size}."
+            )
+        else:
+            x = _create_sketch(x, axis, sketch_size_relative=sketch_size)
 
     if axis is None:
         if x.ndim > 1:
