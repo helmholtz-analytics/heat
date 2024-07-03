@@ -804,5 +804,6 @@ class TestIO(TestCase):
             ht.MPI_WORLD.Barrier()
             with self.assertRaises(RuntimeError):
                 ht.load_npy_from_path("heat/datasets", dtype=ht.int64, split=0)
+            ht.MPI_WORLD.Barrier()
             if ht.MPI_WORLD.rank == 0:
                 os.remove(os.path.join(os.getcwd(), "heat/datasets", "float_data.npy"))
