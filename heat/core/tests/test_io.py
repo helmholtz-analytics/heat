@@ -797,12 +797,12 @@ class TestIO(TestCase):
             ht.load_npy_from_path("heat/datasets", split="ABC")
         with self.assertRaises(ValueError):
             ht.load_npy_from_path(path="heat", dtype=ht.int64, split=0)
-         if ht.MPI_WORLD.size > 1:
-             if ht.MPI_WORLD.rank == 0:
-                 x = np.random.rand(2, random.randint(1, 10), 11)
-                 np.save(os.path.join(os.getcwd(), "heat/datasets", "float_data"), x)
-             ht.MPI_WORLD.Barrier()
-             with self.assertRaises(RuntimeError):
-                 ht.load_npy_from_path("heat/datasets/npy_dummy", dtype=ht.int64, split=0)
-             if ht.MPI_WORLD.rank == 0:
-                 os.remove(os.path.join(os.getcwd(), "heat/datasets", "float_data.npy"))
+        if ht.MPI_WORLD.size > 1:
+            if ht.MPI_WORLD.rank == 0:
+                x = np.random.rand(2, random.randint(1, 10), 11)
+                np.save(os.path.join(os.getcwd(), "heat/datasets", "float_data"), x)
+            ht.MPI_WORLD.Barrier()
+            with self.assertRaises(RuntimeError):
+                ht.load_npy_from_path("heat/datasets/npy_dummy", dtype=ht.int64, split=0)
+            if ht.MPI_WORLD.rank == 0:
+                os.remove(os.path.join(os.getcwd(), "heat/datasets", "float_data.npy"))
