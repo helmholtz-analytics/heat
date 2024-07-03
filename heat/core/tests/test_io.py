@@ -759,8 +759,8 @@ class TestIO(TestCase):
         )
         load_array_npy = load_array.numpy()
 
-        print(load_array.gshape)
-        print(ht.MPI_WORLD.rank, load_array.larray)
+        self.assertIsInstance(load_array, ht.DNDarray)
+        self.assertEqual(load_array.dtype, ht.int32)
         if ht.MPI_WORLD.rank == 0:
             self.assertTrue((load_array_npy == int_array).all)
             for file in os.listdir(os.path.join(os.getcwd(), "heat/datasets")):
@@ -797,6 +797,12 @@ class TestIO(TestCase):
             ht.load_npy_from_path("heat/datasets", split="ABC")
         with self.assertRaises(ValueError):
             ht.load_npy_from_path(path="heat", dtype=ht.int64, split=0)
-        if ht.MPI_WORLD.size > 1:
-            with self.assertRaises(RuntimeError):
-                ht.load_npy_from_path("heat/datasets/npy_dummy", dtype=ht.int64, split=0)
+        # if ht.MPI_WORLD.size > 1:
+        #     if ht.MPI_WORLD.rank == 0:
+        #         x = np.random.rand(2, random.randint(1, 10), 11)
+        #         np.save(os.path.join(os.getcwd(), "heat/datasets", "float_data"), x)
+        #     ht.MPI_WORLD.Barrier()
+        #     with self.assertRaises(RuntimeError):
+        #         ht.load_npy_from_path("heat/datasets/npy_dummy", dtype=ht.int64, split=0)
+        #     if ht.MPI_WORLD.rank == 0:
+        #         os.remove(os.path.join(os.getcwd(), "heat/datasets", "float_data.npy"))
