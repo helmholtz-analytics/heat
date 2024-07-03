@@ -37,6 +37,7 @@ __all__ = [
     "supports_hdf5",
     "supports_netcdf",
     "load_npy_from_path",
+    "load_csv_from_folder",
 ]
 
 try:
@@ -1211,7 +1212,7 @@ def load_csv_from_folder(
     split: int = 0,
     device: Optional[str] = None,
     comm: Optional[Communication] = None,
-    func: Optional[pd.DataFrame] = None,
+    func: Optional[callable] = None,
 ) -> DNDarray:
     """
     Loads multiple .csv files into one DNDarray which will be returned. The data will be concatenated along the split axis provided as input.
@@ -1231,6 +1232,11 @@ def load_csv_from_folder(
     func : pandas.DataFrame, optional
         The function the files have to go through before being added to the array.
     """
+    if not isinstance(path, str):
+        raise TypeError(f"path must be str, not {type(path)}")
+    elif split is not None and not isinstance(split, int):
+        raise TypeError(f"split must be None or int, not {type(split)}")
+
     process_number = MPI_WORLD.size
     file_list = []
     for file in os.listdir(path):
@@ -1258,12 +1264,13 @@ def load_csv_from_folder(
 
     array_list = []
     for element in local_list:
-        df = pd.read_csv(element)
+        df = pd.read_csv(path + "/" + element)
         if (func is not None) and callable(func):
-            xf = func.to_numpy()
+            xf = func(df).to_numpy()
             array_list.append(xf)
         else:
             array_list.append(df.to_numpy())
+
     larray = np.concatenate(array_list, split)
     larray = torch.from_numpy(larray)
     x = factories.array(larray, dtype=dtype, device=device, is_split=split, comm=comm)

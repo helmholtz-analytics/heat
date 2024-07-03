@@ -2,8 +2,10 @@ import numpy as np
 import os
 import torch
 import tempfile
-import random
 import time
+import random
+import shutil
+import pandas as pd
 import fnmatch
 
 import heat as ht
@@ -753,7 +755,6 @@ class TestIO(TestCase):
                 crea_array.append(x)
             int_array = np.concatenate(crea_array)
         ht.MPI_WORLD.Barrier()
-
         load_array = ht.load_npy_from_path(
             os.path.join(os.getcwd(), "heat/datasets"), dtype=ht.int32, split=0
         )
@@ -800,3 +801,52 @@ class TestIO(TestCase):
         if ht.MPI_WORLD.size > 1:
             with self.assertRaises(RuntimeError):
                 ht.load_npy_from_path("heat/datasets/npy_dummy", dtype=ht.int64, split=0)
+
+    def test_load_multiple_csv(self):
+        csv_path = os.path.join(os.getcwd(), "heat/datasets/csv_tests")
+        if ht.MPI_WORLD.rank == 0:
+            nplist = []
+            os.mkdir(csv_path)
+            for i in range(0, 20):
+                a = np.random.randint(100, size=(5))
+                b = np.random.randint(100, size=(5))
+                c = np.random.randint(100, size=(5))
+
+                data = {"A": a, "B": b, "C": c}
+                df = pd.DataFrame(data)
+                nplist.append(df.to_numpy())
+                df.to_csv((os.path.join(csv_path, f"csv_test_{i}.csv")), index=False)
+
+            nparray = np.concatenate(nplist)
+        ht.MPI_WORLD.Barrier()
+
+        load_array = ht.load_csv_from_folder(csv_path, dtype=ht.int32, split=0)
+
+        load_array_npy = load_array.numpy()
+        self.assertIsInstance(load_array, ht.DNDarray)
+        self.assertEqual(load_array.dtype, ht.int32)
+
+        if ht.MPI_WORLD.rank == 0:
+            self.assertTrue((load_array_npy == nparray).all)
+            shutil.rmtree(csv_path)
+
+    def test_load_multiple_csv_exception(self):
+        with self.assertRaises(TypeError):
+            ht.load_csv_from_folder(path=1, split=0)
+        with self.assertRaises(TypeError):
+            ht.load_csv_from_folder("heat/datasets", split="ABC")
+        with self.assertRaises(ValueError):
+            ht.load_csv_from_folder(path="heat", dtype=ht.int64, split=0)
+        if ht.MPI_WORLD.size > 1:
+            if ht.MPI_WORLD.rank == 0:
+                os.mkdir(os.path.join(os.getcwd(), "heat/datasets/csv_tests"))
+                df = pd.DataFrame({"A": [0, 0, 0]})
+                df.to_csv(
+                    (os.path.join(os.getcwd(), "heat/datasets/csv_tests", "fail.csv")), index=False
+                )
+            ht.MPI_WORLD.Barrier()
+
+            with self.assertRaises(RuntimeError):
+                ht.load_csv_from_folder("heat/datasets/csv_tests", dtype=ht.int64, split=0)
+            if ht.MPI_WORLD.rank == 0:
+                shutil.rmtree(os.path.join(os.getcwd(), "heat/datasets/csv_tests"))
