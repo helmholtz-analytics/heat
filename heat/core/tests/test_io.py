@@ -752,8 +752,8 @@ class TestIO(TestCase):
                 np.save(os.path.join(os.getcwd(), "heat/datasets", "int_data") + str(i), x)
                 crea_array.append(x)
             int_array = np.concatenate(crea_array)
-        else:
-            time.sleep(2)
+        ht.MPI_WORLD.Barrier()
+
         load_array = ht.load_npy_from_path(
             os.path.join(os.getcwd(), "heat/datasets"), dtype=ht.int32, split=0
         )
@@ -776,8 +776,7 @@ class TestIO(TestCase):
                 np.save(os.path.join(os.getcwd(), "heat/datasets", "float_data") + str(i), x)
                 crea_array.append(x)
             float_array = np.concatenate(crea_array, 1)
-        else:
-            time.sleep(2)
+        ht.MPI_WORLD.Barrier()
 
         load_array = ht.load_npy_from_path(
             os.path.join(os.getcwd(), "heat/datasets"), dtype=ht.float64, split=1
