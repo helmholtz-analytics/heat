@@ -1186,8 +1186,8 @@ def load_npy_from_path(
     n_for_procs = n_files // process_number
     idx = rank * n_for_procs
     if rank + 1 == process_number:
-        n_for_procs += (n_files % process_number)
-    array_list = [np.load(path + "/" + element) for element in file_list[idx : idx+n_for_procs]]
+        n_for_procs += n_files % process_number
+    array_list = [np.load(path + "/" + element) for element in file_list[idx : idx + n_for_procs]]
     larray = np.concatenate(array_list, split)
     larray = torch.from_numpy(larray)
 
