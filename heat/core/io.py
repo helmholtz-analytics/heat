@@ -1266,8 +1266,9 @@ def load_csv_from_folder(
     for element in local_list:
         df = pd.read_csv(path + "/" + element)
         if (func is not None) and callable(func):
-            xf = func(df).to_numpy()
-            array_list.append(xf)
+            xf = func(df)
+            print(xf)
+            array_list.append(xf.to_numpy())
         else:
             array_list.append(df.to_numpy())
 
