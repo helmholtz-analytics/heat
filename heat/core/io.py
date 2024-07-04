@@ -1185,20 +1185,11 @@ def load_npy_from_path(
         raise RuntimeError("Number of processes can't exceed number of files")
 
     rank = MPI_WORLD.rank
-    if rank + 1 != process_number:
-        n_for_procs = n_files // process_number
-    else:
-        n_for_procs = (n_files // process_number) + (n_files % process_number)
-
-    local_list = [
-        file_list[i]
-        for i in range(
-            rank * (n_files // process_number), rank * (n_files // process_number) + n_for_procs
-        )
-    ]
-    array_list = []
-    for element in local_list:
-        array_list.append(np.load(path + "/" + element))
+    n_for_procs = n_files // process_number
+    idx = rank * n_for_procs
+    if rank + 1 == process_number:
+        n_for_procs += n_files % process_number
+    array_list = [np.load(path + "/" + element) for element in file_list[idx : idx + n_for_procs]]
     larray = np.concatenate(array_list, split)
     larray = torch.from_numpy(larray)
 
