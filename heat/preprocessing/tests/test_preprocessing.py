@@ -238,7 +238,7 @@ class TestMaxAbsScaler(TestCase):
 
 class TestRobustScaler(TestCase):
     def test_RobustScaler(self):
-        for split in [0]:
+        for split in [0, 1]:
             for with_centering in [False, True]:
                 for with_scaling in [False, True]:
                     if not with_centering and not with_scaling:
@@ -348,3 +348,26 @@ class TestRobustScaler(TestCase):
             scaler.fit(ht.zeros((10, 10, 10), dtype=ht.float32))
         with self.assertRaises(TypeError):
             scaler.fit(ht.zeros(10, 10, dtype=ht.int32))
+
+    def test_robust_scaler_sketched(self):
+        for split in [0, 1]:
+            with_centering = True
+            with_scaling = True
+            copy = True
+            X = _generate_test_data_set(
+                MPI.COMM_WORLD.Get_size() * 10,
+                MPI.COMM_WORLD.Get_size() * 4,
+                split=split,
+                dtype=ht.float32,
+            )
+            scaler = ht.preprocessing.RobustScaler(
+                quantile_range=(24.0, 76.0),
+                copy=copy,
+                with_centering=with_centering,
+                with_scaling=with_scaling,
+                sketched=True,
+            )
+            scaler.fit(X)
+            Y = scaler.transform(X)
+            Y = scaler.inverse_transform(Y)
+            self.assertTrue(ht.allclose(X, Y, atol=atol_inv))
