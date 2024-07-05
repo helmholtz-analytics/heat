@@ -425,7 +425,6 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
     Returns a tensor with the result of ``a@b``. The split dimension of the returned array is
     typically the split dimension of a. However, if ``a.split=None`` then the the ``c.split`` will be
     set as the split dimension of ``b``. If both are ``None`` then ``c.split`` is also ``None``.
-    The split combinations (a.split, b.split) (1, 0), (None, 0) and (1, None) should be avoided due to high memory consumption.
 
     Parameters
     ----------
@@ -441,6 +440,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
     -----
     - If ``a`` is a split vector then the returned vector will be of shape (:math:`1xQ`) and will be split in the 1st dimension
     - If ``b`` is a vector and either ``a`` or ``b`` is split, then the returned vector will be of shape (:math:`Lx1`) and will be split in the 0th dimension
+    - We recommend to avoid the particular split combinations ``1``-``0``, ``None``-``0``, and ``1``-``None`` (for ``a.split``-``b.split``) due to their comparably high memory consumption, if possible. Applying ``DNDarray.resplit_`` or ``heat.resplit`` on one of the two factors before calling ``matmul`` in these situations might improve performance of your code / might avoid memory bottlenecks. 
 
     References
     ----------
