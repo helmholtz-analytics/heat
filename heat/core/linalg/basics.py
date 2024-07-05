@@ -432,9 +432,9 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
     Parameters
     ----------
     a : DNDarray
-        2 dimensional: :math:`L \\times P`, or batch of matrices: :math:`B_1 \\times ... \\times B_\ell \\times L \\times P`
+        2 dimensional: :math:`L \\times P`, or batch of matrices: :math:`B_1 \\times ... \\times B_k \\times L \\times P`
     b : DNDarray
-        2 dimensional: :math:`P \\times Q`, or batch of matrices: :math:`B_1 \\times ... \\times B_\ell \\times P \\times Q`
+        2 dimensional: :math:`P \\times Q`, or batch of matrices: :math:`B_1 \\times ... \\times B_k \\times P \\times Q`
     allow_resplit : bool, optional
         Whether to distribute ``a`` in the case that both ``a.split is None`` and ``b.split is None``.
         Default is ``False``. If ``True``, if both are not split then ``a`` will be distributed in-place along axis 0.
