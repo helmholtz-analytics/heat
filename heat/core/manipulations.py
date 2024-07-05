@@ -4255,7 +4255,7 @@ def unfold(a: DNDarray, axis: int, size: int, step: int = 1):
         # min local index in unfold axis
         min_index = ((displs[comm.rank] - 1) // step + 1) * step - displs[comm.rank]
         if min_index >= a.lshape[axis] or (
-            comm.rank == comm.size - 1 and min_index + size >= a.lshape[axis]
+            comm.rank == comm.size - 1 and min_index + size > a.lshape[axis]
         ):
             loc_unfold_shape = list(a.lshape)
             loc_unfold_shape[axis] = 0
