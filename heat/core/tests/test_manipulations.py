@@ -3793,18 +3793,35 @@ class TestManipulations(TestCase):
             self.assertTrue(ht.equal(u, v))
 
             # more dimensions, different split axes
-            n = 10
-            k = 5  # number of dimensions
+            n = 53
+            k = 3  # number of dimensions
             shape = k * (n,)
             size = n**k
 
             x = torch.arange(size).reshape(shape)
-            y = ht.array(x, dtype)
+            _y = x.clone()
+            y = ht.array(_y, dtype)
 
             for split in (None, *range(k)):
                 y.resplit_(split)
-                for dimension in range(k):
-                    u = ht.array(x.unfold(dimension, 1, 1))
-                    v = ht.unfold(y, dimension, 1, 1)
+                for size in range(2, 9):
+                    for step in range(1, 21):
+                        for dimension in range(k):
+                            u = ht.array(x.unfold(dimension, size, step))
+                            v = ht.unfold(y, dimension, size, step)
 
-                    self.assertTrue(ht.equal(u, v))
+                            equal = ht.equal(u, v)
+                            if not equal:
+                                diff = (u - v).abs().max().item()
+                                diff_indices = ht.nonzero((u - v).resplit_(None)).resplit_(None)
+                                if y.comm.rank == 0:
+                                    print(
+                                        f"\ndtype: {dtype}\nsplit: {split}\ndimension: {dimension}\nstep: {step}\nsize: {size}"
+                                    )
+                                    # print(f"u.shape: {u_shape}")
+                                    # print(f"v.shape: {v_shape}")
+                                    print(f"diff: {diff}")
+                                    print(f"displs: {y.counts_displs()[1]}")
+                                print(f"diff_indices: {diff_indices}")
+
+                            self.assertTrue(ht.equal(u, v))
