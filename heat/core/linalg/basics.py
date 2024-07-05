@@ -426,8 +426,8 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
     typically the split dimension of a. However, if ``a.split=None`` then the the ``c.split`` will be
     set as the split dimension of ``b``. If both are ``None`` then ``c.split`` is also ``None``.
 
-    Batched inputs (with batch dimensions being leading dimensions) are allowed unless ``a.split=a.ndim-1`` 
-    (split along columns) and ``b.split=b.ndim-2`` (split along rows); see also the Notes below.  
+    Batched inputs (with batch dimensions being leading dimensions) are allowed unless ``a.split=a.ndim-1``
+    (split along columns) and ``b.split=b.ndim-2`` (split along rows); see also the Notes below.
 
     Parameters
     ----------
@@ -441,9 +441,9 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
 
     Notes
     -----
-    - For batched inputs, batch dimensions (and possible splits along these axes) must coincide. 
-    - If ``a`` is a split vector then the returned vector will be of shape (:math:`1xQ`) and will be split in the 1st dimension. If ``b`` is a vector and either ``a`` or ``b`` is split, then the returned vector will be of shape (:math:`Lx1`) and will be split in the 0th dimension. Analogous conventions apply to batched inputs. 
-    - We recommend to avoid the particular split combinations ``1``-``0``, ``None``-``0``, and ``1``-``None`` (for ``a.split``-``b.split``) due to their comparably high memory consumption, if possible. Applying ``DNDarray.resplit_`` or ``heat.resplit`` on one of the two factors before calling ``matmul`` in these situations might improve performance of your code / might avoid memory bottlenecks. In particular, for batched inputs, the corresponding split combination "split along colums"-"split along rows" is not available. 
+    - For batched inputs, batch dimensions (and possible splits along these axes) must coincide.
+    - If ``a`` is a split vector then the returned vector will be of shape (:math:`1xQ`) and will be split in the 1st dimension. If ``b`` is a vector and either ``a`` or ``b`` is split, then the returned vector will be of shape (:math:`Lx1`) and will be split in the 0th dimension. Analogous conventions apply to batched inputs.
+    - We recommend to avoid the particular split combinations ``1``-``0``, ``None``-``0``, and ``1``-``None`` (for ``a.split``-``b.split``) due to their comparably high memory consumption, if possible. Applying ``DNDarray.resplit_`` or ``heat.resplit`` on one of the two factors before calling ``matmul`` in these situations might improve performance of your code / might avoid memory bottlenecks. In particular, for batched inputs, the corresponding split combination "split along colums"-"split along rows" is not available.
 
     References
     ----------
