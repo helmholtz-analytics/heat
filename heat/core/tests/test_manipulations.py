@@ -3799,7 +3799,7 @@ class TestManipulations(TestCase):
             size = n**k
 
             x = torch.arange(size).reshape(shape)
-            _y = x.clone()
+            _y = x.clone().detach()
             y = ht.array(_y, dtype)
 
             for split in (None, *range(k)):
