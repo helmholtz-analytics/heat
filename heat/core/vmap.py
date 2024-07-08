@@ -1,8 +1,10 @@
 """
 This implements a functionality similar to PyTorchs vmap function.
+Requires PyTorch 2.0.0 or higher.
 """
 
 import torch
+
 from .dndarray import DNDarray
 from .factories import array
 from .communication import MPI_WORLD
@@ -52,6 +54,9 @@ def vmap(
     Please note that the options 'same' and 'different' for `randomness` will result in behaviour different from the one known by PyTorch as (at least currently)
     no actions are taken to synchronize randomness across the MPI processes.
     """
+    # check PyTorch version, return error if not 2.0.0 or higher
+    if torch.__version__ < "2.0.0":
+        raise RuntimeError("The function `heat.vmap` requires PyTorch 2.0.0 or higher.")
     # rough check of input argument types
     if not callable(func):
         raise TypeError("The input function `func` must be callable.")
