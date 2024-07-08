@@ -31,7 +31,7 @@ jobs:
 
             -
               name: Checkout
-              uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
+              uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
             -
               name: Set up QEMU
               uses: docker/setup-qemu-action@68827325e0b33c7199eb31dd4e31fbe9023e06e3 # v3.0.0
@@ -49,7 +49,7 @@ jobs:
                 password: ${{ secrets.GITHUB_TOKEN }}
             -
               name: Build
-              uses: docker/build-push-action@2cdde995de11925a030ce8070c3d77a52ffcf1c0 # v5.3.0
+              uses: docker/build-push-action@15560696de535e4014efeff63c48f16952e52dd1 # v6.2.0
               with:
                 file: docker/Dockerfile.release
                 build-args: |
@@ -65,7 +65,7 @@ jobs:
                 docker run -v `pwd`:`pwd` -w `pwd` --rm test_${{ inputs.name }} pytest
             -
               name: Build and push
-              uses: docker/build-push-action@2cdde995de11925a030ce8070c3d77a52ffcf1c0 # v5.3.0
+              uses: docker/build-push-action@15560696de535e4014efeff63c48f16952e52dd1 # v6.2.0
               with:
                 file: docker/Dockerfile.release
                 build-args: |

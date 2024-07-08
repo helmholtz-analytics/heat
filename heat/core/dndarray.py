@@ -1498,68 +1498,25 @@ class DNDarray:
             self.__lshape_map = None
             return self
 
-        tiles = tiling.SplitTiles(self)
-        new_tile_locs = tiles.set_tile_locations(
-            split=axis, tile_dims=tiles.tile_dimensions, arr=self
-        )
-        rank = self.comm.rank
-        # receive the data with non-blocking, save which process its from
-        rcv = {}
-        for rpr in range(self.comm.size):
-            # need to get where the tiles are on the new one first
-            # rpr is the destination
-            new_locs = torch.where(new_tile_locs == rpr)
-            new_locs = torch.stack([new_locs[i] for i in range(self.ndim)], dim=1)
-            for i in range(new_locs.shape[0]):
-                key = tuple(new_locs[i].tolist())
-                spr = tiles.tile_locations[key].item()
-                to_send = tiles[key]
-                if spr == rank and spr != rpr:
-                    self.comm.Send(to_send.clone(), dest=rpr, tag=rank)
-                    del to_send
-                elif spr == rpr == rank:
-                    rcv[key] = [None, to_send]
-                elif rank == rpr:
-                    sz = tiles.get_tile_size(key)
-                    buf = torch.zeros(
-                        sz, dtype=self.dtype.torch_type(), device=self.device.torch_device
-                    )
-                    w = self.comm.Irecv(buf=buf, source=spr, tag=spr)
-                    rcv[key] = [w, buf]
-        dims = list(range(self.ndim))
-        del dims[axis]
-        sorted_keys = sorted(rcv.keys())
-        # todo: reduce the problem to 1D cats for each dimension, then work up
-        sz = self.comm.size
-        arrays = []
-        for prs in range(int(len(sorted_keys) / sz)):
-            lp_keys = sorted_keys[prs * sz : (prs + 1) * sz]
-            lp_arr = None
-            for k in lp_keys:
-                if rcv[k][0] is not None:
-                    rcv[k][0].Wait()
-                if lp_arr is None:
-                    lp_arr = rcv[k][1]
-                else:
-                    lp_arr = torch.cat((lp_arr, rcv[k][1]), dim=dims[-1])
-                del rcv[k]
-            if lp_arr is not None:
-                arrays.append(lp_arr)
-        del dims[-1]
-        # for 4 prs and 4 dims, arrays is now 16 elements long,
-        # next need to group the each 4 (sz) and cat in the next dim
-        for d in reversed(dims):
-            new_arrays = []
-            for prs in range(int(len(arrays) / sz)):
-                new_arrays.append(torch.cat(arrays[prs * sz : (prs + 1) * sz], dim=d))
-            arrays = new_arrays
-            del d
-        if len(arrays) == 1:
-            arrays = arrays[0]
+        arr_tiles = tiling.SplitTiles(self)
+        new_tiles = tiling.SplitTiles(self)
 
-        self.__array = arrays
+        gshape = self.shape
+        new_lshape = list(gshape)
+        new_lshape[axis] = int(arr_tiles.tile_dimensions[axis][self.comm.rank].item())
+
+        recv_buffer = torch.empty(
+            tuple(new_lshape), dtype=self.dtype.torch_type(), device=self.device.torch_device
+        )
+
+        self._axis2axisResplit(
+            self.larray, self.split, arr_tiles, recv_buffer, axis, new_tiles, self.comm
+        )
+
+        self.__array = recv_buffer
         self.__split = axis
         self.__lshape_map = None
+
         return self
 
     def __setitem__(

@@ -10,7 +10,7 @@ import warnings
 
 from typing import Iterable, Type, List, Callable, Union, Tuple, Sequence, Optional
 
-from .communication import MPI
+from .communication import MPI, Communication
 from .dndarray import DNDarray
 
 from . import arithmetics
@@ -3542,34 +3542,15 @@ def resplit(arr: DNDarray, axis: int = None) -> DNDarray:
             gathered, is_split=axis, device=arr.device, comm=arr.comm, dtype=arr.dtype
         )
         return new_arr
-    arr_tiles = tiling.SplitTiles(arr)
-    new_arr = factories.empty(arr.gshape, split=axis, dtype=arr.dtype, device=arr.device)
-    new_tiles = tiling.SplitTiles(new_arr)
-    rank = arr.comm.rank
-    waits = []
-    rcv_waits = {}
-    for rpr in range(arr.comm.size):
-        # need to get where the tiles are on the new one first
-        # rpr is the destination
-        new_locs = torch.where(new_tiles.tile_locations == rpr)
-        new_locs = torch.stack([new_locs[i] for i in range(arr.ndim)], dim=1)
 
-        for i in range(new_locs.shape[0]):
-            key = tuple(new_locs[i].tolist())
-            spr = arr_tiles.tile_locations[key].item()
-            to_send = arr_tiles[key]
-            if spr == rank and spr != rpr:
-                waits.append(arr.comm.Isend(to_send.clone(), dest=rpr, tag=rank))
-            elif spr == rpr == rank:
-                new_tiles[key] = to_send.clone()
-            elif rank == rpr:
-                buf = torch.zeros_like(new_tiles[key])
-                rcv_waits[key] = [arr.comm.Irecv(buf=buf, source=spr, tag=spr), buf]
-    for w in waits:
-        w.Wait()
-    for k in rcv_waits.keys():
-        rcv_waits[k][0].Wait()
-        new_tiles[k] = rcv_waits[k][1]
+    new_arr = factories.empty(arr.gshape, split=axis, dtype=arr.dtype, device=arr.device)
+
+    arr_tiles = tiling.SplitTiles(arr)
+    new_tiles = tiling.SplitTiles(new_arr)
+
+    new_arr.larray = _axis2axisResplit(
+        arr.larray, arr.split, arr_tiles, new_arr.larray, axis, new_tiles, arr.comm
+    )
 
     return new_arr
 
@@ -3578,6 +3559,60 @@ DNDarray.resplit: Callable[[DNDarray, Optional[int]], DNDarray] = lambda self, a
     self, axis
 )
 DNDarray.resplit.__doc__ = resplit.__doc__
+
+
+def _axis2axisResplit(
+    source_larray: torch.Tensor,
+    source_split: int,
+    source_tiles: tiling.SplitTiles,
+    target_larray: torch.Tensor,
+    target_split: int,
+    target_tiles: tiling.SplitTiles,
+    comm: Communication,
+) -> torch.Tensor:
+    """
+    Resplits the input array along a new axis and performs data exchange using MPI_Alltoallw. Returns target_larray object with the data after the exchange.
+
+    Parameters
+    ----------
+    source_larray : torch.Tensor
+        The source array to be resplit.
+    source_split : int
+        The axis along which the source array is split.
+    source_tiles : tiling.SplitTiles
+        The tiling object containing the subarray parameters for the source array.
+    target_larray : torch.Tensor
+        The target array to store the resplit data.
+    target_split : int
+        The axis along which the target array is split.
+    target_tiles : tiling.SplitTiles
+        The tiling object containing the subarray parameters for the target array.
+    comm : Communication
+        The communication object for MPI communication.
+    """
+    # Create subarray types for original local shapes split along the new axis
+    source_subarray_params = source_tiles.get_subarray_params(source_split, target_split)
+
+    # Create subarray types for resplit local array along the old axis
+    target_subarray_params = target_tiles.get_subarray_params(target_split, source_split)
+
+    world_size = comm.Get_size()
+    counts = [1] * world_size
+    displs = [0] * world_size
+
+    # Perform the data exchange using MPI_Alltoallw
+    comm.Alltoallw(
+        (source_larray, (counts.copy(), displs.copy()), source_subarray_params),
+        (target_larray, (counts.copy(), displs.copy()), target_subarray_params),
+    )
+
+    return target_larray
+
+
+DNDarray._axis2axisResplit = lambda self, comm, source_larray, source_split, source_tiles, target_larray, target_split, target_tile: _axis2axisResplit(
+    comm, source_larray, source_split, source_tiles, target_larray, target_split, target_tile
+)
+DNDarray._axis2axisResplit.__doc__ = _axis2axisResplit.__doc__
 
 
 def row_stack(arrays: Sequence[DNDarray, ...]) -> DNDarray:

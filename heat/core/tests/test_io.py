@@ -2,6 +2,9 @@ import numpy as np
 import os
 import torch
 import tempfile
+import random
+import time
+import fnmatch
 
 import heat as ht
 from .test_suites.basic_test import TestCase
@@ -747,3 +750,68 @@ class TestIO(TestCase):
     #     os.rmdir(os.getcwd() + '/tmp/')
     # except OSError:
     #     pass
+
+    def test_load_npy_int(self):
+        # testing for int arrays
+        if ht.MPI_WORLD.rank == 0:
+            crea_array = []
+            for i in range(0, 20):
+                x = np.random.randint(1000, size=(random.randint(0, 30), 6, 11))
+                np.save(os.path.join(os.getcwd(), "heat/datasets", "int_data") + str(i), x)
+                crea_array.append(x)
+            int_array = np.concatenate(crea_array)
+        ht.MPI_WORLD.Barrier()
+
+        load_array = ht.load_npy_from_path(
+            os.path.join(os.getcwd(), "heat/datasets"), dtype=ht.int32, split=0
+        )
+        load_array_npy = load_array.numpy()
+
+        self.assertIsInstance(load_array, ht.DNDarray)
+        self.assertEqual(load_array.dtype, ht.int32)
+        if ht.MPI_WORLD.rank == 0:
+            self.assertTrue((load_array_npy == int_array).all)
+            for file in os.listdir(os.path.join(os.getcwd(), "heat/datasets")):
+                if fnmatch.fnmatch(file, "*.npy"):
+                    os.remove(os.path.join(os.getcwd(), "heat/datasets", file))
+
+    def test_load_npy_float(self):
+        # testing for float arrays and split dimension other than 0
+        if ht.MPI_WORLD.rank == 0:
+            crea_array = []
+            for i in range(0, 20):
+                x = np.random.rand(2, random.randint(1, 10), 11)
+                np.save(os.path.join(os.getcwd(), "heat/datasets", "float_data") + str(i), x)
+                crea_array.append(x)
+            float_array = np.concatenate(crea_array, 1)
+        ht.MPI_WORLD.Barrier()
+
+        load_array = ht.load_npy_from_path(
+            os.path.join(os.getcwd(), "heat/datasets"), dtype=ht.float64, split=1
+        )
+        load_array_npy = load_array.numpy()
+        self.assertIsInstance(load_array, ht.DNDarray)
+        self.assertEqual(load_array.dtype, ht.float64)
+        if ht.MPI_WORLD.rank == 0:
+            self.assertTrue((load_array_npy == float_array).all)
+            for file in os.listdir(os.path.join(os.getcwd(), "heat/datasets")):
+                if fnmatch.fnmatch(file, "*.npy"):
+                    os.remove(os.path.join(os.getcwd(), "heat/datasets", file))
+
+    def test_load_npy_exception(self):
+        with self.assertRaises(TypeError):
+            ht.load_npy_from_path(path=1, split=0)
+        with self.assertRaises(TypeError):
+            ht.load_npy_from_path("heat/datasets", split="ABC")
+        with self.assertRaises(ValueError):
+            ht.load_npy_from_path(path="heat", dtype=ht.int64, split=0)
+        if ht.MPI_WORLD.size > 1:
+            if ht.MPI_WORLD.rank == 0:
+                x = np.random.rand(2, random.randint(1, 10), 11)
+                np.save(os.path.join(os.getcwd(), "heat/datasets", "float_data"), x)
+            ht.MPI_WORLD.Barrier()
+            with self.assertRaises(RuntimeError):
+                ht.load_npy_from_path("heat/datasets", dtype=ht.int64, split=0)
+            ht.MPI_WORLD.Barrier()
+            if ht.MPI_WORLD.rank == 0:
+                os.remove(os.path.join(os.getcwd(), "heat/datasets", "float_data.npy"))
