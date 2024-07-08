@@ -11,7 +11,7 @@ from ..communication import MPICommunication
 from ..dndarray import DNDarray
 from .. import factories
 from .. import types
-from ..linalg import matmul, vector_norm
+from ..linalg import matmul, vector_norm, qr, svd
 from ..indexing import where
 from ..random import randn
 
@@ -21,7 +21,7 @@ from .. import statistics
 from math import log, ceil, floor, sqrt
 
 
-__all__ = ["hsvd_rank", "hsvd_rtol", "hsvd"]
+__all__ = ["hsvd_rank", "hsvd_rtol", "hsvd", "rsvd"]
 
 
 #######################################################################################
@@ -529,3 +529,71 @@ def compute_local_truncated_svd(
         sigma_loc = torch.zeros(1, dtype=U_loc.dtype, device=U_loc.device)
         U_loc = torch.zeros(U_loc.shape[0], 1, dtype=U_loc.dtype, device=U_loc.device)
         return U_loc, sigma_loc, err_squared_loc
+
+
+##############################################################################################
+# Randomized SVD
+##############################################################################################
+
+
+def rsvd(
+    A: DNDarray,
+    rank: int,
+    n_oversamples: int = 10,
+    power_iter: int = 0,
+    qr_procs_to_merge: int = 2,
+) -> Union[Tuple[DNDarray, DNDarray, DNDarray], Tuple[DNDarray, DNDarray]]:
+    """
+    Randomized SVD (rSVD) with prescribed truncation rank `rank`.
+    If A = U diag(sigma) V^T is the true SVD of A, this routine computes an approximation for U[:,:rank] (and sigma[:rank], V[:,:rank]).
+
+    The accuracy of this approximation depends on the structure of A ("low-rank" is best) and appropriate choice of parameters.
+
+    Parameters
+    ----------
+    A : DNDarray
+        2D-array (float32/64) of which the rSVD has to be computed.
+    rank : int
+        truncation rank. (This parameter corresponds to `n_components` in sci-kit learn's TruncatedSVD.)
+    n_oversamples : int, optional
+        number of oversamples. The default is 10.
+    power_iter : int, optional
+        number of power iterations. The default is 1.
+    qr_procs_to_merge : int, optional
+        number of processes to merge at each step of QR decomposition in the power iteration (if power_iter > 0). The default is 2. See the corresponding remarks for `heat.linalg.qr` for more details.
+
+    Notes
+    ------
+    Memory requirements: the SVD computation of a matrix of size (rank + n_oversamples) x (rank + n_oversamples) must fit into the memory of a single process.
+    The implementation follows Algorithm 4.4 (randomized range finder) and Algorithm 5.1 (direct SVD) in [1].
+
+    References
+    -----------
+    [1] Halko, N., Martinsson, P. G., & Tropp, J. A. (2011). Finding structure with randomness: Probabilistic algorithms for constructing approximate matrix decompositions. SIAM review, 53(2), 217-288.
+    """
+    ell = rank + n_oversamples
+    q = power_iter
+
+    # random matrix
+    splitOmega = 1 if A.split == 0 else 0
+    Omega = randn(A.shape[1], ell, dtype=A.dtype, device=A.device, split=splitOmega)
+
+    # compute the range of A
+    Y = matmul(A, Omega)
+    Q, _ = qr(Y, procs_to_merge=qr_procs_to_merge)
+
+    # power iterations
+    for _ in range(q):
+        Y = matmul(A.T, Q)
+        Q, _ = qr(Y, procs_to_merge=qr_procs_to_merge)
+        Y = matmul(A, Q)
+        Q, _ = qr(Y, procs_to_merge=qr_procs_to_merge)
+
+    # compute the SVD of the projected matrix
+    B = matmul(Q.T, A)
+    B.resplit_(
+        None
+    )  # B will be of size ell x ell and thus small enough to fit into memory of a single process
+    U, sigma, V = svd.svd(B)  # actually just torch svd as input is not split anymore
+
+    return matmul(Q, U)[:, :rank], sigma[:rank], V[:, :rank]
