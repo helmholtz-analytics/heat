@@ -208,19 +208,26 @@ class TestSolver(TestCase):
             self.assertTrue(ht.equal(res, c))
 
         # batched tests
-        batch_shapes = [
-            (10,),
-            (
-                4,
-                4,
-                4,
-                20,
-            ),
-        ]
+        if tdev.startswith("mps"):
+            # reduction ops on tensors with ndim > 4 are not supported on MPS
+            # see e.g. https://github.com/pytorch/pytorch/issues/129960
+            batch_shapes = [
+                (10,),
+            ]
+        else:
+            batch_shapes = [
+                (10,),
+                (
+                    4,
+                    4,
+                    4,
+                    20,
+                ),
+            ]
         m = 100  # data dimension size
 
         # exceptions
-        batch_shape = batch_shapes[1]
+        batch_shape = batch_shapes[-1]
 
         at = torch.rand((*batch_shape, m, m))
         # at += torch.eye(k)
@@ -244,7 +251,6 @@ class TestSolver(TestCase):
 
         for batch_shape in batch_shapes:
             # batch_shape = tuple() # no batch dimensions
-
             at = torch.rand((*batch_shape, m, m))
             # at += torch.eye(k)
             at += 1e2 * torch.ones_like(at)  # make gaussian elimination more stable
@@ -263,7 +269,6 @@ class TestSolver(TestCase):
                 b.resplit_(s1)
 
                 res = ht.linalg.solve_triangular(a, b)
-
                 self.assertTrue(ht.allclose(c, res))
 
             # split in batch dimension
@@ -273,5 +278,4 @@ class TestSolver(TestCase):
             c.resplit_(s)
 
             res = ht.linalg.solve_triangular(a, b)
-
             self.assertTrue(ht.allclose(c, res))
