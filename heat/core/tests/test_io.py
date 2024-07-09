@@ -5,7 +5,6 @@ import tempfile
 import time
 import random
 import shutil
-import pandas as pd
 import fnmatch
 
 import heat as ht
@@ -810,76 +809,76 @@ class TestIO(TestCase):
                 os.remove(os.path.join(os.getcwd(), "heat/datasets", "float_data.npy"))
 
     def test_load_multiple_csv(self):
-        if ht.io.supports_pandas:
-            csv_path = os.path.join(os.getcwd(), "heat/datasets/csv_tests")
-            if ht.MPI_WORLD.rank == 0:
-                nplist = []
-                npdroplist = []
-                os.mkdir(csv_path)
-                for i in range(0, 20):
-                    a = np.random.randint(100, size=(5))
-                    b = np.random.randint(100, size=(5))
-                    c = np.random.randint(100, size=(5))
-
-                    data = {"A": a, "B": b, "C": c}
-                    data2 = {"B": b, "C": c}
-                    df = pd.DataFrame(data)
-                    df2 = pd.DataFrame(data2)
-                    nplist.append(df.to_numpy())
-                    npdroplist.append(df2.to_numpy())
-                    df.to_csv((os.path.join(csv_path, f"csv_test_{i}.csv")), index=False)
-
-                nparray = np.concatenate(nplist)
-                npdroparray = np.concatenate(npdroplist)
-            ht.MPI_WORLD.Barrier()
-
-            def delete_first_col(dataf):
-                dataf.drop(dataf.columns[0], axis=1, inplace=True)
-                return dataf
-
-            load_array = ht.load_csv_from_folder(csv_path, dtype=ht.int32, split=0)
-            load_func_array = ht.load_csv_from_folder(
-                csv_path, dtype=ht.int32, split=0, func=delete_first_col
-            )
-            load_array_float = ht.load_csv_from_folder(csv_path, dtype=ht.float32, split=0)
-
-            load_array_npy = load_array.numpy()
-            load_func_array_npy = load_func_array.numpy()
-
-            self.assertIsInstance(load_array, ht.DNDarray)
-            self.assertEqual(load_array.dtype, ht.int32)
-            self.assertEqual(load_array_float.dtype, ht.float32)
-
-            if ht.MPI_WORLD.rank == 0:
-                self.assertTrue((load_array_npy == nparray).all)
-                self.assertTrue((load_func_array_npy == npdroparray).all)
-                shutil.rmtree(csv_path)
-        else:
+        if not ht.io.supports_pandas():
             self.skipTest("Requires pandas")
+
+        csv_path = os.path.join(os.getcwd(), "heat/datasets/csv_tests")
+        if ht.MPI_WORLD.rank == 0:
+            nplist = []
+            npdroplist = []
+            os.mkdir(csv_path)
+            for i in range(0, 20):
+                a = np.random.randint(100, size=(5))
+                b = np.random.randint(100, size=(5))
+                c = np.random.randint(100, size=(5))
+
+                data = {"A": a, "B": b, "C": c}
+                data2 = {"B": b, "C": c}
+                df = pd.DataFrame(data)  # noqa F821
+                df2 = pd.DataFrame(data2)  # noqa F821
+                nplist.append(df.to_numpy())
+                npdroplist.append(df2.to_numpy())
+                df.to_csv((os.path.join(csv_path, f"csv_test_{i}.csv")), index=False)
+
+            nparray = np.concatenate(nplist)
+            npdroparray = np.concatenate(npdroplist)
+        ht.MPI_WORLD.Barrier()
+
+        def delete_first_col(dataf):
+            dataf.drop(dataf.columns[0], axis=1, inplace=True)
+            return dataf
+
+        load_array = ht.load_csv_from_folder(csv_path, dtype=ht.int32, split=0)
+        load_func_array = ht.load_csv_from_folder(
+            csv_path, dtype=ht.int32, split=0, func=delete_first_col
+        )
+        load_array_float = ht.load_csv_from_folder(csv_path, dtype=ht.float32, split=0)
+
+        load_array_npy = load_array.numpy()
+        load_func_array_npy = load_func_array.numpy()
+
+        self.assertIsInstance(load_array, ht.DNDarray)
+        self.assertEqual(load_array.dtype, ht.int32)
+        self.assertEqual(load_array_float.dtype, ht.float32)
+
+        if ht.MPI_WORLD.rank == 0:
+            self.assertTrue((load_array_npy == nparray).all)
+            self.assertTrue((load_func_array_npy == npdroparray).all)
+            shutil.rmtree(csv_path)
 
     def test_load_multiple_csv_exception(self):
-        if ht.io.supports_pandas:
-            with self.assertRaises(TypeError):
-                ht.load_csv_from_folder(path=1, split=0)
-            with self.assertRaises(TypeError):
-                ht.load_csv_from_folder("heat/datasets", split="ABC")
-            with self.assertRaises(TypeError):
-                ht.load_csv_from_folder(path="heat/datasets", func=1)
-            with self.assertRaises(ValueError):
-                ht.load_csv_from_folder(path="heat", dtype=ht.int64, split=0)
-            if ht.MPI_WORLD.size > 1:
-                if ht.MPI_WORLD.rank == 0:
-                    os.mkdir(os.path.join(os.getcwd(), "heat/datasets/csv_tests"))
-                    df = pd.DataFrame({"A": [0, 0, 0]})
-                    df.to_csv(
-                        (os.path.join(os.getcwd(), "heat/datasets/csv_tests", "fail.csv")),
-                        index=False,
-                    )
-                ht.MPI_WORLD.Barrier()
-
-                with self.assertRaises(RuntimeError):
-                    ht.load_csv_from_folder("heat/datasets/csv_tests", dtype=ht.int64, split=0)
-                if ht.MPI_WORLD.rank == 0:
-                    shutil.rmtree(os.path.join(os.getcwd(), "heat/datasets/csv_tests"))
-        else:
+        if not ht.io.supports_pandas():
             self.skipTest("Requires pandas")
+
+        with self.assertRaises(TypeError):
+            ht.load_csv_from_folder(path=1, split=0)
+        with self.assertRaises(TypeError):
+            ht.load_csv_from_folder("heat/datasets", split="ABC")
+        with self.assertRaises(TypeError):
+            ht.load_csv_from_folder(path="heat/datasets", func=1)
+        with self.assertRaises(ValueError):
+            ht.load_csv_from_folder(path="heat", dtype=ht.int64, split=0)
+        if ht.MPI_WORLD.size > 1:
+            if ht.MPI_WORLD.rank == 0:
+                os.mkdir(os.path.join(os.getcwd(), "heat/datasets/csv_tests"))
+                df = pd.DataFrame({"A": [0, 0, 0]})  # noqa F821
+                df.to_csv(
+                    (os.path.join(os.getcwd(), "heat/datasets/csv_tests", "fail.csv")),
+                    index=False,
+                )
+            ht.MPI_WORLD.Barrier()
+
+            with self.assertRaises(RuntimeError):
+                ht.load_csv_from_folder("heat/datasets/csv_tests", dtype=ht.int64, split=0)
+            if ht.MPI_WORLD.rank == 0:
+                shutil.rmtree(os.path.join(os.getcwd(), "heat/datasets/csv_tests"))

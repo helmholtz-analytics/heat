@@ -1197,7 +1197,7 @@ def load_npy_from_path(
 
 try:
     import pandas as pd
-except ImportError:
+except ModuleNotFoundError:
     # pandas support is optional
     def supports_pandas() -> bool:
         """
