@@ -39,7 +39,6 @@ setup(
         "scipy>=1.10.0",
         "pillow>=6.0.0",
         "torchvision>=0.12.0",
-        "pandas",
     ],
     extras_require={
         "docutils": ["docutils>=0.16"],
@@ -48,5 +47,6 @@ setup(
         "dev": ["pre-commit>=1.18.3"],
         "examples": ["scikit-learn>=0.24.0", "matplotlib>=3.1.0"],
         "cb": ["perun>=0.2.0"],
+        "pandas": ["pandas>=2.2.2"],
     },
 )

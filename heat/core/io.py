@@ -1198,7 +1198,7 @@ def load_npy_from_path(
 try:
     import pandas as pd
 except ImportError:
-    # netCDF4 support is optional
+    # pandas support is optional
     def supports_pandas() -> bool:
         """
         Returns ``True`` if pandas is installed , ``False`` otherwise.

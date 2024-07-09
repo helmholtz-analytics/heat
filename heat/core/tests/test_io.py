@@ -854,6 +854,8 @@ class TestIO(TestCase):
                 self.assertTrue((load_array_npy == nparray).all)
                 self.assertTrue((load_func_array_npy == npdroparray).all)
                 shutil.rmtree(csv_path)
+        else:
+            self.skipTest("Requires pandas")
 
     def test_load_multiple_csv_exception(self):
         if ht.io.supports_pandas:
@@ -879,3 +881,5 @@ class TestIO(TestCase):
                     ht.load_csv_from_folder("heat/datasets/csv_tests", dtype=ht.int64, split=0)
                 if ht.MPI_WORLD.rank == 0:
                     shutil.rmtree(os.path.join(os.getcwd(), "heat/datasets/csv_tests"))
+        else:
+            self.skipTest("Requires pandas")
