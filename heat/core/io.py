@@ -36,7 +36,6 @@ __all__ = [
     "supports_hdf5",
     "supports_netcdf",
     "load_npy_from_path",
-    "load_csv_from_folder",
 ]
 
 try:
@@ -1202,13 +1201,19 @@ except ImportError:
     # netCDF4 support is optional
     def supports_pandas() -> bool:
         """
-        Returns ``True`` if Heat supports pandas library, ``False`` otherwise.
+        Returns ``True`` if pandas is installed , ``False`` otherwise.
         """
         return False
 
 else:
+    # add functions to visible exports
+    __all__.extend(["load_csv_from_folder"])
 
-    __all__.extend("load_csv_from_folder")
+    def supports_pandas() -> bool:
+        """
+        Returns ``True`` if pandas is installed, ``False`` otherwise.
+        """
+        return True
 
     def load_csv_from_folder(
         path: str,
@@ -1240,6 +1245,8 @@ else:
             raise TypeError(f"path must be str, not {type(path)}")
         elif split is not None and not isinstance(split, int):
             raise TypeError(f"split must be None or int, not {type(split)}")
+        elif (func is not None) and not callable(func):
+            raise TypeError("func needs to be a callable function or None")
 
         process_number = MPI_WORLD.size
         file_list = []
@@ -1254,33 +1261,18 @@ else:
             raise RuntimeError("Number of processes can't exceed number of files")
 
         rank = MPI_WORLD.rank
-        if rank + 1 != process_number:
-            n_for_procs = n_files // process_number
-        else:
-            n_for_procs = (n_files // process_number) + (n_files % process_number)
-
-        local_list = [
-            file_list[i]
-            for i in range(
-                rank * (n_files // process_number), rank * (n_files // process_number) + n_for_procs
-            )
-        ]
-
-        array_list = []
-        for element in local_list:
-            df = pd.read_csv(path + "/" + element)
-            if (func is not None) and callable(func):
-                xf = func(df)
-                array_list.append(xf.to_numpy())
-            else:
-                array_list.append(df.to_numpy())
-
-        """n_for_procs = n_files // process_number
+        n_for_procs = n_files // process_number
         idx = rank * n_for_procs
         if rank + 1 == process_number:
             n_for_procs += n_files % process_number
-        array_list = [array_list.append(func(pd.read_csv(path + "/" + element)).to_numpy()) if ((func is not None)and(callable(func))) else array_list.append(pd.read_csv(path + "/" + element).to_numpy())for element in file_list[idx : idx + n_for_procs]]
-        """
+        array_list = [
+            (
+                (func(pd.read_csv(path + "/" + element))).to_numpy()
+                if ((func is not None) and (callable(func)))
+                else (pd.read_csv(path + "/" + element)).to_numpy()
+            )
+            for element in file_list[idx : idx + n_for_procs]
+        ]
 
         larray = np.concatenate(array_list, split)
         larray = torch.from_numpy(larray)
