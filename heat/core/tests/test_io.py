@@ -799,8 +799,15 @@ class TestIO(TestCase):
         with self.assertRaises(ValueError):
             ht.load_npy_from_path(path="heat", dtype=ht.int64, split=0)
         if ht.MPI_WORLD.size > 1:
+            if ht.MPI_WORLD.rank == 0:
+                x = np.random.rand(2, random.randint(1, 10), 11)
+                np.save(os.path.join(os.getcwd(), "heat/datasets", "float_data"), x)
+            ht.MPI_WORLD.Barrier()
             with self.assertRaises(RuntimeError):
-                ht.load_npy_from_path("heat/datasets/npy_dummy", dtype=ht.int64, split=0)
+                ht.load_npy_from_path("heat/datasets", dtype=ht.int64, split=0)
+            ht.MPI_WORLD.Barrier()
+            if ht.MPI_WORLD.rank == 0:
+                os.remove(os.path.join(os.getcwd(), "heat/datasets", "float_data.npy"))
 
     """def test_load_multiple_csv(self):
         csv_path = os.path.join(os.getcwd(), "heat/datasets/csv_tests")
