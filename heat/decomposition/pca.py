@@ -211,7 +211,7 @@ class PCA(ht.TransformMixin, ht.BaseEstimator):
         elif self.svd_solver == "hierarchical":
             if X.split != 0:
                 raise ValueError(
-                    "PCA with hierarchical SVD is only available for data split along axis no. 0."
+                    "PCA with hierarchical SVD is only available for data split along axis 0."
                 )
             if isinstance(self.n_components_, float):
                 # hierarchical SVD with prescribed upper bound on relative error
