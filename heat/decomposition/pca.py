@@ -136,7 +136,7 @@ class PCA(ht.TransformMixin, ht.BaseEstimator):
         self.power_iteration_normalizer = power_iteration_normalizer
         self.random_state = random_state
 
-        # set future attributes to None to initialize those that will not be computed lateron with None (e.g., explained_variance_ for svd_solver='hierarchical')
+        # set future attributes to None to initialize those that will not be computed later on with None (e.g., explained_variance_ for svd_solver='hierarchical')
         self.components_ = None
         self.explained_variance_ = None
         self.explained_variance_ratio_ = None
