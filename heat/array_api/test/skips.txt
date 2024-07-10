@@ -583,3 +583,4 @@ array_api_tests/test_special_cases.py::test_iop[__ipow__(x1_i < 0 and isfinite(x
 array_api_tests/test_special_cases.py::test_empty_arrays[sum]
 array_api_tests/test_special_cases.py::test_nan_propagation[mean]
 array_api_tests/test_special_cases.py::test_nan_propagation[var]
+array_api_tests/test_searching_functions.py::test_nonzero_zerodim_error
