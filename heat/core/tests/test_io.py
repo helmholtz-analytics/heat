@@ -812,6 +812,8 @@ class TestIO(TestCase):
         if not ht.io.supports_pandas():
             self.skipTest("Requires pandas")
 
+        import pandas as pd
+
         csv_path = os.path.join(os.getcwd(), "heat/datasets/csv_tests")
         if ht.MPI_WORLD.rank == 0:
             nplist = []
@@ -859,6 +861,8 @@ class TestIO(TestCase):
     def test_load_multiple_csv_exception(self):
         if not ht.io.supports_pandas():
             self.skipTest("Requires pandas")
+
+        import pandas as pd
 
         with self.assertRaises(TypeError):
             ht.load_csv_from_folder(path=1, split=0)
