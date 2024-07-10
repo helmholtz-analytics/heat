@@ -248,8 +248,7 @@ class PCA(ht.TransformMixin, ht.BaseEstimator):
         X : DNDarray of shape (n_samples, n_features)
             Data set to be transformed.
         """
-        if not isinstance(X, ht.DNDarray):
-            raise ValueError("X must be a DNDarray.")
+        ht.sanitize_in(x)
         if X.shape[1] != self.mean_.shape[0]:
             raise ValueError(
                 f"X must have the same number of features as the training data. Expected {self.mean_.shape[0]} but got {X.shape[1]}."
