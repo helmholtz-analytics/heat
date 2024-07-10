@@ -123,7 +123,7 @@ class PCA(ht.TransformMixin, ht.BaseEstimator):
             and not (isinstance(n_components, float) and n_components > 0.0 and n_components < 1.0)
         ):
             raise ValueError(
-                "n_components must be None, in integer greater or equal to 1 or a float in (0,1). Option 'mle' is not supported at the momemnt."
+                "n_components must be None, in integer greater or equal to 1 or a float in (0,1). Option 'mle' is not supported at the moment."
             )
 
         self.n_components = n_components
