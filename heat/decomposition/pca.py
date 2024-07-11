@@ -80,15 +80,15 @@ class PCA(ht.TransformMixin, ht.BaseEstimator):
 
     def __init__(
         self,
-        n_components=None,
-        copy=True,
-        whiten=False,
-        svd_solver="hierarchical",
-        tol=None,
-        iterated_power="auto",
-        n_oversamples=10,
-        power_iteration_normalizer="qr",
-        random_state=None,
+        n_components: Optional[Union[int, float]] = None,
+        copy: bool = True,
+        whiten: bool = False,
+        svd_solver: str = "hierarchical",
+        tol: Optional[float] = None,
+        iterated_power: Union[str, int] = "auto",
+        n_oversamples: int = 10,
+        power_iteration_normalizer: str = "qr",
+        random_state: Optional[int] = None,
     ):
         # check correctness of inputs
         if not copy:
@@ -102,7 +102,7 @@ class PCA(ht.TransformMixin, ht.BaseEstimator):
                 "At the moment, only svd_solver='full' (for tall-skinny or short-fat data) and svd_solver='hierarchical' are supported. \n An implementation of the 'full' option for arbitrarily shaped data as well as the option 'randomized' are already planned."
             )
         if iterated_power != "auto" and not isinstance(iterated_power, int):
-            raise ValueError("iterated_power must be 'auto' or an integer.")
+            raise TypeError("iterated_power must be 'auto' or an integer.")
         if isinstance(iterated_power, int) and iterated_power < 0:
             raise ValueError("if an integer, iterated_power must be greater or equal to 0.")
         if power_iteration_normalizer != "qr":
@@ -158,8 +158,7 @@ class PCA(ht.TransformMixin, ht.BaseEstimator):
         y : Ignored
             Not used, present for API consistency by convention.
         """
-        if not isinstance(X, ht.DNDarray):
-            raise ValueError("X must be a DNDarray.")
+        ht.sanitize_in(X)
         if y is not None:
             raise ValueError(
                 "Argument y is ignored and just present for API consistency by convention."
@@ -180,18 +179,10 @@ class PCA(ht.TransformMixin, ht.BaseEstimator):
         # compute SVD via "full" SVD
         if self.svd_solver == "full" or not X.is_distributed():
             _, S, V = ht.linalg.svd(X_centered, full_matrices=False)
-            if isinstance(self.n_components_, int):
-                # prescribed truncation rank (including no truncation)
-                self.components_ = V[:, : self.n_components_].T
-                self.singular_values_ = S[: self.n_components_]
-
-                self.explained_variance_ = (S**2)[: self.n_components_] / (X.shape[0] - 1)
-                total_variance = (S**2).sum() / (X.shape[0] - 1)
-                self.explained_variance_ratio_ = self.explained_variance_ / total_variance
-
-            else:
+            total_variance = (S**2).sum() / (X.shape[0] - 1)
+            if not isinstance(self.n_components_, int):
                 # truncation w.r.t. prescribed bound on explained variance
-                total_variance = (S**2).sum() / (X.shape[0] - 1)
+                # determine n_components_ accordingly
                 explained_variance_threshold = self.n_components_ * total_variance.larray.item()
                 explained_variance_cumsum = (S**2).larray.cumsum(0) / (X.shape[0] - 1)
                 self.n_components_ = (
@@ -202,10 +193,10 @@ class PCA(ht.TransformMixin, ht.BaseEstimator):
                     )
                     + 1
                 )
-                self.components_ = V[:, : self.n_components_].T
-                self.singular_values_ = S[: self.n_components_]
-                self.explained_variance_ = (S**2)[: self.n_components_] / (X.shape[0] - 1)
-                self.explained_variance_ratio_ = self.explained_variance_ / total_variance
+            self.components_ = V[:, : self.n_components_].T
+            self.singular_values_ = S[: self.n_components_]
+            self.explained_variance_ = (S**2)[: self.n_components_] / (X.shape[0] - 1)
+            self.explained_variance_ratio_ = self.explained_variance_ / total_variance
             self.total_explained_variance_ratio_ = self.explained_variance_ratio_.sum().item()
         # compute SVD via "hierarchical" SVD
         elif self.svd_solver == "hierarchical":
@@ -248,7 +239,7 @@ class PCA(ht.TransformMixin, ht.BaseEstimator):
         X : DNDarray of shape (n_samples, n_features)
             Data set to be transformed.
         """
-        ht.sanitize_in(x)
+        ht.sanitize_in(X)
         if X.shape[1] != self.mean_.shape[0]:
             raise ValueError(
                 f"X must have the same number of features as the training data. Expected {self.mean_.shape[0]} but got {X.shape[1]}."
@@ -267,8 +258,7 @@ class PCA(ht.TransformMixin, ht.BaseEstimator):
         X : DNDarray of shape (n_samples, n_components)
             Data set to be transformed back.
         """
-        if not isinstance(X, ht.DNDarray):
-            raise ValueError("X must be a DNDarray.")
+        ht.sanitize_in(X)
         if X.shape[1] != self.n_components_:
             raise ValueError(
                 f"Dimension mismatch. Expected input of shape n_points x {self.n_components_} but got {X.shape}."
