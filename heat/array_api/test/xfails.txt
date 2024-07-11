@@ -18,7 +18,6 @@ array_api_tests/test_creation_functions.py::test_zeros_like
 array_api_tests/test_data_type_functions.py::test_astype
 array_api_tests/test_data_type_functions.py::test_broadcast_arrays
 array_api_tests/test_data_type_functions.py::test_broadcast_to
-array_api_tests/test_data_type_functions.py::test_can_cast
 array_api_tests/test_data_type_functions.py::test_finfo[float32]
 array_api_tests/test_data_type_functions.py::test_finfo[float64]
 array_api_tests/test_data_type_functions.py::test_iinfo[int8]
@@ -84,11 +83,9 @@ array_api_tests/test_has_names.py::test_has_names[array_method-__complex__]
 array_api_tests/test_indexing_functions.py::test_take
 array_api_tests/test_inspection_functions.py::test_array_namespace_info
 array_api_tests/test_inspection_functions.py::test_array_namespace_info_dtypes
-array_api_tests/test_linalg.py::test_matmul
 array_api_tests/test_linalg.py::test_matrix_transpose
 array_api_tests/test_linalg.py::test_tensordot
 array_api_tests/test_linalg.py::test_vecdot
-array_api_tests/test_manipulation_functions.py::test_concat
 array_api_tests/test_manipulation_functions.py::test_expand_dims
 array_api_tests/test_manipulation_functions.py::test_moveaxis
 array_api_tests/test_manipulation_functions.py::test_repeat
@@ -99,8 +96,6 @@ array_api_tests/test_operators_and_elementwise_functions.py::test_abs[abs]
 array_api_tests/test_operators_and_elementwise_functions.py::test_abs[__abs__]
 array_api_tests/test_operators_and_elementwise_functions.py::test_acos
 array_api_tests/test_operators_and_elementwise_functions.py::test_acosh
-array_api_tests/test_operators_and_elementwise_functions.py::test_add[__add__(x, s)]
-array_api_tests/test_operators_and_elementwise_functions.py::test_add[__iadd__(x, s)]
 array_api_tests/test_operators_and_elementwise_functions.py::test_asin
 array_api_tests/test_operators_and_elementwise_functions.py::test_asinh
 array_api_tests/test_operators_and_elementwise_functions.py::test_atan
@@ -122,26 +117,17 @@ array_api_tests/test_operators_and_elementwise_functions.py::test_divide[__trued
 array_api_tests/test_operators_and_elementwise_functions.py::test_divide[__truediv__(x, s)]
 array_api_tests/test_operators_and_elementwise_functions.py::test_divide[__itruediv__(x1, x2)]
 array_api_tests/test_operators_and_elementwise_functions.py::test_divide[__itruediv__(x, s)]
-array_api_tests/test_operators_and_elementwise_functions.py::test_equal[equal(x1, x2)]
 array_api_tests/test_operators_and_elementwise_functions.py::test_equal[__eq__(x1, x2)]
 array_api_tests/test_operators_and_elementwise_functions.py::test_exp
 array_api_tests/test_operators_and_elementwise_functions.py::test_expm1
-array_api_tests/test_operators_and_elementwise_functions.py::test_floor
 array_api_tests/test_operators_and_elementwise_functions.py::test_floor_divide[floor_divide(x1, x2)]
 array_api_tests/test_operators_and_elementwise_functions.py::test_floor_divide[__floordiv__(x1, x2)]
 array_api_tests/test_operators_and_elementwise_functions.py::test_floor_divide[__floordiv__(x, s)]
 array_api_tests/test_operators_and_elementwise_functions.py::test_floor_divide[__ifloordiv__(x1, x2)]
 array_api_tests/test_operators_and_elementwise_functions.py::test_floor_divide[__ifloordiv__(x, s)]
-array_api_tests/test_operators_and_elementwise_functions.py::test_greater[greater(x1, x2)]
-array_api_tests/test_operators_and_elementwise_functions.py::test_greater[__gt__(x1, x2)]
-array_api_tests/test_operators_and_elementwise_functions.py::test_greater[__gt__(x, s)]
 array_api_tests/test_operators_and_elementwise_functions.py::test_hypot
 array_api_tests/test_operators_and_elementwise_functions.py::test_imag
 array_api_tests/test_operators_and_elementwise_functions.py::test_isfinite
-array_api_tests/test_operators_and_elementwise_functions.py::test_isnan
-array_api_tests/test_operators_and_elementwise_functions.py::test_less_equal[less_equal(x1, x2)]
-array_api_tests/test_operators_and_elementwise_functions.py::test_less_equal[__le__(x1, x2)]
-array_api_tests/test_operators_and_elementwise_functions.py::test_less_equal[__le__(x, s)]
 array_api_tests/test_operators_and_elementwise_functions.py::test_log
 array_api_tests/test_operators_and_elementwise_functions.py::test_log1p
 array_api_tests/test_operators_and_elementwise_functions.py::test_log2
@@ -149,27 +135,21 @@ array_api_tests/test_operators_and_elementwise_functions.py::test_log10
 array_api_tests/test_operators_and_elementwise_functions.py::test_logaddexp
 array_api_tests/test_operators_and_elementwise_functions.py::test_maximum
 array_api_tests/test_operators_and_elementwise_functions.py::test_minimum
-array_api_tests/test_operators_and_elementwise_functions.py::test_multiply[__mul__(x1, x2)]
 array_api_tests/test_operators_and_elementwise_functions.py::test_multiply[__imul__(x, s)]
 array_api_tests/test_operators_and_elementwise_functions.py::test_negative[negative]
 array_api_tests/test_operators_and_elementwise_functions.py::test_negative[__neg__]
 array_api_tests/test_operators_and_elementwise_functions.py::test_not_equal[__ne__(x1, x2)]
-array_api_tests/test_operators_and_elementwise_functions.py::test_not_equal[__ne__(x, s)]
 array_api_tests/test_operators_and_elementwise_functions.py::test_positive[positive]
 array_api_tests/test_operators_and_elementwise_functions.py::test_positive[__pos__]
 array_api_tests/test_operators_and_elementwise_functions.py::test_pow[pow(x1, x2)]
 array_api_tests/test_operators_and_elementwise_functions.py::test_pow[__pow__(x1, x2)]
 array_api_tests/test_operators_and_elementwise_functions.py::test_pow[__ipow__(x1, x2)]
-array_api_tests/test_operators_and_elementwise_functions.py::test_pow[__ipow__(x, s)]
 array_api_tests/test_operators_and_elementwise_functions.py::test_real
 array_api_tests/test_operators_and_elementwise_functions.py::test_round
 array_api_tests/test_operators_and_elementwise_functions.py::test_signbit
 array_api_tests/test_operators_and_elementwise_functions.py::test_sin
 array_api_tests/test_operators_and_elementwise_functions.py::test_sinh
-array_api_tests/test_operators_and_elementwise_functions.py::test_square
 array_api_tests/test_operators_and_elementwise_functions.py::test_sqrt
-array_api_tests/test_operators_and_elementwise_functions.py::test_subtract[__sub__(x1, x2)]
-array_api_tests/test_operators_and_elementwise_functions.py::test_subtract[__isub__(x1, x2)]
 array_api_tests/test_operators_and_elementwise_functions.py::test_tan
 array_api_tests/test_operators_and_elementwise_functions.py::test_tanh
 array_api_tests/test_operators_and_elementwise_functions.py::test_trunc
@@ -177,12 +157,10 @@ array_api_tests/test_searching_functions.py::test_argmax
 array_api_tests/test_searching_functions.py::test_argmin
 array_api_tests/test_searching_functions.py::test_nonzero_zerodim_error
 array_api_tests/test_searching_functions.py::test_nonzero
-array_api_tests/test_searching_functions.py::test_where
 array_api_tests/test_searching_functions.py::test_searchsorted
 array_api_tests/test_set_functions.py::test_unique_all
 array_api_tests/test_set_functions.py::test_unique_counts
 array_api_tests/test_set_functions.py::test_unique_inverse
-array_api_tests/test_set_functions.py::test_unique_values
 array_api_tests/test_signatures.py::test_func_signature[from_dlpack]
 array_api_tests/test_signatures.py::test_func_signature[take]
 array_api_tests/test_signatures.py::test_func_signature[unique_all]
@@ -220,9 +198,6 @@ array_api_tests/test_special_cases.py::test_unary[isfinite(x_i is NaN) -> False]
 array_api_tests/test_special_cases.py::test_unary[isfinite(isfinite(x_i)) -> True]
 array_api_tests/test_special_cases.py::test_unary[isinf((x_i is +infinity or x_i == -infinity)) -> True]
 array_api_tests/test_special_cases.py::test_unary[isnan(x_i is NaN) -> True]
-array_api_tests/test_special_cases.py::test_unary[log2(x_i < 0) -> NaN]
-array_api_tests/test_special_cases.py::test_unary[round(modf(i)[0] == 0.5) -> Decimal(i).to_integral_exact(ROUND_HALF_EVEN)]
-array_api_tests/test_special_cases.py::test_unary[sign(x_i < 0) -> -1]
 array_api_tests/test_special_cases.py::test_unary[sign(x_i is NaN) -> NaN]
 array_api_tests/test_special_cases.py::test_unary[signbit(x_i is +0) -> False]
 array_api_tests/test_special_cases.py::test_unary[signbit(x_i is -0) -> True]
@@ -232,11 +207,7 @@ array_api_tests/test_special_cases.py::test_unary[signbit(isfinite(x_i) and x_i 
 array_api_tests/test_special_cases.py::test_unary[signbit(isfinite(x_i) and x_i < 0) -> True]
 array_api_tests/test_special_cases.py::test_unary[signbit(x_i is +NaN) -> False]
 array_api_tests/test_special_cases.py::test_unary[signbit(x_i is -NaN) -> True]
-array_api_tests/test_special_cases.py::test_unary[sqrt(x_i < 0) -> NaN]
-array_api_tests/test_special_cases.py::test_binary[add((x1_i is +0 or x1_i == -0) and isfinite(x2_i) and x2_i != 0) -> x2_i]
 array_api_tests/test_special_cases.py::test_binary[add(isfinite(x1_i) and x1_i != 0 and (x2_i is +0 or x2_i == -0)) -> x1_i]
-array_api_tests/test_special_cases.py::test_binary[__add__((x1_i is +0 or x1_i == -0) and isfinite(x2_i) and x2_i != 0) -> x2_i]
-array_api_tests/test_special_cases.py::test_binary[__add__(isfinite(x1_i) and x1_i != 0 and x2_i == -x1_i) -> +0]
 array_api_tests/test_special_cases.py::test_binary[copysign(x1_i is NaN and x2_i < 0) -> NaN]
 array_api_tests/test_special_cases.py::test_binary[copysign(x1_i is NaN and x2_i is -0) -> NaN]
 array_api_tests/test_special_cases.py::test_binary[copysign(x1_i is NaN and x2_i is +0) -> NaN]
@@ -280,7 +251,6 @@ array_api_tests/test_special_cases.py::test_binary[__pow__(x1_i is +0 and x2_i >
 array_api_tests/test_special_cases.py::test_binary[__pow__(x1_i is +0 and x2_i < 0) -> +infinity]
 array_api_tests/test_special_cases.py::test_binary[__pow__(x1_i is -0 and x2_i > 0 and not (x2_i.is_integer() and x2_i % 2 == 1)) -> +0]
 array_api_tests/test_special_cases.py::test_binary[__pow__(x1_i is -0 and x2_i < 0 and not (x2_i.is_integer() and x2_i % 2 == 1)) -> +infinity]
-array_api_tests/test_special_cases.py::test_iop[__iadd__(isfinite(x1_i) and x1_i != 0 and (x2_i is +0 or x2_i == -0)) -> x1_i]
 array_api_tests/test_special_cases.py::test_iop[__itruediv__(x1_i is +0 and x2_i > 0) -> +0]
 array_api_tests/test_special_cases.py::test_iop[__itruediv__(x1_i is -0 and x2_i > 0) -> -0]
 array_api_tests/test_special_cases.py::test_iop[__itruediv__(x1_i is +0 and x2_i < 0) -> -0]
@@ -299,7 +269,6 @@ array_api_tests/test_special_cases.py::test_iop[__ipow__(x1_i is +0 and x2_i > 0
 array_api_tests/test_special_cases.py::test_iop[__ipow__(x1_i is +0 and x2_i < 0) -> +infinity]
 array_api_tests/test_special_cases.py::test_iop[__ipow__(x1_i is -0 and x2_i > 0 and not (x2_i.is_integer() and x2_i % 2 == 1)) -> +0]
 array_api_tests/test_special_cases.py::test_iop[__ipow__(x1_i is -0 and x2_i < 0 and not (x2_i.is_integer() and x2_i % 2 == 1)) -> +infinity]
-array_api_tests/test_special_cases.py::test_iop[__ipow__(x1_i < 0 and isfinite(x1_i) and isfinite(x2_i) and not x2_i.is_integer()) -> NaN]
 array_api_tests/test_special_cases.py::test_empty_arrays[prod]
 array_api_tests/test_special_cases.py::test_empty_arrays[std]
 array_api_tests/test_special_cases.py::test_empty_arrays[sum]
