@@ -129,8 +129,8 @@ def __counter_sequence(
         c_0 = (__counter & (max_count << 64)) >> 64
     c_1 = __counter & max_count
     total_elements = torch.prod(torch.tensor(shape))
-    # if total_elements.item() > 2 * max_count:
-    #    raise ValueError(f"Shape is to big with {total_elements} elements")
+    if total_elements.item() > 2 * max_count:
+        raise ValueError(f"Shape is to big with {total_elements} elements")
 
     if split is None:
         values = total_elements.item() // 2 + total_elements.item() % 2
@@ -486,7 +486,7 @@ def rand(
     comm = communication.sanitize_comm(comm)
 
     if __rng == "Threefry":
-        # use Threefry RNG (note: batchparallel RNG comes at the very end in only line only)
+        # use Threefry RNG
         balanced = True
         # generate the random sequence
         if dtype == types.float32:
@@ -513,7 +513,7 @@ def rand(
     else:
         # use batchparallel RNG
         x = factories.__factory(
-            shape if shape != () else (1,),
+            shape if len(shape) > 0 else (1,),
             dtype,
             split if split is not None else 0,
             torch.rand,
@@ -607,7 +607,7 @@ def randint(
     comm = communication.sanitize_comm(comm)
 
     if __rng == "Threefry":
-        # use Threefry RNG (note: batchparallel RNG comes below)
+        # use Threefry RNG
         torch_dtype = dtype.torch_type()
         balanced = True
 
@@ -627,6 +627,7 @@ def randint(
 
         return DNDarray(values, shape, dtype, split, device, comm, balanced)
     else:
+        # use batchparallel RNG
         # wrap torch.randint with fixed low and high
         def _wrapped_torch_randint(*args, **kwargs):
             return torch.randint(low, high, *args, **kwargs)
