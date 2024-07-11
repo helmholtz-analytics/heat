@@ -167,6 +167,8 @@ class TestPCA(TestCase):
 
         with self.assertRaises(TypeError):
             pca.inverse_transform("abc")
+        with self.assertRaises(ValueError):
+            pca.inverse_transform(ht.random.randn(ht.MPI_WORLD.size, 6, split=0))
 
     def test_pca_with_full_rtol(self):
         # test fit
