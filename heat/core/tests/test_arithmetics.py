@@ -1410,16 +1410,18 @@ class TestArithmetics(TestCase):
         self.assertIs(a_split_tensor, a_split_tensor_double)
         self.assertIs(a_split_tensor.larray, underlying_split_torch_tensor)
 
-        # Single element split
-        a = a_double = ht.array([1, 2], split=0)
-        a.cumsum_(0)
-        self.assertTrue(ht.equal(a, ht.array([1, 3])))
-        if a.comm.size > 1:
-            if a.comm.rank < 2:
-                self.assertEqual(a.larray.size()[0], 1)
-            else:
-                self.assertEqual(a.larray.size()[0], 0)
-        self.assertIs(a, a_double)
+        # int64, test only if device isn't MPS
+        if not ht.get_device().torch_device.startswith("mps"):
+            # Single element split
+            a = a_double = ht.array([1, 2], split=0)
+            a.cumsum_(0)
+            self.assertTrue(ht.equal(a, ht.array([1, 3])))
+            if a.comm.size > 1:
+                if a.comm.rank < 2:
+                    self.assertEqual(a.larray.size()[0], 1)
+                else:
+                    self.assertEqual(a.larray.size()[0], 0)
+            self.assertIs(a, a_double)
 
         # test function with wrong inputs
         with self.assertRaises(NotImplementedError):
