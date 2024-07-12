@@ -1430,7 +1430,7 @@ MPI_ARGMIN = MPI.Op.Create(mpi_argmin, commute=True)
 def percentile(
     x: DNDarray,
     q: Union[DNDarray, int, float, Tuple, List],
-    axis: Optional[int] = None,
+    axis: Optional[Union[int, Tuple[int, ...]]] = None,
     out: Optional[DNDarray] = None,
     interpolation: str = "linear",
     keepdims: bool = False,
@@ -1450,13 +1450,10 @@ def percentile(
         Input tensor
     q : DNDarray, scalar, or list of scalars
         Percentile or sequence of percentiles to compute. Must belong to the interval [0, 100].
-
-    axis : int, or None, optional
-        Axis along which the percentiles are computed. Default is None.
-
+    axis : int, tuple of ints, or None, optional
+        Axis along which the percentiles are computed. Default is None, corresponds to calculating the percentile over the flattened array.
     out : DNDarray, optional.
         Output buffer.
-
     interpolation : str, optional
         Interpolation method to use when the desired percentile lies between two data points :math:`i < j`.
         Can be one of:
@@ -1479,7 +1476,7 @@ def percentile(
         If True, a fraction of the data to use for estimating the percentile. The fraction is determined by `sketch_size`.
     sketch_size : float, optional
         The fraction of the data to use for estimating the percentile; needs to be strictly between 0 and 1.
-        The default is 1/size of the MPI communicator, i.e., roughly the portion of the data that is anyway processed on a single process.
+        The default is `1/nprocs`, where `nprocs` is the number of MPI processes involved in the calculation, i.e., roughly the portion of the data that is anyway processed on a single process.
         Ignored for sketched = False.
     """
 
