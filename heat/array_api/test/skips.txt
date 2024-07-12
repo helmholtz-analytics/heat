@@ -19,6 +19,7 @@ array_api_tests/test_operators_and_elementwise_functions.py::test_ceil
 array_api_tests/test_operators_and_elementwise_functions.py::test_equal[equal(x1, x2)]
 array_api_tests/test_operators_and_elementwise_functions.py::test_equal[__eq__(x, s)]
 array_api_tests/test_operators_and_elementwise_functions.py::test_floor
+array_api_tests/test_operators_and_elementwise_functions.py::test_greater[__gt__(x1, x2)]
 array_api_tests/test_operators_and_elementwise_functions.py::test_greater[__gt__(x, s)]
 array_api_tests/test_operators_and_elementwise_functions.py::test_greater_equal[greater_equal(x1, x2)]
 array_api_tests/test_operators_and_elementwise_functions.py::test_greater_equal[__ge__(x, s)]
@@ -26,6 +27,7 @@ array_api_tests/test_operators_and_elementwise_functions.py::test_isinf
 array_api_tests/test_operators_and_elementwise_functions.py::test_isnan
 array_api_tests/test_operators_and_elementwise_functions.py::test_less[less(x1, x2)]
 array_api_tests/test_operators_and_elementwise_functions.py::test_less[__lt__(x1, x2)]
+array_api_tests/test_operators_and_elementwise_functions.py::test_less[__lt__(x, s)]
 array_api_tests/test_operators_and_elementwise_functions.py::test_less_equal[less_equal(x1, x2)]
 array_api_tests/test_operators_and_elementwise_functions.py::test_less_equal[__le__(x1, x2)]
 array_api_tests/test_operators_and_elementwise_functions.py::test_less_equal[__le__(x, s)]
@@ -59,6 +61,7 @@ array_api_tests/test_special_cases.py::test_unary[round(x_i.is_integer()) -> x_i
 array_api_tests/test_special_cases.py::test_unary[round(modf(i)[0] == 0.5) -> Decimal(i).to_integral_exact(ROUND_HALF_EVEN)]
 array_api_tests/test_special_cases.py::test_unary[sign(x_i > 0) -> +1]
 array_api_tests/test_special_cases.py::test_unary[sqrt(x_i < 0) -> NaN]
+array_api_tests/test_special_cases.py::test_unary[trunc(x_i.is_integer()) -> x_i]
 array_api_tests/test_special_cases.py::test_binary[add((x1_i is +0 or x1_i == -0) and isfinite(x2_i) and x2_i != 0) -> x2_i]
 array_api_tests/test_special_cases.py::test_binary[add(isfinite(x1_i) and x1_i != 0 and (x2_i is +0 or x2_i == -0)) -> x1_i]
 array_api_tests/test_special_cases.py::test_binary[__add__((x1_i is +0 or x1_i == -0) and isfinite(x2_i) and x2_i != 0) -> x2_i]
@@ -67,4 +70,5 @@ array_api_tests/test_special_cases.py::test_binary[__add__(isfinite(x1_i) and x1
 array_api_tests/test_special_cases.py::test_binary[pow(x1_i < 0 and isfinite(x1_i) and isfinite(x2_i) and not x2_i.is_integer()) -> NaN]
 array_api_tests/test_special_cases.py::test_binary[__pow__(x1_i < 0 and isfinite(x1_i) and isfinite(x2_i) and not x2_i.is_integer()) -> NaN]
 array_api_tests/test_special_cases.py::test_iop[__iadd__((x1_i is +0 or x1_i == -0) and isfinite(x2_i) and x2_i != 0) -> x2_i]
+array_api_tests/test_special_cases.py::test_iop[__iadd__(isfinite(x1_i) and x1_i != 0 and (x2_i is +0 or x2_i == -0)) -> x1_i]
 array_api_tests/test_special_cases.py::test_iop[__ipow__(x1_i < 0 and isfinite(x1_i) and isfinite(x2_i) and not x2_i.is_integer()) -> NaN]
