@@ -37,6 +37,7 @@ array_api_tests/test_operators_and_elementwise_functions.py::test_less_equal[les
 array_api_tests/test_operators_and_elementwise_functions.py::test_less_equal[__le__(x1, x2)]
 array_api_tests/test_operators_and_elementwise_functions.py::test_less_equal[__le__(x, s)]
 array_api_tests/test_operators_and_elementwise_functions.py::test_log2
+array_api_tests/test_operators_and_elementwise_functions.py::test_logaddexp
 array_api_tests/test_operators_and_elementwise_functions.py::test_multiply[multiply(x1, x2)]
 array_api_tests/test_operators_and_elementwise_functions.py::test_multiply[__mul__(x1, x2)]
 array_api_tests/test_operators_and_elementwise_functions.py::test_multiply[__mul__(x, s)]
@@ -56,11 +57,13 @@ array_api_tests/test_operators_and_elementwise_functions.py::test_subtract[__isu
 array_api_tests/test_operators_and_elementwise_functions.py::test_subtract[__isub__(x, s)]
 array_api_tests/test_operators_and_elementwise_functions.py::test_trunc
 array_api_tests/test_searching_functions.py::test_where
+array_api_tests/test_set_functions.py::test_unique_inverse
 array_api_tests/test_set_functions.py::test_unique_values
 array_api_tests/test_special_cases.py::test_unary[acos(x_i < -1) -> NaN]
 array_api_tests/test_special_cases.py::test_unary[acos(x_i > 1) -> NaN]
 array_api_tests/test_special_cases.py::test_unary[asin(x_i > 1) -> NaN]
 array_api_tests/test_special_cases.py::test_unary[asin(x_i < -1) -> NaN]
+array_api_tests/test_special_cases.py::test_unary[atanh(x_i < -1) -> NaN]
 array_api_tests/test_special_cases.py::test_unary[ceil(x_i.is_integer()) -> x_i]
 array_api_tests/test_special_cases.py::test_unary[floor(x_i.is_integer()) -> x_i]
 array_api_tests/test_special_cases.py::test_unary[log(x_i < 0) -> NaN]

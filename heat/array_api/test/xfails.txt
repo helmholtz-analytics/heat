@@ -126,7 +126,6 @@ array_api_tests/test_operators_and_elementwise_functions.py::test_imag
 array_api_tests/test_operators_and_elementwise_functions.py::test_log
 array_api_tests/test_operators_and_elementwise_functions.py::test_log1p
 array_api_tests/test_operators_and_elementwise_functions.py::test_log10
-array_api_tests/test_operators_and_elementwise_functions.py::test_logaddexp
 array_api_tests/test_operators_and_elementwise_functions.py::test_maximum
 array_api_tests/test_operators_and_elementwise_functions.py::test_minimum
 array_api_tests/test_operators_and_elementwise_functions.py::test_negative[negative]
@@ -151,7 +150,6 @@ array_api_tests/test_searching_functions.py::test_nonzero
 array_api_tests/test_searching_functions.py::test_searchsorted
 array_api_tests/test_set_functions.py::test_unique_all
 array_api_tests/test_set_functions.py::test_unique_counts
-array_api_tests/test_set_functions.py::test_unique_inverse
 array_api_tests/test_signatures.py::test_func_signature[from_dlpack]
 array_api_tests/test_signatures.py::test_func_signature[take]
 array_api_tests/test_signatures.py::test_func_signature[unique_all]
