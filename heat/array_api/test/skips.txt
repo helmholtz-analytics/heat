@@ -48,6 +48,7 @@ array_api_tests/test_operators_and_elementwise_functions.py::test_not_equal[__ne
 array_api_tests/test_operators_and_elementwise_functions.py::test_not_equal[__ne__(x, s)]
 array_api_tests/test_operators_and_elementwise_functions.py::test_pow[__pow__(x, s)]
 array_api_tests/test_operators_and_elementwise_functions.py::test_pow[__ipow__(x, s)]
+array_api_tests/test_operators_and_elementwise_functions.py::test_round
 array_api_tests/test_operators_and_elementwise_functions.py::test_sign
 array_api_tests/test_operators_and_elementwise_functions.py::test_square
 array_api_tests/test_operators_and_elementwise_functions.py::test_subtract[subtract(x1, x2)]
@@ -86,4 +87,5 @@ array_api_tests/test_special_cases.py::test_binary[__pow__(x1_i is NaN and not x
 array_api_tests/test_special_cases.py::test_binary[__pow__(x1_i < 0 and isfinite(x1_i) and isfinite(x2_i) and not x2_i.is_integer()) -> NaN]
 array_api_tests/test_special_cases.py::test_iop[__iadd__((x1_i is +0 or x1_i == -0) and isfinite(x2_i) and x2_i != 0) -> x2_i]
 array_api_tests/test_special_cases.py::test_iop[__iadd__(isfinite(x1_i) and x1_i != 0 and (x2_i is +0 or x2_i == -0)) -> x1_i]
+array_api_tests/test_special_cases.py::test_iop[__iadd__(isfinite(x1_i) and x1_i != 0 and x2_i == -x1_i) -> +0]
 array_api_tests/test_special_cases.py::test_iop[__ipow__(x1_i < 0 and isfinite(x1_i) and isfinite(x2_i) and not x2_i.is_integer()) -> NaN]

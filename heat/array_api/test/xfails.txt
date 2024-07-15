@@ -136,7 +136,6 @@ array_api_tests/test_operators_and_elementwise_functions.py::test_pow[pow(x1, x2
 array_api_tests/test_operators_and_elementwise_functions.py::test_pow[__pow__(x1, x2)]
 array_api_tests/test_operators_and_elementwise_functions.py::test_pow[__ipow__(x1, x2)]
 array_api_tests/test_operators_and_elementwise_functions.py::test_real
-array_api_tests/test_operators_and_elementwise_functions.py::test_round
 array_api_tests/test_operators_and_elementwise_functions.py::test_signbit
 array_api_tests/test_operators_and_elementwise_functions.py::test_sin
 array_api_tests/test_operators_and_elementwise_functions.py::test_sinh
