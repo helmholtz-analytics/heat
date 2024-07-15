@@ -448,7 +448,8 @@ class DNDarray:
 
             if next:
                 if rank != first_rank:
-                    self.comm.Send(a_prev, prev_rank)
+                    # self.comm.Send(a_prev, prev_rank)
+                    req_list.append(self.comm.Isend(a_prev, prev_rank))
                 if rank != last_rank:
                     res_next = torch.zeros(
                         a_next.size(), dtype=a_next.dtype, device=self.device.torch_device
