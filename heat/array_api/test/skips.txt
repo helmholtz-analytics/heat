@@ -25,6 +25,7 @@ array_api_tests/test_operators_and_elementwise_functions.py::test_greater[greate
 array_api_tests/test_operators_and_elementwise_functions.py::test_greater[__gt__(x1, x2)]
 array_api_tests/test_operators_and_elementwise_functions.py::test_greater[__gt__(x, s)]
 array_api_tests/test_operators_and_elementwise_functions.py::test_greater_equal[greater_equal(x1, x2)]
+array_api_tests/test_operators_and_elementwise_functions.py::test_greater_equal[__ge__(x1, x2)]
 array_api_tests/test_operators_and_elementwise_functions.py::test_greater_equal[__ge__(x, s)]
 array_api_tests/test_operators_and_elementwise_functions.py::test_isinf
 array_api_tests/test_operators_and_elementwise_functions.py::test_isnan
@@ -57,6 +58,7 @@ array_api_tests/test_searching_functions.py::test_where
 array_api_tests/test_set_functions.py::test_unique_values
 array_api_tests/test_special_cases.py::test_unary[acos(x_i < -1) -> NaN]
 array_api_tests/test_special_cases.py::test_unary[acos(x_i > 1) -> NaN]
+array_api_tests/test_special_cases.py::test_unary[asin(x_i > 1) -> NaN]
 array_api_tests/test_special_cases.py::test_unary[asin(x_i < -1) -> NaN]
 array_api_tests/test_special_cases.py::test_unary[ceil(x_i.is_integer()) -> x_i]
 array_api_tests/test_special_cases.py::test_unary[floor(x_i.is_integer()) -> x_i]
