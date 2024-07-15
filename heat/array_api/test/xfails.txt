@@ -16,7 +16,6 @@ array_api_tests/test_creation_functions.py::test_ones
 array_api_tests/test_creation_functions.py::test_ones_like
 array_api_tests/test_creation_functions.py::test_zeros
 array_api_tests/test_creation_functions.py::test_zeros_like
-array_api_tests/test_data_type_functions.py::test_astype
 array_api_tests/test_data_type_functions.py::test_broadcast_arrays
 array_api_tests/test_data_type_functions.py::test_broadcast_to
 array_api_tests/test_data_type_functions.py::test_finfo[float32]
@@ -89,7 +88,6 @@ array_api_tests/test_linalg.py::test_tensordot
 array_api_tests/test_linalg.py::test_vecdot
 array_api_tests/test_manipulation_functions.py::test_moveaxis
 array_api_tests/test_manipulation_functions.py::test_repeat
-array_api_tests/test_manipulation_functions.py::test_stack
 array_api_tests/test_manipulation_functions.py::test_tile
 array_api_tests/test_manipulation_functions.py::test_unstack
 array_api_tests/test_operators_and_elementwise_functions.py::test_abs[abs]
@@ -116,7 +114,6 @@ array_api_tests/test_operators_and_elementwise_functions.py::test_divide[__trued
 array_api_tests/test_operators_and_elementwise_functions.py::test_divide[__truediv__(x, s)]
 array_api_tests/test_operators_and_elementwise_functions.py::test_divide[__itruediv__(x1, x2)]
 array_api_tests/test_operators_and_elementwise_functions.py::test_divide[__itruediv__(x, s)]
-array_api_tests/test_operators_and_elementwise_functions.py::test_equal[__eq__(x1, x2)]
 array_api_tests/test_operators_and_elementwise_functions.py::test_exp
 array_api_tests/test_operators_and_elementwise_functions.py::test_expm1
 array_api_tests/test_operators_and_elementwise_functions.py::test_floor_divide[floor_divide(x1, x2)]
