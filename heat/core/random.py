@@ -473,10 +473,10 @@ def rand(
     """
     # if args are not set, generate a single sample
     if not args:
-        args = (1,)
-
-    # ensure that the passed dimensions are positive integer-likes
-    shape = tuple(int(ele) for ele in args)
+        shape = (1,)
+    else:
+        # ensure that the passed dimensions are positive integer-likes
+        shape = tuple(int(ele) for ele in args)
     if any(ele <= 0 for ele in shape):
         raise ValueError("negative dimensions are not allowed")
 
@@ -523,8 +523,8 @@ def rand(
         )
         if split is None:
             x = x.resplit_(None)
-        if shape == ():
-            x = x.reshape(shape)
+        if not args or shape == ():
+            x = x.item()
         return x
 
 
@@ -725,10 +725,10 @@ def randn(
         # use batchparallel RNG and torch's generation of normally distributed random numbers
         # if args are not set, generate a single sample
         if not args:
-            args = (1,)
-
-        # ensure that the passed dimensions are positive integer-likes
-        shape = tuple(int(ele) for ele in args)
+            shape = (1,)
+        else:
+            # ensure that the passed dimensions are positive integer-likes
+            shape = tuple(int(ele) for ele in args)
         if any(ele <= 0 for ele in shape):
             raise ValueError("negative dimensions are not allowed")
 
@@ -749,8 +749,8 @@ def randn(
         )
         if split is None:
             x = x.resplit_(None)
-        if shape == ():
-            x = x.reshape(shape)
+        if not args or shape == ():
+            x = x.item()
         return x
 
 

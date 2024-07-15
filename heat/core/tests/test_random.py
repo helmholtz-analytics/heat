@@ -139,6 +139,7 @@ class TestRandom_Batchparallel(TestCase):
         # No arguments work correctly
         ht.random.seed(seed)
         a = ht.random.rand()
+        self.assertTrue(isinstance(a, float))
         ht.random.seed(seed)
         b = ht.random.rand(1)
         self.assertTrue(ht.equal(a, b))
@@ -313,6 +314,14 @@ class TestRandom_Batchparallel(TestCase):
         c = ht.random.randn(30, 30, 30, dtype=ht.float32, split=2).numpy()
         self.assertFalse(np.allclose(a, c))
         self.assertFalse(np.allclose(b, c))
+
+        # check wrong shapes
+        with self.assertRaises(ValueError):
+            ht.random.randn(2, -1, 2)
+
+        # test generation of a single number
+        x = ht.random.randn()
+        self.assertTrue(isinstance(x, float))
 
     def test_randperm(self):
         if self.device.torch_device == "cpu":
