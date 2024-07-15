@@ -27,6 +27,7 @@ array_api_tests/test_operators_and_elementwise_functions.py::test_greater[__gt__
 array_api_tests/test_operators_and_elementwise_functions.py::test_greater_equal[greater_equal(x1, x2)]
 array_api_tests/test_operators_and_elementwise_functions.py::test_greater_equal[__ge__(x1, x2)]
 array_api_tests/test_operators_and_elementwise_functions.py::test_greater_equal[__ge__(x, s)]
+array_api_tests/test_operators_and_elementwise_functions.py::test_isfinite
 array_api_tests/test_operators_and_elementwise_functions.py::test_isinf
 array_api_tests/test_operators_and_elementwise_functions.py::test_isnan
 array_api_tests/test_operators_and_elementwise_functions.py::test_less[less(x1, x2)]
@@ -67,6 +68,7 @@ array_api_tests/test_special_cases.py::test_unary[log2(x_i < 0) -> NaN]
 array_api_tests/test_special_cases.py::test_unary[log10(x_i < 0) -> NaN]
 array_api_tests/test_special_cases.py::test_unary[round(x_i.is_integer()) -> x_i]
 array_api_tests/test_special_cases.py::test_unary[round(modf(i)[0] == 0.5) -> Decimal(i).to_integral_exact(ROUND_HALF_EVEN)]
+array_api_tests/test_special_cases.py::test_unary[sign(x_i < 0) -> -1]
 array_api_tests/test_special_cases.py::test_unary[sign(x_i > 0) -> +1]
 array_api_tests/test_special_cases.py::test_unary[sqrt(x_i < 0) -> NaN]
 array_api_tests/test_special_cases.py::test_unary[trunc(x_i.is_integer()) -> x_i]

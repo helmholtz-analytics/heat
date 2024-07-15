@@ -123,7 +123,6 @@ array_api_tests/test_operators_and_elementwise_functions.py::test_floor_divide[_
 array_api_tests/test_operators_and_elementwise_functions.py::test_floor_divide[__ifloordiv__(x, s)]
 array_api_tests/test_operators_and_elementwise_functions.py::test_hypot
 array_api_tests/test_operators_and_elementwise_functions.py::test_imag
-array_api_tests/test_operators_and_elementwise_functions.py::test_isfinite
 array_api_tests/test_operators_and_elementwise_functions.py::test_log
 array_api_tests/test_operators_and_elementwise_functions.py::test_log1p
 array_api_tests/test_operators_and_elementwise_functions.py::test_log10
