@@ -884,5 +884,6 @@ class TestIO(TestCase):
 
             with self.assertRaises(RuntimeError):
                 ht.load_csv_from_folder("heat/datasets/csv_tests", dtype=ht.int64, split=0)
+            ht.MPI_WORLD.Barrier()
             if ht.MPI_WORLD.rank == 0:
                 shutil.rmtree(os.path.join(os.getcwd(), "heat/datasets/csv_tests"))
