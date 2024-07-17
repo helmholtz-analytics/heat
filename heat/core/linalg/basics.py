@@ -497,7 +497,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
 
     if a.gshape[-1] != b.gshape[batch_dim]:
         raise ValueError(
-            f"If the last dimension of a ({a.gshape[-1]}) not the same size as the second-to-last dimension of b. ({b.gshape[-2]})"
+            f"The last dimension of a ({a.gshape[-1]}) is not the same size as the second-to-last dimension of b. ({b.gshape[-2]})"
         )
 
     # determine if a larger type is needed for c
@@ -543,7 +543,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
         batch_shape = a.gshape[:batch_dim]
 
         if (
-            a.split is None or b.split is None and a.split != b.split
+            (a.split is None or b.split is None) and a.split != b.split
         ):  # only one matrix has split None
             raise NotImplementedError("Only one matrix has split None!")
 
@@ -553,7 +553,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
             and a.split != b.split
         ):  # not the same batch axis for split
             raise NotImplementedError(
-                "If one matrix is split along a batch axis, both have to be split along that axis!"
+                "Both input matrices have to be split along the same batch axis!"
             )
 
         # la dimension not split -> torch
