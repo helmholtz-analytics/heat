@@ -543,8 +543,8 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
         batch_shape = a.gshape[:batch_dim]
 
         if (
-            (a.split is None or b.split is None) and a.split != b.split
-        ):  # only one matrix has split None
+            a.split is None or b.split is None
+        ) and a.split != b.split:  # only one matrix has split None
             raise NotImplementedError("Only one matrix has split None!")
 
         if (
