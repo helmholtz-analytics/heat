@@ -430,7 +430,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
     (split along columns) and ``b.split=b.ndim-2`` (split along rows); see also the Notes below.
 
     Parameters
-    ----------
+    -----------
     a : DNDarray
         2 dimensional: :math:`L \\times P`, or batch of matrices: :math:`B_1 \\times ... \\times B_k \\times L \\times P`
     b : DNDarray
@@ -440,13 +440,13 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
         Default is ``False``. If ``True``, if both are not split then ``a`` will be distributed in-place along axis 0.
 
     Notes
-    -----
+    -----------
     - For batched inputs, batch dimensions (and possible splits along these axes) must coincide.
-    - If ``a`` is a split vector then the returned vector will be of shape (:math:`1xQ`) and will be split in the 1st dimension. If ``b`` is a vector and either ``a`` or ``b`` is split, then the returned vector will be of shape (:math:`Lx1`) and will be split in the 0th dimension. Analogous conventions apply to batched inputs.
+    - If ``a`` is a split vector then the returned vector will be of shape (:math:`1 \\times Q`) and will be split in the 1st dimension. If ``b`` is a vector and either ``a`` or ``b`` is split, then the returned vector will be of shape (:math:`L \\times 1`) and will be split in the 0th dimension. Analogous conventions apply to batched inputs.
     - We recommend to avoid the particular split combinations ``1``-``0``, ``None``-``0``, and ``1``-``None`` (for ``a.split``-``b.split``) due to their comparably high memory consumption, if possible. Applying ``DNDarray.resplit_`` or ``heat.resplit`` on one of the two factors before calling ``matmul`` in these situations might improve performance of your code / might avoid memory bottlenecks. In particular, for batched inputs, the corresponding split combination "split along colums"-"split along rows" is not available.
 
     References
-    ----------
+    -----------
     [1] R. Gu, et al., "Improving Execution Concurrency of Large-scale Matrix Multiplication on
     Distributed Data-parallel Platforms," IEEE Transactions on Parallel and Distributed Systems,
     vol 28, no. 9. 2017. \n
@@ -454,8 +454,8 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
     Accelerators," 2018 IEEE International Parallel and Distributed Processing Symposium
     Workshops (IPDPSW), Vancouver, BC, 2018, pp. 877-882.
 
-    Example
-    -------
+    Examples
+    -----------
     >>> a = ht.ones((n, m), split=1)
     >>> a[0] = ht.arange(1, m + 1)
     >>> a[:, -1] = ht.arange(1, n + 1).larray
@@ -477,7 +477,6 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
     [1/1] tensor([[3., 1., 1., 1., 1., 1., 1.],
                   [4., 1., 1., 1., 1., 1., 1.]])
     >>> linalg.matmul(a, b).larray
-
     [0/1] tensor([[18.,  8.,  9., 10.],
                   [14.,  6.,  7.,  8.],
                   [18.,  7.,  8.,  9.],
@@ -543,8 +542,8 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
         batch_shape = a.gshape[:batch_dim]
 
         if (
-            (a.split is None or b.split is None) and a.split != b.split
-        ):  # only one matrix has split None
+            a.split is None or b.split is None
+        ) and a.split != b.split:  # only one matrix has split None
             raise NotImplementedError("Only one matrix has split None!")
 
         if (
