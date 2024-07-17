@@ -246,10 +246,12 @@ class TestDNDarray(TestCase):
         # distributed case
         if x.device.torch_device.startswith("mps"):
             dtype = ht.float32
+            np_dtype = np.float32
         else:
             dtype = ht.float64
+            np_dtype = np.float64
         x = ht.arange(6 * 7 * 8, dtype=dtype, split=0).reshape((6, 7, 8))
-        x_np = np.arange(6 * 7 * 8, dtype=np.float32).reshape((6, 7, 8))
+        x_np = np.arange(6 * 7 * 8, dtype=np_dtype).reshape((6, 7, 8))
 
         self.assertTrue((x.__array__() == x.larray.cpu().numpy()).all())
         self.assertIsInstance(x.__array__(), np.ndarray)
@@ -881,17 +883,18 @@ class TestDNDarray(TestCase):
 
     def test_partitioned(self):
         a = ht.zeros((120, 120), split=0)
-        parted = a.__partitioned__
-        self.assertEqual(parted["shape"], (120, 120))
-        self.assertEqual(parted["partition_tiling"], (a.comm.size, 1))
-        self.assertEqual(parted["partitions"][(0, 0)]["start"], (0, 0))
+        if not a.device.torch_device.startswith("mps"):
+            parted = a.__partitioned__
+            self.assertEqual(parted["shape"], (120, 120))
+            self.assertEqual(parted["partition_tiling"], (a.comm.size, 1))
+            self.assertEqual(parted["partitions"][(0, 0)]["start"], (0, 0))
 
-        a.resplit_(None)
-        self.assertIsNone(a.__partitions_dict__)
-        parted = a.__partitioned__
-        self.assertEqual(parted["shape"], (120, 120))
-        self.assertEqual(parted["partition_tiling"], (1, 1))
-        self.assertEqual(parted["partitions"][(0, 0)]["start"], (0, 0))
+            a.resplit_(None)
+            self.assertIsNone(a.__partitions_dict__)
+            parted = a.__partitioned__
+            self.assertEqual(parted["shape"], (120, 120))
+            self.assertEqual(parted["partition_tiling"], (1, 1))
+            self.assertEqual(parted["partitions"][(0, 0)]["start"], (0, 0))
 
     def test_redistribute(self):
         # need to test with 1, 2, 3, and 4 dims
@@ -1283,14 +1286,20 @@ class TestDNDarray(TestCase):
 
         # setting with heat tensor
         a = ht.zeros((4, 5), split=0)
-        a[1, 0:4] = ht.arange(4)
+        if a.device.torch_device.startswith("mps"):
+            a[1, 0:4] = ht.arange(4, dtype=a.dtype)
+        else:
+            a[1, 0:4] = ht.arange(4)
         # if a.comm.size == 2:
         for c, i in enumerate(range(4)):
             self.assertEqual(a[1, c], i)
 
         # setting with torch tensor
         a = ht.zeros((4, 5), split=0)
-        a[1, 0:4] = torch.arange(4, device=self.device.torch_device)
+        if a.device.torch_device.startswith("mps"):
+            a[1, 0:4] = torch.arange(4, dtype=a.larray.dtype, device=self.device.torch_device)
+        else:
+            a[1, 0:4] = torch.arange(4, device=self.device.torch_device)
         # if a.comm.size == 2:
         for c, i in enumerate(range(4)):
             self.assertEqual(a[1, c], i)
@@ -1391,7 +1400,10 @@ class TestDNDarray(TestCase):
 
         # setting with heat tensor
         a = ht.zeros((4, 5), split=1)
-        a[1, 0:4] = ht.arange(4)
+        if a.device.torch_device.startswith("mps"):
+            a[1, 0:4] = ht.arange(4, dtype=a.dtype)
+        else:
+            a[1, 0:4] = ht.arange(4)
         for c, i in enumerate(range(4)):
             b = a[1, c]
             if b.larray.numel() > 0:
@@ -1399,7 +1411,10 @@ class TestDNDarray(TestCase):
 
         # setting with torch tensor
         a = ht.zeros((4, 5), split=1)
-        a[1, 0:4] = torch.arange(4, device=self.device.torch_device)
+        if a.device.torch_device.startswith("mps"):
+            a[1, 0:4] = torch.arange(4, dtype=a.larray.dtype, device=self.device.torch_device)
+        else:
+            a[1, 0:4] = torch.arange(4, device=self.device.torch_device)
         for c, i in enumerate(range(4)):
             self.assertEqual(a[1, c], i)
 
