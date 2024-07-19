@@ -1268,6 +1268,18 @@ class TestStatistics(TestCase):
             X = ht.random.rand(10 * ht.MPI_WORLD.size, 2 * ht.MPI_WORLD.size, split=split)
             p = ht.percentile(X, q, axis=axis, sketched=True)
             self.assertTrue(p.shape == (2 * ht.MPI_WORLD.size,))
+        # tuple axis
+        axis, q = (0, 1), 50
+        for split in [None, 2, 1, 0]:
+            X = ht.random.rand(
+                10 * ht.MPI_WORLD.size, 2 * ht.MPI_WORLD.size, 3 * ht.MPI_WORLD.size, split=split
+            )
+            p = ht.percentile(X, q, axis=axis, sketched=True, sketch_size=use_sketch_of_size)
+            self.assertTrue(p.shape == (3 * ht.MPI_WORLD.size,))
+            p_keepdims = ht.percentile(
+                X, q, axis=axis, keepdims=True, sketched=True, sketch_size=use_sketch_of_size
+            )
+            self.assertTrue(p_keepdims.shape == (1, 1, 3 * ht.MPI_WORLD.size))
         # check if it raises correct errors
         with self.assertRaises(ValueError):
             ht.percentile(X, q, axis=axis, sketched=True, sketch_size=1.1)
