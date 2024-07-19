@@ -22,7 +22,7 @@ jobs:
       - name: Use Python
         uses: actions/setup-python@39cd14951b08e74b54015e9e001cdefcf80e669f # v5.1.1
         with:
-          python-version: 3.8
+          python-version: 3.9
           architecture: x64
 
       - name: Setup MPI
