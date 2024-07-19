@@ -2090,7 +2090,7 @@ def reshape(a: DNDarray, *shape: Union[int, Tuple[int, ...]], **kwargs) -> DNDar
     # check new_split parameter
     new_split = kwargs.get("new_split")
     if new_split is None:
-        if orig_split is not None and len(shape) < a.ndim:
+        if orig_split is not None and len(shape) < a.ndim and orig_split > len(shape) - 1:
             new_split = orig_split - (a.ndim - len(shape))
         else:
             new_split = orig_split
