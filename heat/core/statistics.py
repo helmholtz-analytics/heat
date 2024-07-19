@@ -1599,7 +1599,7 @@ def percentile(
         non_op_dims = list(range(x.ndim))
         for ax in axis:
             non_op_dims.remove(ax)
-        transpose_axes = axis + tuple(non_op_dims)
+        transpose_axes = (*axis, *non_op_dims)
         x = x.transpose(transpose_axes)
         # flatten the data along the axes along which the percentiles are calculated
         non_op_shape = tuple(x.shape[dim] for dim in non_op_dims)
