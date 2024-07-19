@@ -2090,7 +2090,10 @@ def reshape(a: DNDarray, *shape: Union[int, Tuple[int, ...]], **kwargs) -> DNDar
     # check new_split parameter
     new_split = kwargs.get("new_split")
     if new_split is None:
-        new_split = orig_split
+        if orig_split is not None and len(shape) < a.ndim:
+            new_split = orig_split - (a.ndim - len(shape))
+        else:
+            new_split = orig_split
     new_split = stride_tricks.sanitize_axis(shape, new_split)
 
     if not a.is_distributed():
