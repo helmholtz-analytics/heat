@@ -1438,7 +1438,7 @@ def percentile(
     sketch_size: Optional[float] = 1.0 / MPI.COMM_WORLD.size,
 ) -> DNDarray:
     r"""
-    Compute the q-th percentile of the data along the specified axis.
+    Compute the q-th percentile of the data along the specified axis/axes.
     Returns the q-th percentile(s) of the ``DNDarray`` elements.
     Per default, the "true" percentile(s) of the entire data set are computed; however, the argument
     `sketched` allows to switch to a faster but inaccurate version that computes
@@ -1451,7 +1451,7 @@ def percentile(
     q : DNDarray, scalar, or list of scalars
         Percentile or sequence of percentiles to compute. Must belong to the interval [0, 100].
     axis : int, tuple of ints, or None, optional
-        Axis along which the percentiles are computed. Default is None, corresponds to calculating the percentile over the flattened array.
+        Axis (if int) or axes (if tuple) along which the percentiles are computed. Default is None, corresponds to calculating the percentile over the flattened array.
     out : DNDarray, optional.
         Output buffer.
     interpolation : str, optional
