@@ -1451,7 +1451,7 @@ def percentile(
     q : DNDarray, scalar, or list of scalars
         Percentile or sequence of percentiles to compute. Must belong to the interval [0, 100].
     axis : int, tuple of ints, or None, optional
-        Axis along which the percentiles are computed. Default is None, corresponds to calculating the percentile over the flattened array.
+        Axis (if int) or axes (if tuple) along which the percentiles are computed. Default is None, corresponds to calculating the percentile over the flattened array.
     out : DNDarray, optional.
         Output buffer.
     interpolation : str, optional
