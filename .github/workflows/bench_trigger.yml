@@ -25,10 +25,10 @@ jobs:
           AUTHOR: ${{ github.event.pull_request.assignee.login }}
           BRANCH: ${{ github.head_ref }}
           PIPE_TRIGGER_TOKEN: ${{ secrets.BENCH_PIPE_TRIGGER }}
-          SHA: ${{ github.event.pull_request.head.sha }}
+          SHA: ${{ github.sha }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          SHORT_SHA=$(git rev-parse --short ${{ github.event.pull_request.head.sha }})
+          SHORT_SHA=$(git rev-parse --short $SHA)
           curl -s -X POST \
             --fail-with-body \
             -F "token=$PIPE_TRIGGER_TOKEN" \
@@ -45,7 +45,7 @@ jobs:
         env:
           AUTHOR: ${{ github.event.pull_request.assignee.login }}
           PIPE_TRIGGER_TOKEN: ${{ secrets.BENCH_PIPE_TRIGGER }}
-          SHA: ${{ github.event.pull_request.head.sha }}
+          SHA: ${{ github.sha }}
         run: |
           SHORT_SHA=$(git rev-parse --short $GITHUB_SHA)
           curl -s -X POST \
@@ -61,7 +61,7 @@ jobs:
         if: ${{ steps.setup_pr.outcome == 'success' || steps.setup_push.outcome == 'success'}}
         env:
           REPO: ${{ github.repository }}
-          SHA: ${{ github.event.pull_request.head.sha }}
+          SHA: ${{ github.sha }}
         run: |
           curl -L -X POST \
             --fail-with-body \
