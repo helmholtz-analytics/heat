@@ -4229,9 +4229,9 @@ def unfold(a: DNDarray, axis: int, size: int, step: int = 1):
     axis : int
         axis in which unfolding happens
     size : int
-        the size of each slice that is unfolded
+        the size of each slice that is unfolded, must be greater than 1
     step : int
-        the step between each slice
+        the step between each slice, must be at least 1
 
     Example:
     ```
@@ -4257,8 +4257,8 @@ def unfold(a: DNDarray, axis: int, size: int, step: int = 1):
     """
     if step < 1:
         raise ValueError("step must be >= 1.")
-    if size < 1:
-        raise ValueError("size must be >= 1.")
+    if size <= 1:
+        raise ValueError("size must be > 1.")
     axis = stride_tricks.sanitize_axis(a.shape, axis)
     if size > a.shape[axis]:
         raise ValueError(

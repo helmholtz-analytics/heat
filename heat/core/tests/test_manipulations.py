@@ -3759,10 +3759,10 @@ class TestManipulations(TestCase):
             # exceptions
             n = 1000
             x = ht.arange(n, dtype=dtype)
-            with self.assertRaises(ValueError):
-                ht.unfold(x, 0, 0, 1)
-            with self.assertRaises(ValueError):
-                ht.unfold(x, 0, 1, 0)
+            with self.assertRaises(ValueError):  # size too small
+                ht.unfold(x, 0, 1, 1)
+            with self.assertRaises(ValueError):  # step too small
+                ht.unfold(x, 0, 2, 0)
             x.resplit_(0)
             min_chunk_size = x.lshape_map[:, 0].min().item()
             if min_chunk_size + 2 > n:  # size too large
