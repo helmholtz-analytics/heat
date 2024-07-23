@@ -109,34 +109,9 @@ class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
 
         # initialize the centroids by randomly picking some of the points
         if self.init == "random":
-            # Samples will be equally distributed drawn from all involved processes
-            _, displ, _ = x.comm.counts_displs_shape(shape=x.shape, axis=0)
-            centroids = ht.empty(
-                (self.n_clusters, x.shape[1]), split=None, device=x.device, comm=x.comm
-            )
-            if x.split is None or x.split == 0:
-                for i in range(self.n_clusters):
-                    samplerange = (
-                        x.gshape[0] // self.n_clusters * i,
-                        x.gshape[0] // self.n_clusters * (i + 1),
-                    )
-                    sample = ht.random.randint(samplerange[0], samplerange[1]).item()
-                    proc = 0
-                    for p in range(x.comm.size):
-                        if displ[p] > sample:
-                            break
-                        proc = p
-                    xi = ht.zeros(x.shape[1], dtype=x.dtype)
-                    if x.comm.rank == proc:
-                        idx = sample - displ[proc]
-                        xi = ht.array(x.lloc[idx, :], device=x.device, comm=x.comm)
-                    xi.comm.Bcast(xi, root=proc)
-                    centroids[i, :] = xi
-
-            else:
-                raise NotImplementedError("Not implemented for other splitting-axes")
-
-            self._cluster_centers = centroids
+            idx = ht.random.randint(0, x.shape[0] - 1, size=(self.n_clusters,), split=None)
+            centroids = x[idx, :]
+            self._cluster_centers = centroids if x.split == 1 else centroids.resplit_(None)
 
         # directly passed centroids
         elif isinstance(self.init, DNDarray):
@@ -172,7 +147,7 @@ class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
                     D2 = distances.min(axis=1)
                     D2.resplit_(axis=None)
                     prob = D2 / D2.sum()
-                    random_position = ht.random.rand().item()
+                    random_position = ht.random.rand()
                     sample = 0
                     sum = 0
                     for j in range(len(prob)):
