@@ -293,7 +293,7 @@ class _BatchParallelKCluster(ht.ClusteringMixin, ht.BaseEstimator):
         labels = DNDarray(
             local_labels,
             gshape=(x.shape[0], 1),
-            dtype=ht.int64,
+            dtype=ht.int32,
             device=x.device,
             comm=x.comm,
             split=x.split,
