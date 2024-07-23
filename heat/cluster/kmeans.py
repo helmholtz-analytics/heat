@@ -119,7 +119,6 @@ class KMeans(_KCluster):
         # initialize the clustering
         self._initialize_cluster_centers(x)
         self._n_iter = 0
-        matching_centroids = ht.zeros((x.shape[0]), split=x.split, device=x.device, comm=x.comm)
 
         # iteratively fit the points to the centroids
         for epoch in range(self.max_iter):
