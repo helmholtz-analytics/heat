@@ -19,20 +19,24 @@ Auxiliary single-process functions and base class for batch-parallel k-clusterin
 """
 
 
-def _initialize_plus_plus(X, n_clusters, p, random_state=None):
+def _initialize_plus_plus(X, n_clusters, p, random_state=None, max_samples=2**24 - 1):
     """
     Auxiliary function: single-process k-means++/k-medians++ initialization in pytorch
     p is the norm used for computing distances
     """
     if random_state is not None:
         torch.manual_seed(random_state)
-    idxs = torch.zeros(n_clusters, dtype=torch.long, device=X.device)
-    idxs[0] = torch.randint(0, X.shape[0], (1,))
-    for i in range(1, n_clusters):
-        dist = torch.cdist(X, X[idxs[:i]], p=p)
-        dist = torch.min(dist, dim=1)[0]
-        idxs[i] = torch.multinomial(dist, 1)
-    return X[idxs]
+    if X.shape[0] <= max_samples:  # torch's multinomial is limited to 2^24 categories
+        idxs = torch.zeros(n_clusters, dtype=torch.long, device=X.device)
+        idxs[0] = torch.randint(0, X.shape[0], (1,))
+        for i in range(1, n_clusters):
+            dist = torch.cdist(X, X[idxs[:i]], p=p)
+            dist = torch.min(dist, dim=1)[0]
+            idxs[i] = torch.multinomial(dist, 1)
+        return X[idxs]
+    else:  # if X is too large for the 2^24-bound, use a random subset of X
+        idxs = torch.randint(0, X.shape[0], (max_samples,))
+        return _initialize_plus_plus(X[idxs], n_clusters, p, random_state)
 
 
 def _kmex(X, p, n_clusters, init, max_iter, tol, random_state=None):
