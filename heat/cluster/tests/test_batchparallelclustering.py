@@ -120,7 +120,7 @@ class TestBatchParallelKCluster(TestCase):
                                 self.assertIsInstance(labels, ht.DNDarray)
                                 self.assertEqual(labels.split, 0)
                                 self.assertEqual(labels.shape, (data.shape[0], 1))
-                                self.assertEqual(labels.dtype, ht.int64)
+                                self.assertEqual(labels.dtype, ht.int32)
                                 self.assertEqual(labels.max(), n_clusters - 1)
                                 self.assertEqual(labels.min(), 0)
 

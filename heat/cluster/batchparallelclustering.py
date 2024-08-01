@@ -289,11 +289,11 @@ class _BatchParallelKCluster(ht.ClusteringMixin, ht.BaseEstimator):
 
         local_labels = _parallel_batched_kmex_predict(
             x.larray, self._cluster_centers.larray, self._p
-        )
+        ).to(torch.int32)
         labels = DNDarray(
             local_labels,
             gshape=(x.shape[0], 1),
-            dtype=ht.int64,
+            dtype=ht.int32,
             device=x.device,
             comm=x.comm,
             split=x.split,
