@@ -25,7 +25,7 @@ jobs:
           AUTHOR: ${{ github.event.pull_request.assignee.login }}
           BRANCH: ${{ github.head_ref }}
           PIPE_TRIGGER_TOKEN: ${{ secrets.BENCH_PIPE_TRIGGER }}
-          SHA: ${{ github.sha }}
+          SHA: ${{ github.event.pull_request.head.sha }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           SHORT_SHA=$(git rev-parse --short $SHA)
