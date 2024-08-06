@@ -43,6 +43,8 @@ def run_manipulation_benchmarks():
         shape = [100, 50, 50, 20, 86]
         n_elements = ht.array(shape).prod().item()
         mem = n_elements * 4 / 1e9
-        array = ht.arange(0, n_elements, split=0, dtype=ht.float32) * (ht.comm.rank + 1)
+        array = ht.reshape(ht.arange(0, n_elements, split=0, dtype=ht.float32), shape) * (
+            ht.comm.rank + 1
+        )
 
         resplit(array, [None, 2, 4])
