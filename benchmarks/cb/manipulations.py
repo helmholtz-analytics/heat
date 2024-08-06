@@ -17,9 +17,9 @@ def reshape(arrays):
 
 
 @monitor()
-def resplit(array, new_split: List[int]):
+def resplit(array, new_split: List[int | None]):
     for new_split in new_split:
-        a = ht.resplit(array, new_split=new_split)
+        a = ht.resplit(array, axis=new_split)
         del a
 
 
