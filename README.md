@@ -228,6 +228,7 @@ under project number ZT-I-0003 and the Helmholtz AI platform grant.*
 
 *This project has received funding from Google Summer of Code (GSoC) in 2022.*
 
+*This work is partially carried out under a [programme of, and funded by, the European Space Agency](https://activities.esa.int/index.php/4000144045).*
 
 ---
 
