@@ -33,7 +33,7 @@ setup(
         "Topic :: Scientific/Engineering",
     ],
     install_requires=[
-        "mpi4py>=3.0.0",
+        "mpi4py>=3.0.0, <4.0.0",
         "numpy>=1.22.0, <2",
         "torch>=2.0.0, <2.3.2",
         "scipy>=1.10.0",
