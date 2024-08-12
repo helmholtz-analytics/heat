@@ -30,8 +30,8 @@ def _initialize_plus_plus(X, n_clusters, p, random_state=None, max_samples=2**24
         torch.manual_seed(random_state)
     if X.shape[0] > max_samples:  # torch's multinomial is limited to 2^24 categories
         idxs_subsampling = torch.randint(0, X.shape[0], (max_samples,))
-        X = X[idxs_subsampling] 
-    # actual K-Means++ 
+        X = X[idxs_subsampling]
+    # actual K-Means++
     idxs = torch.zeros(n_clusters, dtype=torch.long, device=X.device)
     idxs[0] = torch.randint(0, X.shape[0], (1,))
     for i in range(1, n_clusters):
@@ -39,6 +39,7 @@ def _initialize_plus_plus(X, n_clusters, p, random_state=None, max_samples=2**24
         dist = torch.min(dist, dim=1)[0]
         idxs[i] = torch.multinomial(dist, 1)
     return X[idxs]
+
 
 def _kmex(X, p, n_clusters, init, max_iter, tol, random_state=None):
     """
