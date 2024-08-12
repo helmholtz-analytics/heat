@@ -595,5 +595,9 @@ def rsvd(
         None
     )  # B will be of size ell x ell and thus small enough to fit into memory of a single process
     U, sigma, V = svd.svd(B)  # actually just torch svd as input is not split anymore
-
-    return matmul(Q, U)[:, :rank], sigma[:rank], V[:, :rank]
+    U = matmul(Q, U)[:, :rank]
+    U.balance_()
+    S = sigma[:rank]
+    V = V[:, :rank]
+    V.balance_()
+    return U, S, V

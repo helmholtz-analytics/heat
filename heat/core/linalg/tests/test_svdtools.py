@@ -197,15 +197,13 @@ from ...tests.test_suites.basic_test import TestCase
 
 class TestRSVD(TestCase):
     def test_rsvd(self):
-        # test rSVD for tall-skinny matrices
-        dtype = ht.float32
-        dtype_tol = 1e-4
-        for split in [0, 1]:
-            X = ht.random.randn(100, 100, dtype=dtype, split=split)
-            for rank in [5, 10]:
-                for n_oversamples in [5, 10]:
-                    for power_iter in [0, 1, 2, 3]:
-                        try:
+        for dtype in [ht.float32, ht.float64]:
+            dtype_tol = 1e-4 if dtype == ht.float32 else 1e-10
+            for split in [0, 1, None]:
+                X = ht.random.randn(200, 200, dtype=dtype, split=split)
+                for rank in [ht.MPI_WORLD.size, 10]:
+                    for n_oversamples in [5, 10]:
+                        for power_iter in [0, 1, 2, 3]:
                             U, S, V = ht.linalg.rsvd(
                                 X, rank, n_oversamples=n_oversamples, power_iter=power_iter
                             )
@@ -229,6 +227,3 @@ class TestRSVD(TestCase):
                                     atol=dtype_tol,
                                 )
                             )
-                            print("Success!")
-                        except:  # noqa E722
-                            print(split, power_iter)
