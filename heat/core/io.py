@@ -1264,10 +1264,12 @@ else:
             raise RuntimeError("Number of processes can't exceed number of files")
 
         rank = MPI_WORLD.rank
-        n_for_procs = n_files // process_number
-        idx = rank * n_for_procs
-        if rank + 1 == process_number:
-            n_for_procs += n_files % process_number
+        if rank < (n_files % process_number):
+            n_for_procs = n_files // process_number + 1
+            idx = rank * n_for_procs
+        else:
+            n_for_procs = n_files // process_number
+            idx = rank * n_for_procs + (n_files % process_number)
         array_list = [
             (
                 (func(pd.read_csv(path + "/" + element))).to_numpy()
