@@ -23,8 +23,8 @@ def _initialize_plus_plus(X, n_clusters, p, random_state=None, max_samples=2**24
     """
     Auxiliary function: single-process k-means++/k-medians++ initialization in pytorch
     p is the norm used for computing distances
-    The value max_samples=2**24 - 1 is necessary as PyTorchs multinomial currently only 
-    supports this number of different categories. 
+    The value max_samples=2**24 - 1 is necessary as PyTorchs multinomial currently only
+    supports this number of different categories.
     """
     if random_state is not None:
         torch.manual_seed(random_state)
