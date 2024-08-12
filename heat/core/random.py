@@ -473,10 +473,10 @@ def rand(
     """
     # if args are not set, generate a single sample
     if not args:
-        args = (1,)
-
-    # ensure that the passed dimensions are positive integer-likes
-    shape = tuple(int(ele) for ele in args)
+        shape = (1,)
+    else:
+        # ensure that the passed dimensions are positive integer-likes
+        shape = tuple(int(ele) for ele in args)
     if any(ele <= 0 for ele in shape):
         raise ValueError("negative dimensions are not allowed")
 
@@ -486,7 +486,7 @@ def rand(
     comm = communication.sanitize_comm(comm)
 
     if __rng == "Threefry":
-        # use Threefry RNG (note: batchparallel RNG comes at the very end in only line only)
+        # use Threefry RNG
         balanced = True
         # generate the random sequence
         if dtype == types.float32:
@@ -513,7 +513,7 @@ def rand(
     else:
         # use batchparallel RNG
         x = factories.__factory(
-            shape if shape != () else (1,),
+            shape if len(shape) > 0 else (1,),
             dtype,
             split if split is not None else 0,
             torch.rand,
@@ -523,8 +523,8 @@ def rand(
         )
         if split is None:
             x = x.resplit_(None)
-        if shape == ():
-            x = x.reshape(shape)
+        if not args or shape == ():
+            x = x.item()
         return x
 
 
@@ -607,7 +607,7 @@ def randint(
     comm = communication.sanitize_comm(comm)
 
     if __rng == "Threefry":
-        # use Threefry RNG (note: batchparallel RNG comes below)
+        # use Threefry RNG
         torch_dtype = dtype.torch_type()
         balanced = True
 
@@ -619,7 +619,6 @@ def randint(
             x_0, x_1 = __threefry32(x_0, x_1, seed=__seed)
         else:  # torch.int64
             x_0, x_1 = __threefry64(x_0, x_1, seed=__seed)
-
         # stack the resulting sequence and normalize to given range
         values = torch.stack([x_0, x_1], dim=1).flatten()[lslice].reshape(lshape)
         # ATTENTION: this is biased and known, bias-free rejection sampling is difficult to do in parallel
@@ -627,6 +626,7 @@ def randint(
 
         return DNDarray(values, shape, dtype, split, device, comm, balanced)
     else:
+        # use batchparallel RNG
         # wrap torch.randint with fixed low and high
         def _wrapped_torch_randint(*args, **kwargs):
             return torch.randint(low, high, *args, **kwargs)
@@ -724,10 +724,10 @@ def randn(
         # use batchparallel RNG and torch's generation of normally distributed random numbers
         # if args are not set, generate a single sample
         if not args:
-            args = (1,)
-
-        # ensure that the passed dimensions are positive integer-likes
-        shape = tuple(int(ele) for ele in args)
+            shape = (1,)
+        else:
+            # ensure that the passed dimensions are positive integer-likes
+            shape = tuple(int(ele) for ele in args)
         if any(ele <= 0 for ele in shape):
             raise ValueError("negative dimensions are not allowed")
 
@@ -748,8 +748,8 @@ def randn(
         )
         if split is None:
             x = x.resplit_(None)
-        if shape == ():
-            x = x.reshape(shape)
+        if not args or shape == ():
+            x = x.item()
         return x
 
 

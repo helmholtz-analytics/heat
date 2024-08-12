@@ -30,7 +30,7 @@ class TestPCA(TestCase):
         with self.assertRaises(NotImplementedError):
             ht.decomposition.PCA(whiten=True)
         # wrong iterated power
-        with self.assertRaises(ValueError):
+        with self.assertRaises(TypeError):
             ht.decomposition.PCA(iterated_power=0.5)
         with self.assertRaises(ValueError):
             ht.decomposition.PCA(iterated_power=-1)
@@ -136,9 +136,11 @@ class TestPCA(TestCase):
         self.assertEqual(pca.explained_variance_ratio_.shape, (5,))
         self.assertEqual(pca.singular_values_.shape, (5,))
         self.assertEqual(pca.mean_.shape, (5,))
-        self.assertTrue(0.0 <= pca.total_explained_variance_ratio_ <= 1.0)
+        self.assertTrue(
+            0.0 <= pca.total_explained_variance_ratio_ <= 1.0 + 1e-6
+        )  # required due to numerical inaccuracies
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(TypeError):
             pca.fit(torch.randn(5 * ht.MPI_WORLD.size, 5))
         with self.assertRaises(ValueError):
             pca.fit(data, data)
@@ -151,7 +153,7 @@ class TestPCA(TestCase):
 
         with self.assertRaises(ValueError):
             pca.transform(ht.random.randn(5 * ht.MPI_WORLD.size, 6, split=0))
-        with self.assertRaises(ValueError):
+        with self.assertRaises(TypeError):
             pca.transform("abc")
 
         # test fit transform and inverse transform, including check for wrong inputs
@@ -163,8 +165,10 @@ class TestPCA(TestCase):
         x = pca.inverse_transform(y)
         self.assertEqual(x.shape, data.shape)
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(TypeError):
             pca.inverse_transform("abc")
+        with self.assertRaises(ValueError):
+            pca.inverse_transform(ht.random.randn(ht.MPI_WORLD.size, 6, split=0))
 
     def test_pca_with_full_rtol(self):
         # test fit
