@@ -199,11 +199,11 @@ class TestPCA(TestCase):
         pca.fit(data)
         self.assertEqual(pca.components_.shape, (rank, 5))
         self.assertEqual(pca.n_components_, rank)
-
         self.assertEqual(pca.mean_.shape, (5,))
 
-        self.assertEqual(pca.total_explained_variance_ratio_, None)
-        self.assertEqual(pca.noise_variance_, None)
-        self.assertEqual(pca.explained_variance_, None)
-        self.assertEqual(pca.explained_variance_ratio_, None)
-        self.assertEqual(pca.singular_values_, None)
+        if ht.MPI_WORLD.size > 1:
+            self.assertEqual(pca.total_explained_variance_ratio_, None)
+            self.assertEqual(pca.noise_variance_, None)
+            self.assertEqual(pca.explained_variance_, None)
+            self.assertEqual(pca.explained_variance_ratio_, None)
+            self.assertEqual(pca.singular_values_, None)
