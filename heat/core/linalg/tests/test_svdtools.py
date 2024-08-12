@@ -227,3 +227,24 @@ class TestRSVD(TestCase):
                                     atol=dtype_tol,
                                 )
                             )
+
+    def test_rsvd_catch_wrong_inputs(self):
+        X = ht.random.randn(10, 10)
+        # wrong dtype for rank
+        with self.assertRaises(TypeError):
+            ht.linalg.rsvd(X, "a")
+        # rank zero
+        with self.assertRaises(ValueError):
+            ht.linalg.rsvd(X, 0)
+        # wrong dtype for n_oversamples
+        with self.assertRaises(TypeError):
+            ht.linalg.rsvd(X, 10, n_oversamples="a")
+        # n_oversamples negative
+        with self.assertRaises(ValueError):
+            ht.linalg.rsvd(X, 10, n_oversamples=-1)
+        # wrong dtype for power_iter
+        with self.assertRaises(TypeError):
+            ht.linalg.rsvd(X, 10, power_iter="a")
+        # power_iter negative
+        with self.assertRaises(ValueError):
+            ht.linalg.rsvd(X, 10, power_iter=-1)

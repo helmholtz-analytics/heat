@@ -24,6 +24,20 @@ from math import log, ceil, floor, sqrt
 __all__ = ["hsvd_rank", "hsvd_rtol", "hsvd", "rsvd"]
 
 
+def _check_SVD_input(A):
+    if not isinstance(A, DNDarray):
+        raise TypeError(f"Argument needs to be a DNDarray but is {type(A)}.")
+    if not A.ndim == 2:
+        raise ValueError("A needs to be a 2D matrix")
+    if not A.dtype == types.float32 and not A.dtype == types.float64:
+        raise TypeError(
+            "Argument needs to be a DNDarray with datatype float32 or float64, but data type is {}.".format(
+                A.dtype
+            )
+        )
+    return None
+
+
 #######################################################################################
 # user-friendly versions of hSVD
 #######################################################################################
@@ -85,16 +99,7 @@ def hsvd_rank(
         [1] Iwen, Ong. A distributed and incremental SVD algorithm for agglomerative data analysis on large networks. SIAM J. Matrix Anal. Appl., 37(4), 2016.
         [2] Himpe, Leibner, Rave. Hierarchical approximate proper orthogonal decomposition. SIAM J. Sci. Comput., 40 (5), 2018.
     """
-    if not isinstance(A, DNDarray):
-        raise TypeError(f"Argument needs to be a DNDarray but is {type(A)}.")
-    if not A.ndim == 2:
-        raise ValueError("A needs to be a 2D matrix")
-    if not A.dtype == types.float32 and not A.dtype == types.float64:
-        raise TypeError(
-            "Argument needs to be a DNDarray with datatype float32 or float64, but data type is {}.".format(
-                A.dtype
-            )
-        )
+    _check_SVD_input(A)  # check if A is suitable input
     A_local_size = max(A.lshape_map[:, 1])
 
     if maxmergedim is not None and maxmergedim < 2 * (maxrank + safetyshift) + 1:
@@ -197,16 +202,7 @@ def hsvd_rtol(
         [1] Iwen, Ong. A distributed and incremental SVD algorithm for agglomerative data analysis on large networks. SIAM J. Matrix Anal. Appl., 37(4), 2016.
         [2] Himpe, Leibner, Rave. Hierarchical approximate proper orthogonal decomposition. SIAM J. Sci. Comput., 40 (5), 2018.
     """
-    if not isinstance(A, DNDarray):
-        raise TypeError(f"Argument needs to be a DNDarray but is {type(A)}.")
-    if not A.ndim == 2:
-        raise ValueError("A needs to be a 2D matrix")
-    if not A.dtype == types.float32 and not A.dtype == types.float64:
-        raise TypeError(
-            "Argument needs to be a DNDarray with datatype float32 or float64, but data type is {}.".format(
-                A.dtype
-            )
-        )
+    _check_SVD_input(A)  # check if A is suitable input
     A_local_size = max(A.lshape_map[:, 1])
 
     if maxmergedim is not None and maxrank is None:
@@ -571,6 +567,22 @@ def rsvd(
     -----------
     [1] Halko, N., Martinsson, P. G., & Tropp, J. A. (2011). Finding structure with randomness: Probabilistic algorithms for constructing approximate matrix decompositions. SIAM review, 53(2), 217-288.
     """
+    _check_SVD_input(A)  # check if A is suitable input
+    if not isinstance(rank, int):
+        raise TypeError(f"rank must be an integer, but is {type(rank)}.")
+    if rank < 1:
+        raise ValueError(f"rank must be positive, but is {rank}.")
+    if not isinstance(n_oversamples, int):
+        raise TypeError(
+            f"if provided, n_oversamples must be an integer, but is {type(n_oversamples)}."
+        )
+    if n_oversamples < 0:
+        raise ValueError(f"n_oversamples must be non-negative, but is {n_oversamples}.")
+    if not isinstance(power_iter, int):
+        raise TypeError(f"if provided, power_iter must be an integer, but is {type(power_iter)}.")
+    if power_iter < 0:
+        raise ValueError(f"power_iter must be non-negative, but is {power_iter}.")
+
     ell = rank + n_oversamples
     q = power_iter
 
