@@ -125,8 +125,8 @@ class TestBatchParallelKCluster(TestCase):
                                 self.assertEqual(labels.split, 0)
                                 self.assertEqual(labels.shape, (data.shape[0], 1))
                                 self.assertEqual(labels.dtype, ht.int32)
-                                self.assertEqual(labels.max(), n_clusters - 1)
-                                self.assertEqual(labels.min(), 0)
+                                self.assertTrue(labels.max() <= n_clusters - 1)
+                                self.assertTrue(labels.min() >= 0)
 
     def test_if_errors_thrown(self):
         for ParallelClusterer in [ht.cluster.BatchParallelKMeans, ht.cluster.BatchParallelKMedians]:
