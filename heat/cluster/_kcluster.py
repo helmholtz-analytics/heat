@@ -147,7 +147,7 @@ class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
                     D2 = distances.min(axis=1)
                     D2.resplit_(axis=None)
                     prob = D2 / D2.sum()
-                    random_position = ht.random.rand().item()
+                    random_position = ht.random.rand()
                     sample = 0
                     sum = 0
                     for j in range(len(prob)):
