@@ -748,7 +748,7 @@ class TestIO(TestCase):
         # testing for int arrays
         if ht.MPI_WORLD.rank == 0:
             crea_array = []
-            for i in range(0, 20):
+            for i in range(0, ht.MPI_WORLD.size * 5):
                 x = np.random.randint(1000, size=(random.randint(0, 30), 6, 11))
                 np.save(os.path.join(os.getcwd(), "heat/datasets", "int_data") + str(i), x)
                 crea_array.append(x)
@@ -771,7 +771,7 @@ class TestIO(TestCase):
         # testing for float arrays and split dimension other than 0
         if ht.MPI_WORLD.rank == 0:
             crea_array = []
-            for i in range(0, 20):
+            for i in range(0, ht.MPI_WORLD.size * 5 + 1):
                 x = np.random.rand(2, random.randint(1, 10), 11)
                 np.save(os.path.join(os.getcwd(), "heat/datasets", "float_data") + str(i), x)
                 crea_array.append(x)
@@ -819,7 +819,7 @@ class TestIO(TestCase):
             nplist = []
             npdroplist = []
             os.mkdir(csv_path)
-            for i in range(0, 20):
+            for i in range(0, ht.MPI_WORLD.size * 5 + 1):
                 a = np.random.randint(100, size=(5))
                 b = np.random.randint(100, size=(5))
                 c = np.random.randint(100, size=(5))
