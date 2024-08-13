@@ -99,7 +99,7 @@ class PCA(ht.TransformMixin, ht.BaseEstimator):
             raise NotImplementedError("Whitening is not yet supported. Please set whiten=False.")
         if not (svd_solver == "full" or svd_solver == "hierarchical" or svd_solver == "randomized"):
             raise ValueError(
-                "At the moment, only svd_solver='full' (for tall-skinny or short-fat data) and svd_solver='hierarchical' are supported. \n An implementation of the 'full' option for arbitrarily shaped data as well as the option 'randomized' are already planned."
+                "At the moment, only svd_solver='full' (for tall-skinny or short-fat data), svd_solver='hierarchical', and svd_solver='randomized' are supported. \n An implementation of the 'full' option for arbitrarily shaped data is already planned."
             )
         if not isinstance(iterated_power, int):
             raise TypeError(
@@ -222,7 +222,8 @@ class PCA(ht.TransformMixin, ht.BaseEstimator):
             self.components_ = V.T
             self.total_explained_variance_ratio_ = 1 - info.larray.item() ** 2
 
-        elif self.svd_solver == "randomized":
+        else:
+            # compute SVD via "randomized" SVD
             _, S, V = ht.linalg.rsvd(
                 X_centered,
                 self.n_components_,
@@ -231,11 +232,6 @@ class PCA(ht.TransformMixin, ht.BaseEstimator):
             )
             self.components_ = V.T
             self.n_components_ = V.shape[1]
-        else:
-            # here one could add other computational backends
-            raise NotImplementedError(
-                f"The chosen svd_solver {self.svd_solver} is not yet implemented."
-            )
 
         self.n_samples_ = X.shape[0]
         self.noise_variance_ = None  # not yet implemented

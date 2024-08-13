@@ -207,3 +207,6 @@ class TestPCA(TestCase):
             self.assertEqual(pca.explained_variance_, None)
             self.assertEqual(pca.explained_variance_ratio_, None)
             self.assertEqual(pca.singular_values_, None)
+
+        pca = ht.decomposition.PCA(n_components=None, svd_solver="randomized", random_state=1234)
+        self.assertEqual(ht.random.get_state()[1], 1234)
