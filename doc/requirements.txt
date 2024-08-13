@@ -1,4 +1,4 @@
-Sphinx==8.0.2
+Sphinx==7.4.7
 sphinx-autoapi===3.2.1
 sphinx_rtd_theme==2.0.0
 sphinxcontrib-napoleon==0.7

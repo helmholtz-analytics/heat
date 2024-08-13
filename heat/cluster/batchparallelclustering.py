@@ -19,13 +19,19 @@ Auxiliary single-process functions and base class for batch-parallel k-clusterin
 """
 
 
-def _initialize_plus_plus(X, n_clusters, p, random_state=None):
+def _initialize_plus_plus(X, n_clusters, p, random_state=None, max_samples=2**24 - 1):
     """
     Auxiliary function: single-process k-means++/k-medians++ initialization in pytorch
     p is the norm used for computing distances
+    The value max_samples=2**24 - 1 is necessary as PyTorchs multinomial currently only
+    supports this number of different categories.
     """
     if random_state is not None:
         torch.manual_seed(random_state)
+    if X.shape[0] > max_samples:  # torch's multinomial is limited to 2^24 categories
+        idxs_subsampling = torch.randint(0, X.shape[0], (max_samples,))
+        X = X[idxs_subsampling]
+    # actual K-Means++
     idxs = torch.zeros(n_clusters, dtype=torch.long, device=X.device)
     idxs[0] = torch.randint(0, X.shape[0], (1,))
     for i in range(1, n_clusters):
@@ -289,7 +295,7 @@ class _BatchParallelKCluster(ht.ClusteringMixin, ht.BaseEstimator):
 
         local_labels = _parallel_batched_kmex_predict(
             x.larray, self._cluster_centers.larray, self._p
-        )
+        ).to(torch.int32)
         labels = DNDarray(
             local_labels,
             gshape=(x.shape[0], 1),
