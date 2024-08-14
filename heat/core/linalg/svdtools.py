@@ -85,16 +85,7 @@ def hsvd_rank(
         [1] Iwen, Ong. A distributed and incremental SVD algorithm for agglomerative data analysis on large networks. SIAM J. Matrix Anal. Appl., 37(4), 2016.
         [2] Himpe, Leibner, Rave. Hierarchical approximate proper orthogonal decomposition. SIAM J. Sci. Comput., 40 (5), 2018.
     """
-    if not isinstance(A, DNDarray):
-        raise TypeError(f"Argument needs to be a DNDarray but is {type(A)}.")
-    if not A.ndim == 2:
-        raise ValueError("A needs to be a 2D matrix")
-    if not A.dtype == types.float32 and not A.dtype == types.float64:
-        raise TypeError(
-            "Argument needs to be a DNDarray with datatype float32 or float64, but data type is {}.".format(
-                A.dtype
-            )
-        )
+    _check_is_nd_of_dtype(A, "A", [2], [types.float32, types.float64])
     A_local_size = max(A.lshape_map[:, 1])
 
     if maxmergedim is not None and maxmergedim < 2 * (maxrank + safetyshift) + 1:
@@ -197,16 +188,7 @@ def hsvd_rtol(
         [1] Iwen, Ong. A distributed and incremental SVD algorithm for agglomerative data analysis on large networks. SIAM J. Matrix Anal. Appl., 37(4), 2016.
         [2] Himpe, Leibner, Rave. Hierarchical approximate proper orthogonal decomposition. SIAM J. Sci. Comput., 40 (5), 2018.
     """
-    if not isinstance(A, DNDarray):
-        raise TypeError(f"Argument needs to be a DNDarray but is {type(A)}.")
-    if not A.ndim == 2:
-        raise ValueError("A needs to be a 2D matrix")
-    if not A.dtype == types.float32 and not A.dtype == types.float64:
-        raise TypeError(
-            "Argument needs to be a DNDarray with datatype float32 or float64, but data type is {}.".format(
-                A.dtype
-            )
-        )
+    _check_is_nd_of_dtype(A, "A", [2], [types.float32, types.float64])
     A_local_size = max(A.lshape_map[:, 1])
 
     if maxmergedim is not None and maxrank is None:
@@ -529,3 +511,66 @@ def compute_local_truncated_svd(
         sigma_loc = torch.zeros(1, dtype=U_loc.dtype, device=U_loc.device)
         U_loc = torch.zeros(U_loc.shape[0], 1, dtype=U_loc.dtype, device=U_loc.device)
         return U_loc, sigma_loc, err_squared_loc
+
+
+def _check_is_nd_of_dtype(input, inputname, allowed_ns, allowed_dtypes):
+    if not isinstance(input, DNDarray):
+        raise TypeError(f"Argument {inputname} needs to be a DNDarray but is {type(input)}.")
+    if input.ndim not in allowed_ns:
+        raise ValueError(
+            f"Argument {inputname} needs to be a {allowed_ns}-dimensional, but is {input.ndim}-dimensional."
+        )
+    if input.dtype not in allowed_dtypes:
+        raise TypeError(
+            f"Argument needs to be a DNDarray with datatype {allowed_dtypes}, but data type is {input.dtype}."
+        )
+
+
+def isvd(
+    new_data: DNDarray,
+    U_old: DNDarray,
+    S_old: DNDarray,
+    V_old: DNDarray,
+    maxrank: Optional[int] = None,
+) -> Tuple[DNDarray, DNDarray, DNDarray]:
+    """Incremental SVD (iSVD) for the addition of new data to an existing SVD.
+    Given the the SVD of an "old" matrix, X_old = `U_old @ S_old @ V_old.T`, and additional columns `new_data`, this routine computes
+    (a possibly approximate) SVD of the extended matrix `X_new = [X_old | new_data]`.
+
+
+
+    Parameters
+    ----------
+    new_data : DNDarray
+        2D-array (float32/64) of which the SVD has to be computed
+    U_old : DNDarray
+        U-factor of the SVD of the "old" matrix, 2D-array (float32/64)
+    S_old : DNDarray
+        Sigma-factor of the SVD of the "old" matrix, 1D-array (float32/64)
+    V_old : DNDarray
+        V-factor of the SVD of the "old" matrix, 2D-array (float32/64)
+    maxrank : int, optional
+        truncation rank of the SVD of the extended matrix. The default is None, i.e., no bound on the maximal rank is imposed.
+
+    Notes
+    -----------
+    Inexactness may arise due to truncation to maximal rank `maxrank` if rank of the data to be processed exceeds this rank.
+    If you set `maxrank` to a high number (or None) in order to avoid inexactness, you may encounter memory issues.
+    """
+    # check if new_data, U_old, V_old are 2D DNDarrays and float32/64
+    _check_is_nd_of_dtype(new_data, "new_data", [2], [types.float32, types.float64])
+    _check_is_nd_of_dtype(U_old, "U_old", [2], [types.float32, types.float64])
+    _check_is_nd_of_dtype(S_old, "S_old", [1], [types.float32, types.float64])
+    _check_is_nd_of_dtype(V_old, "V_old", [2], [types.float32, types.float64])
+    # check if number of columns of U_old and V_old match the number of elements in S_old
+    if U_old.shape[1] != S_old.shape[0]:
+        raise ValueError(
+            "The number of columns of U_old must match the number of elements in S_old."
+        )
+    if V_old.shape[1] != S_old.shape[0]:
+        raise ValueError(
+            "The number of columns of V_old must match the number of elements in S_old."
+        )
+    # check if the number of columns of new_data matches the number of rows of U_old and V_old
+    if new_data.shape[0] != U_old.shape[0]:
+        raise ValueError("The number of rows of new_data must match the number of rows of U_old.")
