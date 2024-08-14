@@ -11,7 +11,7 @@ from ..communication import MPICommunication
 from ..dndarray import DNDarray
 from .. import factories
 from .. import types
-from ..linalg import matmul, vector_norm
+from ..linalg import matmul, vector_norm, qr, svd
 from ..indexing import where
 from ..random import randn
 
@@ -21,11 +21,24 @@ from .. import statistics
 from math import log, ceil, floor, sqrt
 
 
-__all__ = ["hsvd_rank", "hsvd_rtol", "hsvd"]
+__all__ = ["hsvd_rank", "hsvd_rtol", "hsvd", "rsvd"]
+
+
+def _check_is_nd_of_dtype(input, inputname, allowed_ns, allowed_dtypes):
+    if not isinstance(input, DNDarray):
+        raise TypeError(f"Argument {inputname} needs to be a DNDarray but is {type(input)}.")
+    if input.ndim not in allowed_ns:
+        raise ValueError(
+            f"Argument {inputname} needs to be a {allowed_ns}-dimensional, but is {input.ndim}-dimensional."
+        )
+    if input.dtype not in allowed_dtypes:
+        raise TypeError(
+            f"Argument needs to be a DNDarray with datatype {allowed_dtypes}, but data type is {input.dtype}."
+        )
 
 
 #######################################################################################
-# user-friendly versions of hSVD
+# hierachical SVD "hSVD"
 #######################################################################################
 
 
@@ -234,11 +247,6 @@ def hsvd_rtol(
     )
 
 
-################################################################################################
-# hSVD - "full" routine for the experts
-################################################################################################
-
-
 def hsvd(
     A: DNDarray,
     maxrank: Optional[int] = None,
@@ -320,7 +328,7 @@ def hsvd(
             "\t\t".join(["%d" % an for an in active_nodes]),
         )
 
-    U_loc, sigma_loc, err_squared_loc = compute_local_truncated_svd(
+    U_loc, sigma_loc, err_squared_loc = _compute_local_truncated_svd(
         level, A.comm.rank, A.larray, maxrank, loc_atol, safetyshift
     )
     U_loc = torch.matmul(U_loc, torch.diag(sigma_loc))
@@ -398,7 +406,7 @@ def hsvd(
 
             if len(future_nodes) == 1:
                 safetyshift = 0
-            U_loc, sigma_loc, err_squared_loc_new = compute_local_truncated_svd(
+            U_loc, sigma_loc, err_squared_loc_new = _compute_local_truncated_svd(
                 level, A.comm.rank, U_loc, maxrank, loc_atol, safetyshift
             )
 
@@ -452,12 +460,7 @@ def hsvd(
     return U, rel_error_estimate
 
 
-##############################################################################################
-# AUXILIARY ROUTINES
-##############################################################################################
-
-
-def compute_local_truncated_svd(
+def _compute_local_truncated_svd(
     level: int,
     proc_id: int,
     U_loc: torch.Tensor,
@@ -513,17 +516,97 @@ def compute_local_truncated_svd(
         return U_loc, sigma_loc, err_squared_loc
 
 
-def _check_is_nd_of_dtype(input, inputname, allowed_ns, allowed_dtypes):
-    if not isinstance(input, DNDarray):
-        raise TypeError(f"Argument {inputname} needs to be a DNDarray but is {type(input)}.")
-    if input.ndim not in allowed_ns:
-        raise ValueError(
-            f"Argument {inputname} needs to be a {allowed_ns}-dimensional, but is {input.ndim}-dimensional."
-        )
-    if input.dtype not in allowed_dtypes:
+##############################################################################################
+# Randomized SVD "rSVD"
+##############################################################################################
+
+
+def rsvd(
+    A: DNDarray,
+    rank: int,
+    n_oversamples: int = 10,
+    power_iter: int = 0,
+    qr_procs_to_merge: int = 2,
+) -> Union[Tuple[DNDarray, DNDarray, DNDarray], Tuple[DNDarray, DNDarray]]:
+    """
+    Randomized SVD (rSVD) with prescribed truncation rank `rank`.
+    If A = U diag(sigma) V^T is the true SVD of A, this routine computes an approximation for U[:,:rank] (and sigma[:rank], V[:,:rank]).
+
+    The accuracy of this approximation depends on the structure of A ("low-rank" is best) and appropriate choice of parameters.
+
+    Parameters
+    ----------
+    A : DNDarray
+        2D-array (float32/64) of which the rSVD has to be computed.
+    rank : int
+        truncation rank. (This parameter corresponds to `n_components` in sci-kit learn's TruncatedSVD.)
+    n_oversamples : int, optional
+        number of oversamples. The default is 10.
+    power_iter : int, optional
+        number of power iterations. The default is 1.
+    qr_procs_to_merge : int, optional
+        number of processes to merge at each step of QR decomposition in the power iteration (if power_iter > 0). The default is 2. See the corresponding remarks for `heat.linalg.qr` for more details.
+
+    Notes
+    ------
+    Memory requirements: the SVD computation of a matrix of size (rank + n_oversamples) x (rank + n_oversamples) must fit into the memory of a single process.
+    The implementation follows Algorithm 4.4 (randomized range finder) and Algorithm 5.1 (direct SVD) in [1].
+
+    References
+    -----------
+    [1] Halko, N., Martinsson, P. G., & Tropp, J. A. (2011). Finding structure with randomness: Probabilistic algorithms for constructing approximate matrix decompositions. SIAM review, 53(2), 217-288.
+    """
+    _check_is_nd_of_dtype(A, "A", [2], [types.float32, types.float64])
+    if not isinstance(rank, int):
+        raise TypeError(f"rank must be an integer, but is {type(rank)}.")
+    if rank < 1:
+        raise ValueError(f"rank must be positive, but is {rank}.")
+    if not isinstance(n_oversamples, int):
         raise TypeError(
-            f"Argument needs to be a DNDarray with datatype {allowed_dtypes}, but data type is {input.dtype}."
+            f"if provided, n_oversamples must be an integer, but is {type(n_oversamples)}."
         )
+    if n_oversamples < 0:
+        raise ValueError(f"n_oversamples must be non-negative, but is {n_oversamples}.")
+    if not isinstance(power_iter, int):
+        raise TypeError(f"if provided, power_iter must be an integer, but is {type(power_iter)}.")
+    if power_iter < 0:
+        raise ValueError(f"power_iter must be non-negative, but is {power_iter}.")
+
+    ell = rank + n_oversamples
+    q = power_iter
+
+    # random matrix
+    splitOmega = 1 if A.split == 0 else 0
+    Omega = randn(A.shape[1], ell, dtype=A.dtype, device=A.device, split=splitOmega)
+
+    # compute the range of A
+    Y = matmul(A, Omega)
+    Q, _ = qr(Y, procs_to_merge=qr_procs_to_merge)
+
+    # power iterations
+    for _ in range(q):
+        Y = matmul(A.T, Q)
+        Q, _ = qr(Y, procs_to_merge=qr_procs_to_merge)
+        Y = matmul(A, Q)
+        Q, _ = qr(Y, procs_to_merge=qr_procs_to_merge)
+
+    # compute the SVD of the projected matrix
+    B = matmul(Q.T, A)
+    B.resplit_(
+        None
+    )  # B will be of size ell x ell and thus small enough to fit into memory of a single process
+    U, sigma, V = svd.svd(B)  # actually just torch svd as input is not split anymore
+    U = matmul(Q, U)[:, :rank]
+    U.balance_()
+    S = sigma[:rank]
+    V = V[:, :rank]
+    V.balance_()
+    return U, S, V
+
+
+##############################################################################################
+# Incremental SVD "iSVD"
+##############################################################################################
 
 
 def isvd(
