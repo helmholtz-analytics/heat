@@ -112,7 +112,7 @@ computational and memory needs of your laptop and desktop.
 - python >= 3.8
 - MPI (OpenMPI, MPICH, Intel MPI, etc.)
 - mpi4py >= 3.0.0
-- pytorch >= 1.8.0
+- pytorch >= 1.11.0
 
 ### Parallel I/O
 - h5py
@@ -161,7 +161,7 @@ If you’re unsure where to start or how your skills fit in, reach out! You can 
 
 ## Resources
 
-* [Heat Tutorials](https://heat.readthedocs.io/en/latest/tutorials.html)
+* [Heat Tutorials](https://github.com/helmholtz-analytics/heat/tree/main/tutorials)
 * [Heat API Reference](https://heat.readthedocs.io/en/latest/autoapi/index.html)
 
 ### Parallel Computing and MPI:
@@ -228,9 +228,10 @@ under project number ZT-I-0003 and the Helmholtz AI platform grant.*
 
 *This project has received funding from Google Summer of Code (GSoC) in 2022.*
 
+*This work is partially carried out under a [programme](https://activities.esa.int/index.php/4000144045) of, and funded by, the European Space Agency.
+Any view expressed in this repository or related publications can in no way be taken to reflect the official opinion of the European Space Agency.*
 
 ---
 
 <div align="center">
-  <a href="https://www.dlr.de/EN/Home/home_node.html"><img src="https://raw.githubusercontent.com/helmholtz-analytics/heat/main/doc/images/dlr_logo.svg" height="50px" hspace="3%" vspace="20px"></a><a href="https://www.fz-juelich.de/portal/EN/Home/home_node.html"><img src="https://raw.githubusercontent.com/helmholtz-analytics/heat/main/doc/images/fzj_logo.svg" height="50px" hspace="3%" vspace="20px"></a><a href="http://www.kit.edu/english/index.php"><img src="https://raw.githubusercontent.com/helmholtz-analytics/heat/main/doc/images/kit_logo.svg" height="50px" hspace="3%" vspace="20px"></a><a href="https://www.helmholtz.de/en/"><img src="https://raw.githubusercontent.com/helmholtz-analytics/heat/main/doc/images/helmholtz_logo.svg" height="50px" hspace="3%" vspace="20px"></a>
-</div>
+  <a href="https://www.dlr.de/EN/Home/home_node.html"><img src="https://raw.githubusercontent.com/helmholtz-analytics/heat/main/doc/images/dlr_logo.svg" height="50px" hspace="3%" vspace="20px"></a><a href="https://www.fz-juelich.de/portal/EN/Home/home_node.html"><img src="https://raw.githubusercontent.com/helmholtz-analytics/heat/main/doc/images/fzj_logo.svg" height="40px" hspace="3%" vspace="20px"></a><a href="http://www.kit.edu/english/index.php"><img src="https://raw.githubusercontent.com/helmholtz-analytics/heat/main/doc/images/kit_logo.svg" height="40px" hspace="3%" vspace="5px"></a><a href="https://www.helmholtz.de/en/"><img src="https://raw.githubusercontent.com/helmholtz-analytics/heat/main/doc/images/helmholtz_logo.svg" height="50px" hspace="3%" vspace="5px"></a><a href="https://www.esa.int/"><img src="https://github.com/user-attachments/assets/2ee251b4-733e-44ea-8d1c-8b75928eef55" height="45px" hspace="3%" vspace="20px"></a>
