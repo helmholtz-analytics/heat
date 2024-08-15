@@ -357,9 +357,9 @@ class MPICommunication(Communication):
             squ = True
 
         if counts is not None:
-            counts = (int(c) for c in counts)
+            counts = tuple(int(c) for c in counts)
         if displs is not None:
-            displs = (int(d) for d in displs)
+            displs = tuple(int(d) for d in displs)
         mpi_type, elements = cls.mpi_type_and_elements_of(obj, counts, displs, is_contiguous)
         mpi_mem = cls.as_mpi_memory(obj)
         if squ:
