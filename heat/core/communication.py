@@ -258,7 +258,7 @@ class MPICommunication(Communication):
     def mpi_type_and_elements_of(
         cls,
         obj: Union[DNDarray, torch.Tensor],
-        counts: Tuple[int],
+        counts: Optional[Tuple[int]],
         displs: Tuple[int],
         is_contiguous: Optional[bool],
     ) -> Tuple[MPI.Datatype, Tuple[int, ...]]:
@@ -289,7 +289,7 @@ class MPICommunication(Communication):
         if is_contiguous:
             if counts is None:
                 return mpi_type, elements
-            factor = np.prod(obj.shape[1:])
+            factor = np.prod(obj.shape[1:], dtype=np.int32)
             return (
                 mpi_type,
                 (
@@ -317,7 +317,7 @@ class MPICommunication(Communication):
         return mpi_type, elements
 
     @classmethod
-    def as_mpi_memory(cls, obj) -> MPI.memory:
+    def as_mpi_memory(cls, obj) -> MPI.buffer:
         """
         Converts the passed ``torch.Tensor`` into an MPI compatible memory view.
 
@@ -326,16 +326,16 @@ class MPICommunication(Communication):
         obj : torch.Tensor
             The tensor to be converted into a MPI memory view.
         """
-        return MPI.memory.fromaddress(obj.data_ptr(), 0)
+        return MPI.buffer.fromaddress(obj.data_ptr(), 0)
 
     @classmethod
     def as_buffer(
         cls,
         obj: torch.Tensor,
-        counts: Tuple[int] = None,
-        displs: Tuple[int] = None,
+        counts: Optional[Tuple[int]] = None,
+        displs: Optional[Tuple[int]] = None,
         is_contiguous: Optional[bool] = None,
-    ) -> List[Union[MPI.memory, Tuple[int, int], MPI.Datatype]]:
+    ) -> List[Union[MPI.buffer, Tuple[int, int], MPI.Datatype]]:
         """
         Converts a passed ``torch.Tensor`` into a memory buffer object with associated number of elements and MPI data type.
 
@@ -356,6 +356,10 @@ class MPICommunication(Communication):
             obj.unsqueeze_(-1)
             squ = True
 
+        if counts is not None:
+            counts = (int(c) for c in counts)
+        if displs is not None:
+            displs = (int(d) for d in displs)
         mpi_type, elements = cls.mpi_type_and_elements_of(obj, counts, displs, is_contiguous)
         mpi_mem = cls.as_mpi_memory(obj)
         if squ:
