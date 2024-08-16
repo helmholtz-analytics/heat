@@ -563,6 +563,7 @@ class TestLinalgBasics(TestCase):
             ret00 = ht.matmul(a, b)
 
             ret_comp = ht.array(a_torch @ b_torch, split=None)
+
             self.assertTrue(ht.equal(ret00, ret_comp))
             self.assertIsInstance(ret00, ht.DNDarray)
             self.assertEqual(ret00.shape, (k,))
@@ -819,7 +820,7 @@ class TestLinalgBasics(TestCase):
             # different number of batch dimensions
             with self.assertRaises(ValueError):
                 a = ht.zeros((3, 3, 3))
-                b = ht.zeros((3, 3))
+                b = ht.zeros((3,))
                 ht.matmul(a, b)
             # different batch dimension shape
             with self.assertRaises(ValueError):
