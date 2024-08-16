@@ -7,11 +7,12 @@ import unittest
 from heat.core.tests.test_suites.basic_test import TestCase
 
 
-@unittest.skipIf(
-    int(os.getenv("SLURM_NNODES", "1")) < 2 or torch.cuda.device_count() == 0,
-    "only supported for GPUs and at least two nodes",
-)
 class TestDASO(TestCase):
+
+    @unittest.skipUnless(
+        len(TestCase.get_hostnames()) >= 2 and torch.cuda.device_count() > 0,
+        f"only supported for GPUs and at least two nodes, Nodes = {TestCase.get_hostnames()}, torch.cuda.device_count() = {torch.cuda.device_count()}, rank = {ht.MPI_WORLD.rank}",
+    )
     def test_daso(self):
         import heat.nn.functional as F
         import heat.optim as optim
