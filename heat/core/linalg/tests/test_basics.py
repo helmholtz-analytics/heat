@@ -878,13 +878,16 @@ class TestLinalgBasics(TestCase):
             b = ht.factories.asarray(bt, copy=True)
             c = ht.factories.asarray(ct, copy=True)
 
-            for s0, s1 in [(0, 0), (0, 1), (1, 1)]:
-                a.resplit_(-2 + s0)
-                b.resplit_(-2 + s1)
+            la_splits = (0, 1)
+            # test all possible la split combinations
+            for s0 in la_splits:
+                for s1 in la_splits:
+                    a.resplit_(-2 + s0)
+                    b.resplit_(-2 + s1)
 
-                ret_batched = ht.matmul(a, b)
+                    ret_batched = ht.matmul(a, b)
 
-                self.assertTrue(ht.equal(ret_batched, c))
+                    self.assertTrue(ht.equal(ret_batched, c))
 
             # float
             at = torch.randn((n, m, k))
@@ -895,16 +898,17 @@ class TestLinalgBasics(TestCase):
             b = ht.factories.asarray(bt, copy=True)
             c = ht.factories.asarray(ct, copy=True)
 
-            for s0, s1 in [(0, 0), (0, 1), (1, 1)]:
-                a.resplit_(-2 + s0)
-                b.resplit_(-2 + s1)
+            for s0 in la_splits:
+                for s1 in la_splits:
+                    a.resplit_(-2 + s0)
+                    b.resplit_(-2 + s1)
 
-                ret_batched = ht.matmul(a, b)
-                # print(f"{s0}{s1}: {ht.max(ht.abs(ret_batched - c)).item()}")
-                max_diff = ht.max(ht.abs(ret_batched - c)).item()
+                    ret_batched = ht.matmul(a, b)
+                    # print(f"{s0}{s1}: {ht.max(ht.abs(ret_batched - c)).item()}")
+                    max_diff = ht.max(ht.abs(ret_batched - c)).item()
 
-                # self.assertTrue(ht.allclose(ret_batched, c, 1e-2))
-                self.assertTrue(max_diff < 1e-4)
+                    # self.assertTrue(ht.allclose(ret_batched, c, 1e-2))
+                    self.assertTrue(max_diff < 1e-4)
 
     def test_matrix_norm(self):
         a = ht.arange(9, dtype=ht.float) - 4
