@@ -423,27 +423,25 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
     """
     Matrix multiplication of two ``DNDarrays``: ``a@b=c`` or ``A@B=c``.
     Returns a tensor with the result of ``a@b``. The split dimension of the returned array is
-    typically the split dimension of a. However, if ``a.split=None`` then the the ``c.split`` will be
-    set as the split dimension of ``b``. If both are ``None`` then ``c.split`` is also ``None``.
+    typically the split dimension of a. If both are ``None`` and if ``allow_resplit=False`` then ``c.split`` is also ``None``.
 
-    Batched inputs (with batch dimensions being leading dimensions) are allowed unless ``a.split=a.ndim-1``
-    (split along columns) and ``b.split=b.ndim-2`` (split along rows); see also the Notes below.
+    Batched inputs (with batch dimensions being leading dimensions) are allowed; see also the Notes below.
 
     Parameters
     -----------
     a : DNDarray
-        2 dimensional: :math:`L \\times P`, or batch of matrices: :math:`B_1 \\times ... \\times B_k \\times L \\times P`
+        matrix :math:`L \\times P` or vector :math:`P` or batch of matrices/vectors: :math:`B_1 \\times ... \\times B_k [\\times L] \\times P`
     b : DNDarray
-        2 dimensional: :math:`P \\times Q`, or batch of matrices: :math:`B_1 \\times ... \\times B_k \\times P \\times Q`
+        matrix :math:`P \\times Q` or vector :math:`P` or batch of matrices/vectors: :math:`B_1 \\times ... \\times B_k \\times P [\\times Q]`
     allow_resplit : bool, optional
         Whether to distribute ``a`` in the case that both ``a.split is None`` and ``b.split is None``.
         Default is ``False``. If ``True``, if both are not split then ``a`` will be distributed in-place along axis 0.
 
     Notes
     -----------
-    - For batched inputs, batch dimensions (and possible splits along these axes) must coincide.
-    - If ``a`` is a split vector then the returned vector will be of shape (:math:`1 \\times Q`) and will be split in the 1st dimension. If ``b`` is a vector and either ``a`` or ``b`` is split, then the returned vector will be of shape (:math:`L \\times 1`) and will be split in the 0th dimension. Analogous conventions apply to batched inputs.
-    - We recommend to avoid the particular split combinations ``1``-``0``, ``None``-``0``, and ``1``-``None`` (for ``a.split``-``b.split``) due to their comparably high memory consumption, if possible. Applying ``DNDarray.resplit_`` or ``heat.resplit`` on one of the two factors before calling ``matmul`` in these situations might improve performance of your code / might avoid memory bottlenecks. In particular, for batched inputs, the corresponding split combination "split along colums"-"split along rows" is not available.
+    - For batched inputs, batch dimensions must coincide and if one matrix is split along a batch axis the other must be split along the same axis.
+    - If ``a`` or ``b`` is a (possibly batched) vector the result will also be a (possibly batched) vector.
+    - We recommend to avoid the particular split combinations ``1``-``0``, ``None``-``0``, and ``1``-``None`` (for ``a.split``-``b.split``) due to their comparably high memory consumption, if possible. Applying ``DNDarray.resplit_`` or ``heat.resplit`` on one of the two factors before calling ``matmul`` in these situations might improve performance of your code / might avoid memory bottlenecks.
 
     References
     -----------
@@ -1103,7 +1101,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
             c = factories.array(res, split=split, device=dev, comm=comm)
 
     if vector_flag:  # squeeze only in the la dimensions
-        # it could be sensible to resplit in case a single node gets the whole vector
+        # it could be sensible to resplit/rebalance in case a single node gets the whole vector
         split = c.split
         if split is not None and split > batch_dim:
             split = batch_dim
