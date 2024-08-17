@@ -3811,18 +3811,4 @@ class TestManipulations(TestCase):
                             u = ht.array(x.unfold(dimension, size, step))
                             v = ht.unfold(y, dimension, size, step)
 
-                            equal = ht.equal(u, v)
-                            if not equal:
-                                diff = (u - v).abs().max().item()
-                                diff_indices = ht.nonzero((u - v).resplit_(None)).resplit_(None)
-                                if y.comm.rank == 0:
-                                    print(
-                                        f"\ndtype: {dtype}\nsplit: {split}\ndimension: {dimension}\nstep: {step}\nsize: {size}"
-                                    )
-                                    # print(f"u.shape: {u_shape}")
-                                    # print(f"v.shape: {v_shape}")
-                                    print(f"diff: {diff}")
-                                    print(f"displs: {y.counts_displs()[1]}")
-                                print(f"diff_indices: {diff_indices}")
-
                             self.assertTrue(ht.equal(u, v))
