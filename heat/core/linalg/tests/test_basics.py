@@ -3,7 +3,6 @@ import torch
 import os
 import unittest
 
-from torch._C import _push_on_torch_function_stack
 import heat as ht
 import numpy as np
 
