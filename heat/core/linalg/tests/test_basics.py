@@ -2,6 +2,8 @@ from typing import Type
 import torch
 import os
 import unittest
+
+from torch._C import _push_on_torch_function_stack
 import heat as ht
 import numpy as np
 
@@ -878,12 +880,16 @@ class TestLinalgBasics(TestCase):
             b = ht.factories.asarray(bt, copy=True)
             c = ht.factories.asarray(ct, copy=True)
 
-            la_splits = (0, 1)
+            la_splits = (None, 0, 1)
             # test all possible la split combinations
             for s0 in la_splits:
+                if s0 is not None:
+                    s0 -= 2
                 for s1 in la_splits:
-                    a.resplit_(-2 + s0)
-                    b.resplit_(-2 + s1)
+                    if s1 is not None:
+                        s1 -= 2
+                    a.resplit_(s0)
+                    b.resplit_(s1)
 
                     ret_batched = ht.matmul(a, b)
 
@@ -899,9 +905,13 @@ class TestLinalgBasics(TestCase):
             c = ht.factories.asarray(ct, copy=True)
 
             for s0 in la_splits:
+                if s0 is not None:
+                    s0 -= 2
                 for s1 in la_splits:
-                    a.resplit_(-2 + s0)
-                    b.resplit_(-2 + s1)
+                    if s1 is not None:
+                        s1 -= 2
+                    a.resplit_(s0)
+                    b.resplit_(s1)
 
                     ret_batched = ht.matmul(a, b)
                     # print(f"{s0}{s1}: {ht.max(ht.abs(ret_batched - c)).item()}")

@@ -519,18 +519,12 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
     if batched:
         # check for valid batched split of a and b
         # if one is split along a batch axis, both matrices must be split along that axis
-
-        # implement!
-        if (
-            a.split is None or b.split is None
-        ) and a.split != b.split:  # only one matrix has split None
-            raise NotImplementedError("Only one matrix has split None!")
-
         if (
             a.split is not None
-            and (a.split < batch_dim or b.split < batch_dim)
-            and a.split != b.split
-        ):  # not the same batch axis for split
+            and a.split < batch_dim
+            or b.split is not None
+            and b.split < batch_dim
+        ) and a.split != b.split:  # not the same batch axis for split
             raise NotImplementedError(
                 "Both input matrices have to be split along the same batch axis!"
             )
@@ -584,10 +578,9 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
 
     # one split not in la dimension
     if a.split is None or b.split is None or a.split < batch_dim:
-        # la dimension not split -> torch
         if a.split is None and b.split is None:
             if allow_resplit:  # resplit a to 0
-                a.resplit_(0)
+                a.resplit_(ndim - 2)
                 slice_0 = a.comm.chunk(a.shape, a.split)[2][0]
                 hold = a.larray @ b.larray
 
@@ -599,12 +592,12 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
             else:  # torch matmul
                 c = factories.array(
                     torch.matmul(a.larray, b.larray),
-                    is_split=a.split,
+                    is_split=None,
                     dtype=c_type,
                     device=dev,
                     comm=comm,
                 )
-        elif a.split is not None and a.split < batch_dim:
+        elif a.split is not None and a.split < batch_dim:  # split in batch dimension
             c = factories.array(
                 torch.matmul(a.larray, b.larray),
                 is_split=a.split,
@@ -612,8 +605,8 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
                 device=dev,
                 comm=comm,
             )
-        elif (a.split == 0 and b.split is None) or (
-            a.split is None and b.split == 1
+        elif (a.split == ndim - 2 and b.split is None) or (
+            a.split is None and b.split == ndim - 1
         ):  # 0-None, None-1
             split = a.split if a.split is not None else b.split
             c = factories.array(
@@ -623,18 +616,22 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
                 device=dev,
                 comm=comm,
             )
-        elif a.split == 1 and b.split is None:  # 1-None
-            c = torch.zeros((a.gshape[-2], b.gshape[1]), dtype=c_type.torch_type(), device=tdev)
+        elif a.split == ndim - 1 and b.split is None:  # 1-None
+            c = torch.zeros(
+                (*batch_shape, a.gshape[-2], b.gshape[-1]), dtype=c_type.torch_type(), device=tdev
+            )
 
             a_idx = a.comm.chunk(a.shape, a.split)[2]
-            c += a.larray @ b.larray[a_idx[1].start : a_idx[1].start + a.lshape[-1], :]
+            c += a.larray @ b.larray[..., a_idx[-1].start : a_idx[-1].start + a.lshape[-1], :]
             a.comm.Allreduce(MPI.IN_PLACE, c, MPI.SUM)
             c = factories.array(c, split=a.split, dtype=c_type, device=dev, comm=comm)
-        elif a.split is None and b.split == 0:  # None-0
+        elif a.split is None and b.split == ndim - 2:  # None-0
             # maybe we would want to resplit to 1 for a vector, currently one node would get the entire vector
-            c = torch.zeros((a.gshape[-2], b.gshape[-1]), dtype=c_type.torch_type(), device=tdev)
+            c = torch.zeros(
+                (*batch_shape, a.gshape[-2], b.gshape[-1]), dtype=c_type.torch_type(), device=tdev
+            )
             b_idx = b.comm.chunk(b.shape, b.split)[2]
-            c += a.larray[:, b_idx[0].start : b_idx[0].start + b.lshape[0]] @ b.larray
+            c += a.larray[..., :, b_idx[-2].start : b_idx[-2].start + b.lshape[-2]] @ b.larray
             b.comm.Allreduce(MPI.IN_PLACE, c, MPI.SUM)
             c = factories.array(c, split=b.split, dtype=c_type, device=dev, comm=comm)
     else:
