@@ -21,6 +21,7 @@ Heat is a distributed tensor framework for high performance data analytics.
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.2531472.svg)](https://doi.org/10.5281/zenodo.2531472)
 [![Benchmarks](https://img.shields.io/badge/Github--Pages-Benchmarks-2ea44f)](https://helmholtz-analytics.github.io/heat/dev/bench)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![JuRSE Code Pick of the Month](https://img.shields.io/badge/JuRSE_Code_Pick-August_2024-blue)](https://www.fz-juelich.de/en/rse/jurse-community/jurse-code-of-the-month/august-2024)
 
 # Table of Contents
   - [What is Heat for?](#what-is-heat-for)
