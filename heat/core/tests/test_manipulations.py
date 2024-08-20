@@ -3752,3 +3752,63 @@ class TestManipulations(TestCase):
         b = ht.ones((12,), split=0)
         res = ht.vstack((a, b))
         self.assertEqual(res.shape, (2, 12))
+
+    def test_unfold(self):
+        dtypes = (ht.int, ht.float)
+
+        for dtype in dtypes:  # test with different datatypes
+            # exceptions
+            n = 1000
+            x = ht.arange(n, dtype=dtype)
+            with self.assertRaises(ValueError):  # size too small
+                ht.unfold(x, 0, 1, 1)
+            with self.assertRaises(ValueError):  # step too small
+                ht.unfold(x, 0, 2, 0)
+            x.resplit_(0)
+            min_chunk_size = x.lshape_map[:, 0].min().item()
+            if min_chunk_size + 2 > n:  # size too large
+                with self.assertRaises(ValueError):
+                    ht.unfold(x, 0, min_chunk_size + 2)
+            else:  # size too large for chunk_size
+                with self.assertRaises(RuntimeError):
+                    ht.unfold(x, 0, min_chunk_size + 2)
+            with self.assertRaises(ValueError):  # size too large
+                ht.unfold(x, 0, n + 1, 1)
+            ht.unfold(
+                x, 0, min_chunk_size, min_chunk_size + 1
+            )  # no fully local unfolds on some nodes
+
+            # 2D sliding views
+            n = 100
+
+            x = torch.arange(n * n).reshape((n, n))
+            y = ht.array(x, dtype)
+            y.resplit_(0)
+
+            u = x.unfold(0, 3, 3)
+            u = u.unfold(1, 3, 3)
+            u = ht.array(u)
+            v = ht.unfold(y, 0, 3, 3)
+            v = ht.unfold(v, 1, 3, 3)
+
+            self.assertTrue(ht.equal(u, v))
+
+            # more dimensions, different split axes
+            n = 53
+            k = 3  # number of dimensions
+            shape = k * (n,)
+            size = n**k
+
+            x = torch.arange(size).reshape(shape)
+            _y = x.clone().detach()
+            y = ht.array(_y, dtype)
+
+            for split in (None, *range(k)):
+                y.resplit_(split)
+                for size in range(2, 9):
+                    for step in range(1, 21):
+                        for dimension in range(k):
+                            u = ht.array(x.unfold(dimension, size, step))
+                            v = ht.unfold(y, dimension, size, step)
+
+                            self.assertTrue(ht.equal(u, v))
