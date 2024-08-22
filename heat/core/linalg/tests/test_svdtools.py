@@ -252,7 +252,31 @@ class TestRSVD(TestCase):
 
 class TestISVD(TestCase):
     def test_isvd(self):
-        pass
+        for old_split in [0, 1, None]:
+            X_old, SVD_old = ht.utils.data.matrixgallery.random_known_rank(
+                250, 25, 5, split=old_split, dtype=ht.float32
+            )
+            U_old, S_old, V_old = SVD_old
+            for new_split in [0, 1, None]:
+                new_data = ht.random.randn(
+                    250, ht.MPI_WORLD.size, split=new_split, dtype=ht.float32
+                )
+                U_new, S_new, V_new = ht.linalg.isvd(new_data, U_old, S_old, V_old)
+                # check if U_new, V_new are orthogonal
+                self.assertTrue(
+                    ht.allclose(
+                        U_new.T @ U_new,
+                        ht.eye(U_new.shape[1], dtype=U_new.dtype, split=U_new.split),
+                    )
+                )
+                self.assertTrue(
+                    ht.allclose(
+                        V_new.T @ V_new,
+                        ht.eye(V_new.shape[1], dtype=V_new.dtype, split=V_new.split),
+                    )
+                )
+                # check if entries of S_new are positive
+                self.assertTrue(ht.all(S_new >= 0))
 
     def test_isvd_catch_wrong_inputs(self):
         u_old = ht.zeros((10, 2))
