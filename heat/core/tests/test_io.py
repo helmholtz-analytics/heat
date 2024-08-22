@@ -149,8 +149,8 @@ class TestIO(TestCase):
             ht.load_csv(self.CSV_PATH, header_lines="3", sep=";", split=0)
 
     @unittest.skipIf(
-        len(TestCase.get_hostnames()) > 1,
-        "Test only works on single node, file creation is not synchronized across nodes",
+        len(TestCase.get_hostnames()) > 1 and not os.environ.get("TMPDIR"),
+        "Requires the environment variable 'TMPDIR' to point to a globally accessible path. Otherwise the test will be skiped on multi-node setups.",
     )
     def test_save_csv(self):
         for rnd_type in [
