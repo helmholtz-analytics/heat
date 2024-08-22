@@ -248,3 +248,22 @@ class TestRSVD(TestCase):
         # power_iter negative
         with self.assertRaises(ValueError):
             ht.linalg.rsvd(X, 10, power_iter=-1)
+
+
+class TestISVD(TestCase):
+    def test_isvd(self):
+        pass
+
+    def test_isvd_catch_wrong_inputs(self):
+        u_old = ht.zeros((10, 2))
+        s_old = ht.zeros((3,))
+        v_old = ht.zeros((5, 3))
+        new_data = ht.zeros((11, 5))
+        with self.assertRaises(ValueError):
+            ht.linalg.isvd(new_data, u_old, s_old, v_old)
+        s_old = ht.zeros((2,))
+        with self.assertRaises(ValueError):
+            ht.linalg.isvd(new_data, u_old, s_old, v_old)
+        v_old = ht.zeros((5, 2))
+        with self.assertRaises(ValueError):
+            ht.linalg.isvd(new_data, u_old, s_old, v_old)

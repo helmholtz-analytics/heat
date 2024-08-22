@@ -21,7 +21,7 @@ from .. import statistics
 from math import log, ceil, floor, sqrt
 
 
-__all__ = ["hsvd_rank", "hsvd_rtol", "hsvd", "rsvd"]
+__all__ = ["hsvd_rank", "hsvd_rtol", "hsvd", "rsvd", "isvd"]
 
 
 def _check_is_nd_of_dtype(input, inputname, allowed_ns, allowed_dtypes):
