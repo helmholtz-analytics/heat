@@ -12,12 +12,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+        uses: step-security/harden-runner@5c7944e73c4c2a096b17a9cb74d65b6c2bbafbde # v2.9.1
         with:
           egress-policy: audit
 
       - name: Checkout
-        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
       - name: Trigger benchmarks (PR)
         id: setup_pr
         if: contains(github.event.pull_request.labels.*.name, 'benchmark PR')
@@ -28,7 +28,7 @@ jobs:
           SHA: ${{ github.event.pull_request.head.sha }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          SHORT_SHA=$(git rev-parse --short ${{ github.event.pull_request.head.sha }})
+          SHORT_SHA=$(git rev-parse --short $SHA)
           curl -s -X POST \
             --fail-with-body \
             -F "token=$PIPE_TRIGGER_TOKEN" \
@@ -45,7 +45,7 @@ jobs:
         env:
           AUTHOR: ${{ github.event.pull_request.assignee.login }}
           PIPE_TRIGGER_TOKEN: ${{ secrets.BENCH_PIPE_TRIGGER }}
-          SHA: ${{ github.event.pull_request.head.sha }}
+          SHA: ${{ github.sha }}
         run: |
           SHORT_SHA=$(git rev-parse --short $GITHUB_SHA)
           curl -s -X POST \
@@ -57,16 +57,3 @@ jobs:
             -F "variables[BRANCH]=main" \
             -F "variables[AUTHOR]=${AUTHOR:-heat_team}" \
             https://codebase.helmholtz.cloud/api/v4/projects/7930/trigger/pipeline
-      - name: Create status
-        if: ${{ steps.setup_pr.outcome == 'success' || steps.setup_push.outcome == 'success'}}
-        env:
-          REPO: ${{ github.repository }}
-          SHA: ${{ github.event.pull_request.head.sha }}
-        run: |
-          curl -L -X POST \
-            --fail-with-body \
-            -H "Accept: application/vnd.github+json" \
-            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            https://api.github.com/repos/$REPO/statuses/$SHA \
-            -d '{ "state":"pending", "target_url":"https://codebase.helmholtz.cloud/helmholtz-analytics/cb/-/pipelines", "description":"Waiting for benchmarks to execute.", "context":"cb/report" }'

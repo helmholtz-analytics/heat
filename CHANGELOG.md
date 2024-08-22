@@ -1,3 +1,22 @@
+# v1.4.2 - Maintenance release
+
+## Changes
+
+### Maintenance
+
+- [#1467](https://github.com/helmholtz-analytics/heat/pull/1467), [#1525](https://github.com/helmholtz-analytics/heat/pull/1525) Support PyTorch 2.3.1 (by @mtar)
+- [#1535](https://github.com/helmholtz-analytics/heat/pull/1535) Address test failures after netCDF4 1.7.1, numpy 2 releases (by @ClaudiaComito)
+
+# v1.4.1 - Bug fix release
+
+## Changes
+
+### Bug fixes
+- #1472 DNDarrays returned by `_like` functions default to same device as input DNDarray  (by @mrfh92, @ClaudiaComito)
+
+### Maintenance
+- #1441 added names of non-core members in citation file (by @mrfh92)
+
 # v1.4.0 - Interactive HPC tutorials, distributed FFT, batch-parallel clustering, support PyTorch 2.2.2
 
 ## Changes
