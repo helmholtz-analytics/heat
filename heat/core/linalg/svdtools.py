@@ -623,9 +623,9 @@ def isvd(
     Parameters
     ----------
     new_data : DNDarray
-        2D-array (float32/64) of which the SVD has to be computed
+        2D-array (float32/64) of which the SVD has to be computed. It must hold `new_data.split != 1` if `U_old.split = 0`.
     U_old : DNDarray
-        U-factor of the SVD of the "old" matrix, 2D-array (float32/64)
+        U-factor of the SVD of the "old" matrix, 2D-array (float32/64). It must hold `U_old.split != 0` if `new_data.split = 1`.
     S_old : DNDarray
         Sigma-factor of the SVD of the "old" matrix, 1D-array (float32/64)
     V_old : DNDarray
@@ -660,6 +660,10 @@ def isvd(
     # check if the number of columns of new_data matches the number of rows of U_old and V_old
     if new_data.shape[0] != U_old.shape[0]:
         raise ValueError("The number of rows of new_data must match the number of rows of U_old.")
+    if U_old.split == 0 and new_data.split == 1:
+        raise ValueError(
+            "The combination (U_old.split, new_data.split) = (0,1) is not allowed as it is susceptible to numerical instabilities with this combination of algorithms."
+        )
 
     # old SVD is SVD of a matrix of dimension m x n as has rank r
     # new data have shape m x d
@@ -669,7 +673,10 @@ def isvd(
 
     # orthogonalize and decompose new_data
     UtC = U_old.T @ new_data
-    new_data = new_data - U_old @ UtC
+    if U_old.split is not None:
+        new_data = new_data.resplit_(U_old.split) - U_old @ UtC
+    else:
+        new_data = new_data - (U_old @ UtC).resplit_(new_data.split)
     P, Rc = qr(new_data)
 
     # prepare one component of "new" V-factor
@@ -677,7 +684,7 @@ def isvd(
         [
             V_old,
             factories.zeros(
-                (d, n), device=V_old.device, dtype=V_old.dtype, split=V_old.split, comm=V_old.comm
+                (d, r), device=V_old.device, dtype=V_old.dtype, split=V_old.split, comm=V_old.comm
             ),
         ]
     )
@@ -699,15 +706,22 @@ def isvd(
 
     # prepare "inner" matrix that needs to be decomposed, decompose it
     helper1 = vstack(
-        factories.diag(S_old),
-        factories.zeros(
-            (d, r), device=S_old.device, dtype=S_old.dtype, split=S_old.split, comm=S_old.comm
-        ),
+        [
+            diag(S_old),
+            factories.zeros(
+                (d, r), device=S_old.device, dtype=S_old.dtype, split=S_old.split, comm=S_old.comm
+            ),
+        ]
     )
+    if r > d:
+        Rc = Rc.resplit_(UtC.split)
+    else:
+        UtC = UtC.resplit_(Rc.split)
     helper2 = vstack([UtC, Rc])
     innermat = hstack([helper1, helper2])
     del (helper1, helper2)
-    u, s, v = svd(innermat)
+    # as innermat is small enough to fit into memory of a single process, we can use torch svd
+    u, s, v = svd.svd(innermat.resplit_(None))
     del innermat
 
     # truncate if desired
