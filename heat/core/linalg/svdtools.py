@@ -620,8 +620,6 @@ def isvd(
     Given the the SVD of an "old" matrix, X_old = `U_old @ S_old @ V_old.T`, and additional columns `new_data`, this routine computes
     (a possibly approximate) SVD of the extended matrix `X_new = [X_old | new_data]`.
 
-
-
     Parameters
     ----------
     new_data : DNDarray
@@ -639,6 +637,11 @@ def isvd(
     -----------
     Inexactness may arise due to truncation to maximal rank `maxrank` if rank of the data to be processed exceeds this rank.
     If you set `maxrank` to a high number (or None) in order to avoid inexactness, you may encounter memory issues.
+    The implementation follows the approach described in Ref. [1], Sect. 2.
+
+    References
+    ------------
+    [1] Brand, M. (2006). Fast low-rank modifications of the thin singular value decomposition. Linear algebra and its applications, 415(1), 20-30.
     """
     # check if new_data, U_old, V_old are 2D DNDarrays and float32/64
     _check_is_nd_of_dtype(new_data, "new_data", [2], [types.float32, types.float64])
@@ -657,3 +660,63 @@ def isvd(
     # check if the number of columns of new_data matches the number of rows of U_old and V_old
     if new_data.shape[0] != U_old.shape[0]:
         raise ValueError("The number of rows of new_data must match the number of rows of U_old.")
+
+    # old SVD is SVD of a matrix of dimension m x n as has rank r
+    # new data have shape m x d
+    d = new_data.shape[1]
+    n = V_old.shape[0]
+    r = S_old.shape[0]
+
+    # orthogonalize and decompose new_data
+    UtC = U_old.T @ new_data
+    new_data = new_data - U_old @ UtC
+    P, Rc = qr(new_data)
+
+    # prepare one component of "new" V-factor
+    V_new = vstack(
+        [
+            V_old,
+            factories.zeros(
+                (d, n), device=V_old.device, dtype=V_old.dtype, split=V_old.split, comm=V_old.comm
+            ),
+        ]
+    )
+    helper = vstack(
+        [
+            factories.zeros(
+                (n, d), device=V_old.device, dtype=V_old.dtype, split=V_old.split, comm=V_old.comm
+            ),
+            factories.eye(
+                d, device=V_old.device, dtype=V_old.dtype, split=V_old.split, comm=V_old.comm
+            ),
+        ]
+    )
+    V_new = hstack([V_new, helper])
+    del helper
+
+    # prepare one component of "new" U-factor
+    U_new = hstack([U_old, P])
+
+    # prepare "inner" matrix that needs to be decomposed, decompose it
+    helper1 = vstack(
+        factories.diag(S_old),
+        factories.zeros(
+            (d, r), device=S_old.device, dtype=S_old.dtype, split=S_old.split, comm=S_old.comm
+        ),
+    )
+    helper2 = vstack([UtC, Rc])
+    innermat = hstack([helper1, helper2])
+    del (helper1, helper2)
+    u, s, v = svd(innermat)
+    del innermat
+
+    # truncate if desired
+    if maxrank is not None and maxrank < s.shape[0]:
+        u = u[:, :maxrank]
+        s = s[:maxrank]
+        v = v[:, :maxrank]
+
+    U_new = U_new @ u
+    V_new = V_new @ v
+
+    return U_new, s, V_new
