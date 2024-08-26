@@ -1,4 +1,18 @@
-"""Provides parallel random number generators (pRNG)"""
+"""
+Provides parallel random number generators (pRNG)
+Two options are aviable:
+
+1.  Batchparallel RNG (default):
+    This is a simple, fast, and (weakly) reproducible random number generator (RNG) that is based on the idea of a global seed
+    that results in process-local seeds for each MPI-process; then, on each MPI-process torch's RNG is used with these process-local seeds.
+    To reproduce results, the global seed needs to be set to the same value and the number of MPI-processes needs to be the same (=weak reproducibility).
+
+2.  Threefry RNG:
+    This is a fully reproducible parallel RNG that is based on the Threefry encryption algorithm.
+    It is slower than the batchparallel RNG and limited to generating random DNDarrays with less than maxint32 many entries.
+    However, unlike batchparallel RNG it ensures full reproducibility even for different numbers of MPI-processes.
+"""
+
 from __future__ import annotations
 
 import time
@@ -13,7 +27,7 @@ from . import logical
 from . import stride_tricks
 from . import types
 
-from .communication import Communication
+from .communication import Communication, MPI_WORLD
 from .devices import Device
 from .dndarray import DNDarray
 from .types import datatype
@@ -37,13 +51,19 @@ __all__ = [
 ]
 
 # introduce the global random state variables, will be correctly initialized at the end of file
+__rng: str = "Batchparallel"
+"""
+The random number generator to be used, either 'Threefry' or 'Batchparallel'. The default is herewith set to 'Batchparallel'; this can be changed by the user using :func:`set_state`.
+"""
 __seed: int = None
-"""The current global random seed for the pRNG"""
+"""The current global random seed, either for Threefry or for the batchparallel RNG"""
+__localseed: Optional[int] = None
+"""Process-local seed; only for Batchparallel RNG"""
 __counter: Optional[int] = None
-"""Stateful counter tracking the already pulled random numbers from the current seed"""
+"""Stateful counter tracking the already pulled random numbers from the current seed; only for Threefry RNG."""
 
 
-# float conversion constants
+# float conversion constants (for Threefry RNG only)
 __INT32_TO_FLOAT32: float = 1.0 / 8388608.0
 """Bit-mask for float-32 that retains the mantissa bits only via multiplication in order to convert to int32"""
 __INT64_TO_FLOAT64: float = 1.0 / 9007199254740992.0
@@ -60,6 +80,7 @@ def __counter_sequence(
     comm: Communication,
 ) -> Tuple[torch.tensor, torch.tensor, Tuple[int, ...], slice]:
     """
+    (only for Threefry RNG)
     Generates a sequence of numbers to be used as the "clear text" for the threefry encryption, i.e. the pseudo random
     number generator. Due to the fact that threefry always requires pairs of inputs, the input sequence may not just be
     a simple range including the global offset, but rather needs to be to independent vectors, one containing the range
@@ -202,21 +223,25 @@ def get_state() -> Tuple[str, int, int, int, float]:
     """
     Return a tuple representing the internal state of the generator. The returned tuple has the following items:
 
-    1. The string ‘Threefry’,
+    1. The string 'Batchparallel' or ‘Threefry’, describing the type of random number generator,
 
-    2. The Threefry key value, aka seed,
+    2. The seed. For batchparallel RNG this refers to the global seed. For Threefry RNG the seed is the key value,
 
-    3. The internal counter value,
+    3. The local seed (for batchparallel RNG), or the internal counter value (for Threefry RNG), respectively,
 
-    4. An integer has_gauss, always set to 0 (present for compatibility with numpy) and
+    4. An integer has_gauss, always set to 0 (present for compatibility with numpy), and
 
     5. A float cached_gaussian, always set to 0.0 (present for compatibility with numpy).
     """
-    return "Threefry", __seed, __counter, 0, 0.0
+    if __rng == "Threefry":
+        return __rng, __seed, __counter, 0, 0.0
+    else:
+        return __rng, __seed, __localseed, 0, 0.0
 
 
 def __int32_to_float32(values: torch.Tensor) -> torch.Tensor:
     """
+    (for Threefry RNG only)
     Converts a tensor of 32-bit (random) numbers to matching single-precision floating point numbers (equally 32-bit) in
     the bounded interval [0.0, 1.0). Extracts the 23 least-significant bits of the integers (0x7fffff) and sets them to
     be the mantissa of the floating point number. Interval is bound by dividing by 2^23 = 8388608.0.
@@ -231,6 +256,7 @@ def __int32_to_float32(values: torch.Tensor) -> torch.Tensor:
 
 def __int64_to_float64(values: torch.Tensor) -> torch.Tensor:
     """
+    (for Threefry RNG only)
     Converts a tensor of 64-bit (random) numbers to matching double-precision floating point numbers (equally 64-bit) in
     the bounded interval [0.0, 1.0). Extracts the 53 least-significant bits of the integers (0x1fffffffffffff) and sets
     them to be the mantissa of the floating point number. Interval is bound by dividing by 2^53 = 9007199254740992.0.
@@ -245,6 +271,7 @@ def __int64_to_float64(values: torch.Tensor) -> torch.Tensor:
 
 def __kundu_transform(values: torch.Tensor) -> torch.Tensor:
     """
+    (for Threefry RNG only)
     Transforms uniformly distributed floating point random values in the interval [0.0, 1.0) into normal distributed
     floating point random values with mean 0.0 and standard deviation 1.0. The algorithm makes use of the generalized
     exponential distribution transformation [1].
@@ -347,6 +374,11 @@ def permutation(x: Union[int, DNDarray]) -> DNDarray:
     DNDarray([[3, 4, 5],
               [6, 7, 8],
               [0, 1, 2]], dtype=ht.int32, device=cpu:0, split=None)
+
+    Notes
+    -----
+    This routine makes usage of torch's RNG to generate an array of the permuted indices of axis 0.
+    Thus, the array containing these indices needs to fit into the memory of a single MPI-process.
     """
     if isinstance(x, int):
         return randperm(x)
@@ -355,6 +387,8 @@ def permutation(x: Union[int, DNDarray]) -> DNDarray:
 
     # random permutation
     recv = torch.randperm(x.shape[0], device=x.device.torch_device)
+    if __rng != "Threefry":
+        x.comm.Bcast(recv, root=0)
 
     # rearrange locally
     if (x.split is None) or (x.split != 0):
@@ -439,10 +473,10 @@ def rand(
     """
     # if args are not set, generate a single sample
     if not args:
-        args = (1,)
-
-    # ensure that the passed dimensions are positive integer-likes
-    shape = tuple(int(ele) for ele in args)
+        shape = (1,)
+    else:
+        # ensure that the passed dimensions are positive integer-likes
+        shape = tuple(int(ele) for ele in args)
     if any(ele <= 0 for ele in shape):
         raise ValueError("negative dimensions are not allowed")
 
@@ -450,30 +484,48 @@ def rand(
     split = stride_tricks.sanitize_axis(shape, split)
     device = devices.sanitize_device(device)
     comm = communication.sanitize_comm(comm)
-    balanced = True
 
-    # generate the random sequence
-    if dtype == types.float32:
-        x_0, x_1, lshape, lslice = __counter_sequence(shape, torch.int32, split, device, comm)
-        x_0, x_1 = __threefry32(x_0, x_1, seed=__seed)
+    if __rng == "Threefry":
+        # use Threefry RNG
+        balanced = True
+        # generate the random sequence
+        if dtype == types.float32:
+            x_0, x_1, lshape, lslice = __counter_sequence(shape, torch.int32, split, device, comm)
+            x_0, x_1 = __threefry32(x_0, x_1, seed=__seed)
 
-        # combine the values into one tensor and convert them to floats
-        values = __int32_to_float32(torch.stack([x_0, x_1], dim=1).flatten()[lslice]).reshape(
-            lshape
-        )
-    elif dtype == types.float64:
-        x_0, x_1, lshape, lslice = __counter_sequence(shape, torch.int64, split, device, comm)
-        x_0, x_1 = __threefry64(x_0, x_1, seed=__seed)
+            # combine the values into one tensor and convert them to floats
+            values = __int32_to_float32(torch.stack([x_0, x_1], dim=1).flatten()[lslice]).reshape(
+                lshape
+            )
+        elif dtype == types.float64:
+            x_0, x_1, lshape, lslice = __counter_sequence(shape, torch.int64, split, device, comm)
+            x_0, x_1 = __threefry64(x_0, x_1, seed=__seed)
 
-        # combine the values into one tensor and convert them to floats
-        values = __int64_to_float64(torch.stack([x_0, x_1], dim=1).flatten()[lslice]).reshape(
-            lshape
-        )
+            # combine the values into one tensor and convert them to floats
+            values = __int64_to_float64(torch.stack([x_0, x_1], dim=1).flatten()[lslice]).reshape(
+                lshape
+            )
+        else:
+            # Unsupported type
+            raise ValueError(f"dtype is none of ht.float32 or ht.float64 but was {dtype}")
+
+        return DNDarray(values, shape, dtype, split, device, comm, balanced)
     else:
-        # Unsupported type
-        raise ValueError(f"dtype is none of ht.float32 or ht.float64 but was {dtype}")
-
-    return DNDarray(values, shape, dtype, split, device, comm, balanced)
+        # use batchparallel RNG
+        x = factories.__factory(
+            shape if len(shape) > 0 else (1,),
+            dtype,
+            split if split is not None else 0,
+            torch.rand,
+            device,
+            comm,
+            "C",
+        )
+        if split is None:
+            x = x.resplit_(None)
+        if not args or shape == ():
+            x = x.item()
+        return x
 
 
 def randint(
@@ -548,27 +600,52 @@ def randint(
     dtype = types.canonical_heat_type(dtype)
     if dtype not in [types.int64, types.int32]:
         raise ValueError("Unsupported dtype for randint")
-    torch_dtype = dtype.torch_type()
 
     # make sure the remaining parameters are of proper type
     split = stride_tricks.sanitize_axis(shape, split)
     device = devices.sanitize_device(device)
     comm = communication.sanitize_comm(comm)
-    balanced = True
 
-    # generate the random sequence
-    x_0, x_1, lshape, lslice = __counter_sequence(shape, dtype.torch_type(), split, device, comm)
-    if torch_dtype is torch.int32:
-        x_0, x_1 = __threefry32(x_0, x_1, seed=__seed)
-    else:  # torch.int64
-        x_0, x_1 = __threefry64(x_0, x_1, seed=__seed)
+    if __rng == "Threefry":
+        # use Threefry RNG
+        torch_dtype = dtype.torch_type()
+        balanced = True
 
-    # stack the resulting sequence and normalize to given range
-    values = torch.stack([x_0, x_1], dim=1).flatten()[lslice].reshape(lshape)
-    # ATTENTION: this is biased and known, bias-free rejection sampling is difficult to do in parallel
-    values = (values.abs_() % span) + low
+        # generate the random sequence
+        x_0, x_1, lshape, lslice = __counter_sequence(
+            shape, dtype.torch_type(), split, device, comm
+        )
+        if torch_dtype is torch.int32:
+            x_0, x_1 = __threefry32(x_0, x_1, seed=__seed)
+        else:  # torch.int64
+            x_0, x_1 = __threefry64(x_0, x_1, seed=__seed)
 
-    return DNDarray(values, shape, dtype, split, device, comm, balanced)
+        # stack the resulting sequence and normalize to given range
+        values = torch.stack([x_0, x_1], dim=1).flatten()[lslice].reshape(lshape)
+        # ATTENTION: this is biased and known, bias-free rejection sampling is difficult to do in parallel
+        values = (values.abs_() % span) + low
+
+        return DNDarray(values, shape, dtype, split, device, comm, balanced)
+    else:
+        # use batchparallel RNG
+        # wrap torch.randint with fixed low and high
+        def _wrapped_torch_randint(*args, **kwargs):
+            return torch.randint(low, high, *args, **kwargs)
+
+        x = factories.__factory(
+            shape if size != () else (1,),
+            dtype,
+            split if split is not None else 0,
+            _wrapped_torch_randint,
+            device,
+            comm,
+            "C",
+        )
+        if split is None:
+            x = x.resplit_(None)
+        if size == ():
+            x = x.reshape(size)
+        return x
 
 
 # alias
@@ -636,12 +713,45 @@ def randn(
               [ 1.3365, -1.5212,  1.4159, -0.1671],
               [ 0.1260,  1.2126, -0.0804,  0.0907]], dtype=ht.float32, device=cpu:0, split=None)
     """
-    # generate uniformly distributed random numbers first
-    normal_tensor = rand(*args, dtype=dtype, split=split, device=device, comm=comm)
-    # convert the the values to a normal distribution using the Kundu transform
-    normal_tensor.larray = __kundu_transform(normal_tensor.larray)
+    if __rng == "Threefry":
+        # use threefry RNG and the Kundu transform to generate normally distributed random numbers
+        # generate uniformly distributed random numbers first
+        normal_tensor = rand(*args, dtype=dtype, split=split, device=device, comm=comm)
+        # convert the the values to a normal distribution using the Kundu transform
+        normal_tensor.larray = __kundu_transform(normal_tensor.larray)
 
-    return normal_tensor
+        return normal_tensor
+    else:
+        # use batchparallel RNG and torch's generation of normally distributed random numbers
+        # if args are not set, generate a single sample
+        if not args:
+            shape = (1,)
+        else:
+            # ensure that the passed dimensions are positive integer-likes
+            shape = tuple(int(ele) for ele in args)
+        if any(ele <= 0 for ele in shape):
+            raise ValueError("negative dimensions are not allowed")
+
+        # make sure the remaining parameters are of proper type
+        split = stride_tricks.sanitize_axis(shape, split)
+        device = devices.sanitize_device(device)
+        comm = communication.sanitize_comm(comm)
+
+        # generate and return the actual random array
+        x = factories.__factory(
+            shape if shape != () else (1,),
+            dtype,
+            split if split is not None else 0,
+            torch.randn,
+            device,
+            comm,
+            "C",
+        )
+        if split is None:
+            x = x.resplit_(None)
+        if not args or shape == ():
+            x = x.item()
+        return x
 
 
 def randperm(
@@ -677,6 +787,10 @@ def randperm(
     --------
     >>> ht.random.randperm(4)
     DNDarray([2, 3, 1, 0], dtype=ht.int64, device=cpu:0, split=None)
+
+    Notes
+    -----
+    This routine makes usage of torch's RNG. Thus, the resulting array needs to fit into the memory of a single MPI-process.
     """
     if not isinstance(n, int):
         raise TypeError("n must be an integer.")
@@ -684,6 +798,8 @@ def randperm(
     device = devices.sanitize_device(device)
     comm = communication.sanitize_comm(comm)
     perm = torch.randperm(n, dtype=dtype.torch_type(), device=device.torch_device)
+    if __rng != "Threefry":
+        comm.Bcast(perm, root=0)
 
     return factories.array(perm, dtype=dtype, device=device, split=split, comm=comm)
 
@@ -769,31 +885,44 @@ def sample(
 
 def seed(seed: Optional[int] = None):
     """
-    Seed the generator.
+    Seed the random number generator.
 
     Parameters
     ----------
     seed : int, optional
         Value to seed the algorithm with, if not set a time-based seed is generated.
     """
+    # determine a time-based seed value if no explicit seed is provided
+    # broadcast this value from process 0 to all MPI-processes
     if seed is None:
         seed = communication.MPI_WORLD.bcast(int(time.time() * 256))
 
-    global __seed, __counter
-    __seed = seed
-    __counter = 0
-    torch.manual_seed(seed)
+    global __seed, __localseed, __counter
+    # initialize threefry RNG with this
+    if __rng == "Threefry":
+        __seed = seed
+        __counter = 0
+        __localseed = None
+        torch.manual_seed(__seed)
+    # initialize batchparallel RNG with this
+    else:
+        __seed = seed
+        __localseed = seed + MPI_WORLD.rank
+        __counter = None
+        torch.manual_seed(__localseed)
 
 
-def set_state(state: Tuple[str, int, int, int, float]):
+def set_state(state: Tuple[str, int, int, int, int, float]):
     """
     Set the internal state of the generator from a tuple. The tuple has the following items:
 
-    1. The string ‘Threefry’,
+    1. The string 'Batchparallel' or ‘Threefry’, describing the type of random number generator,
 
-    2. The Threefry key value, aka seed,
+    2. The seed. For batchparallel RNG this refers to the global seed. For Threefry RNG the seed is the key value,
 
-    3. The internal counter value,
+    3. The local seed (for batchparallel RNG), or the internal counter value (for Threefry RNG), respectively,
+       (For batchparallel RNG, this value is ignored if a global seed is provided. If you want to prescribe a process-local
+       seed manually, you need to set the global seed to None.)
 
     4. An integer ``has_gauss``, ignored (present for compatibility with numpy), optional and
 
@@ -812,14 +941,28 @@ def set_state(state: Tuple[str, int, int, int, float]):
         If one of the items in the state tuple is of wrong type or value.
     """
     if not isinstance(state, tuple) or len(state) not in [3, 5]:
-        raise TypeError("state needs to be a three- or five-tuple")
+        raise TypeError("state needs to be a four- or six-tuple")
 
-    if state[0] != "Threefry":
-        raise ValueError("algorithm must be 'Threefry'")
+    if state[0] not in ["Batchparallel", "Threefry"]:
+        raise ValueError("algorithm must be 'Batchparallel' or 'Threefry'")
 
-    global __seed, __counter
-    __seed = int(state[1])
-    __counter = int(state[2])
+    global __seed, __localseed, __counter
+    if state[0] == "Threefry":
+        global __rng
+        __rng = state[0]
+        __seed = int(state[1])
+        __counter = int(state[2])
+        torch.manual_seed(__seed)
+    else:
+        if state[1] is not None:
+            # if a (global) seed is provided, use it to generate local seeds
+            __seed = int(state[1])
+            __localseed = int(state[1]) + MPI_WORLD.rank
+        else:
+            # only if no global seed is given, accept usage of user-provided local seeds
+            __seed = None
+            __localseed = int(state[2])
+        torch.manual_seed(__localseed)
 
 
 def standard_normal(
@@ -875,6 +1018,7 @@ def __threefry32(
     x0: torch.Tensor, x1: torch.Tensor, seed: int
 ) -> Tuple[torch.Tensor, torch.Tensor]:
     """
+    (only for Threefry RNG)
     Counter-based pseudo random number generator. Based on a 12-round Threefry "encryption" algorithm [1]. Returns
     Two vectors with num_samples / 2 (rounded-up) pseudo random numbers. This is the 32-bit version.
 
@@ -977,6 +1121,7 @@ def __threefry64(
     x0: torch.Tensor, x1: torch.Tensor, seed: int
 ) -> Tuple[torch.Tensor, torch.Tensor]:
     """
+    (only for Threefry RNG)
     Counter-based pseudo random number generator. Based on a 12-round Threefry "encryption" algorithm [1]. This is the
     64-bit version.
 

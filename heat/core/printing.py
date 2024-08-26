@@ -268,14 +268,19 @@ def _torch_data(dndarray, summarize) -> DNDarray:
                         ),
                     )
         # exchange data
-        received = dndarray.comm.gather(data)
+        exchange_sizes = dndarray.comm.gather(torch.tensor(data.shape), root=0)
         if dndarray.comm.rank == 0:
-            # concatenate data along the split axis
-            # problem: CUDA-aware MPI `gather`s all `data` in a list of tensors on MPI-process no. 0, but not necessarily on the same cuda device.
-            # Indeed, `received` may be a list of tensors on cuda device 0, cuda device 1, ... therefore, we need to move all entries of the list to cuda device 0 before applying `cat`.
-            device0 = received[0].device
-            received = [tens.to(device0) for tens in received]
-            data = torch.cat(received, dim=dndarray.split)
+            counts = tuple([s[dndarray.split] for s in exchange_sizes])
+            displs = (0,) + tuple(torch.cumsum(torch.tensor(counts), dim=0)[:-1])
+            recv_size = exchange_sizes[0].clone()
+            recv_size[dndarray.split] = sum(counts)
+            recv_buf = torch.empty(tuple(recv_size), dtype=data.dtype, device=data.device)
+            recv_buf = (recv_buf, counts, displs)
+        else:
+            recv_buf = torch.empty(0)
+        dndarray.comm.Gatherv(data, recv_buf, axis=dndarray.split, recv_axis=dndarray.split)
+        if dndarray.comm.rank == 0:
+            data = recv_buf[0]
     return data
 
 

@@ -5,45 +5,53 @@ on:
             heat_version:
                 description: 'Heat version'
                 required: true
-                default: '1.2.2'
+                default: 'latest'
                 type: string
             pytorch_img:
                 description: 'Base PyTorch Img'
                 required: true
-                default: '23.03-py3'
+                default: '23.05-py3'
                 type: string
             name:
                 description: 'Output Image name'
                 required: true
-                default: 'heat:1.2.2_torch1.13_cu12.1'
+                default: 'heat:1.3.0_torch2.0.0_cu12.1'
                 type: string
+permissions:
+  contents: read
+
 jobs:
     build-and-push-img:
         runs-on: ubuntu-latest
         steps:
+            - name: Harden Runner
+              uses: step-security/harden-runner@5c7944e73c4c2a096b17a9cb74d65b6c2bbafbde # v2.9.1
+              with:
+                egress-policy: audit
+
             -
               name: Checkout
-              uses: actions/checkout@v3
+              uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
             -
               name: Set up QEMU
-              uses: docker/setup-qemu-action@v2
+              uses: docker/setup-qemu-action@49b3bc8e6bdd4a60e6116a5414239cba5943d3cf # v3.2.0
             -
               name: Set up Docker Buildx
-              uses: docker/setup-buildx-action@v2
+              uses: docker/setup-buildx-action@988b5a0280414f521da01fcc63a27aeeb4b104db # v3.6.1
               with:
                 driver: docker
             -
               name: Login to GitHub Container Registry
-              uses: docker/login-action@v2
+              uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
               with:
                 registry: ghcr.io
                 username: ${{ github.repository_owner }}
                 password: ${{ secrets.GITHUB_TOKEN }}
             -
               name: Build
-              uses: docker/build-push-action@v4
+              uses: docker/build-push-action@5cd11c3a4ced054e52742c5fd54dca954e0edd85 # v6.7.0
               with:
-                context: docker/
+                file: docker/Dockerfile.release
                 build-args: |
                     HEAT_VERSION=${{ inputs.heat_version }}
                     PYTORCH_IMG=${{ inputs.pytorch_img}}
@@ -57,9 +65,9 @@ jobs:
                 docker run -v `pwd`:`pwd` -w `pwd` --rm test_${{ inputs.name }} pytest
             -
               name: Build and push
-              uses: docker/build-push-action@v4
+              uses: docker/build-push-action@5cd11c3a4ced054e52742c5fd54dca954e0edd85 # v6.7.0
               with:
-                context: docker/
+                file: docker/Dockerfile.release
                 build-args: |
                     HEAT_VERSION=${{ inputs.heat_version }}
                     PYTORCH_IMG=${{ inputs.pytorch_img}}

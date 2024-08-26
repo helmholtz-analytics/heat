@@ -2,13 +2,14 @@
 Tiling functions/classes. With these classes, you can classes you can address blocks of data in a DNDarray
 """
 
-
 from __future__ import annotations
 import itertools
 import torch
+from mpi4py import MPI
 from typing import List, Tuple, Union
 
 from .dndarray import DNDarray
+from .communication import MPICommunication
 
 __all__ = ["SplitTiles", "SquareDiagTiles"]
 
@@ -326,6 +327,45 @@ class SplitTiles:
         # this will set the tile values using the torch setitem function
         arr = self.__getitem__(key)
         arr.__setitem__(slice(0, None), value)
+
+    def get_subarray_params(
+        self, from_axis: int, to_axis: int
+    ) -> List[Tuple[List[int], List[int], List[int]]]:
+        """Create subarray types of the local array along a new split axis. For use with Alltoallw.
+
+        Based on the work by Dalcin et al. (https://arxiv.org/abs/1804.09536)
+        Return type is a list of tuples, each tuple containing the shape of the local array, the shape of the subarray, and the start index of the subarray.
+
+        Parameters
+        ----------
+        from_axis : int
+            Current split axis of global array.
+        to_axis : int
+            New split axis of of subarrays array.
+        """
+        arr = self.__DNDarray
+        world_size = arr.comm.Get_size()
+        gshape = arr.gshape
+        from_shape = list(gshape)
+        from_shape[from_axis] = int(self.tile_dimensions[from_axis][arr.comm.rank].item())
+
+        subsizes = from_shape
+        substarts = [0] * len(from_shape)
+
+        tile_dimensions = self.tile_dimensions[to_axis].to(torch.int32).tolist()
+        tile_starts = [0] + self.tile_ends_g[to_axis][:-1].to(torch.int32).tolist()
+
+        subarray_param_list = []
+        lshape = from_shape.copy()
+        for i in range(world_size):
+            chunk_size = tile_dimensions[i]
+            chunk_start = tile_starts[i]
+
+            subsizes[to_axis] = chunk_size
+            substarts[to_axis] = chunk_start
+            subarray_param_list.append((lshape, subsizes.copy(), substarts.copy()))
+
+        return subarray_param_list
 
 
 class SquareDiagTiles:

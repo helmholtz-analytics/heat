@@ -6,16 +6,12 @@ No-frills instructions for [new users](#new-users-condaconda-pippip-hpchpc-docke
 
 ### `conda`
 
-A Heat conda build is [in progress](https://github.com/helmholtz-analytics/heat/issues/1050).
-The script [heat_env.yml](https://github.com/helmholtz-analytics/heat/blob/main/scripts/heat_env.yml):
+The Heat conda build includes all dependencies including OpenMPI.
 
-- creates a virtual environment `heat_env`
-- installs all dependencies including OpenMPI using [conda](https://conda.io/projects/conda/en/latest/user-guide/getting-started.html)
-- installs Heat via `pip`
-
-```
-conda env create -f heat_env.yml
+```shell
+conda create --name heat_env
 conda activate heat_env
+conda install -c conda-forge heat
 ```
 
 [Test](#test) your installation.
@@ -34,12 +30,15 @@ pip install heat[hdf5,netcdf]
 
 [Test](#test) your installation.
 
+### HPC
+Work in progress.
+
 ### Docker
 
 Get the docker image from our package repository
 
 ```
-docker pull ghcr.io/helmholtz-analytics/heat:1.2.0-dev_torch1.12_cuda11.7_py3.8
+docker pull ghcr.io/helmholtz-analytics/heat:<version-tag>
 ```
 
 or build it from our Dockerfile
@@ -47,8 +46,10 @@ or build it from our Dockerfile
 ```
 git clone https://github.com/helmholtz-analytics/heat.git
 cd heat/docker
-docker build -t heat:latest .
+docker build --build-arg HEAT_VERSION=X.Y.Z --build-arg PYTORCH_IMG=<nvcr-tag> -t heat:X.Y.Z .
 ```
+
+`<nvcr-tag>` should be replaced with an existing version of the official Nvidia pytorch container image. Information and existing tags can be found on the [here](https://catalog.ngc.nvidia.com/orgs/nvidia/containers/pytorch)
 
 See [our docker README](https://github.com/helmholtz-analytics/heat/tree/main/docker/README.md) for other details.
 
@@ -77,21 +78,34 @@ Local torch tensor on rank  1 :  tensor([5, 6, 7, 8, 9], dtype=torch.int32)
 
 3. [Fork](https://docs.github.com/en/get-started/quickstart/contributing-to-projects) or, if you have write access, clone the [Heat repository](https://github.com/helmholtz-analytics/heat).
 
-4. Create a virtual environment `heat_dev` with all dependencies via [heat_dev.yml](https://github.com/helmholtz-analytics/heat/blob/main/scripts/heat_dev.yml). Note that `heat_dev.yml` does not install Heat via `pip` (as opposed to [`heat_env.yml`](#conda) for users).
+4. **Setting up a dev-environment with CONDA:** Create a virtual environment `heat_dev` with all dependencies via [scripts/heat_dev.yml](https://github.com/helmholtz-analytics/heat/blob/main/scripts/heat_dev.yml). Note that `scripts/heat_dev.yml` does not install Heat.
 
     ```
-    conda env create -f heat_dev.yml
+    conda env create -f scripts/heat_dev.yml
     conda activate heat_dev
     ```
+    Note that in case you want to use a GPU while developing on your local machine, you need to set up a CUDA environment by using `scripts/heat_dev_cuda11.yml`for CUDA 11 or `scripts/heat_dev_cuda12.yml`for CUDA 12, respectively, instead of `scripts/heat_dev.yml`.
 
-5. In the `/heat` directory of your local repo, install the [pre-commit hooks]( https://pre-commit.com/):
+    **Setting up a dev-environment with PIP:** Create a virtual environment `heatenv` with `python -m venv <path_to_store_venvs>/heatenv`, and activate it by `source <path_to_store_venvs>/heatenv/bin/activate`. Then clone the Heat-repo from GitHub by
+
+    ```
+    git clone https://github.com/helmholtz-analytics/heat.git
+    ```
+
+     go to the Heat-folder (`cd heat`), and install (in editable fashion "`-e`") by
+
+    ```
+    pip install -e '.[hdf5, netcdf]'
+    ```
+
+6. In the `/heat` directory of your local repo, install the [pre-commit hooks]( https://pre-commit.com/):
 
     ```
     cd $MY_REPO_DIR/heat/
     pre-commit install
     ```
 
-6. Write and run (locally) [unit tests](https://docs.python.org/3/library/unittest.html) for any change you introduce. Here's a sample of our [test modules](https://github.com/helmholtz-analytics/heat/tree/main/heat/core/tests).
+7. Write and run (locally) [unit tests](https://docs.python.org/3/library/unittest.html) for any change you introduce. Here's a sample of our [test modules](https://github.com/helmholtz-analytics/heat/tree/main/heat/core/tests).
 
     Running all unit tests locally, e.g. on 3 processes:
 
@@ -124,6 +138,6 @@ Local torch tensor on rank  1 :  tensor([5, 6, 7, 8, 9], dtype=torch.int32)
     mpirun --tag-output -n 3 python -m unittest -vf
     ```
 
-7. After [making and pushing](https://docs.github.com/en/get-started/quickstart/contributing-to-projects#making-and-pushing-changes) your changes, go ahead and [create a Pull Request](https://docs.github.com/en/get-started/quickstart/contributing-to-projects#making-a-pull-request). Make sure you go through the Due Diligence checklist (part of our PR template). Consider [allowing us to edit your branch](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/allowing-changes-to-a-pull-request-branch-created-from-a-fork#enabling-repository-maintainer-permissions-on-existing-pull-requests) for a smoother review process.
+8. After [making and pushing](https://docs.github.com/en/get-started/quickstart/contributing-to-projects#making-and-pushing-changes) your changes, go ahead and [create a Pull Request](https://docs.github.com/en/get-started/quickstart/contributing-to-projects#making-a-pull-request). Make sure you go through the Due Diligence checklist (part of our PR template). Consider [allowing us to edit your branch](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/allowing-changes-to-a-pull-request-branch-created-from-a-fork#enabling-repository-maintainer-permissions-on-existing-pull-requests) for a smoother review process.
 
     ## Thank you so much for your time!

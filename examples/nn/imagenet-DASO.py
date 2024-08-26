@@ -330,8 +330,8 @@ def main():
         print0("Test mode - no DDP, no apex, RN50, 10 iterations")
 
     args.distributed = True  # TODO: DDDP: if ht.MPI_WORLD.size > 1 else False
-    print0("loss_scale = {}".format(args.loss_scale), type(args.loss_scale))
-    print0("\nCUDNN VERSION: {}\n".format(torch.backends.cudnn.version()))
+    print0(f"loss_scale = {args.loss_scale}", type(args.loss_scale))
+    print0(f"\nCUDNN VERSION: {torch.backends.cudnn.version()}\n")
 
     cudnn.benchmark = True
     best_prec1 = 0
@@ -379,10 +379,10 @@ def main():
 
     # create model
     if args.pretrained:
-        print0("=> using pre-trained model '{}'".format(args.arch))
+        print0(f"=> using pre-trained model '{args.arch}'")
         model = models.__dict__[args.arch](pretrained=True)
     else:
-        print0("=> creating model '{}'".format(args.arch))
+        print0(f"=> creating model '{args.arch}'")
         model = models.__dict__[args.arch]()
 
     if (
@@ -426,7 +426,7 @@ def main():
         # Use a local scope to avoid dangling references
         def resume():
             if os.path.isfile(args.resume):
-                print0("=> loading checkpoint '{}'".format(args.resume))
+                print0(f"=> loading checkpoint '{args.resume}'")
                 checkpoint = torch.load(
                     args.resume, map_location=lambda storage, loc: storage.cuda(args.gpu)
                 )
@@ -440,7 +440,7 @@ def main():
             else:
                 try:
                     resfile = "imgnet-checkpoint-" + str(args.world_size) + ".pth.tar"
-                    print0("=> loading checkpoint '{}'".format(resfile))
+                    print0(f"=> loading checkpoint '{resfile}'")
                     checkpoint = torch.load(
                         resfile, map_location=lambda storage, loc: storage.cuda(args.gpu)
                     )
@@ -636,11 +636,11 @@ def train(dev, train_loader, model, criterion, optimizer, epoch):
         target = data[0]["label"].squeeze().cuda(dev).long()
 
         if 0 <= args.prof == i:
-            print("Profiling begun at iteration {}".format(i))
+            print(f"Profiling begun at iteration {i}")
             torch.cuda.cudart().cudaProfilerStart()
 
         if args.prof >= 0:
-            torch.cuda.nvtx.range_push("Body of iteration {}".format(i))
+            torch.cuda.nvtx.range_push(f"Body of iteration {i}")
 
         lr_warmup(optimizer, epoch, i, train_loader_len)
 
@@ -719,7 +719,7 @@ def train(dev, train_loader, model, criterion, optimizer, epoch):
             torch.cuda.nvtx.range_pop()
 
         if args.prof >= 0 and i == args.prof + 10:
-            print0("Profiling ended at iteration {}".format(i))
+            print0(f"Profiling ended at iteration {i}")
             torch.cuda.cudart().cudaProfilerStop()
             quit()
     # todo average loss, and top1 and top5

@@ -68,8 +68,8 @@ initial centroids.
     c1.balance_()
     c2.balance_()
 
-    print(f"Number of points assigned to c1: {c1.shape[0]} "
-          f"Number of points assigned to c2: {c2.shape[0]} "
+    print(f"Number of points assigned to c1: {c1.shape[0]} \n"
+          f"Number of points assigned to c2: {c2.shape[0]} \n"
           f"Centroids = {centroids}")
 
 .. code:: text
@@ -95,7 +95,7 @@ Let's plot the assigned clusters and the respective centroids:
 
 .. image:: ../images/clustering.png
 
-We can also cluster the data with kmedians. The respective advanced initial centroid sampling is called 'kmedians++'
+We can also cluster the data with kmedians. The respective advanced initial centroid sampling is called 'kmedians++'.
 
 .. code:: python
 
@@ -110,8 +110,9 @@ We can also cluster the data with kmedians. The respective advanced initial cent
     c1.balance_()
     c2.balance_()
 
-    print(f"Number of points assigned to c1: {c1.shape[0]}"
-          f"Number of points assigned to c2: {c2.shape[0]}")
+    print(f"Number of points assigned to c1: {c1.shape[0]} \n"
+          f"Number of points assigned to c2: {c2.shape[0]} \n"
+          f"Centroids = {centroids}")
 
 Plotting the assigned clusters and the respective centroids:
 
@@ -132,7 +133,7 @@ The Iris Dataset
 ------------------------------
 The _iris_ dataset is a well known example for clustering analysis. It contains 4 measured features for samples from
 three different types of iris flowers. A subset of 150 samples is included in formats h5, csv and netcdf in Heat,
-located under 'heat/heat/datasets/iris.h5', and can be loaded in a distributed manner with Heat's parallel
+located under 'heat/heat/datasets', and can be loaded in a distributed manner with Heat's parallel
 dataloader
 
 .. code:: python

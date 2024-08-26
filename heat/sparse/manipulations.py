@@ -1,20 +1,110 @@
 """Manipulation operations for (potentially distributed) `DCSR_matrix`."""
+
 from __future__ import annotations
 
-from heat.sparse.dcsr_matrix import DCSR_matrix
-
+from heat.sparse.dcsx_matrix import DCSC_matrix, DCSR_matrix, __DCSX_matrix
+from heat.sparse.factories import sparse_csc_matrix, sparse_csr_matrix
 from ..core.memory import sanitize_memory_layout
 from ..core.dndarray import DNDarray
 from ..core.factories import empty
 
 __all__ = [
-    "todense",
+    "to_dense",
+    "to_sparse_csr",
+    "to_sparse_csc",
 ]
 
 
-def todense(sparse_matrix: DCSR_matrix, order="C", out: DNDarray = None) -> DNDarray:
+def __to_sparse(array: DNDarray, orientation="row") -> __DCSX_matrix:
     """
-    Convert :class:`~heat.sparse.DCSR_matrix` to a dense :class:`~heat.core.DNDarray`.
+    Convert the distributed array to a sparse DCSX_matrix representation.
+    This is a common method for converting a distributed array to a sparse matrix representation.
+
+    Parameters
+    ----------
+    array : DNDarray
+        The distributed array to be converted to a sparse matrix.
+
+    orientation : str
+        The orientation of the sparse matrix. Options: ``'row'`` or ``'col'``. Default is ``'row'``.
+
+    Returns
+    -------
+    DCSX_matrix
+
+    Raises
+    ------
+    ValueError
+        If the orientation is not ``'row'`` or ``'col'``.
+    """
+    if orientation not in ["row", "col"]:
+        raise ValueError(f"Invalid orientation: {orientation}. Options: 'row' or 'col'")
+
+    array.balance_()
+    method = sparse_csr_matrix if orientation == "row" else sparse_csc_matrix
+    result = method(
+        array.larray, dtype=array.dtype, is_split=array.split, device=array.device, comm=array.comm
+    )
+    return result
+
+
+def to_sparse_csr(array: DNDarray) -> DCSR_matrix:
+    """
+    Convert the distributed array to a sparse DCSR_matrix representation.
+
+    Parameters
+    ----------
+    array : DNDarray
+        The distributed array to be converted to a sparse DCSR_matrix.
+
+    Returns
+    -------
+    DCSR_matrix
+        A sparse DCSR_matrix representation of the input DNDarray.
+
+    Examples
+    --------
+    >>> dense_array = ht.array([[1, 0, 0], [0, 0, 2], [0, 3, 0]])
+    >>> dense_array.to_sparse_csr()
+    (indptr: tensor([0, 1, 2, 3]), indices: tensor([0, 2, 1]), data: tensor([1, 2, 3]), dtype=ht.int64, device=cpu:0, split=None)
+    """
+    return __to_sparse(array, orientation="row")
+
+
+DNDarray.to_sparse_csr = to_sparse_csr
+DNDarray.to_sparse_csr.__doc__ = to_sparse_csr.__doc__
+
+
+def to_sparse_csc(array: DNDarray) -> DCSC_matrix:
+    """
+    Convert the distributed array to a sparse DCSC_matrix representation.
+
+    Parameters
+    ----------
+    array : DNDarray
+        The distributed array to be converted to a sparse DCSC_matrix.
+
+    Returns
+    -------
+    DCSC_matrix
+        A sparse DCSC_matrix representation of the input DNDarray.
+
+    Examples
+    --------
+    >>> dense_array = ht.array([[1, 0, 0], [0, 0, 2], [0, 3, 0]])
+    >>> dense_array.to_sparse_csc()
+    (indptr: tensor([0, 1, 2, 3]), indices: tensor([0, 2, 1]), data: tensor([1, 3, 2]), dtype=ht.int64, device=cpu:0, split=None)
+    """
+    return __to_sparse(array, orientation="col")
+
+
+DNDarray.to_sparse_csc = to_sparse_csc
+DNDarray.to_sparse_csc.__doc__ = to_sparse_csc.__doc__
+
+
+def to_dense(sparse_matrix: __DCSX_matrix, order="C", out: DNDarray = None) -> DNDarray:
+    """
+    Convert :class:`~heat.sparse.DCSX_matrix` to a dense :class:`~heat.core.DNDarray`.
     Output follows the same distribution among processes as the input
 
     Parameters
@@ -75,5 +165,5 @@ def todense(sparse_matrix: DCSR_matrix, order="C", out: DNDarray = None) -> DNDa
     return out
 
 
-DCSR_matrix.todense = lambda self, order="C", out=None: todense(self, order, out)
-DCSR_matrix.to_dense = lambda self, order="C", out=None: todense(self, order, out)
+__DCSX_matrix.todense = lambda self, order="C", out=None: to_dense(self, order, out)
+__DCSX_matrix.to_dense = lambda self, order="C", out=None: to_dense(self, order, out)

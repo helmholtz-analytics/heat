@@ -4,19 +4,29 @@ on:
   release:
     types: [released]
 
+permissions:
+  contents: read
+
 jobs:
-  update:
+  update-changelog:
+    permissions:
+      contents: write  # for stefanzweifel/git-auto-commit-action to push code in repo
     runs-on: ubuntu-latest
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@5c7944e73c4c2a096b17a9cb74d65b6c2bbafbde # v2.9.1
+        with:
+          egress-policy: audit
+
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
           repository: helmholtz-analytics/heat
           ref: ${{ github.event.release.target_commitish }}
       - name: Update Changelog
         run: |
-          echo ${{ format('\# {0} - {1}', env.GITHUB_REF, github.event.release.name) }} > cl_title.md
-          echo ${{ github.event.release.body }} > cl_new_body.md
+          echo $RELEASE_TITLE > cl_title.md
+          echo "$RELEASE_BODY" > cl_new_body.md
           echo "" > newline.txt
           cat cl_title.md newline.txt cl_new_body.md newline.txt CHANGELOG.md > tmp
           mv tmp CHANGELOG.md
@@ -24,9 +34,22 @@ jobs:
           rm cl_new_body.md
           rm newline.txt
           cat CHANGELOG.md
-      - name: Commit updated CHANGELOG
-        uses: stefanzweifel/git-auto-commit-action@v4
+        env:
+          RELEASE_TITLE: ${{ format('# {0} - {1}', github.event.release.tag_name, github.event.release.name) }}
+          RELEASE_BODY: ${{ github.event.release.body }}
+      - name: Create PR
+        uses: peter-evans/create-pull-request@c5a7806660adbe173f04e3e038b0ccdcd758773c # v6.1.0
         with:
-          branch: ${{ github.event.release.target_commitish }}
-          commit_message: Update CHANGELOG
-          file_pattern: CHANGELOG.md
+            base: main
+            branch: post-release-changelog-update
+            delete-branch: true
+            token: ${{ secrets.GITHUB_TOKEN }}
+            commit-message: Update Changelog post release
+            title: Update Changelog post release
+            body: |
+              This PR updates the changelog post release.
+
+              Changed files should include an updated CHANGELOG.md containing the release notes from the latest release.
+
+            reviewers: ClaudiaComito, mtar, JuanPedroGHM
+            labels: chore, github_actions

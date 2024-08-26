@@ -24,7 +24,7 @@ def __binary_op(
     t1: Union[DNDarray, int, float],
     t2: Union[DNDarray, int, float],
     out: Optional[DNDarray] = None,
-    where: Optional[DNDarray] = None,
+    where: Union[bool, DNDarray] = True,
     fn_kwargs: Optional[Dict] = {},
 ) -> DNDarray:
     """
@@ -84,6 +84,32 @@ def __binary_op(
         )
     promoted_type = types.result_type(t1, t2).torch_type()
 
+    # Type check for in-place operators
+    in_place_arithmetics = {
+        "wrap_add_",
+        "wrap_bitwise_and_",
+        "wrap_bitwise_or_",
+        "wrap_bitwise_xor_",
+        "wrap_div_",
+        "wrap_floordiv_",
+        "wrap_fmod_",
+        "wrap_gcd_",
+        "wrap_hypot_",
+        "wrap_lcm_",
+        "wrap_bitwise_left_shift_",
+        "wrap_mul_",
+        "wrap_pow_",
+        "wrap_remainder_",
+        "wrap_bitwise_right_shift_",
+        "wrap_sub_",
+    }
+    if operation.__name__ in in_place_arithmetics:
+        if not types.can_cast(types.heat_type_of(t2), types.heat_type_of(t1)):
+            raise TypeError(
+                f"Cannot cast from {types.heat_type_of(t2)} to {types.heat_type_of(t1)} for "
+                + "in-place operations."
+            )
+
     # Make inputs Dndarrays
     if np.isscalar(t1) and np.isscalar(t2):
         try:
@@ -104,7 +130,7 @@ def __binary_op(
 
     # Make inputs have the same dimensionality
     output_shape = stride_tricks.broadcast_shape(t1.shape, t2.shape)
-    if where is not None:
+    if where is not True:
         output_shape = stride_tricks.broadcast_shape(where.shape, output_shape)
         while len(where.shape) < len(output_shape):
             where = where.expand_dims(axis=0)
@@ -173,7 +199,7 @@ def __binary_op(
 
     result = operation(t1.larray.to(promoted_type), t2.larray.to(promoted_type), **fn_kwargs)
 
-    if out is None and where is None:
+    if out is None and where is True:
         return DNDarray(
             result,
             output_shape,
@@ -184,7 +210,7 @@ def __binary_op(
             balanced=output_balanced,
         )
 
-    if where is not None:
+    if where is not True:
         if out is None:
             out = factories.empty(
                 output_shape,
@@ -359,7 +385,6 @@ def __local_op(
             x.comm,
             x.balanced,
         )
-
     # output buffer writing requires a bit more work
     # we need to determine whether the operands are broadcastable and the multiple of the broadcasting
     # reason: manually repetition for each dimension as PyTorch does not conform to numpy's broadcast semantic
@@ -369,7 +394,7 @@ def __local_op(
     multiples = [(int(a / b) if b > 0 else 0) for a, b in zip(broadcast_shape, padded_shape)]
     needs_repetition = builtins.any(multiple > 1 for multiple in multiples)
 
-    # do an inplace operation into a provided buffer
+    # do an in-place operation into a provided buffer
     casted = x.larray.type(torch_type)
     operation(casted.repeat(multiples) if needs_repetition else casted, out=out.larray, **kwargs)
 

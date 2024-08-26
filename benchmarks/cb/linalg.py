@@ -1,7 +1,5 @@
 # flake8: noqa
 import heat as ht
-import itertools
-import torchvision.datasets as datasets
 from mpi4py import MPI
 from perun import monitor
 
@@ -18,14 +16,12 @@ def matmul_split_1(a, b):
 
 @monitor()
 def qr_split_0(a):
-    for t in range(1, 3):
-        qr = a.qr(tiles_per_proc=t)
+    qr = ht.linalg.qr(a)
 
 
 @monitor()
 def qr_split_1(a):
-    for t in range(1, 3):
-        qr = a.qr(tiles_per_proc=t)
+    qr = ht.linalg.qr(a)
 
 
 @monitor()
@@ -55,12 +51,16 @@ def run_linalg_benchmarks():
     matmul_split_1(a, b)
     del a, b
 
-    n = 2000
-    a_0 = ht.random.random((n, n), split=0)
-    a_1 = ht.random.random((n, n), split=1)
+    n = int((4000000 // MPI.COMM_WORLD.size) ** 0.5)
+    m = MPI.COMM_WORLD.size * n
+    a_0 = ht.random.random((m, n), split=0)
     qr_split_0(a_0)
+    del a_0
+
+    n = 2000
+    a_1 = ht.random.random((n, n), split=1)
     qr_split_1(a_1)
-    del a_0, a_1
+    del a_1
 
     n = 50
     A = ht.random.random((n, n), dtype=ht.float64, split=0)

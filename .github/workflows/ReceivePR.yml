@@ -2,25 +2,31 @@ name: Receive PR
 
 on:
   pull_request:
-    paths-ignore:
-      - 'doc/**'
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - 'heat/**'
 
 jobs:
   build:
-    if: ${{ !startsWith(github.head_ref, 'support/') }}
+    if: ${{ !startsWith(github.head_ref, 'support/') && (github.event.pull_request.draft == false) }}
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Harden Runner
+        uses: step-security/harden-runner@5c7944e73c4c2a096b17a9cb74d65b6c2bbafbde # v2.9.1
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@v4.1.7
 
       - name: Use Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@39cd14951b08e74b54015e9e001cdefcf80e669f # v5.1.1
         with:
-          python-version: 3.8
+          python-version: 3.9
           architecture: x64
 
       - name: Setup MPI
-        uses: mpi4py/setup-mpi@v1
+        uses: mpi4py/setup-mpi@40c19a60792debf8ca403a3e6ee5f84c4e76555d # v1.2.1
         with:
           mpi: openmpi
 
@@ -36,7 +42,7 @@ jobs:
         run: |
           mkdir -p ./pr
           echo $PR_NUMBER > ./pr/pr_number
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@834a144ee995460fba8ed112a2fc961b36a5ec5a # v4.3.6
         with:
           name: pr_number
           path: pr/

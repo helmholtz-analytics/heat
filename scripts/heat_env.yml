@@ -3,14 +3,5 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  - python=3.9
-  - openmpi
-  - mpi4py
-  - h5py[version='>=2.9',build=mpi*]
-  - netcdf4
-  - pytorch=1.13.0
-  - torchvision
-  - scipy
-  - pip
-  - pip:
-    - heat
+  - python=3.10
+  - heat

@@ -70,7 +70,7 @@ Distributed Computing
 ---------------------
 
 .. warning::
-    For the following code examples, make sure to you have `MPI <https://computing.llnl.gov/tutorials/mpi/>`_ installed.
+    For the following code examples, make sure you have `MPI <https://computing.llnl.gov/tutorials/mpi/>`_ installed.
 
 With Heat you can even compute in distributed memory environments with multiple computation nodes, like modern high-performance cluster systems. For this, Heat makes use of the fact that operations performed on multi-dimensional arrays tend to be identical for all data items. Hence, they can be processed in data-parallel manner. Heat partitions the total number of data items equally among all processing nodes. A ``DNDarray`` assumes the role of a virtual overlay over these node-local data portions and manages them for you while offering the same interface. Consequently, operations can now be executed in parallel. Each processing node applies them locally to their own data chunk. If necessary, partial results are communicated and automatically combined behind the scenes for correct global results.
 
@@ -174,7 +174,7 @@ Output:
 
 .. code:: text
 
-    DNDarray([12.], dtype=ht.float32, device=cpu:0, split=None)
+    DNDarray(12., dtype=ht.float32, device=cpu:0, split=None)
 
 The previously ``split=0`` matrix is ``split=None`` after the reduction operation. Obviously, we can also perform operations between (differently) split ``DNDarrays``.
 
@@ -191,7 +191,7 @@ Output:
 
     DNDarray([[1., 2., 3., 4.],
               [1., 2., 3., 4.],
-              [1., 2., 3., 4.]], dtype=ht.float32, device=cpu:0, split=0)
+              [1., 2., 3., 4.]], dtype=ht.float32, device=cpu:0, split=1)
 
     [0/3] DNDarray([1., 2., 3., 4.], dtype=ht.int32, device=cpu:0, split=None)
     [1/3] DNDarray([1., 2., 3., 4.], dtype=ht.int32, device=cpu:0, split=None)
@@ -200,7 +200,7 @@ Output:
 Technical Details
 ^^^^^^^^^^^^^^^^^
 
-On a technical level, Heat is inspired by the so-called `Bulk Synchronous Parallel (BSP) <https://en.wikipedia.org/wiki/Bulk_synchronous_parallel>`_ processing model. Computations proceed in a series of hierarchical supersteps, each consisting of a number of node-local computations and subsequent communications. In contrast to the classical BSP model, communicated data is available immediately, rather than after the next global synchronization. In Heat, global synchronizations only occurs for collective MPI calls as well as at the program start and termination.
+On a technical level, Heat is inspired by the so-called `Bulk Synchronous Parallel (BSP) <https://en.wikipedia.org/wiki/Bulk_synchronous_parallel>`_ processing model. Computations proceed in a series of hierarchical supersteps, each consisting of a number of node-local computations and subsequent communications. In contrast to the classical BSP model, communicated data is available immediately, rather than after the next global synchronization. In Heat, global synchronization only occurs for collective MPI calls as well as at the program start and termination.
 
 .. image:: ../images/bsp.svg
     :align: center
@@ -223,13 +223,13 @@ You can start the distributed interactive interpreter by invoking the following 
 
 .. note::
 
-    The interactive interpreter does only support a subset of all controls commands.
+    The interactive interpreter does only support a subset of all control commands.
 
 
 Parallel Performance
 --------------------
 
-When working with parallel and distributed computation in Heat there are some best practices for you may to know about. The following list covers the major ones.
+When working with parallel and distributed computation in Heat there are some best practices for you to know about. The following list covers the major ones.
 
 Dos
 ^^^

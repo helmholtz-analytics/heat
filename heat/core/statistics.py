@@ -1,6 +1,7 @@
 """
 Distributed statistical operations.
 """
+
 import numpy as np
 import torch
 from typing import Any, Callable, Union, Tuple, List, Optional
@@ -18,6 +19,8 @@ from . import sanitation
 from . import stride_tricks
 from . import logical
 from . import constants
+from .random import randint
+from warnings import warn
 
 __all__ = [
     "argmax",
@@ -99,7 +102,7 @@ def argmax(
 
     # axis sanitation
     if axis is not None and not isinstance(axis, int):
-        raise TypeError("axis must be None or int, was {}".format(type(axis)))
+        raise TypeError(f"axis must be None or int, was {type(axis)}")
 
     # perform the global reduction
     smallest_value = -sanitation.sanitize_infinity(x)
@@ -108,9 +111,9 @@ def argmax(
     )
 
 
-DNDarray.argmax: Callable[
-    [DNDarray, int, DNDarray, object], DNDarray
-] = lambda self, axis=None, out=None, **kwargs: argmax(self, axis, out, **kwargs)
+DNDarray.argmax: Callable[[DNDarray, int, DNDarray, object], DNDarray] = (
+    lambda self, axis=None, out=None, **kwargs: argmax(self, axis, out, **kwargs)
+)
 DNDarray.argmax.__doc__ = argmax.__doc__
 
 
@@ -171,7 +174,7 @@ def argmin(
 
     # axis sanitation
     if axis is not None and not isinstance(axis, int):
-        raise TypeError("axis must be None or int, was {}".format(type(axis)))
+        raise TypeError(f"axis must be None or int, was {type(axis)}")
 
     # perform the global reduction
     largest_value = sanitation.sanitize_infinity(x)
@@ -180,9 +183,9 @@ def argmin(
     )
 
 
-DNDarray.argmin: Callable[
-    [DNDarray, int, DNDarray, object], DNDarray
-] = lambda self, axis=None, out=None, **kwargs: argmin(self, axis, out, **kwargs)
+DNDarray.argmin: Callable[[DNDarray, int, DNDarray, object], DNDarray] = (
+    lambda self, axis=None, out=None, **kwargs: argmin(self, axis, out, **kwargs)
+)
 DNDarray.argmin.__doc__ = argmin.__doc__
 
 
@@ -773,9 +776,9 @@ def kurtosis(
         return __moment_w_axis(__torch_kurtosis, x, axis, None, unbiased, Fischer)
 
 
-DNDarray.kurtosis: Callable[
-    [DNDarray, int, bool, bool], DNDarray
-] = lambda x, axis=None, unbiased=True, Fischer=True: kurtosis(x, axis, unbiased, Fischer)
+DNDarray.kurtosis: Callable[[DNDarray, int, bool, bool], DNDarray] = (
+    lambda x, axis=None, unbiased=True, Fischer=True: kurtosis(x, axis, unbiased, Fischer)
+)
 DNDarray.kurtosis.__doc__ = average.__doc__
 
 
@@ -832,9 +835,9 @@ def max(
     )
 
 
-DNDarray.max: Callable[
-    [DNDarray, Union[int, Tuple[int, ...]], DNDarray, bool], DNDarray
-] = lambda x, axis=None, out=None, keepdims=None: max(x, axis, out, keepdims)
+DNDarray.max: Callable[[DNDarray, Union[int, Tuple[int, ...]], DNDarray, bool], DNDarray] = (
+    lambda x, axis=None, out=None, keepdims=None: max(x, axis, out, keepdims)
+)
 DNDarray.max.__doc__ = max.__doc__
 
 
@@ -1015,10 +1018,19 @@ DNDarray.mean: Callable[[DNDarray, Union[int, List, Tuple]], DNDarray] = lambda 
 DNDarray.mean.__doc__ = mean.__doc__
 
 
-def median(x: DNDarray, axis: Optional[int] = None, keepdims: bool = False) -> DNDarray:
+def median(
+    x: DNDarray,
+    axis: Optional[int] = None,
+    keepdims: bool = False,
+    sketched: bool = False,
+    sketch_size: Optional[float] = 1.0 / MPI.COMM_WORLD.size,
+) -> DNDarray:
     """
     Compute the median of the data along the specified axis.
     Returns the median of the ``DNDarray`` elements.
+    Per default, the "true" median of the entire data set is computed; however, the argument
+    `sketched` allows to switch to a faster but less accurate version that computes
+    the median only on behalf of a random subset of the data set ("sketch").
 
     Parameters
     ----------
@@ -1031,14 +1043,25 @@ def median(x: DNDarray, axis: Optional[int] = None, keepdims: bool = False) -> D
     keepdims : bool, optional
         If True, the axes which are reduced are left in the result as dimensions with size one.
         With this option, the result can broadcast correctly against the original array ``a``.
+
+    sketched : bool, optional
+        If True, the median is computed on a random subset of the data set ("sketch").
+        This is faster but less accurate.  Default is False. The size of the sketch is controlled by the argument `sketch_size`.
+    sketch_size : float, optional
+        The size of the sketch as a fraction of the data set size. Default is `1./n_proc`  where `n_proc` is the number of MPI processes, e.g. `n_proc =  MPI.COMM_WORLD.size`. Must be in the range (0, 1).
+        Ignored for sketched = False.
     """
-    return percentile(x, q=50, axis=axis, keepdims=keepdims)
+    return percentile(
+        x, q=50, axis=axis, keepdims=keepdims, sketched=sketched, sketch_size=sketch_size
+    )
 
 
-DNDarray.median: Callable[
-    [DNDarray, int, bool], DNDarray
-] = lambda x, axis=None, keepdims=False: median(x, axis, keepdims)
-DNDarray.mean.__doc__ = mean.__doc__
+DNDarray.median: Callable[[DNDarray, int, bool, bool, float], DNDarray] = (
+    lambda x, axis=None, keepdims=False, sketched=False, sketch_size=1.0 / MPI.COMM_WORLD.size: median(
+        x, axis, keepdims, sketched=sketched, sketch_size=sketch_size
+    )
+)
+DNDarray.median.__doc__ = median.__doc__
 
 
 def __merge_moments(
@@ -1164,9 +1187,9 @@ def min(
     )
 
 
-DNDarray.min: Callable[
-    [DNDarray, Union[int, Tuple[int, ...]], DNDarray, bool], DNDarray
-] = lambda self, axis=None, out=None, keepdims=None: min(self, axis, out, keepdims)
+DNDarray.min: Callable[[DNDarray, Union[int, Tuple[int, ...]], DNDarray, bool], DNDarray] = (
+    lambda self, axis=None, out=None, keepdims=None: min(self, axis, out, keepdims)
+)
 DNDarray.min.__doc__ = min.__doc__
 
 
@@ -1411,10 +1434,15 @@ def percentile(
     out: Optional[DNDarray] = None,
     interpolation: str = "linear",
     keepdims: bool = False,
+    sketched: bool = False,
+    sketch_size: Optional[float] = 1.0 / MPI.COMM_WORLD.size,
 ) -> DNDarray:
     r"""
     Compute the q-th percentile of the data along the specified axis.
     Returns the q-th percentile(s) of the tensor elements.
+    Per default, the "true" percentile(s) of the entire data set are computed; however, the argument
+    `sketched` allows to switch to a faster but inaccurate version that computes
+    the percentile only on behalf of a random subset of the data set ("sketch").
 
     Parameters
     ----------
@@ -1446,6 +1474,14 @@ def percentile(
     keepdims : bool, optional
         If True, the axes which are reduced are left in the result as dimensions with size one.
         With this option, the result can broadcast correctly against the original array x.
+
+    sketched : bool, optional
+        If False (default), the entire data is used and no sketching is performed.
+        If True, a fraction of the data to use for estimating the percentile. The fraction is determined by `sketch_size`.
+    sketch_size : float, optional
+        The fraction of the data to use for estimating the percentile; needs to be strictly between 0 and 1.
+        The default is 1/size of the MPI communicator, i.e., roughly the portion of the data that is anyway processed on a single process.
+        Ignored for sketched = False.
     """
 
     def _local_percentile(data: torch.Tensor, axis: int, indices: torch.Tensor) -> torch.Tensor:
@@ -1489,12 +1525,64 @@ def percentile(
 
         return percentile
 
+    def _create_sketch(
+        a: DNDarray,
+        axis: Union[int, None],
+        sketch_size_relative: Optional[float] = None,
+        sketch_size_absolute: Optional[int] = None,
+    ) -> DNDarray:
+        """
+        Create a sketch of a DNDarray along a specified axis. The sketch is created by sampling the DNDarray along the specified axis.
+
+        Parameters
+        ----------
+        a : DNDarray
+            The DNDarray for which to create a sketch.
+        axis : int
+            The axis along which to create the sketch.
+        sketch_size_relative : optional, float
+            The size of the sketch. Fraction of samples to take, hence between 0 and 1.
+        sketch_size_absolute : optional, int
+            The size of the sketch. Number of samples to take, hence must not exceed the size of the axis along which the sketch is taken.
+        """
+        if (sketch_size_relative is None and sketch_size_absolute is None) or (
+            sketch_size_relative is not None and sketch_size_absolute is not None
+        ):
+            raise ValueError(
+                "Exactly one of sketch_size_relative and sketch_size_absolute must be specified."
+            )
+        if sketch_size_absolute is None:
+            sketch_size = int(sketch_size_relative * a.shape[axis])
+        else:
+            sketch_size = sketch_size_absolute
+
+        # create a random sample of indices
+        indices = manipulations.sort(
+            randint(0, a.shape[axis], sketch_size, device=a.device, dtype=types.int64)
+        )[0]
+        sketch = a.swapaxes(0, axis)
+        sketch = a[indices, ...].resplit_(None)
+        return sketch.swapaxes(0, axis)
+
     # SANITATION
     # sanitize input
     if not isinstance(x, DNDarray):
-        raise TypeError("expected x to be a DNDarray, but was {}".format(type(x)))
+        raise TypeError(f"expected x to be a DNDarray, but was {type(x)}")
     if isinstance(axis, (list, tuple)):
         raise NotImplementedError("ht.percentile(), tuple axis not implemented yet")
+
+    if sketched:
+        if (
+            not isinstance(sketch_size, float)
+            or sketch_size <= 0
+            or (MPI.COMM_WORLD.size > 1 and sketch_size == 1)
+            or sketch_size > 1
+        ):
+            raise ValueError(
+                f"If sketched=True, sketch_size must be float strictly between 0 and 1, but is {sketch_size}."
+            )
+        else:
+            x = _create_sketch(x, axis, sketch_size_relative=sketch_size)
 
     if axis is None:
         if x.ndim > 1:
@@ -1506,20 +1594,18 @@ def percentile(
     t_x = x.larray
 
     # sanitize q
+    t_perc_dtype = torch.promote_types(t_x.dtype, torch.float32)
     if isinstance(q, (list, tuple)):
-        t_perc_dtype = torch.promote_types(type(q[0]), torch.float32)
         t_q = torch.tensor(q, dtype=t_perc_dtype, device=t_x.device)
     elif np.isscalar(q):
-        t_perc_dtype = torch.promote_types(type(q), torch.float32)
         t_q = torch.tensor([q], dtype=t_perc_dtype, device=t_x.device)
     elif isinstance(q, DNDarray):
         if x.comm.is_distributed() and q.split is not None:
             # q needs to be local
             q.resplit_(axis=None)
         t_q = q.larray
-        t_perc_dtype = torch.promote_types(t_q.dtype, torch.float32)
     else:
-        raise TypeError("DNDarray, list or tuple supported, but q was {}".format(type(q)))
+        raise TypeError(f"DNDarray, list or tuple supported, but q was {type(q)}")
 
     nperc = t_q.numel()
     perc_dtype = types.canonical_heat_type(t_perc_dtype)
@@ -1537,17 +1623,13 @@ def percentile(
     # sanitize out
     if out is not None:
         if not isinstance(out, DNDarray):
-            raise TypeError("out must be DNDarray, was {}".format(type(out)))
+            raise TypeError(f"out must be DNDarray, was {type(out)}")
         if out.dtype is not perc_dtype:
-            raise TypeError(
-                "Wrong datatype for out: expected {}, got {}".format(perc_dtype, out.dtype)
-            )
+            raise TypeError(f"Wrong datatype for out: expected {perc_dtype}, got {out.dtype}")
         if out.gshape != output_shape:
-            raise ValueError("out must have shape {}, got {}".format(output_shape, out.gshape))
+            raise ValueError(f"out must have shape {output_shape}, got {out.gshape}")
         if out.split is not None:
-            raise ValueError(
-                "Split dimension mismatch for out: expected {}, got {}".format(None, out.split)
-            )
+            raise ValueError(f"Split dimension mismatch for out: expected {None}, got {out.split}")
     # END OF SANITATION
 
     # edge-case: x is a scalar. Return x
@@ -1713,9 +1795,9 @@ def skew(x: DNDarray, axis: int = None, unbiased: bool = True) -> DNDarray:
         return __moment_w_axis(__torch_skew, x, axis, None, unbiased)
 
 
-DNDarray.skew: Callable[
-    [DNDarray, int, bool], DNDarray
-] = lambda self, axis=None, unbiased=True: skew(self, axis, unbiased)
+DNDarray.skew: Callable[[DNDarray, int, bool], DNDarray] = (
+    lambda self, axis=None, unbiased=True: skew(self, axis, unbiased)
+)
 DNDarray.skew.__doc__ = skew.__doc__
 
 
@@ -1776,9 +1858,9 @@ def std(
     return exponential.sqrt(var(x, axis, ddof, **kwargs), out=None)
 
 
-DNDarray.std: Callable[
-    [DNDarray, Union[int, Tuple[int], List[int]], int, object], DNDarray
-] = lambda self, axis=None, ddof=0, **kwargs: std(self, axis, ddof, **kwargs)
+DNDarray.std: Callable[[DNDarray, Union[int, Tuple[int], List[int]], int, object], DNDarray] = (
+    lambda self, axis=None, ddof=0, **kwargs: std(self, axis, ddof, **kwargs)
+)
 DNDarray.std.__doc__ = std.__doc__
 
 
@@ -1992,7 +2074,7 @@ def var(
         return __moment_w_axis(torch.var, x, axis, reduce_vars_elementwise, unbiased)
 
 
-DNDarray.var: Callable[
-    [DNDarray, Union[int, Tuple[int], List[int]], int, object], DNDarray
-] = lambda self, axis=None, ddof=0, **kwargs: var(self, axis, ddof, **kwargs)
+DNDarray.var: Callable[[DNDarray, Union[int, Tuple[int], List[int]], int, object], DNDarray] = (
+    lambda self, axis=None, ddof=0, **kwargs: var(self, axis, ddof, **kwargs)
+)
 DNDarray.var.__doc__ = var.__doc__

@@ -22,6 +22,7 @@ from .relational import *
 from .rounding import *
 from .sanitation import *
 from .statistics import *
+from .stride_tricks import *
 from .dndarray import *
 from .tiling import *
 from .trigonometrics import *
@@ -30,3 +31,4 @@ from .signal import *
 from .types import finfo, iinfo
 from . import version
 from .version import __version__
+from .vmap import *

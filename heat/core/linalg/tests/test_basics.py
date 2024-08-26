@@ -302,13 +302,13 @@ class TestLinalgBasics(TestCase):
         ainv = ht.linalg.inv(a)
         i = ht.eye(a.shape, split=1, dtype=a.dtype)
         # loss of precision in distributed floating-point ops
-        self.assertTrue(ht.allclose(a @ ainv, i, atol=1e-12))
+        self.assertTrue(ht.allclose(a @ ainv, i, atol=1e-10))
 
         ht.random.seed(42)
         a = ht.random.random((20, 20), dtype=ht.float64, split=0)
         ainv = ht.linalg.inv(a)
         i = ht.eye(a.shape, split=0, dtype=a.dtype)
-        self.assertTrue(ht.allclose(a @ ainv, i, atol=1e-12))
+        self.assertTrue(ht.allclose(a @ ainv, i, atol=1e-10))
 
         with self.assertRaises(RuntimeError):
             ht.linalg.inv(ht.array([1, 2, 3], split=0))
@@ -809,6 +809,8 @@ class TestLinalgBasics(TestCase):
                 a = ht.zeros((3, 3, 3), split=2)
                 b = a.copy()
                 a @ b
+            with self.assertRaises(TypeError):
+                "T" @ ht.zeros((3, 3, 3))
 
     def test_matrix_norm(self):
         a = ht.arange(9, dtype=ht.float) - 4

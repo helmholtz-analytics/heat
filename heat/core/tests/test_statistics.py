@@ -357,7 +357,7 @@ class TestStatistics(TestCase):
         res = ht.bincount(a, weights=w)
         self.assertEqual(res.size, 4)
         self.assertEqual(res.dtype, ht.float64)
-        self.assertTrue(ht.equal(res, ht.arange((4,), dtype=ht.float64)))
+        self.assertTrue(ht.equal(res, ht.arange(4, dtype=ht.float64)))
 
         with self.assertRaises(ValueError):
             ht.bincount(ht.array([0, 1, 2, 3], split=0), weights=ht.array([1, 2, 3, 4]))
@@ -1181,25 +1181,37 @@ class TestStatistics(TestCase):
         # test list q and writing to output buffer
         q = [0.1, 2.3, 15.9, 50.0, 84.1, 97.7, 99.9]
         axis = 2
-        p_np = np.percentile(x_np, q, axis=axis, interpolation="lower", keepdims=True)
+        try:
+            p_np = np.percentile(x_np, q, axis=axis, method="lower", keepdims=True)
+        except TypeError:
+            p_np = np.percentile(x_np, q, axis=axis, interpolation="lower", keepdims=True)
         p_ht = ht.percentile(x_ht, q, axis=axis, interpolation="lower", keepdims=True)
-        out = ht.empty(p_np.shape, dtype=ht.float64, split=None, device=x_ht.device)
+        out = ht.empty(p_np.shape, dtype=ht.float32, split=None, device=x_ht.device)
         ht.percentile(x_ht, q, axis=axis, out=out, interpolation="lower", keepdims=True)
         self.assertEqual(p_ht.numpy()[5].all(), p_np[5].all())
         self.assertEqual(out.numpy()[2].all(), p_np[2].all())
         self.assertTrue(p_ht.shape == p_np.shape)
         axis = None
-        p_np = np.percentile(x_np, q, axis=axis, interpolation="higher")
+        try:
+            p_np = np.percentile(x_np, q, axis=axis, method="higher")
+        except TypeError:
+            p_np = np.percentile(x_np, q, axis=axis, interpolation="higher")
         p_ht = ht.percentile(x_ht, q, axis=axis, interpolation="higher")
         self.assertEqual(p_ht.numpy()[6], p_np[6])
         self.assertTrue(p_ht.shape == p_np.shape)
-        p_np = np.percentile(x_np, q, axis=axis, interpolation="nearest")
+        try:
+            p_np = np.percentile(x_np, q, axis=axis, method="nearest")
+        except TypeError:
+            p_np = np.percentile(x_np, q, axis=axis, interpolation="nearest")
         p_ht = ht.percentile(x_ht, q, axis=axis, interpolation="nearest")
         self.assertEqual(p_ht.numpy()[2], p_np[2])
 
         # test split q
         q_ht = ht.array(q, split=0, comm=x_ht.comm)
-        p_np = np.percentile(x_np, q, axis=axis, interpolation="midpoint")
+        try:
+            p_np = np.percentile(x_np, q, axis=axis, method="midpoint")
+        except TypeError:
+            p_np = np.percentile(x_np, q, axis=axis, interpolation="midpoint")
         p_ht = ht.percentile(x_ht, q_ht, axis=axis, interpolation="midpoint")
         self.assertEqual(p_ht.numpy()[4], p_np[4])
 
@@ -1222,15 +1234,35 @@ class TestStatistics(TestCase):
         t_out = torch.empty((len(q),), dtype=torch.float64)
         with self.assertRaises(TypeError):
             ht.percentile(x_ht, q, out=t_out)
-        out_wrong_dtype = ht.empty((len(q),), dtype=ht.float32)
+        out_wrong_dtype = ht.empty((len(q),), dtype=ht.float64)
         with self.assertRaises(TypeError):
             ht.percentile(x_ht, q, out=out_wrong_dtype)
-        out_wrong_shape = ht.empty((len(q) + 1,), dtype=ht.float64)
+        out_wrong_shape = ht.empty((len(q) + 1,), dtype=ht.float32)
         with self.assertRaises(ValueError):
             ht.percentile(x_ht, q, out=out_wrong_shape)
-        out_wrong_split = ht.empty((len(q),), dtype=ht.float64, split=0)
+        out_wrong_split = ht.empty((len(q),), dtype=ht.float32, split=0)
         with self.assertRaises(ValueError):
             ht.percentile(x_ht, q, out=out_wrong_split)
+
+    def test_percentile_sketched(self):
+        axis, q = 0, 50
+        use_sketch_of_size = 0.1
+        q = 50
+        # check if it works
+        for split in [None, 1, 0]:
+            X = ht.random.rand(10 * ht.MPI_WORLD.size, 2 * ht.MPI_WORLD.size, split=split)
+            p = ht.percentile(X, q, axis=axis, sketched=True, sketch_size=use_sketch_of_size)
+            self.assertTrue(p.shape == (2 * ht.MPI_WORLD.size,))
+        # default sketch size
+        for split in [None, 1, 0]:
+            X = ht.random.rand(10 * ht.MPI_WORLD.size, 2 * ht.MPI_WORLD.size, split=split)
+            p = ht.percentile(X, q, axis=axis, sketched=True)
+            self.assertTrue(p.shape == (2 * ht.MPI_WORLD.size,))
+        # check if it raises correct errors
+        with self.assertRaises(ValueError):
+            ht.percentile(X, q, axis=axis, sketched=True, sketch_size=1.1)
+        with self.assertRaises(ValueError):
+            ht.percentile(X, q, axis=axis, sketched=True, sketch_size=10)
 
     def test_skew(self):
         x = ht.zeros((2, 3, 4))
@@ -1251,7 +1283,7 @@ class TestStatistics(TestCase):
         # 1 dim
         ht_data = ht.random.rand(50)
         np_data = ht_data.copy().numpy()
-        np_skew32 = ht.array((ss.skew(np_data, bias=False)), dtype=ht_data.dtype)
+        np_skew32 = ht.array(ss.skew(np_data, bias=False)).astype(ht_data.dtype)
         self.assertAlmostEqual(ht.skew(ht_data), np_skew32.item(), places=5)
         ht_data = ht.resplit(ht_data, 0)
         self.assertAlmostEqual(ht.skew(ht_data), np_skew32.item(), places=5)
