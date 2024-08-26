@@ -326,6 +326,7 @@ class MPICommunication(Communication):
         obj : torch.Tensor
             The tensor to be converted into a MPI memory view.
         """
+        # TODO: MPI.memory might be depraecated in future versions of mpi4py. The following code might need to be adapted and use MPI.buffer instead.
         return MPI.memory.fromaddress(obj.data_ptr(), 0)
 
     @classmethod
@@ -335,7 +336,7 @@ class MPICommunication(Communication):
         counts: Optional[Tuple[int]] = None,
         displs: Optional[Tuple[int]] = None,
         is_contiguous: Optional[bool] = None,
-    ) -> List[Union[MPI.buffer, Tuple[int, int], MPI.Datatype]]:
+    ) -> List[Union[MPI.memory, Tuple[int, int], MPI.Datatype]]:
         """
         Converts a passed ``torch.Tensor`` into a memory buffer object with associated number of elements and MPI data type.
 
