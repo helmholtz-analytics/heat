@@ -1,6 +1,7 @@
 """
 Linear Algebra Extension for the Array API standard.
 """
+
 from __future__ import annotations
 
 from ._dtypes import _numeric_dtypes, _result_type

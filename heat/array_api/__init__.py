@@ -1,11 +1,14 @@
 """
 A Heat sub-namespace that conforms to the Python array API standard.
 """
+
 import warnings
 
 warnings.warn("The heat.array_api submodule is not fully implemented.", stacklevel=2)
 
-__all__ = []
+__array_api_version__ = "2023.12"
+
+__all__ = ["__array_api_version__"]
 
 from ._constants import e, inf, nan, newaxis, pi
 
@@ -81,6 +84,7 @@ if hasattr(heat.core.devices, "gpu"):
     __all__ += ["gpu"]
 
 from ._dtypes import (
+    bool,
     int8,
     int16,
     int32,
@@ -91,10 +95,12 @@ from ._dtypes import (
     # uint64,
     float32,
     float64,
-    bool,
+    complex64,
+    complex128,
 )
 
 __all__ += [
+    "bool",
     "int8",
     "int16",
     "int32",
@@ -105,7 +111,8 @@ __all__ += [
     # "uint64",
     "float32",
     "float64",
-    "bool",
+    "complex64",
+    "complex128",
 ]
 
 from ._elementwise_functions import (
