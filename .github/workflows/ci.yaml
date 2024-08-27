@@ -23,6 +23,7 @@ jobs:
           - 'torch==2.1.2 torchvision==0.16.2 torchaudio==2.1.2'
           - 'torch==2.2.2 torchvision==0.17.2 torchaudio==2.2.2'
           - 'torch==2.3.1 torchvision==0.18.1 torchaudio==2.3.1'
+          - 'torch==2.4.0 torchvision==0.19.0 torchaudio==2.4.0'
         exclude:
           - py-version: '3.12'
             pytorch-version: 'torch==2.0.1 torchvision==0.15.2 torchaudio==2.0.2'
@@ -35,7 +36,7 @@ jobs:
     name: Python ${{ matrix.py-version }} with ${{ matrix.pytorch-version }}; options ${{ matrix.install-options }}
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+        uses: step-security/harden-runner@5c7944e73c4c2a096b17a9cb74d65b6c2bbafbde # v2.9.1
         with:
           egress-policy: audit
 
