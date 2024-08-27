@@ -14,6 +14,7 @@ from .. import types
 from ..linalg import matmul, vector_norm, qr, svd
 from ..indexing import where
 from ..random import randn
+from ..statistics import mean
 
 from ..manipulations import vstack, hstack, diag, balance
 
@@ -609,67 +610,54 @@ def rsvd(
 ##############################################################################################
 
 
-def isvd(
+def _isvd(
     new_data: DNDarray,
     U_old: DNDarray,
     S_old: DNDarray,
     V_old: DNDarray,
     maxrank: Optional[int] = None,
-) -> Tuple[DNDarray, DNDarray, DNDarray]:
-    """Incremental SVD (iSVD) for the addition of new data to an existing SVD.
-    Given the the SVD of an "old" matrix, X_old = `U_old @ S_old @ V_old.T`, and additional columns `new_data`, this routine computes
-    (a possibly approximate) SVD of the extended matrix `X_new = [X_old | new_data]`.
+    old_matrix_size: Optional[int] = None,
+    old_rowwise_mean: Optional[DNDarray] = None,
+) -> Union[Tuple[DNDarray, DNDarray, DNDarray], Tuple[DNDarray, DNDarray, DNDarray, DNDarray]]:
+    """
+    Helper function for iSVD and iPCA; follows roughly the "incremental PCA with mean update", Fig.1 in:
+    David A. Ross, Jongwoo Lim, Ruei-Sung Lin, Ming-Hsuan Yang. Incremental Learning for Robust Visual Tracking. IJCV, 2008.
+
+    Either incremental SVD or incremental SVD with mean subtraction is performed.
 
     Parameters
-    ----------
-    new_data : DNDarray
-        2D-array (float32/64) of which the SVD has to be computed. It must hold `new_data.split != 1` if `U_old.split = 0`.
-    U_old : DNDarray
-        U-factor of the SVD of the "old" matrix, 2D-array (float32/64). It must hold `U_old.split != 0` if `new_data.split = 1`.
-    S_old : DNDarray
-        Sigma-factor of the SVD of the "old" matrix, 1D-array (float32/64)
-    V_old : DNDarray
-        V-factor of the SVD of the "old" matrix, 2D-array (float32/64)
-    maxrank : int, optional
-        truncation rank of the SVD of the extended matrix. The default is None, i.e., no bound on the maximal rank is imposed.
-
-    Notes
     -----------
-    Inexactness may arise due to truncation to maximal rank `maxrank` if rank of the data to be processed exceeds this rank.
-    If you set `maxrank` to a high number (or None) in order to avoid inexactness, you may encounter memory issues.
-    The implementation follows the approach described in Ref. [1], Sect. 2.
-
-    References
-    ------------
-    [1] Brand, M. (2006). Fast low-rank modifications of the thin singular value decomposition. Linear algebra and its applications, 415(1), 20-30.
+    new_data: DNDarray
+        new data as DNDarray
+    U_old, S_old, V_old: DNDarrays
+        "old" SVD-factors
+    maxrank: int, optional
+        rank to which new SVD should be truncated
+    old_matrix_size: int, optional
+        size of the old matrix; this does not need to be identical to V_old.shape[0] as "old" SVD might have been truncated
+    old_rowwise_mean: int, optional
+        row-wise mean of the old matrix; if not provided, no mean subtraction is performed
     """
-    # check if new_data, U_old, V_old are 2D DNDarrays and float32/64
-    _check_is_nd_of_dtype(new_data, "new_data", [2], [types.float32, types.float64])
-    _check_is_nd_of_dtype(U_old, "U_old", [2], [types.float32, types.float64])
-    _check_is_nd_of_dtype(S_old, "S_old", [1], [types.float32, types.float64])
-    _check_is_nd_of_dtype(V_old, "V_old", [2], [types.float32, types.float64])
-    # check if number of columns of U_old and V_old match the number of elements in S_old
-    if U_old.shape[1] != S_old.shape[0]:
-        raise ValueError(
-            "The number of columns of U_old must match the number of elements in S_old."
-        )
-    if V_old.shape[1] != S_old.shape[0]:
-        raise ValueError(
-            "The number of columns of V_old must match the number of elements in S_old."
-        )
-    # check if the number of columns of new_data matches the number of rows of U_old and V_old
-    if new_data.shape[0] != U_old.shape[0]:
-        raise ValueError("The number of rows of new_data must match the number of rows of U_old.")
-    if U_old.split == 0 and new_data.split == 1:
-        raise ValueError(
-            "The combination (U_old.split, new_data.split) = (0,1) is not allowed as it is susceptible to numerical instabilities with this combination of algorithms."
-        )
-
     # old SVD is SVD of a matrix of dimension m x n as has rank r
     # new data have shape m x d
     d = new_data.shape[1]
     n = V_old.shape[0]
     r = S_old.shape[0]
+
+    if old_rowwise_mean is not None:
+        new_data_rowwise_mean = mean(new_data, axis=0)
+        new_rowwise_mean = (old_matrix_size * old_rowwise_mean + d * new_data_rowwise_mean) / (
+            old_matrix_size + d
+        )
+        new_data = new_data - new_data_rowwise_mean
+        new_data = hstack(
+            [
+                new_data,
+                (new_data_rowwise_mean - old_rowwise_mean)
+                * (d * old_matrix_size / (d + old_matrix_size)) ** 0.5,
+            ]
+        )
+        d += 1
 
     # orthogonalize and decompose new_data
     UtC = U_old.T @ new_data
@@ -733,4 +721,65 @@ def isvd(
     U_new = U_new @ u
     V_new = V_new @ v
 
+    if old_rowwise_mean is not None:
+        return U_new, s, V_new, new_rowwise_mean
     return U_new, s, V_new
+
+
+def isvd(
+    new_data: DNDarray,
+    U_old: DNDarray,
+    S_old: DNDarray,
+    V_old: DNDarray,
+    maxrank: Optional[int] = None,
+) -> Tuple[DNDarray, DNDarray, DNDarray]:
+    """Incremental SVD (iSVD) for the addition of new data to an existing SVD.
+    Given the the SVD of an "old" matrix, X_old = `U_old @ S_old @ V_old.T`, and additional columns `new_data`, this routine computes
+    (a possibly approximate) SVD of the extended matrix `X_new = [X_old | new_data]`.
+
+    Parameters
+    ----------
+    new_data : DNDarray
+        2D-array (float32/64) of which the SVD has to be computed. It must hold `new_data.split != 1` if `U_old.split = 0`.
+    U_old : DNDarray
+        U-factor of the SVD of the "old" matrix, 2D-array (float32/64). It must hold `U_old.split != 0` if `new_data.split = 1`.
+    S_old : DNDarray
+        Sigma-factor of the SVD of the "old" matrix, 1D-array (float32/64)
+    V_old : DNDarray
+        V-factor of the SVD of the "old" matrix, 2D-array (float32/64)
+    maxrank : int, optional
+        truncation rank of the SVD of the extended matrix. The default is None, i.e., no bound on the maximal rank is imposed.
+
+    Notes
+    -----------
+    Inexactness may arise due to truncation to maximal rank `maxrank` if rank of the data to be processed exceeds this rank.
+    If you set `maxrank` to a high number (or None) in order to avoid inexactness, you may encounter memory issues.
+    The implementation follows the approach described in Ref. [1], Sect. 2.
+
+    References
+    ------------
+    [1] Brand, M. (2006). Fast low-rank modifications of the thin singular value decomposition. Linear algebra and its applications, 415(1), 20-30.
+    """
+    # check if new_data, U_old, V_old are 2D DNDarrays and float32/64
+    _check_is_nd_of_dtype(new_data, "new_data", [2], [types.float32, types.float64])
+    _check_is_nd_of_dtype(U_old, "U_old", [2], [types.float32, types.float64])
+    _check_is_nd_of_dtype(S_old, "S_old", [1], [types.float32, types.float64])
+    _check_is_nd_of_dtype(V_old, "V_old", [2], [types.float32, types.float64])
+    # check if number of columns of U_old and V_old match the number of elements in S_old
+    if U_old.shape[1] != S_old.shape[0]:
+        raise ValueError(
+            "The number of columns of U_old must match the number of elements in S_old."
+        )
+    if V_old.shape[1] != S_old.shape[0]:
+        raise ValueError(
+            "The number of columns of V_old must match the number of elements in S_old."
+        )
+    # check if the number of columns of new_data matches the number of rows of U_old and V_old
+    if new_data.shape[0] != U_old.shape[0]:
+        raise ValueError("The number of rows of new_data must match the number of rows of U_old.")
+    if U_old.split == 0 and new_data.split == 1:
+        raise ValueError(
+            "The combination (U_old.split, new_data.split) = (0,1) is not allowed as it is susceptible to numerical instabilities with this combination of algorithms."
+        )
+
+    return _isvd(new_data, U_old, S_old, V_old, maxrank)
