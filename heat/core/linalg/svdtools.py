@@ -14,7 +14,6 @@ from .. import types
 from ..linalg import matmul, vector_norm, qr, svd
 from ..indexing import where
 from ..random import randn
-from ..statistics import mean
 
 from ..manipulations import vstack, hstack, diag, balance
 
@@ -645,7 +644,7 @@ def _isvd(
     r = S_old.shape[0]
 
     if old_rowwise_mean is not None:
-        new_data_rowwise_mean = mean(new_data, axis=0)
+        new_data_rowwise_mean = statistics.mean(new_data, axis=0)
         new_rowwise_mean = (old_matrix_size * old_rowwise_mean + d * new_data_rowwise_mean) / (
             old_matrix_size + d
         )
@@ -777,9 +776,5 @@ def isvd(
     # check if the number of columns of new_data matches the number of rows of U_old and V_old
     if new_data.shape[0] != U_old.shape[0]:
         raise ValueError("The number of rows of new_data must match the number of rows of U_old.")
-    if U_old.split == 0 and new_data.split == 1:
-        raise ValueError(
-            "The combination (U_old.split, new_data.split) = (0,1) is not allowed as it is susceptible to numerical instabilities with this combination of algorithms."
-        )
 
     return _isvd(new_data, U_old, S_old, V_old, maxrank)
