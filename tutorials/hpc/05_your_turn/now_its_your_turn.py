@@ -12,13 +12,9 @@ import h5py
 
 
 # "Asteroids": Asteroids of the Solar System
-# Use
-# ```
-# wget --no-check-certificate 'https://docs.google.com/uc?export=download&id=1E6mrMi7lL-UoHmZMTicVi0I2IdOKNn2-' -O ~/sbdb_asteroids.h5
-# ```
-# to download an example data set (92MB) consisting of the asteroids from the JPL Small Body Database (https://ssd.jpl.nasa.gov/tools/sbdb_lookup.html#/)
+# Download the data set of the asteroids from the JPL Small Body Database from https://ssd.jpl.nasa.gov/tools/sbdb_lookup.html#/
+# and load the resulting csv file to Heat.
 
-X = ht.load_hdf5("~/sbdb_asteroids.h5", device="gpu", dataset="data", split=0)
 
 # ... to be completed ...
 

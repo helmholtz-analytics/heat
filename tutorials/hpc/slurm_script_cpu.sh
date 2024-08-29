@@ -1,11 +1,9 @@
 #!/bin/bash
 
-#SBATCH --partition=normal
-#SBATCH --reservation=haicon
+#SBATCH --partition=<partition_name>
 #SBATCH --nodes=1
-#SBATCH --tasks-per-node=4
-#SBATCH --cpus-per-task=12
-#SBATCH --gres=gpu:4
+#SBATCH --tasks-per-node=8
+#SBATCH --cpus-per-task=16
 #SBATCH --time="00:01:00"
 
 export MKL_NUM_THREADS=$SLURM_CPUS_PER_TASK
