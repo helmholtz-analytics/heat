@@ -492,27 +492,30 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
     batch_dim = max(a.ndim, b.ndim) - 2  # -1 for vector vector multiplication
     batched = batch_dim > 0
 
-    if a.gshape[:batch_dim] != b.gshape[:batch_dim]:
+    if batched and a.gshape[:batch_dim] != b.gshape[:batch_dim]:
         raise ValueError("Batch dimensions must have the same shape!")
 
     batch_shape = a.gshape[:batch_dim]
 
     # if they are vectors they need to be expanded to be the proper dimensions
-    vector_flag = False  # flag to run squeeze at the end of the function
+    vector_flag_a = vector_flag_b = False
+    # if a.ndim >= 2 or b.ndim >= 2: # other case gets early out
     if a.ndim == b.ndim - 1:
-        a = manipulations.expand_dims(a, axis=batch_dim)
-        vector_flag = True
+        vector_flag_a = True
     elif b.ndim == a.ndim - 1:
-        b = manipulations.expand_dims(b, axis=batch_dim + 1)
-        vector_flag = True
+        vector_flag_b = True
+    vector_flag = vector_flag_a or vector_flag_b  # run squeeze at the end
 
-    if a.ndim != b.ndim:
+    if not vector_flag and a.ndim != b.ndim:
         raise ValueError("Number of batch dimensions must be the same!")
 
-    if batch_dim >= 0 and a.gshape[-1] != b.gshape[-2]:
-        raise ValueError(
-            f"The last dimension of a ({a.gshape[-1]}) is not the same size as the second-to-last dimension of b. ({b.gshape[-2]})"
-        )
+    if batch_dim >= 0:  # not vector vector mult
+        na = a.gshape[-1]
+        mb = b.gshape[-2] if not vector_flag_b else b.gshape[-1]
+        if na != mb:
+            raise ValueError(
+                f"The last dimension of a ({a.gshape[-1]}) is not the same size as the second-to-last dimension of b. ({b.gshape[-2]})"
+            )
 
     if batched:
         # check for valid batched split of a and b
@@ -528,7 +531,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
             )
 
     comm = a.comm
-    ndim = a.ndim
+    ndim = max(a.ndim, b.ndim)
     dev = a.device
     tdev = dev.torch_device
 
@@ -549,89 +552,128 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
     if b.dtype != c_type:
         b = c_type(b, device=dev)
 
-    # early out for single-process setup, torch matmul
+    c = None
+
+    # single-process setup, torch matmul
     if a.comm.size == 1:
-        c = factories.array(torch.matmul(a.larray, b.larray), device=dev)
-        if vector_flag:  # squeeze only in the la dimensions
-            c_loc = c.larray.squeeze(batch_dim)
-            if c_loc.ndim >= batch_dim + 2:
-                c_loc = c_loc.squeeze(batch_dim + 1)
-            c = factories.array(c_loc, is_split=0, device=dev, comm=comm)
-        if gpu_int_flag:
-            c = og_type(c, device=dev)
-        return c
+        c = factories.array(torch.matmul(a.larray, b.larray), dtype=c_type, device=dev)
 
     # early out for vector vector multiplication
     # is this even covered in the tests?
-    if a.ndim < 2 and b.ndim < 2:
+    # seems to be used in test_qr
+    elif a.ndim == 1 and b.ndim == 1:
         # make both split 0, do a local mm then a sum
         a.resplit_(0)
         b.resplit_(0)
         res = a.larray @ b.larray
         a.comm.Allreduce(MPI.IN_PLACE, res, MPI.SUM)
-        ret = factories.array(res, split=None, device=dev, comm=comm)
-        if gpu_int_flag:
-            ret = og_type(ret, device=dev)
-        return ret
+        c = factories.array(res, split=None, device=dev, comm=comm)
 
-    # one split not in la dimension
-    if a.split is None or b.split is None or a.split < batch_dim:
-        if a.split is None and b.split is None:
-            if allow_resplit:  # resplit a to 0
-                a.resplit_(ndim - 2)
-                slice_0 = a.comm.chunk(a.shape, a.split)[2][0]
-                hold = a.larray @ b.larray
+    elif a.split is None and b.split is None:  # None-None
+        if allow_resplit and not vector_flag:  # resplit a to 0
+            a.resplit_(ndim - 2)
+            slice_0 = a.comm.chunk(a.shape, a.split)[2][0]
+            hold = a.larray @ b.larray
 
-                c = factories.zeros(
-                    (*batch_shape, a.gshape[-2], b.gshape[-1]), dtype=c_type, device=dev, comm=comm
-                )
-                c.larray[..., slice_0.start : slice_0.stop, :] += hold
-                c.comm.Allreduce(MPI.IN_PLACE, c, MPI.SUM)
-            else:  # torch matmul
-                c = factories.array(
-                    torch.matmul(a.larray, b.larray),
-                    is_split=None,
-                    dtype=c_type,
-                    device=dev,
-                    comm=comm,
-                )
-        elif a.split is not None and a.split < batch_dim:  # split in batch dimension
+            c = factories.zeros(
+                (*batch_shape, a.gshape[-2], b.gshape[-1]), dtype=c_type, device=dev, comm=comm
+            )
+            c.larray[..., slice_0.start : slice_0.stop, :] += hold
+            c.comm.Allreduce(MPI.IN_PLACE, c, MPI.SUM)
+        else:  # torch matmul
             c = factories.array(
                 torch.matmul(a.larray, b.larray),
-                is_split=a.split,
                 dtype=c_type,
                 device=dev,
                 comm=comm,
             )
-        elif (a.split == ndim - 2 and b.split is None) or (
+    elif a.split is not None and a.split < batch_dim:  # split in batch dimension
+        c = factories.array(
+            torch.matmul(a.larray, b.larray),
+            is_split=a.split,
+            dtype=c_type,
+            device=dev,
+            comm=comm,
+        )
+
+    if c is not None:  # early out
+        if gpu_int_flag:
+            c = og_type(c, device=dev)
+
+        return c
+
+    # vector expansions
+    if vector_flag_a:
+        a = manipulations.expand_dims(a, axis=batch_dim)
+    if vector_flag_b:
+        b = manipulations.expand_dims(b, axis=batch_dim + 1)
+
+    c_shape = (*batch_shape, a.gshape[-2], b.gshape[-1])
+
+    # one split None => other one is la dimension
+    if a.split is None or b.split is None:
+        split = None
+        is_split = False
+
+        if (a.split == ndim - 2 and b.split is None) or (
             a.split is None and b.split == ndim - 1
         ):  # 0-None, None-1
             split = a.split if a.split is not None else b.split
-            c = factories.array(
-                torch.matmul(a.larray, b.larray),
-                is_split=split,
-                dtype=c_type,
-                device=dev,
-                comm=comm,
-            )
-        elif a.split == ndim - 1 and b.split is None:  # 1-None
-            c = torch.zeros(
-                (*batch_shape, a.gshape[-2], b.gshape[-1]), dtype=c_type.torch_type(), device=tdev
-            )
+            is_split = True
 
-            a_idx = a.comm.chunk(a.shape, a.split)[2]
-            c += a.larray @ b.larray[..., a_idx[-1].start : a_idx[-1].start + a.lshape[-1], :]
-            a.comm.Allreduce(MPI.IN_PLACE, c, MPI.SUM)
-            c = factories.array(c, split=a.split, dtype=c_type, device=dev, comm=comm)
-        elif a.split is None and b.split == ndim - 2:  # None-0
-            # maybe we would want to resplit to 1 for a vector, currently one node would get the entire vector
-            c = torch.zeros(
-                (*batch_shape, a.gshape[-2], b.gshape[-1]), dtype=c_type.torch_type(), device=tdev
+            c = a.larray @ b.larray
+
+        elif a.split == ndim - 1 and b.split is None:  # 1-None
+            split = a.split
+
+            c = torch.zeros(c_shape, dtype=c_type.torch_type(), device=tdev)
+
+            a_idx = comm.chunk(a.shape, a.split)[2]
+            c += (
+                a.larray
+                @ b.larray[
+                    ..., a_idx[ndim - 1].start : a_idx[ndim - 1].start + a.lshape[ndim - 1], :
+                ]
             )
+            comm.Allreduce(MPI.IN_PLACE, c, MPI.SUM)
+
+        elif a.split is None and b.split == ndim - 2:  # None-0
+            split = b.split
+
+            c = torch.zeros(c_shape, dtype=c_type.torch_type(), device=tdev)
             b_idx = b.comm.chunk(b.shape, b.split)[2]
-            c += a.larray[..., :, b_idx[-2].start : b_idx[-2].start + b.lshape[-2]] @ b.larray
+            c += (
+                a.larray[..., b_idx[ndim - 2].start : b_idx[ndim - 2].start + b.lshape[ndim - 2]]
+                @ b.larray
+            )
             b.comm.Allreduce(MPI.IN_PLACE, c, MPI.SUM)
-            c = factories.array(c, split=b.split, dtype=c_type, device=dev, comm=comm)
+
+        # early out
+        if vector_flag:  # squeeze only in the la dimensions
+            # it could be sensible to resplit/rebalance in case a single node gets the whole vector
+            if split is not None and split > batch_dim:  # split in dimension that gets squeezed
+                split = batch_dim
+            if c.numel() == 0:  # empty tensor cannot be squeezed
+                c = torch.zeros((*batch_shape, 0), dtype=c_type.torch_type(), device=tdev)
+            else:
+                c = c.squeeze(batch_dim)
+                if c.ndim >= batch_dim + 2:
+                    c = c.squeeze(batch_dim + 1)
+
+        c = factories.array(
+            c,
+            split=split if not is_split else None,
+            is_split=split if is_split else None,
+            dtype=c_type,
+            device=dev,
+            comm=comm,
+        )
+
+        if gpu_int_flag:
+            c = og_type(c, device=dev)
+
+        return c
+
     else:
         # block sizes dont need to be the same. they just need the same inner dimension (kB)
         kB = 0  # redundant?
