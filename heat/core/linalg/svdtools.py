@@ -613,7 +613,7 @@ def _isvd(
     new_data: DNDarray,
     U_old: DNDarray,
     S_old: DNDarray,
-    V_old: DNDarray,
+    V_old: Optional[DNDarray] = None,
     maxrank: Optional[int] = None,
     old_matrix_size: Optional[int] = None,
     old_rowwise_mean: Optional[DNDarray] = None,
@@ -622,7 +622,7 @@ def _isvd(
     Helper function for iSVD and iPCA; follows roughly the "incremental PCA with mean update", Fig.1 in:
     David A. Ross, Jongwoo Lim, Ruei-Sung Lin, Ming-Hsuan Yang. Incremental Learning for Robust Visual Tracking. IJCV, 2008.
 
-    Either incremental SVD or incremental SVD with mean subtraction is performed.
+    Either incremental SVD / PCA or incremental SVD / PCA  with mean subtraction is performed.
 
     Parameters
     -----------
@@ -630,6 +630,7 @@ def _isvd(
         new data as DNDarray
     U_old, S_old, V_old: DNDarrays
         "old" SVD-factors
+        if no V_old is provided, only U and S are computed (PCA)
     maxrank: int, optional
         rank to which new SVD should be truncated
     old_matrix_size: int, optional
@@ -640,7 +641,7 @@ def _isvd(
     # old SVD is SVD of a matrix of dimension m x n as has rank r
     # new data have shape m x d
     d = new_data.shape[1]
-    n = V_old.shape[0]
+    n = V_old.shape[0] if V_old is not None else old_matrix_size
     r = S_old.shape[0]
 
     if old_rowwise_mean is not None:
@@ -667,26 +668,35 @@ def _isvd(
     P, Rc = qr(new_data)
 
     # prepare one component of "new" V-factor
-    V_new = vstack(
-        [
-            V_old,
-            factories.zeros(
-                (d, r), device=V_old.device, dtype=V_old.dtype, split=V_old.split, comm=V_old.comm
-            ),
-        ]
-    )
-    helper = vstack(
-        [
-            factories.zeros(
-                (n, d), device=V_old.device, dtype=V_old.dtype, split=V_old.split, comm=V_old.comm
-            ),
-            factories.eye(
-                d, device=V_old.device, dtype=V_old.dtype, split=V_old.split, comm=V_old.comm
-            ),
-        ]
-    )
-    V_new = hstack([V_new, helper])
-    del helper
+    if V_old is not None:
+        V_new = vstack(
+            [
+                V_old,
+                factories.zeros(
+                    (d, r),
+                    device=V_old.device,
+                    dtype=V_old.dtype,
+                    split=V_old.split,
+                    comm=V_old.comm,
+                ),
+            ]
+        )
+        helper = vstack(
+            [
+                factories.zeros(
+                    (n, d),
+                    device=V_old.device,
+                    dtype=V_old.dtype,
+                    split=V_old.split,
+                    comm=V_old.comm,
+                ),
+                factories.eye(
+                    d, device=V_old.device, dtype=V_old.dtype, split=V_old.split, comm=V_old.comm
+                ),
+            ]
+        )
+        V_new = hstack([V_new, helper])
+        del helper
 
     # prepare one component of "new" U-factor
     U_new = hstack([U_old, P])
@@ -718,11 +728,17 @@ def _isvd(
         v = v[:, :maxrank]
 
     U_new = U_new @ u
-    V_new = V_new @ v
+    if V_old is not None:
+        V_new = V_new @ v
 
-    if old_rowwise_mean is not None:
-        return U_new, s, V_new, new_rowwise_mean
-    return U_new, s, V_new
+    if V_old is not None:
+        if old_rowwise_mean is not None:
+            return U_new, s, V_new, new_rowwise_mean
+        return U_new, s, V_new
+    else:
+        if old_rowwise_mean is not None:
+            return U_new, s, new_rowwise_mean
+        return U_new, s
 
 
 def isvd(
