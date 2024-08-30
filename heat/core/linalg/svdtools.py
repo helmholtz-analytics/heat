@@ -643,13 +643,17 @@ def _isvd(
     d = new_data.shape[1]
     n = V_old.shape[0] if V_old is not None else old_matrix_size
     r = S_old.shape[0]
+    if maxrank is None:
+        maxrank = min(n + d, U_old.shape[0])
+    else:
+        maxrank = min(maxrank, min(n + d, U_old.shape[0]))
 
     if old_rowwise_mean is not None:
-        new_data_rowwise_mean = statistics.mean(new_data, axis=0)
+        new_data_rowwise_mean = statistics.mean(new_data, axis=1)
         new_rowwise_mean = (old_matrix_size * old_rowwise_mean + d * new_data_rowwise_mean) / (
             old_matrix_size + d
         )
-        new_data = new_data - new_data_rowwise_mean
+        new_data -= new_data_rowwise_mean.reshape(-1, 1)
         new_data = hstack(
             [
                 new_data,
@@ -706,7 +710,11 @@ def _isvd(
         [
             diag(S_old),
             factories.zeros(
-                (d, r), device=S_old.device, dtype=S_old.dtype, split=S_old.split, comm=S_old.comm
+                (Rc.shape[0] + UtC.shape[0] - r, r),
+                device=S_old.device,
+                dtype=S_old.dtype,
+                split=S_old.split,
+                comm=S_old.comm,
             ),
         ]
     )
@@ -722,7 +730,7 @@ def _isvd(
     del innermat
 
     # truncate if desired
-    if maxrank is not None and maxrank < s.shape[0]:
+    if maxrank < s.shape[0]:
         u = u[:, :maxrank]
         s = s[:maxrank]
         v = v[:, :maxrank]

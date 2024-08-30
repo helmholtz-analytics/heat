@@ -115,7 +115,6 @@ class TestPCA(TestCase):
             and pca.total_explained_variance_ratio_ >= 0.0
             and pca.total_explained_variance_ratio_ <= 1.0
         )
-        print(pca.total_explained_variance_ratio_)
         self.assertTrue(pca.total_explained_variance_ratio_ >= ratio)
         if ht.MPI_WORLD.size > 1:
             self.assertEqual(pca.explained_variance_, None)
@@ -210,3 +209,116 @@ class TestPCA(TestCase):
 
         pca = ht.decomposition.PCA(n_components=None, svd_solver="randomized", random_state=1234)
         self.assertEqual(ht.random.get_state()[1], 1234)
+
+
+class TestIncrementalPCA(TestCase):
+    def test_incrementalpca_setup(self):
+        pca = ht.decomposition.IncrementalPCA(n_components=2)
+
+        # check correct base classes
+        self.assertTrue(ht.is_estimator(pca))
+        self.assertTrue(ht.is_transformer(pca))
+
+        # check correct default values
+        self.assertEqual(pca.n_components, 2)
+        self.assertEqual(pca.whiten, False)
+        self.assertEqual(pca.batch_size, None)
+        self.assertEqual(pca.components_, None)
+        self.assertEqual(pca.singular_values_, None)
+        self.assertEqual(pca.mean_, None)
+        self.assertEqual(pca.n_components_, None)
+        self.assertEqual(pca.batch_size_, None)
+        self.assertEqual(pca.n_samples_seen_, 0)
+
+        # check catching of invalid parameters
+        # whitening and in-place are not yet supported
+        with self.assertRaises(NotImplementedError):
+            ht.decomposition.IncrementalPCA(whiten=True)
+        with self.assertRaises(NotImplementedError):
+            ht.decomposition.IncrementalPCA(copy=False)
+        # wrong n_components
+        with self.assertRaises(TypeError):
+            ht.decomposition.IncrementalPCA(n_components=0.9)
+        with self.assertRaises(ValueError):
+            ht.decomposition.IncrementalPCA(n_components=0)
+
+    def test_incrementalpca_part1(self):
+        # full rank is reached, split = 0
+        # dtype float32
+        pca = ht.decomposition.IncrementalPCA()
+        data0 = ht.random.randn(15 * ht.MPI_WORLD.size, ht.MPI_WORLD.size + 2, split=0)
+        data1 = 1.0 + ht.random.rand(5 * ht.MPI_WORLD.size, ht.MPI_WORLD.size + 2, split=0)
+        data = ht.vstack([data0, data1])
+        data0_np = data0.numpy()
+        data_np = data.numpy()
+
+        # fit is not yet implemented
+        with self.assertRaises(NotImplementedError):
+            pca.fit(data0)
+        # wrong input for partial_fit
+        with self.assertRaises(ValueError):
+            pca.partial_fit(data0, y="Why can't we get rid of this argument?")
+
+        # test partial_fit, step 0
+        pca.partial_fit(data0)
+        self.assertEqual(pca.components_.shape, (ht.MPI_WORLD.size + 2, ht.MPI_WORLD.size + 2))
+        self.assertEqual(pca.n_components_, ht.MPI_WORLD.size + 2)
+        self.assertEqual(pca.mean_.shape, (ht.MPI_WORLD.size + 2,))
+        self.assertEqual(pca.singular_values_.shape, (ht.MPI_WORLD.size + 2,))
+        self.assertEqual(pca.n_samples_seen_, 15 * ht.MPI_WORLD.size)
+        s0_np = np.linalg.svd(data0_np - data0_np.mean(axis=0), compute_uv=False, hermitian=False)
+        self.assertTrue(np.allclose(s0_np, pca.singular_values_.numpy()))
+
+        # test partial_fit, step 1
+        pca.partial_fit(data1)
+        self.assertEqual(pca.components_.shape, (ht.MPI_WORLD.size + 2, ht.MPI_WORLD.size + 2))
+        self.assertEqual(pca.n_components_, ht.MPI_WORLD.size + 2)
+        self.assertTrue(ht.allclose(pca.mean_, ht.mean(data, axis=0)))
+        self.assertEqual(pca.singular_values_.shape, (ht.MPI_WORLD.size + 2,))
+        self.assertEqual(pca.n_samples_seen_, 20 * ht.MPI_WORLD.size)
+        s_np = np.linalg.svd(data_np - data_np.mean(axis=0), compute_uv=False, hermitian=False)
+        self.assertTrue(np.allclose(s_np, pca.singular_values_.numpy()))
+
+        # test transform
+        Y = pca.transform(data)
+        Z = pca.inverse_transform(Y)  # noqa: F841
+
+        # wrong inputs for transform and inverse transform
+        with self.assertRaises(ValueError):
+            pca.transform(ht.zeros((20, ht.MPI_WORLD.size + 1), split=0))
+        with self.assertRaises(ValueError):
+            pca.inverse_transform(ht.zeros((20, ht.MPI_WORLD.size + 3), split=0))
+
+    def test_incrementalpca_part2(self):
+        # full rank not reached, but truncation happens, split = 1
+        # dtype float64
+        pca = ht.decomposition.IncrementalPCA(n_components=15)
+        data0 = ht.random.randn(9, 100 * ht.MPI_WORLD.size + 1, split=1, dtype=ht.float64)
+        data1 = 1.0 + ht.random.rand(11, 100 * ht.MPI_WORLD.size + 1, split=1, dtype=ht.float64)
+        data0_np = data0.numpy()
+        data1_np = data1.numpy()
+        data_np = np.vstack([data0_np, data1_np])
+
+        # test partial_fit, step 0
+        pca.partial_fit(data0)
+        self.assertEqual(pca.components_.shape, (9, 100 * ht.MPI_WORLD.size + 1))
+        self.assertEqual(pca.components_.dtype, ht.float64)
+        self.assertEqual(pca.n_components_, 9)
+        self.assertEqual(pca.mean_.shape, (100 * ht.MPI_WORLD.size + 1,))
+        self.assertEqual(pca.mean_.dtype, ht.float64)
+        self.assertEqual(pca.singular_values_.shape, (9,))
+        self.assertEqual(pca.singular_values_.dtype, ht.float64)
+        self.assertEqual(pca.n_samples_seen_, 9)
+        s0_np = np.linalg.svd(data0_np - data0_np.mean(axis=0), compute_uv=False, hermitian=False)
+        self.assertTrue(np.allclose(s0_np, pca.singular_values_.numpy(), atol=1e-12))
+
+        # test partial_fit, step 1
+        # here actually truncation happens as we have rank 20 but n_components=15
+        pca.partial_fit(data1)
+        self.assertEqual(pca.components_.shape, (15, 100 * ht.MPI_WORLD.size + 1))
+        self.assertEqual(pca.n_components_, 15)
+        self.assertEqual(pca.mean_.shape, (100 * ht.MPI_WORLD.size + 1,))
+        self.assertEqual(pca.singular_values_.shape, (15,))
+        self.assertEqual(pca.n_samples_seen_, 20)
+        s_np = np.linalg.svd(data_np - data_np.mean(axis=0), compute_uv=False, hermitian=False)
+        self.assertTrue(np.allclose(s_np[:15], pca.singular_values_.numpy()))

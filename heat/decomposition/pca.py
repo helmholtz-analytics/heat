@@ -4,7 +4,7 @@ Module implementing decomposition techniques, such as PCA.
 
 import heat as ht
 from typing import Optional, Tuple, Union
-from ..linalg.svd import _isvd
+from ..core.linalg.svdtools import _isvd
 
 try:
     from typing import Self
@@ -320,6 +320,15 @@ class IncrementalPCA(ht.TransformMixin, ht.BaseEstimator):
             )
         if whiten:
             raise NotImplementedError("Whitening is not yet supported. Please set whiten=False.")
+        if n_components is not None:
+            if not isinstance(n_components, int):
+                raise TypeError(
+                    f"n_components must be None or an integer, but is {type(n_components)}."
+                )
+            else:
+                if n_components < 1:
+                    raise ValueError("if an integer, n_components must be greater or equal to 1.")
+        self.whiten = whiten
         self.n_components = n_components
         self.batch_size = batch_size
         self.components_ = None
@@ -329,7 +338,7 @@ class IncrementalPCA(ht.TransformMixin, ht.BaseEstimator):
         self.mean_ = None
         self.n_components_ = None
         self.batch_size_ = None
-        self.n_samples_seen_ = None
+        self.n_samples_seen_ = 0
 
     def fit(self, X, y=None) -> Self:
         """
@@ -350,12 +359,12 @@ class IncrementalPCA(ht.TransformMixin, ht.BaseEstimator):
             raise ValueError(
                 "Argument y is ignored and just present for API consistency by convention."
             )
-        if self.n_samples_seen_ is None:
+        if self.n_samples_seen_ == 0:
             # this is the first batch of data, hence we need to initialize everything
             if self.n_components is None:
                 self.n_components_ = min(X.shape)
             else:
-                self.n_components_ = self.n_components
+                self.n_components_ = min(X.shape[0], X.shape[1], self.n_components)
 
             self.mean_ = X.mean(axis=0)
             X_centered = X - self.mean_
@@ -366,9 +375,9 @@ class IncrementalPCA(ht.TransformMixin, ht.BaseEstimator):
 
         else:
             # if already batches of data have been seen before, only an update is necessary
-            U, S, _, mean = _isvd(
+            U, S, mean = _isvd(
                 X.T,
-                self.components_,
+                self.components_.T,
                 self.singular_values_,
                 V_old=None,
                 maxrank=self.n_components,
@@ -379,3 +388,40 @@ class IncrementalPCA(ht.TransformMixin, ht.BaseEstimator):
             self.singular_values_ = S
             self.mean_ = mean
             self.n_samples_seen_ += X.shape[0]
+            self.n_components_ = self.components_.shape[0]
+
+    def transform(self, X: ht.DNDarray) -> ht.DNDarray:
+        """
+        Apply dimensionality based on PCA to X.
+
+        Parameters
+        ----------
+        X : DNDarray of shape (n_samples, n_features)
+            Data set to be transformed.
+        """
+        ht.sanitize_in(X)
+        if X.shape[1] != self.mean_.shape[0]:
+            raise ValueError(
+                f"X must have the same number of features as the training data. Expected {self.mean_.shape[0]} but got {X.shape[1]}."
+            )
+
+        # center data and apply PCA
+        X_centered = X - self.mean_
+        return X_centered @ self.components_.T
+
+    def inverse_transform(self, X: ht.DNDarray) -> ht.DNDarray:
+        """
+        Transform data back to its original space.
+
+        Parameters
+        ----------
+        X : DNDarray of shape (n_samples, n_components)
+            Data set to be transformed back.
+        """
+        ht.sanitize_in(X)
+        if X.shape[1] != self.n_components_:
+            raise ValueError(
+                f"Dimension mismatch. Expected input of shape n_points x {self.n_components_} but got {X.shape}."
+            )
+
+        return X @ self.components_ + self.mean_
