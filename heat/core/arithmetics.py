@@ -27,6 +27,8 @@ from .types import (
     _complexfloating,
 )
 
+from .overrides import heat_function_dispatch
+from numpy import isscalar
 
 __all__ = [
     "add",
@@ -71,6 +73,18 @@ __all__ = [
 ]
 
 
+def _add_dispatcher(t1, t2, out=None, where=True):
+    if not isscalar(t1):
+        yield t1
+    if not isscalar(t2):
+        yield t2
+    if out is not None:
+        yield out
+    if type(where) is not bool:
+        yield where
+
+
+@heat_function_dispatch(_add_dispatcher, module="heat")
 def add(
     t1: Union[DNDarray, float],
     t2: Union[DNDarray, float],
@@ -196,6 +210,18 @@ DNDarray.__iadd__ = add_
 DNDarray.add_ = add_
 
 
+def _bitwise_and_dispatcher(t1, t2, out=None, where=True):
+    if not isscalar(t1):
+        yield t1
+    if not isscalar(t2):
+        yield t2
+    if out is not None:
+        yield out
+    if type(where) is not bool:
+        yield where
+
+
+@heat_function_dispatch(_bitwise_and_dispatcher, module="heat")
 def bitwise_and(
     t1: Union[DNDarray, float],
     t2: Union[DNDarray, float],
@@ -343,6 +369,18 @@ DNDarray.__iand__ = bitwise_and_
 DNDarray.bitwise_and_ = bitwise_and_
 
 
+def _bitwise_or_dispatcher(t1, t2, out=None, where=True):
+    if not isscalar(t1):
+        yield t1
+    if not isscalar(t2):
+        yield t2
+    if out is not None:
+        yield out
+    if type(where) is not bool:
+        yield where
+
+
+@heat_function_dispatch(_bitwise_or_dispatcher, module="heat")
 def bitwise_or(
     t1: Union[DNDarray, float],
     t2: Union[DNDarray, float],
@@ -489,6 +527,18 @@ DNDarray.__ior__ = bitwise_or_
 DNDarray.bitwise_or_ = bitwise_or_
 
 
+def _bitwise_xor_dispatcher(t1, t2, out=None, where=True):
+    if not isscalar(t1):
+        yield t1
+    if not isscalar(t2):
+        yield t2
+    if out is not None:
+        yield out
+    if type(where) is not bool:
+        yield where
+
+
+@heat_function_dispatch(_bitwise_xor_dispatcher, module="heat")
 def bitwise_xor(
     t1: Union[DNDarray, float],
     t2: Union[DNDarray, float],
@@ -630,6 +680,18 @@ DNDarray.__ixor__ = bitwise_xor_
 DNDarray.bitwise_xor_ = bitwise_xor_
 
 
+def _copysign_dispatcher(a, b, out=None, where=True):
+    if not isscalar(a):
+        yield a
+    if not isscalar(b):
+        yield b
+    if out is not None:
+        yield out
+    if type(where) is not bool:
+        yield where
+
+
+@heat_function_dispatch(_copysign_dispatcher, module="heat")
 def copysign(
     a: DNDarray,
     b: Union[DNDarray, float, int],
@@ -744,6 +806,11 @@ def copysign_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
 DNDarray.copysign_ = copysign_
 
 
+def _cumprod_dispatcher(array, axis, dtype=None, out=None):
+    return (array,) if out is None else (array, out)
+
+
+@heat_function_dispatch(_cumprod_dispatcher, module="heat")
 def cumprod(a: DNDarray, axis: int, dtype: datatype = None, out=None) -> DNDarray:
     """
     Return the cumulative product of elements along a given axis.
@@ -827,6 +894,11 @@ def cumprod_(t: DNDarray, axis: int) -> DNDarray:
 DNDarray.cumprod_ = DNDarray.cumproduct_ = cumprod_
 
 
+def _cumsum_dispatcher(array, axis, dtype=None, out=None):
+    return (array,) if out is None else (array, out)
+
+
+@heat_function_dispatch(_cumsum_dispatcher, module="heat")
 def cumsum(a: DNDarray, axis: int, dtype: datatype = None, out=None) -> DNDarray:
     """
     Return the cumulative sum of the elements along a given axis.
@@ -897,6 +969,15 @@ def cumsum_(t: DNDarray, axis: int) -> DNDarray:
 DNDarray.cumsum_ = cumsum_
 
 
+def _diff_dispatcher(array, n=1, axis=-1, prepend=None, append=None):
+    yield array
+    if prepend is not None:
+        yield prepend
+    if append is not None:
+        yield append
+
+
+@heat_function_dispatch(_diff_dispatcher, module="heat")
 def diff(
     a: DNDarray,
     n: int = 1,
@@ -1035,6 +1116,18 @@ def diff(
     return ret
 
 
+def _div_dispatcher(t1, t2, out=None, where=True):
+    if not isscalar(t1):
+        yield t1
+    if not isscalar(t2):
+        yield t2
+    if out is not None:
+        yield out
+    if type(where) is not bool:
+        yield where
+
+
+@heat_function_dispatch(_div_dispatcher, module="heat")
 def div(
     t1: Union[DNDarray, float],
     t2: Union[DNDarray, float],
@@ -1170,6 +1263,18 @@ DNDarray.__itruediv__ = div_
 DNDarray.div_ = DNDarray.divide_ = div_
 
 
+def _divmod_dispatcher(t1, t2, out=None, where=True):
+    if not isscalar(t1):
+        yield t1
+    if not isscalar(t2):
+        yield t2
+    if out is not None:
+        yield out
+    if type(where) is not bool:
+        yield where
+
+
+@heat_function_dispatch(_divmod_dispatcher, module="heat")
 def divmod(
     t1: Union[DNDarray, float],
     t2: Union[DNDarray, float],
@@ -1266,6 +1371,18 @@ DNDarray.__rdivmod__ = lambda self, other: _divmod(other, self)
 DNDarray.__rdivmod__.__doc__ = divmod.__doc__
 
 
+def _floordiv_dispatcher(t1, t2, out=None, where=True):
+    if not isscalar(t1):
+        yield t1
+    if not isscalar(t2):
+        yield t2
+    if out is not None:
+        yield out
+    if type(where) is not bool:
+        yield where
+
+
+@heat_function_dispatch(_floordiv_dispatcher, module="heat")
 def floordiv(
     t1: Union[DNDarray, float],
     t2: Union[DNDarray, float],
@@ -1402,6 +1519,18 @@ DNDarray.__ifloordiv__ = floordiv_
 DNDarray.floordiv_ = DNDarray.floor_divide_ = floordiv_
 
 
+def _fmod_dispatcher(t1, t2, out=None, where=True):
+    if not isscalar(t1):
+        yield t1
+    if not isscalar(t2):
+        yield t2
+    if out is not None:
+        yield out
+    if type(where) is not bool:
+        yield where
+
+
+@heat_function_dispatch(_fmod_dispatcher, module="heat")
 def fmod(
     t1: Union[DNDarray, float],
     t2: Union[DNDarray, float],
@@ -1515,6 +1644,18 @@ def fmod_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
 DNDarray.fmod_ = fmod_
 
 
+def _gcd_dispatcher(t1, t2, out=None, where=True):
+    if not isscalar(t1):
+        yield t1
+    if not isscalar(t2):
+        yield t2
+    if out is not None:
+        yield out
+    if type(where) is not bool:
+        yield where
+
+
+@heat_function_dispatch(_gcd_dispatcher, module="heat")
 def gcd(
     a: DNDarray,
     b: DNDarray,
@@ -1621,6 +1762,18 @@ def gcd_(t1: DNDarray, t2: DNDarray) -> DNDarray:
 DNDarray.gcd_ = gcd_
 
 
+def _hypot_dispatcher(t1, t2, out=None, where=True):
+    if not isscalar(t1):
+        yield t1
+    if not isscalar(t2):
+        yield t2
+    if out is not None:
+        yield out
+    if type(where) is not bool:
+        yield where
+
+
+@heat_function_dispatch(_hypot_dispatcher, module="heat")
 def hypot(
     a: DNDarray,
     b: DNDarray,
@@ -1717,6 +1870,11 @@ def hypot_(t1: DNDarray, t2: DNDarray) -> DNDarray:
 DNDarray.hypot_ = hypot_
 
 
+def _invert_dispatcher(array, out=None):
+    return (array,) if out is None else (array, out)
+
+
+@heat_function_dispatch(_invert_dispatcher, module="heat")
 def invert(a: DNDarray, /, out: Optional[DNDarray] = None) -> DNDarray:
     """
     Computes the bitwise NOT of the given input :class:`~heat.core.dndarray.DNDarray`. The input
@@ -1803,6 +1961,18 @@ def invert_(t: DNDarray) -> DNDarray:
 DNDarray.invert_ = DNDarray.bitwise_not_ = invert_
 
 
+def _lcm_dispatcher(t1, t2, out=None, where=True):
+    if not isscalar(t1):
+        yield t1
+    if not isscalar(t2):
+        yield t2
+    if out is not None:
+        yield out
+    if type(where) is not bool:
+        yield where
+
+
+@heat_function_dispatch(_lcm_dispatcher, module="heat")
 def lcm(
     a: DNDarray,
     b: DNDarray,
@@ -1913,6 +2083,18 @@ def lcm_(t1: DNDarray, t2: Union[DNDarray, int]) -> DNDarray:
 DNDarray.lcm_ = lcm_
 
 
+def _left_shift_dispatcher(t1, t2, out=None, where=True):
+    if not isscalar(t1):
+        yield t1
+    if not isscalar(t2):
+        yield t2
+    if out is not None:
+        yield out
+    if type(where) is not bool:
+        yield where
+
+
+@heat_function_dispatch(_left_shift_dispatcher, module="heat")
 def left_shift(
     t1: DNDarray,
     t2: Union[DNDarray, float],
@@ -2039,6 +2221,18 @@ DNDarray.__ilshift__ = left_shift_
 DNDarray.left_shift_ = left_shift_
 
 
+def _mul_dispatcher(t1, t2, out=None, where=True):
+    if not isscalar(t1):
+        yield t1
+    if not isscalar(t2):
+        yield t2
+    if out is not None:
+        yield out
+    if type(where) is not bool:
+        yield where
+
+
+@heat_function_dispatch(_mul_dispatcher, module="heat")
 def mul(
     t1: Union[DNDarray, float],
     t2: Union[DNDarray, float],
@@ -2175,6 +2369,11 @@ DNDarray.__imul__ = mul_
 DNDarray.mul_ = DNDarray.multiply_ = mul_
 
 
+def _nan_to_num_dispatcher(a, nan=0.0, posinf=None, neginf=None, out=None):
+    return (a,) if out is None else (a, out)
+
+
+@heat_function_dispatch(_nan_to_num_dispatcher, module="heat")
 def nan_to_num(
     a: DNDarray,
     nan: float = 0.0,
@@ -2270,6 +2469,11 @@ def nan_to_num_(
 DNDarray.nan_to_num_ = nan_to_num_
 
 
+def _nanprod_dispatcher(a, axis=None, out=None, keepdims=None):
+    return (a,) if out is None else (a, out)
+
+
+@heat_function_dispatch(_nanprod_dispatcher, module="heat")
 def nanprod(
     a: DNDarray,
     axis: Union[int, Tuple[int, ...]] = None,
@@ -2317,6 +2521,11 @@ def nanprod(
     )
 
 
+def _nansum_dispatcher(a, axis=None, out=None, keepdims=None):
+    return (a,) if out is None else (a, out)
+
+
+@heat_function_dispatch(_nansum_dispatcher, module="heat")
 def nansum(
     a: DNDarray,
     axis: Union[int, Tuple[int, ...]] = None,
@@ -2362,6 +2571,11 @@ def nansum(
     )
 
 
+def _neg_dispatcher(a, out=None):
+    return (a,) if out is None else (a, out)
+
+
+@heat_function_dispatch(_neg_dispatcher, module="heat")
 def neg(a: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     """
     Element-wise negation of `a`.
@@ -2380,8 +2594,6 @@ def neg(a: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     >>> -ht.array([-1., 1.])
     DNDarray([ 1., -1.], dtype=ht.float32, device=cpu:0, split=None)
     """
-    sanitation.sanitize_in(a)
-
     return _operations.__local_op(torch.neg, a, out, no_cast=True)
 
 
@@ -2419,7 +2631,6 @@ def neg_(t: DNDarray) -> DNDarray:
     DNDarray([[ 1.0000, -2.5000],
               [-4.0000, -0.0000]], dtype=ht.float32, device=cpu:0, split=None)
     """
-    sanitation.sanitize_in(t)
 
     def wrap_neg_(a: torch.Tensor, out=None) -> torch.Tensor:
         return a.neg_()
@@ -2430,6 +2641,11 @@ def neg_(t: DNDarray) -> DNDarray:
 DNDarray.neg_ = DNDarray.negative_ = neg_
 
 
+def _pos_dispatcher(a, out=None):
+    return (a,) if out is None else (a, out)
+
+
+@heat_function_dispatch(_pos_dispatcher, module="heat")
 def pos(a: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     """
     Element-wise positive of `a`.
@@ -2452,7 +2668,6 @@ def pos(a: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     >>> +ht.array([-1., 1.])
     DNDarray([-1.,  1.], dtype=ht.float32, device=cpu:0, split=None)
     """
-    sanitation.sanitize_in(a)
 
     def torch_pos(torch_tensor, out=None):
         return out.copy_(torch_tensor)
@@ -2471,6 +2686,18 @@ positive = pos
 """Alias for :py:func:`pos`"""
 
 
+def _pow_dispatcher(t1, t2, out=None, where=True):
+    if not isscalar(t1):
+        yield t1
+    if not isscalar(t2):
+        yield t2
+    if out is not None:
+        yield out
+    if type(where) is not bool:
+        yield where
+
+
+@heat_function_dispatch(_pow_dispatcher, module="heat")
 def pow(
     t1: Union[DNDarray, float],
     t2: Union[DNDarray, float],
@@ -2642,6 +2869,11 @@ DNDarray.__ipow__ = pow_
 DNDarray.pow_ = DNDarray.power_ = pow_
 
 
+def _prod_dispatcher(a, axis=None, out=None, keepdims=None):
+    return (a,) if out is None else (a, out)
+
+
+@heat_function_dispatch(_prod_dispatcher, module="heat")
 def prod(
     a: DNDarray,
     axis: Union[int, Tuple[int, ...]] = None,
@@ -2692,6 +2924,18 @@ DNDarray.prod = lambda self, axis=None, out=None, keepdims=None: prod(self, axis
 DNDarray.prod.__doc__ = prod.__doc__
 
 
+def _remainder_dispatcher(t1, t2, out=None, where=True):
+    if not isscalar(t1):
+        yield t1
+    if not isscalar(t2):
+        yield t2
+    if out is not None:
+        yield out
+    if type(where) is not bool:
+        yield where
+
+
+@heat_function_dispatch(_remainder_dispatcher, module="heat")
 def remainder(
     t1: Union[DNDarray, float],
     t2: Union[DNDarray, float],
@@ -2827,6 +3071,18 @@ DNDarray.__imod__ = remainder_
 DNDarray.mod_ = DNDarray.remainder_ = remainder_
 
 
+def _right_shift_dispatcher(t1, t2, out=None, where=True):
+    if not isscalar(t1):
+        yield t1
+    if not isscalar(t2):
+        yield t2
+    if out is not None:
+        yield out
+    if type(where) is not bool:
+        yield where
+
+
+@heat_function_dispatch(_right_shift_dispatcher, module="heat")
 def right_shift(
     t1: Union[DNDarray, float],
     t2: Union[DNDarray, float],
@@ -2953,6 +3209,18 @@ DNDarray.__irshift__ = right_shift_
 DNDarray.right_shift_ = right_shift_
 
 
+def _sub_dispatcher(t1, t2, out=None, where=True):
+    if not isscalar(t1):
+        yield t1
+    if not isscalar(t2):
+        yield t2
+    if out is not None:
+        yield out
+    if type(where) is not bool:
+        yield where
+
+
+@heat_function_dispatch(_sub_dispatcher, module="heat")
 def sub(
     t1: Union[DNDarray, float],
     t2: Union[DNDarray, float],
@@ -3092,6 +3360,11 @@ DNDarray.__isub__ = sub_
 DNDarray.sub_ = DNDarray.subtract_ = sub_
 
 
+def _sum_dispatcher(a, axis=None, out=None, keepdims=None):
+    return (a,) if out is None else (a, out)
+
+
+@heat_function_dispatch(_sum_dispatcher, module="heat")
 def sum(
     a: DNDarray,
     axis: Union[int, Tuple[int, ...]] = None,

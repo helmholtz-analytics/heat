@@ -23,6 +23,8 @@ from . import tiling
 from . import types
 from . import _operations
 
+from .overrides import heat_function_dispatch
+
 __all__ = [
     "balance",
     "broadcast_arrays",
@@ -64,6 +66,11 @@ __all__ = [
 ]
 
 
+def _balance_dispatcher(array, copy=False):
+    return (array,)
+
+
+@heat_function_dispatch(_balance_dispatcher, module="heat")
 def balance(array: DNDarray, copy=False) -> DNDarray:
     """
     Out of place balance function. More information on the meaning of balance can be found in
@@ -88,6 +95,11 @@ DNDarray.balance = lambda self, copy=False: balance(self, copy)
 DNDarray.balance.__doc__ = balance.__doc__
 
 
+def _broadcast_arrays_dispatcher(*arrays):
+    return arrays
+
+
+@heat_function_dispatch(_broadcast_arrays_dispatcher, module="heat")
 def broadcast_arrays(*arrays: DNDarray) -> List[DNDarray]:
     """
     Broadcasts one or more arrays against one another. Returns the broadcasted arrays, distributed along the split dimension of the first array in the list. If the first array is not distributed, the output will not be distributed.
@@ -171,6 +183,11 @@ def broadcast_arrays(*arrays: DNDarray) -> List[DNDarray]:
     return out
 
 
+def _broadcast_to_dispatcher(array, shape):
+    return (array,)
+
+
+@heat_function_dispatch(_broadcast_to_dispatcher, module="heat")
 def broadcast_to(x: DNDarray, shape: Tuple[int, ...]) -> DNDarray:
     """
     Broadcasts an array to a specified shape. Returns a view of ``x`` if ``x`` is not distributed, otherwise it returns a broadcasted, distributed, load-balanced copy of ``x``.
@@ -199,6 +216,7 @@ def broadcast_to(x: DNDarray, shape: Tuple[int, ...]) -> DNDarray:
     >>> c = ht.broadcast_to(a, (100, 10))
     ValueError: Shape mismatch: object cannot be broadcast to the given shape. Original shape: (100,), target shape: (100, 10)
     """
+    # x = x[0]
     sanitation.sanitize_in(x)
 
     # figure out the output split axis via dndarray.__torch_proxy__ and named tensors functionality
@@ -246,6 +264,11 @@ def broadcast_to(x: DNDarray, shape: Tuple[int, ...]) -> DNDarray:
     return broadcasted
 
 
+def _collect_dispatcher(array, target_rank=0):
+    return (array,)
+
+
+@heat_function_dispatch(_collect_dispatcher, module="heat")
 def collect(arr: DNDarray, target_rank: Optional[int] = 0) -> DNDarray:
     """
     A function collecting a distributed DNDarray to one rank, chosen by the `target_rank` variable.
@@ -292,6 +315,11 @@ DNDarray.collect = lambda arr, target_rank=0: redistribute(arr, target_rank)
 DNDarray.collect.__doc__ = collect.__doc__
 
 
+def _column_stack_dispatcher(arrays):
+    return arrays
+
+
+@heat_function_dispatch(_column_stack_dispatcher, module="heat")
 def column_stack(arrays: Sequence[DNDarray, ...]) -> DNDarray:
     """
     Stack 1-D or 2-D `DNDarray`s as columns into a 2-D `DNDarray`.
@@ -388,6 +416,11 @@ def column_stack(arrays: Sequence[DNDarray, ...]) -> DNDarray:
         return concatenate(arrays, axis=1)
 
 
+def _concatenate_dispatcher(arrays, axis=0):
+    return arrays
+
+
+@heat_function_dispatch(_concatenate_dispatcher, module="heat")
 def concatenate(arrays: Sequence[DNDarray, ...], axis: int = 0) -> DNDarray:
     """
     Join 2 or more `DNDarrays` along an existing axis.
@@ -708,6 +741,11 @@ def concatenate(arrays: Sequence[DNDarray, ...], axis: int = 0) -> DNDarray:
             return out
 
 
+def _diag_dispatcher(array, offset=0):
+    return (array,)
+
+
+@heat_function_dispatch(_diag_dispatcher, module="heat")
 def diag(a: DNDarray, offset: int = 0) -> DNDarray:
     """
     Extract a diagonal or construct a diagonal array.
@@ -783,6 +821,11 @@ def diag(a: DNDarray, offset: int = 0) -> DNDarray:
     return factories.array(local, dtype=a.dtype, is_split=a.split, device=a.device, comm=a.comm)
 
 
+def _diagonal_dispatcher(array, offset=0, dim1=0, dim2=1):
+    return (array,)
+
+
+@heat_function_dispatch(_diagonal_dispatcher, module="heat")
 def diagonal(a: DNDarray, offset: int = 0, dim1: int = 0, dim2: int = 1) -> DNDarray:
     """
     Extract a diagonal of an n-dimensional array with n > 1.
@@ -859,6 +902,11 @@ def diagonal(a: DNDarray, offset: int = 0, dim1: int = 0, dim2: int = 1) -> DNDa
     return factories.array(result, dtype=a.dtype, is_split=split, device=a.device, comm=a.comm)
 
 
+def _dsplit_dispatcher(arrays, indices_or_sections):
+    return arrays
+
+
+@heat_function_dispatch(_dsplit_dispatcher, module="heat")
 def dsplit(x: Sequence[DNDarray, ...], indices_or_sections: Iterable) -> List[DNDarray, ...]:
     """
     Split array into multiple sub-DNDarrays along the 3rd axis (depth).
@@ -925,6 +973,11 @@ def dsplit(x: Sequence[DNDarray, ...], indices_or_sections: Iterable) -> List[DN
     return split(x, indices_or_sections, 2)
 
 
+def _expand_dims_dispatcher(array, axis):
+    return (array,)
+
+
+@heat_function_dispatch(_expand_dims_dispatcher, module="heat")
 def expand_dims(a: DNDarray, axis: int) -> DNDarray:
     """
     Expand the shape of an array.
@@ -980,6 +1033,11 @@ DNDarray.expand_dims = lambda self, axis: expand_dims(self, axis)
 DNDarray.expand_dims.__doc__ = expand_dims.__doc__
 
 
+def _flatten_dispatcher(array):
+    return (array,)
+
+
+@heat_function_dispatch(_flatten_dispatcher, module="heat")
 def flatten(a: DNDarray) -> DNDarray:
     """
     Flattens an array into one dimension.
@@ -1026,6 +1084,11 @@ DNDarray.flatten = lambda self: flatten(self)
 DNDarray.flatten.__doc__ = flatten.__doc__
 
 
+def _flip_dispatcher(array, axis=None):
+    return (array,)
+
+
+@heat_function_dispatch(_flip_dispatcher, module="heat")
 def flip(a: DNDarray, axis: Union[int, Tuple[int, ...]] = None) -> DNDarray:
     """
     Reverse the order of elements in an array along the given axis.
@@ -1086,6 +1149,11 @@ def flip(a: DNDarray, axis: Union[int, Tuple[int, ...]] = None) -> DNDarray:
     return res
 
 
+def _fliplr_dispatcher(array):
+    return (array,)
+
+
+@heat_function_dispatch(_fliplr_dispatcher, module="heat")
 def fliplr(a: DNDarray) -> DNDarray:
     """
     Flip array in the left/right direction. If `a.ndim>2`, flip along dimension 1.
@@ -1114,6 +1182,11 @@ def fliplr(a: DNDarray) -> DNDarray:
     return flip(a, 1)
 
 
+def _flipud_dispatcher(array):
+    return (array,)
+
+
+@heat_function_dispatch(_flipud_dispatcher, module="heat")
 def flipud(a: DNDarray) -> DNDarray:
     """
     Flip array in the up/down direction.
@@ -1142,6 +1215,11 @@ def flipud(a: DNDarray) -> DNDarray:
     return flip(a, 0)
 
 
+def _hsplit_dispatcher(array, indices_or_sections):
+    return (array,)
+
+
+@heat_function_dispatch(_hsplit_dispatcher, module="heat")
 def hsplit(x: DNDarray, indices_or_sections: Iterable) -> List[DNDarray, ...]:
     """
     Split array into multiple sub-DNDarrays along the 2nd axis (horizontally/column-wise).
@@ -1208,6 +1286,11 @@ def hsplit(x: DNDarray, indices_or_sections: Iterable) -> List[DNDarray, ...]:
     return result
 
 
+def _hstack_dispatcher(arrays):
+    return arrays
+
+
+@heat_function_dispatch(_hstack_dispatcher, module="heat")
 def hstack(arrays: Sequence[DNDarray, ...]) -> DNDarray:
     """
     Stack arrays in sequence horizontally (column-wise).
@@ -1261,6 +1344,11 @@ def hstack(arrays: Sequence[DNDarray, ...]) -> DNDarray:
     return concatenate(arrays, axis=axis)
 
 
+def _moveaxis_dispatcher(array, source, destination):
+    return (array,)
+
+
+@heat_function_dispatch(_moveaxis_dispatcher, module="heat")
 def moveaxis(
     x: DNDarray, source: Union[int, Sequence[int]], destination: Union[int, Sequence[int]]
 ) -> DNDarray:
@@ -1326,6 +1414,11 @@ def moveaxis(
     return linalg.transpose(x, order)
 
 
+def _pad_dispatcher(array, pad_width, mode="constant", constant_values=0):
+    return (array,)
+
+
+@heat_function_dispatch(_pad_dispatcher, module="heat")
 def pad(
     array: DNDarray,
     pad_width: Union[int, Sequence[Sequence[int, int], ...]],
@@ -1650,6 +1743,11 @@ def pad(
     return padded_tensor
 
 
+def _ravel_dispatcher(array):
+    return (array,)
+
+
+@heat_function_dispatch(_ravel_dispatcher, module="heat")
 def ravel(a: DNDarray) -> DNDarray:
     """
     Return a flattened view of `a` if possible. A copy is returned otherwise.
@@ -1704,6 +1802,11 @@ def ravel(a: DNDarray) -> DNDarray:
     return result
 
 
+def _redistribute_dispatcher(array, lshape_map=None, target_map=None):
+    return (array,)
+
+
+@heat_function_dispatch(_redistribute_dispatcher, module="heat")
 def redistribute(
     arr: DNDarray, lshape_map: torch.Tensor = None, target_map: torch.Tensor = None
 ) -> DNDarray:
@@ -1761,6 +1864,11 @@ DNDarray.redistribute = lambda arr, lshape_map=None, target_map=None: redistribu
 DNDarray.redistribute.__doc__ = redistribute.__doc__
 
 
+def _repeat_dispatcher(array, repeats, axis=None):
+    return (array,)
+
+
+@heat_function_dispatch(_repeat_dispatcher, module="heat")
 def repeat(a: Iterable, repeats: Iterable, axis: Optional[int] = None) -> DNDarray:
     """
     Creates a new `DNDarray` by repeating elements of array `a`. The output has
@@ -1992,6 +2100,11 @@ def repeat(a: Iterable, repeats: Iterable, axis: Optional[int] = None) -> DNDarr
     return repeated_array
 
 
+def _reshape_dispatcher(array, shape, kwargs):
+    return (array,)
+
+
+@heat_function_dispatch(_reshape_dispatcher, module="heat")
 def reshape(a: DNDarray, *shape: Union[int, Tuple[int, ...]], **kwargs) -> DNDarray:
     """
     Returns an array with the same data and number of elements as `a`, but with the specified shape.
@@ -2154,6 +2267,11 @@ DNDarray.reshape = lambda self, *shape, **kwargs: reshape(self, *shape, **kwargs
 DNDarray.reshape.__doc__ = reshape.__doc__
 
 
+def _roll_dispatcher(array, shift, axis=None):
+    return (array,)
+
+
+@heat_function_dispatch(_roll_dispatcher, module="heat")
 def roll(
     x: DNDarray, shift: Union[int, Tuple[int]], axis: Optional[Union[int, Tuple[int]]] = None
 ) -> DNDarray:
@@ -2315,6 +2433,11 @@ def roll(
     )
 
 
+def _rot90_dispatcher(array, k=1, axes=(0, 1)):
+    return (array,)
+
+
+@heat_function_dispatch(_rot90_dispatcher, module="heat")
 def rot90(m: DNDarray, k: int = 1, axes: Sequence[int, int] = (0, 1)) -> DNDarray:
     """
     Rotate an array by 90 degrees in the plane specified by `axes`.
@@ -2410,6 +2533,11 @@ DNDarray.rot90 = lambda self, k=1, axis=(0, 1): rot90(self, k, axis)
 DNDarray.rot90.__doc__ = rot90.__doc__
 
 
+def _shape_dispatcher(array):
+    return (array,)
+
+
+@heat_function_dispatch(_shape_dispatcher, module="heat")
 def shape(a: DNDarray) -> Tuple[int, ...]:
     """
     Returns the global shape of a (potentially distributed) `DNDarray` as a tuple.
@@ -2426,6 +2554,13 @@ def shape(a: DNDarray) -> Tuple[int, ...]:
     return a.gshape
 
 
+def _sort_dispatcher(array, axis=-1, descending=False, out=None):
+    yield array
+    if out is not None:
+        yield out
+
+
+@heat_function_dispatch(_sort_dispatcher, module="heat")
 def sort(a: DNDarray, axis: int = -1, descending: bool = False, out: Optional[DNDarray] = None):
     """
     Sorts the elements of `a` along the given dimension (by default in ascending order) by their value.
@@ -2680,6 +2815,11 @@ def sort(a: DNDarray, axis: int = -1, descending: bool = False, out: Optional[DN
         return tensor, return_indices
 
 
+def _split_dispatcher(array, indices_or_sections, axis=0):
+    return (array,)
+
+
+@heat_function_dispatch(_split_dispatcher, module="heat")
 def split(x: DNDarray, indices_or_sections: Iterable, axis: int = 0) -> List[DNDarray, ...]:
     """
     Split a DNDarray into multiple sub-DNDarrays.
@@ -2914,6 +3054,11 @@ def split(x: DNDarray, indices_or_sections: Iterable, axis: int = 0) -> List[DND
     return sub_arrays_ht
 
 
+def _squeeze_dispatcher(array, axis=None):
+    return (array,)
+
+
+@heat_function_dispatch(_squeeze_dispatcher, module="heat")
 def squeeze(x: DNDarray, axis: Union[int, Tuple[int, ...]] = None) -> DNDarray:
     """
     Remove single-element entries from the shape of a `DNDarray`.
@@ -3017,6 +3162,14 @@ DNDarray.squeeze: Callable[[DNDarray, Union[int, Tuple[int, ...]]], DNDarray] = 
 DNDarray.squeeze.__doc__ = squeeze.__doc__
 
 
+def _stack_dispatcher(arrays, axis=0, out=None):
+    for array in arrays:
+        yield array
+    if out is not None:
+        yield out
+
+
+@heat_function_dispatch(_stack_dispatcher, module="heat")
 def stack(
     arrays: Sequence[DNDarray, ...], axis: int = 0, out: Optional[DNDarray] = None
 ) -> DNDarray:
@@ -3153,6 +3306,11 @@ def stack(
     return stacked
 
 
+def _swapaxes_dispatcher(array, axis1, axis2):
+    return (array,)
+
+
+@heat_function_dispatch(_swapaxes_dispatcher, module="heat")
 def swapaxes(x: DNDarray, axis1: int, axis2: int) -> DNDarray:
     """
     Interchanges two axes of an array.
@@ -3200,6 +3358,11 @@ DNDarray.swapaxes = lambda self, axis1, axis2: swapaxes(self, axis1, axis2)
 DNDarray.swapaxes.__doc__ = swapaxes.__doc__
 
 
+def _unique_dispatcher(array, sorted=False, return_inverse=False, axis=None):
+    return (array,)
+
+
+@heat_function_dispatch(_unique_dispatcher, module="heat")
 def unique(
     a: DNDarray, sorted: bool = False, return_inverse: bool = False, axis: int = None
 ) -> Tuple[DNDarray, torch.tensor]:
@@ -3413,6 +3576,11 @@ DNDarray.unique: Callable[[DNDarray, bool, bool, int], Tuple[DNDarray, torch.ten
 DNDarray.unique.__doc__ = unique.__doc__
 
 
+def _vsplit_dispatcher(array, indices_or_sections):
+    return (array,)
+
+
+@heat_function_dispatch(_vsplit_dispatcher, module="heat")
 def vsplit(x: DNDarray, indices_or_sections: Iterable) -> List[DNDarray, ...]:
     """
     Split array into multiple sub-DNDNarrays along the 1st axis (vertically/row-wise).
@@ -3477,6 +3645,11 @@ def vsplit(x: DNDarray, indices_or_sections: Iterable) -> List[DNDarray, ...]:
     return split(x, indices_or_sections, 0)
 
 
+def _resplit_dispatcher(array, axis=None):
+    return (array,)
+
+
+@heat_function_dispatch(_resplit_dispatcher, module="heat")
 def resplit(arr: DNDarray, axis: int = None) -> DNDarray:
     """
     Out-of-place redistribution of the content of the `DNDarray`. Allows to "unsplit" (i.e. gather) all values from all
@@ -3610,6 +3783,11 @@ DNDarray._axis2axisResplit = lambda self, comm, source_larray, source_split, sou
 DNDarray._axis2axisResplit.__doc__ = _axis2axisResplit.__doc__
 
 
+def _row_stack_dispatcher(arrays):
+    return arrays
+
+
+@heat_function_dispatch(_row_stack_dispatcher, module="heat")
 def row_stack(arrays: Sequence[DNDarray, ...]) -> DNDarray:
     """
     Stack 1-D or 2-D `DNDarray`s as rows into a 2-D `DNDarray`.
@@ -3698,6 +3876,11 @@ def row_stack(arrays: Sequence[DNDarray, ...]) -> DNDarray:
         return concatenate(arrays, axis=0)
 
 
+def _vstack_dispatcher(arrays):
+    return arrays
+
+
+@heat_function_dispatch(_vstack_dispatcher, module="heat")
 def vstack(arrays: Sequence[DNDarray, ...]) -> DNDarray:
     """
     Stack arrays in sequence vertically (row wise).
@@ -3760,6 +3943,11 @@ def vstack(arrays: Sequence[DNDarray, ...]) -> DNDarray:
     return concatenate(arrays, axis=0)
 
 
+def _tile_dispatcher(array, reps):
+    return (array,)
+
+
+@heat_function_dispatch(_tile_dispatcher, module="heat")
 def tile(x: DNDarray, reps: Sequence[int, ...]) -> DNDarray:
     """
     Construct a new DNDarray by repeating 'x' the number of times given by 'reps'.
@@ -4014,6 +4202,11 @@ def tile(x: DNDarray, reps: Sequence[int, ...]) -> DNDarray:
     return tiled
 
 
+def _topk_dispatcher(array, k, dim=-1, largest=True, sorted=True, out=None):
+    return (array,) if out is None else (array, out)
+
+
+@heat_function_dispatch(_topk_dispatcher, module="heat")
 def topk(
     a: DNDarray,
     k: int,

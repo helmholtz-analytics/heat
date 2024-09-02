@@ -1877,6 +1877,12 @@ class DNDarray:
             key_sp = key_sp.item()
         return key_st, key_sp
 
+    @classmethod
+    def __heat_function__(cls, func, types, args, kwargs):
+        if not all(issubclass(t, cls) for t in types):
+            return NotImplemented
+        return func._implementation(*args, **kwargs)
+
 
 # HeAT imports at the end to break cyclic dependencies
 from . import complex_math
