@@ -739,14 +739,10 @@ def _isvd(
     if V_old is not None:
         V_new = V_new @ v
 
-    if V_old is not None:
-        if old_rowwise_mean is not None:
-            return U_new, s, V_new, new_rowwise_mean
+    if V_old is not None:  # use-case: SVD
         return U_new, s, V_new
-    else:
-        if old_rowwise_mean is not None:
-            return U_new, s, new_rowwise_mean
-        return U_new, s
+    if old_rowwise_mean is not None:  # use-case PCA
+        return U_new, s, new_rowwise_mean
 
 
 def isvd(
