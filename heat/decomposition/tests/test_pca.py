@@ -246,8 +246,8 @@ class TestIncrementalPCA(TestCase):
         # full rank is reached, split = 0
         # dtype float32
         pca = ht.decomposition.IncrementalPCA()
-        data0 = ht.random.randn(15 * ht.MPI_WORLD.size, ht.MPI_WORLD.size + 2, split=0)
-        data1 = 1.0 + ht.random.rand(5 * ht.MPI_WORLD.size, ht.MPI_WORLD.size + 2, split=0)
+        data0 = ht.random.randn(150 * ht.MPI_WORLD.size, ht.MPI_WORLD.size + 2, split=0)
+        data1 = 1.0 + ht.random.rand(50 * ht.MPI_WORLD.size, ht.MPI_WORLD.size + 2, split=0)
         data = ht.vstack([data0, data1])
         data0_np = data0.numpy()
         data_np = data.numpy()
@@ -265,7 +265,7 @@ class TestIncrementalPCA(TestCase):
         self.assertEqual(pca.n_components_, ht.MPI_WORLD.size + 2)
         self.assertEqual(pca.mean_.shape, (ht.MPI_WORLD.size + 2,))
         self.assertEqual(pca.singular_values_.shape, (ht.MPI_WORLD.size + 2,))
-        self.assertEqual(pca.n_samples_seen_, 15 * ht.MPI_WORLD.size)
+        self.assertEqual(pca.n_samples_seen_, 150 * ht.MPI_WORLD.size)
         s0_np = np.linalg.svd(data0_np - data0_np.mean(axis=0), compute_uv=False, hermitian=False)
         self.assertTrue(np.allclose(s0_np, pca.singular_values_.numpy()))
 
@@ -275,19 +275,20 @@ class TestIncrementalPCA(TestCase):
         self.assertEqual(pca.n_components_, ht.MPI_WORLD.size + 2)
         self.assertTrue(ht.allclose(pca.mean_, ht.mean(data, axis=0)))
         self.assertEqual(pca.singular_values_.shape, (ht.MPI_WORLD.size + 2,))
-        self.assertEqual(pca.n_samples_seen_, 20 * ht.MPI_WORLD.size)
+        self.assertEqual(pca.n_samples_seen_, 200 * ht.MPI_WORLD.size)
         s_np = np.linalg.svd(data_np - data_np.mean(axis=0), compute_uv=False, hermitian=False)
         self.assertTrue(np.allclose(s_np, pca.singular_values_.numpy()))
 
-        # test transform
+        # test transform (only possible here, as in the next test truncation happens)
         Y = pca.transform(data)
         Z = pca.inverse_transform(Y)  # noqa: F841
+        self.assertTrue(ht.allclose(data, Z, atol=1e-5, rtol=1e-5))
 
         # wrong inputs for transform and inverse transform
         with self.assertRaises(ValueError):
-            pca.transform(ht.zeros((20, ht.MPI_WORLD.size + 1), split=0))
+            pca.transform(ht.zeros((200, ht.MPI_WORLD.size + 1), split=0))
         with self.assertRaises(ValueError):
-            pca.inverse_transform(ht.zeros((20, ht.MPI_WORLD.size + 3), split=0))
+            pca.inverse_transform(ht.zeros((200, ht.MPI_WORLD.size + 3), split=0))
 
     def test_incrementalpca_part2(self):
         # full rank not reached, but truncation happens, split = 1
@@ -295,9 +296,9 @@ class TestIncrementalPCA(TestCase):
         pca = ht.decomposition.IncrementalPCA(n_components=15)
         data0 = ht.random.randn(9, 100 * ht.MPI_WORLD.size + 1, split=1, dtype=ht.float64)
         data1 = 1.0 + ht.random.rand(11, 100 * ht.MPI_WORLD.size + 1, split=1, dtype=ht.float64)
+        data = ht.vstack([data0, data1])
         data0_np = data0.numpy()
-        data1_np = data1.numpy()
-        data_np = np.vstack([data0_np, data1_np])
+        data_np = data.numpy()
 
         # test partial_fit, step 0
         pca.partial_fit(data0)
