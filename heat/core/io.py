@@ -1196,3 +1196,90 @@ def load_npy_from_path(
 
     x = factories.array(larray, dtype=dtype, device=device, is_split=split, comm=comm)
     return x
+
+
+try:
+    import pandas as pd
+except ModuleNotFoundError:
+    # pandas support is optional
+    def supports_pandas() -> bool:
+        """
+        Returns ``True`` if pandas is installed , ``False`` otherwise.
+        """
+        return False
+
+else:
+    # add functions to visible exports
+    __all__.extend(["load_csv_from_folder"])
+
+    def supports_pandas() -> bool:
+        """
+        Returns ``True`` if pandas is installed, ``False`` otherwise.
+        """
+        return True
+
+    def load_csv_from_folder(
+        path: str,
+        dtype: datatype = types.int32,
+        split: int = 0,
+        device: Optional[str] = None,
+        comm: Optional[Communication] = None,
+        func: Optional[callable] = None,
+    ) -> DNDarray:
+        """
+        Loads multiple .csv files into one DNDarray which will be returned. The data will be concatenated along the split axis provided as input.
+
+        Parameters
+        ----------
+        path : str
+            Path to the directory in which .csv-files are located.
+        dtype : datatype, optional
+            Data type of the resulting array.
+        split : int
+            Along which axis the loaded arrays should be concatenated.
+        device : str, optional
+            The device id on which to place the data, defaults to globally set default device.
+        comm : Communication, optional
+            The communication to use for the data distribution, default is 'heat.MPI_WORLD'
+        func : pandas.DataFrame, optional
+            The function the files have to go through before being added to the array.
+        """
+        if not isinstance(path, str):
+            raise TypeError(f"path must be str, not {type(path)}")
+        elif split is not None and not isinstance(split, int):
+            raise TypeError(f"split must be None or int, not {type(split)}")
+        elif (func is not None) and not callable(func):
+            raise TypeError("func needs to be a callable function or None")
+
+        process_number = MPI_WORLD.size
+        file_list = []
+        for file in os.listdir(path):
+            if fnmatch.fnmatch(file, "*.csv"):
+                file_list.append(file)
+        n_files = len(file_list)
+
+        if n_files == 0:
+            raise ValueError("No .csv Files were found")
+        if (n_files < process_number) and (process_number > 1):
+            raise RuntimeError("Number of processes can't exceed number of files")
+
+        rank = MPI_WORLD.rank
+        if rank < (n_files % process_number):
+            n_for_procs = n_files // process_number + 1
+            idx = rank * n_for_procs
+        else:
+            n_for_procs = n_files // process_number
+            idx = rank * n_for_procs + (n_files % process_number)
+        array_list = [
+            (
+                (func(pd.read_csv(path + "/" + element))).to_numpy()
+                if ((func is not None) and (callable(func)))
+                else (pd.read_csv(path + "/" + element)).to_numpy()
+            )
+            for element in file_list[idx : idx + n_for_procs]
+        ]
+
+        larray = np.concatenate(array_list, split)
+        larray = torch.from_numpy(larray)
+        x = factories.array(larray, dtype=dtype, device=device, is_split=split, comm=comm)
+        return x
