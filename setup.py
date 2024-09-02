@@ -33,7 +33,7 @@ setup(
         "Topic :: Scientific/Engineering",
     ],
     install_requires=[
-        "mpi4py>=3.0.0, <4.0.0",
+        "mpi4py>=3.0.0",
         "numpy>=1.22.0, <2",
         "torch>=2.0.0, <2.4.1",
         "scipy>=1.10.0",
@@ -47,5 +47,6 @@ setup(
         "dev": ["pre-commit>=1.18.3"],
         "examples": ["scikit-learn>=0.24.0", "matplotlib>=3.1.0"],
         "cb": ["perun>=0.2.0"],
+        "pandas": ["pandas>=1.4"],
     },
 )
