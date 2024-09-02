@@ -4,6 +4,7 @@ import unittest
 import heat as ht
 import numpy as np
 from mpi4py import MPI
+import time
 
 from ...tests.test_suites.basic_test import TestCase
 
@@ -248,3 +249,57 @@ class TestRSVD(TestCase):
         # power_iter negative
         with self.assertRaises(ValueError):
             ht.linalg.rsvd(X, 10, power_iter=-1)
+
+
+class TestISVD(TestCase):
+    def test_isvd(self):
+        ht.random.seed(27183)
+        for dtype in [ht.float32, ht.float64]:
+            dtypetol = 1e-5 if dtype == ht.float32 else 1e-10
+            for old_split in [0, 1, None]:
+                X_old, SVD_old = ht.utils.data.matrixgallery.random_known_rank(
+                    250, 25, 3 * ht.MPI_WORLD.size, split=old_split, dtype=dtype
+                )
+                U_old, S_old, V_old = SVD_old
+                for new_split in [0, 1, None]:
+                    new_data = ht.random.randn(
+                        250, 2 * ht.MPI_WORLD.size, split=new_split, dtype=dtype
+                    )
+                    U_new, S_new, V_new = ht.linalg.isvd(new_data, U_old, S_old, V_old)
+                    # check if U_new, V_new are orthogonal
+                    self.assertTrue(
+                        ht.allclose(
+                            U_new.T @ U_new,
+                            ht.eye(U_new.shape[1], dtype=U_new.dtype, split=U_new.split),
+                            atol=dtypetol,
+                            rtol=dtypetol,
+                        )
+                    )
+                    self.assertTrue(
+                        ht.allclose(
+                            V_new.T @ V_new,
+                            ht.eye(V_new.shape[1], dtype=V_new.dtype, split=V_new.split),
+                            atol=dtypetol,
+                            rtol=dtypetol,
+                        )
+                    )
+                    # check if entries of S_new are positive
+                    self.assertTrue(ht.all(S_new >= 0))
+                    # check if the reconstruction error is small
+                    X_new = ht.hstack([X_old, new_data.resplit_(X_old.split)])
+                    X_rec = U_new @ ht.diag(S_new) @ V_new.T
+                    self.assertTrue(ht.allclose(X_rec, X_new, atol=dtypetol, rtol=dtypetol))
+
+    def test_isvd_catch_wrong_inputs(self):
+        u_old = ht.zeros((10, 2))
+        s_old = ht.zeros((3,))
+        v_old = ht.zeros((5, 3))
+        new_data = ht.zeros((11, 5))
+        with self.assertRaises(ValueError):
+            ht.linalg.isvd(new_data, u_old, s_old, v_old)
+        s_old = ht.zeros((2,))
+        with self.assertRaises(ValueError):
+            ht.linalg.isvd(new_data, u_old, s_old, v_old)
+        v_old = ht.zeros((5, 2))
+        with self.assertRaises(ValueError):
+            ht.linalg.isvd(new_data, u_old, s_old, v_old)

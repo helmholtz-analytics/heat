@@ -154,7 +154,8 @@ def qr(
         for i in range(last_row_reached + 1):
             # this loop goes through all the column-blocks (i.e. local arrays) of the matrix
             # this corresponds to the loop over all columns in classical Gram-Schmidt
-            if i < nprocs - 1:
+
+            if i < nprocs:
                 k_loc_i = min(A.shape[0], A.lshape_map[i, 1])
                 Q_buf = torch.zeros(
                     (A.shape[0], k_loc_i), dtype=A.larray.dtype, device=A.device.torch_device
@@ -170,10 +171,9 @@ def qr(
                 r_size = R.larray[R_shapes[i] : R_shapes[i + 1], :].shape[0]
                 R.larray[R_shapes[i] : R_shapes[i + 1], :] = R_loc[:r_size, :]
 
-            if i < nprocs - 1:
+            if i < nprocs:
                 # broadcast the orthogonalized block of columns to all other processes
-                req = A.comm.Ibcast(Q_buf, root=i)
-                req.Wait()
+                A.comm.Bcast(Q_buf, root=i)
 
             if A.comm.rank > i:
                 # subtract the contribution of the current block of columns from the remaining columns
