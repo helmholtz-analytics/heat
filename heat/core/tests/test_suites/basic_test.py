@@ -1,4 +1,5 @@
 import unittest
+import platform
 import os
 
 from heat.core import dndarray, MPICommunication, MPI, types, factories
@@ -12,6 +13,7 @@ import torch
 class TestCase(unittest.TestCase):
     __comm = MPICommunication()
     __device = None
+    _hostnames: list[str] = None
 
     @property
     def comm(self):
@@ -61,6 +63,16 @@ class TestCase(unittest.TestCase):
 
     def get_size(self):
         return self.comm.size
+
+    @classmethod
+    def get_hostnames(cls):
+        if not cls._hostnames:
+            if platform.system() == "Windows":
+                host = platform.uname().node
+            else:
+                host = os.uname()[1]
+            cls._hostnames = set(cls.__comm.handle.allgather(host))
+        return cls._hostnames
 
     def assert_array_equal(self, heat_array, expected_array):
         """
