@@ -126,7 +126,26 @@ class DMD(ht.RegressionMixin, ht.BaseEstimator):
         X : DNDarray
             The time series data to fit the DMD model to. Must be of shape (n_features, n_timesteps).
         """
-        pass
+        ht.sanitize_in(X)
+        # check if the input data is a 2-D DNDarray
+        if X.ndim != 2:
+            raise ValueError(
+                f"Invalid shape '{X.shape}' for input data 'X'. Must be a 2-D DNDarray of shape (n_features, n_timesteps)."
+            )
+        # check if the input data has at least two time steps
+        if X.shape[1] < 2:
+            raise ValueError(
+                f"Invalid number of time steps '{X.shape[1]}' in input data 'X'. Must have at least two time steps."
+            )
+        if self.svd_algorithm == "full":
+            # full SVD
+            pass
+        elif self.svd_algorithm == "hierarchical":
+            # hierarchical SVD
+            pass
+        else:
+            # randomized SVD
+            pass
 
     def predict(self, X: ht.DNDarray, steps: Union[int, List, ht.DNDarray]) -> ht.DNDarray:
         """
