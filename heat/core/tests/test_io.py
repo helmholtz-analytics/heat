@@ -6,6 +6,7 @@ import time
 import random
 import shutil
 import fnmatch
+import unittest
 
 import heat as ht
 from .test_suites.basic_test import TestCase
@@ -148,6 +149,10 @@ class TestIO(TestCase):
         with self.assertRaises(TypeError):
             ht.load_csv(self.CSV_PATH, header_lines="3", sep=";", split=0)
 
+    @unittest.skipIf(
+        len(TestCase.get_hostnames()) > 1 and not os.environ.get("TMPDIR"),
+        "Requires the environment variable 'TMPDIR' to point to a globally accessible path. Otherwise the test will be skiped on multi-node setups.",
+    )
     def test_save_csv(self):
         for rnd_type in [
             (ht.random.randint, ht.types.int32),
@@ -160,11 +165,11 @@ class TestIO(TestCase):
                     for headers in [None, ["# This", "# is a", "# test."]]:
                         for shape in [(1, 1), (10, 10), (20, 1), (1, 20), (25, 4), (4, 25)]:
                             if rnd_type[0] == ht.random.randint:
-                                data = rnd_type[0](
+                                data: ht.DNDarray = rnd_type[0](
                                     -1000, 1000, size=shape, dtype=rnd_type[1], split=split
                                 )
                             else:
-                                data = rnd_type[0](
+                                data: ht.DNDarray = rnd_type[0](
                                     shape[0],
                                     shape[1],
                                     split=split,
