@@ -24,6 +24,7 @@ from .. import sanitation
 from .. import statistics
 from .. import stride_tricks
 from .. import types
+from .. import tiling
 
 __all__ = [
     "cross",
@@ -626,27 +627,41 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
         elif a.split == ndim - 1 and b.split is None:  # 1-None
             split = a.split
 
-            c = torch.zeros(c_shape, dtype=c_type.torch_type(), device=tdev)
+            tmp0 = torch.zeros(c_shape, dtype=c_type.torch_type(), device=tdev)
 
             a_idx = comm.chunk(a.shape, a.split)[2]
-            c += (
+            tmp0 += (
                 a.larray
                 @ b.larray[
                     ..., a_idx[ndim - 1].start : a_idx[ndim - 1].start + a.lshape[ndim - 1], :
                 ]
             )
-            comm.Allreduce(MPI.IN_PLACE, c, MPI.SUM)
+            if not vector_flag:
+                is_split = True
+                tmp1 = _slab_exchange_alltoallw(tmp0, a.split, comm)
+                c = tmp1.sum(axis=-1)
+            else:
+                comm.Allreduce(MPI.IN_PLACE, tmp0, MPI.SUM)
+                c = tmp0
 
         elif a.split is None and b.split == ndim - 2:  # None-0
             split = b.split
 
-            c = torch.zeros(c_shape, dtype=c_type.torch_type(), device=tdev)
+            tmp0 = torch.zeros(c_shape, dtype=c_type.torch_type(), device=tdev)
+
             b_idx = b.comm.chunk(b.shape, b.split)[2]
-            c += (
+            tmp0 += (
                 a.larray[..., b_idx[ndim - 2].start : b_idx[ndim - 2].start + b.lshape[ndim - 2]]
                 @ b.larray
             )
-            b.comm.Allreduce(MPI.IN_PLACE, c, MPI.SUM)
+            if not vector_flag:
+                is_split = True
+                print("b split: ", b.split)
+                tmp1 = _slab_exchange_alltoallw(tmp0, b.split, comm)
+                c = tmp1.sum(axis=-1)
+            else:
+                comm.Allreduce(MPI.IN_PLACE, tmp0, MPI.SUM)
+                c = tmp0
 
         # early out
         if vector_flag:  # squeeze only in the la dimensions
@@ -1173,6 +1188,49 @@ DNDarray.__matmul__ = _matmul
 DNDarray.__matmul__.__doc__ = matmul.__doc__
 DNDarray.__rmatmul__ = lambda self, other: _matmul(other, self)
 DNDarray.__rmatmul__.__doc__ = matmul.__doc__
+
+
+def _slab_exchange_alltoallw(x: torch.Tensor, axis: int, comm: MPI.Comm) -> torch.Tensor:
+
+    rank = comm.Get_rank()
+    world_size = comm.Get_size()
+
+    counts = [1] * world_size
+    displs = [0] * world_size
+
+    local_send_shape = list(x.shape)
+    tiles = tiling.SplitTiles(factories.array(x, split=axis))
+
+    split_dim_size = int(tiles.tile_dimensions[axis][rank].item())
+    local_recv_shape = local_send_shape.copy() + [world_size]
+    local_recv_shape[axis] = split_dim_size
+    local_recv_subarray_shape = local_recv_shape.copy()
+    local_recv_subarray_shape[-1] = 1
+
+    send_subarray_param_list = []
+    recv_subarray_param_list = []
+
+    for i in range(world_size):
+        sub_size = local_send_shape.copy()
+        sub_size[axis] = int(tiles.tile_dimensions[axis][i].item())
+
+        sub_start = [0] * len(local_send_shape)
+        if i != 0:
+            sub_start[axis] = int(tiles.tile_ends_g[axis][i - 1].item())
+        send_subarray_param_list.append((local_send_shape, sub_size, sub_start))
+
+        sub_start = [0] * len(local_recv_shape)
+        sub_start[-1] = i
+
+        recv_subarray_param_list.append((local_recv_shape, local_recv_subarray_shape, sub_start))
+
+    ret = torch.zeros(local_recv_shape, device=x.device, dtype=x.dtype)
+
+    comm.Alltoallw(
+        (x, (counts.copy(), displs.copy()), send_subarray_param_list),
+        (ret, (counts.copy(), displs.copy()), recv_subarray_param_list),
+    )
+    return ret
 
 
 def matrix_norm(
