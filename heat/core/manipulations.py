@@ -3503,7 +3503,7 @@ def vsplit(x: DNDarray, indices_or_sections: Iterable) -> List[DNDarray, ...]:
     return split(x, indices_or_sections, 0)
 
 
-def resplit(arr: DNDarray, axis: int = None) -> DNDarray:
+def resplit(arr: DNDarray, axis: Optional[int] = None) -> DNDarray:
     """
     Out-of-place redistribution of the content of the `DNDarray`. Allows to "unsplit" (i.e. gather) all values from all
     nodes,  as well as to define a new axis along which the array is split without changes to the values.
