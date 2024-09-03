@@ -1181,6 +1181,9 @@ def min(
             result = result[0]
         return result
 
+    if isinstance(x, (Tuple, List)):
+        return torch.tensor(x).min().item()
+
     largest_value = sanitation.sanitize_infinity(x)
     return _operations.__reduce_op(
         x, local_min, MPI.MIN, axis=axis, out=out, neutral=largest_value, keepdims=keepdims
@@ -1545,7 +1548,7 @@ def percentile(
     axis = stride_tricks.sanitize_axis(x.shape, axis)
     original_axis = axis
 
-    # sanitize output buffer: calculate output_shape, output_split, and output_dtype
+    # sanitize output buffer: set output_shape, output_split, and output_dtype
     if axis is not None:
         # calculate output_shape
         if isinstance(axis, int):
@@ -1560,9 +1563,14 @@ def percentile(
         if x.split is not None and not sketched:
             split_bookkeeping = [None] * x.ndim
             split_bookkeeping[x.split] = "split"
-            split_bookkeeping = [
-                split_bookkeeping[ax] for ax in range(x.ndim) if ax not in tuple(axis)
-            ]
+            if not keepdims:
+                # remove reduced axes
+                split_bookkeeping = [
+                    split_bookkeeping[ax] for ax in range(x.ndim) if ax not in tuple(axis)
+                ]
+            # insert percentile dimension at axis 0 if needed
+            split_bookkeeping = [None] * len(perc_size) + split_bookkeeping
+            # identify output split
             output_split = (
                 split_bookkeeping.index("split") if "split" in split_bookkeeping else None
             )
@@ -1577,6 +1585,7 @@ def percentile(
         output_split = None
     if len(perc_size) > 0:
         output_shape = perc_size + output_shape
+
     # output data type must be float
     output_dtype = types.float32 if x.larray.element_size() == 4 else types.float64
     if out is not None:
@@ -1603,7 +1612,12 @@ def percentile(
         x = x.transpose(transpose_axes)
         # flatten the data along the axes along which the percentiles are calculated
         non_op_shape = tuple(x.shape[dim] for dim in non_op_dims)
-        x = x.reshape(-1, *non_op_shape)
+        # calculate new split axis
+        if x.is_distributed() and x.split in axis:
+            reshaped_split = min(axis)
+        else:
+            reshaped_split = None
+        x = x.reshape(-1, *non_op_shape, new_split=reshaped_split)
         axis = 0
         if keepdims:
             x = manipulations.expand_dims(x, axis=tuple(og_ax + 1 for og_ax in original_axis))
@@ -1659,8 +1673,12 @@ def percentile(
         floors = sorted_x[perc_indices.floor().type(torch.int)]
         ceils = sorted_x[perc_indices.ceil().type(torch.int)]
         del sorted_x
-        # align ceils to floors if necessary
-        ceils.redistribute_(target_map=floors.lshape_map)
+        if output_split is None:
+            # gather results
+            floors.resplit_(None)
+            ceils.resplit_(None)
+        else:
+            ceils.redistribute_(target_map=floors.lshape_map)
         fractional_indices = perc_indices - perc_indices.floor()
         while fractional_indices.ndim < floors.ndim:
             # expand fractional indices for later binary op

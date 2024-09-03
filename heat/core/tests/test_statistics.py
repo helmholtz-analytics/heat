@@ -1223,13 +1223,19 @@ class TestStatistics(TestCase):
         p_np = np.percentile(4.5, q=q)
         self.assertEqual(p_ht.numpy().all(), p_np.all())
 
-        # test tuple axis
+        # test tuple axis and out buffer
         q = (20, 50, 80)
-        x_ht = ht.random.randn(3, 10, 10, dtype=ht.float64)
-        x_np = x_ht.numpy()
-        p_np = np.percentile(x_np, q, axis=(0, 1))
-        p_ht = ht.percentile(x_ht, q, axis=(0, 1))
-        self.assertTrue(np.allclose(p_ht.numpy(), p_np))
+        for split in [None, 2, 1, 0]:
+            x_ht = ht.random.randn(3, 10, 10, dtype=ht.float64, split=split)
+            x_np = x_ht.numpy()
+            p_np = np.percentile(x_np, q, axis=(0, 1))
+            if isinstance(split, int) and split == 2:
+                output_split = 1
+            else:
+                output_split = None
+            out = ht.empty(p_np.shape, dtype=x_ht.dtype, split=output_split)
+            ht.percentile(x_ht, q, axis=(0, 1), out=out)
+            self.assertTrue(np.allclose(out.numpy(), p_np))
 
         # test exceptions
         with self.assertRaises(TypeError):
