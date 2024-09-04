@@ -2131,7 +2131,7 @@ def reshape(a: DNDarray, *shape: Union[int, Tuple[int, ...]], **kwargs) -> DNDar
     new_split = kwargs.get("new_split")
     if new_split is None:
         if orig_split is not None and len(shape) != a.ndim:
-            # some original dimensions are being fused
+            # dimensionality reduced or expanded
             # set output split axis to 0
             new_split = 0
         else:
