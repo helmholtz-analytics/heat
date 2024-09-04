@@ -829,6 +829,9 @@ def max(
             result = result[0]
         return result
 
+    if isinstance(x, (Tuple, List)):
+        return torch.tensor(x).max().item()
+
     smallest_value = -sanitation.sanitize_infinity(x)
     return _operations.__reduce_op(
         x, local_max, MPI.MAX, axis=axis, out=out, neutral=smallest_value, keepdims=keepdims
@@ -1613,8 +1616,12 @@ def percentile(
         # flatten the data along the axes along which the percentiles are calculated
         non_op_shape = tuple(x.shape[dim] for dim in non_op_dims)
         # calculate new split axis
-        if x.is_distributed() and x.split in axis:
-            reshaped_split = min(axis)
+        if x.is_distributed():
+            if x.split in axis:
+                reshaped_split = min(axis)
+            # x.split < min(axis) does not occur bc of earlier transpose
+            elif x.split > max(axis):
+                reshaped_split = x.split - (len(axis) - 1)
         else:
             reshaped_split = None
         x = x.reshape(-1, *non_op_shape, new_split=reshaped_split)
