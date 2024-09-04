@@ -1244,6 +1244,26 @@ class TestStatistics(TestCase):
         with self.assertRaises(ValueError):
             ht.percentile(x_ht, q, out=out_wrong_split)
 
+    def test_percentile_sketched(self):
+        axis, q = 0, 50
+        use_sketch_of_size = 0.1
+        q = 50
+        # check if it works
+        for split in [None, 1, 0]:
+            X = ht.random.rand(10 * ht.MPI_WORLD.size, 2 * ht.MPI_WORLD.size, split=split)
+            p = ht.percentile(X, q, axis=axis, sketched=True, sketch_size=use_sketch_of_size)
+            self.assertTrue(p.shape == (2 * ht.MPI_WORLD.size,))
+        # default sketch size
+        for split in [None, 1, 0]:
+            X = ht.random.rand(10 * ht.MPI_WORLD.size, 2 * ht.MPI_WORLD.size, split=split)
+            p = ht.percentile(X, q, axis=axis, sketched=True)
+            self.assertTrue(p.shape == (2 * ht.MPI_WORLD.size,))
+        # check if it raises correct errors
+        with self.assertRaises(ValueError):
+            ht.percentile(X, q, axis=axis, sketched=True, sketch_size=1.1)
+        with self.assertRaises(ValueError):
+            ht.percentile(X, q, axis=axis, sketched=True, sketch_size=10)
+
     def test_skew(self):
         x = ht.zeros((2, 3, 4))
         with self.assertRaises(ValueError):
@@ -1263,7 +1283,7 @@ class TestStatistics(TestCase):
         # 1 dim
         ht_data = ht.random.rand(50)
         np_data = ht_data.copy().numpy()
-        np_skew32 = ht.array((ss.skew(np_data, bias=False)), dtype=ht_data.dtype)
+        np_skew32 = ht.array(ss.skew(np_data, bias=False)).astype(ht_data.dtype)
         self.assertAlmostEqual(ht.skew(ht_data), np_skew32.item(), places=5)
         ht_data = ht.resplit(ht_data, 0)
         self.assertAlmostEqual(ht.skew(ht_data), np_skew32.item(), places=5)

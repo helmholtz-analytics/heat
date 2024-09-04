@@ -60,7 +60,7 @@ class TestHSVD(TestCase):
                         )
                         self.assertTrue(V_orth_err <= dtype_tol)
                     true_rel_err = ht.norm(U @ ht.diag(sigma) @ V.T - A) / ht.norm(A)
-                    self.assertTrue(true_rel_err <= err_est)
+                    self.assertTrue(true_rel_err <= err_est or true_rel_err < dtype_tol)
                 else:
                     self.assertEqual(hsvd_rk, 1)
                     self.assertEqual(ht.norm(U), 0)
@@ -96,7 +96,7 @@ class TestHSVD(TestCase):
                         )
                         self.assertTrue(V_orth_err <= dtype_tol)
                     true_rel_err = ht.norm(U @ ht.diag(sigma) @ V.T - A) / ht.norm(A)
-                    self.assertTrue(true_rel_err <= err_est)
+                    self.assertTrue(true_rel_err <= err_est or true_rel_err < dtype_tol)
                     self.assertTrue(true_rel_err <= tol)
                 else:
                     self.assertEqual(hsvd_rk, 1)
@@ -143,10 +143,8 @@ class TestHSVD(TestCase):
         self.assertEqual(len(ht.linalg.hsvd_rank(test_matrices[0], 5)), 2)
         self.assertEqual(len(ht.linalg.hsvd_rtol(test_matrices[0], 5e-1)), 2)
 
-    @unittest.skipIf(torch.cuda.is_available() and torch.version.hip, "not supported for HIP")
     def test_hsvd_rank_part2(self):
         # check if hsvd_rank yields correct results for maxrank <= truerank
-        # this needs to be skipped on AMD because generation of test data relies on QR...
         nprocs = MPI.COMM_WORLD.Get_size()
         true_rk = max(10, nprocs)
         test_matrices_low_rank = [

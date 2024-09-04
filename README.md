@@ -16,10 +16,12 @@ Heat is a distributed tensor framework for high performance data analytics.
 [![Downloads](https://pepy.tech/badge/heat)](https://pepy.tech/project/heat)
 [![Anaconda-Server Badge](https://anaconda.org/conda-forge/heat/badges/version.svg)](https://anaconda.org/conda-forge/heat)
 [![fair-software.eu](https://img.shields.io/badge/fair--software.eu-%E2%97%8F%20%20%E2%97%8F%20%20%E2%97%8F%20%20%E2%97%8F%20%20%E2%97%8F-green)](https://fair-software.eu)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/helmholtz-analytics/heat/badge)](https://securityscorecards.dev/viewer/?uri=github.com/helmholtz-analytics/heat)
 [![OpenSSF Best Practices](https://bestpractices.coreinfrastructure.org/projects/7688/badge)](https://bestpractices.coreinfrastructure.org/projects/7688)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.2531472.svg)](https://doi.org/10.5281/zenodo.2531472)
-[![Benchmarks](https://img.shields.io/badge/Github--Pages-Benchmarks-2ea44f)](https://helmholtz-analytics.github.io/heat/dev/bench)
+[![Benchmarks](https://img.shields.io/badge/Grafana-Benchmarks-2ea44f)](https://57bc8d92-72f2-4869-accd-435ec06365cb.ka.bw-cloud-instance.org:3000/d/adjpqduq9r7k0a/heat-cb?orgId=1)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![JuRSE Code Pick of the Month](https://img.shields.io/badge/JuRSE_Code_Pick-August_2024-blue)](https://www.fz-juelich.de/en/rse/jurse-community/jurse-code-of-the-month/august-2024)
 
 # Table of Contents
   - [What is Heat for?](#what-is-heat-for)
@@ -111,7 +113,7 @@ computational and memory needs of your laptop and desktop.
 - python >= 3.8
 - MPI (OpenMPI, MPICH, Intel MPI, etc.)
 - mpi4py >= 3.0.0
-- pytorch >= 1.8.0
+- pytorch >= 1.11.0
 
 ### Parallel I/O
 - h5py
@@ -160,7 +162,7 @@ If you’re unsure where to start or how your skills fit in, reach out! You can 
 
 ## Resources
 
-* [Heat Tutorials](https://heat.readthedocs.io/en/latest/tutorials.html)
+* [Heat Tutorials](https://github.com/helmholtz-analytics/heat/tree/main/tutorials)
 * [Heat API Reference](https://heat.readthedocs.io/en/latest/autoapi/index.html)
 
 ### Parallel Computing and MPI:
@@ -227,9 +229,10 @@ under project number ZT-I-0003 and the Helmholtz AI platform grant.*
 
 *This project has received funding from Google Summer of Code (GSoC) in 2022.*
 
+*This work is partially carried out under a [programme](https://activities.esa.int/index.php/4000144045) of, and funded by, the European Space Agency.
+Any view expressed in this repository or related publications can in no way be taken to reflect the official opinion of the European Space Agency.*
 
 ---
 
 <div align="center">
-  <a href="https://www.dlr.de/EN/Home/home_node.html"><img src="https://raw.githubusercontent.com/helmholtz-analytics/heat/main/doc/images/dlr_logo.svg" height="50px" hspace="3%" vspace="20px"></a><a href="https://www.fz-juelich.de/portal/EN/Home/home_node.html"><img src="https://raw.githubusercontent.com/helmholtz-analytics/heat/main/doc/images/fzj_logo.svg" height="50px" hspace="3%" vspace="20px"></a><a href="http://www.kit.edu/english/index.php"><img src="https://raw.githubusercontent.com/helmholtz-analytics/heat/main/doc/images/kit_logo.svg" height="50px" hspace="3%" vspace="20px"></a><a href="https://www.helmholtz.de/en/"><img src="https://raw.githubusercontent.com/helmholtz-analytics/heat/main/doc/images/helmholtz_logo.svg" height="50px" hspace="3%" vspace="20px"></a>
-</div>
+  <a href="https://www.dlr.de/EN/Home/home_node.html"><img src="https://raw.githubusercontent.com/helmholtz-analytics/heat/main/doc/images/dlr_logo.svg" height="50px" hspace="3%" vspace="20px"></a><a href="https://www.fz-juelich.de/portal/EN/Home/home_node.html"><img src="https://raw.githubusercontent.com/helmholtz-analytics/heat/main/doc/images/fzj_logo.svg" height="40px" hspace="3%" vspace="20px"></a><a href="http://www.kit.edu/english/index.php"><img src="https://raw.githubusercontent.com/helmholtz-analytics/heat/main/doc/images/kit_logo.svg" height="40px" hspace="3%" vspace="5px"></a><a href="https://www.helmholtz.de/en/"><img src="https://raw.githubusercontent.com/helmholtz-analytics/heat/main/doc/images/helmholtz_logo.svg" height="50px" hspace="3%" vspace="5px"></a><a href="https://www.esa.int/"><img src="https://github.com/user-attachments/assets/2ee251b4-733e-44ea-8d1c-8b75928eef55" height="45px" hspace="3%" vspace="20px"></a>

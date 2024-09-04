@@ -244,10 +244,21 @@ class MPICommunication(Communication):
         return tuple(counts.tolist()), tuple(displs.tolist()), tuple(output_shape)
 
     @classmethod
+    def mpi_type_of(cls, dtype: torch.dtype) -> MPI.Datatype:
+        """Determines the MPI Datatype from the torch dtype.
+
+        Parameters
+        ----------
+        dtype : torch.dtype
+            PyTorch data type
+        """
+        return cls.__mpi_type_mappings[dtype]
+
+    @classmethod
     def mpi_type_and_elements_of(
         cls,
         obj: Union[DNDarray, torch.Tensor],
-        counts: Tuple[int],
+        counts: Optional[Tuple[int]],
         displs: Tuple[int],
         is_contiguous: Optional[bool],
     ) -> Tuple[MPI.Datatype, Tuple[int, ...]]:
@@ -278,7 +289,7 @@ class MPICommunication(Communication):
         if is_contiguous:
             if counts is None:
                 return mpi_type, elements
-            factor = np.prod(obj.shape[1:])
+            factor = np.prod(obj.shape[1:], dtype=np.int32)
             return (
                 mpi_type,
                 (
@@ -315,14 +326,15 @@ class MPICommunication(Communication):
         obj : torch.Tensor
             The tensor to be converted into a MPI memory view.
         """
+        # TODO: MPI.memory might be depraecated in future versions of mpi4py. The following code might need to be adapted and use MPI.buffer instead.
         return MPI.memory.fromaddress(obj.data_ptr(), 0)
 
     @classmethod
     def as_buffer(
         cls,
         obj: torch.Tensor,
-        counts: Tuple[int] = None,
-        displs: Tuple[int] = None,
+        counts: Optional[Tuple[int]] = None,
+        displs: Optional[Tuple[int]] = None,
         is_contiguous: Optional[bool] = None,
     ) -> List[Union[MPI.memory, Tuple[int, int], MPI.Datatype]]:
         """
@@ -345,6 +357,10 @@ class MPICommunication(Communication):
             obj.unsqueeze_(-1)
             squ = True
 
+        if counts is not None:
+            counts = tuple(int(c) for c in counts)
+        if displs is not None:
+            displs = tuple(int(d) for d in displs)
         mpi_type, elements = cls.mpi_type_and_elements_of(obj, counts, displs, is_contiguous)
         mpi_mem = cls.as_mpi_memory(obj)
         if squ:
@@ -1442,6 +1458,181 @@ class MPICommunication(Communication):
         return ret
 
     Alltoallv.__doc__ = MPI.Comm.Alltoallv.__doc__
+
+    def Alltoallw(
+        self,
+        sendbuf: Union[DNDarray, torch.Tensor, Any],
+        recvbuf: Union[DNDarray, torch.Tensor, Any],
+    ):
+        """
+        Generalized All-to-All communication allowing different counts, displacements and datatypes for each partner. See MPI standard for more information.
+
+        Parameters
+        ----------
+        sendbuf: Union[DNDarray, torch.Tensor, Any]
+            Buffer address of the send message. The buffer is expected to be a tuple of the form (buffer, (counts, displacements), subarray_params_list), where subarray_params_list is a list of tuples of the form (lshape, subsizes, substarts).
+        recvbuf: Union[DNDarray, torch.Tensor, Any]
+            Buffer address where to store the result. The buffer is expected to be a tuple of the form (buffer, (counts, displacements), subarray_params_list), where subarray_params_list is a list of tuples of the form (lshape, subsizes, substarts).
+
+        """
+        # Unpack sendbuffer information
+        sendbuf_tensor, (send_counts, send_displs), subarray_params_list = sendbuf
+        sendbuf = sendbuf_tensor if CUDA_AWARE_MPI else sendbuf_tensor.cpu()
+
+        is_contiguous = sendbuf.is_contiguous()
+        stride = sendbuf.stride()
+
+        send_datatype = self.mpi_type_of(sendbuf.dtype)
+        sendbuf_ptr = self.as_mpi_memory(sendbuf)
+
+        source_subarray_types = []
+
+        for idx, subarray_params in enumerate(subarray_params_list):
+            lshape, subsizes, substarts = subarray_params
+
+            if np.all(np.array(subsizes) > 0):
+
+                if is_contiguous:
+                    # Commit the source subarray datatypes
+                    # Subarray parameters are calculated based on the work by Dalcin et al. (https://arxiv.org/abs/1804.09536)
+                    subarray_type = send_datatype.Create_subarray(
+                        lshape, subsizes, substarts, order=MPI.ORDER_C
+                    ).Commit()
+                    source_subarray_types.append(subarray_type)
+                else:
+                    # Create recursive vector datatype
+                    source_subarray_types.append(
+                        self._create_recursive_vectortype(
+                            send_datatype, stride, subsizes, substarts
+                        )
+                    )
+                    send_counts[idx] = subsizes[0]
+            else:
+                send_counts[idx] = 0
+                source_subarray_types.append(MPI.INT)
+
+        # Unpack recvbuf information
+        recvbuf_tensor, (recv_counts, recv_displs), subarray_params_list = recvbuf
+        recvbuf = recvbuf_tensor if CUDA_AWARE_MPI else recvbuf_tensor.cpu()
+        recvbuf_ptr, _, recv_datatype = self.as_buffer(recvbuf)
+
+        # Commit the receive subarray datatypes
+        target_subarray_types = []
+        for idx, subarray_params in enumerate(subarray_params_list):
+            lshape, subsizes, substarts = subarray_params
+
+            if np.all(np.array(subsizes) > 0):
+                target_subarray_types.append(
+                    recv_datatype.Create_subarray(
+                        lshape, subsizes, substarts, order=MPI.ORDER_C
+                    ).Commit()
+                )
+            else:
+                recv_counts[idx] = 0
+                target_subarray_types.append(MPI.INT)
+
+        # Perform the Alltoallw operation
+        self.handle.Alltoallw(
+            [sendbuf_ptr, (send_counts, send_displs), source_subarray_types],
+            [recvbuf_ptr, (recv_counts, recv_displs), target_subarray_types],
+        )
+
+        # In case of NON Cuda-Aware MPI, copy the result back to the original buffer
+        if (
+            isinstance(recvbuf_tensor, torch.Tensor)
+            and recvbuf_tensor.is_cuda
+            and not CUDA_AWARE_MPI
+        ):
+            recvbuf_tensor.copy_(recvbuf)
+        else:
+            if sendbuf_tensor.is_conj():
+                recvbuf_tensor.conj_physical_()
+
+        # Free the subarray datatypes
+        for p in range(len(source_subarray_types)):
+            if source_subarray_types[p] != MPI.INT:
+                source_subarray_types[p].Free()
+            if target_subarray_types[p] != MPI.INT:
+                target_subarray_types[p].Free()
+
+    Alltoallw.__doc__ = MPI.Comm.Alltoallw.__doc__
+
+    def _create_recursive_vectortype(
+        self,
+        datatype: MPI.Datatype,
+        tensor_stride: Tuple[int],
+        subarray_sizes: List[int],
+        start: List[int],
+    ):
+        """
+        Create a recursive vector to handle non-contiguous tensor data. The created datatype will be a recursively defined vector datatype that will enable the collection of  non-contiguous tensor data in the specified subarray sizes.
+
+        Parameters
+        ----------
+        datatype : MPI.Datatype
+            The base datatype to create the recursive vector datatype from.
+        tensor_stride : Tuple[int]
+            A list of tensor strides for each dimension.
+        subarray_sizes : List[int]
+            A list of subarray sizes for each dimension.
+        start: List[int]
+            Index of the first element of the subarray in the original array.
+
+        Notes
+        -----
+        This function creates a recursive vector datatype by defining vectors out of the previous datatype with specified strides and sizes. The extent (size of the data type in bytes) of the new datatype is set to the extent of the basic datatype to allow interweaving of data.
+
+        Examples
+        --------
+        >>> datatype = MPI.INT
+        >>> tensor_stride = [1, 2, 3]
+        >>> subarray_sizes = [4, 5, 6]
+        >>> recursive_vectortype = create_recursive_vectortype(datatype, tensor_stride, subarray_sizes)
+        """
+        datatype_history = []
+        current_datatype = datatype
+
+        i = len(tensor_stride) - 1
+        while i > 0:
+            current_stride = tensor_stride[i]
+            current_size = subarray_sizes[i]
+            # Define vector out of previous datatype with stride equals to current stride
+            if i == len(tensor_stride) - 1 and current_stride == 1:
+                i -= 1
+                # Define vector out of previous datatype with stride equals to current stride
+                current_stride = tensor_stride[i]
+                next_size = subarray_sizes[i]
+                new_vector_datatype = current_datatype.Create_vector(
+                    next_size, current_size, current_stride
+                ).Commit()
+
+            else:
+                if i == len(tensor_stride) - 1:
+                    new_vector_datatype = current_datatype.Create_vector(
+                        current_size, 1, current_stride
+                    ).Commit()
+                else:
+                    new_vector_datatype = current_datatype.Create_vector(
+                        current_size, 1, 1
+                    ).Commit()
+
+            datatype_history.append(new_vector_datatype)
+            # Set extent of the new datatype to the extent of the basic datatype to allow interweaving of data
+            next_stride = tensor_stride[i - 1]
+            new_resized_vector_datatype = new_vector_datatype.Create_resized(
+                0, datatype.Get_extent()[1] * next_stride
+            ).Commit()
+            datatype_history.append(new_resized_vector_datatype)
+            current_datatype = new_resized_vector_datatype
+
+            i -= 1
+
+        displacement = sum([x * y for x, y in zip(tensor_stride, start)]) * datatype.Get_extent()[1]
+        current_datatype = current_datatype.Create_hindexed_block(1, [displacement]).Commit()
+
+        for dt in datatype_history[:-1]:
+            dt.Free()
+        return current_datatype
 
     def Ialltoall(
         self,

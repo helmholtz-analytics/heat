@@ -10,7 +10,7 @@ import warnings
 
 from typing import Iterable, Type, List, Callable, Union, Tuple, Sequence, Optional
 
-from .communication import MPI
+from .communication import MPI, Communication
 from .dndarray import DNDarray
 
 from . import arithmetics
@@ -61,6 +61,7 @@ __all__ = [
     "unique",
     "vsplit",
     "vstack",
+    "unfold",
 ]
 
 
@@ -3477,7 +3478,7 @@ def vsplit(x: DNDarray, indices_or_sections: Iterable) -> List[DNDarray, ...]:
     return split(x, indices_or_sections, 0)
 
 
-def resplit(arr: DNDarray, axis: int = None) -> DNDarray:
+def resplit(arr: DNDarray, axis: Optional[int] = None) -> DNDarray:
     """
     Out-of-place redistribution of the content of the `DNDarray`. Allows to "unsplit" (i.e. gather) all values from all
     nodes,  as well as to define a new axis along which the array is split without changes to the values.
@@ -3537,34 +3538,15 @@ def resplit(arr: DNDarray, axis: int = None) -> DNDarray:
             gathered, is_split=axis, device=arr.device, comm=arr.comm, dtype=arr.dtype
         )
         return new_arr
-    arr_tiles = tiling.SplitTiles(arr)
-    new_arr = factories.empty(arr.gshape, split=axis, dtype=arr.dtype, device=arr.device)
-    new_tiles = tiling.SplitTiles(new_arr)
-    rank = arr.comm.rank
-    waits = []
-    rcv_waits = {}
-    for rpr in range(arr.comm.size):
-        # need to get where the tiles are on the new one first
-        # rpr is the destination
-        new_locs = torch.where(new_tiles.tile_locations == rpr)
-        new_locs = torch.stack([new_locs[i] for i in range(arr.ndim)], dim=1)
 
-        for i in range(new_locs.shape[0]):
-            key = tuple(new_locs[i].tolist())
-            spr = arr_tiles.tile_locations[key].item()
-            to_send = arr_tiles[key]
-            if spr == rank and spr != rpr:
-                waits.append(arr.comm.Isend(to_send.clone(), dest=rpr, tag=rank))
-            elif spr == rpr == rank:
-                new_tiles[key] = to_send.clone()
-            elif rank == rpr:
-                buf = torch.zeros_like(new_tiles[key])
-                rcv_waits[key] = [arr.comm.Irecv(buf=buf, source=spr, tag=spr), buf]
-    for w in waits:
-        w.Wait()
-    for k in rcv_waits.keys():
-        rcv_waits[k][0].Wait()
-        new_tiles[k] = rcv_waits[k][1]
+    new_arr = factories.empty(arr.gshape, split=axis, dtype=arr.dtype, device=arr.device)
+
+    arr_tiles = tiling.SplitTiles(arr)
+    new_tiles = tiling.SplitTiles(new_arr)
+
+    new_arr.larray = _axis2axisResplit(
+        arr.larray, arr.split, arr_tiles, new_arr.larray, axis, new_tiles, arr.comm
+    )
 
     return new_arr
 
@@ -3573,6 +3555,60 @@ DNDarray.resplit: Callable[[DNDarray, Optional[int]], DNDarray] = lambda self, a
     self, axis
 )
 DNDarray.resplit.__doc__ = resplit.__doc__
+
+
+def _axis2axisResplit(
+    source_larray: torch.Tensor,
+    source_split: int,
+    source_tiles: tiling.SplitTiles,
+    target_larray: torch.Tensor,
+    target_split: int,
+    target_tiles: tiling.SplitTiles,
+    comm: Communication,
+) -> torch.Tensor:
+    """
+    Resplits the input array along a new axis and performs data exchange using MPI_Alltoallw. Returns target_larray object with the data after the exchange.
+
+    Parameters
+    ----------
+    source_larray : torch.Tensor
+        The source array to be resplit.
+    source_split : int
+        The axis along which the source array is split.
+    source_tiles : tiling.SplitTiles
+        The tiling object containing the subarray parameters for the source array.
+    target_larray : torch.Tensor
+        The target array to store the resplit data.
+    target_split : int
+        The axis along which the target array is split.
+    target_tiles : tiling.SplitTiles
+        The tiling object containing the subarray parameters for the target array.
+    comm : Communication
+        The communication object for MPI communication.
+    """
+    # Create subarray types for original local shapes split along the new axis
+    source_subarray_params = source_tiles.get_subarray_params(source_split, target_split)
+
+    # Create subarray types for resplit local array along the old axis
+    target_subarray_params = target_tiles.get_subarray_params(target_split, source_split)
+
+    world_size = comm.Get_size()
+    counts = [1] * world_size
+    displs = [0] * world_size
+
+    # Perform the data exchange using MPI_Alltoallw
+    comm.Alltoallw(
+        (source_larray, (counts.copy(), displs.copy()), source_subarray_params),
+        (target_larray, (counts.copy(), displs.copy()), target_subarray_params),
+    )
+
+    return target_larray
+
+
+DNDarray._axis2axisResplit = lambda self, comm, source_larray, source_split, source_tiles, target_larray, target_split, target_tile: _axis2axisResplit(
+    comm, source_larray, source_split, source_tiles, target_larray, target_split, target_tile
+)
+DNDarray._axis2axisResplit.__doc__ = _axis2axisResplit.__doc__
 
 
 def row_stack(arrays: Sequence[DNDarray, ...]) -> DNDarray:
@@ -4178,3 +4214,92 @@ def mpi_topk(a, b, mpi_type):
 
 
 MPI_TOPK = MPI.Op.Create(mpi_topk, commute=True)
+
+
+def unfold(a: DNDarray, axis: int, size: int, step: int = 1):
+    """
+    Returns a DNDarray which contains all slices of size `size` in the axis `axis`.
+
+    Behaves like torch.Tensor.unfold for DNDarrays. [torch.Tensor.unfold](https://pytorch.org/docs/stable/generated/torch.Tensor.unfold.html)
+
+    Parameters
+    ----------
+    a : DNDarray
+        array to unfold
+    axis : int
+        axis in which unfolding happens
+    size : int
+        the size of each slice that is unfolded, must be greater than 1
+    step : int
+        the step between each slice, must be at least 1
+
+    Example:
+    ```
+    >>> x = ht.arange(1., 8)
+    >>> x
+    DNDarray([1., 2., 3., 4., 5., 6., 7.], dtype=ht.float32, device=cpu:0, split=e)
+    >>> ht.unfold(x, 0, 2, 1)
+    DNDarray([[1., 2.],
+              [2., 3.],
+              [3., 4.],
+              [4., 5.],
+              [5., 6.],
+              [6., 7.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> ht.unfold(x, 0, 2, 2)
+    DNDarray([[1., 2.],
+              [3., 4.],
+              [5., 6.]], dtype=ht.float32, device=cpu:0, split=None)
+    ```
+
+    Note
+    ---------
+    You have to make sure that every node has at least chunk size size-1 if the split axis of the array is the unfold axis.
+    """
+    if step < 1:
+        raise ValueError("step must be >= 1.")
+    if size <= 1:
+        raise ValueError("size must be > 1.")
+    axis = stride_tricks.sanitize_axis(a.shape, axis)
+    if size > a.shape[axis]:
+        raise ValueError(
+            f"maximum size for DNDarray at axis {axis} is {a.shape[axis]} but size is {size}."
+        )
+
+    comm = a.comm
+    dev = a.device
+    tdev = dev.torch_device
+
+    if a.split is None or comm.size == 1 or a.split != axis:  # early out
+        ret = factories.array(
+            a.larray.unfold(axis, size, step), is_split=a.split, device=dev, comm=comm
+        )
+
+        return ret
+    else:  # comm.size > 1 and split axis == unfold axis
+        # index range [0:sizedim-1-(size-1)] = [0:sizedim-size]
+        # --> size of axis: ceil((sizedim-size+1) / step) = floor(sizedim-size) / step)) + 1
+        # ret_shape = (*a_shape[:axis], int((a_shape[axis]-size)/step) + 1, a_shape[axis+1:], size)
+
+        if (size - 1 > a.lshape_map[:, axis]).any():
+            raise RuntimeError("Chunk-size needs to be at least size - 1.")
+        a.get_halo(size - 1, prev=False)
+
+        counts, displs = a.counts_displs()
+        displs = torch.tensor(displs, device=tdev)
+
+        # min local index in unfold axis
+        min_index = ((displs[comm.rank] - 1) // step + 1) * step - displs[comm.rank]
+        if min_index >= a.lshape[axis] or (
+            comm.rank == comm.size - 1 and min_index + size > a.lshape[axis]
+        ):
+            loc_unfold_shape = list(a.lshape)
+            loc_unfold_shape[axis] = 0
+            ret_larray = torch.zeros((*loc_unfold_shape, size), device=tdev)
+        else:  # unfold has local data
+            ret_larray = a.array_with_halos[
+                axis * (slice(None, None, None),) + (slice(min_index, None, None), Ellipsis)
+            ].unfold(axis, size, step)
+
+        ret = factories.array(ret_larray, is_split=axis, device=dev, comm=comm)
+
+        return ret

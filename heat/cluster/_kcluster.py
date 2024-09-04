@@ -23,6 +23,7 @@ class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
 
         - ‘probability_based’ : selects initial cluster centers for the clustering in a smart way to speed up convergence (k-means++)
         - ‘random’: choose k observations (rows) at random from data for the initial centroids.
+        - 'batchparallel': use the batch parallel algorithm to initialize the centroids, only available for split=0 and KMeans or KMedians
         - ``DNDarray``: gives the initial centers, should be of Shape = (n_clusters, n_features)
     max_iter : int
         Maximum number of iterations for a single run.
@@ -50,9 +51,11 @@ class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
         # in-place properties
         self._metric = metric
         self._cluster_centers = None
+        self._functional_value = None
         self._labels = None
         self._inertia = None
         self._n_iter = None
+        self._p = None
 
     @property
     def cluster_centers_(self) -> DNDarray:
@@ -84,6 +87,13 @@ class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
         """
         return self._n_iter
 
+    @property
+    def functional_value_(self) -> DNDarray:
+        """
+        Returns the K-Clustering functional value of the clustering algorithm
+        """
+        return self._functional_value
+
     def _initialize_cluster_centers(self, x: DNDarray):
         """
         Initializes the K-Means centroids.
@@ -99,34 +109,9 @@ class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
 
         # initialize the centroids by randomly picking some of the points
         if self.init == "random":
-            # Samples will be equally distributed drawn from all involved processes
-            _, displ, _ = x.comm.counts_displs_shape(shape=x.shape, axis=0)
-            centroids = ht.empty(
-                (self.n_clusters, x.shape[1]), split=None, device=x.device, comm=x.comm
-            )
-            if x.split is None or x.split == 0:
-                for i in range(self.n_clusters):
-                    samplerange = (
-                        x.gshape[0] // self.n_clusters * i,
-                        x.gshape[0] // self.n_clusters * (i + 1),
-                    )
-                    sample = ht.random.randint(samplerange[0], samplerange[1]).item()
-                    proc = 0
-                    for p in range(x.comm.size):
-                        if displ[p] > sample:
-                            break
-                        proc = p
-                    xi = ht.zeros(x.shape[1], dtype=x.dtype)
-                    if x.comm.rank == proc:
-                        idx = sample - displ[proc]
-                        xi = ht.array(x.lloc[idx, :], device=x.device, comm=x.comm)
-                    xi.comm.Bcast(xi, root=proc)
-                    centroids[i, :] = xi
-
-            else:
-                raise NotImplementedError("Not implemented for other splitting-axes")
-
-            self._cluster_centers = centroids
+            idx = ht.random.randint(0, x.shape[0] - 1, size=(self.n_clusters,), split=None)
+            centroids = x[idx, :]
+            self._cluster_centers = centroids if x.split == 1 else centroids.resplit_(None)
 
         # directly passed centroids
         elif isinstance(self.init, DNDarray):
@@ -162,7 +147,7 @@ class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
                     D2 = distances.min(axis=1)
                     D2.resplit_(axis=None)
                     prob = D2 / D2.sum()
-                    random_position = ht.random.rand().item()
+                    random_position = ht.random.rand()
                     sample = 0
                     sum = 0
                     for j in range(len(prob)):
@@ -186,14 +171,41 @@ class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
                 raise NotImplementedError("Not implemented for other splitting-axes")
             self._cluster_centers = centroids
 
+        elif self.init == "batchparallel":
+            if x.split == 0:
+                if self._p == 2:
+                    batch_parallel_clusterer = ht.cluster.BatchParallelKMeans(
+                        n_clusters=self.n_clusters,
+                        init="k-means++",
+                        max_iter=100,
+                        random_state=self.random_state,
+                    )
+                elif self._p == 1:
+                    batch_parallel_clusterer = ht.cluster.BatchParallelKMedians(
+                        n_clusters=self.n_clusters,
+                        init="k-medians++",
+                        max_iter=100,
+                        random_state=self.random_state,
+                    )
+                else:
+                    raise ValueError(
+                        "Batch parallel initialization only implemented for KMeans and KMedians"
+                    )
+                batch_parallel_clusterer.fit(x)
+                self._cluster_centers = batch_parallel_clusterer.cluster_centers_
+            else:
+                raise NotImplementedError(
+                    f"Batch parallel initalization only implemented for split = 0, but split was {x.split}"
+                )
+
         else:
             raise ValueError(
-                'init needs to be one of "random", ht.DNDarray or "kmeans++", but was {}'.format(
+                'init needs to be one of "random", ht.DNDarray, "kmeans++", or "batchparallel", but was {}'.format(
                     self.init
                 )
             )
 
-    def _assign_to_cluster(self, x: DNDarray):
+    def _assign_to_cluster(self, x: DNDarray, eval_functional_value: bool = False):
         """
         Assigns the passed data points to the centroids based on the respective metric
 
@@ -201,10 +213,15 @@ class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
         ----------
         x : DNDarray
             Data points, Shape = (n_samples, n_features)
+        eval_functional_value : bool, default: False
+            If True, the current K-Clustering functional value of the clustering algorithm is evaluated
         """
         # calculate the distance matrix and determine the closest centroid
         distances = self._metric(x, self._cluster_centers)
         matching_centroids = distances.argmin(axis=1, keepdims=True)
+
+        if eval_functional_value:
+            self._functional_value = ht.norm(distances.min(axis=1), ord=self._p) ** self._p
 
         return matching_centroids
 
@@ -251,4 +268,4 @@ class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
             raise ValueError(f"input needs to be a ht.DNDarray, but was {type(x)}")
 
         # determine the centroids
-        return self._assign_to_cluster(x)
+        return self._assign_to_cluster(x, eval_functional_value=True)
