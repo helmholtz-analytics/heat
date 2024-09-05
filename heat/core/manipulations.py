@@ -2028,8 +2028,8 @@ def reshape(a: DNDarray, *shape: Union[int, Tuple[int, ...]], **kwargs) -> DNDar
         One shape dimension can be -1. In this case, the value is inferred from the length of the array and remaining dimensions.
     new_split : int, optional
         The distribution axis of the reshaped array. If `new_split` is not provided, the reshaped array will have:
-        -  the same split axis as the input array, if the number of dimensions is not reduced;
-        -  split axis 0, if the number of dimensions is reduced.
+        -  the same split axis as the input array, if the original dimensionality is unchanged;
+        -  split axis 0, if the number of dimensions is modified by reshaping.
 
     Raises
     ------
