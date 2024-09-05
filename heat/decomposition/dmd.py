@@ -182,7 +182,14 @@ class DMD(ht.RegressionMixin, ht.BaseEstimator):
             self.n_modes_ = U.shape[1]
         # second step of DMD: compute the reduced order model transfer matrix
         # we need to assume that the the transfer matrix of the ROM is small enough to fit into memory of one process
-        self.rom_transfer_matrix_ = self.rom_basis_.T @ X[:, 1:] @ V / S
+        if X.split == 0 or X.split is None:
+            # if split axis of the input data is 0, using X[:,1:] does not result in un-balancedness and corresponding problems in matmul
+            self.rom_transfer_matrix_ = self.rom_basis_.T @ X[:, 1:] @ V / S
+        else:
+            # if input is split along columns, X[:,1:] will be un-balanced and cause problems in matmul
+            Xplus = X[:, 1:]
+            Xplus.balance_()
+            self.rom_transfer_matrix_ = self.rom_basis_.T @ Xplus @ V / S
         self.rom_transfer_matrix_.resplit_(None)
         # third step of DMD: compute the reduced order model eigenvalues and eigenmodes
         eigvals_loc, eigvec_loc = torch.linalg.eig(self.rom_transfer_matrix_.larray)
@@ -190,17 +197,31 @@ class DMD(ht.RegressionMixin, ht.BaseEstimator):
         self.rom_eigenmodes_ = ht.array(eigvec_loc, split=None)
         self.dmdmodes_ = self.rom_basis_ @ self.rom_eigenmodes_
 
-    def predict(self, X: ht.DNDarray, steps: Union[int, List, ht.DNDarray]) -> ht.DNDarray:
+    def predict_next(self, X: ht.DNDarray) -> ht.DNDarray:
         """
-        Predicts and returns the future states at the time steps provided in `steps` with initial condition(s) given by the input `X`.
+        Predicts and returns the next state given a current state.
 
         Parameters
         ----------
         X : DNDarray
-            The initial condition(s) for the prediction. Must have the same number of features as the training data, but can be batched for multiple initial conditions,
-            e.g., X can be of shape (n_features,) or (n_initial_conditions, n_features).
-        steps : int, list, DNDarray
-            The time steps at which to predict the future states. If `steps` is an integer, the future state(s) after `steps` time steps are predicted.
-            If `steps` is a list or DNDarray, the future states at the time steps provided in the list or the DNDarray, respectively, are predicted.
+            The current state(s) for the prediction. Must have the same number of features as the training data, but can be batched for multiple current states,
+            i.e., X can be of shape (n_features,) or (n_current_states, n_features).
         """
-        pass
+        if self.rom_basis_ is None:
+            raise RuntimeError("Model has not been fitted yet. Call 'fit' first.")
+        # sanitize input data
+        ht.sanitize_in(X)
+        # if X is a 1-D DNDarray, we add an artificial batch dimension
+        if X.ndim == 1:
+            X = X.expand_dims(0)
+        # check if the input data has the right number of features
+        if X.shape[-1] != self.rom_basis_.shape[0]:
+            raise ValueError(
+                f"Invalid number of features '{X.shape[-1]}' in input data 'X'. Must have the same number of features as the training data."
+            )
+        # the following line looks that complicated because we have to make sure that splits of the resulting matrices in
+        # each of the products are split along the axis that deserves being splitted
+        nextX = (self.rom_basis_.T @ X.T).T.resplit_(None) @ (
+            self.rom_basis_ @ self.rom_transfer_matrix_
+        ).T
+        return nextX
