@@ -36,16 +36,18 @@ class PCA(ht.TransformMixin, ht.BaseEstimator):
     svd_solver : {'full', 'hierarchical'}, default='hierarchical'
         'full' : Full SVD is performed. In general, this is more accurate, but also slower. So far, this is only supported for tall-skinny or short-fat data.
         'hierarchical' : Hierarchical SVD, i.e., an algorithm for computing an approximate, truncated SVD, is performed. Only available for data split along axis no. 0.
+        'radomized' : Randomized SVD is performed.
     tol : float, default=None
         Not yet necessary as iterative methods for PCA are not yet implemented.
-    iterated_power : {'auto', int}, default='auto'
-        if svd_solver='randomized', ... (not yet supported)
+    iterated_power :  int, default=0
+        if svd_solver='randomized', this parameter is the number of iterations for the power method.
+        Choosing `iterated_power > 0` can lead to better results in the case of slowly decaying singular values but is computationally more expensive.
     n_oversamples : int, default=10
-        if svd_solver='randomized', ... (not yet supported)
+        if svd_solver='randomized', this parameter is the number of additional random vectors to sample the range of X so that the range of X can be approximated more accurately.
     power_iteration_normalizer : {'qr'}, default='qr'
-        if svd_solver='randomized', ... (not yet supported)
+        if svd_solver='randomized', this parameter is the normalization form of the iterated power method. So far, only QR is supported.
     random_state : int, default=None
-        if svd_solver='randomized', ... (not yet supported)
+        if svd_solver='randomized', this parameter allows to set the seed for the random number generator.
 
     Attributes
     ----------
@@ -53,16 +55,17 @@ class PCA(ht.TransformMixin, ht.BaseEstimator):
         Principal axes in feature space, representing the directions of maximum variance in the data. The components are sorted by explained_variance_.
     explained_variance_ : DNDarray of shape (n_components,)
         The amount of variance explained by each of the selected components.
-        Not supported by svd_solver='hierarchical'.
+        Not supported by svd_solver='hierarchical' and svd_solver='randomized'.
     explained_variance_ratio_ : DNDarray of shape (n_components,)
         Percentage of variance explained by each of the selected components.
-        Not supported by svd_solver='hierarchical'.
+        Not supported by svd_solver='hierarchical' and svd_solver='randomized'.
     total_explained_variance_ratio_ : float
         The percentage of total variance explained by the selected components together.
         For svd_solver='hierarchical', an lower estimate for this quantity is provided; see :func:`ht.linalg.hsvd_rtol` and :func:`ht.linalg.hsvd_rank` for details.
+        Not supported by svd_solver='randomized'.
     singular_values_ : DNDarray of shape (n_components,)
         The singular values corresponding to each of the selected components.
-        Not supported by svd_solver='hierarchical'.
+        Not supported by svd_solver='hierarchical' and svd_solver='randomized'.
     mean_ : DNDarray of shape (n_features,)
         Per-feature empirical mean, estimated from the training set.
     n_components_ : int
@@ -74,8 +77,9 @@ class PCA(ht.TransformMixin, ht.BaseEstimator):
 
     Notes
     ------------
-    Hieararchical SVD (`svd_solver = "hierarchical"`) computes and approximate, truncated SVD. Thus, the results are not exact, in general, unless the
+    Hieararchical SVD (`svd_solver = "hierarchical"`) computes an approximate, truncated SVD. Thus, the results are not exact, in general, unless the
     truncation rank chose is larger than the actual rank (matrix rank) of the underlying data; see :func:`ht.linalg.hsvd_rank` and :func:`ht.linalg.hsvd_rtol` for details.
+    Randomized SVD (`svd_solver = "randomized"`) is a stochastic algorithm that computes an approximate, truncated SVD.
     """
 
     def __init__(
