@@ -141,12 +141,14 @@ class DMD(ht.RegressionMixin, ht.BaseEstimator):
             )
         # first step of DMD: compute the SVD of the input data from first to second last time step
         if self.svd_solver == "full" or not X.is_distributed():
-            U, S, V = ht.linalg.svd(X[:, :-1], full_matrices=False)
+            U, S, V = ht.linalg.svd(
+                X[:, :-1] if X.split == 0 else X[:, :-1].balance(), full_matrices=False
+            )
             if self.svd_tol is not None:
                 # truncation w.r.t. prescribed bound on explained variance
                 # determine svd_rank accordingly
                 total_variance = (S**2).sum()
-                variance_threshold = self.svd_tol * total_variance.larray.item()
+                variance_threshold = (1 - self.svd_tol) * total_variance.larray.item()
                 variance_cumsum = (S**2).larray.cumsum(0)
                 self.n_modes_ = len(variance_cumsum[variance_cumsum <= variance_threshold]) + 1
             elif self.svd_rank is not None:
@@ -163,19 +165,25 @@ class DMD(ht.RegressionMixin, ht.BaseEstimator):
             if self.svd_tol is not None:
                 # hierarchical SVD with prescribed upper bound on relative error
                 U, S, V, _ = ht.linalg.hsvd_rtol(
-                    X[:, :-1], self.svd_tol, compute_sv=True, safetyshift=5
+                    X[:, :-1] if X.split == 0 else X[:, :-1].balance(),
+                    self.svd_tol,
+                    compute_sv=True,
+                    safetyshift=5,
                 )
             else:
                 # hierarchical SVD with prescribed, fixed rank
                 U, S, V, _ = ht.linalg.hsvd_rank(
-                    X[:, :-1], self.svd_rank, compute_sv=True, safetyshift=5
+                    X[:, :-1] if X.split == 0 else X[:, :-1].balance(),
+                    self.svd_rank,
+                    compute_sv=True,
+                    safetyshift=5,
                 )
             self.rom_basis_ = U
             self.n_modes_ = U.shape[1]
         else:
             # compute SVD via "randomized" SVD
             U, S, V = ht.linalg.rsvd(
-                X[:, :-1],
+                X[:, :-1] if X.split == 0 else X[:, :-1].balance_(),
                 self.svd_rank,
             )
             self.rom_basis_ = U
@@ -190,6 +198,7 @@ class DMD(ht.RegressionMixin, ht.BaseEstimator):
             Xplus = X[:, 1:]
             Xplus.balance_()
             self.rom_transfer_matrix_ = self.rom_basis_.T @ Xplus @ V / S
+
         self.rom_transfer_matrix_.resplit_(None)
         # third step of DMD: compute the reduced order model eigenvalues and eigenmodes
         eigvals_loc, eigvec_loc = torch.linalg.eig(self.rom_transfer_matrix_.larray)

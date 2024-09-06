@@ -40,69 +40,138 @@ class TestDMD(TestCase):
             dmd.fit(ht.zeros((5 * ht.MPI_WORLD.size, 1), split=0))
 
     def test_dmd_functionality_split0(self):
-        # check whether the everything works with split=0
+        # check whether the everything works with split=0, various checks are scattered over the different cases
         X = ht.random.randn(10 * ht.MPI_WORLD.size, 10, split=0)
         dmd = ht.decomposition.DMD(svd_solver="full")
         dmd.fit(X)
+        self.assertTrue(dmd.rom_eigenmodes_.dtype == ht.complex64)
+        self.assertEqual(dmd.rom_eigenmodes_.shape, (dmd.n_modes_, dmd.n_modes_))
         dmd = ht.decomposition.DMD(svd_solver="full", svd_tol=1e-1)
         dmd.fit(X)
+        self.assertTrue(dmd.rom_basis_.shape[0] == 10 * ht.MPI_WORLD.size)
         dmd = ht.decomposition.DMD(svd_solver="full", svd_rank=3)
         dmd.fit(X)
+        self.assertTrue(dmd.rom_basis_.shape[1] == 3)
+        self.assertTrue(dmd.dmdmodes_.shape == (10 * ht.MPI_WORLD.size, 3))
         dmd = ht.decomposition.DMD(svd_solver="hierarchical", svd_rank=3)
         dmd.fit(X)
+        self.assertTrue(dmd.rom_eigenvalues_.shape == (3,))
         dmd = ht.decomposition.DMD(svd_solver="hierarchical", svd_tol=1e-1)
         dmd.fit(X)
         Y = ht.random.randn(10 * ht.MPI_WORLD.size, split=0)
-        dmd.predict_next(Y)
+        Z = dmd.predict_next(Y)
+        self.assertTrue(Z.shape == (1, 10 * ht.MPI_WORLD.size))
+        self.assertTrue(dmd.rom_eigenvalues_.dtype == ht.complex64)
+        self.assertTrue(dmd.dmdmodes_.dtype == ht.complex64)
 
-        X = ht.random.randn(1000, 10 * ht.MPI_WORLD.size, split=0)
+        X = ht.random.randn(1000, 10 * ht.MPI_WORLD.size, split=0, dtype=ht.float32)
         dmd = ht.decomposition.DMD(svd_solver="randomized", svd_rank=4)
         dmd.fit(X)
-        Y = ht.random.rand(4, 1000, split=1)
-        dmd.predict_next(Y)
+        Y = ht.random.rand(4, 1000, split=1, dtype=ht.float32)
+        Z = dmd.predict_next(Y)
+        self.assertTrue(Z.dtype == ht.float32)
 
     def test_dmd_functionality_split1(self):
-        # check whether everything works with split=1
-        X = ht.random.randn(10, 10 * ht.MPI_WORLD.size, split=1)
+        # check whether everything works with split=1, various checks are scattered over the different cases
+        X = ht.random.randn(10, 10 * ht.MPI_WORLD.size, split=1, dtype=ht.float64)
         dmd = ht.decomposition.DMD(svd_solver="full")
         dmd.fit(X)
+        self.assertTrue(dmd.dmdmodes_.shape[0] == 10)
         dmd = ht.decomposition.DMD(svd_solver="full", svd_tol=1e-1)
         dmd.fit(X)
         dmd = ht.decomposition.DMD(svd_solver="full", svd_rank=3)
         dmd.fit(X)
+        self.assertTrue(dmd.dmdmodes_.shape[1] == 3)
         dmd = ht.decomposition.DMD(svd_solver="hierarchical", svd_rank=3)
         dmd.fit(X)
+        self.assertTrue(dmd.rom_transfer_matrix_.shape == (3, 3))
+        self.assertTrue(dmd.rom_transfer_matrix_.dtype == ht.float64)
         dmd = ht.decomposition.DMD(svd_solver="hierarchical", svd_tol=1e-1)
         dmd.fit(X)
+        self.assertTrue(dmd.rom_eigenvalues_.dtype == ht.complex128)
         Y = ht.random.randn(2 * ht.MPI_WORLD.size, 10, split=0)
-        dmd.predict_next(Y)
+        Z = dmd.predict_next(Y)
+        self.assertTrue(Z.shape == Y.shape)
 
         X = ht.random.randn(1000, 10 * ht.MPI_WORLD.size, split=0)
         dmd = ht.decomposition.DMD(svd_solver="randomized", svd_rank=4)
         dmd.fit(X)
-        Y = ht.random.randn(2, 1000, split=1)
-        dmd.predict_next(Y)
+        self.assertTrue(dmd.rom_eigenmodes_.shape == (4, 4))
+        self.assertTrue(dmd.n_modes_ == 4)
+        Y = ht.random.randn(2, 1000, split=1, dtype=ht.float64)
+        Z = dmd.predict_next(Y)
+        self.assertTrue(Z.dtype == Y.dtype)
 
-    ###############################################
-    # WORK IN PROGRESS
-    ###############################################
     def test_dmd_correctness(self):
-        r = 3
-        A_red = ht.random.randn(r, r, split=None)
-        A_red /= ht.linalg.norm(A_red)
+        # test correctness on behalf of a constructed example with known solution
+        # to do so we need to use the exact SVD, i.e., the "full" solver
+
+        # ----------------- first case: split = 0 -----------------
+        # dtype if float32, random transfer matrix
+        r = 6
+        A_red = ht.array(
+            [
+                [0.0, -1.0, 0.0, 0.0, 0.0, 0.0],
+                [1.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                [0.0, 0.0, 1.5, 0.0, 0.0, 0.0],
+                [0.0, 0.0, 0.0, 0.5, 0.0, 0.0],
+                [0.0, 0.0, 0.0, 0.0, -1.5, 0.0],
+                [0.0, 0.0, 0.0, 0.0, 0.0, -0.5],
+            ],
+            split=None,
+            dtype=ht.float32,
+        )
         x0_red = ht.random.randn(r, 1, split=None)
-        m, n = 10 * ht.MPI_WORLD.size, ht.MPI_WORLD.size
+        m, n = 25 * ht.MPI_WORLD.size, 15
         X = ht.hstack(
             [
                 (ht.array(torch.linalg.matrix_power(A_red.larray, i) @ x0_red.larray))
-                for i in range(n)
+                for i in range(n + 1)
             ]
         )
         U = ht.random.randn(m, r, split=0)
         U, _ = ht.linalg.qr(U)
         X = U @ X
 
-        dmd = ht.decomposition.DMD(svd_solver="full", svd_tol=1 - 1e-6)
+        dmd = ht.decomposition.DMD(svd_solver="full", svd_rank=r)
         dmd.fit(X)
-        print(dmd.rom_eigenvalues_)
-        print(torch.linalg.eigvals(A_red.larray))
+
+        # check whether the DMD-modes are correct
+        sorted_ev_1 = np.sort_complex(dmd.rom_eigenvalues_.numpy())
+        sorted_ev_2 = np.sort_complex(np.linalg.eigvals(A_red.numpy()))
+        self.assertTrue(np.allclose(sorted_ev_1, sorted_ev_2, atol=1e-4, rtol=1e-4))
+
+        # check prediction of next states
+        Y = dmd.predict_next(X.T)
+        self.assertTrue(ht.allclose(Y[:n, :].T, X[:, 1:], atol=1e-4, rtol=1e-4))
+
+        # ----------------- second case: split = 1 -----------------
+        # dtype is float64, transfer matrix with nontrivial kernel
+        r = 3
+        A_red = ht.array(
+            [[0.0, 0.0, 1.0], [0.5, 0.0, 0.0], [0.5, 0.0, 0.0]], split=None, dtype=ht.float64
+        )
+        x0_red = ht.random.randn(r, 1, split=None, dtype=ht.float64)
+        m, n = 10, 15 * ht.MPI_WORLD.size + 2
+        X = ht.hstack(
+            [
+                (ht.array(torch.linalg.matrix_power(A_red.larray, i) @ x0_red.larray))
+                for i in range(n + 1)
+            ]
+        )
+        U = ht.random.randn(m, r, split=None, dtype=ht.float64)
+        U, _ = ht.linalg.qr(U)
+        X = U @ X
+        X = X.resplit_(1)
+
+        dmd = ht.decomposition.DMD(svd_solver="hierarchical", svd_rank=r)
+        dmd.fit(X)
+
+        # check whether the DMD-modes are correct
+        sorted_ev_1 = np.sort_complex(dmd.rom_eigenvalues_.numpy())
+        sorted_ev_2 = np.sort_complex(np.linalg.eigvals(A_red.numpy()))
+        self.assertTrue(np.allclose(sorted_ev_1, sorted_ev_2, atol=1e-12, rtol=1e-12))
+
+        # check prediction of next states
+        Y = dmd.predict_next(X.T)
+        self.assertTrue(ht.allclose(Y[:n, :].T, X[:, 1:], atol=1e-12, rtol=1e-12))
