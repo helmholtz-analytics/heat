@@ -541,7 +541,7 @@ def rsvd(
 ) -> Union[Tuple[DNDarray, DNDarray, DNDarray], Tuple[DNDarray, DNDarray]]:
     """
     Randomized SVD (rSVD) with prescribed truncation rank `rank`.
-    If A = U diag(sigma) V^T is the true SVD of A, this routine computes an approximation for U[:,:rank] (and sigma[:rank], V[:,:rank]).
+    If :math:`A = U \operatorname{diag}(\Sigma) V^T` is the true SVD of A, this routine computes an approximation for U[:,:rank] (and sigma[:rank], V[:,:rank]).
 
     The accuracy of this approximation depends on the structure of A ("low-rank" is best) and appropriate choice of parameters.
 
