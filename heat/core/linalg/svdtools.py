@@ -753,14 +753,14 @@ def isvd(
     V_old: DNDarray,
     maxrank: Optional[int] = None,
 ) -> Tuple[DNDarray, DNDarray, DNDarray]:
-    """Incremental SVD (iSVD) for the addition of new data to an existing SVD.
-    Given the the SVD of an "old" matrix, X_old = `U_old @ S_old @ V_old.T`, and additional columns `new_data`, this routine computes
-    (a possibly approximate) SVD of the extended matrix `X_new = [X_old | new_data]`.
+    r"""Incremental SVD (iSVD) for the addition of new data to an existing SVD.
+    Given the the SVD of an "old" matrix, :math:`X_\textnormal{old} = `U_\textnormal{old} \cdot S_\textnormal{old} \cdot V_\textnormal{old}^T`, and additional columns :math:`N` (\"`new_data`\"), this routine computes
+    (a possibly approximate) SVD of the extended matrix :math:`X_\textnormal{new} = [ X_\textnormal{old} | N]`.
 
     Parameters
     ----------
     new_data : DNDarray
-        2D-array (float32/64) of which the SVD has to be computed. It must hold `new_data.split != 1` if `U_old.split = 0`.
+        2D-array (float32/64) of columns that are added to the "old" SVD. It must hold `new_data.split != 1` if `U_old.split = 0`.
     U_old : DNDarray
         U-factor of the SVD of the "old" matrix, 2D-array (float32/64). It must hold `U_old.split != 0` if `new_data.split = 1`.
     S_old : DNDarray

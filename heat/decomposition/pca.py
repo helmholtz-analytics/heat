@@ -289,9 +289,9 @@ class IncrementalPCA(ht.TransformMixin, ht.BaseEstimator):
     Parameters
     ----------
     n_components : int, optional
-        Number of components to keep. If n_components is not set all components are kept (default).
+        Number of components to keep. If `n_components` is not set all components are kept (default).
     copy : bool, default=True
-        In-place operations are not yet supported. Please set copy=True.
+        In-place operations are not yet supported. Please set `copy=True`.
     whiten : bool, default=False
         Not yet supported.
     batch_size : int, optional
@@ -300,7 +300,7 @@ class IncrementalPCA(ht.TransformMixin, ht.BaseEstimator):
     Attributes
     ----------
     components_ : DNDarray of shape (n_components, n_features)
-        Principal axes in feature space, representing the directions of maximum variance in the data. The components are sorted by explained_variance_.
+        Principal axes in feature space, representing the directions of maximum variance in the data. The components are sorted by `explained_variance_.
     singular_values_ : DNDarray of shape (n_components,)
         The singular values corresponding to each of the selected components.
     mean_ : DNDarray of shape (n_features,)
