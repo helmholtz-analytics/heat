@@ -616,7 +616,7 @@ class TestRandom_Threefry(TestCase):
         self.assertTrue(ht.equal(a, b))
 
         # Too big arrays cant be created
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(ValueError):
             ht.random.randn(0x7FFFFFFFFFFFFFFF)
         with self.assertRaises(ValueError):
             ht.random.rand(3, 2, -2, 5, split=1)
