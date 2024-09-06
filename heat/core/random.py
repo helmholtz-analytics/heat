@@ -129,8 +129,8 @@ def __counter_sequence(
         c_0 = (__counter & (max_count << 64)) >> 64
     c_1 = __counter & max_count
     total_elements = torch.prod(torch.tensor(shape))
-    # if total_elements.item() > 2 * max_count:
-    #    raise ValueError(f"Shape is to big with {total_elements} elements")
+    if total_elements.item() > 2 * max_count:
+        raise ValueError(f"Shape is to big with {total_elements} elements")
 
     if split is None:
         values = total_elements.item() // 2 + total_elements.item() % 2
