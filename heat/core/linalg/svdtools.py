@@ -29,7 +29,7 @@ def _check_SVD_input(A):
         raise TypeError(f"Argument needs to be a DNDarray but is {type(A)}.")
     if not A.ndim == 2:
         raise ValueError("A needs to be a 2D matrix")
-    if not A.dtype == types.float32 and not A.dtype == types.float64:
+    if not types.heat_type_is_realfloating(A.dtype):
         raise TypeError(
             "Argument needs to be a DNDarray with datatype float32 or float64, but data type is {}.".format(
                 A.dtype
