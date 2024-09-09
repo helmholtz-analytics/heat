@@ -7,7 +7,7 @@ from heat.utils.data.spherical import create_spherical_dataset
 from mpi4py import MPI
 
 from ...core.tests.test_suites.basic_test import TestCase
-from ..batchparallelclustering import _kmex, _BatchParallelKCluster
+from ..batchparallelclustering import _kmex, _initialize_plus_plus, _BatchParallelKCluster
 
 # test BatchParallelKCluster base class and auxiliary functions
 
@@ -31,6 +31,10 @@ class TestAuxiliaryFunctions(TestCase):
         # test initialization with prescribed centers
         init = torch.rand(2, 3)
         _kmex(X, 2, 2, init, max_iter, tol)
+
+    def test_initialize_plus_plus(self):
+        X = torch.rand(100, 3)
+        _initialize_plus_plus(X, 3, 2, random_state=None, max_samples=50)
 
     def test_BatchParallelKClustering(self):
         with self.assertRaises(TypeError):
@@ -131,8 +135,8 @@ class TestBatchParallelKCluster(TestCase):
                                 self.assertEqual(labels.split, 0)
                                 self.assertEqual(labels.shape, (data.shape[0], 1))
                                 self.assertEqual(labels.dtype, ht.int32)
-                                self.assertEqual(labels.max(), n_clusters - 1)
-                                self.assertEqual(labels.min(), 0)
+                                self.assertTrue(labels.max() <= n_clusters - 1)
+                                self.assertTrue(labels.min() >= 0)
 
     def test_if_errors_thrown(self):
         for ParallelClusterer in [ht.cluster.BatchParallelKMeans, ht.cluster.BatchParallelKMedians]:

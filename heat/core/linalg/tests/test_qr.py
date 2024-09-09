@@ -17,6 +17,8 @@ class TestQR(TestCase):
             dtypes = [ht.float32]
         else:
             dtypes = [ht.float32, ht.float64]
+        ht.random.seed(1234)
+
         for split in [1, None]:
             for mode in ["reduced", "r"]:
                 # note that split = 1 can be handled for arbitrary shapes
@@ -31,6 +33,13 @@ class TestQR(TestCase):
                         qr = ht.linalg.qr(mat, mode=mode)
 
                         if mode == "reduced":
+                            allclose = ht.allclose(qr.Q @ qr.R, mat, atol=dtypetol, rtol=dtypetol)
+                            if not allclose:
+                                diff = qr.Q @ qr.R - mat
+                                max_diff = ht.max(diff)
+                                print(f"diff: {diff}")
+                                print(f"max_diff: {max_diff}m")
+
                             self.assertTrue(
                                 ht.allclose(qr.Q @ qr.R, mat, atol=dtypetol, rtol=dtypetol)
                             )
