@@ -550,7 +550,7 @@ def rsvd(
     A : DNDarray
         2D-array (float32/64) of which the rSVD has to be computed.
     rank : int
-        truncation rank. (This parameter corresponds to `n_components` in sci-kit learn's TruncatedSVD.)
+        truncation rank. (This parameter corresponds to `n_components` in scikit-learn's TruncatedSVD.)
     n_oversamples : int, optional
         number of oversamples. The default is 10.
     power_iter : int, optional
