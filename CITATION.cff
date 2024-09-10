@@ -30,6 +30,12 @@ authors:
   - family-names: Tarnawa
     given-names: Michael
 # release contributors - add as needed
+  - family-names: Osterfeld
+    given-names: Fynn
+  - family-names: Nguyen Xuan
+    given-names: Tu
+  - family-names: Vaithinathan Aravindan
+    given-names: Ashwath
 repository-code: 'https://github.com/helmholtz-analytics/heat'
 url: 'https://helmholtz-analytics.github.io/heat/'
 repository: 'https://heat.readthedocs.io/en/stable/'
@@ -64,8 +70,6 @@ preferred-citation:
       given-names: Achim
     - family-names: Streit
       given-names: Achim
-    - family-names: Vaithinathan Aravindan
-      given-names: Ashwath
   year: 2020
   collection-title: 2020 IEEE International Conference on Big Data (IEEE Big Data 2020)
   collection-doi: 10.1109/BigData50022.2020.9378050
