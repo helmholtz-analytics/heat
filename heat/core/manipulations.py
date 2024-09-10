@@ -2273,6 +2273,9 @@ def roll(
           [ 0,  1,  2,  3,  4]], dtype=ht.int32, device=cpu:0, split=None)
     """
     sanitation.sanitize_in(x)
+    if isinstance(axis, list):
+        axis = tuple(axis)
+    axis = stride_tricks.sanitize_axis(x.shape, axis)
 
     if axis is None:
         return roll(x.flatten(), shift, 0).reshape(x.shape, new_split=x.split)
@@ -2280,7 +2283,18 @@ def roll(
     # inputs are ints
     if isinstance(shift, int):
         if isinstance(axis, int):
-            if x.split is not None and (axis == x.split or (axis + x.ndim) == x.split):
+            if not x.is_distributed():
+                return DNDarray(
+                    torch.roll(x.larray, shift, axis),
+                    gshape=x.shape,
+                    dtype=x.dtype,
+                    split=x.split,
+                    device=x.device,
+                    comm=x.comm,
+                    balanced=x.balanced,
+                )
+            # x is distributed
+            if axis == x.split:
                 # roll along split axis
                 size = x.comm.Get_size()
                 rank = x.comm.Get_rank()
@@ -2289,9 +2303,6 @@ def roll(
                 lshape_map = x.create_lshape_map(force_check=False)[:, x.split]
                 cumsum_map = torch.cumsum(lshape_map, dim=0)  # cumulate along axis
                 indices = torch.arange(size, device=x.device.torch_device)
-                # NOTE Can be removed when min version>=1.9
-                if "1.8." in torch.__version__:  # pragma: no cover
-                    lshape_map = lshape_map.to(torch.int64)
                 index_map = torch.repeat_interleave(indices, lshape_map)  # index -> process
 
                 # compute index positions
@@ -2334,7 +2345,17 @@ def roll(
                 raise TypeError(f"axis must be a int, list or a tuple, got {type(axis)}")
 
             shift = [shift] * len(axis)
-
+            if not x.is_distributed():
+                return DNDarray(
+                    torch.roll(x.larray, shift, axis),
+                    gshape=x.shape,
+                    dtype=x.dtype,
+                    split=x.split,
+                    device=x.device,
+                    comm=x.comm,
+                    balanced=x.balanced,
+                )
+            # x is distributed
             return roll(x, shift, axis)
 
     else:  # input must be tuples now
@@ -2359,7 +2380,18 @@ def roll(
             if not isinstance(axis[i], int):
                 raise TypeError(f"Element {i} in axis is not an integer, got {type(axis[i])}")
 
-        if x.split is not None and (x.split in axis or (x.split - x.ndim) in axis):
+        if not x.is_distributed():
+            return DNDarray(
+                torch.roll(x.larray, shift, axis),
+                gshape=x.shape,
+                dtype=x.dtype,
+                split=x.split,
+                device=x.device,
+                comm=x.comm,
+                balanced=x.balanced,
+            )
+        # x is distributed
+        if x.split in axis:
             # remove split axis elements
             shift_split = 0
             for y in (x.split, x.split - x.ndim):
