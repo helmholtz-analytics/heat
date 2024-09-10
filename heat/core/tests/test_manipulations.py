@@ -2516,7 +2516,6 @@ class TestManipulations(TestCase):
         self.assertEqual(rolled.size, a.size)
         self.assertEqual(rolled.dtype, a.dtype)
         self.assertEqual(rolled.split, a.split)
-        print("DEBUGGING: rolled, compare ", a.larray, rolled.larray, compare.larray)
         self.assertTrue(ht.equal(rolled, compare))
 
         rolled = ht.roll(a, -1)
