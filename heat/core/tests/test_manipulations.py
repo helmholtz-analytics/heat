@@ -442,8 +442,7 @@ class TestManipulations(TestCase):
         self.assertEqual(res.lshape, tuple(lshape))
 
         # 0 0 0
-        is_mps = x.device.torch_device.startswith("mps")
-        dtype = ht.float32 if is_mps else ht.float64
+        dtype = ht.float32 if self.is_mps else ht.float64
         x = ht.ones((16,), split=0, dtype=dtype)
         res = ht.concatenate((x, y), axis=0)
         self.assertEqual(res.gshape, (32,))
@@ -2517,6 +2516,7 @@ class TestManipulations(TestCase):
         self.assertEqual(rolled.size, a.size)
         self.assertEqual(rolled.dtype, a.dtype)
         self.assertEqual(rolled.split, a.split)
+        print("DEBUGGING: rolled, compare ", a.larray, rolled.larray, compare.larray)
         self.assertTrue(ht.equal(rolled, compare))
 
         rolled = ht.roll(a, -1)
