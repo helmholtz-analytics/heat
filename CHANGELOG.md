@@ -1,3 +1,55 @@
+# v1.5.0-rc1 - Release Candidate
+
+## Changes
+
+### Cluster
+
+- #1593 Improved Batch Parallelization. (by @mrfh92)
+
+### Data
+
+- #1529 Make `dataset.ishuffle` optional.
+
+### IO
+
+- #1602 Improved load balancing when loading .npy files from path. (by @Reisii)
+- #1551 Improved load balancing when loading .csv files from path.  (by @Reisii)
+
+### Linear Algebra
+
+- #1261 Batched matrix multiplication. (by @FOsterfeld)
+- #1504 Add solver for triangular systems. (by @FOsterfeld)
+
+### Manipulations
+
+- #1419 Implement distributed `unfold` operation. (by @FOsterfeld)
+
+### Random
+
+- #1508 Introduce Batchparallel for RNG as default. (by @mrfh92)
+
+### Signal
+
+- #1515 Support batch 1-d convolution in `ht.signal.convolve`.  (by @ClaudiaComito)
+
+### Statistics
+
+- #1510 Support multiple axes for `ht.percentile`. (by @ClaudiaComito)
+
+### Sparse
+
+- #1377 Distributed Compressed Sparse Column Matrix. (by @Mystic-Slice)
+
+### Other
+
+- #1618 Support mpi4py 4.x.x (by @JuanPedroGHM)
+
+
+## Contributors
+
+@ClaudiaComito, @FOsterfeld, @JuanPedroGHM, @Reisii, @mrfh92, @mtar and Hoppe
+
+
 # v1.4.2 - Maintenance release
 
 ## Changes
