@@ -127,14 +127,6 @@ class KNeighborsClassifier(ht.BaseEstimator, ht.ClassificationMixin):
         predictions = ht.reshape(predictions, (indices.gshape + (self.y.gshape[1],)))
         predictions = ht.sum(predictions, axis=1)
 
-        try:
-            self.classes_ = ht.argmax(predictions, axis=1)
-        except RuntimeError:
-            #  MPS does not support min/max ops with double precision input
-            if predictions.dtype == ht.float64:
-                predictions = predictions.astype(ht.float32)
-            elif predictions.dtype == ht.int64:
-                predictions = predictions.astype(ht.int32)
-            self.classes_ = ht.argmax(predictions, axis=1)
+        self.classes_ = ht.argmax(predictions, axis=1)
 
         return self.classes_
