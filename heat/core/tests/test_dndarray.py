@@ -244,7 +244,7 @@ class TestDNDarray(TestCase):
         self.assertEqual(x.__array__().shape, x.gshape)
 
         # distributed case
-        if x.device.torch_device.startswith("mps"):
+        if self.is_mps:
             dtype = ht.float32
             np_dtype = np.float32
         else:
@@ -327,7 +327,7 @@ class TestDNDarray(TestCase):
         self.assertIsNot(as_uint8, data)
 
         # check the copy case for float64
-        if not data.device.torch_device.startswith("mps"):
+        if not self.is_mps:
             as_float64 = data.astype(ht.float64, copy=False)
             self.assertIsInstance(as_float64, ht.DNDarray)
             self.assertEqual(as_float64.dtype, ht.float64)
@@ -354,7 +354,7 @@ class TestDNDarray(TestCase):
         data.balance_()
         self.assertTrue(data.is_balanced())
 
-        if not data.device.torch_device.startswith("mps"):
+        if not self.is_mps:
             data = ht.zeros((70, 20), split=0, dtype=ht.float64)
             data = ht.balance(data[:50], copy=True)
             self.assertTrue(data.is_balanced())
@@ -879,8 +879,8 @@ class TestDNDarray(TestCase):
         )
 
     def test_partitioned(self):
-        a = ht.zeros((120, 120), split=0)
-        if not a.device.torch_device.startswith("mps"):
+        if not self.is_mps:
+            a = ht.zeros((120, 120), split=0)
             parted = a.__partitioned__
             self.assertEqual(parted["shape"], (120, 120))
             self.assertEqual(parted["partition_tiling"], (a.comm.size, 1))
@@ -1282,7 +1282,7 @@ class TestDNDarray(TestCase):
 
         # setting with heat tensor
         a = ht.zeros((4, 5), split=0)
-        if a.device.torch_device.startswith("mps"):
+        if self.is_mps:
             a[1, 0:4] = ht.arange(4, dtype=a.dtype)
         else:
             a[1, 0:4] = ht.arange(4)
@@ -1292,7 +1292,7 @@ class TestDNDarray(TestCase):
 
         # setting with torch tensor
         a = ht.zeros((4, 5), split=0)
-        if a.device.torch_device.startswith("mps"):
+        if self.is_mps:
             a[1, 0:4] = torch.arange(4, dtype=a.larray.dtype, device=self.device.torch_device)
         else:
             a[1, 0:4] = torch.arange(4, device=self.device.torch_device)
@@ -1396,7 +1396,7 @@ class TestDNDarray(TestCase):
 
         # setting with heat tensor
         a = ht.zeros((4, 5), split=1)
-        if a.device.torch_device.startswith("mps"):
+        if self.is_mps:
             a[1, 0:4] = ht.arange(4, dtype=a.dtype)
         else:
             a[1, 0:4] = ht.arange(4)
