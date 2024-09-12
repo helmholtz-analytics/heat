@@ -1672,7 +1672,7 @@ def hypot(
     >>> ht.hypot(a,b)
     DNDarray([2.2361, 3.6056, 3.6056], dtype=ht.float32, device=cpu:0, split=None)
     """
-    # catch int64 operation crash on MPS
+    # catch int64 operation crash on MPS. TODO: issue still persists in 2.3.0, check 2.4, report to PyTorch
     t1_ismps = getattr(getattr(t1, "device", "cpu"), "torch_device", "cpu").startswith("mps")
     t2_ismps = getattr(getattr(t2, "device", "cpu"), "torch_device", "cpu").startswith("mps")
     if t1_ismps or t2_ismps:

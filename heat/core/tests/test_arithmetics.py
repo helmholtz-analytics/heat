@@ -1,5 +1,6 @@
 import operator
 import math
+import platform
 
 import heat as ht
 import numpy as np
@@ -273,7 +274,7 @@ class TestArithmetics(TestCase):
                 a += b
 
         # test function for invalid casting between data types
-        if not a.device.torch_device.startswith("mps"):
+        if not self.is_mps:
             a = ht.ones(3, dtype=ht.float32)
             b = ht.ones(3, dtype=ht.float64)
             with self.assertRaises(TypeError):
@@ -1410,18 +1411,16 @@ class TestArithmetics(TestCase):
         self.assertIs(a_split_tensor, a_split_tensor_double)
         self.assertIs(a_split_tensor.larray, underlying_split_torch_tensor)
 
-        # int64, test only if device isn't MPS
-        if not ht.get_device().torch_device.startswith("mps"):
-            # Single element split
-            a = a_double = ht.array([1, 2], split=0)
-            a.cumsum_(0)
-            self.assertTrue(ht.equal(a, ht.array([1, 3])))
-            if a.comm.size > 1:
-                if a.comm.rank < 2:
-                    self.assertEqual(a.larray.size()[0], 1)
-                else:
-                    self.assertEqual(a.larray.size()[0], 0)
-            self.assertIs(a, a_double)
+        # Single element split
+        a = a_double = ht.array([1, 2], split=0)
+        a.cumsum_(0)
+        self.assertTrue(ht.equal(a, ht.array([1, 3])))
+        if a.comm.size > 1:
+            if a.comm.rank < 2:
+                self.assertEqual(a.larray.size()[0], 1)
+            else:
+                self.assertEqual(a.larray.size()[0], 0)
+        self.assertIs(a, a_double)
 
         # test function with wrong inputs
         with self.assertRaises(NotImplementedError):
@@ -1444,12 +1443,10 @@ class TestArithmetics(TestCase):
         a_string = self.a_string  # reset
 
     def test_diff(self):
-        is_mps = (
-            ht.get_device().device_type.startswith("gpu")
-            and torch.backends.mps.is_built()
-            and torch.backends.mps.is_available()
-        )
-        dtype = ht.float32 if is_mps else ht.float64
+        if self.is_mps:
+            dtype = ht.float32
+        else:
+            dtype = ht.float64
         ht_array = ht.random.rand(20, 20, 20, split=None, dtype=dtype)
         arb_slice = [0] * 3
         for dim in range(0, 3):  # loop over 3 dimensions
@@ -1775,7 +1772,7 @@ class TestArithmetics(TestCase):
 
         # test function for invalid casting between data types
         # MPS does not support float64
-        if not a.device.torch_device.startswith("mps"):
+        if not self.is_mps:
             a = ht.ones(3, dtype=ht.float32)
             b = ht.ones(3, dtype=ht.float64)
             with self.assertRaises(TypeError):
@@ -2073,7 +2070,7 @@ class TestArithmetics(TestCase):
 
         # test function for invalid casting between data types
         # MPS does not support float64
-        if not a.device.torch_device.startswith("mps"):
+        if not self.is_mps:
             a = ht.ones(3, dtype=ht.float32)
             b = ht.ones(3, dtype=ht.float64)
             with self.assertRaises(TypeError):
@@ -2270,7 +2267,7 @@ class TestArithmetics(TestCase):
 
         # test function for invalid casting between data types
         # MPS does not support float64
-        if not a.device.torch_device.startswith("mps"):
+        if not self.is_mps:
             a = ht.ones(3, dtype=ht.float32)
             b = ht.ones(3, dtype=ht.float64)
             with self.assertRaises(TypeError):
@@ -2445,7 +2442,7 @@ class TestArithmetics(TestCase):
 
         # test function for invalid casting between data types
         # MPS does not support float64
-        if not a.device.torch_device.startswith("mps"):
+        if not self.is_mps:
             a = ht.ones(3, dtype=ht.float32) * 6
             b = ht.ones(3, dtype=ht.float64) * 4
             with self.assertRaises(TypeError):
@@ -2609,7 +2606,7 @@ class TestArithmetics(TestCase):
                 a.hypot_(b)
 
         # test function for invalid casting between data types
-        if not a.device.torch_device.startswith("mps"):
+        if not self.is_mps:
             a = ht.ones(3, dtype=ht.float32)
             b = ht.ones(3, dtype=ht.float64)
             with self.assertRaises(TypeError):
@@ -2874,7 +2871,7 @@ class TestArithmetics(TestCase):
                 a.lcm_(b)
 
         # test function for invalid casting between data types
-        if not a.device.torch_device.startswith("mps"):
+        if not self.is_mps:
             a = ht.ones(3, dtype=ht.float32) * 2
             b = ht.ones(3, dtype=ht.float64) * 3
             with self.assertRaises(TypeError):
@@ -3261,7 +3258,7 @@ class TestArithmetics(TestCase):
                 a *= b
 
         # test function for invalid casting between data types
-        if not a.device.torch_device.startswith("mps"):
+        if not self.is_mps:
             a = ht.ones(3, dtype=ht.float32)
             b = ht.ones(3, dtype=ht.float64)
             with self.assertRaises(TypeError):
@@ -3400,14 +3397,9 @@ class TestArithmetics(TestCase):
         self.assertEqual(out_noaxis.larray, 55)
 
     def test_neg(self):
-        is_mps = (
-            ht.get_device().device_type.startswith("gpu")
-            and torch.backends.mps.is_built()
-            and torch.backends.mps.is_available()
-        )
         self.assertTrue(ht.equal(ht.neg(ht.array([-1, 1])), ht.array([1, -1])))
         self.assertTrue(ht.equal(-ht.array([-1.0, 1.0]), ht.array([1.0, -1.0])))
-        if not is_mps:
+        if not self.is_mps:
             a = ht.array([1 + 1j, 2 - 2j, 3, 4j, 5], split=0)
             b = out = ht.empty(5, dtype=ht.complex64, split=0)
             ht.negative(a, out=out)
@@ -3428,8 +3420,12 @@ class TestArithmetics(TestCase):
 
         result = ht.array([[-1.0, -2.0], [-3.0, -4.0]])
         int_result = ht.array([-2, -2])
-        a_complex_vector = a_complex_vector_double = ht.array([1 + 1j, 2 - 2j, 3, 4j, 5], split=0)
-        complex_result = ht.array([-1 - 1j, -2 + 2j, -3, -4j, -5], split=0)
+        a_complex_vector = ht.array([1 + 1j, 2 - 2j, 3, 4j, 5], split=0, dtype=ht.complex64)
+        complex_result = ht.array([-1 - 1j, -2 + 2j, -3, -4j, -5], split=0, dtype=ht.complex64)
+        if not self.is_mps:
+            a_complex_vector_double = ht.array(
+                [1 + 1j, 2 - 2j, 3, 4j, 5], split=0, dtype=ht.complex128
+            )
 
         # We identify the underlying PyTorch objects to check whether operations are really in-place
         underlying_torch_tensor = a_tensor.larray
@@ -3451,12 +3447,15 @@ class TestArithmetics(TestCase):
         self.assertIs(an_int_vector.larray, underlying_int_torch_tensor)
         underlying_int_torch_tensor.copy_(self.an_int_vector.larray)
 
-        if not a_complex_vector.device.torch_device.startswith("mps"):
-            # TODO: test this again after upgrading to MacOS 14
+        # test only on Mac Os 14.0 and higher
+        if self.is_mps:
+            macos_version = int(platform.mac_ver()[0].split(".")[0])
+        if not self.is_mps or macos_version >= 14:
             self.assertTrue(ht.equal(a_complex_vector.neg_(), complex_result))
             self.assertTrue(ht.equal(a_complex_vector, complex_result))
+        if not self.is_mps:
             self.assertIs(a_complex_vector, a_complex_vector_double)
-            self.assertIs(a_complex_vector.larray, underlying_complex_torch_tensor)
+        self.assertIs(a_complex_vector.larray, underlying_complex_torch_tensor)
 
         # Test other possible ways to call this function
         self.assertTrue(ht.equal(a_tensor.negative_(), result))
@@ -3480,15 +3479,10 @@ class TestArithmetics(TestCase):
         a_string = self.a_string  # reset
 
     def test_pos(self):
-        is_mps = (
-            ht.get_device().device_type.startswith("gpu")
-            and torch.backends.mps.is_built()
-            and torch.backends.mps.is_available()
-        )
         self.assertTrue(ht.equal(ht.pos(ht.array([-1, 1])), ht.array([-1, 1])))
         self.assertTrue(ht.equal(+ht.array([-1.0, 1.0]), ht.array([-1.0, 1.0])))
 
-        if not is_mps:
+        if not self.is_mps:
             a = ht.array([1 + 1j, 2 - 2j, 3, 4j, 5], split=0)
             b = out = ht.empty(5, dtype=ht.complex64, split=0)
             ht.positive(a, out=out)
@@ -3697,7 +3691,7 @@ class TestArithmetics(TestCase):
                 a **= b
 
         # test function for invalid casting between data types
-        if not a.device.torch_device.startswith("mps"):
+        if not self.is_mps:
             a = ht.ones(3, dtype=ht.float32)
             b = ht.ones(3, dtype=ht.float64)
             with self.assertRaises(TypeError):
@@ -4013,7 +4007,7 @@ class TestArithmetics(TestCase):
                 a %= b
 
         # test function for invalid casting between data types
-        if not a.device.torch_device.startswith("mps"):
+        if not self.is_mps:
             a = ht.ones(3, dtype=ht.float32)
             b = ht.ones(3, dtype=ht.float64)
             with self.assertRaises(TypeError):
@@ -4399,7 +4393,7 @@ class TestArithmetics(TestCase):
                 a -= b
 
         # test function for invalid casting between data types
-        if not a.device.torch_device.startswith("mps"):
+        if not self.is_mps:
             a = ht.ones(3, dtype=ht.float32)
             b = ht.ones(3, dtype=ht.float64)
             with self.assertRaises(TypeError):
