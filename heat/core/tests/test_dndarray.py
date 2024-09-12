@@ -696,7 +696,6 @@ class TestDNDarray(TestCase):
         self.assertEqual(a.lloc[3:7:2, 2:5:2].dtype, torch.float32)
 
     def test_lnbytes(self):
-        is_mps = ht.get_device().torch_device.startswith("mps")
         # undistributed case
 
         # integer
@@ -708,7 +707,7 @@ class TestDNDarray(TestCase):
 
         # float
         x_float32 = ht.arange(6 * 7 * 8, dtype=ht.float32).reshape((6, 7, 8))
-        if not is_mps:
+        if not self.is_mps:
             x_float64 = ht.arange(6 * 7 * 8, dtype=ht.float64).reshape((6, 7, 8))
 
         # bool
@@ -721,7 +720,7 @@ class TestDNDarray(TestCase):
         self.assertEqual(x_int64.lnbytes, x_int64.gnbytes)
 
         self.assertEqual(x_float32.lnbytes, x_float32.gnbytes)
-        if not is_mps:
+        if not self.is_mps:
             self.assertEqual(x_float64.lnbytes, x_float64.gnbytes)
 
         self.assertEqual(x_bool.lnbytes, x_bool.gnbytes)
@@ -737,7 +736,7 @@ class TestDNDarray(TestCase):
 
         # float
         x_float32_d = ht.arange(6 * 7 * 8, split=0, dtype=ht.float32)
-        if not is_mps:
+        if not self.is_mps:
             x_float64_d = ht.arange(6 * 7 * 8, split=0, dtype=ht.float64)
 
         # bool
@@ -750,13 +749,12 @@ class TestDNDarray(TestCase):
         self.assertEqual(x_int64_d.lnbytes, x_int64_d.lnumel * 8)
 
         self.assertEqual(x_float32_d.lnbytes, x_float32_d.lnumel * 4)
-        if not is_mps:
+        if not self.is_mps:
             self.assertEqual(x_float64_d.lnbytes, x_float64_d.lnumel * 8)
 
         self.assertEqual(x_bool_d.lnbytes, x_bool_d.lnumel * 1)
 
     def test_nbytes(self):
-        is_mps = ht.get_device().torch_device.startswith("mps")
         # undistributed case
 
         # integer
@@ -768,7 +766,7 @@ class TestDNDarray(TestCase):
 
         # float
         x_float32 = ht.arange(6 * 7 * 8, dtype=ht.float32).reshape((6, 7, 8))
-        if not is_mps:
+        if not self.is_mps:
             x_float64 = ht.arange(6 * 7 * 8, dtype=ht.float64).reshape((6, 7, 8))
 
         # bool
@@ -781,7 +779,7 @@ class TestDNDarray(TestCase):
         self.assertEqual(x_int64.nbytes, 336 * 8)
 
         self.assertEqual(x_float32.nbytes, 336 * 4)
-        if not is_mps:
+        if not self.is_mps:
             self.assertEqual(x_float64.nbytes, 336 * 8)
 
         self.assertEqual(x_bool.nbytes, 336 * 1)
@@ -794,7 +792,7 @@ class TestDNDarray(TestCase):
         self.assertEqual(x_int64.nbytes, x_int64.gnbytes)
 
         self.assertEqual(x_float32.nbytes, x_float32.gnbytes)
-        if not is_mps:
+        if not self.is_mps:
             self.assertEqual(x_float64.nbytes, x_float64.gnbytes)
 
         self.assertEqual(x_bool.nbytes, x_bool.gnbytes)
@@ -810,7 +808,7 @@ class TestDNDarray(TestCase):
 
         # float
         x_float32_d = ht.arange(6 * 7 * 8, split=0, dtype=ht.float32)
-        if not is_mps:
+        if not self.is_mps:
             x_float64_d = ht.arange(6 * 7 * 8, split=0, dtype=ht.float64)
 
         # bool
@@ -823,7 +821,7 @@ class TestDNDarray(TestCase):
         self.assertEqual(x_int64_d.nbytes, 336 * 8)
 
         self.assertEqual(x_float32_d.nbytes, 336 * 4)
-        if not is_mps:
+        if not self.is_mps:
             self.assertEqual(x_float64_d.nbytes, 336 * 8)
 
         self.assertEqual(x_bool_d.nbytes, 336 * 1)
@@ -836,7 +834,7 @@ class TestDNDarray(TestCase):
         self.assertEqual(x_int64_d.nbytes, x_int64_d.gnbytes)
 
         self.assertEqual(x_float32_d.nbytes, x_float32_d.gnbytes)
-        if not is_mps:
+        if not self.is_mps:
             self.assertEqual(x_float64_d.nbytes, x_float64_d.gnbytes)
 
         self.assertEqual(x_bool_d.nbytes, x_bool_d.gnbytes)
@@ -846,10 +844,9 @@ class TestDNDarray(TestCase):
         self.assertEqual(a.ndim, 4)
 
     def test_numpy(self):
-        is_mps = ht.get_device().torch_device.startswith("mps")
-        # ToDo: numpy does not work for distributed tensors du to issue#
+        # ToDo: numpy does not work for distributed tensors due to issue#
         # Add additional tests if the issue is solved
-        if not is_mps:
+        if not self.is_mps:
             a = np.random.randn(10, 8)
             b = ht.array(a)
             self.assertIsInstance(b.numpy(), np.ndarray)
@@ -860,7 +857,7 @@ class TestDNDarray(TestCase):
         b = np.ones((2, 2)).astype("float32")
         self.assertEqual(a.numpy().dtype, b.dtype)
 
-        if not is_mps:
+        if not self.is_mps:
             a = ht.ones((10, 8), dtype=ht.float64)
             b = np.ones((2, 2)).astype("float64")
             self.assertEqual(a.numpy().dtype, b.dtype)
@@ -965,9 +962,8 @@ class TestDNDarray(TestCase):
         self.assertEqual(a.__repr__(), a.__str__())
 
     def test_resplit(self):
-        is_mps = ht.get_device().torch_device.startswith("mps")
         # MPS tests are always 1 process only
-        if not is_mps:
+        if not self.is_mps:
             # resplitting with same axis, should leave everything unchanged
             shape = (ht.MPI_WORLD.size, ht.MPI_WORLD.size)
             data = ht.zeros(shape, split=None)
@@ -1627,7 +1623,6 @@ class TestDNDarray(TestCase):
         self.assertEqual(ht.array(0).size, 1)
 
     def test_stride_and_strides(self):
-        is_mps = ht.get_device().torch_device.startswith("mps")
         # Local, int16, row-major memory layout
         torch_int16 = torch.arange(
             6 * 5 * 3 * 4 * 5 * 7, dtype=torch.int16, device=self.device.torch_device
@@ -1657,7 +1652,7 @@ class TestDNDarray(TestCase):
             self.assertEqual(heat_float32.strides, numpy_float32.strides)
 
         # Local, float64, column-major memory layout
-        if not is_mps:
+        if not self.is_mps:
             torch_float64 = torch.arange(
                 6 * 5 * 3 * 4 * 5 * 7, dtype=torch.float64, device=self.device.torch_device
             ).reshape(6, 5, 3, 4, 5, 7)
@@ -1718,7 +1713,7 @@ class TestDNDarray(TestCase):
             self.assertEqual(heat_float32_split.strides, numpy_float32_split_strides)
 
         # Distributed, float64, column-major memory layout
-        if not is_mps:
+        if not self.is_mps:
             split = -2
             torch_float64 = torch.arange(
                 6 * 5 * 3 * 4 * 5 * size * 7, dtype=torch.float64, device=self.device.torch_device
