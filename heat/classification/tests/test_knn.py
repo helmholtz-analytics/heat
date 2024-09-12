@@ -62,10 +62,8 @@ class TestKNN(TestCase):
     def test_utility(
         self,
     ):
-        a = ht.array([1, 2, 3, 4], dtype=ht.int32)
-        b = ht.array(
-            [[0, 1, 0, 0, 0], [0, 0, 1, 0, 0], [0, 0, 0, 1, 0], [0, 0, 0, 0, 1]], dtype=ht.int32
-        )
+        a = ht.array([1, 2, 3, 4])
+        b = ht.array([[0, 1, 0, 0, 0], [0, 0, 1, 0, 0], [0, 0, 0, 1, 0], [0, 0, 0, 0, 1]])
 
         one_hot = KNeighborsClassifier.one_hot_encoding(a)
         self.assertTrue((one_hot == b).all())
