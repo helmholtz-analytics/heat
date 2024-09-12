@@ -197,7 +197,7 @@ def __binary_op(
         sanitation.sanitize_out(out, output_shape, output_split, output_device, output_comm)
         t1, t2 = sanitation.sanitize_distribution(t1, t2, target=out)
 
-    # MPS does not support float32
+    # MPS does not support float64
     if t1.larray.is_mps and promoted_type == torch.float64:
         promoted_type = torch.float32
 
@@ -286,22 +286,9 @@ def __cum_op(
 
     if dtype is not None:
         dtype = types.canonical_heat_type(dtype)
-
-    if x.larray.is_mps:
-        if x.dtype == types.int64:
-            warnings.warn(
-                "MPS does not support cumulative operations on int64, using int32 instead"
-            )
-            x = x.astype(types.int32)
-        if dtype is not None:
-            if dtype == types.float64:
-                warnings.warn("MPS does not support float64, using float32 instead")
-                dtype = types.float32
-            elif dtype == types.int64:
-                warnings.warn(
-                    "MPS does not support cumulative operations on int64, using int32 instead"
-                )
-                dtype = types.int32
+        if x.larray.is_mps and dtype == types.float64:
+            warnings.warn("MPS does not support float64, will cast to float32")
+            dtype = types.float32
 
     if out is not None:
         sanitation.sanitize_out(out, x.shape, x.split, x.device)
