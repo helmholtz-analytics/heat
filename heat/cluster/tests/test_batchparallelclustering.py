@@ -84,12 +84,7 @@ class TestBatchParallelKCluster(TestCase):
             self.assertEqual(10, parallelclusterer.n_clusters)
 
     def test_spherical_clusters(self):
-        is_mps = (
-            ht.get_device().device_type.startswith("gpu")
-            and torch.backends.mps.is_built()
-            and torch.backends.mps.is_available()
-        )
-        if is_mps:
+        if self.is_mps:
             dtypes = [ht.float32]
         else:
             dtypes = [ht.float32, ht.float64]

@@ -35,16 +35,9 @@ class TestSpectral(TestCase):
         spectral.set_params(**params)
         self.assertEqual(10, spectral.n_clusters)
 
-    # unittest.skipIf doesn't work here for whatever reason
-    # @unittest.skipIf((ht.get_device().device_type.startswith("gpu") and torch.backends.mps.is_built() and torch.backends.mps.is_available()), "ComplexFloat not supported by MPS")
     def test_fit_iris(self):
-        is_mps = (
-            ht.get_device().device_type.startswith("gpu")
-            and torch.backends.mps.is_built()
-            and torch.backends.mps.is_available()
-        )
-        if not is_mps:
-            # skip on MPS, ComplexFloat not supported
+        # skip on MPS, ComplexFloat not supported
+        if not self.is_mps:
             if ht.MPI_WORLD.size <= 4:
                 # todo: fix tests with >7 processes, NaNs appearing in spectral._spectral_embedding
                 # get some test data
