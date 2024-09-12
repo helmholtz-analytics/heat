@@ -36,7 +36,7 @@ class TestSpectral(TestCase):
         self.assertEqual(10, spectral.n_clusters)
 
     def test_fit_iris(self):
-        # skip on MPS, ComplexFloat not supported
+        # skip on MPS, matmul on ComplexFloat not supported as of PyTorch 2.3
         if not self.is_mps:
             if ht.MPI_WORLD.size <= 4:
                 # todo: fix tests with >7 processes, NaNs appearing in spectral._spectral_embedding

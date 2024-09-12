@@ -101,14 +101,17 @@ class TestKMedians(TestCase):
         # different datatype
         n = 20 * ht.MPI_WORLD.size
         # MPS does not support float64
-        if not data.larray.is_mps:
-            data = create_spherical_dataset(
-                num_samples_cluster=n, radius=1.0, offset=4.0, dtype=ht.float64, random_state=seed
-            )
-            kmedians = ht.cluster.KMedians(n_clusters=4, init="kmedians++")
-            kmedians.fit(data)
-            self.assertIsInstance(kmedians.cluster_centers_, ht.DNDarray)
-            self.assertEqual(kmedians.cluster_centers_.shape, (4, 3))
+        if self.is_mps:
+            dtype = ht.float32
+        else:
+            dtype = ht.float64
+        data = create_spherical_dataset(
+            num_samples_cluster=n, radius=1.0, offset=4.0, dtype=dtype, random_state=seed
+        )
+        kmedians = ht.cluster.KMedians(n_clusters=4, init="kmedians++")
+        kmedians.fit(data)
+        self.assertIsInstance(kmedians.cluster_centers_, ht.DNDarray)
+        self.assertEqual(kmedians.cluster_centers_.shape, (4, 3))
 
         # on Ints (different radius, offset and datatype
         data = create_spherical_dataset(
