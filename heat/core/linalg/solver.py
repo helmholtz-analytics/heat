@@ -337,20 +337,12 @@ def solve_triangular(A: DNDarray, b: DNDarray) -> DNDarray:
 
             return factories.array(x, dtype=b.dtype, device=dev, comm=comm)
         else:  # A not split, b.split == -2
-            if tdev.startswith("mps"):
-                b_lshapes_cum = torch.hstack(
-                    [
-                        torch.zeros(1, dtype=torch.int32, device=tdev),
-                        torch.cumsum(b.lshape_map[:, -2].int(), 0),
-                    ]
-                )
-            else:
-                b_lshapes_cum = torch.hstack(
-                    [
-                        torch.zeros(1, dtype=torch.int64, device=tdev),
-                        torch.cumsum(b.lshape_map[:, -2], 0),
-                    ]
-                )
+            b_lshapes_cum = torch.hstack(
+                [
+                    torch.zeros(1, dtype=torch.int64, device=tdev),
+                    torch.cumsum(b.lshape_map[:, -2], 0),
+                ]
+            )
 
             btilde_loc = b.larray.clone()
             A_loc = A.larray[..., b_lshapes_cum[comm.rank] : b_lshapes_cum[comm.rank + 1]]
@@ -393,20 +385,12 @@ def solve_triangular(A: DNDarray, b: DNDarray) -> DNDarray:
         return x
 
     if A.split >= batch_dim:  # both splits in la dims
-        if tdev.startswith("mps"):
-            A_lshapes_cum = torch.hstack(
-                [
-                    torch.zeros(1, dtype=torch.int32, device=tdev),
-                    torch.cumsum(A.lshape_map[:, A.split].int(), 0),
-                ]
-            )
-        else:
-            A_lshapes_cum = torch.hstack(
-                [
-                    torch.zeros(1, dtype=torch.int64, device=tdev),
-                    torch.cumsum(A.lshape_map[:, A.split], 0),
-                ]
-            )
+        A_lshapes_cum = torch.hstack(
+            [
+                torch.zeros(1, dtype=torch.int64, device=tdev),
+                torch.cumsum(A.lshape_map[:, A.split], 0),
+            ]
+        )
 
         if b.split is None:
             btilde_loc = b.larray[
