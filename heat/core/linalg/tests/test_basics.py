@@ -14,7 +14,7 @@ class TestLinalgBasics(TestCase):
         b = ht.array([[0, 1, 0], [0, 0, 1], [1, 0, 0]])
 
         # different types - do not run on MPS
-        if not a.larray.device.type.startswith("mps"):
+        if not self.is_mps:
             cross = ht.cross(a, b)
             self.assertEqual(cross.shape, a.shape)
             self.assertEqual(cross.dtype, a.dtype)
@@ -103,8 +103,7 @@ class TestLinalgBasics(TestCase):
         self.assertEqual(adet.device, a.device)
         self.assertTrue(ht.equal(adet, ares))
 
-        is_mps = a.larray.is_mps
-        dtype = ht.float64 if not is_mps else ht.float32
+        dtype = ht.float64 if not self.is_mps else ht.float32
 
         a = ht.array([[-2.0, -1, 2], [2, 1, 4], [-3, 3, -1]], split=1, dtype=dtype)
         adet = ht.linalg.det(a)
@@ -199,8 +198,7 @@ class TestLinalgBasics(TestCase):
         b1d = ht.array(data1d, dtype=ht.float32, split=0)
         self.assertEqual(ht.dot(a1d, b1d), np.dot(data1d, data1d))
 
-        is_mps = a1d.larray.is_mps
-        dtype = np.float32 if is_mps else np.float64
+        dtype = np.float32 if self.is_mps else np.float64
         data1d = data1d.astype(dtype)
         data2d = data2d.astype(dtype)
         data3d = data3d.astype(dtype)
@@ -290,8 +288,7 @@ class TestLinalgBasics(TestCase):
         self.assertTrue(ht.allclose(ainv, ares, atol=1e-6))
 
         # pivoting row change
-        is_mps = a.larray.is_mps
-        dtype = ht.float if is_mps else ht.double
+        dtype = ht.float if self.is_mps else ht.double
         atol = 1e-6 if dtype == ht.float else 1e-12
 
         ares = ht.array([[-1, 0, 2], [2, 0, -1], [-6, 3, 0]], dtype=dtype, split=0) / 3.0
@@ -315,13 +312,13 @@ class TestLinalgBasics(TestCase):
         ainv = ht.linalg.inv(a)
         i = ht.eye(a.shape, split=1, dtype=a.dtype)
         # loss of precision in distributed floating-point ops
-        self.assertTrue(ht.allclose(a @ ainv, i, atol=1e-5 if is_mps else atol))
+        self.assertTrue(ht.allclose(a @ ainv, i, atol=1e-5 if self.is_mps else atol))
 
         ht.random.seed(42)
         a = ht.random.random((20, 20), dtype=dtype, split=0)
         ainv = ht.linalg.inv(a)
         i = ht.eye(a.shape, split=0, dtype=a.dtype)
-        self.assertTrue(ht.allclose(a @ ainv, i, atol=1e-5 if is_mps else atol))
+        self.assertTrue(ht.allclose(a @ ainv, i, atol=1e-5 if self.is_mps else atol))
 
         with self.assertRaises(RuntimeError):
             ht.linalg.inv(ht.array([1, 2, 3], split=0))
@@ -1084,7 +1081,7 @@ class TestLinalgBasics(TestCase):
         self.assertTrue((ht_outer_split.numpy() == np_outer).all())
 
         # a_split.ndim > 1 and a.split != 0
-        if ht_outer_split.larray.is_mps:
+        if self.is_mps:
             a_split_3d = ht.random.randn(3, 3, 3, dtype=ht.float32, split=2)
         else:
             a_split_3d = ht.random.randn(3, 3, 3, dtype=ht.float64, split=2)
@@ -1788,7 +1785,7 @@ class TestLinalgBasics(TestCase):
         self.assertTrue((result.larray == comparison).all())
 
         local_ones = ht.ones((3, 4, 5, 6))
-        if not local_ones.larray.is_mps:
+        if not self.is_mps:
             # triu, tril fail on MPS for ndim > 2
             # 2D+ case, no offset, data is not split, module-level call
             result = local_ones.tril()
@@ -2011,7 +2008,7 @@ class TestLinalgBasics(TestCase):
         self.assertTrue((result.larray == comparison).all())
 
         local_ones = ht.ones((3, 4, 5, 6))
-        if not local_ones.larray.is_mps:
+        if not self.is_mps:
             # 2D+ case, no offset, data is not split, module-level call
             result = local_ones.triu()
             comparison = torch.ones((5, 6), device=self.device.torch_device).triu()
@@ -2169,11 +2166,7 @@ class TestLinalgBasics(TestCase):
             self.assertTrue(result.larray[0, -1] == 1)
 
     def test_vdot(self):
-        if (
-            not ht.get_device().device_type.startswith("gpu")
-            and torch.backends.mps.is_built()
-            and torch.backends.mps.is_available()
-        ):
+        if not self.is_mps:
             a = ht.array([[1 + 1j, 2 + 2j], [3 + 3j, 4 + 4j]], split=0)
             b = ht.array([[1 + 2j, 3 + 4j], [5 + 6j, 7 + 8j]], split=0)
 
@@ -2258,11 +2251,7 @@ class TestLinalgBasics(TestCase):
         )
 
         # different dtype
-        if (
-            not ht.get_device().device_type.startswith("gpu")
-            and torch.backends.mps.is_built()
-            and torch.backends.mps.is_available()
-        ):
+        if not self.is_mps:
             vn = ht.linalg.vector_norm(ht.full((4, 4, 4), 1 + 1j, dtype=ht.int), axis=0, ord=4)
             self.assertEqual(vn.split, None)
             self.assertEqual(vn.dtype, ht.float)
