@@ -34,12 +34,7 @@ class TestSolver(TestCase):
         # single precision tolerance for torch.inv() is pretty bad
         tolerance = 1e-3
 
-        is_mps = (
-            ht.get_device().device_type.startswith("gpu")
-            and torch.backends.mps.is_built()
-            and torch.backends.mps.is_available()
-        )
-        dtype, atol = (ht.float32, tolerance) if is_mps else (ht.float64, 1e-12)
+        dtype, atol = (ht.float32, tolerance) if self.is_mps else (ht.float64, 1e-12)
 
         # define positive definite matrix (n,n), split = 0
         n = 100
@@ -57,11 +52,8 @@ class TestSolver(TestCase):
         self.assertTrue(ht.allclose(lanczos_B, B, atol=atol))
 
         # complex128, output buffers
-        if not is_mps:
-            A = (
-                ht.random.rand(n, n, dtype=ht.float64, split=0)
-                + ht.random.rand(n, n, dtype=ht.float64, split=0) * 1j
-            )
+        if not self.is_mps:
+            A = ht.random.rand(n, n, dtype=ht.complex128, split=0)
             A_conj = ht.conj(A)
             B = A @ A_conj.T
             m = n
@@ -93,11 +85,9 @@ class TestSolver(TestCase):
         self.assertTrue(ht.allclose(lanczos_B, B, atol=atol))
 
         # complex64
-        if not is_mps:
-            A = (
-                ht.random.randn(n, n, dtype=ht.float32, split=0)
-                + ht.random.randn(n, n, dtype=ht.float32, split=0) * 1j
-            )
+        if not self.is_mps:
+            # in principle, MPS supports complex64, but many operations are not implemented, e.g. matmul, div
+            A = ht.random.randn(n, n, dtype=ht.complex64, split=0)
             A_conj = ht.conj(A)
             B = A @ A_conj.T
             # Lanczos decomposition with iterations m = n
@@ -208,7 +198,7 @@ class TestSolver(TestCase):
             self.assertTrue(ht.equal(res, c))
 
         # batched tests
-        if tdev.startswith("mps"):
+        if self.is_mps:
             # reduction ops on tensors with ndim > 4 are not supported on MPS
             # see e.g. https://github.com/pytorch/pytorch/issues/129960
             batch_shapes = [
