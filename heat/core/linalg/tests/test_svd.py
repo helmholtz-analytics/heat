@@ -8,7 +8,7 @@ from ...tests.test_suites.basic_test import TestCase
 
 class TestTallSkinnySVD(TestCase):
     def test_tallskinny_split0(self):
-        if ht.get_device().torch_device.startswith("mps"):
+        if self.is_mps:
             dtypes = [ht.float32]
         else:
             dtypes = [ht.float32, ht.float64]
@@ -34,7 +34,7 @@ class TestTallSkinnySVD(TestCase):
                 self.assertTrue(ht.all(S >= 0))
 
     def test_shortfat_split1(self):
-        if ht.get_device().torch_device.startswith("mps"):
+        if self.is_mps:
             dtypes = [ht.float32]
         else:
             dtypes = [ht.float32, ht.float64]
@@ -56,7 +56,7 @@ class TestTallSkinnySVD(TestCase):
             self.assertTrue(ht.all(S >= 0))
 
     def test_singvals_only(self):
-        if ht.get_device().torch_device.startswith("mps"):
+        if self.is_mps:
             dtypes = [ht.float32]
         else:
             dtypes = [ht.float32, ht.float64]
