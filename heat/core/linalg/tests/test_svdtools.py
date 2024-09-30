@@ -13,12 +13,7 @@ class TestHSVD(TestCase):
     # @unittest.skipIf(ht.get_device().device_type.startswith("gpu") and torch.backends.mps.is_built() and torch.backends.mps.is_available(), "MPS unstable for now")
     # not testing on MPS for now as torch.norm() is unstable
     def test_hsvd_rank_part1(self):
-        is_mps = (
-            ht.get_device().device_type.startswith("gpu")
-            and torch.backends.mps.is_built()
-            and torch.backends.mps.is_available()
-        )
-        if not is_mps:
+        if not self.is_mps:
             nprocs = MPI.COMM_WORLD.Get_size()
             test_matrices = [
                 ht.random.randn(50, 15 * nprocs, dtype=ht.float32, split=1),
@@ -162,15 +157,10 @@ class TestHSVD(TestCase):
                 self.assertEqual(len(ht.linalg.hsvd_rtol(test_matrices[0], 5e-1)), 2)
 
     def test_hsvd_rank_part2(self):
-        is_mps = (
-            ht.get_device().device_type.startswith("gpu")
-            and torch.backends.mps.is_built()
-            and torch.backends.mps.is_available()
-        )
         # check if hsvd_rank yields correct results for maxrank <= truerank
         nprocs = MPI.COMM_WORLD.Get_size()
         true_rk = max(10, nprocs)
-        if is_mps:
+        if self.is_mps:
             test_matrices_low_rank = [
                 ht.utils.data.matrixgallery.random_known_rank(
                     50, 15 * nprocs, true_rk, split=1, dtype=ht.float32
