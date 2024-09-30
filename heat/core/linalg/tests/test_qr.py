@@ -8,12 +8,7 @@ from ...tests.test_suites.basic_test import TestCase
 
 class TestQR(TestCase):
     def test_qr_split1orNone(self):
-        is_mps = (
-            ht.get_device().device_type.startswith("gpu")
-            and torch.backends.mps.is_built()
-            and torch.backends.mps.is_available()
-        )
-        if is_mps:
+        if self.is_mps:
             dtypes = [ht.float32]
         else:
             dtypes = [ht.float32, ht.float64]
@@ -81,12 +76,7 @@ class TestQR(TestCase):
                             )
 
     def test_qr_split0(self):
-        is_mps = (
-            ht.get_device().device_type.startswith("gpu")
-            and torch.backends.mps.is_built()
-            and torch.backends.mps.is_available()
-        )
-        if is_mps:
+        if self.is_mps:
             dtypes = [ht.float32]
         else:
             dtypes = [ht.float32, ht.float64]
