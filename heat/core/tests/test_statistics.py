@@ -60,7 +60,7 @@ class TestStatistics(TestCase):
         data = ht.tril(ht.ones((size, size), split=0), k=-1)
 
         result = ht.argmax(data, axis=0)
-        expected = torch.tensor(np.argmax(data.numpy(), axis=0))
+        expected = torch.tensor(np.argmax(data.numpy(), axis=0), device=result.larray.device)
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(result.dtype, ht.int64)
         self.assertEqual(result.larray.dtype, torch.int64)
@@ -77,7 +77,7 @@ class TestStatistics(TestCase):
 
         output = ht.empty((size,), dtype=ht.int64)
         result = ht.argmax(data, axis=0, out=output)
-        expected = torch.tensor(np.argmax(data.numpy(), axis=0))
+        expected = torch.tensor(np.argmax(data.numpy(), axis=0), device=result.larray.device)
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(output.dtype, ht.int64)
         self.assertEqual(output.larray.dtype, torch.int64)
@@ -151,7 +151,7 @@ class TestStatistics(TestCase):
         data = ht.triu(ht.ones((size, size), split=0), k=1)
 
         result = ht.argmin(data, axis=0)
-        expected = torch.tensor(np.argmin(data.numpy(), axis=0))
+        expected = torch.tensor(np.argmin(data.numpy(), axis=0), device=result.larray.device)
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(result.dtype, ht.int64)
         self.assertEqual(result.larray.dtype, torch.int64)
@@ -168,7 +168,7 @@ class TestStatistics(TestCase):
 
         output = ht.empty((size,), dtype=ht.int64)
         result = ht.argmin(data, axis=0, out=output)
-        expected = torch.tensor(np.argmin(data.numpy(), axis=0))
+        expected = torch.tensor(np.argmin(data.numpy(), axis=0), device=result.larray.device)
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(output.dtype, ht.int64)
         self.assertEqual(output.larray.dtype, torch.int64)
@@ -228,21 +228,25 @@ class TestStatistics(TestCase):
         self.assertEqual(avg_horizontal.larray.dtype, torch.float32)
         self.assertTrue((avg_horizontal.numpy() == np.average(comparison, axis=1)).all())
 
+        if self.is_mps:
+            dtype = torch.float32
+        else:
+            dtype = torch.float64
         # check weighted average over all float elements of split 3d tensor, across split axis
         random_volume = ht.array(
-            torch.randn((3, 3, 3), dtype=torch.float64, device=self.device.torch_device), is_split=1
+            torch.randn((3, 3, 3), dtype=dtype, device=self.device.torch_device), is_split=1
         )
         size = random_volume.comm.size
         random_weights = ht.array(
-            torch.randn((3 * size,), dtype=torch.float64, device=self.device.torch_device), split=0
+            torch.randn((3 * size,), dtype=dtype, device=self.device.torch_device), split=0
         )
         avg_volume = ht.average(random_volume, weights=random_weights, axis=1)
         np_avg_volume = np.average(random_volume.numpy(), weights=random_weights.numpy(), axis=1)
         self.assertIsInstance(avg_volume, ht.DNDarray)
         self.assertEqual(avg_volume.shape, (3, 3))
         self.assertEqual(avg_volume.lshape, (3, 3))
-        self.assertEqual(avg_volume.dtype, ht.float64)
-        self.assertEqual(avg_volume.larray.dtype, torch.float64)
+        self.assertEqual(avg_volume.dtype, ht.types.canonical_heat_type(dtype))
+        self.assertEqual(avg_volume.larray.dtype, dtype)
         self.assertEqual(avg_volume.split, None)
         self.assertAlmostEqual(avg_volume.numpy().all(), np_avg_volume.all())
         avg_volume_with_cumwgt = ht.average(
@@ -256,7 +260,7 @@ class TestStatistics(TestCase):
         # check weighted average over all float elements of split 3d tensor (3d weights)
 
         random_weights_3d = ht.array(
-            torch.randn((3, 3, 3), dtype=torch.float64, device=self.device.torch_device), is_split=1
+            torch.randn((3, 3, 3), dtype=torch.dtype, device=self.device.torch_device), is_split=1
         )
         avg_volume = ht.average(random_volume, weights=random_weights_3d, axis=1)
         np_avg_volume = np.average(random_volume.numpy(), weights=random_weights.numpy(), axis=1)
