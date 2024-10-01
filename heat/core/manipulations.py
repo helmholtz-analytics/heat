@@ -2573,7 +2573,7 @@ def sort(a: DNDarray, axis: int = -1, descending: bool = False, out: Optional[DN
     """
     stride_tricks.sanitize_axis(a.shape, axis)
 
-    if a.split is None or axis != a.split:
+    if not a.is_distributed() or axis != a.split:
         # sorting is not affected by split -> we can just sort along the axis
         final_result, final_indices = torch.sort(a.larray, dim=axis, descending=descending)
 
@@ -3339,7 +3339,7 @@ def unique(
     array([[2, 3],
            [3, 1]])
     """
-    if a.split is None:
+    if not a.is_distributed():
         torch_output = torch.unique(
             a.larray, sorted=sorted, return_inverse=return_inverse, dim=axis
         )
@@ -4299,14 +4299,15 @@ def topk(
         metadata = torch.tensor(
             [k, dim, largest, sorted, local_shape_len, *local_shape], device=indices.device
         )
-        try:
-            send_buffer = torch.cat(
-                (metadata.double(), result.double().flatten(), indices.flatten().double())
-            )
-        except TypeError:
+
+        if result.is_mps:
             # MPS does not support double precision
             send_buffer = torch.cat(
                 (metadata.float(), result.float().flatten(), indices.flatten().float())
+            )
+        else:
+            send_buffer = torch.cat(
+                (metadata.double(), result.double().flatten(), indices.flatten().double())
             )
         return send_buffer
 
