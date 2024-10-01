@@ -1602,7 +1602,10 @@ def percentile(
         output_shape = perc_size + output_shape
 
     # output data type must be float
-    output_dtype = types.float32 if x.larray.element_size() == 4 else types.float64
+    if x.larray.element_size() == 4 or x.larray.is_mps:
+        output_dtype = types.float32
+    else:
+        output_dtype = types.float64
     if out is not None:
         sanitation.sanitize_out(out, output_shape, output_split, x.device, x.comm)
         if output_dtype != out.dtype:
