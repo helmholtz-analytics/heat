@@ -260,15 +260,15 @@ class TestStatistics(TestCase):
         # check weighted average over all float elements of split 3d tensor (3d weights)
 
         random_weights_3d = ht.array(
-            torch.randn((3, 3, 3), dtype=torch.dtype, device=self.device.torch_device), is_split=1
+            torch.randn((3, 3, 3), dtype=dtype, device=self.device.torch_device), is_split=1
         )
         avg_volume = ht.average(random_volume, weights=random_weights_3d, axis=1)
         np_avg_volume = np.average(random_volume.numpy(), weights=random_weights.numpy(), axis=1)
         self.assertIsInstance(avg_volume, ht.DNDarray)
         self.assertEqual(avg_volume.shape, (3, 3))
         self.assertEqual(avg_volume.lshape, (3, 3))
-        self.assertEqual(avg_volume.dtype, ht.float64)
-        self.assertEqual(avg_volume.larray.dtype, torch.float64)
+        self.assertEqual(avg_volume.dtype, ht.types.canonical_heat_type(dtype))
+        self.assertEqual(avg_volume.larray.dtype, dtype)
         self.assertEqual(avg_volume.split, None)
         self.assertAlmostEqual(avg_volume.numpy().all(), np_avg_volume.all())
         avg_volume_with_cumwgt = ht.average(
@@ -348,8 +348,13 @@ class TestStatistics(TestCase):
         w = ht.arange(5)
         res = ht.bincount(a, weights=w)
         self.assertEqual(res.size, 5)
-        self.assertEqual(res.dtype, ht.float64)
-        self.assertTrue(ht.equal(res, ht.arange(5, dtype=ht.float64)))
+        if self.is_mps:
+            # torch.bincount on MPS returns int32 here
+            self.assertEqual(res.dtype, ht.int32)
+            self.assertTrue(ht.equal(res, ht.arange(5)))
+        else:
+            self.assertEqual(res.dtype, ht.float64)
+            self.assertTrue(ht.equal(res, ht.arange(5, dtype=ht.float64)))
 
         res = ht.bincount(a, minlength=8)
         self.assertEqual(res.size, 8)
@@ -360,8 +365,13 @@ class TestStatistics(TestCase):
         w = ht.arange(4, split=0)
         res = ht.bincount(a, weights=w)
         self.assertEqual(res.size, 4)
-        self.assertEqual(res.dtype, ht.float64)
-        self.assertTrue(ht.equal(res, ht.arange(4, dtype=ht.float64)))
+        if self.is_mps:
+            # torch.bincount on MPS returns int32 here
+            self.assertEqual(res.dtype, ht.int32)
+            self.assertTrue(ht.equal(res, ht.arange(4)))
+        else:
+            self.assertEqual(res.dtype, ht.float64)
+            self.assertTrue(ht.equal(res, ht.arange(4, dtype=ht.float64)))
 
         with self.assertRaises(ValueError):
             ht.bincount(ht.array([0, 1, 2, 3], split=0), weights=ht.array([1, 2, 3, 4]))
@@ -394,66 +404,73 @@ class TestStatistics(TestCase):
                 ht.bucketize(a, ht.array([0.0, 0.5, 1.0], split=0))
 
     def test_cov(self):
-        x = ht.array([[0, 2], [1, 1], [2, 0]], dtype=ht.float, split=1).T
+        if self.is_mps:
+            dtype = ht.float32
+            np_dtype = np.float32
+        else:
+            dtype = ht.float64
+            np_dtype = np.float64
+
+        x = ht.array([[0, 2], [1, 1], [2, 0]], dtype=dtype, split=1).T
         if x.comm.size < 3:
             cov = ht.cov(x)
             actual = ht.array([[1, -1], [-1, 1]], split=0)
             self.assertTrue(ht.equal(cov, actual))
 
         data = np.loadtxt("heat/datasets/iris.csv", delimiter=";")
-        np_cov = np.cov(data[:, 0], data[:, 1:3], rowvar=False)
+        np_cov = np.cov(data[:, 0], data[:, 1:3], rowvar=False).astype(np_dtype)
 
         # split = None tests
         htdata = ht.load("heat/datasets/iris.csv", sep=";", split=None)
         ht_cov = ht.cov(htdata[:, 0], htdata[:, 1:3], rowvar=False)
-        comp = ht.array(np_cov, dtype=ht.float)
+        comp = ht.array(np_cov, dtype=dtype)
         self.assertTrue(ht.allclose(comp - ht_cov, 0, atol=1e-4))
 
-        np_cov = np.cov(data, rowvar=False)
+        np_cov = np.cov(data, rowvar=False).astype(np_dtype)
         ht_cov = ht.cov(htdata, rowvar=False)
-        self.assertTrue(ht.allclose(ht.array(np_cov, dtype=ht.float) - ht_cov, 0, atol=1e-4))
+        self.assertTrue(ht.allclose(ht.array(np_cov, dtype=dtype) - ht_cov, 0, atol=1e-4))
 
-        np_cov = np.cov(data, rowvar=False, ddof=1)
+        np_cov = np.cov(data, rowvar=False, ddof=1).astype(np_dtype)
         ht_cov = ht.cov(htdata, rowvar=False, ddof=1)
-        self.assertTrue(ht.allclose(ht.array(np_cov, dtype=ht.float) - ht_cov, 0, atol=1e-4))
+        self.assertTrue(ht.allclose(ht.array(np_cov, dtype=dtype) - ht_cov, 0, atol=1e-4))
 
-        np_cov = np.cov(data, rowvar=False, bias=True)
+        np_cov = np.cov(data, rowvar=False, bias=True).astype(np_dtype)
         ht_cov = ht.cov(htdata, rowvar=False, bias=True)
-        self.assertTrue(ht.allclose(ht.array(np_cov, dtype=ht.float) - ht_cov, 0, atol=1e-4))
+        self.assertTrue(ht.allclose(ht.array(np_cov, dtype=dtype) - ht_cov, 0, atol=1e-4))
 
         # split = 0 tests
         data = np.loadtxt("heat/datasets/iris.csv", delimiter=";")
-        np_cov = np.cov(data[:, 0], data[:, 1:3], rowvar=False)
+        np_cov = np.cov(data[:, 0], data[:, 1:3], rowvar=False).astype(np_dtype)
 
         htdata = ht.load("heat/datasets/iris.csv", sep=";", split=0)
         ht_cov = ht.cov(htdata[:, 0], htdata[:, 1:3], rowvar=False)
         comp = ht.array(np_cov, dtype=ht.float)
         self.assertTrue(ht.allclose(comp - ht_cov, 0, atol=1e-4))
 
-        np_cov = np.cov(data, rowvar=False)
+        np_cov = np.cov(data, rowvar=False).astype(np_dtype)
         ht_cov = ht.cov(htdata, rowvar=False)
-        self.assertTrue(ht.allclose(ht.array(np_cov, dtype=ht.float) - ht_cov, 0, atol=1e-4))
+        self.assertTrue(ht.allclose(ht.array(np_cov, dtype=dtype) - ht_cov, 0, atol=1e-4))
 
-        np_cov = np.cov(data, rowvar=False, ddof=1)
+        np_cov = np.cov(data, rowvar=False, ddof=1).astype(np_dtype)
         ht_cov = ht.cov(htdata, rowvar=False, ddof=1)
-        self.assertTrue(ht.allclose(ht.array(np_cov, dtype=ht.float) - ht_cov, 0, atol=1e-4))
+        self.assertTrue(ht.allclose(ht.array(np_cov, dtype=dtype) - ht_cov, 0, atol=1e-4))
 
-        np_cov = np.cov(data, rowvar=False, bias=True)
+        np_cov = np.cov(data, rowvar=False, bias=True).astype(np_dtype)
         ht_cov = ht.cov(htdata, rowvar=False, bias=True)
-        self.assertTrue(ht.allclose(ht.array(np_cov, dtype=ht.float) - ht_cov, 0, atol=1e-4))
+        self.assertTrue(ht.allclose(ht.array(np_cov, dtype=dtype) - ht_cov, 0, atol=1e-4))
 
         if 1 < x.comm.size < 5:
             # split 1 tests
             htdata = ht.load("heat/datasets/iris.csv", sep=";", split=1)
-            np_cov = np.cov(data, rowvar=False)
+            np_cov = np.cov(data, rowvar=False).astype(np_dtype)
             ht_cov = ht.cov(htdata, rowvar=False)
-            self.assertTrue(ht.allclose(ht.array(np_cov, dtype=ht.float), ht_cov, atol=1e-4))
+            self.assertTrue(ht.allclose(ht.array(np_cov, dtype=dtype), ht_cov, atol=1e-4))
 
-            np_cov = np.cov(data, data, rowvar=True)
+            np_cov = np.cov(data, data, rowvar=True).astype(np_dtype)
 
             htdata = ht.load("heat/datasets/iris.csv", sep=";", split=0)
             ht_cov = ht.cov(htdata, htdata, rowvar=True)
-            self.assertTrue(ht.allclose(ht.array(np_cov, dtype=ht.float), ht_cov, atol=1e-4))
+            self.assertTrue(ht.allclose(ht.array(np_cov, dtype=dtype), ht_cov, atol=1e-4))
 
             htdata = ht.load("heat/datasets/iris.csv", sep=";", split=0)
             with self.assertRaises(RuntimeError):
@@ -520,14 +537,16 @@ class TestStatistics(TestCase):
                 ht.digitize(a, ht.array([0.0, 0.5, 1.0], split=0))
 
     def test_histc(self):
-        # few entries and float64
-        c = torch.arange(4, dtype=torch.float64, device=self.device.torch_device)
+        dtype = torch.float32 if self.is_mps else torch.float64
+
+        # few entries and (if not MPS) float64
+        c = torch.arange(4, dtype=dtype, device=self.device.torch_device)
         comp = torch.histc(c, 7)
         a = ht.array(c)
         res = ht.histc(a, 7)
 
         self.assertEqual(res.shape, (7,))
-        self.assertEqual(res.dtype, ht.float64)
+        self.assertEqual(res.dtype, ht.types.canonical_heat_type(dtype))
         self.assertEqual(res.device, self.device)
         self.assertEqual(res.split, None)
         self.assertTrue(torch.equal(res.larray, comp))
@@ -590,7 +609,7 @@ class TestStatistics(TestCase):
         self.assertTrue(torch.equal(out.larray, comp))
 
         # Alias
-        a = ht.arange(10, dtype=ht.float)
+        a = ht.arange(10, dtype=dtype)
         hist = ht.histc(a, 10)
         alias = ht.histogram(a)
 
@@ -626,7 +645,9 @@ class TestStatistics(TestCase):
         # 1 dim
         ht_data = ht.random.rand(50)
         np_data = ht_data.copy().numpy()
-        np_kurtosis32 = ht.array((ss.kurtosis(np_data, bias=False)), dtype=ht_data.dtype)
+        np_kurtosis32 = ht.array(
+            (ss.kurtosis(np_data, bias=False)).astype(np_data.dtype), dtype=ht_data.dtype
+        )
         self.assertAlmostEqual(ht.kurtosis(ht_data), np_kurtosis32.item(), places=5)
         ht_data = ht.resplit(ht_data, 0)
         self.assertAlmostEqual(ht.kurtosis(ht_data), np_kurtosis32.item(), places=5)
@@ -655,21 +676,23 @@ class TestStatistics(TestCase):
             sp = __split_calc(ht_data.split, ax)
             self.assertEqual(ht_kurtosis.split, sp)
 
-        # 2 dim float64
-        ht_data = ht.random.rand(50, 30, dtype=ht.float64)
+        # 2 dim float64 (if not MPS)
+        dtype = ht.float64 if not self.is_mps else ht.float32
+        ht_data = ht.random.rand(50, 30, dtype=dtype)
         np_data = ht_data.copy().numpy()
-        np_kurtosis32 = ss.kurtosis(np_data, axis=None, bias=False)
+        np_kurtosis32 = ss.kurtosis(np_data, axis=None, bias=False).astype(np_data.dtype)
         self.assertAlmostEqual(ht.kurtosis(ht_data) - np_kurtosis32, 0, places=5)
         ht_data = ht.resplit(ht_data, 0)
         for ax in range(2):
             np_kurtosis32 = ht.array(
-                (ss.kurtosis(np_data, axis=ax, bias=False)), dtype=ht_data.dtype
+                (ss.kurtosis(np_data, axis=ax, bias=False)).astype(np_data.dtype),
+                dtype=ht_data.dtype,
             )
             ht_kurtosis = ht.kurtosis(ht_data, axis=ax)
             self.assertTrue(ht.allclose(ht_kurtosis, np_kurtosis32, atol=1e-5))
             sp = __split_calc(ht_data.split, ax)
             self.assertEqual(ht_kurtosis.split, sp)
-            self.assertEqual(ht_kurtosis.dtype, ht.float64)
+            self.assertEqual(ht_kurtosis.dtype, dtype)
         ht_data = ht.resplit(ht_data, 1)
         for ax in range(2):
             np_kurtosis32 = ht.array(
@@ -679,7 +702,7 @@ class TestStatistics(TestCase):
             self.assertTrue(ht.allclose(ht_kurtosis, np_kurtosis32, atol=1e-5))
             sp = __split_calc(ht_data.split, ax)
             self.assertEqual(ht_kurtosis.split, sp)
-            self.assertEqual(ht_kurtosis.dtype, ht.float64)
+            self.assertEqual(ht_kurtosis.dtype, dtype)
 
         # 3 dim
         ht_data = ht.random.rand(50, 30, 16)
@@ -823,11 +846,12 @@ class TestStatistics(TestCase):
         self.assertTrue((maximum_volume.numpy() == np_maximum).all())
 
         # check maximum against size-1 array
-        random_volume_1_split_none = ht.random.randn(1, split=None, dtype=ht.float64)
+        dtype = ht.float32 if self.is_mps else ht.float64
+        random_volume_1_split_none = ht.random.randn(1, split=None, dtype=dtype)
         random_volume_2_splitdiff = ht.random.randn(3, 3, 4, split=1)
         maximum_volume_splitdiff = ht.maximum(random_volume_1_split_none, random_volume_2_splitdiff)
         self.assertEqual(maximum_volume_splitdiff.split, 1)
-        self.assertEqual(maximum_volume_splitdiff.dtype, ht.float64)
+        self.assertEqual(maximum_volume_splitdiff.dtype, dtype)
 
         random_volume_1_split_none = ht.random.randn(3, 3, 4, split=0)
         random_volume_2_splitdiff = ht.random.randn(1, split=None)
@@ -1086,11 +1110,12 @@ class TestStatistics(TestCase):
         self.assertTrue((minimum_volume.numpy() == np_minimum).all())
 
         # check minimum against size-1 array
-        random_volume_1_split_none = ht.random.randn(1, split=None, dtype=ht.float64)
+        dtype = ht.float32 if self.is_mps else ht.float64
+        random_volume_1_split_none = ht.random.randn(1, split=None, dtype=dtype)
         random_volume_2_splitdiff = ht.random.randn(3, 3, 4, split=1)
         minimum_volume_splitdiff = ht.minimum(random_volume_1_split_none, random_volume_2_splitdiff)
         self.assertEqual(minimum_volume_splitdiff.split, 1)
-        self.assertEqual(minimum_volume_splitdiff.dtype, ht.float64)
+        self.assertEqual(minimum_volume_splitdiff.dtype, dtype)
 
         random_volume_1_split_none = ht.random.randn(3, 3, 4, split=0)
         random_volume_2_splitdiff = ht.random.randn(1, split=None)
@@ -1186,12 +1211,13 @@ class TestStatistics(TestCase):
         # test list q and writing to output buffer
         q = [0.1, 2.3, 15.9, 50.0, 84.1, 97.7, 99.9]
         axis = 2
+        out_dtype = ht.float32 if self.is_mps else ht.float64
         try:
             p_np = np.percentile(x_np, q, axis=axis, method="lower", keepdims=True)
         except TypeError:
             p_np = np.percentile(x_np, q, axis=axis, interpolation="lower", keepdims=True)
         p_ht = ht.percentile(x_ht, q, axis=axis, interpolation="lower", keepdims=True)
-        out = ht.empty(p_np.shape, dtype=ht.float64, split=None, device=x_ht.device)
+        out = ht.empty(p_np.shape, dtype=out_dtype, split=None, device=x_ht.device)
         ht.percentile(x_ht, q, axis=axis, out=out, interpolation="lower", keepdims=True)
         self.assertEqual(p_ht.numpy()[5].all(), p_np[5].all())
         self.assertEqual(out.numpy()[2].all(), p_np[2].all())
@@ -1229,8 +1255,9 @@ class TestStatistics(TestCase):
 
         # test tuple axis and out buffer
         q = (20, 50, 80)
+        dtype = ht.float32 if self.is_mps else ht.float64
         for split in [None, 2, 1, 0]:
-            x_ht = ht.random.randn(3, 10, 10, dtype=ht.float64, split=split)
+            x_ht = ht.random.randn(3, 10, 10, dtype=dtype, split=split)
             x_np = x_ht.numpy()
             p_np = np.percentile(x_np, q, axis=(0, 1))
             if isinstance(split, int) and split == 2:
@@ -1254,13 +1281,14 @@ class TestStatistics(TestCase):
         t_out = torch.empty((len(q),), dtype=torch.float64)
         with self.assertRaises(TypeError):
             ht.percentile(x_ht, q, out=t_out)
-        out_wrong_dtype = ht.empty((len(q),), dtype=ht.float32)
-        with self.assertRaises(TypeError):
-            ht.percentile(x_ht, q, out=out_wrong_dtype)
-        out_wrong_shape = ht.empty((len(q) + 1,), dtype=ht.float64)
+        if not self.is_mps:
+            out_wrong_dtype = ht.empty((len(q),), dtype=ht.float32)
+            with self.assertRaises(TypeError):
+                ht.percentile(x_ht, q, out=out_wrong_dtype)
+        out_wrong_shape = ht.empty((len(q) + 1,), dtype=dtype)
         with self.assertRaises(ValueError):
             ht.percentile(x_ht, q, out=out_wrong_shape)
-        out_wrong_split = ht.empty((len(q),), dtype=ht.float32, split=0)
+        out_wrong_split = ht.empty((len(q),), dtype=dtype, split=0)
         with self.assertRaises(ValueError):
             ht.percentile(x_ht, q, out=out_wrong_split)
 
@@ -1318,7 +1346,9 @@ class TestStatistics(TestCase):
         # 1 dim
         ht_data = ht.random.rand(50)
         np_data = ht_data.copy().numpy()
-        np_skew32 = ht.array(ss.skew(np_data, bias=False)).astype(ht_data.dtype)
+        np_skew32 = ht.array(ss.skew(np_data, bias=False).astype(np_data.dtype)).astype(
+            ht_data.dtype
+        )
         self.assertAlmostEqual(ht.skew(ht_data), np_skew32.item(), places=5)
         ht_data = ht.resplit(ht_data, 0)
         self.assertAlmostEqual(ht.skew(ht_data), np_skew32.item(), places=5)
@@ -1344,9 +1374,10 @@ class TestStatistics(TestCase):
             self.assertEqual(ht_skew.split, sp)
 
         # 2 dim float64
-        ht_data = ht.random.rand(50, 30, dtype=ht.float64)
+        dtype = ht.float32 if self.is_mps else ht.float64
+        ht_data = ht.random.rand(50, 30, dtype=dtype)
         np_data = ht_data.copy().numpy()
-        np_skew32 = ss.skew(np_data, axis=None, bias=False)
+        np_skew32 = ss.skew(np_data, axis=None, bias=False).astype(np_data.dtype)
         self.assertAlmostEqual(ht.skew(ht_data) - np_skew32, 0, places=5)
         ht_data = ht.resplit(ht_data, 0)
         for ax in range(2):
@@ -1355,7 +1386,7 @@ class TestStatistics(TestCase):
             self.assertTrue(ht.allclose(ht_skew, np_skew32, atol=1e-5))
             sp = __split_calc(ht_data.split, ax)
             self.assertEqual(ht_skew.split, sp)
-            self.assertEqual(ht_skew.dtype, ht.float64)
+            self.assertEqual(ht_skew.dtype, dtype)
         ht_data = ht.resplit(ht_data, 1)
         for ax in range(2):
             np_skew32 = ht.array((ss.skew(np_data, axis=ax, bias=False)), dtype=ht_data.dtype)
@@ -1363,12 +1394,12 @@ class TestStatistics(TestCase):
             self.assertTrue(ht.allclose(ht_skew, np_skew32, atol=1e-5))
             sp = __split_calc(ht_data.split, ax)
             self.assertEqual(ht_skew.split, sp)
-            self.assertEqual(ht_skew.dtype, ht.float64)
+            self.assertEqual(ht_skew.dtype, dtype)
 
         # 3 dim
         ht_data = ht.random.rand(50, 30, 16)
         np_data = ht_data.copy().numpy()
-        np_skew32 = ss.skew(np_data, axis=None, bias=False)
+        np_skew32 = ss.skew(np_data, axis=None, bias=False).astype(np_data.dtype)
         self.assertAlmostEqual(ht.skew(ht_data) - np_skew32, 0, places=5)
         for split in range(3):
             ht_data = ht.resplit(ht_data, split)
@@ -1383,7 +1414,10 @@ class TestStatistics(TestCase):
         # test basics
         a = ht.arange(1, 5)
         self.assertAlmostEqual(a.std(), 1.118034)
-        self.assertAlmostEqual(a.std(bessel=True), 1.2909944)
+        if self.is_mps:
+            self.assertAlmostEqual(a.std(bessel=True).item(), 1.2909944, places=5)
+        else:
+            self.assertAlmostEqual(a.std(bessel=True), 1.2909944)
 
         # test raises
         x = ht.zeros((2, 3, 4))
@@ -1427,7 +1461,10 @@ class TestStatistics(TestCase):
             ht.var(x, axis=torch.Tensor([0, 0]))
 
         a = ht.arange(1, 5)
-        self.assertEqual(a.var(ddof=1), 1.666666666666666)
+        if self.is_mps:
+            self.assertAlmostEqual(a.var(ddof=1).item(), 1.666666666666666, places=5)
+        else:
+            self.assertEqual(a.var(ddof=1), 1.666666666666666)
 
         # ones
         dimensions = []
