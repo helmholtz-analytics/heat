@@ -56,9 +56,10 @@ class TestManipulations(TestCase):
         self.assertEqual(broadcasted.dtype, ht.float32)
 
         # check split
-        a = ht.zeros((5, 5), split=0)
-        broadcasted = ht.broadcast_to(a, (5, 5, 5))
-        self.assertEqual(broadcasted.split, 1)
+        if not self.is_mps:
+            a = ht.zeros((5, 5), split=0)
+            broadcasted = ht.broadcast_to(a, (5, 5, 5))
+            self.assertEqual(broadcasted.split, 1)
 
         # test view
         a = ht.arange(5)
@@ -3483,13 +3484,14 @@ class TestManipulations(TestCase):
 
         # test tile along split axis
         # len(reps) = x.ndim
-        split = 1
-        x = ht.random.randn(3, 3, dtype=ht.float64, split=split)
-        reps = (2, 3)
-        tiled_along_split = ht.tile(x, reps)
-        np_tiled_along_split = np.tile(x.numpy(), reps)
-        self.assertTrue((tiled_along_split.numpy() == np_tiled_along_split).all())
-        self.assertTrue(tiled_along_split.dtype is x.dtype)
+        if not self.is_mps:
+            split = 1
+            x = ht.random.randn(3, 3, dtype=ht.float64, split=split)
+            reps = (2, 3)
+            tiled_along_split = ht.tile(x, reps)
+            np_tiled_along_split = np.tile(x.numpy(), reps)
+            self.assertTrue((tiled_along_split.numpy() == np_tiled_along_split).all())
+            self.assertTrue(tiled_along_split.dtype is x.dtype)
 
         # test exceptions
         float_reps = (1, 2, 2, 1.5)
@@ -3548,14 +3550,22 @@ class TestManipulations(TestCase):
         self.assertTrue((out[1].larray == exp_zero.larray).all())
         self.assertTrue(out[1].larray.dtype == exp_zero_indcs.larray.dtype)
 
-        torch_array = torch.arange(
-            size, dtype=torch.float64, device=self.device.torch_device
-        ).expand(size, size)
+        if self.is_mps:
+            float_type = torch.float32
+        else:
+            float_type = torch.float64
+        ht_float_type = ht.types.canonical_heat_type(float_type)
+
+        torch_array = torch.arange(size, dtype=float_type, device=self.device.torch_device).expand(
+            size, size
+        )
         split_zero = ht.array(torch_array, split=0)
         split_one = ht.array(torch_array, split=1)
 
         res, indcs = ht.topk(split_zero, 2, sorted=True)
-        exp_zero = ht.array([[size - 1, size - 2] for i in range(size)], dtype=ht.float64, split=0)
+        exp_zero = ht.array(
+            [[size - 1, size - 2] for i in range(size)], dtype=ht_float_type, split=0
+        )
         exp_zero_indcs = ht.array(
             [[size - 1, size - 2] for i in range(size)], dtype=ht.int64, split=0
         )
@@ -3564,7 +3574,9 @@ class TestManipulations(TestCase):
         self.assertTrue(indcs.larray.dtype == exp_zero_indcs.larray.dtype)
 
         res, indcs = ht.topk(split_one, 2, sorted=True)
-        exp_one = ht.array([[size - 1, size - 2] for i in range(size)], dtype=ht.float64, split=1)
+        exp_one = ht.array(
+            [[size - 1, size - 2] for i in range(size)], dtype=ht_float_type, split=1
+        )
         exp_one_indcs = ht.array(
             [[size - 1, size - 2] for i in range(size)], dtype=ht.int64, split=1
         )
@@ -3578,7 +3590,7 @@ class TestManipulations(TestCase):
             out = (ht.empty_like(exp_zero), ht.empty_like(exp_zero_indcs))
             res, indcs = ht.topk(split_zero, 2, sorted=True, largest=False, out=out)
         with self.assertRaises(RuntimeError):
-            exp_zero = ht.array([[0, 1] for i in range(size)], dtype=ht.float64, split=0)
+            exp_zero = ht.array([[0, 1] for i in range(size)], dtype=ht_float_type, split=0)
             exp_zero_indcs = ht.array([[0, 1] for i in range(size)], dtype=ht.int16, split=0)
             out = (ht.empty_like(exp_zero), ht.empty_like(exp_zero_indcs))
             res, indcs = ht.topk(split_zero, 2, sorted=True, largest=False, out=out)
@@ -3627,11 +3639,15 @@ class TestManipulations(TestCase):
 
         res, inv = ht.unique(data, return_inverse=True, axis=0)
         _, exp_inv = torch_array.unique(dim=0, return_inverse=True, sorted=True)
-        self.assertTrue(torch.equal(inv, exp_inv.to(dtype=inv.dtype)))
+        self.assertTrue(
+            (inv == ht.array(exp_inv.to(dtype=inv.larray.dtype), split=inv.split)).all()
+        )
 
         res, inv = ht.unique(data, return_inverse=True, axis=1)
         _, exp_inv = torch_array.unique(dim=1, return_inverse=True, sorted=True)
-        self.assertTrue(torch.equal(inv, exp_inv.to(dtype=inv.dtype)))
+        self.assertTrue(
+            (inv == ht.array(exp_inv.to(dtype=inv.larray.dtype), split=inv.split)).all()
+        )
 
         torch_array = torch.tensor(
             [[1, 1, 2], [1, 2, 2], [2, 1, 2], [1, 3, 2], [0, 1, 2]],
@@ -3655,7 +3671,9 @@ class TestManipulations(TestCase):
 
         data_split_zero = ht.array(torch_array, split=0)
         res, inv = ht.unique(data_split_zero, return_inverse=True, sorted=True)
-        self.assertTrue(torch.equal(inv, exp_inv.to(dtype=inv.dtype)))
+        self.assertTrue(
+            (inv == ht.array(exp_inv.to(dtype=inv.larray.dtype), split=inv.split)).all()
+        )
 
     def test_vsplit(self):
         # for further testing, see test_split
