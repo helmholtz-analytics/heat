@@ -98,11 +98,11 @@ def argmax(
             offset, _, _ = x.comm.chunk(shape, x.split)
             indices += torch.tensor(offset, dtype=indices.dtype)
 
-        try:
-            out = torch.cat([maxima.double(), indices.double()])
-        except TypeError:
+        if maxima.is_mps:
             # MPS framework doesn't support float64
             out = torch.cat([maxima.float(), indices.float()])
+        else:
+            out = torch.cat([maxima.double(), indices.double()])
 
         return out
 
@@ -176,11 +176,11 @@ def argmin(
             offset, _, _ = x.comm.chunk(shape, x.split)
             indices += torch.tensor(offset, dtype=indices.dtype)
 
-        try:
-            out = torch.cat([minima.double(), indices.double()])
-        except TypeError:
+        if minima.is_mps:
             # MPS framework doesn't support float64
             out = torch.cat([minima.float(), indices.float()])
+        else:
+            out = torch.cat([minima.double(), indices.double()])
 
         return out
 
@@ -671,7 +671,7 @@ def histc(
         out=out._DNDarray__array if out is not None and input.split is None else None,
     )
 
-    if input.split is None:
+    if not input.is_distributed():
         if out is None:
             out = DNDarray(
                 hist,
