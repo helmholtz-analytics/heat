@@ -2,7 +2,7 @@
   <img src="https://raw.githubusercontent.com/helmholtz-analytics/heat/main/doc/images/logo.png">
 </div>
 
----
+-----
 
 Heat is a distributed tensor framework for high performance data analytics.
 
