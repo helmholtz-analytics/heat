@@ -183,8 +183,7 @@ class TestLogical(TestCase):
         d = ht.zeros((4, 6), split=1)
         e = ht.zeros((4, 6))
 
-        is_mps = a.device.torch_device.startswith("mps")
-        if not is_mps:
+        if not self.is_mps:
             f = ht.float64([[2.000005, 2.000005], [2.000005, 2.000005]])
 
         self.assertFalse(ht.allclose(a, b))
@@ -193,7 +192,7 @@ class TestLogical(TestCase):
         self.assertTrue(ht.allclose(a, 2))
         self.assertTrue(ht.allclose(a, 2.0))
         self.assertTrue(ht.allclose(2, a))
-        if not is_mps:
+        if not self.is_mps:
             self.assertTrue(ht.allclose(f, a))
         self.assertTrue(ht.allclose(c, d))
         self.assertTrue(ht.allclose(c, e))
@@ -227,8 +226,7 @@ class TestLogical(TestCase):
         self.assertTrue(ht.equal(any_tensor, res))
 
         # float values, no axis
-        is_mps = x.device.torch_device.startswith("mps")
-        if not is_mps:
+        if not self.is_mps:
             x = ht.float64([[0, 0, 0], [0, 0, 0]])
             res = ht.zeros(1, dtype=ht.uint8)
             any_tensor = ht.any(x)
