@@ -96,8 +96,7 @@ class TestFactories(TestCase):
         self.assertEqual(three_arg_arange_dtype_short.sum(axis=0, keepdims=True), 20)
 
         # testing setting dtype to float64
-        is_mps = one_arg_arange_float.device.torch_device.startswith("mps")
-        if not is_mps:
+        if not self.is_mps:
             three_arg_arange_dtype_float64 = ht.arange(0, 10, 2, dtype=torch.float64)
             self.assertIsInstance(three_arg_arange_dtype_float64, ht.DNDarray)
             self.assertEqual(three_arg_arange_dtype_float64.shape, (5,))
@@ -187,15 +186,14 @@ class TestFactories(TestCase):
         )
 
         # distributed array, chunk local data (split), copy True
-        is_mps = d.device.torch_device.startswith("mps")
-        if is_mps:
+        if self.is_mps:
             np_dtype = np.float32
-            ht_dtype = ht.float32
             torch_dtype = torch.float32
         else:
             np_dtype = np.float64
-            ht_dtype = ht.float64
             torch_dtype = torch.float64
+        ht_dtype = ht.types.canonical_heat_type(torch_dtype)
+
         array_2d = np.array([[1.0, 2.0, 3.0], [1.0, 2.0, 3.0], [1.0, 2.0, 3.0]], dtype=np_dtype)
         dndarray_2d = ht.array(array_2d, split=0, copy=True)
         self.assertIsInstance(dndarray_2d, ht.DNDarray)
@@ -580,7 +578,7 @@ class TestFactories(TestCase):
 
     def test_from_partitioned(self):
         a = ht.zeros((120, 120), split=0)
-        if not a.device.torch_device.startswith("mps"):
+        if not self.is_mps:
             b = ht.from_partitioned(a, comm=a.comm)
             a[2, :] = 128
             self.assertTrue(ht.equal(a, b))
@@ -614,7 +612,7 @@ class TestFactories(TestCase):
 
     def test_from_partition_dict(self):
         a = ht.zeros((120, 120), split=0)
-        if not a.device.torch_device.startswith("mps"):
+        if not self.is_mps:
             b = ht.from_partition_dict(a.__partitioned__, comm=a.comm)
             a[0, 0] = 100
             self.assertTrue(ht.equal(a, b))
