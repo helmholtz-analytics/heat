@@ -157,21 +157,24 @@ class TestIO(TestCase):
         # Test for different random types
         # include float64 only if device is not MPS
         data = None
-        for rnd_type in [
-            (ht.random.randint, ht.types.int32),
-            (ht.random.randint, ht.types.int64),
-            (ht.random.rand, ht.types.float32),
-            (ht.random.rand, ht.types.float64),
-        ]:
+        if self.is_mps:
+            rnd_types = [
+                (ht.random.randint, ht.types.int32),
+                (ht.random.randint, ht.types.int64),
+                (ht.random.rand, ht.types.float32),
+            ]
+        else:
+            rnd_types = [
+                (ht.random.randint, ht.types.int32),
+                (ht.random.randint, ht.types.int64),
+                (ht.random.rand, ht.types.float32),
+                (ht.random.rand, ht.types.float64),
+            ]
+        for rnd_type in rnd_types:
             for separator in [",", ";", "|"]:
                 for split in [None, 0, 1]:
                     for headers in [None, ["# This", "# is a", "# test."]]:
                         for shape in [(1, 1), (10, 10), (20, 1), (1, 20), (25, 4), (4, 25)]:
-                            # if rnd_type is float64 and device is MPS, skip
-                            if rnd_type[
-                                1
-                            ] == ht.types.float64 and data.device.torch_device.startswith("mps"):
-                                continue
                             if rnd_type[0] == ht.random.randint:
                                 data: ht.DNDarray = rnd_type[0](
                                     -1000, 1000, size=shape, dtype=rnd_type[1], split=split
