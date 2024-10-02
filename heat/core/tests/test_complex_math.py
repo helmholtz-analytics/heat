@@ -6,13 +6,9 @@ import platform
 from .test_suites.basic_test import TestCase
 
 
-# skip tests on MPS
 class TestComplex(TestCase):
     def test_abs(self):
-        if (
-            not ht.get_device().torch_device.startswith("mps")
-            or int(platform.mac_ver()[0].split(".")[0]) >= 14
-        ):
+        if not self.is_mps or int(platform.mac_ver()[0].split(".")[0]) >= 14:
             a = ht.array([1.0, 1.0j, 1 + 1j, -2 + 2j, 3 - 3j])
             absolute = ht.absolute(a)
             res = torch.abs(a.larray)
@@ -43,10 +39,7 @@ class TestComplex(TestCase):
             self.assertTrue(torch.equal(absolute.larray, res))
 
     def test_angle(self):
-        if (
-            not ht.get_device().torch_device.startswith("mps")
-            or int(platform.mac_ver()[0].split(".")[0]) >= 14
-        ):
+        if not self.is_mps or int(platform.mac_ver()[0].split(".")[0]) >= 14:
             a = ht.array([1.0, 1.0j, 1 + 1j, -2 + 2j, 3 - 3j])
             angle = ht.angle(a)
             res = torch.angle(a.larray)
@@ -90,10 +83,7 @@ class TestComplex(TestCase):
             self.assertTrue(ht.equal(angle, res))
 
     def test_conjugate(self):
-        if (
-            not ht.get_device().torch_device.startswith("mps")
-            or int(platform.mac_ver()[0].split(".")[0]) >= 14
-        ):
+        if not self.is_mps or int(platform.mac_ver()[0].split(".")[0]) >= 14:
             a = ht.array([1.0, 1.0j, 1 + 1j, -2 + 2j, 3 - 3j])
             conj = ht.conjugate(a)
             res = ht.array(
@@ -160,10 +150,7 @@ class TestComplex(TestCase):
             self.assertTrue(ht.equal(conj, res))
 
     def test_imag(self):
-        if (
-            not ht.get_device().torch_device.startswith("mps")
-            or int(platform.mac_ver()[0].split(".")[0]) >= 14
-        ):
+        if not self.is_mps or int(platform.mac_ver()[0].split(".")[0]) >= 14:
             a = ht.array([1.0, 1.0j, 1 + 1j, -2 + 2j, 3 - 3j])
             imag = ht.imag(a)
             res = ht.array([0.0, 1.0, 1.0, 2.0, -3.0], dtype=ht.float32, device=self.device)
@@ -195,10 +182,7 @@ class TestComplex(TestCase):
             self.assertTrue(ht.equal(imag, res))
 
     def test_real(self):
-        if (
-            not ht.get_device().torch_device.startswith("mps")
-            or int(platform.mac_ver()[0].split(".")[0]) >= 14
-        ):
+        if not self.is_mps or int(platform.mac_ver()[0].split(".")[0]) >= 14:
             a = ht.array([1.0, 1.0j, 1 + 1j, -2 + 2j, 3 - 3j])
             real = ht.real(a)
             res = ht.array([1.0, 0.0, 1.0, -2.0, 3.0], dtype=ht.float32, device=self.device)
