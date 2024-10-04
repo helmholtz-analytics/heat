@@ -556,7 +556,7 @@ def heat_type_is_realfloating(ht_dtype: Type[datatype]) -> bool:
     Parameters
     ----------
     ht_dtype: Type[datatype]
-        HeAT type to check
+        Heat type to check
 
     Returns
     -------
