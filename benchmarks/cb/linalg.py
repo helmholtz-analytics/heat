@@ -15,6 +15,16 @@ def matmul_split_1(a, b):
 
 
 @monitor()
+def matmul_split_01(a, b):
+    a @ b
+
+
+@monitor()
+def matmul_split_10(a, b):
+    a @ b
+
+
+@monitor()
 def qr_split_0(a):
     qr = ht.linalg.qr(a)
 
@@ -35,6 +45,12 @@ def hierachical_svd_tol(data, tol):
 
 
 @monitor()
+def svd_full_ts(data):
+    svd = ht.linalg.svd(data, compute_uv=True)
+    ### TODO: go on here!
+
+
+@monitor()
 def lanczos(B):
     V, T = ht.lanczos(B, m=B.shape[0])
 
@@ -49,6 +65,16 @@ def run_linalg_benchmarks():
     a = ht.random.random((n, n), split=1)
     b = ht.random.random((n, n), split=1)
     matmul_split_1(a, b)
+    del a, b
+
+    a = ht.random.random((n, n), split=0)
+    b = ht.random.random((n, n), split=1)
+    matmul_split_01(a, b)
+    del a, b
+
+    a = ht.random.random((n, n), split=1)
+    b = ht.random.random((n, n), split=0)
+    matmul_split_10(a, b)
     del a, b
 
     n = int((4000000 // MPI.COMM_WORLD.size) ** 0.5)
