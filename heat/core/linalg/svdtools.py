@@ -557,7 +557,7 @@ def rsvd(
         number of power iterations. The default is 0.
         Choosing `power_iter > 0` can improve the accuracy of the SVD approximation in the case of slowly decaying singular values, but increases the computational cost.
     qr_procs_to_merge : int, optional
-        number of processes to merge at each step of QR decomposition in the power iteration (if power_iter > 0). The default is 2. See the corresponding remarks for `heat.linalg.qr` for more details.
+        number of processes to merge at each step of QR decomposition in the power iteration (if power_iter > 0). The default is 2. See the corresponding remarks for :func:`heat.linalg.qr() <heat.core.linalg.qr.qr()>` for more details.
 
     Notes
     ------
