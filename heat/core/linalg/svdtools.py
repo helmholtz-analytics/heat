@@ -24,16 +24,16 @@ from math import log, ceil, floor, sqrt
 __all__ = ["hsvd_rank", "hsvd_rtol", "hsvd", "rsvd", "isvd"]
 
 
-def _check_is_nd_of_dtype(input, inputname, allowed_ns, allowed_dtypes):
+def _check_is_nd_realfloating(input, inputname, allowed_ns):
     if not isinstance(input, DNDarray):
         raise TypeError(f"Argument {inputname} needs to be a DNDarray but is {type(input)}.")
     if input.ndim not in allowed_ns:
         raise ValueError(
             f"Argument {inputname} needs to be a {allowed_ns}-dimensional, but is {input.ndim}-dimensional."
         )
-    if input.dtype not in allowed_dtypes:
+    if not types.heat_type_is_realfloating(input.dtype):
         raise TypeError(
-            f"Argument needs to be a DNDarray with datatype {allowed_dtypes}, but data type is {input.dtype}."
+            f"Argument {inputname} needs to be a DNDarray with datatype float32 or float64, but data type is {input.dtype}."
         )
 
 
@@ -98,7 +98,7 @@ def hsvd_rank(
         [1] Iwen, Ong. A distributed and incremental SVD algorithm for agglomerative data analysis on large networks. SIAM J. Matrix Anal. Appl., 37(4), 2016.
         [2] Himpe, Leibner, Rave. Hierarchical approximate proper orthogonal decomposition. SIAM J. Sci. Comput., 40 (5), 2018.
     """
-    _check_is_nd_of_dtype(A, "A", [2], [types.float32, types.float64])
+    _check_is_nd_realfloating(A, "A", [2])
     A_local_size = max(A.lshape_map[:, 1])
 
     if maxmergedim is not None and maxmergedim < 2 * (maxrank + safetyshift) + 1:
@@ -201,7 +201,7 @@ def hsvd_rtol(
         [1] Iwen, Ong. A distributed and incremental SVD algorithm for agglomerative data analysis on large networks. SIAM J. Matrix Anal. Appl., 37(4), 2016.
         [2] Himpe, Leibner, Rave. Hierarchical approximate proper orthogonal decomposition. SIAM J. Sci. Comput., 40 (5), 2018.
     """
-    _check_is_nd_of_dtype(A, "A", [2], [types.float32, types.float64])
+    _check_is_nd_realfloating(A, "A", [2])
     A_local_size = max(A.lshape_map[:, 1])
 
     if maxmergedim is not None and maxrank is None:
@@ -539,14 +539,14 @@ def rsvd(
     A : DNDarray
         2D-array (float32/64) of which the rSVD has to be computed.
     rank : int
-        truncation rank. (This parameter corresponds to `n_components` in sci-kit learn's TruncatedSVD.)
+        truncation rank. (This parameter corresponds to `n_components` in scikit-learn's TruncatedSVD.)
     n_oversamples : int, optional
         number of oversamples. The default is 10.
     power_iter : int, optional
         number of power iterations. The default is 0.
         Choosing `power_iter > 0` can improve the accuracy of the SVD approximation in the case of slowly decaying singular values, but increases the computational cost.
     qr_procs_to_merge : int, optional
-        number of processes to merge at each step of QR decomposition in the power iteration (if power_iter > 0). The default is 2. See the corresponding remarks for `heat.linalg.qr` for more details.
+        number of processes to merge at each step of QR decomposition in the power iteration (if power_iter > 0). The default is 2. See the corresponding remarks for :func:`heat.linalg.qr() <heat.core.linalg.qr.qr()>` for more details.
 
     Notes
     ------
@@ -557,7 +557,7 @@ def rsvd(
     -----------
     [1] Halko, N., Martinsson, P. G., & Tropp, J. A. (2011). Finding structure with randomness: Probabilistic algorithms for constructing approximate matrix decompositions. SIAM review, 53(2), 217-288.
     """
-    _check_is_nd_of_dtype(A, "A", [2], [types.float32, types.float64])
+    _check_is_nd_realfloating(A, "A", [2])
     if not isinstance(rank, int):
         raise TypeError(f"rank must be an integer, but is {type(rank)}.")
     if rank < 1:
@@ -781,10 +781,10 @@ def isvd(
     [1] Brand, M. (2006). Fast low-rank modifications of the thin singular value decomposition. Linear algebra and its applications, 415(1), 20-30.
     """
     # check if new_data, U_old, V_old are 2D DNDarrays and float32/64
-    _check_is_nd_of_dtype(new_data, "new_data", [2], [types.float32, types.float64])
-    _check_is_nd_of_dtype(U_old, "U_old", [2], [types.float32, types.float64])
-    _check_is_nd_of_dtype(S_old, "S_old", [1], [types.float32, types.float64])
-    _check_is_nd_of_dtype(V_old, "V_old", [2], [types.float32, types.float64])
+    _check_is_nd_realfloating(new_data, "new_data", [2])
+    _check_is_nd_realfloating(U_old, "U_old", [2])
+    _check_is_nd_realfloating(S_old, "S_old", [1])
+    _check_is_nd_realfloating(V_old, "V_old", [2])
     # check if number of columns of U_old and V_old match the number of elements in S_old
     if U_old.shape[1] != S_old.shape[0]:
         raise ValueError(
