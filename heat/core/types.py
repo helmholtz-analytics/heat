@@ -551,7 +551,7 @@ def heat_type_is_inexact(ht_dtype: Type[datatype]) -> bool:
 
 def heat_type_is_realfloating(ht_dtype: Type[datatype]) -> bool:
     """
-    Check if HeAT type is a real floating point number, i.e float32 or float64
+    Check if Heat type is a real floating point number, i.e float32 or float64
 
     Parameters
     ----------
