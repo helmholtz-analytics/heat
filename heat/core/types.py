@@ -568,7 +568,7 @@ def heat_type_is_realfloating(ht_dtype: Type[datatype]) -> bool:
 
 def heat_type_is_complexfloating(ht_dtype: Type[datatype]) -> bool:
     """
-    Check if HeAT type is a complex floating point number, i.e complex64
+    Check if Heat type is a complex floating point number, i.e complex64
 
     Parameters
     ----------
