@@ -36,7 +36,7 @@ class PCA(ht.TransformMixin, ht.BaseEstimator):
     svd_solver : {'full', 'hierarchical'}, default='hierarchical'
         'full' : Full SVD is performed. In general, this is more accurate, but also slower. So far, this is only supported for tall-skinny or short-fat data.
         'hierarchical' : Hierarchical SVD, i.e., an algorithm for computing an approximate, truncated SVD, is performed. Only available for data split along axis no. 0.
-        'radomized' : Randomized SVD is performed.
+        'randomized' : Randomized SVD is performed.
     tol : float, default=None
         Not yet necessary as iterative methods for PCA are not yet implemented.
     iterated_power :  int, default=0
