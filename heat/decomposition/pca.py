@@ -120,7 +120,7 @@ class PCA(ht.TransformMixin, ht.BaseEstimator):
                 "Argument tol is not yet necessary as iterative methods for PCA are not yet implemented. Please set tol=None."
             )
         if random_state is not None and not isinstance(random_state, int):
-            raise ValueError("random_state must be None or an integer.")
+            raise ValueError(f"random_state must be None or an integer, was {type(random_state)}.")
         if (
             n_components is not None
             and not (isinstance(n_components, int) and n_components >= 1)
