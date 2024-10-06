@@ -1,105 +1,120 @@
 """Provides a collection of signal-processing operations"""
 
+import heat as ht
 import torch
 import numpy as np
+import operator
+
 
 from .communication import MPI
 from .dndarray import DNDarray
-from .types import promote_types
+from .types import (
+    promote_types,
+    _complexfloating,
+    heat_type_of,
+)
 from .manipulations import pad, flip
 from .factories import array, zeros
 import torch.nn.functional as fc
+from numbers import Number
 
-__all__ = ["convolve"]
+
+__all__ = ["convolve", "fftconvolve"]
 
 
 def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
     """
-    Returns the discrete, linear convolution of two one-dimensional `DNDarray`s or scalars.
-    Unlike `numpy.signal.convolve`, if ``a`` and/or ``v`` have more than one dimension, batch-convolution along the last dimension will be attempted. See `Examples` below.
+        Returns the discrete, linear convolution of two one-dimensional `DNDarray`s or scalars.
+        Unlike `numpy.signal.convolve`, if ``a`` and/or ``v`` have more than one dimension, batch-convolution along the last dimension will be attempted. See `Examples` below.
 
-    Parameters
-    ----------
-    a : DNDarray or scalar
-        One- or N-dimensional signal ``DNDarray`` of shape (..., N), or scalar. If ``a`` has more than one dimension, it will be treated as a batch of 1D signals.
-        Distribution along the batch dimension is required for distributed batch processing. See the examples for details.
-    v : DNDarray or scalar
-        One- or N-dimensional filter weight `DNDarray` of shape (..., M), or scalar. If ``v`` has more than one dimension, it will be treated as a batch of 1D filter weights.
-        The batch dimension(s) of ``v`` must match the batch dimension(s) of ``a``.
-    mode : str
-        Can be 'full', 'valid', or 'same'. Default is 'full'.
-        'full':
-          Returns the convolution at
-          each point of overlap, with an output shape of (N+M-1,). At
-          the end-points of the convolution, the signals do not overlap
-          completely, and boundary effects may be seen.
-        'same':
-          Mode 'same' returns output  of length 'N'. Boundary
-          effects are still visible. This mode is not supported for
-          even-sized filter weights
-        'valid':
-          Mode 'valid' returns output of length 'N-M+1'. The
-          convolution product is only given for points where the signals
-          overlap completely. Values outside the signal boundary have no
-          effect.
+        Parameters
+        ----------
+        a : DNDarray or scalar
+            One- or N-dimensional signal ``DNDarray`` of shape (..., N), or scalar. If ``a`` has more than one dimension, it will be treated as a batch of 1D signals.
+            Distribution along the batch dimension is required for distributed batch processing. See the examples for details.
+        v : DNDarray or scalar
+            One- or N-dimensional filter weight `DNDarray` of shape (..., M), or scalar. If ``v`` has more than one dimension, it will be treated as a batch of 1D filter weights.
+            The batch dimension(s) of ``v`` must match the batch dimension(s) of ``a``.
+        mode : str
+            Can be 'full', 'valid', or 'same'. Default is 'full'.
+            'full':
+              Returns the convolution at
+              each point of overlap, with an output shape of (N+M-1,). At
+              the end-points of the convolution, the signals do not overlap
+              completely, and boundary effects may be seen.
+            'same':
+              Mode 'same' returns output  of length 'N'. Boundary
+              effects are still visible. This mode is not supported for
+              even-sized filter weights
+            'valid':
+              Mode 'valid' returns output of length 'N-M+1'. The
+              convolution product is only given for points where the signals
+              overlap completely. Values outside the signal boundary have no
+              effect.
 
-    Examples
-    --------
-    Note how the convolution operator flips the second array
-    before "sliding" the two across one another:
+        Examples
+        --------
+        Note how the convolution operator flips the second array
+        before "sliding" the two across one another:
 
-    >>> a = ht.ones(10)
-    >>> v = ht.arange(3).astype(ht.float)
-    >>> ht.convolve(a, v, mode='full')
-    DNDarray([0., 1., 3., 3., 3., 3., 2.])
-    >>> ht.convolve(a, v, mode='same')
-    DNDarray([1., 3., 3., 3., 3.])
-    >>> ht.convolve(a, v, mode='valid')
-    DNDarray([3., 3., 3.])
-    >>> a = ht.ones(10, split = 0)
-    >>> v = ht.arange(3, split = 0).astype(ht.float)
-    >>> ht.convolve(a, v, mode='valid')
-    DNDarray([3., 3., 3., 3., 3., 3., 3., 3.])
+        >>> a = ht.ones(5)
+        >>> v = ht.arange(3).astype(ht.float)
+        >>> ht.convolve(a, v, mode='full')
+        DNDarray([0., 1., 3., 3., 3., 3., 2.], dtype=ht.float32, device=cpu:0, split=None)
+        >>> ht.convolve(a, v, mode='same')
+        DNDarray([1., 3., 3., 3., 3.], dtype=ht.float32, device=cpu:0, split=None)
+        >>> ht.convolve(a, v, mode='valid')
+        DNDarray([3., 3., 3.], dtype=ht.float32, device=cpu:0, split=None)
+        >>> a = ht.ones(10, split = 0)
+        >>> v = ht.arange(3, split = 0).astype(ht.float)
+        >>> ht.convolve(a, v, mode='valid')
+        DNDarray([3., 3., 3., 3., 3., 3., 3., 3.], dtype=ht.float32, device=cpu:0, split=0)
 
-    [0/3] DNDarray([3., 3., 3.])
-    [1/3] DNDarray([3., 3., 3.])
-    [2/3] DNDarray([3., 3.])
-    >>> a = ht.ones(10, split = 0)
-    >>> v = ht.arange(3, split = 0)
-    >>> ht.convolve(a, v)
-    DNDarray([0., 1., 3., 3., 3., 3., 3., 3., 3., 3., 3., 2.], dtype=ht.float32, device=cpu:0, split=0)
+        [0/3] tensor([3., 3., 3.])
+        [1/3] tensor([3., 3., 3.])
+        [2/3] tensor([3., 3.])
+        >>> a = ht.ones(10, split = 0)
+        >>> v = ht.arange(3, split = 0)
+        >>> ht.convolve(a, v)
+        DNDarray([0., 1., 3., 3., 3., 3., 3., 3., 3., 3., 3., 2.], dtype=ht.float32, device=cpu:0, split=0)
 
-    [0/3] DNDarray([0., 1., 3., 3.])
-    [1/3] DNDarray([3., 3., 3., 3.])
-    [2/3] DNDarray([3., 3., 3., 2.])
+    <<<<<<< HEAD
+        [0/3] tensor([0., 1., 3., 3.])
+        [1/3] tensor([3., 3., 3., 3.])
+        [2/3] tensor([3., 3., 3., 2.])
+    =======
+        [0/3] DNDarray([0., 1., 3., 3.])
+        [1/3] DNDarray([3., 3., 3., 3.])
+        [2/3] DNDarray([3., 3., 3., 2.])
 
-    >>> a = ht.arange(50, dtype = ht.float64, split=0)
-    >>> a = a.reshape(10, 5) # 10 signals of length 5
-    >>> v = ht.arange(3)
-    >>> ht.convolve(a, v) # batch processing: 10 signals convolved with filter v
-    DNDarray([[  0.,   0.,   1.,   4.,   7.,  10.,   8.],
-          [  0.,   5.,  16.,  19.,  22.,  25.,  18.],
-          [  0.,  10.,  31.,  34.,  37.,  40.,  28.],
-          [  0.,  15.,  46.,  49.,  52.,  55.,  38.],
-          [  0.,  20.,  61.,  64.,  67.,  70.,  48.],
-          [  0.,  25.,  76.,  79.,  82.,  85.,  58.],
-          [  0.,  30.,  91.,  94.,  97., 100.,  68.],
-          [  0.,  35., 106., 109., 112., 115.,  78.],
-          [  0.,  40., 121., 124., 127., 130.,  88.],
-          [  0.,  45., 136., 139., 142., 145.,  98.]], dtype=ht.float64, device=cpu:0, split=0)
+        >>> a = ht.arange(50, dtype = ht.float64, split=0)
+        >>> a = a.reshape(10, 5) # 10 signals of length 5
+        >>> v = ht.arange(3)
+        >>> ht.convolve(a, v) # batch processing: 10 signals convolved with filter v
+        DNDarray([[  0.,   0.,   1.,   4.,   7.,  10.,   8.],
+              [  0.,   5.,  16.,  19.,  22.,  25.,  18.],
+              [  0.,  10.,  31.,  34.,  37.,  40.,  28.],
+              [  0.,  15.,  46.,  49.,  52.,  55.,  38.],
+              [  0.,  20.,  61.,  64.,  67.,  70.,  48.],
+              [  0.,  25.,  76.,  79.,  82.,  85.,  58.],
+              [  0.,  30.,  91.,  94.,  97., 100.,  68.],
+              [  0.,  35., 106., 109., 112., 115.,  78.],
+              [  0.,  40., 121., 124., 127., 130.,  88.],
+              [  0.,  45., 136., 139., 142., 145.,  98.]], dtype=ht.float64, device=cpu:0, split=0)
 
-    >>> v = ht.random.randint(0, 3, (10, 3), split=0) # 10 filters of length 3
-    >>> ht.convolve(a, v) # batch processing: 10 signals convolved with 10 filters
-    DNDarray([[  0.,   0.,   2.,   4.,   6.,   8.,   0.],
-            [  5.,   6.,   7.,   8.,   9.,   0.,   0.],
-            [ 20.,  42.,  56.,  61.,  66.,  41.,  14.],
-            [  0.,  15.,  16.,  17.,  18.,  19.,   0.],
-            [ 20.,  61.,  64.,  67.,  70.,  48.,   0.],
-            [ 50.,  52., 104., 108., 112.,  56.,  58.],
-            [  0.,  30.,  61.,  63.,  65.,  67.,  34.],
-            [ 35., 106., 109., 112., 115.,  78.,   0.],
-            [  0.,  40.,  81.,  83.,  85.,  87.,  44.],
-            [  0.,   0.,  45.,  46.,  47.,  48.,  49.]], dtype=ht.float64, device=cpu:0, split=0)
+        >>> v = ht.random.randint(0, 3, (10, 3), split=0) # 10 filters of length 3
+        >>> ht.convolve(a, v) # batch processing: 10 signals convolved with 10 filters
+        DNDarray([[  0.,   0.,   2.,   4.,   6.,   8.,   0.],
+                [  5.,   6.,   7.,   8.,   9.,   0.,   0.],
+                [ 20.,  42.,  56.,  61.,  66.,  41.,  14.],
+                [  0.,  15.,  16.,  17.,  18.,  19.,   0.],
+                [ 20.,  61.,  64.,  67.,  70.,  48.,   0.],
+                [ 50.,  52., 104., 108., 112.,  56.,  58.],
+                [  0.,  30.,  61.,  63.,  65.,  67.,  34.],
+                [ 35., 106., 109., 112., 115.,  78.,   0.],
+                [  0.,  40.,  81.,  83.,  85.,  87.,  44.],
+                [  0.,   0.,  45.,  46.,  47.,  48.,  49.]], dtype=ht.float64, device=cpu:0, split=0)
+    >>>>>>> main
     """
     if np.isscalar(a):
         a = array([a])
@@ -316,3 +331,278 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
             a.comm,
             balanced=False,
         ).astype(a.dtype.torch_type())
+
+
+"""
+The following implementation is heavily inspired by the one of `fftconvolve` in SciPy
+(https://github.com/scipy/scipy/blob/fa9f13e6906e7d00510d593f7f982db30e4e4f14/scipy/signal/_signaltools.py).
+"""
+
+
+def fftconvolve(t1: DNDarray, t2: DNDarray, mode: str = "full", axes=None) -> DNDarray:
+    """
+    Convolve two N-dimensional arrays using FFT.
+
+    Convolve `t1` and `t2` using the fast Fourier transform method, with the output size determined
+    by the `mode` argument.
+
+    This is generally much faster than `convolve` for large arrays (n > ~500), but can be slower
+    when only a few output values are needed, and can only output float arrays (int or object array
+    inputs will be cast to float).
+
+    Parameters
+    ----------
+    t1 :    DNDarray or scalar
+            First input.
+    t2 :    DNDarray or scalar
+            Second input. Should have the same number of dimensions as `t1`.
+    mode : str {'full', 'valid', 'same'}, optional
+        A string indicating the size of the output:
+        ``full``
+           The output is the full discrete linear convolution of the inputs. (Default)
+        ``valid``
+           The output consists only of those elements that do not rely on the zero-padding. In
+           'valid' mode, either `t1` or `t2` must be at least as large as the other in every
+           dimension.
+        ``same``
+           The output is the same size as `t1`, centered with respect to the 'full' output.
+    axes : int or array_like of ints or None, optional
+        Axes over which to compute the convolution. The default is over all axes.
+
+    Returns
+    -------
+    out : array
+        An N-dimensional array containing a subset of the discrete linear convolution of `t1` with
+        `t2`.
+    """
+    if not isinstance(t1, DNDarray):
+        t1 = ht.array(t1)
+    if not isinstance(t2, DNDarray):
+        t2 = ht.array(t2)
+
+    if t1.ndim == t2.ndim == 0:  # scalar inputs
+        return t1 * t2
+    elif t1.ndim != t2.ndim:
+        raise ValueError(
+            f"The inputs should have the same dimensionality. But your inputs have dim {t1.ndim} "
+            + f"and {t2.ndim}."
+        )
+    elif t1.size == 0 or t2.size == 0:  # empty arrays
+        return ht.array([])
+
+    t1, t2, axes = _init_freq_conv_axes(t1, t2, mode, axes)
+
+    s1 = t1.shape
+    s2 = t2.shape
+
+    shape = [max((s1[i], s2[i])) if i not in axes else s1[i] + s2[i] - 1 for i in range(t1.ndim)]
+
+    ret = _freq_domain_conv(t1, t2, axes, shape, calc_fast_len=True)
+
+    return _apply_conv_mode(ret, s1, s2, mode, axes)
+
+
+def _init_freq_conv_axes(t1, t2, mode, axes):
+    """
+    Handle the axes argument for frequency-domain convolution.
+
+    Returns the inputs and axes in a standard form, eliminating redundant axes, swapping the inputs
+    if necessary, and checking for various potential errors.
+
+    Returns
+    -------
+    t1 : array
+        The first input, possibly swapped with the second input.
+    t2 : array
+        The second input, possibly swapped with the first input.
+    axes : Tuple of ints
+        Axes over which to compute the FFTs.
+    """
+    s1 = t1.shape
+    s2 = t2.shape
+    noaxes = axes is None
+
+    axes = _init_nd_axes(t1, axes=axes)
+
+    if not noaxes and not len(axes):
+        raise ValueError("when provided, axes cannot be empty")
+
+    # Axes of length 1 can rely on broadcasting rules for multipy, no fft needed.
+    axes = tuple([a for a in axes if s1[a] != 1 and s2[a] != 1])
+
+    if not all(s1[a] == s2[a] or s1[a] == 1 or s2[a] == 1 for a in range(t1.ndim) if a not in axes):
+        raise ValueError("incompatible shapes for t1 and t2: {} and {}".format(s1, s2))
+
+    # Check that input sizes are compatible with 'valid' mode.
+    if _inputs_swap_needed(mode, s1, s2, axes=axes):
+        # Convolution is commutative; order doesn't have any effect on output.
+        t1, t2 = t2, t1
+
+    return t1, t2, axes
+
+
+def _init_nd_axes(x, axes):
+    """Handles axes arguments for nd transforms"""
+    noaxes = axes is None
+
+    if not noaxes:
+        axes = _iterable_of_int(axes, "axes")
+        axes = [a + x.ndim if a < 0 else a for a in axes]
+
+        if any(a >= x.ndim or a < 0 for a in axes):
+            raise ValueError("axes exceeds dimensionality of input")
+        if len(set(axes)) != len(axes):
+            raise ValueError("all axes must be unique")
+
+    if noaxes:
+        shape = tuple(x.shape)
+        axes = range(x.ndim)
+    else:
+        shape = [x.shape[a] for a in axes]
+
+    if any(s < 1 for s in shape):
+        raise ValueError(f"invalid number of data points ({shape}) specified")
+
+    return tuple(axes)
+
+
+def _iterable_of_int(x, name=None):
+    """
+    Convert `x` to an iterable sequence of int
+
+    Parameters
+    ----------
+    x    :  value, or sequence of values,
+            convertible to int
+    name :  str, optional
+            Name of the argument being converted, only used in the error message
+
+    Returns
+    -------
+    y : ``Tuple[int]``
+    """
+    if isinstance(x, Number):
+        x = (x,)
+
+    try:
+        x = [operator.index(a) for a in x]
+    except TypeError as e:
+        name = name or "value"
+        raise ValueError(f"{name} must be a scalar or iterable of integers") from e
+
+    return x
+
+
+def _inputs_swap_needed(mode, shape1, shape2, axes=None):
+    """
+    Determine if inputs arrays need to be swapped in `"valid"` mode.
+
+    If in `"valid"` mode, returns whether or not the input arrays need to be
+    swapped depending on whether `shape1` is at least as large as `shape2` in
+    every calculated dimension.
+
+    This is important for some of the correlation and convolution
+    implementations in this module, where the larger array input needs to come
+    before the smaller array input when operating in this mode.
+
+    Note that if the mode provided is not 'valid', False is immediately
+    returned.
+    """
+    if mode != "valid":
+        return False
+
+    if not shape1:
+        return False
+
+    if axes is None:
+        axes = range(len(shape1))
+
+    ok1 = all(shape1[a] >= shape2[a] for a in axes)
+    ok2 = all(shape2[a] >= shape1[a] for a in axes)
+
+    if not (ok1 or ok2):
+        raise ValueError(
+            "For 'valid' mode, one must be at least as large as the other in every dimension."
+        )
+
+    return not ok1
+
+
+def _freq_domain_conv(t1, t2, axes, shape, calc_fast_len=False):
+    """
+    Convolve two arrays in the frequency domain.
+
+    This function implements only base the FFT-related operations. Specifically, it converts the
+    signals to the frequency domain, multiplies them, then converts them back to the time domain.
+    Calculations of axes, shapes, convolution mode, etc. are implemented in higher level-functions,
+    such as `fftconvolve` and `oaconvolve`. Those functions should be used instead of this one.
+
+    Returns
+    -------
+    out : array
+        An N-dimensional array containing the discrete linear convolution of `t1` with `t2`.
+    """
+    if not len(axes):
+        return t1 * t2
+
+    dtype1, dtype2 = (heat_type_of(t1), heat_type_of(t2))
+    complex_result = dtype1 in _complexfloating or dtype2 in _complexfloating
+
+    """
+    if calc_fast_len:
+        # Speed up FFT by padding to optimal size.
+        fshape = [
+            sp_fft.next_fast_len(shape[a], not complex_result) for a in axes]
+    else:
+    """
+    if not complex_result:
+        fft, ifft = ht.fft.rfftn, ht.fft.irfftn
+    else:
+        fft, ifft = ht.fft.fftn, ht.fft.ifftn
+
+    sp1 = fft(t1, shape, axes=axes)
+    sp2 = fft(t2, shape, axes=axes)
+
+    ret = ifft(sp1 * sp2, shape, axes=axes)
+
+    """
+    if calc_fast_len:
+        fslice = tuple([slice(sz) for sz in shape])
+        ret = ret[fslice]
+    """
+
+    return ret
+
+
+def _apply_conv_mode(ret, s1, s2, mode, axes):
+    """
+    Calculate the convolution result shape based on the `mode` argument.
+
+    Returns the result sliced to the correct size for the given mode.
+
+    Returns
+    -------
+    ret : array
+        A copy of `res`, sliced to the correct size for the given `mode`.
+    """
+    if mode == "full":
+        return ret.copy()  # Why copy and not original??
+    elif mode == "same":
+        return _centered(ret, s1).copy()
+    elif mode == "valid":
+        shape_valid = [
+            ret.shape[a] if a not in axes else s1[a] - s2[a] + 1 for a in range(ret.ndim)
+        ]
+        return _centered(ret, shape_valid).copy()
+    else:
+        raise ValueError("acceptable mode flags are 'valid'," " 'same', or 'full'")
+
+
+def _centered(arr, newshape):
+    # Return the center newshape portion of the array.
+    newshape = np.asarray(newshape)
+    currshape = np.array(arr.shape)
+    startind = (currshape - newshape) // 2
+    endind = startind + newshape
+    myslice = [slice(startind[k], endind[k]) for k in range(len(endind))]
+    return arr[tuple(myslice)]

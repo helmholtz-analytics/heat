@@ -3,6 +3,7 @@ import torch
 import unittest
 import heat as ht
 from heat import manipulations
+import scipy.signal as sps
 
 from .test_suites.basic_test import TestCase
 
@@ -154,3 +155,23 @@ class TestSignal(TestCase):
             batch_signal_wrong_split = batch_signal.resplit(-1)
             with self.assertRaises(ValueError):
                 ht.convolve(batch_signal_wrong_split, kernel)
+
+
+class TestFFTConvolve(TestCase):
+    def test_fftconvolve(self):
+        dtype = ht.float64
+        dtypetol = 1e-5 if dtype == ht.float64 else 1e-3
+        for split1 in [0]:
+            for split2 in [0]:
+                for mode in ["full", "valid", "same"]:
+                    shape1 = (ht.MPI_WORLD.size * 10 + 2, ht.MPI_WORLD.size * 11 + 1)
+                    shape2 = (ht.MPI_WORLD.size * 2 + 2, ht.MPI_WORLD.size + 1)
+                    t1 = ht.random.randn(*shape1, split=split1, dtype=dtype)
+                    t2 = ht.random.randn(*shape2, split=split2, dtype=dtype)
+                    t1_np = t1.numpy()
+                    t2_np = t2.numpy()
+                    t1_conv_t2 = ht.fftconvolve(t1, t2, mode=mode)
+                    t1_conv_t2_sps = sps.fftconvolve(t1_np, t2_np, mode=mode)
+                    self.assertEqual(t1_conv_t2.shape, t1_conv_t2_sps.shape)
+                    print(np.linalg.norm(t1_conv_t2.numpy() - t1_conv_t2_sps))
+                    self.assertTrue(np.allclose(t1_conv_t2.numpy(), t1_conv_t2_sps, atol=dtypetol))
