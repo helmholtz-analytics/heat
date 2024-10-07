@@ -2,9 +2,17 @@
 import heat as ht
 from mpi4py import MPI
 from perun import monitor
+from sizes import GSIZE_TS_L, GSIZE_TS_S
 
-# we benchmark the in-place versions (`copy=False`) of the preprocessing functions
-# for each function, both the forward and the inverse transformation are applied
+"""
+Benchmarks in this file:
+- StandardScaler and inverse_transform
+- MinMaxScaler and inverse_transform
+- MaxAbsScaler and inverse_transform
+- RobustScaler and inverse_transform
+- Normalizer (without inverse, of course)
+All of them are both fit_transform and inverse_transform (together); data is split along the data axis.
+"""
 
 
 @monitor()
@@ -42,8 +50,8 @@ def apply_inplace_normalizer(X):
 
 
 def run_preprocessing_benchmarks():
-    n_data_points = 5000
-    n_features = 50
+    n_data_points = GSIZE_TS_L
+    n_features = GSIZE_TS_S
     X = ht.random.randn(n_data_points, n_features, split=0)
 
     apply_inplace_standard_scaler_and_inverse(X)

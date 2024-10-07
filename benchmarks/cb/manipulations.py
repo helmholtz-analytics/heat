@@ -2,49 +2,72 @@
 import heat as ht
 from typing import List
 from perun import monitor
+from sizes import GSIZE_SQ, GSIZE_CB
+
+"""
+Bencharks so far:
+- concatenation along split axis
+- reshaping along split axis with new_split
+- resplitting (of a split array)
+- unsplit a split array
+"""
 
 
 @monitor()
 def concatenate(arrays):
-    # benchmark concatenation of 3 arrays with split 1, None, 1 respectively
     a = ht.concatenate(arrays, axis=1)
 
 
 @monitor()
-def reshape(arrays):
-    for array in arrays:
-        a = ht.reshape(array, (10000000, -1), new_split=1)
+def concatenate_nosplit(arrays):
+    a = ht.concatenate(arrays, axis=1)
 
 
 @monitor()
-def resplit(array, new_split: List[int | None]):
-    for new_split in new_split:
-        a = ht.resplit(array, axis=new_split)
-        del a
+def reshape(array):
+    a = ht.reshape(array, (array.shape[0] * array.shape[1], -1), new_split=1)
+
+
+@monitor()
+def reshape_nosplit(array):
+    a = ht.reshape(array, (array.shape[0] * array.shape[1], -1), new_split=1)
+
+
+@monitor()
+def resplit(array):
+    a = ht.resplit(array, axis=1)
+
+
+@monitor()
+def unsplit(array):
+    a = ht.resplit(array, axis=None)
 
 
 def run_manipulation_benchmarks():
-    sizes = [10000, 20000, 40000]
-    arrays = []
-    for size in sizes:
-        arrays.append(ht.zeros((1000, size), split=1))
-    reshape(arrays)
-
-    arrays = []
-    for i, size in enumerate(sizes):
-        if i == 1:
-            split = None
-        else:
-            split = 1
-        arrays.append(ht.zeros((1000, size), split=split))
+    arrays = [
+        ht.zeros((GSIZE_SQ // 2, GSIZE_SQ), split=1),
+        ht.zeros((GSIZE_SQ // 2, GSIZE_SQ), split=1),
+    ]
     concatenate(arrays)
+    del arrays
 
-    if ht.comm.size > 1:
-        shape = [100, 50, 50, 20, 86]
-        n_elements = ht.array(shape).prod().item()
-        mem = n_elements * 4 / 1e9
-        array = ht.reshape(ht.arange(0, n_elements, split=0, dtype=ht.float32), shape) * (
-            ht.comm.rank + 1
-        )
+    arrays = [
+        ht.zeros((GSIZE_SQ // 2, GSIZE_SQ), split=0),
+        ht.zeros((GSIZE_SQ // 2, GSIZE_SQ), split=0),
+    ]
+    concatenate_nosplit(arrays)
+    del arrays
 
-        resplit(array, [None, 2, 4])
+    array = ht.zeros((GSIZE_CB, GSIZE_CB, GSIZE_CB), split=0)
+    reshape(arrays)
+    del array
+
+    array = ht.zeros((GSIZE_CB, GSIZE_CB, GSIZE_CB), split=2)
+    reshape_nosplit(arrays)
+    del array
+
+    array = ht.ones((GSIZE_SQ, GSIZE_SQ), split=0)
+    resplit(array)
+
+    array = ht.ones((GSIZE_SQ, GSIZE_SQ), split=0)
+    unsplit(array)

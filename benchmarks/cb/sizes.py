@@ -10,7 +10,14 @@ N_ELEMENTS_PER_PROC = 2**30
 TS_FACTOR_loc = 2
 vTS_FACTOR_loc = 4
 
-# all other variables are calculated based on the number of elements per process
+"""
+all other variables are calculated based on the number of elements per process
+shape of a 2D square array: (GSIZE_SQ, GSIZE_SQ)
+shape of a 3D cube array: (GSIZE_CB, GSIZE_CB, GSIZE_CB)
+shape of a 2D tall-skinny array: (GSIZE_TS_L, GSIZE_TS_S)
+shape of a 2D very tall-skinny array: (GSIZE_vTS_L, GSIZE_vTS_S)
+similar for short-fat and very short-fat arrays...
+"""
 n_procs = ht.MPI_WORLD.size
 N_ELEMENTS_TOTAL = N_ELEMENTS_PER_PROC * n_procs
 
@@ -26,3 +33,10 @@ GSIZE_vTS_S = int(
     (N_ELEMENTS_TOTAL / vTS_FACTOR_GLOB) ** 0.5
 )  # short dimension of very tall-skinny matrix
 GSIZE_vTS_L = GSIZE_TS_S * vTS_FACTOR_GLOB + 1  # long dimension of very tall-skinny matrix
+
+GSIZE_CB = int(N_ELEMENTS_TOTAL ** (1 / 3))  # dimension of a cube array
+
+"""
+Exceptions needed for the moment:
+"""
+LANCZOS_SIZE = 2**10

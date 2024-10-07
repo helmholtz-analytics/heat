@@ -2,7 +2,7 @@
 import heat as ht
 from mpi4py import MPI
 from perun import monitor
-from sizes import GSIZE_TS_L, GSIZE_TS_S, GSIZE_SQ
+from sizes import GSIZE_TS_L, GSIZE_TS_S, GSIZE_SQ, LANCZOS_SIZE
 
 """
 Benchmarks in this file:
@@ -99,8 +99,7 @@ def run_linalg_benchmarks():
     qr_split_1(a_1)
     del a_1
 
-    n = 1000
-    A = ht.random.random((n, n), dtype=ht.float64, split=0)
+    A = ht.random.random((LANCZOS_SIZE, LANCZOS_SIZE), dtype=ht.float64, split=0)
     B = A @ A.T
     lanczos(B)
     del A, B
