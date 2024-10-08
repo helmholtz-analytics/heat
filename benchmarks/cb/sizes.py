@@ -6,7 +6,7 @@ The following variables can be changed:
 - TS_FACTOR_loc: tall-skinny factor for each process (long dimension of local array in tall-skinny matrix is TS_FACTOR_loc times larger than the short dimension)
 - vTS_FACTOR_loc: very tall-skinny factor for each process (same as before, but for "very" tall-skinny matrices)
 """
-N_ELEMENTS_PER_PROC = 2**26
+N_ELEMENTS_PER_PROC = 2**28
 TS_FACTOR_loc = 2
 vTS_FACTOR_loc = 4
 

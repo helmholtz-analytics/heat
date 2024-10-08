@@ -59,11 +59,11 @@ def run_manipulation_benchmarks():
     del arrays
 
     array = ht.zeros((GSIZE_CB, GSIZE_CB, GSIZE_CB), split=0)
-    reshape(arrays)
+    reshape(array)
     del array
 
     array = ht.zeros((GSIZE_CB, GSIZE_CB, GSIZE_CB), split=2)
-    reshape_nosplit(arrays)
+    reshape_nosplit(array)
     del array
 
     array = ht.ones((GSIZE_SQ, GSIZE_SQ), split=0)
