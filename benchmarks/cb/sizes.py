@@ -6,7 +6,7 @@ The following variables can be changed:
 - TS_FACTOR_loc: tall-skinny factor for each process (long dimension of local array in tall-skinny matrix is TS_FACTOR_loc times larger than the short dimension)
 - vTS_FACTOR_loc: very tall-skinny factor for each process (same as before, but for "very" tall-skinny matrices)
 """
-N_ELEMENTS_PER_PROC = 2**28  #
+N_ELEMENTS_PER_PROC = 2**26
 TS_FACTOR_loc = 2
 vTS_FACTOR_loc = 4
 
@@ -32,11 +32,11 @@ vTS_FACTOR_GLOB = vTS_FACTOR_loc * n_procs  # global tall-skinny factor
 GSIZE_vTS_S = int(
     (N_ELEMENTS_TOTAL / vTS_FACTOR_GLOB) ** 0.5
 )  # short dimension of very tall-skinny matrix
-GSIZE_vTS_L = GSIZE_TS_S * vTS_FACTOR_GLOB + 1  # long dimension of very tall-skinny matrix
+GSIZE_vTS_L = GSIZE_vTS_S * vTS_FACTOR_GLOB + 1  # long dimension of very tall-skinny matrix
 
 GSIZE_CB = int(N_ELEMENTS_TOTAL ** (1 / 3))  # dimension of a cube array
 
 """
 Exceptions needed for the moment:
 """
-LANCZOS_SIZE = 2**10
+LANCZOS_SIZE = 2**9
