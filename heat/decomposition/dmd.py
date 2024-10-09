@@ -12,11 +12,25 @@ except ImportError:
     from typing_extensions import Self
 
 
+def _torch_matrix_diag(diagonal):
+    # auxiliary function to create a batch of diagonal matrices from a batch of diagonal vectors
+    # source: fmassas comment on Oct 4, 2018 in https://github.com/pytorch/pytorch/issues/12160 [Accessed Oct 09, 2024]
+    N = diagonal.shape[-1]
+    shape = diagonal.shape[:-1] + (N, N)
+    device, dtype = diagonal.device, diagonal.dtype
+    result = torch.zeros(shape, dtype=dtype, device=device)
+    indices = torch.arange(result.numel(), device=device).reshape(shape)
+    indices = indices.diagonal(dim1=-2, dim2=-1)
+    result.view(-1)[indices] = diagonal
+    return result
+
+
 class DMD(ht.RegressionMixin, ht.BaseEstimator):
     """
     Dynamic Mode Decomposition (DMD), plain vanilla version with SVD-based implementation.
 
-    The time series of which DMD shall be computed must be given as a 2-D DNDarray of shape (n_features, n_timesteps).
+    The time series of which DMD shall be computed must be provided as a 2-D DNDarray of shape (n_features, n_timesteps).
+    Please, note that this deviates from Heat's convention that data sets are handeled as 2-D arrays with the feature axis being the second axis.
 
     Parameters
     ----------
@@ -206,15 +220,58 @@ class DMD(ht.RegressionMixin, ht.BaseEstimator):
         self.rom_eigenmodes_ = ht.array(eigvec_loc, split=None)
         self.dmdmodes_ = self.rom_basis_ @ self.rom_eigenmodes_
 
-    def predict_next(self, X: ht.DNDarray) -> ht.DNDarray:
+    def predict_next(self, X: ht.DNDarray, n_steps: int = 1) -> ht.DNDarray:
         """
-        Predicts and returns the next state given a current state.
+        Predicts and returns the state(s) after n_steps-many time steps for given a current state(s).
+
+        Parameters
+        ----------
+        X : DNDarray
+            The current state(s) for the prediction. Must have the same number of features as the training data, but can be batched for multiple current states,
+            i.e., X can be of shape (n_features,) or (n_features, n_current_states).
+            The output will have the same shape as the input.
+        n_steps : int, optional
+            The number of steps to predict into the future. Default is 1, i.e., the next time step is predicted.
+        """
+        if not isinstance(n_steps, int):
+            raise TypeError(f"Invalid type '{type(n_steps)}' for 'n_steps'. Must be an integer.")
+        if self.rom_basis_ is None:
+            raise RuntimeError("Model has not been fitted yet. Call 'fit' first.")
+        # sanitize input data
+        ht.sanitize_in(X)
+        # if X is a 1-D DNDarray, we add an artificial batch dimension
+        if X.ndim == 1:
+            X = X.expand_dims(1)
+        # check if the input data has the right number of features
+        if X.shape[0] != self.rom_basis_.shape[0]:
+            raise ValueError(
+                f"Invalid number of features '{X.shape[0]}' in input data 'X'. Must have the same number of features as the training data."
+            )
+        rom_mat = self.rom_transfer_matrix_
+        rom_mat.larray = torch.linalg.matrix_power(rom_mat.larray, n_steps)
+        # the following line looks that complicated because we have to make sure that splits of the resulting matrices in
+        # each of the products are split along the axis that deserves being splitted
+        nextX = (self.rom_basis_.T @ X).T.resplit_(None) @ (self.rom_basis_ @ rom_mat).T
+        return (nextX.T).squeeze()
+
+    def predict(self, X: ht.DNDarray, steps: Union[int, List[int]]) -> ht.DNDarray:
+        """
+        Predics and returns future states given a current state(s) and returns them all as an array of size (n_steps, n_features).
+
+        This function avoids a time-stepping loop (i.e., repeated calls to 'predict_next') and computes the future states in one go.
+        To do so, the number of future times to predict must be of moderate size as an array of shape (n_steps, self.n_modes_, self.n_modes_) must fit into memory.
+        Moreover, it must be ensured that:
+
+        - the array of initial states is not split or split along the batch axis (axis 1) and the feature axis is small (i.e., self.rom_basis_ is not split)
 
         Parameters
         ----------
         X : DNDarray
             The current state(s) for the prediction. Must have the same number of features as the training data, but can be batched for multiple current states,
             i.e., X can be of shape (n_features,) or (n_current_states, n_features).
+        steps : int or List[int]
+            if int: predictions at time step 0, 1, ..., steps-1 are computed
+            if List[int]: predictions at time steps given in the list are computed
         """
         if self.rom_basis_ is None:
             raise RuntimeError("Model has not been fitted yet. Call 'fit' first.")
@@ -224,13 +281,42 @@ class DMD(ht.RegressionMixin, ht.BaseEstimator):
         if X.ndim == 1:
             X = X.expand_dims(0)
         # check if the input data has the right number of features
-        if X.shape[-1] != self.rom_basis_.shape[0]:
+        if X.shape[0] != self.rom_basis_.shape[0]:
             raise ValueError(
-                f"Invalid number of features '{X.shape[-1]}' in input data 'X'. Must have the same number of features as the training data."
+                f"Invalid number of features '{X.shape[0]}' in input data 'X'. Must have the same number of features as the training data."
             )
-        # the following line looks that complicated because we have to make sure that splits of the resulting matrices in
-        # each of the products are split along the axis that deserves being splitted
-        nextX = (self.rom_basis_.T @ X.T).T.resplit_(None) @ (
-            self.rom_basis_ @ self.rom_transfer_matrix_
-        ).T
-        return nextX
+        if isinstance(steps, int):
+            steps = torch.arange(steps, dtype=torch.int32)
+        elif isinstance(steps, list):
+            steps = torch.tensor(steps, dtype=torch.int32)
+        else:
+            raise TypeError(
+                f"Invalid type '{type(steps)}' for 'steps'. Must be an integer or a list of integers."
+            )
+        steps = steps.reshape(-1, 1).repeat(1, self.rom_eigenvalues_.shape[0])
+        X_rom = self.rom_basis_.T @ X
+
+        transfer_mat = _torch_matrix_diag(self.rom_eigenvalues_.larray**steps)
+        transfer_mat = torch.linalg.solve(
+            self.rom_eigenmodes_.larray, transfer_mat @ self.rom_eigenmodes_.larray
+        )
+        transfer_mat = torch.real(
+            transfer_mat
+        )  # necessary to avoid imaginary parts due to numerical errors
+
+        if X_rom.split is None or X_rom.split == 1:
+            result = (
+                transfer_mat @ X_rom.larray
+            )  # here we assume that X_rom is not split or split along the second axis (axis 1)
+            del transfer_mat
+            result = torch.permute(result, (2, 0, 1))
+
+            result = (
+                result @ self.rom_basis_.larray.T
+            )  # here we assume that self.rom_basis_ is not split (i.e., the feature number is small)
+            result = ht.array(result, is_split=0)
+            return result
+        else:
+            raise NotImplementedError(
+                "Predicting multiple time steps in one go is not supported for the given data layout. Please, use 'predict_next' instead, or open an issue on GitHub if you require this feature."
+            )

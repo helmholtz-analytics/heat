@@ -60,14 +60,14 @@ class TestDMD(TestCase):
         dmd.fit(X)
         Y = ht.random.randn(10 * ht.MPI_WORLD.size, split=0)
         Z = dmd.predict_next(Y)
-        self.assertTrue(Z.shape == (1, 10 * ht.MPI_WORLD.size))
+        self.assertTrue(Z.shape == (10 * ht.MPI_WORLD.size,))
         self.assertTrue(dmd.rom_eigenvalues_.dtype == ht.complex64)
         self.assertTrue(dmd.dmdmodes_.dtype == ht.complex64)
 
         X = ht.random.randn(1000, 10 * ht.MPI_WORLD.size, split=0, dtype=ht.float32)
         dmd = ht.decomposition.DMD(svd_solver="randomized", svd_rank=4)
         dmd.fit(X)
-        Y = ht.random.rand(4, 1000, split=1, dtype=ht.float32)
+        Y = ht.random.rand(1000, 4, split=0, dtype=ht.float32)
         Z = dmd.predict_next(Y)
         self.assertTrue(Z.dtype == ht.float32)
 
@@ -89,7 +89,7 @@ class TestDMD(TestCase):
         dmd = ht.decomposition.DMD(svd_solver="hierarchical", svd_tol=1e-1)
         dmd.fit(X)
         self.assertTrue(dmd.rom_eigenvalues_.dtype == ht.complex128)
-        Y = ht.random.randn(2 * ht.MPI_WORLD.size, 10, split=0)
+        Y = ht.random.randn(10, 2 * ht.MPI_WORLD.size, split=1)
         Z = dmd.predict_next(Y)
         self.assertTrue(Z.shape == Y.shape)
 
@@ -98,7 +98,7 @@ class TestDMD(TestCase):
         dmd.fit(X)
         self.assertTrue(dmd.rom_eigenmodes_.shape == (4, 4))
         self.assertTrue(dmd.n_modes_ == 4)
-        Y = ht.random.randn(2, 1000, split=1, dtype=ht.float64)
+        Y = ht.random.randn(1000, 2, split=0, dtype=ht.float64)
         Z = dmd.predict_next(Y)
         self.assertTrue(Z.dtype == Y.dtype)
 
@@ -142,8 +142,12 @@ class TestDMD(TestCase):
         self.assertTrue(np.allclose(sorted_ev_1, sorted_ev_2, atol=1e-4, rtol=1e-4))
 
         # check prediction of next states
-        Y = dmd.predict_next(X.T)
-        self.assertTrue(ht.allclose(Y[:n, :].T, X[:, 1:], atol=1e-4, rtol=1e-4))
+        Y = dmd.predict_next(X)
+        self.assertTrue(ht.allclose(Y[:, :n], X[:, 1:], atol=1e-4, rtol=1e-4))
+
+        # check prediction of previous states
+        Y = dmd.predict_next(X, -1)
+        self.assertTrue(ht.allclose(Y[:, 1:], X[:, :n], atol=1e-4, rtol=1e-4))
 
         # ----------------- second case: split = 1 -----------------
         # dtype is float64, transfer matrix with nontrivial kernel
@@ -172,6 +176,8 @@ class TestDMD(TestCase):
         sorted_ev_2 = np.sort_complex(np.linalg.eigvals(A_red.numpy()))
         self.assertTrue(np.allclose(sorted_ev_1, sorted_ev_2, atol=1e-12, rtol=1e-12))
 
-        # check prediction of next states
-        Y = dmd.predict_next(X.T)
-        self.assertTrue(ht.allclose(Y[:n, :].T, X[:, 1:], atol=1e-12, rtol=1e-12))
+        # check prediction of third-next step
+        Y = dmd.predict_next(X, 3)
+        self.assertTrue(ht.allclose(Y[:, : n - 2], X[:, 3:], atol=1e-12, rtol=1e-12))
+
+        # note: checking previous steps doesn't make sense here, as kernel of A_red is nontrivial
