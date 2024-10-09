@@ -348,7 +348,7 @@ def normal(
     return mean + std * standard_normal(shape, dtype, split, device, comm)
 
 
-def permutation(x: Union[int, DNDarray]) -> DNDarray:
+def permutation(x: Union[int, DNDarray], **kwargs) -> DNDarray:
     """
     Randomly permute a sequence, or return a permuted range. If ``x`` is a multi-dimensional array, it is only shuffled
     along its first index.
@@ -381,7 +381,7 @@ def permutation(x: Union[int, DNDarray]) -> DNDarray:
     Thus, the array containing these indices needs to fit into the memory of a single MPI-process.
     """
     if isinstance(x, int):
-        return randperm(x)
+        return randperm(x, **kwargs)
     if not isinstance(x, DNDarray):
         raise TypeError("x must be int or DNDarray")
 
