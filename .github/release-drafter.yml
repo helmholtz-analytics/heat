@@ -1,3 +1,4 @@
+filter-by-commitish: true
 categories:
   - title: '🔥 Features'
     labels:
