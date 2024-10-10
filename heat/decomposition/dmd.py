@@ -314,7 +314,7 @@ class DMD(ht.RegressionMixin, ht.BaseEstimator):
             result = (
                 result @ self.rom_basis_.larray.T
             )  # here we assume that self.rom_basis_ is not split (i.e., the feature number is small)
-            result = ht.array(result, is_split=0)
+            result = ht.array(result, is_split=2)
             return result
         else:
             raise NotImplementedError(

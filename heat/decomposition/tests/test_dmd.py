@@ -17,6 +17,8 @@ class TestDMD(TestCase):
         with self.assertRaises(ValueError):
             ht.decomposition.DMD(svd_solver="full", svd_rank=3, svd_tol=1e-1)
         with self.assertRaises(ValueError):
+            ht.decomposition.DMD(svd_solver="full", svd_tol=-0.031415926)
+        with self.assertRaises(ValueError):
             ht.decomposition.DMD(svd_solver="hierarchical")
         with self.assertRaises(ValueError):
             ht.decomposition.DMD(svd_solver="hierarchical", svd_rank=3, svd_tol=1e-1)
@@ -38,6 +40,10 @@ class TestDMD(TestCase):
             dmd.fit(ht.zeros((5 * ht.MPI_WORLD.size, 2, 2), split=0))
         with self.assertRaises(ValueError):
             dmd.fit(ht.zeros((5 * ht.MPI_WORLD.size, 1), split=0))
+        with self.assertRaises(RuntimeError):
+            dmd.predict_next(ht.zeros(10))
+        with self.assertRaises(RuntimeError):
+            dmd.predict(ht.zeros(10), 10)
 
     def test_dmd_functionality_split0(self):
         # check whether the everything works with split=0, various checks are scattered over the different cases
@@ -70,6 +76,18 @@ class TestDMD(TestCase):
         Y = ht.random.rand(1000, 4, split=0, dtype=ht.float32)
         Z = dmd.predict_next(Y)
         self.assertTrue(Z.dtype == ht.float32)
+
+        # wrong shape of input for prediction
+        with self.assertRaises(ValueError):
+            dmd.predict_next(ht.zeros((100, 4), split=0))
+        with self.assertRaises(ValueError):
+            dmd.predict(ht.zeros((100, 4), split=0), 10)
+        # wrong input for steps in predict
+        with self.assertRaises(TypeError):
+            dmd.predict(
+                ht.zeros((1000, 5), split=0),
+                "this is clearly neither an integer nor a list of integers",
+            )
 
     def test_dmd_functionality_split1(self):
         # check whether everything works with split=1, various checks are scattered over the different cases
@@ -149,6 +167,10 @@ class TestDMD(TestCase):
         Y = dmd.predict_next(X, -1)
         self.assertTrue(ht.allclose(Y[:, 1:], X[:, :n], atol=1e-4, rtol=1e-4))
 
+        # check catching wrong n_steps argument
+        with self.assertRaises(TypeError):
+            dmd.predict_next(X, "this is clearly not an integer")
+
         # ----------------- second case: split = 1 -----------------
         # dtype is float64, transfer matrix with nontrivial kernel
         r = 3
@@ -179,5 +201,4 @@ class TestDMD(TestCase):
         # check prediction of third-next step
         Y = dmd.predict_next(X, 3)
         self.assertTrue(ht.allclose(Y[:, : n - 2], X[:, 3:], atol=1e-12, rtol=1e-12))
-
         # note: checking previous steps doesn't make sense here, as kernel of A_red is nontrivial
