@@ -1,3 +1,5 @@
+import platform
+
 import numpy as np
 import torch
 
@@ -21,8 +23,9 @@ class TestRounding(TestCase):
         int64_absolute_values_fabs = ht.fabs(int64_tensor_fabs)
         float32_tensor_fabs = ht.arange(-10.5, 10.5, dtype=ht.float32, split=0)
         float32_absolute_values_fabs = ht.fabs(float32_tensor_fabs)
-        float64_tensor_fabs = ht.arange(-10.5, 10.5, dtype=ht.float64, split=0)
-        float64_absolute_values_fabs = ht.fabs(float64_tensor_fabs)
+        if not self.is_mps:
+            float64_tensor_fabs = ht.arange(-10.5, 10.5, dtype=ht.float64, split=0)
+            float64_absolute_values_fabs = ht.fabs(float64_tensor_fabs)
 
         # basic absolute test
         self.assertIsInstance(absolute_values, ht.DNDarray)
@@ -34,7 +37,8 @@ class TestRounding(TestCase):
         self.assertEqual(int32_absolute_values_fabs.sum(axis=0), 100.0)
         self.assertEqual(int64_absolute_values_fabs.sum(axis=0), 100.0)
         self.assertEqual(float32_absolute_values_fabs.sum(axis=0), 110.5)
-        self.assertEqual(float64_absolute_values_fabs.sum(axis=0), 110.5)
+        if not self.is_mps:
+            self.assertEqual(float64_absolute_values_fabs.sum(axis=0), 110.5)
 
         # check whether output works
         # for abs==absolute
@@ -61,9 +65,10 @@ class TestRounding(TestCase):
         self.assertEqual(int8_absolute_values_fabs.dtype, ht.float32)
         self.assertEqual(int16_absolute_values_fabs.dtype, ht.float32)
         self.assertEqual(int32_absolute_values_fabs.dtype, ht.float32)
-        self.assertEqual(int64_absolute_values_fabs.dtype, ht.float64)
         self.assertEqual(float32_absolute_values_fabs.dtype, ht.float32)
-        self.assertEqual(float64_absolute_values_fabs.dtype, ht.float64)
+        if not self.is_mps:
+            self.assertEqual(int64_absolute_values_fabs.dtype, ht.float64)
+            self.assertEqual(float64_absolute_values_fabs.dtype, ht.float64)
 
         # exceptions
         # for abs==absolute
@@ -88,8 +93,9 @@ class TestRounding(TestCase):
 
     def test_ceil(self):
         start, end, step = -5.0, 5.0, 1.4
+        float_dtype = torch.float32 if self.is_mps else torch.float64
         comparison = torch.arange(
-            start, end, step, dtype=torch.float64, device=self.device.torch_device
+            start, end, step, dtype=float_dtype, device=self.device.torch_device
         ).ceil()
 
         # exponential of float32
@@ -101,12 +107,13 @@ class TestRounding(TestCase):
         self.assertTrue((float32_floor.larray == comparison.float()).all())
 
         # exponential of float64
-        float64_tensor = ht.arange(start, end, step, dtype=ht.float64)
-        float64_floor = float64_tensor.ceil()
-        self.assertIsInstance(float64_floor, ht.DNDarray)
-        self.assertEqual(float64_floor.dtype, ht.float64)
-        self.assertEqual(float64_floor.dtype, ht.float64)
-        self.assertTrue((float64_floor.larray == comparison).all())
+        if not self.is_mps:
+            float64_tensor = ht.arange(start, end, step, dtype=ht.float64)
+            float64_floor = float64_tensor.ceil()
+            self.assertIsInstance(float64_floor, ht.DNDarray)
+            self.assertEqual(float64_floor.dtype, ht.float64)
+            self.assertEqual(float64_floor.dtype, ht.float64)
+            self.assertTrue((float64_floor.larray == comparison).all())
 
         # check exceptions
         with self.assertRaises(TypeError):
@@ -155,12 +162,13 @@ class TestRounding(TestCase):
         self.assertTrue((float32_floor.larray == comparison.float()).all())
 
         # exponential of float64
-        float64_tensor = ht.arange(start, end, step, dtype=ht.float64) + 0.01
-        float64_floor = float64_tensor.floor()
-        self.assertIsInstance(float64_floor, ht.DNDarray)
-        self.assertEqual(float64_floor.dtype, ht.float64)
-        self.assertEqual(float64_floor.dtype, ht.float64)
-        self.assertTrue((float64_floor.larray == comparison).all())
+        if not self.is_mps:
+            float64_tensor = ht.arange(start, end, step, dtype=ht.float64) + 0.01
+            float64_floor = float64_tensor.floor()
+            self.assertIsInstance(float64_floor, ht.DNDarray)
+            self.assertEqual(float64_floor.dtype, ht.float64)
+            self.assertEqual(float64_floor.dtype, ht.float64)
+            self.assertTrue((float64_floor.larray == comparison).all())
 
         # check exceptions
         with self.assertRaises(TypeError):
@@ -187,18 +195,19 @@ class TestRounding(TestCase):
         self.assert_array_equal(float32_modf[1], comparison[1])
 
         # exponential of float64
-        npArray = np.arange(start, end, step, np.float64)
-        comparison = np.modf(npArray)
+        if not self.is_mps:
+            npArray = np.arange(start, end, step, np.float64)
+            comparison = np.modf(npArray)
 
-        float64_tensor = ht.array(npArray, dtype=ht.float64)
-        float64_modf = float64_tensor.modf()
-        self.assertIsInstance(float64_modf[0], ht.DNDarray)
-        self.assertIsInstance(float64_modf[1], ht.DNDarray)
-        self.assertEqual(float64_modf[0].dtype, ht.float64)
-        self.assertEqual(float64_modf[1].dtype, ht.float64)
+            float64_tensor = ht.array(npArray, dtype=ht.float64)
+            float64_modf = float64_tensor.modf()
+            self.assertIsInstance(float64_modf[0], ht.DNDarray)
+            self.assertIsInstance(float64_modf[1], ht.DNDarray)
+            self.assertEqual(float64_modf[0].dtype, ht.float64)
+            self.assertEqual(float64_modf[1].dtype, ht.float64)
 
-        self.assert_array_equal(float64_modf[0], comparison[0])
-        self.assert_array_equal(float64_modf[1], comparison[1])
+            self.assert_array_equal(float64_modf[0], comparison[0])
+            self.assert_array_equal(float64_modf[1], comparison[1])
 
         # check exceptions
         with self.assertRaises(TypeError):
@@ -207,8 +216,9 @@ class TestRounding(TestCase):
             ht.modf(object())
         with self.assertRaises(TypeError):
             ht.modf(float32_tensor, 1)
-        with self.assertRaises(ValueError):
-            ht.modf(float32_tensor, (float32_tensor, float32_tensor, float64_tensor))
+        if not self.is_mps:
+            with self.assertRaises(ValueError):
+                ht.modf(float32_tensor, (float32_tensor, float32_tensor, float64_tensor))
         with self.assertRaises(TypeError):
             ht.modf(float32_tensor, (float32_tensor, 2))
 
@@ -229,23 +239,24 @@ class TestRounding(TestCase):
         self.assert_array_equal(float32_modf_distrbd[1], comparison[1])
 
         # exponential of float64
-        npArray = npArray = np.arange(start, end, step, np.float64)
-        comparison = np.modf(npArray)
+        if not self.is_mps:
+            npArray = npArray = np.arange(start, end, step, np.float64)
+            comparison = np.modf(npArray)
 
-        float64_tensor_distrbd = ht.array(npArray, split=0)
-        float64_modf_distrbd = (
-            ht.zeros_like(float64_tensor_distrbd, dtype=float64_tensor_distrbd.dtype),
-            ht.zeros_like(float64_tensor_distrbd, dtype=float64_tensor_distrbd.dtype),
-        )
-        # float64_modf_distrbd = float64_tensor_distrbd.modf()
-        float64_tensor_distrbd.modf(out=float64_modf_distrbd)
-        self.assertIsInstance(float64_modf_distrbd[0], ht.DNDarray)
-        self.assertIsInstance(float64_modf_distrbd[1], ht.DNDarray)
-        self.assertEqual(float64_modf_distrbd[0].dtype, ht.float64)
-        self.assertEqual(float64_modf_distrbd[1].dtype, ht.float64)
+            float64_tensor_distrbd = ht.array(npArray, split=0)
+            float64_modf_distrbd = (
+                ht.zeros_like(float64_tensor_distrbd, dtype=float64_tensor_distrbd.dtype),
+                ht.zeros_like(float64_tensor_distrbd, dtype=float64_tensor_distrbd.dtype),
+            )
+            # float64_modf_distrbd = float64_tensor_distrbd.modf()
+            float64_tensor_distrbd.modf(out=float64_modf_distrbd)
+            self.assertIsInstance(float64_modf_distrbd[0], ht.DNDarray)
+            self.assertIsInstance(float64_modf_distrbd[1], ht.DNDarray)
+            self.assertEqual(float64_modf_distrbd[0].dtype, ht.float64)
+            self.assertEqual(float64_modf_distrbd[1].dtype, ht.float64)
 
-        self.assert_array_equal(float64_modf_distrbd[0], comparison[0])
-        self.assert_array_equal(float64_modf_distrbd[1], comparison[1])
+            self.assert_array_equal(float64_modf_distrbd[0], comparison[0])
+            self.assert_array_equal(float64_modf_distrbd[1], comparison[1])
 
     def test_round(self):
         size = ht.communication.MPI_WORLD.size
@@ -321,7 +332,9 @@ class TestRounding(TestCase):
         self.assertEqual(signed.dtype, ht.heat_type_of(comparison))
         self.assertEqual(signed.shape, a.shape)
         self.assertEqual(signed.device, a.device)
-        self.assertTrue(ht.equal(signed, ht.array(comparison, split=0)))
+        # complex types only supported on MPS starting from MacOS 14.0+
+        if not self.is_mps or platform.mac_ver()[0] >= "14.0":
+            self.assertTrue(ht.equal(signed, ht.array(comparison, split=0)))
 
     def test_sign(self):
         # floats 1d
@@ -335,50 +348,52 @@ class TestRounding(TestCase):
         self.assertEqual(signed.split, a.split)
         self.assertTrue(ht.equal(signed, comparison))
 
-        # complex + 2d + split
-        a = ht.array([[1 - 2j, -0.5 + 1j], [0, 4 + 6j]], split=0)
-        signed = ht.sign(a)
-        comparison = ht.array([[1 + 0j, -1 + 0j], [0 + 0j, 1 + 0j]], split=0)
+        # complex on MPS only from MacOS 14.0+
+        if not self.is_mps or platform.mac_ver()[0] >= "14.0":
+            # complex + 2d + split
+            a = ht.array([[1 - 2j, -0.5 + 1j], [0, 4 + 6j]], split=0)
+            signed = ht.sign(a)
+            comparison = ht.array([[1 + 0j, -1 + 0j], [0 + 0j, 1 + 0j]], split=0)
 
-        self.assertEqual(signed.dtype, comparison.dtype)
-        self.assertEqual(signed.shape, comparison.shape)
-        self.assertEqual(signed.device, a.device)
-        self.assertEqual(signed.split, a.split)
-        self.assertTrue(ht.allclose(signed.real, comparison.real))
-        self.assertTrue(ht.allclose(signed.imag, comparison.imag, atol=2e-5))
+            self.assertEqual(signed.dtype, comparison.dtype)
+            self.assertEqual(signed.shape, comparison.shape)
+            self.assertEqual(signed.device, a.device)
+            self.assertEqual(signed.split, a.split)
+            self.assertTrue(ht.allclose(signed.real, comparison.real))
+            self.assertTrue(ht.allclose(signed.imag, comparison.imag, atol=2e-5))
 
-        # complex + split + out
-        a = ht.array([[1 - 2j, -0.5 + 1j], [0, 4 + 6j]], split=1)
-        b = ht.empty_like(a)
-        signed = ht.sign(a, b)
-        comparison = ht.array([[1 + 0j, -1 + 0j], [0 + 0j, 1 + 0j]], split=1)
+            # complex + split + out
+            a = ht.array([[1 - 2j, -0.5 + 1j], [0, 4 + 6j]], split=1)
+            b = ht.empty_like(a)
+            signed = ht.sign(a, b)
+            comparison = ht.array([[1 + 0j, -1 + 0j], [0 + 0j, 1 + 0j]], split=1)
 
-        self.assertIs(b, signed)
-        self.assertEqual(signed.dtype, comparison.dtype)
-        self.assertEqual(signed.shape, comparison.shape)
-        self.assertEqual(signed.device, a.device)
-        self.assertEqual(signed.split, a.split)
-        self.assertTrue(ht.allclose(signed.real, comparison.real))
-        self.assertTrue(ht.allclose(signed.imag, comparison.imag, atol=2e-5))
+            self.assertIs(b, signed)
+            self.assertEqual(signed.dtype, comparison.dtype)
+            self.assertEqual(signed.shape, comparison.shape)
+            self.assertEqual(signed.device, a.device)
+            self.assertEqual(signed.split, a.split)
+            self.assertTrue(ht.allclose(signed.real, comparison.real))
+            self.assertTrue(ht.allclose(signed.imag, comparison.imag, atol=2e-5))
 
-        # zeros + 3d + complex + split
-        a = ht.zeros((4, 4, 4), dtype=ht.complex128, split=2)
-        signed = ht.sign(a)
-        comparison = ht.zeros((4, 4, 4), dtype=ht.complex128, split=2)
+            # zeros + 3d + complex + split
+            a = ht.zeros((4, 4, 4), dtype=ht.complex128, split=2)
+            signed = ht.sign(a)
+            comparison = ht.zeros((4, 4, 4), dtype=ht.complex128, split=2)
 
-        self.assertEqual(signed.dtype, comparison.dtype)
-        self.assertEqual(signed.shape, comparison.shape)
-        self.assertEqual(signed.device, a.device)
-        self.assertEqual(signed.split, a.split)
-        self.assertTrue(ht.allclose(signed.real, comparison.real))
-        self.assertTrue(ht.allclose(signed.imag, comparison.imag, atol=2e-5))
+            self.assertEqual(signed.dtype, comparison.dtype)
+            self.assertEqual(signed.shape, comparison.shape)
+            self.assertEqual(signed.device, a.device)
+            self.assertEqual(signed.split, a.split)
+            self.assertTrue(ht.allclose(signed.real, comparison.real))
+            self.assertTrue(ht.allclose(signed.imag, comparison.imag, atol=2e-5))
 
     def test_trunc(self):
         base_array = np.random.randn(20)
+        if self.is_mps:
+            base_array = base_array.astype(np.float32)
 
-        comparison = torch.tensor(
-            base_array, dtype=torch.float64, device=self.device.torch_device
-        ).trunc()
+        comparison = torch.tensor(base_array, device=self.device.torch_device).trunc()
 
         # trunc of float32
         float32_tensor = ht.array(base_array, dtype=ht.float32)
@@ -388,11 +403,12 @@ class TestRounding(TestCase):
         self.assertTrue((float32_floor.larray == comparison.float()).all())
 
         # trunc of float64
-        float64_tensor = ht.array(base_array, dtype=ht.float64)
-        float64_floor = float64_tensor.trunc()
-        self.assertIsInstance(float64_floor, ht.DNDarray)
-        self.assertEqual(float64_floor.dtype, ht.float64)
-        self.assertTrue((float64_floor.larray == comparison).all())
+        if not self.is_mps:
+            float64_tensor = ht.array(base_array, dtype=ht.float64)
+            float64_floor = float64_tensor.trunc()
+            self.assertIsInstance(float64_floor, ht.DNDarray)
+            self.assertEqual(float64_floor.dtype, ht.float64)
+            self.assertTrue((float64_floor.larray == comparison).all())
 
         # check exceptions
         with self.assertRaises(TypeError):
