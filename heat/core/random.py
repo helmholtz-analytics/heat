@@ -359,6 +359,9 @@ def permutation(x: Union[int, DNDarray], **kwargs) -> DNDarray:
         If ``x`` is an integer, call :func:`heat.random.randperm <heat.core.random.randperm>`. If ``x`` is an array,
         make a copy and shuffle the elements randomly.
 
+    device : str, optional
+        If ``x`` is an integer, define the device where the random permutation is generated. Can be 'cpu', 'gpu', 'mps' or None. Default is None (= cpu).
+
     See Also
     -----------
     :func:`heat.random.randperm <heat.core.random.randperm>` for randomly permuted ranges.
@@ -798,7 +801,7 @@ def randperm(
     device = devices.sanitize_device(device)
     comm = communication.sanitize_comm(comm)
     perm = torch.randperm(n, dtype=dtype.torch_type(), device=device.torch_device)
-    if __rng != "Threefry":
+    if comm.Get_size() > 1 and __rng != "Threefry":
         comm.Bcast(perm, root=0)
 
     return factories.array(perm, dtype=dtype, device=device, split=split, comm=comm)
