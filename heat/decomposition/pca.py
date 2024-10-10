@@ -37,7 +37,7 @@ class PCA(ht.TransformMixin, ht.BaseEstimator):
     svd_solver : {'full', 'hierarchical'}, default='hierarchical'
         'full' : Full SVD is performed. In general, this is more accurate, but also slower. So far, this is only supported for tall-skinny or short-fat data.
         'hierarchical' : Hierarchical SVD, i.e., an algorithm for computing an approximate, truncated SVD, is performed. Only available for data split along axis no. 0.
-        'radomized' : Randomized SVD is performed.
+        'randomized' : Randomized SVD is performed.
     tol : float, default=None
         Not yet necessary as iterative methods for PCA are not yet implemented.
     iterated_power :  int, default=0
@@ -78,8 +78,8 @@ class PCA(ht.TransformMixin, ht.BaseEstimator):
 
     Notes
     ------------
-    Hieararchical SVD (`svd_solver = "hierarchical"`) computes an approximate, truncated SVD. Thus, the results are not exact, in general, unless the
-    truncation rank chose is larger than the actual rank (matrix rank) of the underlying data; see :func:`ht.linalg.hsvd_rank` and :func:`ht.linalg.hsvd_rtol` for details.
+    Hierarchical SVD (`svd_solver = "hierarchical"`) computes an approximate, truncated SVD. Thus, the results are not exact, in general, unless the
+    truncation rank chosen is larger than the actual rank (matrix rank) of the underlying data; see :func:`ht.linalg.hsvd_rank` and :func:`ht.linalg.hsvd_rtol` for details.
     Randomized SVD (`svd_solver = "randomized"`) is a stochastic algorithm that computes an approximate, truncated SVD.
     """
 
@@ -121,7 +121,7 @@ class PCA(ht.TransformMixin, ht.BaseEstimator):
                 "Argument tol is not yet necessary as iterative methods for PCA are not yet implemented. Please set tol=None."
             )
         if random_state is not None and not isinstance(random_state, int):
-            raise ValueError("random_state must be None or an integer.")
+            raise ValueError(f"random_state must be None or an integer, was {type(random_state)}.")
         if (
             n_components is not None
             and not (isinstance(n_components, int) and n_components >= 1)

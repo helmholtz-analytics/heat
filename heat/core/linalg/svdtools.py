@@ -37,6 +37,19 @@ def _check_is_nd_of_dtype(input, inputname, allowed_ns, allowed_dtypes):
         )
 
 
+def _check_SVD_input(A):
+    if not isinstance(A, DNDarray):
+        raise TypeError(f"Argument needs to be a DNDarray but is {type(A)}.")
+    if not A.ndim == 2:
+        raise ValueError("A needs to be a 2D matrix")
+    if not types.heat_type_is_realfloating(A.dtype):
+        raise TypeError(
+            "Argument needs to be a DNDarray with datatype float32 or float64, but data type is {}.".format(
+                A.dtype
+            )
+        )
+
+
 #######################################################################################
 # hierachical SVD "hSVD"
 #######################################################################################
@@ -539,14 +552,14 @@ def rsvd(
     A : DNDarray
         2D-array (float32/64) of which the rSVD has to be computed.
     rank : int
-        truncation rank. (This parameter corresponds to `n_components` in sci-kit learn's TruncatedSVD.)
+        truncation rank. (This parameter corresponds to `n_components` in scikit-learn's TruncatedSVD.)
     n_oversamples : int, optional
         number of oversamples. The default is 10.
     power_iter : int, optional
         number of power iterations. The default is 0.
         Choosing `power_iter > 0` can improve the accuracy of the SVD approximation in the case of slowly decaying singular values, but increases the computational cost.
     qr_procs_to_merge : int, optional
-        number of processes to merge at each step of QR decomposition in the power iteration (if power_iter > 0). The default is 2. See the corresponding remarks for `heat.linalg.qr` for more details.
+        number of processes to merge at each step of QR decomposition in the power iteration (if power_iter > 0). The default is 2. See the corresponding remarks for :func:`heat.linalg.qr() <heat.core.linalg.qr.qr()>` for more details.
 
     Notes
     ------
