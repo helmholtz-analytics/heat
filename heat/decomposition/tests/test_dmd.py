@@ -73,9 +73,10 @@ class TestDMD(TestCase):
         X = ht.random.randn(1000, 10 * ht.MPI_WORLD.size, split=0, dtype=ht.float32)
         dmd = ht.decomposition.DMD(svd_solver="randomized", svd_rank=4)
         dmd.fit(X)
-        Y = ht.random.rand(1000, 4, split=0, dtype=ht.float32)
-        Z = dmd.predict_next(Y)
+        Y = ht.random.rand(1000, 2 * ht.MPI_WORLD.size, split=1, dtype=ht.float32)
+        Z = dmd.predict_next(Y, 2)
         self.assertTrue(Z.dtype == ht.float32)
+        self.assertEqual(Z.shape, Y.shape)
 
         # wrong shape of input for prediction
         with self.assertRaises(ValueError):
@@ -119,6 +120,7 @@ class TestDMD(TestCase):
         Y = ht.random.randn(1000, 2, split=0, dtype=ht.float64)
         Z = dmd.predict_next(Y)
         self.assertTrue(Z.dtype == Y.dtype)
+        self.assertEqual(Z.shape, Y.shape)
 
     def test_dmd_correctness(self):
         # test correctness on behalf of a constructed example with known solution

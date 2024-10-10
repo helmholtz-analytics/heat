@@ -247,7 +247,7 @@ class DMD(ht.RegressionMixin, ht.BaseEstimator):
             raise ValueError(
                 f"Invalid number of features '{X.shape[0]}' in input data 'X'. Must have the same number of features as the training data."
             )
-        rom_mat = self.rom_transfer_matrix_
+        rom_mat = self.rom_transfer_matrix_.copy()
         rom_mat.larray = torch.linalg.matrix_power(rom_mat.larray, n_steps)
         # the following line looks that complicated because we have to make sure that splits of the resulting matrices in
         # each of the products are split along the axis that deserves being splitted
@@ -279,7 +279,7 @@ class DMD(ht.RegressionMixin, ht.BaseEstimator):
         ht.sanitize_in(X)
         # if X is a 1-D DNDarray, we add an artificial batch dimension
         if X.ndim == 1:
-            X = X.expand_dims(0)
+            X = X.expand_dims(1)
         # check if the input data has the right number of features
         if X.shape[0] != self.rom_basis_.shape[0]:
             raise ValueError(
@@ -295,6 +295,7 @@ class DMD(ht.RegressionMixin, ht.BaseEstimator):
             )
         steps = steps.reshape(-1, 1).repeat(1, self.rom_eigenvalues_.shape[0])
         X_rom = self.rom_basis_.T @ X
+        print("X_rom:", X_rom.shape, X_rom.split)
 
         transfer_mat = _torch_matrix_diag(self.rom_eigenvalues_.larray**steps)
         transfer_mat = torch.linalg.solve(
@@ -303,19 +304,22 @@ class DMD(ht.RegressionMixin, ht.BaseEstimator):
         transfer_mat = torch.real(
             transfer_mat
         )  # necessary to avoid imaginary parts due to numerical errors
+        print("transfermat:", transfer_mat.shape)
 
-        if X_rom.split is None or X_rom.split == 1:
+        if self.rom_basis_.split is None:
             result = (
                 transfer_mat @ X_rom.larray
             )  # here we assume that X_rom is not split or split along the second axis (axis 1)
             del transfer_mat
-            result = torch.permute(result, (2, 0, 1))
+            print("result:", result.shape)
 
+            print("rom_basis:", self.rom_basis_.shape)
             result = (
-                result @ self.rom_basis_.larray.T
+                self.rom_basis_.larray @ result
             )  # here we assume that self.rom_basis_ is not split (i.e., the feature number is small)
-            result = ht.array(result, is_split=2)
-            return result
+            print("result3:", result.shape)
+            result = ht.array(result, is_split=None)
+            return result.squeeze().T
         else:
             raise NotImplementedError(
                 "Predicting multiple time steps in one go is not supported for the given data layout. Please, use 'predict_next' instead, or open an issue on GitHub if you require this feature."
