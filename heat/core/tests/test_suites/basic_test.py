@@ -201,7 +201,7 @@ class TestCase(unittest.TestCase):
 
         Raises
         ------
-        AssertionError if the functions to not perform equally.
+        AssertionError if the functions do not perform equally.
 
         Examples
         --------
@@ -219,6 +219,10 @@ class TestCase(unittest.TestCase):
         """
         if not isinstance(shape, tuple) and not isinstance(shape, list):
             raise ValueError(f"The shape must be either a list or a tuple but was {type(shape)}")
+
+        if self.is_mps and np.float64 in data_types:
+            # MPS does not support float64
+            data_types = [dtype for dtype in data_types if dtype != np.float64]
 
         for dtype in data_types:
             tensor = self.__create_random_np_array(shape, dtype=dtype, low=low, high=high)
