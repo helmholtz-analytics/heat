@@ -85,7 +85,7 @@ class PCA(ht.TransformMixin, ht.BaseEstimator):
         whiten: bool = False,
         svd_solver: str = "hierarchical",
         tol: Optional[float] = None,
-        iterated_power: Union[str, int] = "auto",
+        iterated_power: Union[str, int] = 0,
         n_oversamples: int = 10,
         power_iteration_normalizer: str = "qr",
         random_state: Optional[int] = None,
@@ -99,10 +99,12 @@ class PCA(ht.TransformMixin, ht.BaseEstimator):
             raise NotImplementedError("Whitening is not yet supported. Please set whiten=False.")
         if not (svd_solver == "full" or svd_solver == "hierarchical" or svd_solver == "randomized"):
             raise ValueError(
-                "At the moment, only svd_solver='full' (for tall-skinny or short-fat data) and svd_solver='hierarchical' are supported. \n An implementation of the 'full' option for arbitrarily shaped data as well as the option 'randomized' are already planned."
+                "At the moment, only svd_solver='full' (for tall-skinny or short-fat data), svd_solver='hierarchical', and svd_solver='randomized' are supported. \n An implementation of the 'full' option for arbitrarily shaped data is already planned."
             )
-        if iterated_power != "auto" and not isinstance(iterated_power, int):
-            raise TypeError("iterated_power must be 'auto' or an integer.")
+        if not isinstance(iterated_power, int):
+            raise TypeError(
+                "iterated_power must be an integer. The option 'auto' is not yet supported."
+            )
         if isinstance(iterated_power, int) and iterated_power < 0:
             raise ValueError("if an integer, iterated_power must be greater or equal to 0.")
         if power_iteration_normalizer != "qr":
@@ -113,9 +115,7 @@ class PCA(ht.TransformMixin, ht.BaseEstimator):
             raise ValueError(
                 "Argument tol is not yet necessary as iterative methods for PCA are not yet implemented. Please set tol=None."
             )
-        if random_state is None:
-            random_state = 0
-        if not isinstance(random_state, int):
+        if random_state is not None and not isinstance(random_state, int):
             raise ValueError("random_state must be None or an integer.")
         if (
             n_components is not None
@@ -135,6 +135,9 @@ class PCA(ht.TransformMixin, ht.BaseEstimator):
         self.n_oversamples = n_oversamples
         self.power_iteration_normalizer = power_iteration_normalizer
         self.random_state = random_state
+        if self.random_state is not None:
+            # set random seed accordingly
+            ht.random.seed(self.random_state)
 
         # set future attributes to None to initialize those that will not be computed later on with None (e.g., explained_variance_ for svd_solver='hierarchical')
         self.components_ = None
@@ -220,10 +223,15 @@ class PCA(ht.TransformMixin, ht.BaseEstimator):
             self.total_explained_variance_ratio_ = 1 - info.larray.item() ** 2
 
         else:
-            # here one could add other computational backends
-            raise NotImplementedError(
-                f"The chosen svd_solver {self.svd_solver} is not yet implemented."
+            # compute SVD via "randomized" SVD
+            _, S, V = ht.linalg.rsvd(
+                X_centered,
+                self.n_components_,
+                n_oversamples=self.n_oversamples,
+                power_iter=self.iterated_power,
             )
+            self.components_ = V.T
+            self.n_components_ = V.shape[1]
 
         self.n_samples_ = X.shape[0]
         self.noise_variance_ = None  # not yet implemented
