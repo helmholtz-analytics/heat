@@ -435,240 +435,240 @@ class TestRandom_Threefry(TestCase):
         with self.assertRaises(TypeError):
             ht.random.set_state(("Threefry", 12345))
 
+    def test_normal(self):
+        ht.random.set_state(("Threefry", 0, 0))
+        ht.random.seed()
+        shape = (3, 4, 6)
+        ht.random.seed(2)
+        gnormal = ht.random.normal(shape=shape, split=2)
+        ht.random.seed(2)
+        snormal = ht.random.randn(*shape, split=2)
 
-#     def test_normal(self):
-#         ht.random.set_state(("Threefry", 0, 0))
-#         ht.random.seed()
-#         shape = (3, 4, 6)
-#         ht.random.seed(2)
-#         gnormal = ht.random.normal(shape=shape, split=2)
-#         ht.random.seed(2)
-#         snormal = ht.random.randn(*shape, split=2)
+        self.assertEqual(gnormal.dtype, snormal.dtype)
+        self.assertEqual(gnormal.shape, snormal.shape)
+        self.assertEqual(gnormal.device, snormal.device)
+        self.assertTrue(ht.equal(gnormal, snormal))
 
-#         self.assertEqual(gnormal.dtype, snormal.dtype)
-#         self.assertEqual(gnormal.shape, snormal.shape)
-#         self.assertEqual(gnormal.device, snormal.device)
-#         self.assertTrue(ht.equal(gnormal, snormal))
+        shape = (2, 2)
+        mu = ht.array([[-1, -0.5], [0, 5]])
+        sigma = ht.array([[0, 0.5], [1, 2.5]])
 
-#         shape = (2, 2)
-#         mu = ht.array([[-1, -0.5], [0, 5]])
-#         sigma = ht.array([[0, 0.5], [1, 2.5]])
+        ht.random.seed(22)
+        gnormal = ht.random.normal(mu, sigma, shape)
+        ht.random.seed(22)
+        snormal = ht.random.randn(*shape)
 
-#         ht.random.seed(22)
-#         gnormal = ht.random.normal(mu, sigma, shape)
-#         ht.random.seed(22)
-#         snormal = ht.random.randn(*shape)
+        compare = mu + sigma * snormal
 
-#         compare = mu + sigma * snormal
+        self.assertEqual(gnormal.dtype, compare.dtype)
+        self.assertEqual(gnormal.shape, compare.shape)
+        self.assertEqual(gnormal.device, compare.device)
+        self.assertTrue(ht.equal(gnormal, compare))
 
-#         self.assertEqual(gnormal.dtype, compare.dtype)
-#         self.assertEqual(gnormal.shape, compare.shape)
-#         self.assertEqual(gnormal.device, compare.device)
-#         self.assertTrue(ht.equal(gnormal, compare))
+        with self.assertRaises(TypeError):
+            ht.random.normal([4, 5], 1, shape)
+        with self.assertRaises(TypeError):
+            ht.random.normal(0, "r", shape)
+        with self.assertRaises(ValueError):
+            ht.random.normal(0, -1, shape)
 
-#         with self.assertRaises(TypeError):
-#             ht.random.normal([4, 5], 1, shape)
-#         with self.assertRaises(TypeError):
-#             ht.random.normal(0, "r", shape)
-#         with self.assertRaises(ValueError):
-#             ht.random.normal(0, -1, shape)
+    def test_permutation(self):
+        # Reset RNG
+        ht.random.set_state(("Threefry", 0, 0))
+        ht.random.seed()
+        if self.device.torch_device == "cpu":
+            state = torch.random.get_rng_state()
+        else:
+            state = torch.cuda.get_rng_state(self.device.torch_device)
 
-#     def test_permutation(self):
-#         # Reset RNG
-#         ht.random.set_state(("Threefry", 0, 0))
-#         ht.random.seed()
-#         if self.device.torch_device == "cpu":
-#             state = torch.random.get_rng_state()
-#         else:
-#             state = torch.cuda.get_rng_state(self.device.torch_device)
+        # results
+        a = ht.random.permutation(10)
 
-#         # results
-#         a = ht.random.permutation(10)
+        b_arr = ht.arange(10, dtype=ht.float32)
+        b = ht.random.permutation(ht.resplit(b_arr, 0))
 
-#         b_arr = ht.arange(10, dtype=ht.float32)
-#         b = ht.random.permutation(ht.resplit(b_arr, 0))
+        c_arr = ht.arange(16).reshape((4, 4))
+        c = ht.random.permutation(c_arr)
 
-#         c_arr = ht.arange(16).reshape((4, 4))
-#         c = ht.random.permutation(c_arr)
+        c0 = ht.random.permutation(ht.resplit(c_arr, 0))
+        c1 = ht.random.permutation(ht.resplit(c_arr, 1))
 
-#         c0 = ht.random.permutation(ht.resplit(c_arr, 0))
-#         c1 = ht.random.permutation(ht.resplit(c_arr, 1))
+        if self.device.torch_device == "cpu":
+            torch.random.set_rng_state(state)
+        else:
+            torch.cuda.set_rng_state(state, self.device.torch_device)
 
-#         if self.device.torch_device == "cpu":
-#             torch.random.set_rng_state(state)
-#         else:
-#             torch.cuda.set_rng_state(state, self.device.torch_device)
+        # torch results to compare to
+        a_cmp = torch.randperm(a.shape[0], device=self.device.torch_device)
+        b_cmp = b_arr.larray[torch.randperm(b.shape[0], device=self.device.torch_device)]
+        c_cmp = c_arr.larray[torch.randperm(c.shape[0], device=self.device.torch_device)]
+        c0_cmp = c_arr.larray[torch.randperm(c.shape[0], device=self.device.torch_device)]
+        c1_cmp = c_arr.larray[torch.randperm(c.shape[0], device=self.device.torch_device)]
 
-#         # torch results to compare to
-#         a_cmp = torch.randperm(a.shape[0], device=self.device.torch_device)
-#         b_cmp = b_arr.larray[torch.randperm(b.shape[0], device=self.device.torch_device)]
-#         c_cmp = c_arr.larray[torch.randperm(c.shape[0], device=self.device.torch_device)]
-#         c0_cmp = c_arr.larray[torch.randperm(c.shape[0], device=self.device.torch_device)]
-#         c1_cmp = c_arr.larray[torch.randperm(c.shape[0], device=self.device.torch_device)]
+        # compare
+        self.assertEqual(a.dtype, ht.int64)
+        self.assertTrue((a.larray == a_cmp).all())
+        self.assertEqual(b.dtype, ht.float32)
+        self.assertTrue((ht.resplit(b).larray == b_cmp).all())
+        self.assertTrue((c.larray == c_cmp).all())
+        self.assertTrue((ht.resplit(c0).larray == c0_cmp).all())
+        self.assertTrue((ht.resplit(c1).larray == c1_cmp).all())
 
-#         # compare
-#         self.assertEqual(a.dtype, ht.int64)
-#         self.assertTrue((a.larray == a_cmp).all())
-#         self.assertEqual(b.dtype, ht.float32)
-#         self.assertTrue((ht.resplit(b).larray == b_cmp).all())
-#         self.assertTrue((c.larray == c_cmp).all())
-#         self.assertTrue((ht.resplit(c0).larray == c0_cmp).all())
-#         self.assertTrue((ht.resplit(c1).larray == c1_cmp).all())
+        with self.assertRaises(TypeError):
+            ht.random.permutation("abc")
 
-#         with self.assertRaises(TypeError):
-#             ht.random.permutation("abc")
+    def test_rand(self):
+        ht.random.set_state(("Threefry", 0, 0))
+        ht.random.seed()
+        # int64 tests
 
-#     def test_rand(self):
-#         ht.random.set_state(("Threefry", 0, 0))
-#         ht.random.seed()
-#         # int64 tests
+        # Resetting seed works
+        seed = 12345
+        ht.random.seed(seed)
+        a = ht.random.rand(2, 5, 7, 3, split=0)
+        self.assertEqual(a.dtype, ht.float32)
+        self.assertEqual(a.larray.dtype, torch.float32)
+        b = ht.random.rand(2, 5, 7, 3, split=0)
+        self.assertFalse(ht.equal(a, b))
+        ht.random.seed(seed)
+        c = ht.random.rand(2, 5, 7, 3, dtype=ht.float32, split=0)
+        self.assertTrue(ht.equal(a, c))
 
-#         # Resetting seed works
-#         seed = 12345
-#         ht.random.seed(seed)
-#         a = ht.random.rand(2, 5, 7, 3, split=0)
-#         self.assertEqual(a.dtype, ht.float32)
-#         self.assertEqual(a.larray.dtype, torch.float32)
-#         b = ht.random.rand(2, 5, 7, 3, split=0)
-#         self.assertFalse(ht.equal(a, b))
-#         ht.random.seed(seed)
-#         c = ht.random.rand(2, 5, 7, 3, dtype=ht.float32, split=0)
-#         self.assertTrue(ht.equal(a, c))
+        # Random numbers with overflow
+        ht.random.set_state(("Threefry", seed, 0xFFFFFFFFFFFFFFF0))
+        a = ht.random.rand(2, 3, 4, 5, split=0)
+        ht.random.set_state(("Threefry", seed, 0x10000000000000000))
+        b = ht.random.rand(2, 44, split=0)
+        a = a.numpy().flatten()
+        b = b.numpy().flatten()
+        self.assertEqual(a.dtype, np.float32)
+        self.assertTrue(np.array_equal(a[32:], b))
 
-#         # Random numbers with overflow
-#         ht.random.set_state(("Threefry", seed, 0xFFFFFFFFFFFFFFF0))
-#         a = ht.random.rand(2, 3, 4, 5, split=0)
-#         ht.random.set_state(("Threefry", seed, 0x10000000000000000))
-#         b = ht.random.rand(2, 44, split=0)
-#         a = a.numpy().flatten()
-#         b = b.numpy().flatten()
-#         self.assertEqual(a.dtype, np.float32)
-#         self.assertTrue(np.array_equal(a[32:], b))
+        # Check that random numbers don't repeat after first overflow
+        seed = 12345
+        ht.random.set_state(("Threefry", seed, 0x100000000))
+        a = ht.random.rand(2, 44)
+        ht.random.seed(seed)
+        b = ht.random.rand(2, 44)
+        self.assertFalse(ht.equal(a, b))
 
-#         # Check that random numbers don't repeat after first overflow
-#         seed = 12345
-#         ht.random.set_state(("Threefry", seed, 0x100000000))
-#         a = ht.random.rand(2, 44)
-#         ht.random.seed(seed)
-#         b = ht.random.rand(2, 44)
-#         self.assertFalse(ht.equal(a, b))
+        # Check that we start from beginning after 128 bit overflow
+        ht.random.seed(seed)
+        a = ht.random.rand(2, 34, split=0)
+        ht.random.set_state(("Threefry", seed, 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0))
+        b = ht.random.rand(2, 50, split=0)
+        a = a.numpy().flatten()
+        b = b.numpy().flatten()
+        self.assertTrue(np.array_equal(a, b[32:]))
 
-#         # Check that we start from beginning after 128 bit overflow
-#         ht.random.seed(seed)
-#         a = ht.random.rand(2, 34, split=0)
-#         ht.random.set_state(("Threefry", seed, 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0))
-#         b = ht.random.rand(2, 50, split=0)
-#         a = a.numpy().flatten()
-#         b = b.numpy().flatten()
-#         self.assertTrue(np.array_equal(a, b[32:]))
+        # different split axis with resetting seed
+        ht.random.seed(seed)
+        a = ht.random.rand(3, 5, 2, 9, split=3)
+        ht.random.seed(seed)
+        c = ht.random.rand(3, 5, 2, 9, split=3)
+        self.assertTrue(ht.equal(a, c))
 
-#         # different split axis with resetting seed
-#         ht.random.seed(seed)
-#         a = ht.random.rand(3, 5, 2, 9, split=3)
-#         ht.random.seed(seed)
-#         c = ht.random.rand(3, 5, 2, 9, split=3)
-#         self.assertTrue(ht.equal(a, c))
+        # Random values are in correct order
+        ht.random.seed(seed)
+        a = ht.random.rand(2, 50, split=0)
+        ht.random.seed(seed)
+        b = ht.random.rand(100, split=None)
+        a = a.numpy().flatten()
+        b = b.larray.cpu().numpy()
+        self.assertTrue(np.array_equal(a, b))
 
-#         # Random values are in correct order
-#         ht.random.seed(seed)
-#         a = ht.random.rand(2, 50, split=0)
-#         ht.random.seed(seed)
-#         b = ht.random.rand(100, split=None)
-#         a = a.numpy().flatten()
-#         b = b.larray.cpu().numpy()
-#         self.assertTrue(np.array_equal(a, b))
+        # On different shape and split the same random values are used
+        ht.random.seed(seed)
+        a = ht.random.rand(3, 5, 2, 9, split=3)
+        ht.random.seed(seed)
+        b = ht.random.rand(30, 9, split=1)
+        a = np.sort(a.numpy().flatten())
+        b = np.sort(b.numpy().flatten())
+        self.assertTrue(np.array_equal(a, b))
 
-#         # On different shape and split the same random values are used
-#         ht.random.seed(seed)
-#         a = ht.random.rand(3, 5, 2, 9, split=3)
-#         ht.random.seed(seed)
-#         b = ht.random.rand(30, 9, split=1)
-#         a = np.sort(a.numpy().flatten())
-#         b = np.sort(b.numpy().flatten())
-#         self.assertTrue(np.array_equal(a, b))
+        # One large array does not have two similar values
+        a = ht.random.rand(11, 15, 3, 7, split=2)
+        a = a.numpy()
+        _, counts = np.unique(a, return_counts=True)
+        # Assert that no value appears more than once
+        self.assertTrue((counts == 1).all())
 
-#         # One large array does not have two similar values
-#         a = ht.random.rand(11, 15, 3, 7, split=2)
-#         a = a.numpy()
-#         _, counts = np.unique(a, return_counts=True)
-#         # Assert that no value appears more than once
-#         self.assertTrue((counts == 1).all())
+        # Two large arrays that were created after each other don't share any values
+        b = ht.random.rand(14, 7, 3, 12, 18, 42, split=5, comm=ht.MPI_WORLD, dtype=ht.float64)
+        c = np.concatenate((a.flatten(), b.numpy().flatten()))
+        _, counts = np.unique(c, return_counts=True)
+        self.assertTrue((counts == 1).all())
 
-#         # Two large arrays that were created after each other don't share any values
-#         b = ht.random.rand(14, 7, 3, 12, 18, 42, split=5, comm=ht.MPI_WORLD, dtype=ht.float64)
-#         c = np.concatenate((a.flatten(), b.numpy().flatten()))
-#         _, counts = np.unique(c, return_counts=True)
-#         self.assertTrue((counts == 1).all())
+        # Values should be spread evenly across the range [0, 1)
+        mean = np.mean(c)
+        median = np.median(c)
+        std = np.std(c)
+        self.assertTrue(0.49 < mean < 0.51)
+        self.assertTrue(0.49 < median < 0.51)
+        self.assertTrue(std < 0.3)
+        self.assertTrue(((0 <= c) & (c < 1)).all())
 
-#         # Values should be spread evenly across the range [0, 1)
-#         mean = np.mean(c)
-#         median = np.median(c)
-#         std = np.std(c)
-#         self.assertTrue(0.49 < mean < 0.51)
-#         self.assertTrue(0.49 < median < 0.51)
-#         self.assertTrue(std < 0.3)
-#         self.assertTrue(((0 <= c) & (c < 1)).all())
+        # No arguments work correctly
+        ht.random.seed(seed)
+        a = ht.random.rand()
+        ht.random.seed(seed)
+        b = ht.random.rand(1)
+        self.assertTrue(ht.equal(a, b))
 
-#         # No arguments work correctly
-#         ht.random.seed(seed)
-#         a = ht.random.rand()
-#         ht.random.seed(seed)
-#         b = ht.random.rand(1)
-#         self.assertTrue(ht.equal(a, b))
+        # Too big arrays cant be created
+        with self.assertRaises(ValueError):
+            ht.random.randn(0x7FFFFFFFFFFFFFFF)
+        with self.assertRaises(ValueError):
+            ht.random.rand(3, 2, -2, 5, split=1)
+        with self.assertRaises(ValueError):
+            ht.random.randn(12, 43, dtype=ht.int32, split=0)
 
-#         # Too big arrays cant be created
-#         with self.assertRaises(ValueError):
-#             ht.random.randn(0x7FFFFFFFFFFFFFFF)
-#         with self.assertRaises(ValueError):
-#             ht.random.rand(3, 2, -2, 5, split=1)
-#         with self.assertRaises(ValueError):
-#             ht.random.randn(12, 43, dtype=ht.int32, split=0)
+        # 32 Bit tests
+        ht.random.seed(9876)
+        shape = (13, 43, 13, 23)
+        a = ht.random.rand(*shape, dtype=ht.float32, split=0)
+        self.assertEqual(a.dtype, ht.float32)
+        self.assertEqual(a.larray.dtype, torch.float32)
 
-#         # 32 Bit tests
-#         ht.random.seed(9876)
-#         shape = (13, 43, 13, 23)
-#         a = ht.random.rand(*shape, dtype=ht.float32, split=0)
-#         self.assertEqual(a.dtype, ht.float32)
-#         self.assertEqual(a.larray.dtype, torch.float32)
+        ht.random.seed(9876)
+        b = ht.random.rand(np.prod(shape), dtype=ht.float32)
+        a = a.numpy().flatten()
+        b = b.larray.cpu().numpy()
+        self.assertTrue(np.array_equal(a, b))
+        self.assertEqual(a.dtype, np.float32)
 
-#         ht.random.seed(9876)
-#         b = ht.random.rand(np.prod(shape), dtype=ht.float32)
-#         a = a.numpy().flatten()
-#         b = b.larray.cpu().numpy()
-#         self.assertTrue(np.array_equal(a, b))
-#         self.assertEqual(a.dtype, np.float32)
+        a = ht.random.rand(21, 16, 17, 21, dtype=ht.float32, split=2)
+        b = ht.random.rand(15, 11, 19, 31, dtype=ht.float32, split=0)
+        a = a.numpy().flatten()
+        b = b.numpy().flatten()
+        c = np.concatenate((a, b))
 
-#         a = ht.random.rand(21, 16, 17, 21, dtype=ht.float32, split=2)
-#         b = ht.random.rand(15, 11, 19, 31, dtype=ht.float32, split=0)
-#         a = a.numpy().flatten()
-#         b = b.numpy().flatten()
-#         c = np.concatenate((a, b))
+        # Values should be spread evenly across the range [0, 1)
+        mean = np.mean(c)
+        median = np.median(c)
+        std = np.std(c)
+        self.assertTrue(0.49 < mean < 0.51)
+        self.assertTrue(0.49 < median < 0.51)
+        self.assertTrue(std < 0.3)
+        self.assertTrue(((0 <= c) & (c < 1)).all())
 
-#         # Values should be spread evenly across the range [0, 1)
-#         mean = np.mean(c)
-#         median = np.median(c)
-#         std = np.std(c)
-#         self.assertTrue(0.49 < mean < 0.51)
-#         self.assertTrue(0.49 < median < 0.51)
-#         self.assertTrue(std < 0.3)
-#         self.assertTrue(((0 <= c) & (c < 1)).all())
+        ht.random.seed(11111)
+        a = ht.random.rand(12, 32, 44, split=1, dtype=ht.float32).numpy()
+        # Overflow reached
+        ht.random.set_state(("Threefry", 11111, 0x10000000000000000))
+        b = ht.random.rand(12, 32, 44, split=1, dtype=ht.float32).numpy()
+        self.assertTrue(np.array_equal(a, b))
 
-#         ht.random.seed(11111)
-#         a = ht.random.rand(12, 32, 44, split=1, dtype=ht.float32).numpy()
-#         # Overflow reached
-#         ht.random.set_state(("Threefry", 11111, 0x10000000000000000))
-#         b = ht.random.rand(12, 32, 44, split=1, dtype=ht.float32).numpy()
-#         self.assertTrue(np.array_equal(a, b))
+        ht.random.set_state(("Threefry", 11111, 0x100000000))
+        c = ht.random.rand(12, 32, 44, split=1, dtype=ht.float32).numpy()
+        self.assertFalse(np.array_equal(a, c))
+        self.assertFalse(np.array_equal(b, c))
 
-#         ht.random.set_state(("Threefry", 11111, 0x100000000))
-#         c = ht.random.rand(12, 32, 44, split=1, dtype=ht.float32).numpy()
-#         self.assertFalse(np.array_equal(a, c))
-#         self.assertFalse(np.array_equal(b, c))
+        # To check working with large number of elements
+        ht.random.randn(6667, 3523, dtype=ht.float64, split=None)
+        ht.random.randn(6667, 3523, dtype=ht.float64, split=0)
+        ht.random.randn(6667, 3523, dtype=ht.float64, split=1)
 
-#         # To check working with large number of elements
-#         ht.random.randn(6667, 3523, dtype=ht.float64, split=None)
-#         ht.random.randn(6667, 3523, dtype=ht.float64, split=0)
-#         ht.random.randn(6667, 3523, dtype=ht.float64, split=1)
 
 #     def test_randint(self):
 #         ht.random.set_state(("Threefry", 0, 0))
