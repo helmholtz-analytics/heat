@@ -422,18 +422,19 @@ Tests for Threefry RNG
 """
 
 
-# class TestRandom_Threefry(TestCase):
-#     def test_setting_threefry(self):
-#         ht.random.set_state(("Threefry", 12345, 0xFFF))
-#         self.assertEqual(ht.random.get_state(), ("Threefry", 12345, 0xFFF, 0, 0.0))
+class TestRandom_Threefry(TestCase):
+    def test_setting_threefry(self):
+        ht.random.set_state(("Threefry", 12345, 0xFFF))
+        self.assertEqual(ht.random.get_state(), ("Threefry", 12345, 0xFFF, 0, 0.0))
 
-#         ht.random.set_state(("Threefry", 55555, 0xFFFFFFFFFFFFFF, "for", "compatibility"))
-#         self.assertEqual(ht.random.get_state(), ("Threefry", 55555, 0xFFFFFFFFFFFFFF, 0, 0.0))
+        ht.random.set_state(("Threefry", 55555, 0xFFFFFFFFFFFFFF, "for", "compatibility"))
+        self.assertEqual(ht.random.get_state(), ("Threefry", 55555, 0xFFFFFFFFFFFFFF, 0, 0.0))
 
-#         with self.assertRaises(ValueError):
-#             ht.random.set_state(("Thrfry", 12, 0xF))
-#         with self.assertRaises(TypeError):
-#             ht.random.set_state(("Threefry", 12345))
+        with self.assertRaises(ValueError):
+            ht.random.set_state(("Thrfry", 12, 0xF))
+        with self.assertRaises(TypeError):
+            ht.random.set_state(("Threefry", 12345))
+
 
 #     def test_normal(self):
 #         ht.random.set_state(("Threefry", 0, 0))
