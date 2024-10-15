@@ -1,7 +1,7 @@
 filter-by-commitish: true
 include-pre-releases: true
 categories:
-  - title: '🔥 Features'
+  - title: '🔥🔥 Features'
     labels:
       - 'features'
   - title: '🚀 Enhancemets'

@@ -18,6 +18,5 @@ jobs:
       - uses: release-drafter/release-drafter@v6 # v6.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-
-          commitish: ${{ github.event.pull_request.base.ref }}
+        # with:
+          # commitish: ${{ github.event.pull_request.base.ref }}
