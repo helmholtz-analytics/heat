@@ -19,4 +19,5 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          commitish: "main"
+          commitish: ${{ github.event.pull_request.base.ref }}
+          config-name: rd-release-config.yml
