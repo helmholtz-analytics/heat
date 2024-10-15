@@ -3,6 +3,10 @@ name: Release Drafter
 on:
   pull_request:
     types: [opened, reopened, synchronize, closed]
+  push:
+    branches:
+      - main
+      - release/*
 jobs:
   update_release_draft:
     permissions:
