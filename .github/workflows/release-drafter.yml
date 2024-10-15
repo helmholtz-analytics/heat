@@ -2,7 +2,7 @@ name: Release Drafter
 
 on:
   pull_request:
-    types: [opened, reopened, synchronize, labeled, closed]
+    types: [opened, reopened, synchronize, closed]
 jobs:
   update_release_draft:
     permissions:
