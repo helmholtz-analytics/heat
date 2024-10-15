@@ -561,21 +561,21 @@ class TestRandom_Threefry(TestCase):
         b = b.numpy().flatten()
         self.assertTrue(np.array_equal(a, b[32:]))
 
-        # # different split axis with resetting seed
-        # ht.random.seed(seed)
-        # a = ht.random.rand(3, 5, 2, 9, split=3)
-        # ht.random.seed(seed)
-        # c = ht.random.rand(3, 5, 2, 9, split=3)
-        # self.assertTrue(ht.equal(a, c))
+        # different split axis with resetting seed
+        ht.random.seed(seed)
+        a = ht.random.rand(3, 5, 2, 9, split=3)
+        ht.random.seed(seed)
+        c = ht.random.rand(3, 5, 2, 9, split=3)
+        self.assertTrue(ht.equal(a, c))
 
-        # # Random values are in correct order
-        # ht.random.seed(seed)
-        # a = ht.random.rand(2, 50, split=0)
-        # ht.random.seed(seed)
-        # b = ht.random.rand(100, split=None)
-        # a = a.numpy().flatten()
-        # b = b.larray.cpu().numpy()
-        # self.assertTrue(np.array_equal(a, b))
+        # Random values are in correct order
+        ht.random.seed(seed)
+        a = ht.random.rand(2, 50, split=0)
+        ht.random.seed(seed)
+        b = ht.random.rand(100, split=None)
+        a = a.numpy().flatten()
+        b = b.larray.cpu().numpy()
+        self.assertTrue(np.array_equal(a, b))
 
         # # On different shape and split the same random values are used
         # ht.random.seed(seed)
