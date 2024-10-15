@@ -3,10 +3,6 @@ name: Release Drafter
 on:
   pull_request:
     types: [opened, reopened, synchronize, labeled, closed]
-
-permissions:
-  contents: read
-
 jobs:
   update_release_draft:
     permissions:
@@ -23,4 +19,5 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          commitish: ${{ github.ref }}
+
+          commitish: ${{ github.event.pull_request.base.ref }}
