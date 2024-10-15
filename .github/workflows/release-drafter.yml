@@ -2,7 +2,7 @@ name: Release Drafter
 
 on:
   pull_request_target:
-    types: [closed]
+    types: [opened, reopened, synchronize, labeled, closed]
 
 permissions:
   contents: read
@@ -19,6 +19,8 @@ jobs:
         with:
           egress-policy: audit
 
-      - uses: release-drafter/release-drafter@09c613e259eb8d4e7c81c2cb00618eb5fc4575a7 # v5.25.0
+      - uses: release-drafter/release-drafter@v6 # v6.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          commitish: ${{ github.ref }}

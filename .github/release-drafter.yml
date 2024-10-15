@@ -2,18 +2,25 @@ filter-by-commitish: true
 categories:
   - title: '🔥 Features'
     labels:
+      - 'features'
+  - title: '🚀 Enhancemets'
+    labels:
+      - 'performance'
       - 'enhancement'
   - title: '🐛 Bug Fixes'
     labels:
+      - 'bug'
       - 'bug :bug:'
-  - title: 'Google Summer of Code 2022'
-    label: 'GSoC22'
   - title: '💯 Benchmarking'
     label: 'benchmarking'
   - title: '📜 Documentation'
-    label: 'documentation :book:'
-  - title: ' Testing'
+    labels:
+      - 'documentation'
+  - title: 'Testing'
     label: 'testing'
+  - title: '🔒 Security'
+    labels:
+      - 'security'
   - title: 'Arithmetic'
     label: 'arithmetic'
   - title: 'Array API'
@@ -75,8 +82,10 @@ categories:
     label: 'rounding'
   - title: 'Sanitation'
     label: 'sanitation'
-  - title: 'Signal'
-    label: 'signal'
+  - title: 'Signal Processing'
+    labels:
+    - 'signal'
+    - 'signal processing'
   - title: 'Sparse'
     label: 'sparse'
   - title: 'Spatial'
@@ -97,9 +106,49 @@ exclude-labels:
   - 'chore'
   - 'workflows'
 autolabeler:
+  - label: 'workflows'
+    files:
+      - '.github/workflows'
+    title:
+      - 'Workflow.+'
   - label: 'chore'
     title:
-    - '\[pre-commit.ci\] .*'
+      - '\[pre-commit.ci\].+'
+  - label: 'features'
+    title:
+    - 'Features/.+'
+    - 'feat:.+'
+    branch:
+      - 'features/.+'
+  - label: 'enhancement'
+    title:
+      - 'Refactor.+'
+      - 'Expand.+'
+  - label: 'documentation'
+    files:
+      - 'doc/'
+      - '*.md'
+  - label: 'benchmarking'
+    files:
+      - 'benchmarks/'
+  - label: 'docker'
+    files:
+      - 'docker/'
+  - label: 'bug'
+    title:
+      - '\[Bug\]:.+'
+      - 'Bug/.+'
+      - 'Resolve.+'
+      - 'Fix.+'
+    branch:
+      - 'bug/.+'
+  - label: 'interoperability'
+    title:
+      - 'Support.+'
+  - label: 'testing'
+    files:
+      - '**/tests/*'
+
 
 change-template: '- #$NUMBER $TITLE (by @$AUTHOR)'
 category-template: '### $TITLE'
