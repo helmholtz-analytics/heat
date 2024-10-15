@@ -1,5 +1,5 @@
 filter-by-commitish: true
-include-pre-releases: true
+include-pre-releases: false
 categories:
   - title: '🔥🔥 Features'
     labels:
