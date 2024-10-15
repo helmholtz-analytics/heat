@@ -138,11 +138,12 @@ autolabeler:
   - label: 'bug'
     title:
       - '\[Bug\]:.+'
-      - 'Bug/.+'
+      - 'Bug.+'
       - 'Resolve.+'
       - 'Fix.+'
     branch:
       - 'bug/.+'
+      - 'fix/.+'
   - label: 'interoperability'
     title:
       - 'Support.+'
