@@ -539,10 +539,10 @@ class TestRandom_Threefry(TestCase):
         a = ht.random.rand(2, 3, 4, 5, split=0)
         ht.random.set_state(("Threefry", seed, 0x10000000000000000))
         b = ht.random.rand(2, 44, split=0)
-        # a = a.numpy().flatten()
-        # b = b.numpy().flatten()
-        # self.assertEqual(a.dtype, np.float32)
-        # self.assertTrue(np.array_equal(a[32:], b))
+        a = a.numpy().flatten()
+        b = b.numpy().flatten()
+        self.assertEqual(a.dtype, np.float32)
+        self.assertTrue(np.array_equal(a[32:], b))
 
         # # Check that random numbers don't repeat after first overflow
         # seed = 12345
