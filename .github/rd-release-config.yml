@@ -111,42 +111,42 @@ autolabeler:
     files:
       - '.github/**/*'
     title:
-      - 'Workflow.+'
+      - '/Workflow.+/'
   - label: 'chore'
     title:
-      - '\[pre-commit.ci\].+'
+      - '/\[pre-commit.ci\].+/'
   - label: 'features'
     title:
-    - 'Features/.+'
-    - 'feat:.+'
+    - '/feat/i'
+    - '/feature/i'
     branch:
-      - 'features/.+'
+      - '/feature/i'
+      - '/feat/i'
   - label: 'enhancement'
     title:
-      - 'Refactor.+'
-      - 'Expand.+'
+      - '/Refactor.+/'
+      - '/Expand.+/'
   - label: 'documentation'
     files:
       - 'doc/**/*'
       - '*.md'
   - label: 'benchmarking'
     files:
-      - 'benchmarks/'
+      - 'benchmarks/**/*'
   - label: 'docker'
     files:
       - 'docker/**/*'
   - label: 'bug'
     title:
-      - '\[Bug\]:.+'
-      - 'Bug.+'
-      - 'Resolve.+'
-      - 'Fix.+'
+      - '/bug/i'
+      - '/resolve/i'
+      - '/fix/i'
     branch:
-      - 'bug/.+'
-      - 'fix/.+'
+      - '/bug/i'
+      - '/fix/i'
   - label: 'interoperability'
     title:
-      - 'Support.+'
+      - '/Support.+/'
   - label: 'testing'
     files:
       - '**/tests/**/*'
