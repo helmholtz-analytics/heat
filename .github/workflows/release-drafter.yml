@@ -1,8 +1,8 @@
 name: Release Drafter
 
 on:
-  pull_request_target:
-    types: [closed]
+  pull_request:
+    types: [opened, reopened, synchronize, labeled]
 
 permissions:
   contents: read
