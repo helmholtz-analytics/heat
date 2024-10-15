@@ -5,7 +5,6 @@ on:
     types: [opened, reopened, synchronize, closed]
   push:
     branches:
-      - main
       - release/*
 jobs:
   update_release_draft:
@@ -23,5 +22,5 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          commitish: ${{ github.event.pull_request.base.ref }}
+          name: ${{ github.ref_name }}
           config-name: rd-release-config.yml
