@@ -544,22 +544,22 @@ class TestRandom_Threefry(TestCase):
         self.assertEqual(a.dtype, np.float32)
         self.assertTrue(np.array_equal(a[32:], b))
 
-        # # Check that random numbers don't repeat after first overflow
-        # seed = 12345
-        # ht.random.set_state(("Threefry", seed, 0x100000000))
-        # a = ht.random.rand(2, 44)
-        # ht.random.seed(seed)
-        # b = ht.random.rand(2, 44)
-        # self.assertFalse(ht.equal(a, b))
+        # Check that random numbers don't repeat after first overflow
+        seed = 12345
+        ht.random.set_state(("Threefry", seed, 0x100000000))
+        a = ht.random.rand(2, 44)
+        ht.random.seed(seed)
+        b = ht.random.rand(2, 44)
+        self.assertFalse(ht.equal(a, b))
 
-        # # Check that we start from beginning after 128 bit overflow
-        # ht.random.seed(seed)
-        # a = ht.random.rand(2, 34, split=0)
-        # ht.random.set_state(("Threefry", seed, 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0))
-        # b = ht.random.rand(2, 50, split=0)
-        # a = a.numpy().flatten()
-        # b = b.numpy().flatten()
-        # self.assertTrue(np.array_equal(a, b[32:]))
+        # Check that we start from beginning after 128 bit overflow
+        ht.random.seed(seed)
+        a = ht.random.rand(2, 34, split=0)
+        ht.random.set_state(("Threefry", seed, 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0))
+        b = ht.random.rand(2, 50, split=0)
+        a = a.numpy().flatten()
+        b = b.numpy().flatten()
+        self.assertTrue(np.array_equal(a, b[32:]))
 
         # # different split axis with resetting seed
         # ht.random.seed(seed)
