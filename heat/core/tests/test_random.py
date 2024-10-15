@@ -557,9 +557,10 @@ class TestRandom_Threefry(TestCase):
         a = ht.random.rand(2, 34, split=0)
         ht.random.set_state(("Threefry", seed, 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0))
         b = ht.random.rand(2, 50, split=0)
-        # a = a.numpy().flatten()
-        # b = b.numpy().flatten()
-        # self.assertTrue(np.array_equal(a, b[32:]))
+        a = a.flatten()
+        b = b.flatten()
+        sub_b = b[32:].balance()
+        self.assertTrue(ht.equal(a, sub_b))
 
         # # different split axis with resetting seed
         # ht.random.seed(seed)
