@@ -38,7 +38,7 @@ setup(
         "torch>=2.0.0, <2.4.2",
         "scipy>=1.10.0",
         "pillow>=6.0.0",
-        "torchvision>=0.15.2, <0.19.1",
+        "torchvision>=0.15.2, <0.19.2",
     ],
     extras_require={
         "docutils": ["docutils>=0.16"],
