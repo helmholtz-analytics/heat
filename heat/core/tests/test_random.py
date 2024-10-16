@@ -159,10 +159,10 @@ class TestRandom_Batchparallel(TestCase):
 
         # Values should be spread evenly across the range [0, 1)
         mean = ht.mean(c)
-        # median = np.median(c)
+        median = ht.median(c)
         std = ht.std(c)
         self.assertTrue(0.49 < mean < 0.51)
-        # self.assertTrue(0.49 < median < 0.51)
+        self.assertTrue(0.49 < median < 0.51)
         self.assertTrue(std < 0.3)
         self.assertTrue(((0 <= c) & (c < 1)).all())
 
@@ -198,12 +198,12 @@ class TestRandom_Batchparallel(TestCase):
 
         self.assertTrue(ht.equal(a, b))
         mean = ht.mean(a)
-        # median = ht.median(a)
+        median = ht.median(a)
         std = ht.std(a)
 
         # Mean and median should be in the center while the std is very high due to an even distribution
         self.assertTrue(4900 < mean < 5100)
-        # self.assertTrue(4900 < median < 5100)
+        self.assertTrue(4900 < median < 5100)
         self.assertTrue(std < 2900)
 
         with self.assertRaises(ValueError):
@@ -236,12 +236,12 @@ class TestRandom_Batchparallel(TestCase):
             10000, size=(123, 42, 13, 21), split=3, dtype=ht.int32, comm=ht.MPI_WORLD
         )
         mean = ht.mean(a)
-        # median = np.median(a)
+        median = ht.median(a)
         std = ht.std(a)
 
         # Mean and median should be in the center while the std is very high due to an even distribution
         self.assertTrue(4900 < mean < 5100)
-        # self.assertTrue(4900 < median < 5100)
+        self.assertTrue(4900 < median < 5100)
         self.assertTrue(std < 2900)
 
         # test aliases
@@ -289,10 +289,10 @@ class TestRandom_Batchparallel(TestCase):
         self.assertEqual(a.dtype, ht.float32)
         self.assertEqual(a.larray[0, 0, 0].dtype, torch.float32)
         mean = ht.mean(a)
-        # median = np.median(a)
+        median = ht.median(a)
         std = ht.std(a)
         self.assertTrue(-0.02 < mean < 0.02)
-        # self.assertTrue(-0.02 < median < 0.02)
+        self.assertTrue(-0.02 < median < 0.02)
         self.assertTrue(0.99 < std < 1.01)
 
         ls = 272 + ht.MPI_WORLD.rank
@@ -632,10 +632,10 @@ class TestRandom_Threefry(TestCase):
 
         # Values should be spread evenly across the range [0, 1)
         mean = ht.mean(c)
-        # median = np.median(c)
+        median = ht.median(c)
         std = ht.std(c)
         self.assertTrue(0.49 < mean < 0.51)
-        # self.assertTrue(0.49 < median < 0.51)
+        self.assertTrue(0.49 < median < 0.51)
         self.assertTrue(std < 0.3)
         self.assertTrue(((0 <= c) & (c < 1)).all())
 
@@ -704,12 +704,12 @@ class TestRandom_Threefry(TestCase):
 
         self.assertTrue(ht.equal(a, b))
         mean = ht.mean(a)
-        # median = np.median(a)
+        median = ht.median(a)
         std = ht.std(a)
 
         # Mean and median should be in the center while the std is very high due to an even distribution
         self.assertTrue(4900 < mean < 5100)
-        # self.assertTrue(4900 < median < 5100)
+        self.assertTrue(4900 < median < 5100)
         self.assertTrue(std < 2900)
 
         with self.assertRaises(ValueError):
@@ -742,12 +742,12 @@ class TestRandom_Threefry(TestCase):
             10000, size=(123, 42, 13, 21), split=3, dtype=ht.int32, comm=ht.MPI_WORLD
         )
         mean = ht.mean(a)
-        #        median = np.median(a)
+        median = ht.median(a)
         std = ht.std(a)
 
         # Mean and median should be in the center while the std is very high due to an even distribution
         self.assertTrue(4900 < mean < 5100)
-        # self.assertTrue(4900 < median < 5100)
+        self.assertTrue(4900 < median < 5100)
         self.assertTrue(std < 2900)
 
         # test aliases
@@ -804,10 +804,10 @@ class TestRandom_Threefry(TestCase):
         self.assertEqual(a.dtype, ht.float32)
         self.assertEqual(a.larray[0, 0, 0].dtype, torch.float32)
         mean = ht.mean(a)
-        #        median = np.median(a)
+        median = ht.median(a)
         std = ht.std(a)
         self.assertTrue(-0.01 < mean < 0.01)
-        # self.assertTrue(-0.01 < median < 0.01)
+        self.assertTrue(-0.01 < median < 0.01)
         self.assertTrue(0.99 < std < 1.01)
 
         ht.random.set_state(("Threefry", 54321, 0x10000000000000000))
