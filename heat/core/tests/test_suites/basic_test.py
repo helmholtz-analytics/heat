@@ -52,7 +52,6 @@ class TestCase(unittest.TestCase):
             ht_device = ht.gpu
             other_device = ht.cpu
         else:
-            print(torch.cuda.is_available())
             raise RuntimeError(
                 f"Value '{envar}' of environment variable 'HEAT_TEST_USE_DEVICE' is unsupported"
             )
