@@ -194,17 +194,17 @@ class TestRandom_Batchparallel(TestCase):
         shape = (15, 13, 9, 21, 65)
         ht.random.seed(13579)
         a = ht.random.randint(10000, size=shape, split=2, dtype=ht.int64)
-        a.resplit_(0)
-        a = a.numpy()
+        # a.resplit_(0)
+        # a = a.numpy()
 
         ht.random.seed(13579)
         b = ht.random.randint(low=0, high=10000, size=shape, split=2, dtype=ht.int64)
-        b = b.numpy()
+        # b = b.numpy()
 
-        self.assertTrue(np.array_equal(a, b))
-        mean = np.mean(a)
-        median = np.median(a)
-        std = np.std(a)
+        self.assertTrue(ht.equal(a, b))
+        mean = ht.mean(a)
+        median = ht.median(a)
+        std = ht.std(a)
 
         # Mean and median should be in the center while the std is very high due to an even distribution
         self.assertTrue(4900 < mean < 5100)
