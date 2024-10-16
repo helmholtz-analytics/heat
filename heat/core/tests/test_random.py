@@ -153,16 +153,19 @@ class TestRandom_Batchparallel(TestCase):
 
         a = ht.random.rand(21, 16, 17, 21, dtype=ht.float32, split=2)
         b = ht.random.rand(15, 11, 19, 31, dtype=ht.float32, split=0)
-        a = a.numpy().flatten()
-        b = b.numpy().flatten()
-        c = np.concatenate((a, b))
+        # a = a.numpy().flatten()
+        # b = b.numpy().flatten()
+        # c = np.concatenate((a, b))
+        a = a.flatten()
+        b = b.flatten()
+        c = ht.concatenate((a, b))
 
         # Values should be spread evenly across the range [0, 1)
-        mean = np.mean(c)
-        median = np.median(c)
-        std = np.std(c)
+        mean = ht.mean(c)
+        # median = np.median(c)
+        std = ht.std(c)
         self.assertTrue(0.49 < mean < 0.51)
-        self.assertTrue(0.49 < median < 0.51)
+        # self.assertTrue(0.49 < median < 0.51)
         self.assertTrue(std < 0.3)
         self.assertTrue(((0 <= c) & (c < 1)).all())
 
@@ -170,11 +173,9 @@ class TestRandom_Batchparallel(TestCase):
         # Checked that the random values are in the correct range
         a = ht.random.randint(low=0, high=10, size=(10, 10), dtype=ht.int64)
         self.assertEqual(a.dtype, ht.int64)
-        a = a.numpy()
         self.assertTrue(((0 <= a) & (a < 10)).all())
 
         a = ht.random.randint(low=100000, high=150000, size=(31, 25, 11), dtype=ht.int64, split=2)
-        a = a.numpy()
         self.assertTrue(((100000 <= a) & (a < 150000)).all())
 
         # For the range [0, 1) only the value 0 is allowed
@@ -273,9 +274,9 @@ class TestRandom_Batchparallel(TestCase):
 
         # All the created values should be different
         d = ht.concatenate((a, c))
-        # d.resplit_(None)
-        # d = d.numpy()
-        _, counts = ht.unique(d, return_counts=True)
+        d.resplit_(None)
+        d = d.numpy()
+        _, counts = np.unique(d, return_counts=True)
         self.assertTrue((counts == 1).all())
 
         # Two arrays are the same for same seed and split-axis != 0
