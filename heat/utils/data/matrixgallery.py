@@ -61,7 +61,7 @@ def hermitian(
         matrix = randn(n, n, dtype=real_dtype, split=split, device=device, comm=comm) + 1j * randn(
             n, n, dtype=real_dtype, split=split, device=device, comm=comm
         )
-    elif not heat_type_is_exact(dtype):
+    elif dtype in [core.float32, core.float64]:
         matrix = randn(n, n, dtype=dtype, split=split, device=device, comm=comm)
     else:
         raise ValueError("dtype must be floating-point data-type but is ", dtype, ".")
