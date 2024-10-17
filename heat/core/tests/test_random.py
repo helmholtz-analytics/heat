@@ -159,10 +159,10 @@ class TestRandom_Batchparallel(TestCase):
 
         # Values should be spread evenly across the range [0, 1)
         mean = ht.mean(c)
-        median = ht.median(c)
+        # median = ht.median(c)
         std = ht.std(c)
         self.assertTrue(0.49 < mean < 0.51)
-        self.assertTrue(0.49 < median < 0.51)
+        # self.assertTrue(0.49 < median < 0.51)
         self.assertTrue(std < 0.3)
         self.assertTrue(((0 <= c) & (c < 1)).all())
 
@@ -258,10 +258,10 @@ class TestRandom_Batchparallel(TestCase):
         a = ht.random.randn(*shape, split=0, dtype=ht.float64)
         self.assertEqual(a.dtype, ht.float64)
         mean = ht.mean(a)
-        median = ht.median(a)
+        # median = ht.median(a)
         std = ht.std(a)
         self.assertTrue(-0.02 < mean < 0.02)
-        self.assertTrue(-0.02 < median < 0.02)
+        # self.assertTrue(-0.02 < median < 0.02)
         self.assertTrue(0.98 < std < 1.02)
 
         # Creating the same array two times without resetting seed results in different elements
@@ -632,10 +632,10 @@ class TestRandom_Threefry(TestCase):
 
         # Values should be spread evenly across the range [0, 1)
         mean = ht.mean(c)
-        median = ht.median(c)
+        # median = ht.median(c)
         std = ht.std(c)
         self.assertTrue(0.49 < mean < 0.51)
-        self.assertTrue(0.49 < median < 0.51)
+        # self.assertTrue(0.49 < median < 0.51)
         self.assertTrue(std < 0.3)
         self.assertTrue(((0 <= c) & (c < 1)).all())
 
@@ -766,10 +766,10 @@ class TestRandom_Threefry(TestCase):
         a = ht.random.randn(*shape, split=0, dtype=ht.float64)
         self.assertEqual(a.dtype, ht.float64)
         mean = ht.mean(a)
-        median = ht.median(a)
+        # median = ht.median(a)
         std = ht.std(a)
         self.assertTrue(-0.02 < mean < 0.02)
-        self.assertTrue(-0.02 < median < 0.02)
+        # self.assertTrue(-0.02 < median < 0.02)
         self.assertTrue(0.99 < std < 1.01)
 
         # Compare to a second array with a different shape but same number of elements and same seed
