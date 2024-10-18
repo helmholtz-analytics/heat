@@ -1,4 +1,4 @@
-# v1.5.0-rc1 - Release Candidate
+# v1.5.0
 
 ## Changes
 
