@@ -1,0 +1,167 @@
+filter-by-commitish: False
+include-pre-releases: false
+categories:
+  - title: '🔥 Features'
+    labels:
+      - 'features'
+  - title: '🚀 Enhancemets'
+    labels:
+      - 'performance'
+      - 'enhancement'
+  - title: '🐛 Bug Fixes'
+    labels:
+      - 'bug'
+      - 'bug :bug:'
+  - title: '💯 Benchmarking'
+    label: 'benchmarking'
+  - title: '📜 Documentation'
+    labels:
+      - 'documentation'
+  - title: 'Testing'
+    label: 'testing'
+  - title: '🔒 Security'
+    labels:
+      - 'security'
+  - title: 'Core'
+    label: 'core'
+  - title: 'Classification'
+    label: 'classification'
+  - title: 'Cluster'
+    label: 'cluster'
+  - title: 'Datasets'
+    label: 'datasets'
+  - title: 'Decomposition'
+    label: 'decomposition'
+  - title: 'FFT'
+    label: 'fft'
+  - title: 'Graph'
+    label: 'graph'
+  - title: 'Linear Algebra'
+    label: 'linalg'
+  - title: 'Naive Bayes'
+    label: 'naive bayes'
+  - title: 'Neural Networks'
+    labels:
+      - 'nn'
+      - 'neural net'
+  - title: 'Optimization'
+    label: 'optim'
+  - title: 'Preprocessing'
+    label: 'preprocessing'
+  - title: 'Regression'
+    label: 'regression'
+  - title: 'Sparse'
+    label: 'sparse'
+  - title: 'Spatial'
+    label: 'spatial'
+  - title: 'Utils'
+    label: 'utils'
+exclude-labels:
+  - 'github-actions'
+  - 'dependencies'
+  - 'chore'
+  - 'workflows'
+
+autolabeler:
+  - label: 'workflows'
+    files:
+      - '.github/**/*'
+    title:
+      - '/Workflow.+/'
+  - label: 'chore'
+    title:
+      - '/\[pre-commit.ci\].+/'
+  - label: 'features'
+    title:
+    - '/feat/i'
+    - '/feature/i'
+    branch:
+      - '/feature/i'
+      - '/feat/i'
+  - label: 'enhancement'
+    title:
+      - '/Refactor.+/'
+      - '/Expand.+/'
+  - label: 'documentation'
+    files:
+      - 'doc/**/*'
+      - '*.md'
+  - label: 'benchmarking'
+    files:
+      - 'benchmarks/**/*'
+  - label: 'docker'
+    files:
+      - 'docker/**/*'
+  - label: 'bug'
+    title:
+      - '/bug/i'
+      - '/resolve/i'
+      - '/fix/i'
+    branch:
+      - '/bug/i'
+      - '/fix/i'
+  - label: 'interoperability'
+    title:
+      - '/Support.+/'
+  - label: 'testing'
+    files:
+      - '**/tests/**/*'
+  - label: 'classification'
+    files:
+      - 'heat/classification/**/*'
+  - label: 'cluster'
+    files:
+      - 'heat/cluster/**/*'
+  - label: 'core'
+    files:
+      - 'heat/core/**/*'
+  - label: 'datasets'
+    files:
+      - 'heat/datasets/**/*'
+  - label: 'decomposition'
+    files:
+      - 'heat/decomposition/**/*'
+  - label: 'fft'
+    files:
+      - 'heat/fft/**/*'
+  - label: 'graph'
+    files:
+      - 'heat/graph/**/*'
+  - label: 'naive bayes'
+    files:
+      - 'heat/naive_bayes/**/*'
+  - label: 'nn'
+    files:
+      - 'heat/nn/**/*'
+  - label: 'optim'
+    files:
+      - 'heat/optim/**/*'
+  - label: 'preprocessing'
+    files:
+      - 'heat/preprocessing/**/*'
+  - label: 'regression'
+    files:
+      - 'heat/regression/**/*'
+  - label: 'sparse'
+    files:
+      - 'heat/sparse/**/*'
+  - label: 'spatial'
+    files:
+      - 'heat/spatial/**/*'
+  - label: 'utils'
+    files:
+      - 'heat/utils/**/*'
+  - label: 'linalg'
+    files:
+      - 'heat/core/linalg/**/*'
+
+change-template: '- #$NUMBER $TITLE (by @$AUTHOR)'
+category-template: '### $TITLE'
+template: |
+  ## Changes
+
+  $CHANGES
+
+  ## Contributors
+
+  $CONTRIBUTORS
