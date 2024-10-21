@@ -581,7 +581,7 @@ class TestRandom_Threefry(TestCase):
         # Assert that no value appears more than once
         self.assertTrue((counts == 1).all())
 
-        if !(torch.cuda.is_available() and torch.version.hip):
+        if not (torch.cuda.is_available() and torch.version.hip):
             # Two large arrays that were created after each other don't share any values
             b = ht.random.rand(14, 7, 3, 12, 18, 42, split=5, comm=ht.MPI_WORLD, dtype=ht.float64)
             c = np.concatenate((a.flatten(), b.numpy().flatten()))
