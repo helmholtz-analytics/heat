@@ -3719,7 +3719,8 @@ def _axis2axisResplit(
     comm: Communication,
 ) -> torch.Tensor:
     """
-    Resplits the input array along a new axis and performs data exchange using MPI_Alltoallw. Returns target_larray object with the data after the exchange.
+    Resplits the input array along a new axis and performs data exchange using MPI_Alltoallw, after [1].
+    Returns `target_larray` object with the data after the exchange.
 
     Parameters
     ----------
@@ -3737,6 +3738,10 @@ def _axis2axisResplit(
         The tiling object containing the subarray parameters for the target array.
     comm : Communication
         The communication object for MPI communication.
+
+    References
+    ----------
+    [1] Dalcin, Mortensen, Keyes, "Fast parallel multidimensional FFT using advanced MPI", 2018.
     """
     # Create subarray types for original local shapes split along the new axis
     source_subarray_params = source_tiles.get_subarray_params(source_split, target_split)
