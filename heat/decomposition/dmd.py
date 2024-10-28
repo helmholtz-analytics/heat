@@ -295,30 +295,25 @@ class DMD(ht.RegressionMixin, ht.BaseEstimator):
             )
         steps = steps.reshape(-1, 1).repeat(1, self.rom_eigenvalues_.shape[0])
         X_rom = self.rom_basis_.T @ X
-        print("X_rom:", X_rom.shape, X_rom.split)
 
-        transfer_mat = _torch_matrix_diag(self.rom_eigenvalues_.larray**steps)
-        transfer_mat = torch.linalg.solve(
-            self.rom_eigenmodes_.larray, transfer_mat @ self.rom_eigenmodes_.larray
+        transfer_mat = _torch_matrix_diag(torch.pow(self.rom_eigenvalues_.larray, steps))
+        transfer_mat = (
+            self.rom_eigenmodes_.larray @ transfer_mat @ self.rom_eigenmodes_.larray.inverse()
         )
         transfer_mat = torch.real(
             transfer_mat
         )  # necessary to avoid imaginary parts due to numerical errors
-        print("transfermat:", transfer_mat.shape)
 
-        if self.rom_basis_.split is None:
+        if self.rom_basis_.split is None and (X.split is None or X.split == 1):
             result = (
                 transfer_mat @ X_rom.larray
             )  # here we assume that X_rom is not split or split along the second axis (axis 1)
             del transfer_mat
-            print("result:", result.shape)
 
-            print("rom_basis:", self.rom_basis_.shape)
             result = (
                 self.rom_basis_.larray @ result
             )  # here we assume that self.rom_basis_ is not split (i.e., the feature number is small)
-            print("result3:", result.shape)
-            result = ht.array(result, is_split=None)
+            result = ht.array(result, is_split=2 if X.split == 1 else None)
             return result.squeeze().T
         else:
             raise NotImplementedError(

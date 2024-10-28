@@ -204,3 +204,14 @@ class TestDMD(TestCase):
         Y = dmd.predict_next(X, 3)
         self.assertTrue(ht.allclose(Y[:, : n - 2], X[:, 3:], atol=1e-12, rtol=1e-12))
         # note: checking previous steps doesn't make sense here, as kernel of A_red is nontrivial
+
+        # check batch prediction (split = 1)
+        X_batch = X[:, : 5 * ht.MPI_WORLD.size]
+        X_batch.balance_()
+        Y = dmd.predict(X_batch, 5)
+        for i in range(4):
+            self.assertTrue(ht.allclose(Y[i, :, :5], X[:, i : i + 5], atol=1e-2, rtol=1e-2))
+
+        # check batch prediction (split = None)
+        X_batch = ht.random.rand(10, 2 * ht.MPI_WORLD.size, split=None)
+        Y = dmd.predict(X_batch, [-1, 1, 3])
