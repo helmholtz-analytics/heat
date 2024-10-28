@@ -29,7 +29,7 @@ def _check_SVD_input(A):
         raise TypeError(f"Argument needs to be a DNDarray but is {type(A)}.")
     if not A.ndim == 2:
         raise ValueError("A needs to be a 2D matrix")
-    if not A.dtype == types.float32 and not A.dtype == types.float64:
+    if not types.heat_type_is_realfloating(A.dtype):
         raise TypeError(
             "Argument needs to be a DNDarray with datatype float32 or float64, but data type is {}.".format(
                 A.dtype
@@ -539,9 +539,9 @@ def rsvd(
     power_iter: int = 0,
     qr_procs_to_merge: int = 2,
 ) -> Union[Tuple[DNDarray, DNDarray, DNDarray], Tuple[DNDarray, DNDarray]]:
-    """
+    r"""
     Randomized SVD (rSVD) with prescribed truncation rank `rank`.
-    If A = U diag(sigma) V^T is the true SVD of A, this routine computes an approximation for U[:,:rank] (and sigma[:rank], V[:,:rank]).
+    If :math:`A = U \operatorname{diag}(S) V^T` is the true SVD of A, this routine computes an approximation for U[:,:rank] (and S[:rank], V[:,:rank]).
 
     The accuracy of this approximation depends on the structure of A ("low-rank" is best) and appropriate choice of parameters.
 
@@ -550,13 +550,15 @@ def rsvd(
     A : DNDarray
         2D-array (float32/64) of which the rSVD has to be computed.
     rank : int
-        truncation rank. (This parameter corresponds to `n_components` in sci-kit learn's TruncatedSVD.)
+        truncation rank. (This parameter corresponds to `n_components` in scikit-learn's TruncatedSVD.)
     n_oversamples : int, optional
         number of oversamples. The default is 10.
     power_iter : int, optional
-        number of power iterations. The default is 1.
+        number of power iterations. The default is 0.
+        Choosing `power_iter > 0` can improve the accuracy of the SVD approximation in the case of slowly decaying singular values, but increases the computational cost.
     qr_procs_to_merge : int, optional
-        number of processes to merge at each step of QR decomposition in the power iteration (if power_iter > 0). The default is 2. See the corresponding remarks for `heat.linalg.qr` for more details.
+        number of processes to merge at each step of QR decomposition in the power iteration (if power_iter > 0). The default is 2. See the corresponding remarks for :func:`heat.linalg.qr() <heat.core.linalg.qr.qr()>` for more details.
+
 
     Notes
     ------
