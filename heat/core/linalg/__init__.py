@@ -7,3 +7,4 @@ from .solver import *
 from .qr import *
 from .svdtools import *
 from .svd import *
+from .pd import *
