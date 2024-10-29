@@ -11,8 +11,7 @@ from ..communication import MPICommunication
 from ..dndarray import DNDarray
 from .. import factories
 from .. import types
-from ..linalg import matrix_norm, vector_norm, matmul
-from ..linalg.myqr import myqr, triu_solver
+from ..linalg import matrix_norm, vector_norm, matmul, qr, solve_triangular
 from ..indexing import where
 from ..random import randn
 from ..devices import Device
@@ -24,7 +23,7 @@ from mpi4py import MPI
 from scipy.special import ellipj
 from scipy.special import ellipkm1
 
-__all__ = []
+__all__ = ["condest"]
 
 
 # def svd(A: DNDarray, r: int = 8, silent: bool = True) -> Tuple[DNDarray, DNDarray, DNDarray]:
@@ -80,62 +79,112 @@ __all__ = []
 #     )
 
 
-def estimate_largest_singularvalue(A: DNDarray, algorithm: str = "fro") -> types.datatype:
+def _estimate_largest_singularvalue(A: DNDarray, algorithm: str = "fro") -> DNDarray:
     """
-    Estimates the largest singular value of a matrix
+    Computes an upper estimate for the largest singular value of the input 2D DNDarray.
+
+    Parameters
+    ----------
+    A : DNDarray
+        The matrix, i.e., a 2D DNDarray, for which the largest singular value should be estimated.
+    algorithm : str
+        The algorithm to use for the estimation. Currently, only "fro" (default) is implemented.
+        If "fro" is chosen, the Frobenius norm of the matrix is used as an upper estimate.
     """
-    # Estimates the largest singular value of the matrix A
-    # 'fro': uses Frobenius norm of A as upper estimate
+    if not isinstance(algorithm, str):
+        raise TypeError(
+            f"Parameter 'algorithm' needs to be a string, but is {algorithm} with data type {type(algorithm)}."
+        )
     if algorithm == "fro":
-        return matrix_norm(A, ord="fro").flatten()
+        return matrix_norm(A, ord="fro")
     else:
         raise NotImplementedError("So far only algorithm='fro' implemented.")
 
 
-def estimate_l2_condition(A: DNDarray, algorithm: str, params: list) -> types.datatype:
+def condest(
+    A: DNDarray, p: Union[int, str] = None, algorithm: str = "randomized", params: list = None
+) -> DNDarray:
     """
-    Estimates the l2-condition number of a matrix (randomized!)
-    """
-    if algorithm == "GKL1995":
-        # probabilistic upper estimate for the condition number according to the paper
-        # of [Gudmundsson, Kenney, Laub (SIAM J. Matrix Analysis, 1995)]
-        # actually, they estimate the condition number w.r.t. the Frobenius norm
-        # this yields an upper bound for kappa_2 as well...
+    Computes a (possibly randomized) upper estimate the l2-condition number of the input 2D DNDarray.
 
-        nsamples = params[0]
+    Parameters
+    ----------
+    A : DNDarray
+        The matrix, i.e., a 2D DNDarray, for which the condition number shall be estimated.
+    p : int or str (optional)
+        The norm to use for the condition number computation. If None, the l2-norm (default, p=2) is used.
+        So far, only p=2 is implemented.
+    algorithm : str
+        The algorithm to use for the estimation. Currently, only "randomized" (default) is implemented.
+    params : dict (optional)
+        A list of parameters required for the chosen algorithm; if not provided, default values for the respective algorithm are chosen.
+        If `algorithm="randomized"` the number of random samples to use can be specified under the key "nsamples"; default is 10.
+
+    Notes
+    ----------
+    The "randomized" algorithm follows the approach described in [1]; note that in the paper actually the condition number w.r.t. the Frobenius norm is estimated.
+    However, this yields an upper bound for the condition number w.r.t. the l2-norm as well.
+
+    References
+    ----------
+    [1] T. Gudmundsson, C. S. Kenney, and A. J. Laub. Small-Sample Statistical Estimates for Matrix Norms. SIAM Journal on Matrix Analysis and Applications 1995 16:3, 776-792.
+    """
+    if p is None:
+        p = 2
+    if p != 2:
+        raise ValueError(
+            f"Only the case p=2 (condition number w.r.t. the euclidean norm) is implemented so far, but input was p={p} (type: {type(p)})."
+        )
+    if not isinstance(algorithm, str):
+        raise TypeError(
+            f"Parameter 'algorithm' needs to be a string, but is {algorithm} with data type {type(algorithm)}."
+        )
+    if algorithm == "randomized":
+        if params is None:
+            nsamples = 10  # set default value
+        else:
+            if not isinstance(params, dict) or "nsamples" not in params:
+                raise TypeError(
+                    "If not None, 'params' needs to be a dictionary containing the number of samples under the key 'nsamples'."
+                )
+            if not isinstance(params["nsamples"], int) or params["nsamples"] <= 0:
+                raise ValueError(
+                    f"The number of samples needs to be a positive integer, but is {params['nsamples']} with data type {type(params['nsamples'])}."
+                )
+            nsamples = params["nsamples"]
+
         m = A.shape[0]
         n = A.shape[1]
 
         if n > m:
-            raise RuntimeError(
-                "Condition number estimator 'GKL1995' requires numbers of columns <= number of rows... Try other method?"
+            # the algorithm only works for m >= n, but fortunately, the condition number (w.r.t. l2-norm) is invariant under transposition
+            return condest(A.T, p=p, algorithm=algorithm, params=params)
+
+        _, R = qr(A, mode="r")  # only R factor is computed in QR
+
+        # random samples from unit sphere
+        # regarding the split: if A.split == 1, then n is probably large and we should split along an axis of size n; otherwise, both n and nsamples should be small
+        Q, R_not_used = qr(
+            randn(
+                n,
+                nsamples,
+                dtype=A.dtype,
+                split=0 if A.split == 1 else None,
+                device=A.device,
+                comm=A.comm,
             )
-
-        _, R = myqr(A, calc_R=True)
-        del _
-
-        # in [GKL95]: random samples from unit sphere
-        Q = myqr(randn(n, nsamples, dtype=A.dtype, split=1, device=A.device, comm=A.comm))
-
-        # --------------------------------------------------------------------------
-        # !!! TODO: implementation that only uses heat instead of going back to torch
-        #          -> requires: triangular solver in heat
-        # --------------------------------------------------------------------------
-
+        )
+        del R_not_used
         est = (
             matrix_norm(R @ Q)
             * A.dtype((m / nsamples) ** 0.5, comm=A.comm)
-            * matrix_norm(triu_solver(R, Q.resplit(0)))
+            * matrix_norm(solve_triangular(R, Q))
         )
-
         return est.squeeze()
     else:
-        print(
-            "Algorithm '",
-            algorithm,
-            "' not yet implemented. Returns 1e16 as a very pessimistic estimate for the condition number.",
+        raise NotImplementedError(
+            "So far only algorithm='randomized' is implemented. Please open an issue on GitHub if you would like to suggest implementing another algorithm."
         )
-        return A.dtype(1e16, comm=A.comm)
 
 
 # def minimal_iterations(r, kappa):
