@@ -209,8 +209,10 @@ class TestDMD(TestCase):
         X_batch = X[:, : 5 * ht.MPI_WORLD.size]
         X_batch.balance_()
         Y = dmd.predict(X_batch, 5)
-        for i in range(4):
-            self.assertTrue(ht.allclose(Y[i, :, :5], X[:, i : i + 5], atol=1e-2, rtol=1e-2))
+        Y_np = Y.numpy()
+        X_np = X.numpy()
+        for i in range(5):
+            self.assertTrue(np.allclose(Y_np[i, :, :5], X_np[:, i : i + 5], atol=1e-12, rtol=1e-12))
 
         # check batch prediction (split = None)
         X_batch = ht.random.rand(10, 2 * ht.MPI_WORLD.size, split=None)

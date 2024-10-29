@@ -286,9 +286,9 @@ class DMD(ht.RegressionMixin, ht.BaseEstimator):
                 f"Invalid number of features '{X.shape[0]}' in input data 'X'. Must have the same number of features as the training data."
             )
         if isinstance(steps, int):
-            steps = torch.arange(steps, dtype=torch.int32)
+            steps = torch.arange(steps, dtype=torch.int32, device=X.device.torch_device)
         elif isinstance(steps, list):
-            steps = torch.tensor(steps, dtype=torch.int32)
+            steps = torch.tensor(steps, dtype=torch.int32, device=X.device.torch_device)
         else:
             raise TypeError(
                 f"Invalid type '{type(steps)}' for 'steps'. Must be an integer or a list of integers."
