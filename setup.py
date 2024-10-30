@@ -21,7 +21,7 @@ setup(
     author_email="martin.siggel@dlr.de",
     url="https://github.com/helmholtz-analytics/heat",
     keywords=["data", "analytics", "tensors", "distributed", "gpu"],
-    python_requires=">=3.9",
+    python_requires=">=3.9, <3.13",
     classifiers=[
         "Development Status :: 4 - Beta",
         "Programming Language :: Python :: 3.9",
@@ -38,7 +38,7 @@ setup(
         "torch>=2.0.0, <2.5.2",
         "scipy>=1.10.0",
         "pillow>=6.0.0",
-        "torchvision>=0.15.2, <0.19.2",
+        "torchvision>=0.15.2, <0.20.2",
     ],
     extras_require={
         "docutils": ["docutils>=0.16"],
