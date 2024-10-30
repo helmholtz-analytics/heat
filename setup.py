@@ -21,7 +21,7 @@ setup(
     author_email="martin.siggel@dlr.de",
     url="https://github.com/helmholtz-analytics/heat",
     keywords=["data", "analytics", "tensors", "distributed", "gpu"],
-    python_requires=">=3.9, <3.13",
+    python_requires=">=3.9",
     classifiers=[
         "Development Status :: 4 - Beta",
         "Programming Language :: Python :: 3.9",
