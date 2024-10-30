@@ -17,7 +17,7 @@ jobs:
         with:
           egress-policy: audit
 
-      - uses: actions/checkout@v4.2.1
+      - uses: actions/checkout@v4.2.2
 
       - name: Use Python
         uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
