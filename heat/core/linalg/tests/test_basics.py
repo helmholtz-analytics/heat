@@ -63,6 +63,8 @@ class TestLinalgBasics(TestCase):
             est = ht.linalg.condest(x, algorithm="randomized", params={"nsamples": 0})
         with self.assertRaises(TypeError):
             est = ht.linalg.condest(x, algorithm="randomized", params=10)
+        with self.assertRaises(ValueError):
+            est = ht.linalg.condest(x, p=3)
 
     def test_cross(self):
         a = ht.eye(3)
