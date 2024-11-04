@@ -110,10 +110,10 @@ computational and memory needs of your laptop and desktop.
 ## Requirements
 
 ### Basics
-- python >= 3.8
+- python >= 3.9
 - MPI (OpenMPI, MPICH, Intel MPI, etc.)
 - mpi4py >= 3.0.0
-- pytorch >= 1.11.0
+- pytorch >= 2.0.0
 
 ### Parallel I/O
 - h5py
