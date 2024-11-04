@@ -1,0 +1,48 @@
+name: Prep Heat Release
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Extract Version Information
+        id: extract-version
+        if: contains(github.event.issue.labels.*.name, 'release-prep')
+        run: |
+          issue_title="${{ github.event.issue.title }}"
+          regex="Prepare release v(\d+)\.(\d+)\.(\d+)"
+          if [[ $issue_title =~ $regex ]]; then
+            echo "major=${BASH_REMATCH[1]}" >> $GITHUB_OUTPUT
+            echo "minor=${BASH_REMATCH[2]}" >> $GITHUB_OUTPUT
+            echo "patch=${BASH_REMATCH[3]}" >> $GITHUB_OUTPUT
+          else
+            echo "::error::Issue title does not match the expected format. Please use 'Prepare release vX.Y.Z'."
+            exit 1
+          fi
+      - name: Delete Existing Version Update Branch
+        run: |
+          git branch -D workflows/version-update 2> /dev/null
+      - name: Create Release Branch
+        if: steps.extract-version.outputs.patch == 0
+        run: |
+          git checkout -b release/${{ steps.extract-version.outputs.major }}.${{ steps.extract-version.outputs.minor }}.x
+          git push origin release/${{ steps.extract-version.outputs.major }}.${{ steps.extract-version.outputs.minor }}.x
+      - name: Bump Version
+        if: always()
+        run: |
+          git checkout -b workflows/version-update
+          sed -i "s/major: int = \([0-9]\+\)/major: int = ${{ steps.extract-version.outputs.major }}/g" heat/core/version.py
+          sed -i "s/minor: int = \([0-9]\+\)/minor: int = ${{ steps.extract-version.outputs.minor }}/g" heat/core/version.py
+          if [[ ${{ steps.extract-version.outputs.patch }} -eq 0 ]]; then
+            sed -i "s/micro: int = \([0-9]\+\)/micro: int = 0/g" heat/core/version.py
+            sed -i "s/extension: str = .*/extension: str = None/g" heat/core/version.py
+          else
+            sed -i "s/micro: int = \([0-9]\+\)/micro: int = $(( ${{ steps.extract-version.outputs.patch }} + 1 ))/g" heat/core/version.py
+          fi
+          git add heat/core/version.py
+          git commit -m "Bump version to ${{ steps.extract-version.outputs.major }}.${{ steps.extract-version.outputs.minor }}.${{ steps.extract-version.outputs.patch }}"
+          git push origin workflows/version-update
