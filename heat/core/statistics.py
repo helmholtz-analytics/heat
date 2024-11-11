@@ -994,11 +994,18 @@ def mean(x: DNDarray, axis: Optional[Union[int, Tuple[int, ...]]] = None) -> DND
         return mu_tot[0][0] if mu_tot[0].size == 1 else mu_tot[0]
 
     # ----------------------------------------------------------------------------------------------
+    # sanitize dtype
+    if types.heat_type_is_exact(x.dtype):
+        if x.dtype is types.int64:
+            x = x.astype(types.float64)
+        else:
+            x = x.astype(types.float32)
+
     if axis is None:
         # full matrix calculation
         if not x.is_distributed():
             # if x is not distributed do a torch.mean on x
-            ret = torch.mean(x.larray.float())
+            ret = torch.mean(x.larray)
             return DNDarray(
                 ret,
                 gshape=tuple(ret.shape),
@@ -1806,6 +1813,13 @@ def std(
     >>> ht.std(a, 1)
     DNDarray([1.2961, 0.3362, 1.0739, 0.9820], dtype=ht.float32, device=cpu:0, split=None)
     """
+    # sanitize dtype
+    if types.heat_type_is_exact(x.dtype):
+        if x.dtype is types.int64:
+            x = x.astype(types.float64)
+        else:
+            x = x.astype(types.float32)
+
     if not isinstance(ddof, int):
         raise TypeError(f"ddof must be integer, is {type(ddof)}")
     # elif ddof > 1:

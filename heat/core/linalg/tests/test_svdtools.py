@@ -216,3 +216,58 @@ class TestHSVD(TestCase):
                 self.assertTrue(U_orth_err <= dtype_tol)
                 self.assertTrue(V_orth_err <= dtype_tol)
                 self.assertTrue(true_rel_err <= dtype_tol)
+
+
+class TestRSVD(TestCase):
+    def test_rsvd(self):
+        for dtype in [ht.float32, ht.float64]:
+            dtype_tol = 1e-4 if dtype == ht.float32 else 1e-10
+            for split in [0, 1, None]:
+                X = ht.random.randn(200, 200, dtype=dtype, split=split)
+                for rank in [ht.MPI_WORLD.size, 10]:
+                    for n_oversamples in [5, 10]:
+                        for power_iter in [0, 1, 2, 3]:
+                            U, S, V = ht.linalg.rsvd(
+                                X, rank, n_oversamples=n_oversamples, power_iter=power_iter
+                            )
+                            self.assertEqual(U.shape, (X.shape[0], rank))
+                            self.assertEqual(S.shape, (rank,))
+                            self.assertEqual(V.shape, (X.shape[1], rank))
+                            self.assertTrue(ht.all(S >= 0))
+                            self.assertTrue(
+                                ht.allclose(
+                                    U.T @ U,
+                                    ht.eye(rank, dtype=U.dtype, split=U.split),
+                                    rtol=dtype_tol,
+                                    atol=dtype_tol,
+                                )
+                            )
+                            self.assertTrue(
+                                ht.allclose(
+                                    V.T @ V,
+                                    ht.eye(rank, dtype=V.dtype, split=V.split),
+                                    rtol=dtype_tol,
+                                    atol=dtype_tol,
+                                )
+                            )
+
+    def test_rsvd_catch_wrong_inputs(self):
+        X = ht.random.randn(10, 10)
+        # wrong dtype for rank
+        with self.assertRaises(TypeError):
+            ht.linalg.rsvd(X, "a")
+        # rank zero
+        with self.assertRaises(ValueError):
+            ht.linalg.rsvd(X, 0)
+        # wrong dtype for n_oversamples
+        with self.assertRaises(TypeError):
+            ht.linalg.rsvd(X, 10, n_oversamples="a")
+        # n_oversamples negative
+        with self.assertRaises(ValueError):
+            ht.linalg.rsvd(X, 10, n_oversamples=-1)
+        # wrong dtype for power_iter
+        with self.assertRaises(TypeError):
+            ht.linalg.rsvd(X, 10, power_iter="a")
+        # power_iter negative
+        with self.assertRaises(ValueError):
+            ht.linalg.rsvd(X, 10, power_iter=-1)

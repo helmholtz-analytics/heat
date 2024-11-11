@@ -622,7 +622,6 @@ def randint(
             x_0, x_1 = __threefry32(x_0, x_1, seed=__seed)
         else:  # torch.int64
             x_0, x_1 = __threefry64(x_0, x_1, seed=__seed)
-
         # stack the resulting sequence and normalize to given range
         values = torch.stack([x_0, x_1], dim=1).flatten()[lslice].reshape(lshape)
         # ATTENTION: this is biased and known, bias-free rejection sampling is difficult to do in parallel
