@@ -996,7 +996,7 @@ def mean(x: DNDarray, axis: Optional[Union[int, Tuple[int, ...]]] = None) -> DND
     # ----------------------------------------------------------------------------------------------
     # sanitize dtype
     if types.heat_type_is_exact(x.dtype):
-        if x.dtype is types.int64:
+        if x.dtype is types.int64 and not x.larray.is_mps:
             x = x.astype(types.float64)
         else:
             x = x.astype(types.float32)
@@ -1815,7 +1815,7 @@ def std(
     """
     # sanitize dtype
     if types.heat_type_is_exact(x.dtype):
-        if x.dtype is types.int64:
+        if x.dtype is types.int64 and not x.larray.is_mps:
             x = x.astype(types.float64)
         else:
             x = x.astype(types.float32)
