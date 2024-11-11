@@ -220,7 +220,11 @@ class TestHSVD(TestCase):
 
 class TestRSVD(TestCase):
     def test_rsvd(self):
-        for dtype in [ht.float32, ht.float64]:
+        if self.is_mps:
+            dtypes = [ht.float32]
+        else:
+            dtypes = [ht.float32, ht.float64]
+        for dtype in dtypes:
             dtype_tol = 1e-4 if dtype == ht.float32 else 1e-10
             for split in [0, 1, None]:
                 X = ht.random.randn(200, 200, dtype=dtype, split=split)
