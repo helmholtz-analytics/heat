@@ -97,3 +97,14 @@ srun --mpi="pmi2" apptainer exec --nv heat_1.2.0_torch.11_cuda11.5_py3.9.sif bas
 ## Scripts
 
 The scripts folder has a small collection of helper scripts to automate certain tasks, primarly meant for heat developers. Explanations are given at the top of the script.
+
+## Useful commands for first-time docker users
+
+> docker run -it [docker container id]
+Runs the container in interactive mode (Opens a terminal)
+
+> docker ps -a
+Lists all active containers
+
+> docker system prune 
+Closes all currently running containers and frees up the resources
