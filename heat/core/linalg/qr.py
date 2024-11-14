@@ -24,16 +24,19 @@ def qr(
     Factor the matrix ``A`` as *QR*, where ``Q`` is orthonormal and ``R`` is upper-triangular.
     If ``mode = "reduced``, function returns ``QR(Q=Q, R=R)``, if ``mode = "r"`` function returns ``QR(Q=None, R=R)``
 
+    This function also works for batches of matrices; in this case, the last two dimensions of the input array are considered as the matrix dimensions.
+    The output arrays have the same leading batch dimensions as the input array.
+
     Parameters
     ----------
-    A : DNDarray of shape (M, N)
-        Array which will be decomposed. So far only 2D arrays with datatype float32 or float64 are supported
-        For split=0, the matrix must be tall skinny, i.e. the local chunks of data must have at least as many rows as columns.
+    A : DNDarray of shape (M, N), of shape (...,M,N) in the batched case
+        Array which will be decomposed. So far only arrays with datatype float32 or float64 are supported
+        For split=0 (-2, in the batched case), the matrix must be tall skinny, i.e. the local chunks of data must have at least as many rows as columns.
     mode : str, optional
-        default "reduced" returns Q and R with dimensions (M, min(M,N)) and (min(M,N), N), respectively.
+        default "reduced" returns Q and R with dimensions (M, min(M,N)) and (min(M,N), N), respectively, with obvious modifications for batched inputs
         "r" returns only R, with dimensions (min(M,N), N).
     procs_to_merge : int, optional
-        This parameter is only relevant for split=0 and determines the number of processes to be merged at one step during the so-called TS-QR algorithm.
+        This parameter is only relevant for split=0 (-2, in the batched case) and determines the number of processes to be merged at one step during the so-called TS-QR algorithm.
         The default is 2. Higher choices might be faster, but will probably result in higher memory consumption. 0 corresponds to merging all processes at once.
         We only recommend to modify this parameter if you are familiar with the TS-QR algorithm (see the references below).
 
@@ -49,7 +52,7 @@ def qr(
     Unlike ``numpy.linalg.qr()``, `ht.linalg.qr` only supports ``mode="reduced"`` or ``mode="r"`` for the moment, since "complete" may result in heavy memory usage.
 
     Heats QR function is built on top of PyTorchs QR function, ``torch.linalg.qr()``, using LAPACK (CPU) and MAGMA (CUDA) on
-    the backend. For split=0, tall-skinny QR (TS-QR) is implemented, while for split=1 a block-wise version of stabilized Gram-Schmidt orthogonalization is used.
+    the backend. For split=0 (-2, in the batched case), tall-skinny QR (TS-QR) is implemented, while for split=1 (-1, in the batched case) a block-wise version of stabilized Gram-Schmidt orthogonalization is used.
 
     References
     -----------
