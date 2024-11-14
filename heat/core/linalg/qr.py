@@ -120,7 +120,7 @@ def qr(
             k = A.shape[-1]
         else:
             last_row_reached = min(torch.argwhere(lshapes_cum >= A.shape[-2]))[0]
-            k = A.shape[0]
+            k = A.shape[-2]
 
         if mode == "reduced":
             Q = factories.zeros(
