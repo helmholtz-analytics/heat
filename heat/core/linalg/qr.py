@@ -1,5 +1,5 @@
 """
-QR decomposition of (distributed) 2-D ``DNDarray``s.
+QR decomposition of ``DNDarray``s.
 """
 
 import collections
