@@ -8,6 +8,11 @@ This is the **preview-branch for the ESA-funded project ESAPCA**, in which all d
 
 The current development version ("main") can be found [here](https://github.com/helmholtz-analytics/heat), and the current official release version is [v1.5.0](https://github.com/helmholtz-analytics/heat/releases/tag/v1.5.0).
 
+Installation of the ESAPCA-branch: 
+* clone the Heat-repo, `cd heat`
+* `git checkout features/ESAPCA`
+* `pip install -e .[netcdf,hdf5]` (usually, within a virtual environment) 
+
 ---
 
 Heat is a distributed tensor framework for high performance data analytics.
