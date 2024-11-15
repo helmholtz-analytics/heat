@@ -16,7 +16,7 @@ from .basics import _estimate_largest_singularvalue, condest
 from ..indexing import where
 from ..random import randn
 from ..devices import Device
-from ..manipulations import vstack, hstack, diag, balance
+from ..manipulations import vstack, hstack, concatenate, diag, balance
 from ..exponential import sqrt
 from .. import statistics
 from mpi4py import MPI
@@ -35,16 +35,16 @@ def _zolopd_n_iterations(r: int, kappa: float) -> int:
     Inputs are `r` and `kappa` (named as in the paper), output is the number of iterations.
     """
     if kappa <= 1e2:
-        its = [0, 4, 3, 2, 2, 2, 2, 2, 2]
+        its = [4, 3, 2, 2, 2, 2, 2, 2]
     elif kappa <= 1e3:
-        its = [0, 3, 3, 2, 2, 2, 2, 2, 2]
+        its = [3, 3, 2, 2, 2, 2, 2, 2]
     elif kappa <= 1e5:
-        its = [0, 5, 3, 3, 3, 2, 2, 2, 2]
+        its = [5, 3, 3, 3, 2, 2, 2, 2]
     elif kappa <= 1e7:
-        its = [0, 5, 4, 3, 3, 3, 2, 2, 2]
+        its = [5, 4, 3, 3, 3, 2, 2, 2]
     else:
-        its = [6, 4, 3, 3, 3, 3, 3, 3, 2]
-    return its[r]
+        its = [6, 4, 3, 3, 3, 3, 3, 2]
+    return its[r - 1]
 
 
 def _compute_zolotarev_coefficients(
@@ -146,285 +146,95 @@ def pd(
             f"If specified, input ``condition_estimate`` must be a float but is {type(condition_estimate)}."
         )
 
-    alpha = _estimate_largest_singularvalue(A)
+    alpha = _estimate_largest_singularvalue(A).item()
 
     if condition_estimate <= 1.0:
-        kappa = condest(A)
+        kappa = condest(A).item()
     else:
         kappa = condition_estimate
 
     if A.comm.rank == 0 and not silent:
         print(
-            f"Condition number estimate: {kappa.item():2.2e} / Estimate for largest singular value: {alpha.item():2.2e}."
+            f"Condition number estimate: {kappa:2.2e} / Estimate for largest singular value: {alpha:2.2e}."
         )
 
-    # normalize input
+    # initialize X for the iteration: input ``A``, normalized by largest singular value
     X = A / alpha
 
-    # iteration counter, break flag, and maximum number of iterations
+    # iteration counter and maximum number of iterations
     it = 0
     itmax = _zolopd_n_iterations(r, kappa)
-    breakflag = False
 
     # parameters and coefficients, see Ref. [1] for their meaning
     ell = 1.0 / kappa
-    c, a, Mhat = _compute_zolotarev_coefficients(r, ell.numpy())
+    c, a, Mhat = _compute_zolotarev_coefficients(r, ell, dtype=A.dtype)
 
-    while it < itmax + 1:
+    while it < itmax:
         it += 1
         if not silent:
             if A.comm.rank == 0:
                 print(f"Starting Zolotarev-PD iteration no. {it}...")
+        # remember current X for later convergence check
+        X_old = X.copy()
 
-        if breakflag:
+        # repeat X r-times and create (repeated) identity matrix
+        # this allows to compute the r-many QR decomposition and matrix multiplications in batch-parallel manor
+        X = factories.array(
+            X.larray.repeat(r, 1, 1),
+            is_split=X.split + 1 if X.split is not None else None,
+            comm=A.comm,
+        )
+        cId = factories.eye(A.shape[1], dtype=A.dtype, comm=A.comm, split=A.split)
+        cId = factories.array(
+            cId.larray.repeat(r, 1, 1),
+            is_split=cId.split + 1 if cId.split is not None else None,
+            comm=A.comm,
+        )
+        cId *= c[0::2].reshape(-1, 1, 1) ** 0.5
+        X = concatenate([X, cId], axis=1)
+        Q, _ = qr(X)
+        Q1 = Q[:, : A.shape[0], : A.shape[1]].balance()
+        Q2 = Q[:, A.shape[0] :, : A.shape[1]].transpose([0, 2, 1]).balance()
+        del Q
+        X = Mhat * (
+            X[:, : A.shape[0], :].balance() / r
+            + a.reshape(-1, 1, 1)
+            / c[0::2].reshape(-1, 1, 1) ** 0.5
+            * matmul(Q1, Q2).resplit_(X.split)
+        )
+        del (Q1, Q2)
+        # finally, sum over the batch-dimension to get back the result of the iteration
+        X = X.sum(axis=0)
+
+        # check for convergence and break if tolerance is reached
+        if it > 1 and matrix_norm(X - X_old, ord="fro") / matrix_norm(X, ord="fro") <= tol ** (
+            1 / (2 * r + 1)
+        ):
+            if not silent:
+                if A.comm.rank == 0:
+                    print(f"Zolotarev-PD iteration converged after {it} iterations.")
             break
-
-    print(X, tol)
-
-    # # Introduce communicators and process groups used in the following
-    # # note: we need mpi4py and mpi4py-wrapped-by-heat versions for some communicators...
-    # global_comm = A.comm.handle
-    # nprocs = global_comm.Get_size()
-
-    # idx_all = [k for k in range(nprocs)]
-    # idx_set_horizontal = [
-    #     [k for k in range(nprocs) if k % r == j and k < nprocs - nprocs % r] for j in range(r)
-    # ]
-    # idx_used = [k for k in range(nprocs) if k < nprocs - nprocs % r]
-    # groups_horizontal = [global_comm.group.Incl(idx) for idx in idx_set_horizontal]
-    # horizontal_comms = [global_comm.Create_group(red_group) for red_group in groups_horizontal]
-    # ht_horizontal_comms = [MPICommunication(handle=red_comm) for red_comm in horizontal_comms]
-
-    # idx_set_vertical = [[j * r + k for k in range(r)] for j in range(len(idx_set_horizontal[0]))]
-    # groups_vertical = [global_comm.group.Incl(idx) for idx in idx_set_vertical]
-    # vertical_comms = [global_comm.Create_group(vert_group) for vert_group in groups_vertical]
-
-    # # jeweilige Kommunikatoren für horizontale und vertikale Gruppen festlegen
-    # for k in range(r):
-    #     if global_comm.rank in idx_set_horizontal[k]:
-    #         ht_horizontal_comm = ht_horizontal_comms[k]
-
-    # """
-    # ----------------------------- Vorstellung dahinter ---------------------------------
-    #     -> r-viele (hier r=8) 'horizontale Gruppen'
-    #     -> so viele 'vertikale Gruppen', dass es aufgeht...
-    #     -> ein paar Prozesse (max. r-1) werden ggf. teilweise nicht benutzt...
-
-    #                             idx_set_vert[0]     idx_set_vert[1]     idx_set_vert[2]     idx_set_vert[3] . . .
-    # idx_set_horizontal[0]:      0                   8                   16                  24              ...
-    # idx_set_horizontal[1]:      1                   9                   17                  25              ...
-    # idx_set_horizontal[2]:      2                   10                  18                  26              ...
-    # idx_set_horizontal[3]:      3                   11                  19                  27              ...
-    # idx_set_horizontal[4]:      4                   12                  20                  28              ...
-    # idx_set_horizontal[5]:      5                   13                  21                  29              ...
-    # idx_set_horizontal[6]:      6                   14                  22                  30              ...
-    # idx_set_horizontal[7]:      7                   15                  23                  31              ...
-
-    # Zunächst lebt A auf Prozessen 0,1,2,...,nprocs
-    # Dann wird auf jeder der 8 horizontalen Gruppen (no. 0-7) eine Kopie von A erzeugt (heißt X)
-    # Mit diesen 8 Kopien von A wird dann gearbeitet (u.a. QR-Zerlegungen etc.)
-    # Summation über die 8 weiterverarbeiteten Kopien erfordert dann die vertikalen Gruppen...
-
-    # ganz am Ende: X auf horizontaler Gruppe 0 wird wieder auf alle Prozesse zurückkopiert...
-
-    # """
-
-    # # Hier wird A r mal kopiert und auf insg. r Prozessgruppen (Liste idx_set) verteilt
-
-    # if A.split == 0:
-    #     A_local_shapes = A.lshape_map[:, 0].numpy().tolist()
-    # else:
-    #     A_local_shapes = A.lshape_map[:, 1].numpy().tolist()
-
-    # X_local_shapes = 0
-
-    # # TODO: get local shapes directly instead of creating X as zero array!
-    # if global_comm.rank in idx_used:
-    #     X = factories.zeros(A.shape, dtype=A.dtype, split=A.split, comm=ht_horizontal_comm)
-    #     if X.split == 0:
-    #         X_local_shapes = X.lshape_map[:, 0]
-    #     else:
-    #         X_local_shapes = X.lshape_map[:, 1]
-
-    # X_local_shapes = global_comm.bcast(X_local_shapes, root=0).numpy().tolist()
-
-    # to_send = []
-    # for k in range(r):
-    #     to_send_prelim, to_recv_prelim = what_to_send_and_to_recv(
-    #         A_local_shapes, X_local_shapes, idx_all, idx_set_horizontal[k]
-    #     )
-    #     to_send += to_send_prelim[global_comm.rank]
-    #     if global_comm.rank in idx_set_horizontal[k]:
-    #         to_recv = to_recv_prelim[int((global_comm.rank - k) / r)]
-
-    # if global_comm.rank in idx_used:
-    #     if A.split == 0:
-    #         recv_bufs = [
-    #             torch.zeros(
-    #                 (entry[1], A.shape[1]), dtype=A.dtype.torch_type(), device=A.device.torch_device
-    #             )
-    #             for entry in to_recv
-    #         ]
-    #     else:
-    #         recv_bufs = [
-    #             torch.zeros(
-    #                 (A.shape[0], entry[1]), dtype=A.dtype.torch_type(), device=A.device.torch_device
-    #             )
-    #             for entry in to_recv
-    #         ]
-    #     reqs = [global_comm.Irecv(recv_bufs[k], to_recv[k][0], tag=1) for k in range(len(to_recv))]
-
-    # if A.split == 0:
-    #     [
-    #         global_comm.Send(A.larray[entry[1][0] : entry[1][1], :].clone(), entry[0], tag=1)
-    #         for entry in to_send
-    #     ]
-    # else:
-    #     [
-    #         global_comm.Send(A.larray[:, entry[1][0] : entry[1][1]].clone(), entry[0], tag=1)
-    #         for entry in to_send
-    #     ]
-
-    # if global_comm.rank in idx_used:
-    #     [req.Wait() for req in reqs]
-
-    # if global_comm.rank in idx_used:
-    #     if A.split == 0:
-    #         X.larray = torch.vstack(recv_bufs)
-    #     elif A.split == 1:
-    #         X.larray = torch.hstack(recv_bufs)
-    #     del recv_bufs
-
-    # # for k in range(len(idx_set)):
-    # #     if global_comm.rank in idx_set[k]:
-    # #         print('Process %d: \t A local shape %d x %d \t X local shape %d x %d (group %d consisting of'%(global_comm.rank, A.larray.shape[0], A.larray.shape[1], X.larray.shape[0], X.larray.shape[1], k), idx_set[k], ')')
-
-    # # Jetzt kommt die eigentliche "Iteration"
-    # it = 0
-    # itmax = minimal_iterations(r, kappa)
-    # ell = 1.0 / kappa
-    # c, a, Mhat = compute_zolotarev_coefficients(r, ell.numpy())
-    # breakflag = False
-
-    # while it < itmax + 2:
-    #     it += 1
-    #     if global_comm.rank == 0 and not silent:
-    #         print("Now comes Zolo-PD iteration %d..." % it)
-    #     for k in range(r):
-    #         if global_comm.rank in idx_set_horizontal[k]:
-    #             # berechne die r-vielen QR-Zerlegungen in parallel
-    #             cdummy = A.dtype(c[2 * k], comm=ht_horizontal_comms[k])
-    #             adummy = A.dtype(a[k], comm=ht_horizontal_comms[k])
-    #             Mhatdummy = A.dtype(Mhat, comm=ht_horizontal_comms[k])
-    #             rdummy = A.dtype(r, comm=ht_horizontal_comms[k])
-    #             X = vstack(
-    #                 [
-    #                     X,
-    #                     sqrt(cdummy)
-    #                     * factories.eye(
-    #                         X.shape[1], dtype=A.dtype, comm=ht_horizontal_comms[k], split=X.split
-    #                     ),
-    #                 ]
-    #             )
-    #             Q = myqr(X)
-    #             Q1 = Q[: A.shape[0], : A.shape[1]].balance()
-    #             Q2 = Q[A.shape[0] :, : A.shape[1]].T.balance()
-    #             del Q
-    #             X = Mhatdummy * (
-    #                 X[: A.shape[0], :].balance() / rdummy
-    #                 + adummy / sqrt(cdummy) * matmul(Q1, Q2).resplit_(A.split)
-    #             )
-    #             del Q1
-    #             del Q2
-    #     for k in range(len(idx_set_vertical)):
-    #         if global_comm.rank in idx_set_vertical[k]:
-    #             # summiere die QR-Zerlegungen auf: Hier braucht man insbesondere, dass die X alle die selbe Form haben
-    #             # so spart man sich nochmal recht viel Kommunikation, lässt aber auch schlimmstenfalls 7 Prozessoren unbenutzt...
-    #             Xold = X
-    #             vertical_comms[k].Allreduce(MPI.IN_PLACE, X.larray)
-    #     if it >= itmax:
-    #         if global_comm.rank in idx_set_horizontal[0]:
-    #             # if A.split == 1:
-    #             #     X.resplit_(0)
-    #             #     Xold.resplit_(0)
-    #             if matrix_norm(X - Xold, ord="fro") / matrix_norm(X, ord="fro") <= tol ** (
-    #                 1 / (2 * r + 1)
-    #             ):
-    #                 breakflag = True
-    #                 del Xold
-    #                 if global_comm.rank == 0 and not silent:
-    #                     print("Desired tolerance reached after iteration %d." % it)
-    #             # if A.split == 1:
-    #             #     X.resplit_(1)
-    #         breakflag = global_comm.bcast(breakflag, root=0)
-    #         if breakflag:
-    #             break
-    #     # falls nicht Abbruch, Koeffizienten updaten für nächste Iteration...
-    #     ellold = ell
-    #     ell = 1
-    #     for j in range(r):
-    #         ell *= (ellold**2 + c[2 * j + 1]) / (ellold**2 + c[2 * j])
-    #     ell *= Mhat * ellold
-    #     c, a, Mhat = compute_zolotarev_coefficients(r, ell.numpy())
-
-    # # Jetzt muss X von Prozessgruppe idx_set_horizontal[0] auf alle Prozesse zurückkopiert werden...
-
-    # U = factories.zeros(A.shape, dtype=A.dtype, split=A.split, comm=A.comm)
-
-    # to_send, to_recv = what_to_send_and_to_recv(
-    #     X_local_shapes, A_local_shapes, idx_set_horizontal[0], idx_all
-    # )
-
-    # if A.split == 0:
-    #     recv_bufs = [
-    #         torch.zeros(
-    #             (entry[1], A.shape[1]), dtype=A.dtype.torch_type(), device=A.device.torch_device
-    #         )
-    #         for entry in to_recv[global_comm.rank]
-    #     ]
-    # else:
-    #     recv_bufs = [
-    #         torch.zeros(
-    #             (A.shape[0], entry[1]), dtype=A.dtype.torch_type(), device=A.device.torch_device
-    #         )
-    #         for entry in to_recv[global_comm.rank]
-    #     ]
-    # reqs = [
-    #     global_comm.Irecv(recv_bufs[k], to_recv[global_comm.rank][k][0], tag=2)
-    #     for k in range(len(to_recv[global_comm.rank]))
-    # ]
-
-    # if global_comm.rank in idx_set_horizontal[0]:
-    #     if X.split == 0:
-    #         [
-    #             global_comm.Send(X.larray[entry[1][0] : entry[1][1], :].clone(), entry[0], tag=2)
-    #             for entry in to_send[int(global_comm.rank / r)]
-    #         ]
-    #     else:
-    #         [
-    #             global_comm.Send(X.larray[:, entry[1][0] : entry[1][1]].clone(), entry[0], tag=2)
-    #             for entry in to_send[int(global_comm.rank / r)]
-    #         ]
-
-    # [req.Wait() for req in reqs]
-
-    # if global_comm.rank in idx_used:
-    #     del X
-
-    # if A.split == 0:
-    #     U.larray = torch.vstack(recv_bufs)
-    # elif A.split == 1:
-    #     U.larray = torch.hstack(recv_bufs)
-
-    # del recv_bufs
-
-    # # Postprocessing: berechne H
-    # if calcH:
-    #     H = matmul(U.T, A) * alpha
-    #     H = 0.5 * (H + H.T.resplit(H.split))
-    #     return U, H.resplit(A.split)
-    # else:
-    #     return U
+        elif it < itmax:
+            # if another iteration is necessary, update coefficients and parameters for next iteration
+            ellold = ell
+            ell = 1
+            for j in range(r):
+                ell *= (ellold**2 + c[2 * j + 1]) / (ellold**2 + c[2 * j])
+            ell *= Mhat * ellold
+            c, a, Mhat = _compute_zolotarev_coefficients(r, ell, dtype=A.dtype)
+        else:
+            if not silent:
+                if A.comm.rank == 0:
+                    print(
+                        f"Zolotarev-PD iteration did not reach the convergence criterion after {itmax} iterations, which is most likely due to limited numerical accuracy and/or poor estimation of the condition number. The result may still be useful, but should be handeled with care!"
+                    )
+    # postprocessing: compute H if requested
+    if calcH:
+        H = matmul(X.T, A)
+        H = 0.5 * (H + H.T.resplit(H.split))
+        return X, H.resplit(A.split)
+    else:
+        return X
 
 
 # def svd(A: DNDarray, r: int = 8, silent: bool = True) -> Tuple[DNDarray, DNDarray, DNDarray]:

@@ -66,7 +66,7 @@ def _estimate_largest_singularvalue(A: DNDarray, algorithm: str = "fro") -> DNDa
             f"Parameter 'algorithm' needs to be a string, but is {algorithm} with data type {type(algorithm)}."
         )
     if algorithm == "fro":
-        return matrix_norm(A, ord="fro")
+        return matrix_norm(A, ord="fro").squeeze()
     else:
         raise NotImplementedError("So far only algorithm='fro' implemented.")
 
