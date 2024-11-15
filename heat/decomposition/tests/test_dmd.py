@@ -159,6 +159,7 @@ class TestDMD(TestCase):
         # check whether the DMD-modes are correct
         sorted_ev_1 = np.sort_complex(dmd.rom_eigenvalues_.numpy())
         sorted_ev_2 = np.sort_complex(np.linalg.eigvals(A_red.numpy()))
+        print(sorted_ev_1, sorted_ev_2)
         self.assertTrue(np.allclose(sorted_ev_1, sorted_ev_2, atol=1e-4, rtol=1e-4))
 
         # check prediction of next states
