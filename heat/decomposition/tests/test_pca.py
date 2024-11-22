@@ -20,10 +20,10 @@ class TestPCA(TestCase):
         self.assertEqual(pca.whiten, False)
         self.assertEqual(pca.svd_solver, "hierarchical")
         self.assertEqual(pca.tol, None)
-        self.assertEqual(pca.iterated_power, "auto")
+        self.assertEqual(pca.iterated_power, 0)
         self.assertEqual(pca.n_oversamples, 10)
         self.assertEqual(pca.power_iteration_normalizer, "qr")
-        self.assertEqual(pca.random_state, 0)
+        self.assertEqual(pca.random_state, None)
 
         # check catching of invalid parameters
         # wrong withening
@@ -192,8 +192,21 @@ class TestPCA(TestCase):
         self.assertEqual(pca.noise_variance_, None)
 
     def test_pca_randomized(self):
-        pca = ht.decomposition.PCA(n_components=2, svd_solver="randomized")
+        rank = 2
+        pca = ht.decomposition.PCA(n_components=rank, svd_solver="randomized")
         data = ht.random.randn(15 * ht.MPI_WORLD.size, 5, split=0)
+
+        pca.fit(data)
+        self.assertEqual(pca.components_.shape, (rank, 5))
+        self.assertEqual(pca.n_components_, rank)
+        self.assertEqual(pca.mean_.shape, (5,))
+
         if ht.MPI_WORLD.size > 1:
-            with self.assertRaises(NotImplementedError):
-                pca.fit(data)
+            self.assertEqual(pca.total_explained_variance_ratio_, None)
+            self.assertEqual(pca.noise_variance_, None)
+            self.assertEqual(pca.explained_variance_, None)
+            self.assertEqual(pca.explained_variance_ratio_, None)
+            self.assertEqual(pca.singular_values_, None)
+
+        pca = ht.decomposition.PCA(n_components=None, svd_solver="randomized", random_state=1234)
+        self.assertEqual(ht.random.get_state()[1], 1234)
