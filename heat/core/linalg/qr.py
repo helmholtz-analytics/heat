@@ -33,7 +33,7 @@ def qr(
         Array which will be decomposed. So far only arrays with datatype float32 or float64 are supported
         For split=0 (-2, in the batched case), the matrix must be tall skinny, i.e. the local chunks of data must have at least as many rows as columns.
     mode : str, optional
-        default "reduced" returns Q and R with dimensions (M, min(M,N)) and (min(M,N), N), respectively, with obvious modifications for batched inputs
+        default "reduced" returns Q and R with dimensions (M, min(M,N)) and (min(M,N), N). Potential batch dimensions are not modified.
         "r" returns only R, with dimensions (min(M,N), N).
     procs_to_merge : int, optional
         This parameter is only relevant for split=0 (-2, in the batched case) and determines the number of processes to be merged at one step during the so-called TS-QR algorithm.
