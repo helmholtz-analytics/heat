@@ -90,10 +90,6 @@ def qr(
     if procs_to_merge == 0:
         procs_to_merge = A.comm.size
 
-    # if A.ndim != 2:
-    #     raise ValueError(
-    #         f"Array 'A' must be 2 dimensional, buts has {A.ndim} dimensions. \n Please open an issue on GitHub if you require QR for batches of matrices similar to PyTorch."
-    #     )
     if A.dtype not in [float32, float64]:
         raise TypeError(f"Array 'A' must have a datatype of float32 or float64, but has {A.dtype}")
 
