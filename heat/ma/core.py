@@ -63,7 +63,7 @@ HANDLED_FUNCTIONS = {}
 class MaskedDNDarray:
     """Handles missing or invalid values"""
 
-    def __init__(self, data, mask, fill_value=None, keep_mask=True, hard_mask=None, shrink=True):
+    def __init__(self, data, mask, copy=False, fill_value=None, keep_mask=True, hard_mask=None, shrink=True):
         # Checks
         ht.sanitize_in(data)
         ht.sanitize_in(mask)
@@ -73,8 +73,27 @@ class MaskedDNDarray:
 
         self._data, self._mask = data, mask
         self._fill_value = fill_value
-        self._keep_mask = keep_mask
-        self._hard_mask = hard_mask
+        self._hardmask = hard_mask
+
+    @property
+    def data(self):
+        return self._data
+    
+    @property
+    def mask(self):
+        return self._mask
+
+    @property
+    def fill_value(self):
+        return self._fill_value
+    
+    @property.setter
+    def fill_value(self, value):
+        self._fill_value = value
+
+    @property
+    def hardmask(self):
+        return self._hardmask
 
     @classmethod
     def __heat_function__(cls, func, types, args, kwargs):
