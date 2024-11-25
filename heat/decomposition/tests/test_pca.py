@@ -242,7 +242,7 @@ class TestIncrementalPCA(TestCase):
         with self.assertRaises(ValueError):
             ht.decomposition.IncrementalPCA(n_components=0)
 
-    def test_incrementalpca_part1(self):
+    def test_incrementalpca_full_rank_reached_split0(self):
         # full rank is reached, split = 0
         # dtype float32
         pca = ht.decomposition.IncrementalPCA()
@@ -251,13 +251,6 @@ class TestIncrementalPCA(TestCase):
         data = ht.vstack([data0, data1])
         data0_np = data0.numpy()
         data_np = data.numpy()
-
-        # fit is not yet implemented
-        with self.assertRaises(NotImplementedError):
-            pca.fit(data0)
-        # wrong input for partial_fit
-        with self.assertRaises(ValueError):
-            pca.partial_fit(data0, y="Why can't we get rid of this argument?")
 
         # test partial_fit, step 0
         pca.partial_fit(data0)
@@ -289,13 +282,7 @@ class TestIncrementalPCA(TestCase):
         Z = pca.inverse_transform(Y)
         self.assertTrue(ht.allclose(new_data, Z, atol=1e-4, rtol=1e-4))
 
-        # wrong inputs for transform and inverse transform
-        with self.assertRaises(ValueError):
-            pca.transform(ht.zeros((200, 2 * ht.MPI_WORLD.size + 2), split=0))
-        with self.assertRaises(ValueError):
-            pca.inverse_transform(ht.zeros((200, 2 * ht.MPI_WORLD.size + 2), split=0))
-
-    def test_incrementalpca_part2(self):
+    def test_incrementalpca_truncation_happens_split1(self):
         # full rank not reached, but truncation happens, split = 1
         # dtype float64
         pca = ht.decomposition.IncrementalPCA(n_components=15)
@@ -328,3 +315,21 @@ class TestIncrementalPCA(TestCase):
         self.assertEqual(pca.n_samples_seen_, 20)
         s_np = np.linalg.svd(data_np - data_np.mean(axis=0), compute_uv=False, hermitian=False)
         self.assertTrue(np.allclose(s_np[:15], pca.singular_values_.numpy()))
+
+    def test_incrementalpca_catch_wrong_inputs(self):
+        pca = ht.decomposition.IncrementalPCA(n_components=1)
+        data0 = ht.random.randn(15, 15, split=None)
+
+        # fit is not yet implemented
+        with self.assertRaises(NotImplementedError):
+            pca.fit(data0)
+        # wrong input for partial_fit
+        with self.assertRaises(ValueError):
+            pca.partial_fit(data0, y="Why can't we get rid of this argument?")
+
+        pca.partial_fit(data0)
+        # wrong inputs for transform and inverse transform
+        with self.assertRaises(ValueError):
+            pca.transform(ht.zeros((15, 16), split=None))
+        with self.assertRaises(ValueError):
+            pca.inverse_transform(ht.zeros((17, 2), split=None))

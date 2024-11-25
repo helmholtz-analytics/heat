@@ -4,7 +4,6 @@ import unittest
 import heat as ht
 import numpy as np
 from mpi4py import MPI
-import time
 
 from ...tests.test_suites.basic_test import TestCase
 
