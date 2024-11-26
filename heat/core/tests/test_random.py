@@ -9,7 +9,7 @@ import heat as ht
 from .test_suites.basic_test import TestCase
 
 envar = os.getenv("HEAT_TEST_USE_DEVICE", "cpu")
-is_mps = envar == "gpu" and platform.machine() == "arm64"
+is_mps = envar == "gpu" and platform.system() == "Darwin"
 
 
 class TestRandom_Batchparallel(TestCase):
