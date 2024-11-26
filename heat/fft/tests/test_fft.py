@@ -1,17 +1,28 @@
 import numpy as np
 import torch
 import unittest
+import platform
+import os
 
 import heat as ht
 from heat.core.tests.test_suites.basic_test import TestCase
 
 torch_ihfftn = hasattr(torch.fft, "ihfftn")
 
+# On MPS, FFTs only supported for MacOS 14+
+envar = os.getenv("HEAT_TEST_USE_DEVICE", "cpu")
+is_mps = envar == "gpu" and platform.system() == "Darwin"
 
+
+@unittest.skipIf(
+    is_mps and int(platform.mac_ver()[0].split(".")[0]) < 14,
+    "FFT on Apple MPS only supported on MacOS 14+",
+)
 class TestFFT(TestCase):
     def test_fft_ifft(self):
+        dtype = ht.float32 if self.is_mps else ht.float64
         # 1D non-distributed
-        x = ht.random.randn(6, dtype=ht.float64)
+        x = ht.random.randn(6, dtype=dtype)
         y = ht.fft.fft(x)
         np_y = np.fft.fft(x.numpy())
         self.assertIsInstance(y, ht.DNDarray)
@@ -75,8 +86,9 @@ class TestFFT(TestCase):
             ht.fft.fft(x, axis=(0, 1))
 
     def test_fft2_ifft2(self):
+        dtype = ht.float32 if self.is_mps else ht.float64
         # 2D FFT along non-split axes
-        x = ht.random.randn(3, 6, 6, split=0, dtype=ht.float64)
+        x = ht.random.randn(3, 6, 6, split=0, dtype=dtype)
         y = ht.fft.fft2(x)
         np_y = np.fft.fft2(x.numpy())
         self.assertTrue(y.split == 0)
