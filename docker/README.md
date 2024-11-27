@@ -108,3 +108,18 @@ Lists all active containers
 
 > docker system prune 
 Closes all currently running containers and frees up the resources
+
+## How to download a pre-built image from the container registry
+The github container registry (ghcr.io) contains different docker versions of heat / pytorch / cuda / rocm.
+
+> docker pull ghcr.io/NAMESPACE/IMAGE_NAME
+
+For further info refer to the [Github documentation on package registries](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry)
+
+## How to push a new image to ghcr.io
+
+1. Make sure you have a github access token set up in the CLI
+2. Rename the local image in the following format:
+> docker tag current:name ghcr.io/helmholtz-analytics/heat:1.X.X-torchX.X_cudaXX.X_py3.XX
+3. Upload the image via:
+> docker push ghcr.io/helmholtz-analytics/heat:1.X.X-torchX.X_cudaXX.X_py3.XX
