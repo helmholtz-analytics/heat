@@ -35,7 +35,6 @@ body:
       options:
         - main (development branch)
         - 1.5.x
-        - 1.4.x
     validations:
       required: true
   - type: dropdown
@@ -54,6 +53,7 @@ body:
       label: PyTorch version
       description: What PyTorch version?
       options:
+        - 2.5
         - 2.4
         - 2.3
         - 2.2
