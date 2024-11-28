@@ -2,10 +2,7 @@ name: Release Drafter
 
 on:
   pull_request_target:
-    types: [opened, reopened, synchronize]
-  push:
-    branches:
-      - release/*
+    types: [opened, reopened, synchronize, closed]
 jobs:
   update_release_draft:
     permissions:
@@ -22,6 +19,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          commitish: ${{ github.ref_name }}
+          commitish: 'release'
           name: ${{ github.ref_name }} - Draft release
           config-name: rd-release-config.yml
