@@ -9,10 +9,8 @@ from ...tests.test_suites.basic_test import TestCase
 
 
 class TestHSVD(TestCase):
-    # the following skipIf doesn't work
-    # @unittest.skipIf(ht.get_device().device_type.startswith("gpu") and torch.backends.mps.is_built() and torch.backends.mps.is_available(), "MPS unstable for now")
-    # not testing on MPS for now as torch.norm() is unstable
     def test_hsvd_rank_part1(self):
+        # not testing on MPS for now as torch.norm() is unstable
         if not self.is_mps:
             nprocs = MPI.COMM_WORLD.Get_size()
             test_matrices = [
@@ -280,7 +278,11 @@ class TestRSVD(TestCase):
 class TestISVD(TestCase):
     def test_isvd(self):
         ht.random.seed(27183)
-        for dtype in [ht.float32, ht.float64]:
+        if self.is_mps:
+            dtypes = [ht.float32]
+        else:
+            dtypes = [ht.float32, ht.float64]
+        for dtype in dtypes:
             dtypetol = 1e-5 if dtype == ht.float32 else 1e-10
             for old_split in [0, 1, None]:
                 X_old, SVD_old = ht.utils.data.matrixgallery.random_known_rank(
