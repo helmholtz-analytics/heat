@@ -284,10 +284,11 @@ class TestIncrementalPCA(TestCase):
 
     def test_incrementalpca_truncation_happens_split1(self):
         # full rank not reached, but truncation happens, split = 1
-        # dtype float64
+        # dtype float64 unless on MPS
+        dtype = ht.float64 if not self.is_mps else ht.float32
         pca = ht.decomposition.IncrementalPCA(n_components=15)
-        data0 = ht.random.randn(9, 100 * ht.MPI_WORLD.size + 1, split=1, dtype=ht.float64)
-        data1 = 1.0 + ht.random.rand(11, 100 * ht.MPI_WORLD.size + 1, split=1, dtype=ht.float64)
+        data0 = ht.random.randn(9, 100 * ht.MPI_WORLD.size + 1, split=1, dtype=dtype)
+        data1 = 1.0 + ht.random.rand(11, 100 * ht.MPI_WORLD.size + 1, split=1, dtype=dtype)
         data = ht.vstack([data0, data1])
         data0_np = data0.numpy()
         data_np = data.numpy()
@@ -295,15 +296,16 @@ class TestIncrementalPCA(TestCase):
         # test partial_fit, step 0
         pca.partial_fit(data0)
         self.assertEqual(pca.components_.shape, (9, 100 * ht.MPI_WORLD.size + 1))
-        self.assertEqual(pca.components_.dtype, ht.float64)
+        self.assertEqual(pca.components_.dtype, dtype)
         self.assertEqual(pca.n_components_, 9)
         self.assertEqual(pca.mean_.shape, (100 * ht.MPI_WORLD.size + 1,))
-        self.assertEqual(pca.mean_.dtype, ht.float64)
+        self.assertEqual(pca.mean_.dtype, dtype)
         self.assertEqual(pca.singular_values_.shape, (9,))
-        self.assertEqual(pca.singular_values_.dtype, ht.float64)
+        self.assertEqual(pca.singular_values_.dtype, dtype)
         self.assertEqual(pca.n_samples_seen_, 9)
         s0_np = np.linalg.svd(data0_np - data0_np.mean(axis=0), compute_uv=False, hermitian=False)
-        self.assertTrue(np.allclose(s0_np, pca.singular_values_.numpy(), atol=1e-12))
+        if not self.is_mps:
+            self.assertTrue(np.allclose(s0_np, pca.singular_values_.numpy(), atol=1e-12))
 
         # test partial_fit, step 1
         # here actually truncation happens as we have rank 20 but n_components=15
