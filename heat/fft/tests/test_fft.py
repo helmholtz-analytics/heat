@@ -42,7 +42,7 @@ class TestFFT(TestCase):
         self.assert_array_equal(y, np_y)
 
         # n-D distributed
-        x = ht.random.randn(10, 8, 6, dtype=ht.float64, split=0)
+        x = ht.random.randn(10, 8, 6, dtype=dtype, split=0)
         # FFT along last axis
         n = 5
         y = ht.fft.fft(x, n=n)
@@ -62,7 +62,7 @@ class TestFFT(TestCase):
         self.assert_array_equal(y, np_y)
 
         # complex input
-        x = x + 1j * ht.random.randn(10, 8, 6, dtype=ht.float64, split=0)
+        x = x + 1j * ht.random.randn(10, 8, 6, dtype=dtype, split=0)
         # FFT along last axis (distributed)
         x.resplit_(axis=2)
         y = ht.fft.fft(x, n=n)
@@ -97,7 +97,7 @@ class TestFFT(TestCase):
         self.assertTrue(ht.allclose(backwards, x))
 
         # 2D FFT along split axes
-        x = ht.random.randn(10, 6, 6, split=0, dtype=ht.float64)
+        x = ht.random.randn(10, 6, 6, split=0, dtype=dtype)
         axes = (0, 1)
         y = ht.fft.fft2(x, axes=axes)
         np_y = np.fft.fft2(x.numpy(), axes=axes)
@@ -112,6 +112,7 @@ class TestFFT(TestCase):
             ht.fft.fft2(x)
 
     def test_fftn_ifftn(self):
+        dtype = ht.float32 if self.is_mps else ht.float64
         # 1D non-distributed
         x = ht.random.randn(6)
         y = ht.fft.fftn(x)
@@ -132,7 +133,7 @@ class TestFFT(TestCase):
         self.assert_array_equal(y, np_y)
 
         # n-D distributed
-        x = ht.random.randn(10, 8, 6, dtype=ht.float64, split=0)
+        x = ht.random.randn(10, 8, 6, dtype=dtype, split=0)
         # FFT along last 2 axes
         y = ht.fft.fftn(x, s=(6, 6))
         np_y = np.fft.fftn(x.numpy(), s=(6, 6))
@@ -236,7 +237,8 @@ class TestFFT(TestCase):
             ht.fft.fftshift(x, axes=(0, 2))
 
     def test_hfft_ihfft(self):
-        x = ht.zeros((3, 5), split=0, dtype=ht.float64)
+        dtype = ht.float32 if self.is_mps else ht.float64
+        x = ht.zeros((3, 5), split=0, dtype=dtype)
         edges = [1, 3, 7]
         for i, n in enumerate(edges):
             x[i] = ht.linspace(0, n, 5)
@@ -250,7 +252,8 @@ class TestFFT(TestCase):
         self.assertEqual(reconstructed_x.shape[-1], n)
 
     def test_hfft2_ihfft2(self):
-        x = ht.random.randn(10, 6, 6, dtype=ht.float64)
+        dtype = ht.float32 if self.is_mps else ht.float64
+        x = ht.random.randn(10, 6, 6, dtype=dtype)
         if torch_ihfftn:
             inv_fft = ht.fft.ihfft2(x)
             reconstructed_x = ht.fft.hfft2(inv_fft, s=x.shape[-2:])
@@ -260,7 +263,8 @@ class TestFFT(TestCase):
                 ht.fft.ihfft2(x)
 
     def test_hfftn_ihfftn(self):
-        x = ht.random.randn(10, 6, 6, dtype=ht.float64)
+        dtype = ht.float32 if self.is_mps else ht.float64
+        x = ht.random.randn(10, 6, 6, dtype=dtype)
         if torch_ihfftn:
             inv_fft = ht.fft.ihfftn(x)
             reconstructed_x = ht.fft.hfftn(inv_fft, s=x.shape)
@@ -272,8 +276,9 @@ class TestFFT(TestCase):
                 ht.fft.ihfftn(x)
 
     def test_rfft_irfft(self):
+        dtype = ht.float32 if self.is_mps else ht.float64
         # n-D distributed
-        x = ht.random.randn(10, 8, 3, dtype=ht.float64, split=0)
+        x = ht.random.randn(10, 8, 3, dtype=dtype, split=0)
         # FFT along last axis
         y = ht.fft.rfft(x)
         np_y = np.fft.rfft(x.numpy())
@@ -286,13 +291,14 @@ class TestFFT(TestCase):
 
         # exceptions
         # complex input
-        x = x + 1j * ht.random.randn(10, 8, 3, dtype=ht.float64, split=0)
+        x = x + 1j * ht.random.randn(10, 8, 3, dtype=dtype, split=0)
         with self.assertRaises(TypeError):
             ht.fft.rfft(x)
 
     def test_rfftn_irfftn(self):
+        dtype = ht.float32 if self.is_mps else ht.float64
         # n-D distributed
-        x = ht.random.randn(10, 8, 6, dtype=ht.float64, split=0)
+        x = ht.random.randn(10, 8, 6, dtype=dtype, split=0)
         # FFT along last 2 axes
         y = ht.fft.rfftn(x, axes=(1, 2))
         np_y = np.fft.rfftn(x.numpy(), axes=(1, 2))
@@ -310,13 +316,14 @@ class TestFFT(TestCase):
 
         # exceptions
         # complex input
-        x = x + 1j * ht.random.randn(10, 8, 6, dtype=ht.float64, split=0)
+        x = x + 1j * ht.random.randn(10, 8, 6, dtype=dtype, split=0)
         with self.assertRaises(TypeError):
             ht.fft.rfftn(x)
 
     def test_rfft2_irfft2(self):
+        dtype = ht.float32 if self.is_mps else ht.float64
         # n-D distributed
-        x = ht.random.randn(4, 8, 6, dtype=ht.float64, split=0)
+        x = ht.random.randn(4, 8, 6, dtype=dtype, split=0)
         # FFT along last 2 axes
         y = ht.fft.rfft2(x, axes=(1, 2))
         np_y = np.fft.rfft2(x.numpy(), axes=(1, 2))
