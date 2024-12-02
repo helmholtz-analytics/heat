@@ -3420,12 +3420,10 @@ class TestArithmetics(TestCase):
 
         result = ht.array([[-1.0, -2.0], [-3.0, -4.0]])
         int_result = ht.array([-2, -2])
-        a_complex_vector = ht.array([1 + 1j, 2 - 2j, 3, 4j, 5], split=0, dtype=ht.complex64)
+        a_complex_vector = a_complex_vector_double = ht.array(
+            [1 + 1j, 2 - 2j, 3, 4j, 5], split=0, dtype=ht.complex64
+        )
         complex_result = ht.array([-1 - 1j, -2 + 2j, -3, -4j, -5], split=0, dtype=ht.complex64)
-        if not self.is_mps:
-            a_complex_vector_double = ht.array(
-                [1 + 1j, 2 - 2j, 3, 4j, 5], split=0, dtype=ht.complex128
-            )
 
         # We identify the underlying PyTorch objects to check whether operations are really in-place
         underlying_torch_tensor = a_tensor.larray
@@ -3453,8 +3451,7 @@ class TestArithmetics(TestCase):
         if not self.is_mps or macos_version >= 14:
             self.assertTrue(ht.equal(a_complex_vector.neg_(), complex_result))
             self.assertTrue(ht.equal(a_complex_vector, complex_result))
-        if not self.is_mps:
-            self.assertIs(a_complex_vector, a_complex_vector_double)
+        self.assertIs(a_complex_vector, a_complex_vector_double)
         self.assertIs(a_complex_vector.larray, underlying_complex_torch_tensor)
 
         # Test other possible ways to call this function
