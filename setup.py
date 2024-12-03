@@ -33,12 +33,12 @@ setup(
         "Topic :: Scientific/Engineering",
     ],
     install_requires=[
-        "mpi4py>=3.0.0, <4.0.0",
+        "mpi4py>=3.0.0",
         "numpy>=1.22.0, <2",
-        "torch>=2.0.0, <2.4.1",
+        "torch>=2.0.0, <2.5.2",
         "scipy>=1.10.0",
         "pillow>=6.0.0",
-        "torchvision>=0.15.2, <0.19.1",
+        "torchvision>=0.15.2, <0.20.2",
     ],
     extras_require={
         "docutils": ["docutils>=0.16"],
@@ -47,5 +47,6 @@ setup(
         "dev": ["pre-commit>=1.18.3"],
         "examples": ["scikit-learn>=0.24.0", "matplotlib>=3.1.0"],
         "cb": ["perun>=0.2.0"],
+        "pandas": ["pandas>=1.4"],
     },
 )
