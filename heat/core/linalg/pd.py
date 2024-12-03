@@ -48,7 +48,7 @@ def _zolopd_n_iterations(r: int, kappa: float) -> int:
 
 
 def _compute_zolotarev_coefficients(
-    r: int, ell: float, dtype: types.datatype = types.float64
+    r: int, ell: float, device: str, dtype: types.datatype = types.float64
 ) -> Tuple[DNDarray, DNDarray, types.datatype]:
     """
     Computes c=(c_i)_i defined in equation (3.4), as well as a=(a_j)_j and Mhat defined in formulas (4.2)/(4.3) of the paper Nakatsukasa, Y., & Freund, R. W. (2016). Computing the polar decomposition with applications. SIAM Review, 58(3), DOI: https://doi.org/10.1137/140990334.
@@ -72,9 +72,9 @@ def _compute_zolotarev_coefficients(
         aa[j - 1] = -p1 / p2
         Mhat *= (1 + cc[2 * j - 2]) / (1 + cc[2 * j - 1])
     return (
-        factories.array(cc, dtype=dtype, split=None),
-        factories.array(aa, dtype=dtype, split=None),
-        dtype(Mhat),
+        factories.array(cc, dtype=dtype, split=None, device=device),
+        factories.array(aa, dtype=dtype, split=None, device=device),
+        factories.array(Mhat, dtype=dtype, split=None, device=device),
     )
 
 
@@ -167,7 +167,7 @@ def pd(
 
     # parameters and coefficients, see Ref. [1] for their meaning
     ell = 1.0 / kappa
-    c, a, Mhat = _compute_zolotarev_coefficients(r, ell, dtype=A.dtype)
+    c, a, Mhat = _compute_zolotarev_coefficients(r, ell, A.device, dtype=A.dtype)
 
     while it < itmax:
         it += 1
@@ -184,7 +184,7 @@ def pd(
             is_split=X.split + 1 if X.split is not None else None,
             comm=A.comm,
         )
-        cId = factories.eye(A.shape[1], dtype=A.dtype, comm=A.comm, split=A.split)
+        cId = factories.eye(A.shape[1], dtype=A.dtype, comm=A.comm, split=A.split, device=A.device)
         cId = factories.array(
             cId.larray.repeat(r, 1, 1),
             is_split=cId.split + 1 if cId.split is not None else None,
@@ -221,7 +221,7 @@ def pd(
             for j in range(r):
                 ell *= (ellold**2 + c[2 * j + 1]) / (ellold**2 + c[2 * j])
             ell *= Mhat * ellold
-            c, a, Mhat = _compute_zolotarev_coefficients(r, ell, dtype=A.dtype)
+            c, a, Mhat = _compute_zolotarev_coefficients(r, ell, A.device, dtype=A.dtype)
         else:
             if not silent:
                 if A.comm.rank == 0:
