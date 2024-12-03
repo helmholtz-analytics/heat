@@ -140,18 +140,20 @@ class TestQR(TestCase):
         self.assertEqual(r.split, 1)
 
     def test_batched_qr_split1(self):
-        # two batch dimensions, float64 data type, "split = 1" (last dimension)
-        ht.random.seed(0)
-        x = ht.random.rand(3, 2, 50, ht.MPI_WORLD.size * 5 + 3, dtype=ht.float64, split=3)
-        q, r = ht.linalg.qr(x)
-        batched_id = ht.stack([ht.eye(q.shape[3], dtype=ht.float64) for _ in range(6)]).reshape(
-            3, 2, q.shape[3], q.shape[3]
-        )
+        # skip float64 tests on MPS
+        if not self.is_mps:
+            # two batch dimensions, float64 data type, "split = 1" (last dimension)
+            ht.random.seed(0)
+            x = ht.random.rand(3, 2, 50, ht.MPI_WORLD.size * 5 + 3, dtype=ht.float64, split=3)
+            q, r = ht.linalg.qr(x)
+            batched_id = ht.stack([ht.eye(q.shape[3], dtype=ht.float64) for _ in range(6)]).reshape(
+                3, 2, q.shape[3], q.shape[3]
+            )
 
-        self.assertTrue(
-            ht.allclose(q.transpose([0, 1, 3, 2]) @ q, batched_id, atol=1e-6, rtol=1e-6)
-        )
-        self.assertTrue(ht.allclose(q @ r, x, atol=1e-6, rtol=1e-6))
+            self.assertTrue(
+                ht.allclose(q.transpose([0, 1, 3, 2]) @ q, batched_id, atol=1e-6, rtol=1e-6)
+            )
+            self.assertTrue(ht.allclose(q @ r, x, atol=1e-6, rtol=1e-6))
 
     def test_batched_qr_split0(self):
         # one batch dimension, float32 data type, "split = 0" (second last dimension)
