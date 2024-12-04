@@ -1,5 +1,6 @@
 import heat as ht
 import torch
+import os
 
 from .test_suites.basic_test import TestCase
 
@@ -121,7 +122,11 @@ class TestVmap(TestCase):
             y0_torch, y1_torch = vfunc_torch(x0_torch, x1_torch, k=5, scale=2.2)
 
             self.assertTrue(torch.allclose(y0.resplit(None).larray, y0_torch))
-            self.assertTrue(torch.allclose(y1.resplit(None).larray, y1_torch, atol=1e-6, rtol=1e-6))
+            if os.getenv("HEAT_TEST_USE_DEVICE") == "gpu":
+                tol = 1e-4
+            else:
+                tol = 1e-12
+            self.assertTrue(torch.allclose(y1.resplit(None).larray, y1_torch, atol=tol, rtol=tol))
 
         def test_vmap_catch_errors(self):
             # not a callable
