@@ -79,8 +79,6 @@ class TestVmap(TestCase):
             vfunc_torch = torch.vmap(func, (0,), (0,))
             y0_torch = vfunc_torch(x0_torch, m=2, scale=3)
 
-            print(y0.resplit(None).larray, y0_torch)
-
             self.assertTrue(torch.allclose(y0.resplit(None).larray, y0_torch))
 
         def test_vmap_with_chunks(self):
@@ -123,7 +121,7 @@ class TestVmap(TestCase):
             y0_torch, y1_torch = vfunc_torch(x0_torch, x1_torch, k=5, scale=2.2)
 
             self.assertTrue(torch.allclose(y0.resplit(None).larray, y0_torch))
-            self.assertTrue(torch.allclose(y1.resplit(None).larray, y1_torch))
+            self.assertTrue(torch.allclose(y1.resplit(None).larray, y1_torch, atol=1e-6, rtol=1e-6))
 
         def test_vmap_catch_errors(self):
             # not a callable
