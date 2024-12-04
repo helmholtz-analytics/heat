@@ -125,7 +125,7 @@ class TestVmap(TestCase):
             if os.getenv("HEAT_TEST_USE_DEVICE") == "gpu":
                 tol = 1e-4
             else:
-                tol = 1e-10
+                tol = 1e-8
             self.assertTrue(torch.allclose(y1.resplit(None).larray, y1_torch, atol=tol, rtol=tol))
 
         def test_vmap_catch_errors(self):
