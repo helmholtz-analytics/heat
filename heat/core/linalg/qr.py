@@ -187,7 +187,11 @@ def qr(
             # raise ValueError(
             #     "A is split along the rows and the local chunks of data are rectangular with more rows than columns. \n Applying TS-QR in this situation is not reasonable w.r.t. runtime and memory consumption. \n We recomment to split A along the columns instead. \n In case this is not an option for you, please open an issue on GitHub."
             # )
-            return 0
+            column_idx = torch.arange(
+                0, A.shape[-1], smallest_number_of_local_rows, dtype=torch.int64
+            )
+            return column_idx
+
         else:
             # in this case the input is tall-skinny and we apply the TS-QR algorithm
             # it follows the implementation of TS-QR for split = 0
