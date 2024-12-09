@@ -14,6 +14,17 @@ class TestSanitation(TestCase):
         with self.assertRaises(TypeError):
             ht.sanitize_in(np_x)
 
+    def sanitize_in_nd_realfloating(self):
+        x = "this is not a DNDarray"
+        with self.assertRaises(TypeError):
+            ht.sanitize_in_nd_realfloating(x, "x", [2])
+        x = ht.zeros(10, 10, 10, dtype=ht.float32, split=0)
+        with self.assertRaises(ValueError):
+            ht.sanitize_in_nd_realfloating(x, "x", [1, 2])
+        x = ht.zeros(10, 10, dtype=ht.int32, split=None)
+        with self.assertRaises(ValueError):
+            ht.sanitize_in_nd_realfloating(x, "x", [1, 2])
+
     def test_sanitize_out(self):
         output_shape = (4, 5, 6)
         output_split = 1
