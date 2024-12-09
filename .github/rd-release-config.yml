@@ -1,25 +1,24 @@
 filter-by-commitish: False
 include-pre-releases: false
 categories:
-  - title: '🔥 Features'
+  - title: 'Features'
     labels:
       - 'features'
-  - title: '🚀 Enhancemets'
+  - title: 'Enhancements'
     labels:
       - 'performance'
       - 'enhancement'
-  - title: '🐛 Bug Fixes'
+  - title: 'Bug Fixes'
     labels:
       - 'bug'
-      - 'bug :bug:'
-  - title: '💯 Benchmarking'
+  - title: 'Benchmarking'
     label: 'benchmarking'
-  - title: '📜 Documentation'
+  - title: 'Documentation'
     labels:
       - 'documentation'
   - title: 'Testing'
     label: 'testing'
-  - title: '🔒 Security'
+  - title: 'Security'
     labels:
       - 'security'
   - title: 'Core'
@@ -75,6 +74,9 @@ autolabeler:
     title:
     - '/feat/i'
     - '/feature/i'
+    - '/implement/i'
+    - '/add/i'
+    - '/new/i'
     branch:
       - '/feature/i'
       - '/feat/i'
@@ -92,6 +94,14 @@ autolabeler:
   - label: 'docker'
     files:
       - 'docker/**/*'
+  - label: 'backport release'
+    title:
+      - '/bug/i'
+      - '/resolve/i'
+      - '/fix/i'
+    branch:
+      - '/bug/i'
+      - '/fix/i'
   - label: 'bug'
     title:
       - '/bug/i'
