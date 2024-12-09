@@ -39,7 +39,7 @@ jobs:
           git checkout -b pre-release/${VERSION}
 
           # Split version number into major, minor, and micro
-          MAYOR=$(echo $VERSION | cut -d. -f1)
+          MAJOR=$(echo $VERSION | cut -d. -f1)
           MINOR=$(echo $VERSION | cut -d. -f2)
           MICRO=$(echo $VERSION | cut -d. -f3)
 
