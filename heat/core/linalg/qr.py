@@ -33,7 +33,7 @@ def qr(
         Array which will be decomposed. So far only arrays with datatype float32 or float64 are supported
         For split=0 (-2, in the batched case), the matrix must be tall skinny, i.e. the local chunks of data must have at least as many rows as columns.
     mode : str, optional
-        default "reduced" returns Q and R with dimensions (M, min(M,N)) and (min(M,N), N), respectively, with obvious modifications for batched inputs
+        default "reduced" returns Q and R with dimensions (M, min(M,N)) and (min(M,N), N). Potential batch dimensions are not modified.
         "r" returns only R, with dimensions (min(M,N), N).
     procs_to_merge : int, optional
         This parameter is only relevant for split=0 (-2, in the batched case) and determines the number of processes to be merged at one step during the so-called TS-QR algorithm.
@@ -90,10 +90,6 @@ def qr(
     if procs_to_merge == 0:
         procs_to_merge = A.comm.size
 
-    # if A.ndim != 2:
-    #     raise ValueError(
-    #         f"Array 'A' must be 2 dimensional, buts has {A.ndim} dimensions. \n Please open an issue on GitHub if you require QR for batches of matrices similar to PyTorch."
-    #     )
     if A.dtype not in [float32, float64]:
         raise TypeError(f"Array 'A' must have a datatype of float32 or float64, but has {A.dtype}")
 
@@ -149,6 +145,7 @@ def qr(
         for i in range(last_row_reached + 1):
             # this loop goes through all the column-blocks (i.e. local arrays) of the matrix
             # this corresponds to the loop over all columns in classical Gram-Schmidt
+
             if i < nprocs - 1:
                 k_loc_i = min(A.shape[-2], A.lshape_map[i, -1])
                 Q_buf = torch.zeros(
@@ -167,8 +164,7 @@ def qr(
 
             if i < nprocs - 1:
                 # broadcast the orthogonalized block of columns to all other processes
-                req = A.comm.Ibcast(Q_buf, root=i)
-                req.Wait()
+                A.comm.Bcast(Q_buf, root=i)
 
             if A.comm.rank > i:
                 # subtract the contribution of the current block of columns from the remaining columns
