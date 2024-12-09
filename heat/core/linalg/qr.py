@@ -7,6 +7,7 @@ import torch
 from typing import Tuple
 
 from ..dndarray import DNDarray
+from ..manipulations import concatenate
 from .. import factories
 from .. import communication
 from ..types import float32, float64
@@ -31,7 +32,6 @@ def qr(
     ----------
     A : DNDarray of shape (M, N), of shape (...,M,N) in the batched case
         Array which will be decomposed. So far only arrays with datatype float32 or float64 are supported
-        For split=0 (-2, in the batched case), the matrix must be tall skinny, i.e. the local chunks of data must have at least as many rows as columns.
     mode : str, optional
         default "reduced" returns Q and R with dimensions (M, min(M,N)) and (min(M,N), N). Potential batch dimensions are not modified.
         "r" returns only R, with dimensions (min(M,N), N).
@@ -46,13 +46,17 @@ def qr(
 
         - If ``A`` is distributed along the columns (A.split = 1), so will be ``Q`` and ``R``.
 
-        - If ``A`` is distributed along the rows (A.split = 0), ``Q`` too will have  `split=0`, but ``R`` won't be distributed, i.e. `R. split = None` and a full copy of ``R`` will be stored on each process.
+        - If ``A`` is distributed along the rows (A.split = 0), ``Q`` too will have  `split=0`. ``R`` won't be distributed, i.e. `R. split = None`, if ``A`` is tall-skinny, i.e., if
+          the largest local chunk of data of ``A`` has at least as many rows as columns. Otherwise, ``R`` will be distributed along the rows as well, i.e., `R.split = 0`.
 
     Note that the argument `calc_q` allowed in earlier Heat versions is no longer supported; `calc_q = False` is equivalent to `mode = "r"`.
     Unlike ``numpy.linalg.qr()``, `ht.linalg.qr` only supports ``mode="reduced"`` or ``mode="r"`` for the moment, since "complete" may result in heavy memory usage.
 
     Heats QR function is built on top of PyTorchs QR function, ``torch.linalg.qr()``, using LAPACK (CPU) and MAGMA (CUDA) on
-    the backend. For split=0 (-2, in the batched case), tall-skinny QR (TS-QR) is implemented, while for split=1 (-1, in the batched case) a block-wise version of stabilized Gram-Schmidt orthogonalization is used.
+    the backend. Both cases split=0 and split=1 build on a column-block-wise version of stabilized Gram-Schmidt orthogonalization.
+    For split=1 (-1, in the batched case), this is directly applied to the local arrays of the input array.
+    For split=0, a tall-skinny QR (TS-QR) is implemented for the case of tall-skinny matrices (i.e., the largest local chunk of data has at least as many rows as columns),
+    and extended to non tall-skinny matrices by applying a block-wise version of stabilized Gram-Schmidt orthogonalization.
 
     References
     -----------
@@ -181,16 +185,57 @@ def qr(
         return QR(Q, R)
 
     if A.split == A.ndim - 2:
-        # check that data distribution is reasonable for TS-QR (i.e. tall-skinny matrix with also tall-skinny local chunks of data)
-        smallest_number_of_local_rows = A.lshape_map[:, -2].min().item()
-        if smallest_number_of_local_rows < A.shape[-1]:
-            # raise ValueError(
-            #     "A is split along the rows and the local chunks of data are rectangular with more rows than columns. \n Applying TS-QR in this situation is not reasonable w.r.t. runtime and memory consumption. \n We recomment to split A along the columns instead. \n In case this is not an option for you, please open an issue on GitHub."
-            # )
-            column_idx = torch.arange(
-                0, A.shape[-1], smallest_number_of_local_rows, dtype=torch.int64
+        # check that data distribution is reasonable for TS-QR
+        # we regard a matrix with split = 0 as suitable for TS-QR is largest local chunk of data has at least as many rows as columns
+        biggest_number_of_local_rows = A.lshape_map[:, -2].max().item()
+        if biggest_number_of_local_rows < A.shape[-1]:
+            column_idx = torch.cumsum(A.lshape_map[:, -2], 0)
+            column_idx = column_idx[column_idx < A.shape[-1]]
+            column_idx = torch.cat(
+                (
+                    torch.tensor([0], device=column_idx.device),
+                    column_idx,
+                    torch.tensor([A.shape[-1]], device=column_idx.device),
+                )
             )
-            return column_idx
+            A_copy = A.copy()
+            R = A.copy()
+            # Block-wise Gram-Schmidt orthogonalization, applied to groups of columns
+            offset = 1 if A.shape[-1] <= A.shape[-2] else 2
+            for k in range(len(column_idx) - offset):
+                # since we only consider a group of columns, TS QR is applied to a tall-skinny matrix
+                Qnew, Rnew = qr(
+                    A_copy[..., :, column_idx[k] : column_idx[k + 1]],
+                    mode="reduced",
+                    procs_to_merge=procs_to_merge,
+                )
+
+                # usual update of the remaining columns
+                if R.comm.rank == k:
+                    R.larray[
+                        ...,
+                        : (column_idx[k + 1] - column_idx[k]),
+                        column_idx[k] : column_idx[k + 1],
+                    ] = Rnew.larray
+                if R.comm.rank > k:
+                    R.larray[..., :, column_idx[k] : column_idx[k + 1]] *= 0
+                if k < len(column_idx) - 2:
+                    coeffs = (
+                        torch.transpose(Qnew.larray, -2, -1)
+                        @ A_copy.larray[..., :, column_idx[k + 1] :]
+                    )
+                    R.comm.Allreduce(communication.MPI.IN_PLACE, coeffs)
+                    if R.comm.rank == k:
+                        R.larray[..., :, column_idx[k + 1] :] = coeffs
+                    A_copy.larray[..., :, column_idx[k + 1] :] -= Qnew.larray @ coeffs
+                if mode == "reduced":
+                    Q = Qnew if k == 0 else concatenate((Q, Qnew), axis=-1)
+            if A.shape[-1] < A.shape[-2]:
+                R = R[..., : A.shape[-1], :].balance()
+            if mode == "reduced":
+                return QR(Q, R)
+            else:
+                return QR(None, R)
 
         else:
             # in this case the input is tall-skinny and we apply the TS-QR algorithm
