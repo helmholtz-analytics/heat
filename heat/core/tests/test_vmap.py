@@ -122,7 +122,7 @@ class TestVmap(TestCase):
             y0_torch, y1_torch = vfunc_torch(x0_torch, x1_torch, k=5, scale=2.2)
 
             self.assertTrue(torch.allclose(y0.resplit(None).larray, y0_torch))
-            tol=1e-4
+            tol = 1e-4
             self.assertTrue(torch.allclose(y1.resplit(None).larray, y1_torch, atol=tol, rtol=tol))
 
         def test_vmap_catch_errors(self):
