@@ -44,7 +44,7 @@ jobs:
           MICRO=$(echo $VERSION | cut -d. -f3)
 
           # Write on to the version.py file
-          sed -i "s/major: int = \([0-9]\+\)/major: int = $MAYOR/g" heat/core/version.py
+          sed -i "s/major: int = \([0-9]\+\)/major: int = $MAJOR/g" heat/core/version.py
           sed -i "s/minor: int = \([0-9]\+\)/minor: int = $MINOR/g" heat/core/version.py
           sed -i "s/micro: int = \([0-9]\+\)/micro: int = $MICRO/g" heat/core/version.py
           sed -i "s/extension: str = .*/extension: str = None/g" heat/core/version.py
