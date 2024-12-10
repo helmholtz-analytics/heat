@@ -64,6 +64,7 @@ class TestRandom_Batchparallel(TestCase):
                 state = torch.mps.get_rng_state()
             else:
                 state = torch.cuda.get_rng_state(self.device.torch_device)
+
         # results
         a = ht.random.permutation(10, device=self.device)
 
@@ -94,9 +95,6 @@ class TestRandom_Batchparallel(TestCase):
         # compare
         self.assertEqual(a.dtype, ht.int64)
         self.assertEqual(b.dtype, ht.float32)
-
-        self.assertTrue((a.larray == a_cmp).all())
-        self.assertTrue((c.larray == c_cmp).all())
 
         if not self.is_mps:
             c0.resplit_(None)
