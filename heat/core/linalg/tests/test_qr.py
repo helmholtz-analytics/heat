@@ -150,6 +150,7 @@ class TestQR(TestCase):
         self.assertTrue(ht.allclose(q @ r, x, atol=1e-6, rtol=1e-6))
 
     def test_batched_qr_split0(self):
+        ht.random.seed(424242)
         # one batch dimension, float32 data type, "split = 0" (second last dimension)
         x = ht.random.randn(
             8, ht.MPI_WORLD.size * 10 + 3, ht.MPI_WORLD.size * 10 - 1, dtype=ht.float32, split=1
