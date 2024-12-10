@@ -3307,7 +3307,7 @@ DNDarray.swapaxes.__doc__ = swapaxes.__doc__
 
 def unique(
     a: DNDarray, sorted: bool = False, return_inverse: bool = False, axis: int = None
-) -> Tuple[DNDarray, torch.tensor]:
+) -> Tuple[DNDarray, DNDarray]:
     """
     Finds and returns the unique elements of a `DNDarray`.
     If return_inverse is `True`, the second tensor will hold the list of inverse indices
@@ -3504,8 +3504,12 @@ def unique(
         result.resplit_(a.split)
 
     return_value = result
+
     if return_inverse:
-        return_value = [return_value, inverse_indices.to(a.device.torch_device)]
+        inverse_indices = factories.array(
+            inverse_indices, dtype=inverse_pos.dtype, device=a.device, comm=a.comm
+        )
+        return_value = [return_value, inverse_indices]
 
     return return_value
 
