@@ -55,14 +55,14 @@ class TestZoloPD(TestCase):
         # split=0, float32, no condition estimate provided, silent mode
         ht.random.seed(18112024)
         for r in range(1, 9):
-            A = ht.random.randn(100, 10, split=0, dtype=ht.float32)
+            A = ht.random.randn(100, 10 * r, split=0, dtype=ht.float32)
             U, H = ht.pd(A, r=r)
             dtypetol = 1e-4
 
             self._check_pd(A, U, H, dtypetol)
 
         # cases not covered so far
-        A = ht.random.randn(100, 10, split=0, dtype=ht.float64)
+        A = ht.random.randn(100, 100, split=0, dtype=ht.float64)
         U, H = ht.pd(A, condition_estimate=1.0e16, silent=False)
         dtypetol = 1e-8
 
