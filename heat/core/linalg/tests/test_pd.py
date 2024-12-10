@@ -69,6 +69,7 @@ class TestZoloPD(TestCase):
         self._check_pd(A, U, H, dtypetol)
 
         # case without calculating H
+        ht.random.seed(10122024)
         A = ht.random.randn(100, 10, split=0, dtype=ht.float32)
         U = ht.pd(A, calcH=False)
         U_np = U.numpy()
