@@ -202,9 +202,9 @@ class TestSolver(TestCase):
         if self.is_mps:
             # reduction ops on tensors with ndim > 4 are not supported on MPS
             # see e.g. https://github.com/pytorch/pytorch/issues/129960
-            batch_shapes = [(10,),]  # noqa: E501
+            batch_shapes = [(10,),]
         else:
-            batch_shapes = [(10,), (4, 4, 4, 20,),]  # noqa: E501
+            batch_shapes = [(10,), (4, 4, 4, 20,),]
         m = 100  # data dimension size
 
         # exceptions
