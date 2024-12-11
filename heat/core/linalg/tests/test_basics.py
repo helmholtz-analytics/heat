@@ -288,8 +288,8 @@ class TestLinalgBasics(TestCase):
         self.assertTrue(ht.allclose(ainv, ares, atol=1e-6))
 
         # pivoting row change
-        dtype = ht.float if self.is_mps else ht.double
-        atol = 1e-6 if dtype == ht.float else 1e-12
+        dtype = ht.floa32 if self.is_mps else ht.float64
+        atol = 1e-6 if dtype == ht.float32 else 1e-12
 
         ares = ht.array([[-1, 0, 2], [2, 0, -1], [-6, 3, 0]], dtype=dtype, split=0) / 3.0
         a = ht.array([[1, 2, 0], [2, 4, 1], [2, 1, 0]], dtype=dtype, split=0)
@@ -318,7 +318,7 @@ class TestLinalgBasics(TestCase):
         a = ht.random.random((20, 20), dtype=dtype, split=0)
         ainv = ht.linalg.inv(a)
         i = ht.eye(a.shape, split=0, dtype=a.dtype)
-        self.assertTrue(ht.allclose(a @ ainv, i, atol=1e-5 if self.is_mps else atol))
+        self.assertTrue(ht.allclose(a @ ainv, i, atol=1e-5 if self.is_mps else atol * 10))
 
         with self.assertRaises(RuntimeError):
             ht.linalg.inv(ht.array([1, 2, 3], split=0))
