@@ -34,6 +34,8 @@ class Device:
     device(cpu:0)
     >>> ht.Device("gpu", 0, "cuda:0")
     device(gpu:0)
+    >>> ht.Device("gpu", 0, "mps:0") # on Apple M1/M2
+    device(gpu:0)
     """
 
     def __init__(self, device_type: str, device_id: int, torch_device: str):
@@ -134,12 +136,12 @@ if torch.cuda.device_count() > 0:
     __all__.append("gpu")
 
 elif torch.backends.mps.is_built() and torch.backends.mps.is_available():
-    # Apple Metal Performance Shaders (MPS) available
+    # Apple MPS available
     gpu_id = 0
     # create a new GPU device
     gpu = Device("gpu", gpu_id, "mps:{}".format(gpu_id))
     """
-    The standard GPU Device on Apple M1
+    The standard GPU Device on Apple M1/M2
 
     Examples
     --------
