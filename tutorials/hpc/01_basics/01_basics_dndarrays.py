@@ -13,11 +13,6 @@ print("array creation with values [1,2,3] with the heat array method:")
 print(a)
 
 a = ht.ones((4, 5))
-#     (
-#         4,
-#         5,
-#     )
-# )
 print("array creation of shape = (4, 5) example with the heat ones method:")
 print(a)
 
