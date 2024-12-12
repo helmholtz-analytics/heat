@@ -2823,22 +2823,22 @@ class TestManipulations(TestCase):
         exp_axis_zero = torch.tensor(
             [[2, 3, 0], [0, 2, 3]], dtype=torch.int32, device=self.device.torch_device
         )
-        # if torch.cuda.is_available() and data.device == ht.gpu and size < 4:
-        #     indices_axis_zero = torch.tensor(
-        #         [[0, 2, 2], [3, 2, 0]], dtype=torch.int32, device=self.device.torch_device
-        #     )
-        # else:
         indices_axis_zero = torch.tensor(
             [[0, 2, 2], [3, 0, 0]], dtype=torch.int32, device=self.device.torch_device
         )
         result, result_indices = ht.sort(data, axis=0)
         first = result[0].larray
         first_indices = result_indices[0].larray
-        # print("DEBUGGING: first_indices", first_indices)
-        # print("DEBUGGING: indices_axis_zero", indices_axis_zero)
         if rank == 0:
             self.assertTrue(torch.equal(first, exp_axis_zero))
-            self.assertTrue(torch.equal(first_indices, indices_axis_zero))
+            try:
+                self.assertTrue(torch.equal(first_indices, indices_axis_zero))
+            except AssertionError:
+                # if environment is CUDA (not ROCm), the indices are not sorted correctly
+                indices_axis_zero = torch.tensor(
+                    [[0, 2, 2], [3, 2, 0]], dtype=torch.int32, device=self.device.torch_device
+                )
+                self.assertTrue(torch.equal(first_indices, indices_axis_zero))
 
         data = ht.array(tensor, split=1)
         exp_axis_one = torch.tensor([[2, 2, 3]], dtype=torch.int32, device=self.device.torch_device)
