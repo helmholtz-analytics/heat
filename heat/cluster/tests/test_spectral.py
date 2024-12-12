@@ -36,19 +36,17 @@ class TestSpectral(TestCase):
         self.assertEqual(10, spectral.n_clusters)
 
     def test_fit_iris(self):
-        # skip on MPS, matmul on ComplexFloat not supported as of PyTorch 2.3
+        # skip on MPS, matmul on ComplexFloat not supported as of PyTorch 2.5
         if not self.is_mps:
-            if ht.MPI_WORLD.size <= 4:
-                # todo: fix tests with >7 processes, NaNs appearing in spectral._spectral_embedding
-                # get some test data
-                iris = ht.load("heat/datasets/iris.csv", sep=";", split=0)
-                m = 10
-                # fit the clusters
-                spectral = ht.cluster.Spectral(
-                    n_clusters=3, gamma=1.0, metric="rbf", laplacian="fully_connected", n_lanczos=m
-                )
-                spectral.fit(iris)
-                self.assertIsInstance(spectral.labels_, ht.DNDarray)
+            # get some test data
+            iris = ht.load("heat/datasets/iris.csv", sep=";", split=0)
+            m = 10
+            # fit the clusters
+            spectral = ht.cluster.Spectral(
+                n_clusters=3, gamma=1.0, metric="rbf", laplacian="fully_connected", n_lanczos=m
+            )
+            spectral.fit(iris)
+            self.assertIsInstance(spectral.labels_, ht.DNDarray)
 
             spectral = ht.cluster.Spectral(
                 metric="euclidean",
