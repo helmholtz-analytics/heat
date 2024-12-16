@@ -11,6 +11,9 @@ import unittest
 import heat as ht
 from .test_suites.basic_test import TestCase
 
+from hypothesis import given, settings, note
+import hypothesis.strategies as st
+
 
 class TestIO(TestCase):
     @classmethod
@@ -55,6 +58,23 @@ class TestIO(TestCase):
 
         # synchronize all nodes
         ht.MPI_WORLD.Barrier()
+
+    @given(size=st.integers(1, 1000), slice=st.slices(1000))
+    def test_size_from_slice(self, size, slice):
+        expected_sequence = list(range(size))[slice]
+        if len(expected_sequence) == 0:
+            expected_offset = 0
+        else:
+            expected_offset = expected_sequence[0]
+
+        expected_new_size = len(expected_sequence)
+
+        new_size, offset = ht.io.size_from_slice(size, slice)
+        note(f"Expected sequence: {expected_sequence}")
+        note(f"Expected new size: {expected_new_size}, new size: {new_size}")
+        note(f"Expected offset: {expected_offset}, offset: {offset}")
+        self.assertEqual(expected_new_size, new_size)
+        self.assertEqual(expected_offset, offset)
 
     # catch-all loading
     def test_load(self):

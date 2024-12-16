@@ -38,6 +38,31 @@ __all__ = [
     "load_npy_from_path",
 ]
 
+
+def size_from_slice(size: int, s: slice) -> Tuple[int, int]:
+    """
+    Determines the size of a slice object.
+
+    Parameters
+    ----------
+    size: int
+        The size of the array the slice object is applied to.
+    s : slice
+        The slice object to determine the size of.
+
+    Returns
+    -------
+    int
+        The size of the sliced object.
+    int
+        The start index of the slice object.
+    """
+    from hypothesis import note
+
+    new_range = range(size)[s]
+    return len(new_range), new_range.start if len(new_range) > 0 else 0
+
+
 try:
     import netCDF4 as nc
 except ImportError:
@@ -490,6 +515,7 @@ else:
         dataset: str,
         dtype: datatype = types.float32,
         load_fraction: float = 1.0,
+        slices: Optional[Tuple[slice]] = None,
         split: Optional[int] = None,
         device: Optional[str] = None,
         comm: Optional[Communication] = None,
@@ -509,6 +535,8 @@ else:
             if 1. (default), the whole dataset is loaded from the file specified in path
             else, the dataset is loaded partially, with the fraction of the dataset (along the split axis) specified by load_fraction
             If split is None, load_fraction is automatically set to 1., i.e. the whole dataset is loaded.
+        slices : tuple of slice objects, optional
+            Load only the specified slices of the dataset.
         split : int or None, optional
             The axis along which the data is distributed among the processing cores.
         device : str, optional
@@ -563,6 +591,18 @@ else:
         with h5py.File(path, "r") as handle:
             data = handle[dataset]
             gshape = data.shape
+            offsets = [0] * len(gshape)
+            if slices is not None:
+                if len(slices) != len(gshape):
+                    raise ValueError(
+                        f"Number of slices ({len(slices)}) does not match the number of dimensions ({len(gshape)})"
+                    )
+                for i, s in enumerate(slices):
+                    if s.step is not None and s.step != 1:
+                        raise ValueError("Slices with step != 1 are not supported")
+                    gshape = size_from_slice(gshape[i], s)
+                    offsets[i] = s.start if s.start is not None else 0
+
             if split is not None:
                 gshape = list(gshape)
                 gshape[split] = int(gshape[split] * load_fraction)
@@ -570,6 +610,11 @@ else:
             dims = len(gshape)
             split = sanitize_axis(gshape, split)
             _, _, indices = comm.chunk(gshape, split)
+
+            if slices is not None:
+                for offset, index in zip(offsets, indices):
+                    index.start += offset
+
             balanced = True
             if split is None:
                 data = torch.tensor(
