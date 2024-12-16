@@ -129,8 +129,8 @@ def __counter_sequence(
         c_0 = (__counter & (max_count << 64)) >> 64
     c_1 = __counter & max_count
     total_elements = torch.prod(torch.tensor(shape))
-    if total_elements.item() > 2 * max_count:
-        raise ValueError(f"Shape is to big with {total_elements} elements")
+    # if total_elements.item() > 2 * max_count:
+    #    raise ValueError(f"Shape is to big with {total_elements} elements")
 
     if split is None:
         values = total_elements.item() // 2 + total_elements.item() % 2
@@ -619,7 +619,6 @@ def randint(
             x_0, x_1 = __threefry32(x_0, x_1, seed=__seed)
         else:  # torch.int64
             x_0, x_1 = __threefry64(x_0, x_1, seed=__seed)
-
         # stack the resulting sequence and normalize to given range
         values = torch.stack([x_0, x_1], dim=1).flatten()[lslice].reshape(lshape)
         # ATTENTION: this is biased and known, bias-free rejection sampling is difficult to do in parallel
