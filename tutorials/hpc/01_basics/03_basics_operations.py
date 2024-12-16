@@ -6,19 +6,8 @@ import heat as ht
 #
 # You can try out the few simple examples below if you want, but we will skip to the [Parallel Processing](#Parallel-Processing) section to see memory-distributed operations in action.
 
-a = ht.full(
-    (
-        3,
-        4,
-    ),
-    8,
-)
-b = ht.ones(
-    (
-        3,
-        4,
-    )
-)
+a = ht.full((3, 4), 8)
+b = ht.ones((3, 4))
 c = a + b
 print("matrix addition a + b:")
 print(c)

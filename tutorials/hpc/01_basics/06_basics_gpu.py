@@ -14,66 +14,26 @@ import torch
 #
 # Heat's array creation functions all support an additional parameter that which places the data on a specific device. By default, the CPU is selected, but it is also possible to directly allocate the data on a GPU.
 
-
 if torch.cuda.is_available():
-    ht.zeros(
-        (
-            3,
-            4,
-        ),
-        device="gpu",
-    )
+    ht.zeros((3, 4), device="gpu")
 
 # Arrays on the same device can be seamlessly used in any Heat operation.
 
 if torch.cuda.is_available():
-    a = ht.zeros(
-        (
-            3,
-            4,
-        ),
-        device="gpu",
-    )
-    b = ht.ones(
-        (
-            3,
-            4,
-        ),
-        device="gpu",
-    )
+    a = ht.zeros((3, 4), device="gpu")
+    b = ht.ones((3, 4), device="gpu")
     print(a + b)
-
 
 # However, performing operations on arrays with mismatching devices will purposefully result in an error (due to potentially large copy overhead).
 
 if torch.cuda.is_available():
-    a = ht.full(
-        (
-            3,
-            4,
-        ),
-        4,
-        device="cpu",
-    )
-    b = ht.ones(
-        (
-            3,
-            4,
-        ),
-        device="gpu",
-    )
+    a = ht.full((3, 4), 4, device="cpu")
+    b = ht.ones((3, 4), device="gpu")
     print(a + b)
 
 # It is possible to explicitly move an array from one device to the other and back to avoid this error.
 
 if torch.cuda.is_available():
-    a = ht.full(
-        (
-            3,
-            4,
-        ),
-        4,
-        device="gpu",
-    )
+    a = ht.full((3, 4), 4, device="gpu")
     a.cpu()
     print(a + b)

@@ -8,12 +8,7 @@ import torch
 #
 # **NOTE:** by default, Heat will allocate floating-point values in single precision, due to a much higher processing performance on GPUs. This is one of the main differences between Heat and NumPy.
 
-a = ht.zeros(
-    (
-        3,
-        4,
-    )
-)
+a = ht.zeros((3, 4))
 print(f"floating-point values in single precision is default: {a.dtype}")
 
 b = torch.zeros(3, 4)

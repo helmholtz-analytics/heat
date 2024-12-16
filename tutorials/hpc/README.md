@@ -10,3 +10,8 @@ There are two example scripts in this directory, `slurm_script_cpu.sh` and `slur
 
 * Please have a look into the documentation of your HPC-system for its detailed configuration and properties. Maybe, you have to adjust the script to your system.
 * You need to load the required modules (e.g., for MPI, CUDA etc.) from the module system of your HPC-system before running the script. Moreover, you need to install Heat in a virtual environment (and activate it). Alternatively, you may use spack (if available on your system) for installing Heat and its dependencies.
+* Depending on the configuration of SLURM and MPI on your system it might be the case that you need to replace `srun python ...` by
+    ```
+    mpirun -n $SLURM_NTASKS --bind-to hwthread --map-by socket:PE=${SLURM_CPUS_PER_TASK} python ...
+    ```
+    or similar.
