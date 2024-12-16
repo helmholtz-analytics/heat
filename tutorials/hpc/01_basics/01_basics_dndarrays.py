@@ -20,12 +20,6 @@ a = ht.arange(10)
 print("array creation with [0,1,...,9] example with the heat arange method:")
 print(a)
 
-a = ht.full(
-    (
-        3,
-        2,
-    ),
-    fill_value=9,
-)
+a = ht.full((3, 2), fill_value=9)
 print("array creation with ones and shape = (3, 2) with the heat full method:")
 print(a)
