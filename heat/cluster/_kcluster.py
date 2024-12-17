@@ -137,7 +137,8 @@ class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
         elif self.init == "probability_based":
             # First, check along which axis the data is sliced
             if x.split is None or x.split == 0:
-                # Define a list of random, uniformly distributed probabilities, which is later used to sample the centroids
+                # Define a list of random, uniformly distributed probabilities,
+                # which is later used to sample the centroids
                 sample = ht.random.rand(x.shape[0], split=x.split)
                 # Define a random integer serving as a label to pick the first centroid randomly
                 init_idx = ht.random.randint(0, x.shape[0] - 1).item()
@@ -146,49 +147,43 @@ class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
                 # We assume that the centroids fit into the memory of a single GPU
                 centroids = ht.expand_dims(x[init_idx, :].resplit_(None), axis=0)
                 # Calculate the initial cost of the clustering after the first centroid selection
-                # and use it as an indicator for the number of necessary iterations
-                # --> First calculate the Euclidean distance between data points x and initial centroids
-                # output format: tensor
+                # and use it as an indicator for the order of magnitude for the number of necessary iterations
                 init_distance = ht.spatial.distance.cdist(x, centroids, quadratic_expansion=True)
+                # --> init_distance calculates the Euclidean distance between data points x and initial centroids
+                # output format: tensor
+                init_min_distance = init_distance.min(axis=1)
                 # --> Pick the minimal distance of the data points to each centroid
                 # output format: vector
-                init_min_distance = init_distance.min(axis=1)
+                init_cost = init_min_distance.sum()
                 # --> Now calculate the cost
                 # output format: scalar
-                init_cost = init_min_distance.sum()
+                #
                 # Iteratively fill the tensor storing the centroids
                 for _ in ht.arange(0, iter_multiplier * ht.log(init_cost)):
                     # Calculate the distance between data points and the current set of centroids
                     distance = ht.spatial.distance.cdist(x, centroids, quadratic_expansion=True)
                     min_distance = distance.min(axis=1)
                     # Sample each point in the data to a new set of centroids
+                    prob = oversampling * min_distance / min_distance.sum()
                     # -->   probability distribution with oversampling factor
                     #       output format: vector
-                    prob = oversampling * min_distance / min_distance.sum()
+                    idx = ht.where(sample <= prob)
                     # -->   choose indices to sample the data according to prob
                     #       output format: vector
-                    idx = ht.where(sample <= prob)
+                    local_data = x[idx].resplit_(centroids.split)
+                    # -->   pick the data points that are identified as possible centroids and make sure
+                    #       that data points and centroids are split in the same way
+                    #       output format: vector
+                    centroids = ht.row_stack((centroids, local_data))
                     # -->   stack the data points with these indices to the DNDarray of centroids
                     #       output format: tensor
-                    """print(f"idx={idx}")
-                    if idx.shape[0]!=0:
-                        print(f"idx={idx}, idx.shape={idx.shape}, x[idx]={x[idx]}")
-                        local_data= x[idx].resplit_(centroids.split) # make sure, that the data points we append to centroids are split in the same way
-                        centroids=ht.row_stack((centroids,local_data)) """
-                    # print(f"x[idx]={x[idx]}, x[idx].shape={x[idx].shape}, process= {ht.MPI_WORLD.rank}\n")
-                    # print(f"centroids.split={centroids.split}, process= {ht.MPI_WORLD.rank}\n")
-                    # if idx.shape[0]!=0:
-                    local_data = x[idx].resplit_(
-                        centroids.split
-                    )  # make sure, that the data points we append to centroids are split in the same way
-                    # local_data=x[idx]
-                    # print(f"x[1]={x[1]}, local_data={local_data}, process= {ht.MPI_WORLD.rank}\n")
-                    centroids = ht.row_stack((centroids, local_data))
                 # Evaluate distance between final centroids and data points
                 if centroids.shape[0] <= self.n_clusters:
                     raise ValueError(
-                        "The oversampling factor and/or the number of iterations are chosen two small for the initialization of cluster centers."
+                        "The oversampling factor and/or the number of iterations are chosen"
+                        "too small for the initialization of cluster centers."
                     )
+                # Evaluate the distance between data and the final set of centroids for the initialization
                 final_distance = ht.spatial.distance.cdist(x, centroids, quadratic_expansion=True)
                 # For each data point in x, find the index of the centroid that is closest
                 final_idx = ht.argmin(final_distance, axis=1)
@@ -199,12 +194,11 @@ class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
                     weights[i] = ht.sum(final_idx == i)
                 # Recluster the oversampled centroids using standard k-means ++ (here we use the
                 # already implemented version in torch)
-                # --> first transform relevant arrays into torch tensors
                 centroids = centroids.resplit_(None)
                 centroids = centroids.larray
                 weights = weights.resplit_(None)
                 weights = weights.larray
-                # --> apply k-means ++
+                # --> first transform relevant arrays into torch tensors
                 if ht.MPI_WORLD.rank == 0:
                     batch_kmeans = _kmex(
                         centroids,
@@ -216,28 +210,27 @@ class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
                         random_state=None,
                         weights=weights,
                     )
-                    reclustered_centroids = batch_kmeans[0]  # access the reclustered centroids
+                    # --> apply standard k-means ++
+                    #     Note: as we only recluster the centroids for initialization with standard k-means ++,
+                    #     this list of centroids can also be used to initialize k-medians and k-medoids
+                    reclustered_centroids = batch_kmeans[0]
+                    # --> access the reclustered centroids
                 else:
                     # ensure that all processes have the same data
-                    # tensor with zeros that has the same size as reclustered centroids, in order to to allocate memory with the correct type (necessary for broadcast)
                     reclustered_centroids = torch.zeros(
                         (self.n_clusters, centroids.shape[1]),
                         dtype=x.dtype.torch_type(),
                         device=centroids.device,
                     )
+                    # -->  tensor with zeros that has the same size as reclustered centroids, in order to to
+                    #      allocate memory with the correct type in all processes(necessary for broadcast)
                 ht.MPI_WORLD.Bcast(
                     reclustered_centroids, root=0
                 )  # by default it is broadcasted from process 0
-                # -------------------------------------------------------------------------------
-                # print(f"reclustered centroids in initilialize_cluster_centers (after applying kmex)={reclustered_centroids}, process= {ht.MPI_WORLD.rank}\n")
-                # -------------------------------------------------------------------------------
-                # --> transform back to DNDarray
                 reclustered_centroids = ht.array(reclustered_centroids, split=x.split)
-                # final result
+                # --> transform back to DNDarray
                 self._cluster_centers = reclustered_centroids
-                # -------------------------------------------------------------------------------
-                # print(f"reclustered centroids in initilialize_cluster_centers (final result)={reclustered_centroids}, process= {ht.MPI_WORLD.rank}\n")
-                # -------------------------------------------------------------------------------
+                # --> final result for initialized cluster centers
             else:
                 raise NotImplementedError("Not implemented for other splitting-axes")
 
