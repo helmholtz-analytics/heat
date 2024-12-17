@@ -57,8 +57,6 @@ def size_from_slice(size: int, s: slice) -> Tuple[int, int]:
     int
         The start index of the slice object.
     """
-    from hypothesis import note
-
     new_range = range(size)[s]
     return len(new_range), new_range.start if len(new_range) > 0 else 0
 
@@ -591,6 +589,7 @@ else:
         with h5py.File(path, "r") as handle:
             data = handle[dataset]
             gshape = data.shape
+            new_gshape = tuple()
             offsets = [0] * len(gshape)
             if slices is not None:
                 if len(slices) != len(gshape):
@@ -598,10 +597,17 @@ else:
                         f"Number of slices ({len(slices)}) does not match the number of dimensions ({len(gshape)})"
                     )
                 for i, s in enumerate(slices):
-                    if s.step is not None and s.step != 1:
-                        raise ValueError("Slices with step != 1 are not supported")
-                    gshape = size_from_slice(gshape[i], s)
-                    offsets[i] = s.start if s.start is not None else 0
+                    if s:
+                        if s.step is not None and s.step != 1:
+                            raise ValueError("Slices with step != 1 are not supported")
+                        new_axis_size, offset = size_from_slice(gshape[i], s)
+                        new_gshape += (new_axis_size,)
+                        offsets[i] = offset
+                    else:
+                        new_gshape += (gshape[i],)
+                        offsets[i] = 0
+
+                gshape = new_gshape
 
             if split is not None:
                 gshape = list(gshape)
@@ -612,8 +618,10 @@ else:
             _, _, indices = comm.chunk(gshape, split)
 
             if slices is not None:
+                new_indices = tuple()
                 for offset, index in zip(offsets, indices):
-                    index.start += offset
+                    new_indices += (slice(index.start + offset, index.stop + offset),)
+                indices = new_indices
 
             balanced = True
             if split is None:
