@@ -38,6 +38,7 @@ class TestCase(unittest.TestCase):
         """
 
         envar = os.getenv("HEAT_TEST_USE_DEVICE", "cpu")
+        is_mps = False
 
         if envar == "cpu":
             ht.use_device("cpu")
@@ -46,17 +47,25 @@ class TestCase(unittest.TestCase):
             if torch.cuda.is_available():
                 torch.cuda.set_device(torch.device(ht.gpu.torch_device))
                 other_device = ht.gpu
-        elif envar == "gpu" and torch.cuda.is_available():
-            ht.use_device("gpu")
-            torch.cuda.set_device(torch.device(ht.gpu.torch_device))
-            ht_device = ht.gpu
-            other_device = ht.cpu
+            elif torch.backends.mps.is_built() and torch.backends.mps.is_available():
+                other_device = ht.gpu
+        elif envar == "gpu":
+            if torch.cuda.is_available():
+                ht.use_device("gpu")
+                torch.cuda.set_device(torch.device(ht.gpu.torch_device))
+                ht_device = ht.gpu
+                other_device = ht.cpu
+            elif torch.backends.mps.is_built() and torch.backends.mps.is_available():
+                ht.use_device("gpu")
+                ht_device = ht.gpu
+                other_device = ht.cpu
+                is_mps = True
         else:
             raise RuntimeError(
                 f"Value '{envar}' of environment variable 'HEAT_TEST_USE_DEVICE' is unsupported"
             )
 
-        cls.device, cls.other_device, cls.envar = ht_device, other_device, envar
+        cls.device, cls.other_device, cls.envar, cls.is_mps = ht_device, other_device, envar, is_mps
 
     def get_rank(self):
         return self.comm.rank
@@ -192,7 +201,7 @@ class TestCase(unittest.TestCase):
 
         Raises
         ------
-        AssertionError if the functions to not perform equally.
+        AssertionError if the functions do not perform equally.
 
         Examples
         --------
@@ -210,6 +219,10 @@ class TestCase(unittest.TestCase):
         """
         if not isinstance(shape, tuple) and not isinstance(shape, list):
             raise ValueError(f"The shape must be either a list or a tuple but was {type(shape)}")
+
+        if self.is_mps and np.float64 in data_types:
+            # MPS does not support float64
+            data_types = [dtype for dtype in data_types if dtype != np.float64]
 
         for dtype in data_types:
             tensor = self.__create_random_np_array(shape, dtype=dtype, low=low, high=high)
