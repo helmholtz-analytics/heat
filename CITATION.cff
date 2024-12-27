@@ -30,6 +30,8 @@ authors:
   - family-names: Tarnawa
     given-names: Michael
 # release contributors - add as needed
+  - family-names: Neo
+    given-names: Sun Han
 repository-code: 'https://github.com/helmholtz-analytics/heat'
 url: 'https://helmholtz-analytics.github.io/heat/'
 repository: 'https://heat.readthedocs.io/en/stable/'
