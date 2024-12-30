@@ -7,6 +7,8 @@ from .communication import MPI_WORLD
 
 from .dndarray import DNDarray
 
+import time
+
 __all__ = ["get_printoptions", "global_printing", "local_printing", "print0", "set_printoptions"]
 
 
@@ -195,12 +197,6 @@ def __str__(dndarray) -> str:
             torch._tensor_str._tensor_str(dndarray.larray, 0)
             + f", device: {dndarray.device}, split: {dndarray.split}"
         )
-    if dndarray.comm.size == 1:
-        tab_size = len(__PREFIX) + 1
-        return (
-            f"{__PREFIX}({torch._tensor_str._tensor_str(dndarray.larray, tab_size)}, dtype=ht.{dndarray.dtype.__name__}, "
-            f"device={dndarray.device}, split={dndarray.split})"
-        )
     tensor_string = _tensor_str(dndarray, __INDENT + 1)
     if dndarray.comm.rank != 0:
         return ""
@@ -309,6 +305,9 @@ def _tensor_str(dndarray, indent: int) -> str:
     # to do so, we slice up the torch data and forward it to torch internal printing mechanism
     summarize = elements > get_printoptions()["threshold"]
     torch_data = _torch_data(dndarray, summarize)
+    if not dndarray.is_distributed():
+        # let torch handle formatting on non-distributed data
+        # formatter gets too slow for even moderately large tensors
+        return torch._tensor_str._tensor_str(torch_data, indent)
     formatter = torch._tensor_str._Formatter(torch_data)
-
     return torch._tensor_str._tensor_str_with_formatter(torch_data, indent, summarize, formatter)
