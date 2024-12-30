@@ -7,8 +7,6 @@ from .communication import MPI_WORLD
 
 from .dndarray import DNDarray
 
-import time
-
 __all__ = ["get_printoptions", "global_printing", "local_printing", "print0", "set_printoptions"]
 
 
