@@ -195,6 +195,11 @@ def __str__(dndarray) -> str:
             torch._tensor_str._tensor_str(dndarray.larray, 0)
             + f", device: {dndarray.device}, split: {dndarray.split}"
         )
+    if dndarray.comm.size == 1:
+        return (
+            f"{__PREFIX}({torch._tensor_str._tensor_str(dndarray.larray, 0)}, dtype=ht.{dndarray.dtype.__name__}, "
+            f"device={dndarray.device}, split={dndarray.split})"
+        )
     tensor_string = _tensor_str(dndarray, __INDENT + 1)
     if dndarray.comm.rank != 0:
         return ""
