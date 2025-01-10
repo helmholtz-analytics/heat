@@ -78,6 +78,57 @@ def _compute_zolotarev_coefficients(
     )
 
 
+def _in_place_qr_with_q_only(A: DNDarray, procs_to_merge: int = 2) -> None:
+    r"""
+    Input A and procs_to_merge are as in heat.linalg.qr; difference it that this routine modified A in place and replaces it with Q.
+    """
+    if not A.is_distributed() or A.split < A.ndim - 2:
+        # handle the case of a single process or split=None: just PyTorch QR
+        # difference to heat.linalg.qr: we only return Q and put it directly in place of A
+        A.larray, R = torch.linalg.qr(A.larray, mode="reduced")
+        del R
+
+    elif A.split == A.ndim - 1:
+        # handle the case that A is split along the columns
+        # unlike in heat.linalg.qr, we know by assumption of Zolo-PD that A has at least as many rows as columns
+
+        nprocs = A.comm.size
+
+        with torch.no_grad():
+            for i in range(nprocs):
+                # this loop goes through all the column-blocks (i.e. local arrays) of the matrix
+                # this corresponds to the loop over all columns in classical Gram-Schmidt
+                A_lshapes = A.lshape_map
+                if i < nprocs - 1:
+                    if A.comm.rank > i:
+                        Q_buf = torch.zeros(
+                            tuple(A_lshapes[i, :]),
+                            dtype=A.larray.dtype,
+                            device=A.device.torch_device,
+                        )
+                    color = 0 if A.comm.rank < i else 1
+                    sub_comm = A.comm.Split(color, A.comm.rank)
+
+                if A.comm.rank == i:
+                    # orthogonalize the current block of columns by utilizing PyTorch QR
+                    A.larray, R = torch.linalg.qr(A.larray, mode="reduced")
+                    del R
+                    if i < nprocs - 1:
+                        Q_buf = A.larray
+
+                if i < nprocs - 1 and A.comm.rank >= i:
+                    sub_comm.Bcast(Q_buf, root=0)
+
+                if A.comm.rank > i:
+                    # subtract the contribution of the current block of columns from the remaining columns
+                    R_loc = torch.transpose(Q_buf, -2, -1) @ A.larray
+                    A.larray -= Q_buf @ R_loc
+                    del R_loc, Q_buf
+    else:
+        A, r = qr(A)
+        del r
+
+
 def pd(
     A: DNDarray,
     r: int = 8,
@@ -192,17 +243,22 @@ def pd(
         )
         cId *= c[0::2].reshape(-1, 1, 1) ** 0.5
         X = concatenate([X, cId], axis=1)
-        Q, _ = qr(X)
-        Q1 = Q[:, : A.shape[0], : A.shape[1]].balance()
-        Q2 = Q[:, A.shape[0] :, : A.shape[1]].transpose([0, 2, 1]).balance()
+        del cId
+        # if A.split == 0:
+        Q, R = qr(X)
+        del R
+        Q1 = Q[:, : A.shape[0], :].balance()
+        Q2 = Q[:, A.shape[0] :, :].transpose([0, 2, 1]).balance()
         del Q
-        X = Mhat * (
-            X[:, : A.shape[0], :].balance() / r
-            + a.reshape(-1, 1, 1)
-            / c[0::2].reshape(-1, 1, 1) ** 0.5
-            * matmul(Q1, Q2).resplit_(X.split)
-        )
-        del (Q1, Q2)
+        # elif A.split == 1:
+        #     _in_place_qr_with_q_only(X)
+        #     Q1 = X[:, : A.shape[0], : ]
+        #     Q2 = X[:, A.shape[0] :, : ].transpose([0, 2, 1])
+        Q1Q2 = matmul(Q1, Q2)
+        del Q1, Q2
+        X = X[:, : A.shape[0], :].balance() / r
+        X = Mhat * (X + a.reshape(-1, 1, 1) / c[0::2].reshape(-1, 1, 1) ** 0.5 * Q1Q2)
+        del Q1Q2
         # finally, sum over the batch-dimension to get back the result of the iteration
         X = X.sum(axis=0)
 
