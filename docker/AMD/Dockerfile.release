@@ -1,12 +1,14 @@
-####################################################################################################
-# NVIDIA Docker Release File
-# 
-####################################################################################################
+################################################################################################
+# AMD release image for Heat
+# Release Environment
+# Template found in: github.com/ROCm/ROCm-docker/blob/master/rocm-terminal/Dockerile
+# Check for Docker files under https://repo.radeon.com/rocm/manylinux/
+################################################################################################
 
-ARG PYTORCH_IMG=24.10-py3
 ARG HEAT_VERSION=1.5.x
+ARG PYTORCH_IMG=24.10-py3
 
-FROM nvcr.io/nvidia/pytorch:${PYTORCH_IMG} AS base
+FROM nvcr.io/rocm/pytorch:${PYTORCH_IMG} AS base
 COPY ./tzdata.seed /tmp/tzdata.seed
 RUN debconf-set-selections /tmp/tzdata.seed
 RUN apt update && DEBIAN_FRONTEND=noninteractive apt install -y build-essential openssh-client python3-dev git && apt clean && rm -rf /var/lib/apt/lists/*
