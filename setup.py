@@ -44,7 +44,7 @@ setup(
         "docutils": ["docutils>=0.16"],
         "hdf5": ["h5py>=2.8.0"],
         "netcdf": ["netCDF4>=1.5.6"],
-        "dev": ["pre-commit>=1.18.3", "pytest>=8.0", "hypothesis<=6.100"],
+        "dev": ["pre-commit>=1.18.3"],
         "examples": ["scikit-learn>=0.24.0", "matplotlib>=3.1.0"],
         "cb": ["perun>=0.8"],
         "pandas": ["pandas>=1.4"],

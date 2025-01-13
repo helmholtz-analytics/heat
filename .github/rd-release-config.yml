@@ -113,9 +113,6 @@ autolabeler:
   - label: 'interoperability'
     title:
       - '/Support.+/'
-  - label: 'testing'
-    files:
-      - '**/tests/**/*'
   - label: 'classification'
     files:
       - 'heat/classification/**/*'
@@ -164,6 +161,84 @@ autolabeler:
   - label: 'linalg'
     files:
       - 'heat/core/linalg/**/*'
+  - label: 'arithmetics'
+    files:
+      - 'heat/core/arithmetics.py'
+  - label: 'base'
+    files:
+      - 'heat/core/base.py'
+  - label: 'communication'
+    files:
+      - 'heat/core/communication.py'
+  - label: 'complex_math'
+    files:
+      - 'heat/core/complex_math.py'
+  - label: 'constants'
+    files:
+      - 'heat/core/constants.py'
+  - label: 'devices'
+    files:
+      - 'heat/core/devices.py'
+  - label: 'dndarray'
+    files:
+      - 'heat/core/dndarray.py'
+  - label: 'exponential'
+    files:
+      - 'heat/core/exponential.py'
+  - label: 'indexing'
+    files:
+      - 'heat/core/indexing.py'
+  - label: 'io'
+    files:
+      - 'heat/core/io.py'
+  - label: 'logical'
+    files:
+      - 'heat/core/logical.py'
+  - label: 'manipulations'
+    files:
+      - 'heat/core/manipulations.py'
+  - label: 'memory'
+    files:
+      - 'heat/core/memory.py'
+  - label: 'printing'
+    files:
+      - 'heat/core/printing.py'
+  - label: 'random'
+    files:
+      - 'heat/core/random.py'
+  - label: 'relational'
+    files:
+      - 'heat/core/relational.py'
+  - label: 'rounding'
+    files:
+      - 'heat/core/rounding.py'
+  - label: 'santiation'
+    files:
+      - 'heat/core/sanitation.py'
+  - label: 'signal'
+    files:
+      - 'heat/core/signal.py'
+  - label: 'statistics'
+    files:
+      - 'heat/core/statistics.py'
+  - label: 'stride_tricks'
+    files:
+      - 'heat/core/stride_tricks.py'
+  - label: 'tiling'
+    files:
+      - 'heat/core/tiling.py'
+  - label: 'trigonometrics'
+    files:
+      - 'heat/core/trigonometrics.py'
+  - label: 'types'
+    files:
+      - 'heat/core/types.py'
+  - label: 'version'
+    files:
+      - 'heat/core/version.py'
+  - label: 'vmap'
+    files:
+      - 'heat/core/vmap.py'
 
 change-template: '- #$NUMBER $TITLE (by @$AUTHOR)'
 category-template: '### $TITLE'

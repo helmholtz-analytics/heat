@@ -512,7 +512,6 @@ else:
         path: str,
         dataset: str,
         dtype: datatype = types.float32,
-        load_fraction: float = 1.0,
         slices: Optional[Tuple[slice]] = None,
         split: Optional[int] = None,
         device: Optional[str] = None,
@@ -529,10 +528,6 @@ else:
             Name of the dataset to be read.
         dtype : datatype, optional
             Data type of the resulting array.
-        load_fraction : float between 0. (excluded) and 1. (included), default is 1.
-            if 1. (default), the whole dataset is loaded from the file specified in path
-            else, the dataset is loaded partially, with the fraction of the dataset (along the split axis) specified by load_fraction
-            If split is None, load_fraction is automatically set to 1., i.e. the whole dataset is loaded.
         slices : tuple of slice objects, optional
             Load only the specified slices of the dataset.
         split : int or None, optional
@@ -571,14 +566,6 @@ else:
         elif split is not None and not isinstance(split, int):
             raise TypeError(f"split must be None or int, not {type(split)}")
 
-        if not isinstance(load_fraction, float):
-            raise TypeError(f"load_fraction must be float, but is {type(load_fraction)}")
-        else:
-            if split is not None and (load_fraction <= 0.0 or load_fraction > 1.0):
-                raise ValueError(
-                    f"load_fraction must be between 0. (excluded) and 1. (included), but is {load_fraction}."
-                )
-
         # infer the type and communicator for the loaded array
         dtype = types.canonical_heat_type(dtype)
         # determine the comm and device the data will be placed on
@@ -609,10 +596,6 @@ else:
 
                 gshape = new_gshape
 
-            if split is not None:
-                gshape = list(gshape)
-                gshape[split] = int(gshape[split] * load_fraction)
-                gshape = tuple(gshape)
             dims = len(gshape)
             split = sanitize_axis(gshape, split)
             _, _, indices = comm.chunk(gshape, split)
