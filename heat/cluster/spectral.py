@@ -9,7 +9,7 @@ from typing import Tuple
 from heat.core.dndarray import DNDarray
 
 
-class Spectral(ht.ClusteringMixin, ht.BaseEstimator):
+class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
     """
     Spectral clustering
 
@@ -18,18 +18,19 @@ class Spectral(ht.ClusteringMixin, ht.BaseEstimator):
     n_clusters : int
         Number of clusters to fit
     gamma : float
-        Kernel coefficient sigma for 'rbf', ignored for metric='euclidean'
-    metric : string
-        How to construct the similarity matrix.
+        Kernel coefficient sigma for 'rbf', ignored for affinity='euclidean'
+    affinity : string
+        How to construct the similarity (affinity) matrix.
 
             - 'rbf' : construct the similarity matrix using a radial basis function (RBF) kernel.
             - 'euclidean' : construct the similarity matrix as only euclidean distance.
+            - 'precomputed' : interpret ``X`` as precomputed affinity matrix.
     laplacian : str
         How to calculate the graph laplacian (affinity)
         Currently supported : 'fully_connected', 'eNeighbour'
     threshold : float
         Threshold for affinity matrix if laplacian='eNeighbour'
-        Ignorded for laplacian='fully_connected'
+        Ignored for laplacian='fully_connected'
     boundary : str
         How to interpret threshold: 'upper', 'lower'
         Ignorded for laplacian='fully_connected'
@@ -45,7 +46,7 @@ class Spectral(ht.ClusteringMixin, ht.BaseEstimator):
         self,
         n_clusters: int = None,
         gamma: float = 1.0,
-        metric: str = "rbf",
+        affinity: str = "rbf",
         laplacian: str = "fully_connected",
         threshold: float = 1.0,
         boundary: str = "upper",
@@ -55,14 +56,14 @@ class Spectral(ht.ClusteringMixin, ht.BaseEstimator):
     ):
         self.n_clusters = n_clusters
         self.gamma = gamma
-        self.metric = metric
+        self.affinity = affinity
         self.laplacian = laplacian
         self.threshold = threshold
         self.boundary = boundary
         self.n_lanczos = n_lanczos
         self.assign_labels = assign_labels
 
-        if metric == "rbf":
+        if affinity == "rbf":
             sig = math.sqrt(1 / (2 * gamma))
             self._laplacian = ht.graph.Laplacian(
                 lambda x: ht.spatial.rbf(x, sigma=sig, quadratic_expansion=True),
@@ -72,9 +73,17 @@ class Spectral(ht.ClusteringMixin, ht.BaseEstimator):
                 threshold_value=threshold,
             )
 
-        elif metric == "euclidean":
+        elif affinity == "euclidean":
             self._laplacian = ht.graph.Laplacian(
                 lambda x: ht.spatial.cdist(x, quadratic_expansion=True),
+                definition="norm_sym",
+                mode=laplacian,
+                threshold_key=boundary,
+                threshold_value=threshold,
+            )
+        elif affinity == "precomputed":
+            self._laplacian = ht.graph.Laplacian(
+                lambda x: x,
                 definition="norm_sym",
                 mode=laplacian,
                 threshold_key=boundary,
