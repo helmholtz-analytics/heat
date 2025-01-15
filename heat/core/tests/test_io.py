@@ -11,9 +11,6 @@ import unittest
 import heat as ht
 from .test_suites.basic_test import TestCase
 
-import pytest
-import hypothesis.strategies as st
-
 
 class TestIO(TestCase):
     @classmethod
@@ -913,37 +910,40 @@ class TestIO(TestCase):
             if ht.MPI_WORLD.rank == 0:
                 shutil.rmtree(os.path.join(os.getcwd(), "heat/datasets/csv_tests"))
 
+    @unittest.skipIf(not ht.io.supports_hdf5(), reason="Requires HDF5")
+    def test_load_partial_hdf5(self):
+        test_axis = [None, 0, 1]
+        test_slices = [
+            (slice(0, 50, None), slice(None, None, None)),
+            (slice(0, 50, None), slice(0, 2, None)),
+            (slice(50, 100, None), slice(None, None, None)),
+            (slice(None, None, None), slice(2, 4, None)),
+        ]
+        test_cases = [(a, s) for a in test_axis for s in test_slices]
 
-@unittest.skipIf(not ht.io.supports_hdf5(), reason="Requires HDF5")
-def test_load_partial_hdf5(self):
-    test_axis = [None, 0, 1]
-    test_slices = [
-        (slice(0, 50, None), slice(None, None, None)),
-        (slice(0, 50, None), slice(0, 2, None)),
-        (slice(50, 100, None), slice(None, None, None)),
-        (slice(None, None, None), slice(2, 4, None)),
-    ]
-    test_cases = [(a, s) for a in test_axis for s in test_slices]
+        for axis, slices in test_cases:
+            with self.subTest(axis=axis, slices=slices):
+                print("axis: ", axis)
+                HDF5_PATH = os.path.join(os.getcwd(), "heat/datasets/iris.h5")
+                HDF5_DATASET = "data"
+                expect_error = False
+                for s in slices:
+                    if s and s.step not in [None, 1]:
+                        expect_error = True
+                        break
 
-    for axis, slices in test_cases:
-        with self.subTest(axis=axis, slices=slices):
-            print("axis: ", axis)
-            HDF5_PATH = os.path.join(os.getcwd(), "heat/datasets/iris.h5")
-            HDF5_DATASET = "data"
-            expect_error = False
-            for s in slices:
-                if s and s.step not in [None, 1]:
-                    expect_error = True
-                    break
-
-            if expect_error:
-                with pytest.raises(ValueError):
+                if expect_error:
+                    with self.assertRaises(ValueError):
+                        sliced_iris = ht.load_hdf5(
+                            HDF5_PATH, HDF5_DATASET, split=axis, slices=slices
+                        )
+                else:
+                    original_iris = ht.load_hdf5(HDF5_PATH, HDF5_DATASET, split=axis)
+                    expected_iris = original_iris[slices]
                     sliced_iris = ht.load_hdf5(HDF5_PATH, HDF5_DATASET, split=axis, slices=slices)
-            else:
-                original_iris = ht.load_hdf5(HDF5_PATH, HDF5_DATASET, split=axis)
-                expected_iris = original_iris[slices]
-                sliced_iris = ht.load_hdf5(HDF5_PATH, HDF5_DATASET, split=axis, slices=slices)
-                print("Original shape: " + str(original_iris.shape))
-                print("Sliced shape: " + str(sliced_iris.shape))
-                print("Expected shape: " + str(expected_iris.shape))
-                assert not ht.equal(sliced_iris, expected_iris)
+                    print("Original shape: " + str(original_iris.shape))
+                    print("Sliced shape: " + str(sliced_iris.shape))
+                    print("Expected shape: " + str(expected_iris.shape))
+                    print(f"Expected : {expected_iris}")
+                    print(f"Sliced : {sliced_iris}")
+                    self.assertTrue(ht.equal(sliced_iris, expected_iris))
