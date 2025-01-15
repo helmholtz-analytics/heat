@@ -101,6 +101,9 @@ def qr(
 
     if A.ndim == 3:
         single_proc_qr = torch.vmap(torch.linalg.qr, in_dims=0, out_dims=0)
+        print(
+            ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
+        )
     else:
         single_proc_qr = torch.linalg.qr
 
