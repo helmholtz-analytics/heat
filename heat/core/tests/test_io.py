@@ -918,12 +918,15 @@ class TestIO(TestCase):
             (slice(0, 50, None), slice(0, 2, None)),
             (slice(50, 100, None), slice(None, None, None)),
             (slice(None, None, None), slice(2, 4, None)),
+            (slice(50), None),
+            (None, slice(0, 3, 2)),
         ]
         test_cases = [(a, s) for a in test_axis for s in test_slices]
 
         for axis, slices in test_cases:
             with self.subTest(axis=axis, slices=slices):
                 print("axis: ", axis)
+                print("slices: ", slices)
                 HDF5_PATH = os.path.join(os.getcwd(), "heat/datasets/iris.h5")
                 HDF5_DATASET = "data"
                 expect_error = False
@@ -939,11 +942,10 @@ class TestIO(TestCase):
                         )
                 else:
                     original_iris = ht.load_hdf5(HDF5_PATH, HDF5_DATASET, split=axis)
-                    expected_iris = original_iris[slices]
+                    tmp_slices = tuple(slice(None) if s is None else s for s in slices)
+                    expected_iris = original_iris[tmp_slices]
                     sliced_iris = ht.load_hdf5(HDF5_PATH, HDF5_DATASET, split=axis, slices=slices)
                     print("Original shape: " + str(original_iris.shape))
                     print("Sliced shape: " + str(sliced_iris.shape))
                     print("Expected shape: " + str(expected_iris.shape))
-                    print(f"Expected : {expected_iris}")
-                    print(f"Sliced : {sliced_iris}")
                     self.assertTrue(ht.equal(sliced_iris, expected_iris))
