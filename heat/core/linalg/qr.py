@@ -165,7 +165,7 @@ def qr(
                 # orthogonalize the current block of columns by utilizing PyTorch QR
                 Q_curr, R_loc = single_proc_qr(A_columns, mode="reduced")
                 if i < nprocs - 1:
-                    Q_buf = Q_curr
+                    Q_buf = Q_curr.contiguous()
                 if mode == "reduced":
                     Q.larray = Q_curr
                 r_size = R.larray[..., R_shapes[i] : R_shapes[i + 1], :].shape[-2]
