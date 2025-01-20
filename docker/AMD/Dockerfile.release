@@ -2,20 +2,28 @@
 # AMD release image for Heat
 # Release Environment
 # Template found in: github.com/ROCm/ROCm-docker/blob/master/rocm-terminal/Dockerile
+# Check out the following installation guide: https://github.com/ROCm/ROCm-docker/blob/master/quick-start.md
 # Check for Docker files under https://repo.radeon.com/rocm/manylinux/
 ################################################################################################
 
 ARG HEAT_VERSION=1.5.x
 ARG PYTORCH_IMG=24.10-py3
+ARG ROCM_VERSION=6.2
+ARG AMDGPU_VERSION=6.2
 
-FROM nvcr.io/rocm/pytorch:${PYTORCH_IMG} AS base
+
+FROM rocm/dev-ubuntu-24.04 AS base
 COPY ./tzdata.seed /tmp/tzdata.seed
 RUN debconf-set-selections /tmp/tzdata.seed
+# I want to install python3 in the following line (Does not work yet)
+RUN apt update && DEBIAN_FRONTEND=noninteractive apt install -y python3 python3-pip python3-setuptools python3-wheel && apt clean && rm -rf /var/lib/apt/lists/*
 RUN apt update && DEBIAN_FRONTEND=noninteractive apt install -y build-essential openssh-client python3-dev git && apt clean && rm -rf /var/lib/apt/lists/*
+
 
 FROM base AS release-install
 ARG HEAT_VERSION
-RUN pip install --upgrade pip
+# Currentl FAILS here
+RUN pip install --upgrade pip 
 RUN pip install mpi4py --no-binary :all:
 RUN echo ${HEAT_VERSION}
 RUN if [[ ${HEAT_VERSION} =~ ^([1-9]\d*|0)(\.(([1-9]\d*)|0)){2}$ ]]; then \
