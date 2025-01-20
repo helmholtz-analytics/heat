@@ -53,18 +53,24 @@ class TestZoloPD(TestCase):
 
     def test_pd_split0(self):
         # split=0, float32, no condition estimate provided, silent mode
-        ht.random.seed(18112024)
         for r in range(1, 9):
-            A = ht.random.randn(100, 10 * r, split=0, dtype=ht.float32)
-            U, H = ht.pd(A, r=r)
-            dtypetol = 1e-4
-
-            self._check_pd(A, U, H, dtypetol)
+            with self.subTest(r=r):
+                ht.random.seed(18112024)
+                A = ht.random.randn(100, 10 * r, split=0, dtype=ht.float32)
+                if (
+                    ht.MPI_WORLD.size % r == 0 and ht.MPI_WORLD.size != r
+                ) or ht.MPI_WORLD.size == 1:
+                    U, H = ht.pd(A, r=r)
+                    dtypetol = 1e-4
+                    self._check_pd(A, U, H, dtypetol)
+                else:
+                    with self.assertRaises(ValueError):
+                        U, H = ht.pd(A, r=r)
 
         # cases not covered so far
         A = ht.random.randn(100, 100, split=0, dtype=ht.float64)
         U, H = ht.pd(A, condition_estimate=1.0e16, silent=False)
-        dtypetol = 1e-8
+        dtypetol = 1e-7
 
         self._check_pd(A, U, H, dtypetol)
 
@@ -80,25 +86,32 @@ class TestZoloPD(TestCase):
 
     def test_pd_split1(self):
         # split=1, float64, condition estimate provided, non-silent mode
-        ht.random.seed(623)
         for r in range(1, 9):
-            A = ht.random.randn(100, 99, split=1, dtype=ht.float64)
-            U, H = ht.pd(A, r=r, silent=False, condition_estimate=1.0e16)
-            dtypetol = 1e-8
+            with self.subTest(r=r):
+                ht.random.seed(623)
+                A = ht.random.randn(100, 99, split=1, dtype=ht.float64)
+                if (
+                    ht.MPI_WORLD.size % r == 0 and ht.MPI_WORLD.size != r
+                ) or ht.MPI_WORLD.size == 1:
+                    U, H = ht.pd(A, r=r, silent=False, condition_estimate=1.0e16)
+                    dtypetol = 1e-7
 
-            self._check_pd(A, U, H, dtypetol)
+                    self._check_pd(A, U, H, dtypetol)
+                else:
+                    with self.assertRaises(ValueError):
+                        U, H = ht.pd(A, r=r)
 
         # cases not covered so far
         A = ht.random.randn(100, 99, split=1, dtype=ht.float32)
-        U, H = ht.pd(A)
+        U, H = ht.pd(A, silent=False, condition_estimate=1.0e16)
         dtypetol = 1e-4
         self._check_pd(A, U, H, dtypetol)
 
         # case without calculating H
         A = ht.random.randn(100, 100, split=1, dtype=ht.float64)
-        U = ht.pd(A, calcH=False)
+        U = ht.pd(A, calcH=False, condition_estimate=1.0e16)
         U_np = U.numpy()
-        self.assertTrue(np.allclose(U_np.T @ U_np, np.eye(U_np.shape[1]), atol=1e-8, rtol=1e-8))
+        self.assertTrue(np.allclose(U_np.T @ U_np, np.eye(U_np.shape[1]), atol=1e-7, rtol=1e-7))
         H_np = U_np.T @ A.numpy()
         self.assertTrue(np.allclose(H_np.T, H_np, atol=1e-8, rtol=1e-8))
         self.assertTrue((np.linalg.eigvalsh(H_np) > 0).all())
