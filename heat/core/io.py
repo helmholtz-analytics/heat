@@ -27,6 +27,7 @@ __CSV_EXTENSION = frozenset([".csv"])
 __HDF5_EXTENSIONS = frozenset([".h5", ".hdf5"])
 __NETCDF_EXTENSIONS = frozenset([".nc", ".nc4", "netcdf"])
 __NETCDF_DIM_TEMPLATE = "{}_dim_{}"
+__ZARR_EXTENSIONS = frozenset([".zarr"])
 
 __all__ = [
     "load",
@@ -36,6 +37,7 @@ __all__ = [
     "supports_hdf5",
     "supports_netcdf",
     "load_npy_from_path",
+    "load_zarr"
 ]
 
 try:
@@ -1283,3 +1285,59 @@ else:
         larray = torch.from_numpy(larray)
         x = factories.array(larray, dtype=dtype, device=device, is_split=split, comm=comm)
         return x
+
+
+try:
+    import zarr
+except ModuleNotFoundError:
+    def supports_zarr() -> bool:
+        """
+        Returns ``True`` if zarr is installed, ``False`` otherwise.
+        """
+        return False
+else:
+    def supports_zarr() -> bool:
+        """
+        Returns ``True`` if zarr is installed, ``False`` otherwise.
+        """
+        return True
+
+    def load_zarr(
+        path: str,
+        split: int = 0,
+        device: Optional[str] = None,
+    ) -> DNDarray:
+        """
+        Loads zarr-Format into DNDarray which will be returned. The data will be concatenated along the split axis provided as input.
+
+        Parameters
+        ----------
+        path : str
+            Path to the directory in which a .zarr-file is located.
+        split : int
+            Along which axis the loaded arrays should be concatenated.
+        device : str, optional
+            The device id on which to place the data, defaults to globally set default device.
+        """
+        if not isinstance(path, str):
+            raise TypeError(f"path must be str, not {type(path)}")
+        if split is not None and not isinstance(split, int):
+            raise TypeError(f"split must be None or int, not {type(split)}")
+        if device is not None and not isinstance(device, str):
+            raise TypeError(f"device must be None or str, not {type(split)}")
+        
+        for extension in __ZARR_EXTENSIONS:
+            if fnmatch.fnmatch(path, f"*{extension}"):
+                break
+        else:
+            raise ValueError("File has no zarr extension.")
+        
+        arr: zarr.Array = zarr.open_array(store=path)
+        shape = arr.shape
+        
+        dtype = types.canonical_heat_type(arr.dtype)
+        device = devices.sanitize_device(device)
+        
+        offset, local_shape, slices = MPI_WORLD.chunk(shape, split)
+        
+        return factories.array(arr[*slices], dtype=dtype, is_split=split, device=device)
