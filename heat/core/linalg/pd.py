@@ -236,7 +236,7 @@ def pd(
         )
 
     # initialize X for the iteration: input ``A``, normalized by largest singular value
-    X = A / alpha
+    A /= alpha
 
     # each of these communicators has size r, along these communicators we parallelize the r many QR decompositions that are performed in parallel
     horizontal_comm = A.comm.Split(A.comm.rank // r, A.comm.rank)
@@ -255,12 +255,14 @@ def pd(
         new_local_shape, dtype=A.dtype.torch_type(), device=A.device.torch_device
     )
     horizontal_comm.Allgatherv(
-        X.larray, (X_collected_local, counts, displacements), recv_axis=A.split
+        A.larray, (X_collected_local, counts, displacements), recv_axis=A.split
     )
-    del X
 
     X = factories.array(X_collected_local, is_split=A.split, comm=vertical_comm)
     X.balance_()
+
+    # do not forget to scale A back
+    A *= alpha
 
     # iteration counter and maximum number of iterations
     it = 0
@@ -283,14 +285,23 @@ def pd(
         cId *= c[2 * horizontal_comm.rank].item() ** 0.5
         X = concatenate([X, cId], axis=0)
         del cId
-        Q, R = qr(X)
-        del R
-        Q1 = Q[: A.shape[0], :].balance()
-        Q2 = Q[A.shape[0] :, :].transpose().balance()
-        Q1Q2 = matmul(Q1, Q2)
-        del Q1, Q2
-        X = X[: A.shape[0], :].balance()
-        X /= r
+        if X.split == 0:
+            Q, R = qr(X)
+            del R
+            Q1 = Q[: A.shape[0], :].balance()
+            Q2 = Q[A.shape[0] :, :].transpose().balance()
+            Q1Q2 = matmul(Q1, Q2)
+            del Q1, Q2
+            X = X[: A.shape[0], :].balance()
+            X /= r
+        else:
+            _in_place_qr_with_q_only(X)
+            Q1 = X[: A.shape[0], :].balance()
+            Q2 = X[A.shape[0] :, :].transpose().balance()
+            del X
+            Q1Q2 = matmul(Q1, Q2)
+            del Q1, Q2
+            X = X_old / r
         X += a[horizontal_comm.rank].item() / c[2 * horizontal_comm.rank].item() ** 0.5 * Q1Q2
         del Q1Q2
         X *= Mhat.item()
