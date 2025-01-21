@@ -110,8 +110,9 @@ def _in_place_qr_with_q_only(A: DNDarray, procs_to_merge: int = 2) -> None:
 
                 if A.comm.rank == i:
                     # orthogonalize the current block of columns by utilizing PyTorch QR
-                    A.larray, R = torch.linalg.qr(A.larray, mode="reduced")
-                    del R
+                    Q, R = torch.linalg.qr(A.larray, mode="reduced")
+                    A.larray = Q.contiguous()
+                    del Q, R
                     if i < nprocs - 1:
                         Q_buf = A.larray
 
