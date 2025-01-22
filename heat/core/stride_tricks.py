@@ -44,19 +44,6 @@ def broadcast_shape(shape_a: Tuple[int, ...], shape_b: Tuple[int, ...]) -> Tuple
     """
     try:
         resulting_shape = torch.broadcast_shapes(shape_a, shape_b)
-    except AttributeError:  # torch < 1.8
-        it = itertools.zip_longest(shape_a[::-1], shape_b[::-1], fillvalue=1)
-        resulting_shape = max(len(shape_a), len(shape_b)) * [None]
-        for i, (a, b) in enumerate(it):
-            if a == 0 and b == 1 or b == 0 and a == 1:
-                resulting_shape[i] = 0
-            elif a == 1 or b == 1 or a == b:
-                resulting_shape[i] = max(a, b)
-            else:
-                raise ValueError(
-                    f"operands could not be broadcast, input shapes {shape_a} {shape_b}"
-                )
-        return tuple(resulting_shape[::-1])
     except TypeError:
         raise TypeError(f"operand 1 must be tuple of ints, not {type(shape_a)}")
     except NameError:
@@ -151,7 +138,10 @@ def sanitize_axis(
 
     """
     # scalars are handled like unsplit matrices
-    if len(shape) == 0:
+    original_axis = axis
+    ndim = len(shape)
+
+    if ndim == 0:
         axis = None
 
     if axis is not None and not isinstance(axis, int) and not isinstance(axis, tuple):
@@ -160,7 +150,9 @@ def sanitize_axis(
         axis = tuple(dim + len(shape) if dim < 0 else dim for dim in axis)
         for dim in axis:
             if dim < 0 or dim >= len(shape):
-                raise ValueError(f"axis {axis} is out of bounds for shape {shape}")
+                raise ValueError(
+                    f"axis {original_axis} is out of bounds for {ndim}-dimensional array"
+                )
         return axis
 
     if axis is None or 0 <= axis < len(shape):
@@ -169,7 +161,7 @@ def sanitize_axis(
         axis += len(shape)
 
     if axis < 0 or axis >= len(shape):
-        raise ValueError(f"axis {axis} is out of bounds for shape {shape}")
+        raise ValueError(f"axis {original_axis} is out of bounds for {ndim}-dimensional array")
 
     return axis
 

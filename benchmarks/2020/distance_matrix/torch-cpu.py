@@ -22,4 +22,4 @@ if __name__ == "__main__":
         start = time.perf_counter()
         dist = torch.cdist(data, data)
         end = time.perf_counter()
-        print(f"\t{end-start}s")
+        print(f"\t{end - start}s")

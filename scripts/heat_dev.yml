@@ -3,12 +3,12 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  - python=3.10
+  - python=3.11
   - openmpi
   - mpi4py
   - h5py[version='>=2.9',build=mpi*]
   - netcdf4
-  - pytorch
+  - pytorch>=1.11.0,<2.2.3[channel=pytorch]
   - torchvision
   - scipy
   - pre-commit

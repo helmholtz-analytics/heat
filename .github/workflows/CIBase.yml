@@ -5,17 +5,28 @@ on:
     branches:
       - 'main'
       - 'release/**'
-      - 'support/**'
+
+permissions:
+  contents: read
 
 jobs:
   starter:
     runs-on: ubuntu-latest
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@cb605e52c26070c328afc4562f0b4ada7618a84e # v2.10.4
+        with:
+          egress-policy: audit
+
+      - name: Get branch names
+        id: branch-names
+        uses: tj-actions/branch-names@v8
       - name: 'start test'
         run: |
          curl -s -X POST \
            --fail \
            -F token=${{ secrets.CB_PIPELINE }} \
-           -F "ref=pt20" \
+           -F "ref=heat/base" \
            -F "variables[SHA]=$GITHUB_SHA" \
+           -F "variables[GHBRANCH]=${{ steps.branch-names.outputs.current_branch }}" \
            https://codebase.helmholtz.cloud/api/v4/projects/7605/trigger/pipeline -o /dev/null

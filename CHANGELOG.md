@@ -1,3 +1,47 @@
+# v1.4.2 - Maintenance release
+
+## Changes
+
+### Maintenance
+
+- [#1467](https://github.com/helmholtz-analytics/heat/pull/1467), [#1525](https://github.com/helmholtz-analytics/heat/pull/1525) Support PyTorch 2.3.1 (by @mtar)
+- [#1535](https://github.com/helmholtz-analytics/heat/pull/1535) Address test failures after netCDF4 1.7.1, numpy 2 releases (by @ClaudiaComito)
+
+# v1.4.1 - Bug fix release
+
+## Changes
+
+### Bug fixes
+- #1472 DNDarrays returned by `_like` functions default to same device as input DNDarray  (by @mrfh92, @ClaudiaComito)
+
+### Maintenance
+- #1441 added names of non-core members in citation file (by @mrfh92)
+
+# v1.4.0 - Interactive HPC tutorials, distributed FFT, batch-parallel clustering, support PyTorch 2.2.2
+
+## Changes
+
+### Documentation
+
+- #1406 New tutorials for interactive parallel mode for both HPC and local usage (by @ClaudiaComito)
+
+### 🔥 Features
+
+- #1288 Batch-parallel K-means and K-medians (by @mrfh92)
+- #1228 Introduce in-place-operators for `arithmetics.py` (by @LScheib)
+- #1218 Distributed Fast Fourier Transforms (by @ClaudiaComito)
+
+### Bug fixes
+
+- #1363 `ht.array` constructor respects implicit torch device when copy is set to false (by @JuanPedroGHM)
+- #1216 Avoid unnecessary gathering of distributed operand (by @samadpls)
+- #1329 Refactoring of QR: stabilized Gram-Schmidt for split=1 and TS-QR for split=0  (by @mrfh92)
+
+### Interoperability
+
+- #1418 and #1290: Support PyTorch 2.2.2 (by @mtar)
+- #1315 and #1337: Fix some NumPy deprecations in the core and statistics tests (by @FOsterfeld)
+
 # v1.3.1 - Bug fixes, Docker documentation update
 
 ## Bug fixes

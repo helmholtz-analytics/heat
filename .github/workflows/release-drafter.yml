@@ -2,12 +2,23 @@ name: Release Drafter
 
 on:
   pull_request_target:
-    types: [closed]
-
+    types: [opened, reopened, synchronize]
 jobs:
   update_release_draft:
+    permissions:
+      contents: write  # for release-drafter/release-drafter to create a github release
+      pull-requests: write  # for release-drafter/release-drafter to add label to PR
     runs-on: ubuntu-latest
     steps:
-      - uses: release-drafter/release-drafter@v5
+      - name: Harden Runner
+        uses: step-security/harden-runner@cb605e52c26070c328afc4562f0b4ada7618a84e # v2.10.4
+        with:
+          egress-policy: audit
+
+      - uses: release-drafter/release-drafter@v6 # v6.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          commitish: 'release'
+          name: ${{ github.ref_name }} - Draft release
+          config-name: rd-release-config.yml

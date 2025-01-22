@@ -1,4 +1,5 @@
 """Enables parallel I/O with data on disk."""
+
 from __future__ import annotations
 
 import os.path
@@ -6,6 +7,7 @@ from math import log10
 import numpy as np
 import torch
 import warnings
+import fnmatch
 
 from typing import Dict, Iterable, List, Optional, Tuple, Union
 
@@ -26,225 +28,15 @@ __HDF5_EXTENSIONS = frozenset([".h5", ".hdf5"])
 __NETCDF_EXTENSIONS = frozenset([".nc", ".nc4", "netcdf"])
 __NETCDF_DIM_TEMPLATE = "{}_dim_{}"
 
-__all__ = ["load", "load_csv", "save_csv", "save", "supports_hdf5", "supports_netcdf"]
-
-try:
-    import h5py
-except ImportError:
-    # HDF5 support is optional
-    def supports_hdf5() -> bool:
-        """
-        Returns ``True`` if Heat supports reading from and writing to HDF5 files, ``False`` otherwise.
-        """
-        return False
-
-else:
-    # add functions to exports
-    __all__.extend(["load_hdf5", "save_hdf5"])
-
-    # warn the user about serial hdf5
-    if not h5py.get_config().mpi and MPI_WORLD.rank == 0:
-        warnings.warn(
-            "h5py does not support parallel I/O, falling back to slower serial I/O", ImportWarning
-        )
-
-    def supports_hdf5() -> bool:
-        """
-        Returns ``True`` if Heat supports reading from and writing to HDF5 files, ``False`` otherwise.
-        """
-        return True
-
-    def load_hdf5(
-        path: str,
-        dataset: str,
-        dtype: datatype = types.float32,
-        load_fraction: float = 1.0,
-        split: Optional[int] = None,
-        device: Optional[str] = None,
-        comm: Optional[Communication] = None,
-    ) -> DNDarray:
-        """
-        Loads data from an HDF5 file. The data may be distributed among multiple processing nodes via the split flag.
-
-        Parameters
-        ----------
-        path : str
-            Path to the HDF5 file to be read.
-        dataset : str
-            Name of the dataset to be read.
-        dtype : datatype, optional
-            Data type of the resulting array.
-        load_fraction : float between 0. (excluded) and 1. (included), default is 1.
-            if 1. (default), the whole dataset is loaded from the file specified in path
-            else, the dataset is loaded partially, with the fraction of the dataset (along the split axis) specified by load_fraction
-            If split is None, load_fraction is automatically set to 1., i.e. the whole dataset is loaded.
-        split : int or None, optional
-            The axis along which the data is distributed among the processing cores.
-        device : str, optional
-            The device id on which to place the data, defaults to globally set default device.
-        comm : Communication, optional
-            The communication to use for the data distribution.
-
-        Raises
-        -------
-        TypeError
-            If any of the input parameters are not of correct type
-
-        Examples
-        --------
-        >>> a = ht.load_hdf5('data.h5', dataset='DATA')
-        >>> a.shape
-        [0/2] (5,)
-        [1/2] (5,)
-        >>> a.lshape
-        [0/2] (5,)
-        [1/2] (5,)
-        >>> b = ht.load_hdf5('data.h5', dataset='DATA', split=0)
-        >>> b.shape
-        [0/2] (5,)
-        [1/2] (5,)
-        >>> b.lshape
-        [0/2] (3,)
-        [1/2] (2,)
-        """
-        if not isinstance(path, str):
-            raise TypeError(f"path must be str, not {type(path)}")
-        elif not isinstance(dataset, str):
-            raise TypeError(f"dataset must be str, not {type(dataset)}")
-        elif split is not None and not isinstance(split, int):
-            raise TypeError(f"split must be None or int, not {type(split)}")
-
-        if not isinstance(load_fraction, float):
-            raise TypeError(f"load_fraction must be float, but is {type(load_fraction)}")
-        else:
-            if split is not None and (load_fraction <= 0.0 or load_fraction > 1.0):
-                raise ValueError(
-                    f"load_fraction must be between 0. (excluded) and 1. (included), but is {load_fraction}."
-                )
-
-        # infer the type and communicator for the loaded array
-        dtype = types.canonical_heat_type(dtype)
-        # determine the comm and device the data will be placed on
-        device = devices.sanitize_device(device)
-        comm = sanitize_comm(comm)
-
-        # actually load the data from the HDF5 file
-        with h5py.File(path, "r") as handle:
-            data = handle[dataset]
-            gshape = data.shape
-            if split is not None:
-                gshape = np.array(gshape)
-                gshape[split] = int(gshape[split] * load_fraction)
-                gshape = tuple(gshape)
-            dims = len(gshape)
-            split = sanitize_axis(gshape, split)
-            _, _, indices = comm.chunk(gshape, split)
-            balanced = True
-            if split is None:
-                data = torch.tensor(
-                    data[indices], dtype=dtype.torch_type(), device=device.torch_device
-                )
-            elif indices[split].stop > indices[split].start:
-                data = torch.tensor(
-                    data[indices], dtype=dtype.torch_type(), device=device.torch_device
-                )
-            else:
-                warnings.warn("More MPI ranks are used then the length of splitting dimension!")
-                slice1 = tuple(
-                    slice(0, gshape[i]) if i != split else slice(0, 1) for i in range(dims)
-                )
-                slice2 = tuple(
-                    slice(0, gshape[i]) if i != split else slice(0, 0) for i in range(dims)
-                )
-                data = torch.tensor(
-                    data[slice1], dtype=dtype.torch_type(), device=device.torch_device
-                )
-                data = data[slice2]
-
-            return DNDarray(data, gshape, dtype, split, device, comm, balanced)
-
-    def save_hdf5(
-        data: DNDarray, path: str, dataset: str, mode: str = "w", **kwargs: Dict[str, object]
-    ):
-        """
-        Saves ``data`` to an HDF5 file. Attempts to utilize parallel I/O if possible.
-
-        Parameters
-        ----------
-        data : DNDarray
-            The data to be saved on disk.
-        path : str
-            Path to the HDF5 file to be written.
-        dataset : str
-            Name of the dataset the data is saved to.
-        mode : str, optional
-            File access mode, one of ``'w', 'a', 'r+'``
-        kwargs : dict, optional
-            Additional arguments passed to the created dataset.
-
-        Raises
-        -------
-        TypeError
-            If any of the input parameters are not of correct type.
-        ValueError
-            If the access mode is not understood.
-
-        Examples
-        --------
-        >>> x = ht.arange(100, split=0)
-        >>> ht.save_hdf5(x, 'data.h5', dataset='DATA')
-        """
-        if not isinstance(data, DNDarray):
-            raise TypeError(f"data must be heat tensor, not {type(data)}")
-        if not isinstance(path, str):
-            raise TypeError(f"path must be str, not {type(path)}")
-        if not isinstance(dataset, str):
-            raise TypeError(f"dataset must be str, not {type(path)}")
-
-        # we only support a subset of possible modes
-        if mode not in __VALID_WRITE_MODES:
-            raise ValueError(f"mode was {mode}, not in possible modes {__VALID_WRITE_MODES}")
-
-        # chunk the data, if no split is set maximize parallel I/O and chunk first axis
-        is_split = data.split is not None
-        _, _, slices = data.comm.chunk(data.gshape, data.split if is_split else 0)
-
-        # attempt to perform parallel I/O if possible
-        if h5py.get_config().mpi:
-            with h5py.File(path, mode, driver="mpio", comm=data.comm.handle) as handle:
-                dset = handle.create_dataset(dataset, data.shape, **kwargs)
-                dset[slices] = data.larray.cpu() if is_split else data.larray[slices].cpu()
-
-        # otherwise a single rank only write is performed in case of local data (i.e. no split)
-        elif data.comm.rank == 0:
-            with h5py.File(path, mode) as handle:
-                dset = handle.create_dataset(dataset, data.shape, **kwargs)
-                if is_split:
-                    dset[slices] = data.larray.cpu()
-                else:
-                    dset[...] = data.larray.cpu()
-
-            # ping next rank if it exists
-            if is_split and data.comm.size > 1:
-                data.comm.Isend([None, 0, MPI.INT], dest=1)
-                data.comm.Recv([None, 0, MPI.INT], source=data.comm.size - 1)
-
-        # no MPI, but split data is more tricky, we have to serialize the writes
-        elif is_split:
-            # wait for the previous rank to finish writing its chunk, then write own part
-            data.comm.Recv([None, 0, MPI.INT], source=data.comm.rank - 1)
-            with h5py.File(path, "r+") as handle:
-                handle[dataset][slices] = data.larray.cpu()
-
-            # ping the next node in the communicator, wrap around to 0 to complete barrier behavior
-            next_rank = (data.comm.rank + 1) % data.comm.size
-            data.comm.Isend([None, 0, MPI.INT], dest=next_rank)
-
-    DNDarray.save_hdf5 = lambda self, path, dataset, mode="w", **kwargs: save_hdf5(
-        self, path, dataset, mode, **kwargs
-    )
-    DNDarray.save_hdf5.__doc__ = save_hdf5.__doc__
-
+__all__ = [
+    "load",
+    "load_csv",
+    "save_csv",
+    "save",
+    "supports_hdf5",
+    "supports_netcdf",
+    "load_npy_from_path",
+]
 
 try:
     import netCDF4 as nc
@@ -666,6 +458,223 @@ else:
         self, path, variable, mode, **kwargs
     )
     DNDarray.save_netcdf.__doc__ = save_netcdf.__doc__
+
+try:
+    import h5py
+except ImportError:
+    # HDF5 support is optional
+    def supports_hdf5() -> bool:
+        """
+        Returns ``True`` if Heat supports reading from and writing to HDF5 files, ``False`` otherwise.
+        """
+        return False
+
+else:
+    # add functions to exports
+    __all__.extend(["load_hdf5", "save_hdf5"])
+
+    # warn the user about serial hdf5
+    if not h5py.get_config().mpi and MPI_WORLD.rank == 0:
+        warnings.warn(
+            "h5py does not support parallel I/O, falling back to slower serial I/O", ImportWarning
+        )
+
+    def supports_hdf5() -> bool:
+        """
+        Returns ``True`` if Heat supports reading from and writing to HDF5 files, ``False`` otherwise.
+        """
+        return True
+
+    def load_hdf5(
+        path: str,
+        dataset: str,
+        dtype: datatype = types.float32,
+        load_fraction: float = 1.0,
+        split: Optional[int] = None,
+        device: Optional[str] = None,
+        comm: Optional[Communication] = None,
+    ) -> DNDarray:
+        """
+        Loads data from an HDF5 file. The data may be distributed among multiple processing nodes via the split flag.
+
+        Parameters
+        ----------
+        path : str
+            Path to the HDF5 file to be read.
+        dataset : str
+            Name of the dataset to be read.
+        dtype : datatype, optional
+            Data type of the resulting array.
+        load_fraction : float between 0. (excluded) and 1. (included), default is 1.
+            if 1. (default), the whole dataset is loaded from the file specified in path
+            else, the dataset is loaded partially, with the fraction of the dataset (along the split axis) specified by load_fraction
+            If split is None, load_fraction is automatically set to 1., i.e. the whole dataset is loaded.
+        split : int or None, optional
+            The axis along which the data is distributed among the processing cores.
+        device : str, optional
+            The device id on which to place the data, defaults to globally set default device.
+        comm : Communication, optional
+            The communication to use for the data distribution.
+
+        Raises
+        -------
+        TypeError
+            If any of the input parameters are not of correct type
+
+        Examples
+        --------
+        >>> a = ht.load_hdf5('data.h5', dataset='DATA')
+        >>> a.shape
+        [0/2] (5,)
+        [1/2] (5,)
+        >>> a.lshape
+        [0/2] (5,)
+        [1/2] (5,)
+        >>> b = ht.load_hdf5('data.h5', dataset='DATA', split=0)
+        >>> b.shape
+        [0/2] (5,)
+        [1/2] (5,)
+        >>> b.lshape
+        [0/2] (3,)
+        [1/2] (2,)
+        """
+        if not isinstance(path, str):
+            raise TypeError(f"path must be str, not {type(path)}")
+        elif not isinstance(dataset, str):
+            raise TypeError(f"dataset must be str, not {type(dataset)}")
+        elif split is not None and not isinstance(split, int):
+            raise TypeError(f"split must be None or int, not {type(split)}")
+
+        if not isinstance(load_fraction, float):
+            raise TypeError(f"load_fraction must be float, but is {type(load_fraction)}")
+        else:
+            if split is not None and (load_fraction <= 0.0 or load_fraction > 1.0):
+                raise ValueError(
+                    f"load_fraction must be between 0. (excluded) and 1. (included), but is {load_fraction}."
+                )
+
+        # infer the type and communicator for the loaded array
+        dtype = types.canonical_heat_type(dtype)
+        # determine the comm and device the data will be placed on
+        device = devices.sanitize_device(device)
+        comm = sanitize_comm(comm)
+
+        # actually load the data from the HDF5 file
+        with h5py.File(path, "r") as handle:
+            data = handle[dataset]
+            gshape = data.shape
+            if split is not None:
+                gshape = list(gshape)
+                gshape[split] = int(gshape[split] * load_fraction)
+                gshape = tuple(gshape)
+            dims = len(gshape)
+            split = sanitize_axis(gshape, split)
+            _, _, indices = comm.chunk(gshape, split)
+            balanced = True
+            if split is None:
+                data = torch.tensor(
+                    data[indices], dtype=dtype.torch_type(), device=device.torch_device
+                )
+            elif indices[split].stop > indices[split].start:
+                data = torch.tensor(
+                    data[indices], dtype=dtype.torch_type(), device=device.torch_device
+                )
+            else:
+                warnings.warn("More MPI ranks are used then the length of splitting dimension!")
+                slice1 = tuple(
+                    slice(0, gshape[i]) if i != split else slice(0, 1) for i in range(dims)
+                )
+                slice2 = tuple(
+                    slice(0, gshape[i]) if i != split else slice(0, 0) for i in range(dims)
+                )
+                data = torch.tensor(
+                    data[slice1], dtype=dtype.torch_type(), device=device.torch_device
+                )
+                data = data[slice2]
+
+            return DNDarray(data, gshape, dtype, split, device, comm, balanced)
+
+    def save_hdf5(
+        data: DNDarray, path: str, dataset: str, mode: str = "w", **kwargs: Dict[str, object]
+    ):
+        """
+        Saves ``data`` to an HDF5 file. Attempts to utilize parallel I/O if possible.
+
+        Parameters
+        ----------
+        data : DNDarray
+            The data to be saved on disk.
+        path : str
+            Path to the HDF5 file to be written.
+        dataset : str
+            Name of the dataset the data is saved to.
+        mode : str, optional
+            File access mode, one of ``'w', 'a', 'r+'``
+        kwargs : dict, optional
+            Additional arguments passed to the created dataset.
+
+        Raises
+        -------
+        TypeError
+            If any of the input parameters are not of correct type.
+        ValueError
+            If the access mode is not understood.
+
+        Examples
+        --------
+        >>> x = ht.arange(100, split=0)
+        >>> ht.save_hdf5(x, 'data.h5', dataset='DATA')
+        """
+        if not isinstance(data, DNDarray):
+            raise TypeError(f"data must be heat tensor, not {type(data)}")
+        if not isinstance(path, str):
+            raise TypeError(f"path must be str, not {type(path)}")
+        if not isinstance(dataset, str):
+            raise TypeError(f"dataset must be str, not {type(path)}")
+
+        # we only support a subset of possible modes
+        if mode not in __VALID_WRITE_MODES:
+            raise ValueError(f"mode was {mode}, not in possible modes {__VALID_WRITE_MODES}")
+
+        # chunk the data, if no split is set maximize parallel I/O and chunk first axis
+        is_split = data.split is not None
+        _, _, slices = data.comm.chunk(data.gshape, data.split if is_split else 0)
+
+        # attempt to perform parallel I/O if possible
+        if h5py.get_config().mpi:
+            with h5py.File(path, mode, driver="mpio", comm=data.comm.handle) as handle:
+                dset = handle.create_dataset(dataset, data.shape, **kwargs)
+                dset[slices] = data.larray.cpu() if is_split else data.larray[slices].cpu()
+
+        # otherwise a single rank only write is performed in case of local data (i.e. no split)
+        elif data.comm.rank == 0:
+            with h5py.File(path, mode) as handle:
+                dset = handle.create_dataset(dataset, data.shape, **kwargs)
+                if is_split:
+                    dset[slices] = data.larray.cpu()
+                else:
+                    dset[...] = data.larray.cpu()
+
+            # ping next rank if it exists
+            if is_split and data.comm.size > 1:
+                data.comm.Isend([None, 0, MPI.INT], dest=1)
+                data.comm.Recv([None, 0, MPI.INT], source=data.comm.size - 1)
+
+        # no MPI, but split data is more tricky, we have to serialize the writes
+        elif is_split:
+            # wait for the previous rank to finish writing its chunk, then write own part
+            data.comm.Recv([None, 0, MPI.INT], source=data.comm.rank - 1)
+            with h5py.File(path, "r+") as handle:
+                handle[dataset][slices] = data.larray.cpu()
+
+            # ping the next node in the communicator, wrap around to 0 to complete barrier behavior
+            next_rank = (data.comm.rank + 1) % data.comm.size
+            data.comm.Isend([None, 0, MPI.INT], dest=next_rank)
+
+    DNDarray.save_hdf5 = lambda self, path, dataset, mode="w", **kwargs: save_hdf5(
+        self, path, dataset, mode, **kwargs
+    )
+    DNDarray.save_hdf5.__doc__ = save_hdf5.__doc__
 
 
 def load(
@@ -1131,3 +1140,146 @@ def save(
 
 DNDarray.save = lambda self, path, *args, **kwargs: save(self, path, *args, **kwargs)
 DNDarray.save.__doc__ = save.__doc__
+
+
+def load_npy_from_path(
+    path: str,
+    dtype: datatype = types.int32,
+    split: int = 0,
+    device: Optional[str] = None,
+    comm: Optional[Communication] = None,
+) -> DNDarray:
+    """
+    Loads multiple .npy files into one DNDarray which will be returned. The data will be concatenated along the split axis provided as input.
+
+    Parameters
+    ----------
+    path : str
+        Path to the directory in which .npy-files are located.
+    dtype : datatype, optional
+        Data type of the resulting array.
+    split : int
+        Along which axis the loaded arrays should be concatenated.
+    device : str, optional
+        The device id on which to place the data, defaults to globally set default device.
+    comm : Communication, optional
+        The communication to use for the data distribution, default is 'heat.MPI_WORLD'
+    """
+    if not isinstance(path, str):
+        raise TypeError(f"path must be str, not {type(path)}")
+    elif split is not None and not isinstance(split, int):
+        raise TypeError(f"split must be None or int, not {type(split)}")
+
+    process_number = MPI_WORLD.size
+    file_list = []
+    for file in os.listdir(path):
+        if fnmatch.fnmatch(file, "*.npy"):
+            file_list.append(file)
+    n_files = len(file_list)
+
+    if n_files == 0:
+        raise ValueError("No .npy Files were found")
+    if (n_files < process_number) and (process_number > 1):
+        raise RuntimeError("Number of processes can't exceed number of files")
+
+    rank = MPI_WORLD.rank
+    if rank < (n_files % process_number):
+        n_for_procs = n_files // process_number + 1
+        idx = rank * n_for_procs
+    else:
+        n_for_procs = n_files // process_number
+        idx = rank * n_for_procs + (n_files % process_number)
+    array_list = [np.load(path + "/" + element) for element in file_list[idx : idx + n_for_procs]]
+
+    larray = np.concatenate(array_list, split)
+    larray = torch.from_numpy(larray)
+
+    x = factories.array(larray, dtype=dtype, device=device, is_split=split, comm=comm)
+    return x
+
+
+try:
+    import pandas as pd
+except ModuleNotFoundError:
+    # pandas support is optional
+    def supports_pandas() -> bool:
+        """
+        Returns ``True`` if pandas is installed , ``False`` otherwise.
+        """
+        return False
+
+else:
+    # add functions to visible exports
+    __all__.extend(["load_csv_from_folder"])
+
+    def supports_pandas() -> bool:
+        """
+        Returns ``True`` if pandas is installed, ``False`` otherwise.
+        """
+        return True
+
+    def load_csv_from_folder(
+        path: str,
+        dtype: datatype = types.int32,
+        split: int = 0,
+        device: Optional[str] = None,
+        comm: Optional[Communication] = None,
+        func: Optional[callable] = None,
+    ) -> DNDarray:
+        """
+        Loads multiple .csv files into one DNDarray which will be returned. The data will be concatenated along the split axis provided as input.
+
+        Parameters
+        ----------
+        path : str
+            Path to the directory in which .csv-files are located.
+        dtype : datatype, optional
+            Data type of the resulting array.
+        split : int
+            Along which axis the loaded arrays should be concatenated.
+        device : str, optional
+            The device id on which to place the data, defaults to globally set default device.
+        comm : Communication, optional
+            The communication to use for the data distribution, default is 'heat.MPI_WORLD'
+        func : pandas.DataFrame, optional
+            The function the files have to go through before being added to the array.
+        """
+        if not isinstance(path, str):
+            raise TypeError(f"path must be str, not {type(path)}")
+        elif split is not None and not isinstance(split, int):
+            raise TypeError(f"split must be None or int, not {type(split)}")
+        elif (func is not None) and not callable(func):
+            raise TypeError("func needs to be a callable function or None")
+
+        process_number = MPI_WORLD.size
+        file_list = []
+        for file in os.listdir(path):
+            if fnmatch.fnmatch(file, "*.csv"):
+                file_list.append(file)
+        n_files = len(file_list)
+
+        if n_files == 0:
+            raise ValueError("No .csv Files were found")
+        if (n_files < process_number) and (process_number > 1):
+            raise RuntimeError("Number of processes can't exceed number of files")
+
+        rank = MPI_WORLD.rank
+        if rank < (n_files % process_number):
+            n_for_procs = n_files // process_number + 1
+            idx = rank * n_for_procs
+        else:
+            n_for_procs = n_files // process_number
+            idx = rank * n_for_procs + (n_files % process_number)
+        array_list = [
+            (
+                (func(pd.read_csv(path + "/" + element))).to_numpy()
+                if ((func is not None) and (callable(func)))
+                else (pd.read_csv(path + "/" + element)).to_numpy()
+            )
+            for element in file_list[idx : idx + n_for_procs]
+        ]
+
+        larray = np.concatenate(array_list, split)
+        larray = torch.from_numpy(larray)
+        x = factories.array(larray, dtype=dtype, device=device, is_split=split, comm=comm)
+        return x

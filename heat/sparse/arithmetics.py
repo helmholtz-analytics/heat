@@ -1,9 +1,10 @@
 """Arithmetic functions for Dcsr_matrices"""
+
 from __future__ import annotations
 
 import torch
 
-from .dcsr_matrix import DCSR_matrix
+from .dcsx_matrix import DCSC_matrix, DCSR_matrix
 
 from . import _operations
 
@@ -13,7 +14,7 @@ __all__ = [
 ]
 
 
-def add(t1: DCSR_matrix, t2: DCSR_matrix) -> DCSR_matrix:
+def add(t1: DCSR_matrix, t2: DCSR_matrix, orientation: str = "row") -> DCSR_matrix:
     """
     Element-wise addition of values from two operands, commutative.
     Takes the first and second operand (scalar or :class:`~heat.sparse.DCSR_matrix`) whose elements are to be added
@@ -25,6 +26,9 @@ def add(t1: DCSR_matrix, t2: DCSR_matrix) -> DCSR_matrix:
         The first operand involved in the addition
     t2: DCSR_matrix
         The second operand involved in the addition
+    orientation: str, optional
+        The orientation of the operation. Options: 'row' or 'col'
+        Default: 'row'
 
     Examples
     --------
@@ -42,16 +46,16 @@ def add(t1: DCSR_matrix, t2: DCSR_matrix) -> DCSR_matrix:
     DNDarray([[2., 0., 4.],
               [0., 0., 6.]], dtype=ht.float32, device=cpu:0, split=0)
     """
-    return _operations.__binary_op_csr(torch.add, t1, t2)
+    return _operations.__binary_op_csx(torch.add, t1, t2, orientation=orientation)
 
 
-DCSR_matrix.__add__ = lambda self, other: add(self, other)
+DCSR_matrix.__add__ = lambda self, other: add(self, other, orientation="row")
 DCSR_matrix.__add__.__doc__ = add.__doc__
-DCSR_matrix.__radd__ = lambda self, other: add(self, other)
+DCSR_matrix.__radd__ = lambda self, other: add(self, other, orientation="row")
 DCSR_matrix.__radd__.__doc__ = add.__doc__
 
 
-def mul(t1: DCSR_matrix, t2: DCSR_matrix) -> DCSR_matrix:
+def mul(t1: DCSR_matrix, t2: DCSR_matrix, orientation: str = "row") -> DCSR_matrix:
     """
     Element-wise multiplication (NOT matrix multiplication) of values from two operands, commutative.
     Takes the first and second operand (scalar or :class:`~heat.sparse.DCSR_matrix`) whose elements are to be
@@ -63,6 +67,9 @@ def mul(t1: DCSR_matrix, t2: DCSR_matrix) -> DCSR_matrix:
         The first operand involved in the multiplication
     t2: DCSR_matrix
         The second operand involved in the multiplication
+    orientation: str, optional
+        The orientation of the operation. Options: 'row' or 'col'
+        Default: 'row'
 
     Examples
     --------
@@ -80,10 +87,10 @@ def mul(t1: DCSR_matrix, t2: DCSR_matrix) -> DCSR_matrix:
     DNDarray([[1., 0., 4.],
               [0., 0., 9.]], dtype=ht.float32, device=cpu:0, split=0)
     """
-    return _operations.__binary_op_csr(torch.mul, t1, t2)
+    return _operations.__binary_op_csx(torch.mul, t1, t2, orientation=orientation)
 
 
-DCSR_matrix.__mul__ = lambda self, other: mul(self, other)
+DCSR_matrix.__mul__ = lambda self, other: mul(self, other, orientation="row")
 DCSR_matrix.__mul__.__doc__ = mul.__doc__
-DCSR_matrix.__rmul__ = lambda self, other: mul(self, other)
+DCSR_matrix.__rmul__ = lambda self, other: mul(self, other, orientation="row")
 DCSR_matrix.__rmul__.__doc__ = mul.__doc__

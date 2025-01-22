@@ -1,8 +1,9 @@
 import unittest
-import heat as ht
-import torch
 import numpy as np
+import torch
+import heat as ht
 
+import os
 import random
 
 from heat.core.tests.test_suites.basic_test import TestCase
@@ -12,10 +13,10 @@ from heat.core.tests.test_suites.basic_test import TestCase
     int(torch.__version__.split(".")[0]) <= 1 and int(torch.__version__.split(".")[1]) < 12,
     f"ht.sparse requires torch >= 1.12. Found version {torch.__version__}.",
 )
-class TestArithmetics(TestCase):
+class TestArithmeticsCSR(TestCase):
     @classmethod
     def setUpClass(self):
-        super(TestArithmetics, self).setUpClass()
+        super(TestArithmeticsCSR, self).setUpClass()
 
         """
         A = [[0, 0, 1, 0, 2]
@@ -729,6 +730,7 @@ class TestArithmetics(TestCase):
         with self.assertRaises(ValueError):
             heat_sparse_csr_C = ht.sparse.add(heat_sparse_csr_2x2, heat_sparse_csr_A)
 
+    @unittest.skipUnless(os.getenv("HEAT_TEST_USE_DEVICE", "cpu") == "cpu", "only testable on CPU")
     def test_mul(self):
         heat_sparse_csr_A = ht.sparse.sparse_csr_matrix(self.ref_torch_sparse_csr_A)
         heat_sparse_csr_B = ht.sparse.sparse_csr_matrix(self.ref_torch_sparse_csr_B)

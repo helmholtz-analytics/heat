@@ -1,4 +1,5 @@
 """Provides DCSR_matrix, a distributed compressed sparse row matrix"""
+
 from __future__ import annotations
 
 import torch
@@ -10,19 +11,18 @@ from ..core.dndarray import DNDarray
 from ..core.factories import array
 from ..core.types import datatype, canonical_heat_type
 
-__all__ = ["DCSR_matrix"]
+__all__ = ["DCSR_matrix", "DCSC_matrix"]
 
 Communication = TypeVar("Communication")
 
 
-class DCSR_matrix:
+class __DCSX_matrix:
     """
-    Distributed Compressed Sparse Row Matrix. It is composed of
-    PyTorch sparse_csr_tensors local to each process.
+    Distributed Compressed Sparse Matrix. Base class for DCSR_matrix and DCSC_matrix.
 
     Parameters
     ----------
-    array : torch.Tensor (layout ==> torch.sparse_csr)
+    array : torch.Tensor (layout ==> torch.sparse_csr | torch.sparse_csc)
         Local sparse array
     gnnz: int
         Total number of non-zero elements across all processes
@@ -52,18 +52,18 @@ class DCSR_matrix:
         comm: Communication,
         balanced: bool,
     ):
-        self.__array = array
-        self.__gnnz = gnnz
-        self.__gshape = gshape
-        self.__dtype = dtype
-        self.__split = split
-        self.__device = device
-        self.__comm = comm
-        self.__balanced = balanced
+        self._array = array
+        self._gnnz = gnnz
+        self._gshape = gshape
+        self._dtype = dtype
+        self._split = split
+        self._device = device
+        self._comm = comm
+        self._balanced = balanced
 
     def global_indptr(self) -> DNDarray:
         """
-        Global indptr of the ``DCSR_matrix`` as a ``DNDarray``
+        Global indptr of the ``__DCSX_matrix`` as a ``DNDarray``
         """
         if self.split is None:
             raise ValueError("This method works only for distributed matrices")
@@ -91,41 +91,43 @@ class DCSR_matrix:
             dtype=self.lindptr.dtype,
             device=self.device,
             comm=self.comm,
-            is_split=self.split,
+            is_split=(
+                0 if self.split is not None else None
+            ),  # is_split for the indptr is either 0 or None because it is always 1 dimensional
         )
 
     @property
     def balanced(self) -> bool:
         """
-        Boolean value indicating if the DCSR_matrix is balanced between the MPI processes
+        Boolean value indicating if the __DCSX_matrix is balanced between the MPI processes
         """
-        return self.__balanced
+        return self._balanced
 
     @property
     def comm(self) -> Communication:
         """
-        The :class:`~heat.core.communication.Communication` of the ``DCSR_matrix``
+        The :class:`~heat.core.communication.Communication` of the ``__DCSX_matrix``
         """
-        return self.__comm
+        return self._comm
 
     @property
     def device(self) -> Device:
         """
-        The :class:`~heat.core.devices.Device` of the ``DCSR_matrix``
+        The :class:`~heat.core.devices.Device` of the ``__DCSX_matrix``
         """
-        return self.__device
+        return self._device
 
     @property
     def larray(self) -> torch.Tensor:
         """
-        Local data of the ``DCSR_matrix``
+        Local data of the ``__DCSX_matrix``
         """
-        return self.__array
+        return self._array
 
     @property
     def data(self) -> torch.Tensor:
         """
-        Global data of the ``DCSR_matrix``
+        Global data of the ``__DCSX_matrix``
         """
         if self.split is None:
             return self.ldata
@@ -140,21 +142,21 @@ class DCSR_matrix:
     @property
     def gdata(self) -> torch.Tensor:
         """
-        Global data of the ``DCSR_matrix``
+        Global data of the ``__DCSX_matrix``
         """
         return self.data
 
     @property
     def ldata(self) -> torch.Tensor:
         """
-        Local data of the ``DCSR_matrix``
+        Local data of the ``__DCSX_matrix``
         """
-        return self.__array.values()
+        return self._array.values()
 
     @property
     def indptr(self) -> torch.Tensor:
         """
-        Global indptr of the ``DCSR_matrix``
+        Global indptr of the ``__DCSX_matrix``
         """
         if self.split is None:
             return self.lindptr
@@ -164,21 +166,21 @@ class DCSR_matrix:
     @property
     def gindptr(self) -> torch.Tensor:
         """
-        Global indptr of the ``DCSR_matrix``
+        Global indptr of the ``__DCSX_matrix``
         """
         return self.indptr
 
     @property
     def lindptr(self) -> torch.Tensor:
         """
-        Local indptr of the ``DCSR_matrix``
+        Local indptr of the ``__DCSX_matrix``
         """
-        return self.__array.crow_indices()
+        raise NotImplementedError("Local indptr is not implemented for __DCSX_matrix")
 
     @property
     def indices(self) -> torch.Tensor:
         """
-        Global indices of the ``DCSR_matrix``
+        Global indices of the ``__DCSX_matrix``
         """
         if self.split is None:
             return self.lindices
@@ -193,89 +195,89 @@ class DCSR_matrix:
     @property
     def gindices(self) -> torch.Tensor:
         """
-        Global indices of the ``DCSR_matrix``
+        Global indices of the ``__DCSX_matrix``
         """
         return self.indices
 
     @property
     def lindices(self) -> torch.Tensor:
         """
-        Local indices of the ``DCSR_matrix``
+        Local indices of the ``__DCSX_matrix``
         """
-        return self.__array.col_indices()
+        raise NotImplementedError("Local indices is not implemented for __DCSX_matrix")
 
     @property
     def ndim(self) -> int:
         """
-        Number of dimensions of the ``DCSR_matrix``
+        Number of dimensions of the ``__DCSX_matrix``
         """
-        return len(self.__gshape)
+        return len(self._gshape)
 
     @property
     def nnz(self) -> int:
         """
-        Total number of non-zero elements of the ``DCSR_matrix``
+        Total number of non-zero elements of the ``__DCSX_matrix``
         """
-        return self.__gnnz
+        return self._gnnz
 
     @property
     def gnnz(self) -> int:
         """
-        Total number of non-zero elements of the ``DCSR_matrix``
+        Total number of non-zero elements of the ``__DCSX_matrix``
         """
         return self.nnz
 
     @property
     def lnnz(self) -> int:
         """
-        Number of non-zero elements on the local process of the ``DCSR_matrix``
+        Number of non-zero elements on the local process of the ``__DCSX_matrix``
         """
-        return self.__array._nnz()
+        return self._array._nnz()
 
     @property
     def shape(self) -> Tuple[int, ...]:
         """
-        Global shape of the ``DCSR_matrix``
+        Global shape of the ``__DCSX_matrix``
         """
-        return self.__gshape
+        return self._gshape
 
     @property
     def gshape(self) -> Tuple[int, ...]:
         """
-        Global shape of the ``DCSR_matrix``
+        Global shape of the ``__DCSX_matrix``
         """
         return self.shape
 
     @property
     def lshape(self) -> Tuple[int, ...]:
         """
-        Local shape of the ``DCSR_matrix``
+        Local shape of the ``__DCSX_matrix``
         """
-        return tuple(self.__array.size())
+        return tuple(self._array.size())
 
     @property
     def dtype(self):
         """
-        The :class:`~heat.core.types.datatype` of the ``DCSR_matrix``
+        The :class:`~heat.core.types.datatype` of the ``__DCSX_matrix``
         """
-        return self.__dtype
+        return self._dtype
 
     @property
     def split(self) -> int:
         """
-        Returns the axis on which the ``DCSR_matrix`` is split
+        Returns the axis on which the ``__DCSX_matrix`` is split
         """
-        return self.__split
+        return self._split
 
     def is_distributed(self) -> bool:
         """
-        Determines whether the data of this ``DCSR_matrix`` is distributed across multiple processes.
+        Determines whether the data of this ``__DCSX_matrix`` is distributed across multiple processes.
         """
         return self.split is not None and self.comm.is_distributed()
 
     def counts_displs_nnz(self) -> Tuple[Tuple[int], Tuple[int]]:
         """
-        Returns actual counts (number of non-zero items per process) and displacements (offsets) of the DCSR_matrix.
+        Returns actual counts (number of non-zero items per process) and displacements (offsets) of the __DCSX_matrix.
         Does not assume load balance.
         """
         if self.split is not None:
@@ -286,10 +288,10 @@ class DCSR_matrix:
             return tuple(counts.tolist()), tuple(displs)
         else:
             raise ValueError(
-                "Non-distributed DCSR_matrix. Cannot calculate counts and displacements."
+                f"Non-distributed {self.__class__.__name__}. Cannot calculate counts and displacements."
             )
 
-    def astype(self, dtype, copy=True) -> DCSR_matrix:
+    def astype(self, dtype, copy=True) -> __DCSX_matrix:
         """
         Returns a casted version of this matrix.
         Casted matrix is a new matrix of the same shape but with given type of this matrix. If copy is ``True``, the
@@ -304,9 +306,9 @@ class DCSR_matrix:
             in-place and this matrix is returned
         """
         dtype = canonical_heat_type(dtype)
-        casted_matrix = self.__array.type(dtype.torch_type())
+        casted_matrix = self._array.to(dtype.torch_type(), copy=copy)
         if copy:
-            return DCSR_matrix(
+            return self.__class__(
                 casted_matrix,
                 self.gnnz,
                 self.gshape,
@@ -317,14 +319,14 @@ class DCSR_matrix:
                 self.balanced,
             )
 
-        self.__array = casted_matrix
-        self.__dtype = dtype
+        self._array = casted_matrix
+        self._dtype = dtype
 
         return self
 
     def __repr__(self) -> str:
         """
-        Computes a printable representation of the passed DCSR_matrix.
+        Computes a printable representation of the passed __DCSX_matrix.
         """
         print_string = (
             f"(indptr: {self.indptr}, indices: {self.indices}, data: {self.data}, "
@@ -337,3 +339,85 @@ class DCSR_matrix:
         if self.comm.rank != 0:
             return ""
         return print_string
+
+
+class DCSR_matrix(__DCSX_matrix):
+    """
+    Distributed Compressed Sparse Row Matrix. It is composed of
+    PyTorch sparse_csr_tensors local to each process.
+
+    Parameters
+    ----------
+    array : torch.Tensor (layout ==> torch.sparse_csr)
+        Local sparse array
+    gnnz: int
+        Total number of non-zero elements across all processes
+    gshape : Tuple[int,...]
+        The global shape of the array
+    dtype : datatype
+        The datatype of the array
+    split : int or None
+        If split is not None, it denotes the axis on which the array is divided between processes.
+        DCSR_matrix only supports distribution along axis 0.
+    device : Device
+        The device on which the local arrays are using (cpu or gpu)
+    comm : Communication
+        The communications object for sending and receiving data
+    balanced: bool or None
+        Describes whether the data are evenly distributed across processes.
+    """
+
+    @property
+    def lindptr(self) -> torch.Tensor:
+        """
+        Local indptr of the ``DCSR_matrix``
+        """
+        return self._array.crow_indices()
+
+    @property
+    def lindices(self) -> torch.Tensor:
+        """
+        Local indices of the ``DCSR_matrix``
+        """
+        return self._array.col_indices()
+
+
+class DCSC_matrix(__DCSX_matrix):
+    """
+    Distributed Compressed Sparse Column Matrix. It is composed of
+    PyTorch sparse_csc_tensors local to each process.
+
+    Parameters
+    ----------
+    array : torch.Tensor (layout ==> torch.sparse_csc)
+        Local sparse array
+    gnnz: int
+        Total number of non-zero elements across all processes
+    gshape : Tuple[int,...]
+        The global shape of the array
+    dtype : datatype
+        The datatype of the array
+    split : int or None
+        If split is not None, it denotes the axis on which the array is divided between processes.
+        DCSR_matrix only supports distribution along axis 0.
+    device : Device
+        The device on which the local arrays are using (cpu or gpu)
+    comm : Communication
+        The communications object for sending and receiving data
+    balanced: bool or None
+        Describes whether the data are evenly distributed across processes.
+    """
+
+    @property
+    def lindptr(self) -> torch.Tensor:
+        """
+        Local indptr of the ``DCSC_matrix``
+        """
+        return self._array.ccol_indices()
+
+    @property
+    def lindices(self) -> torch.Tensor:
+        """
+        Local indices of the ``DCSC_matrix``
+        """
+        return self._array.row_indices()
