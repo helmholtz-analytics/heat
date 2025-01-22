@@ -37,7 +37,8 @@ __all__ = [
     "supports_hdf5",
     "supports_netcdf",
     "load_npy_from_path",
-    "load_zarr"
+    "load_zarr",
+    "save_zarr"
 ]
 
 try:
@@ -1306,6 +1307,7 @@ else:
         path: str,
         split: int = 0,
         device: Optional[str] = None,
+        **kwargs
     ) -> DNDarray:
         """
         Loads zarr-Format into DNDarray which will be returned. The data will be concatenated along the split axis provided as input.
@@ -1318,6 +1320,8 @@ else:
             Along which axis the loaded arrays should be concatenated.
         device : str, optional
             The device id on which to place the data, defaults to globally set default device.
+        **kwargs : Any
+            extra Arguments to pass to zarr.open
         """
         if not isinstance(path, str):
             raise TypeError(f"path must be str, not {type(path)}")
@@ -1332,7 +1336,7 @@ else:
         else:
             raise ValueError("File has no zarr extension.")
         
-        arr: zarr.Array = zarr.open_array(store=path)
+        arr: zarr.Array = zarr.open_array(store=path, **kwargs)
         shape = arr.shape
         
         dtype = types.canonical_heat_type(arr.dtype)
@@ -1341,3 +1345,69 @@ else:
         offset, local_shape, slices = MPI_WORLD.chunk(shape, split)
         
         return factories.array(arr[*slices], dtype=dtype, is_split=split, device=device)
+
+
+    def save_zarr(
+        path: str,
+        dndarray: DNDarray,
+        overwrite: bool = False,
+        **kwargs
+    ) -> None:
+        """
+        Writes the DNDArray into the zarr-format.
+
+        Parameters
+        ----------
+        path : str
+            path to save to.
+        dndarray : DNDarray
+            DNDArray to save.
+        overwrite : bool
+            Wether to overwrite an existing array.
+        **kwargs : Any
+            extra Arguments to pass to zarr.open and zarr.create
+
+        Raises
+        ------
+        TypeError
+            - If given parameters do not match or have conflicting information. 
+            - If it already exists and no overwrite is specified.
+        """
+        if not isinstance(path, str):
+            raise TypeError(f"path must be str, not {type(path)}")
+
+        for extension in __ZARR_EXTENSIONS:
+            if fnmatch.fnmatch(path, f"*{extension}"):
+                break
+        else:
+            raise ValueError("path does not end on an Zarr extension.")
+
+        if MPI_WORLD.rank == 0:
+            if os.path.exists(path) and not overwrite:
+                raise RuntimeError("Given Path already exists.")
+
+            # we need to define our own chunks, as two processes cannot write on the same chunk at the same time.
+            # Therefore get the split axis and chunk it on the smallest size of the world. 
+            # E.x. on split=0 with a (4,4) shape you would chunk it with (1,4) to get the smallest denominator for chunks.
+            # TODO: Have a better way to determine the chunk sizes for big matrices for better writes and more distribution
+            chunks = np.array(dndarray.gshape)
+            chunks[dndarray.split] //= MPI_WORLD.size
+            
+            # if only one process it should not load the whole array into memory
+            # and let zarr determine the chunk size themselves
+            if MPI_WORLD.size == 1:
+                chunks=None
+            
+            dtype = dndarray.dtype.char()
+            zarr_array = zarr.create(store=path, shape=dndarray.gshape, dtype=dtype, overwrite=overwrite, chunks=chunks, **kwargs)
+
+        is_split = dndarray.split is not None
+        _, _, slices = MPI_WORLD.chunk(dndarray.gshape, dndarray.split if is_split else 0)
+
+        # Wait for the file creation to finish
+        MPI_WORLD.handle.Barrier()
+            
+        zarr_array = zarr.open(store=path, mode="r+",**kwargs)
+        zarr_array[*slices] = dndarray.larray.numpy() # Numpy array needed as zarr can only understand numpy dtypes and infers it.
+
+        MPI_WORLD.handle.Barrier()
