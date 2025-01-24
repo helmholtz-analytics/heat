@@ -927,7 +927,7 @@ class TestIO(TestCase):
         if ht.MPI_WORLD.rank == 0:
             self.assertTrue((dndnumpy == test_data).all())
                 
-    def test_save_zarr_2d(self):
+    def test_save_zarr_2d_split0(self):
         if not ht.io.supports_zarr():
             self.skipTest("Requires zarr")
 
@@ -938,6 +938,26 @@ class TestIO(TestCase):
             for dims in [(i, self.ZARR_SHAPE[1]) for i in range(max(10, ht.MPI_WORLD.size+1))]:
                 n = dims[0] * dims[1]
                 dndarray = ht.arange(0, n, dtype=type, split=0).reshape(dims)
+                ht.save_zarr(self.ZARR_OUT_PATH, dndarray, overwrite=True)
+                dndnumpy = dndarray.numpy()
+                zarr_array = zarr.open_array(self.ZARR_OUT_PATH)
+                
+                if ht.MPI_WORLD.rank == 0:
+                    self.assertTrue((dndnumpy == zarr_array).all())
+
+                ht.MPI_WORLD.handle.Barrier()
+        
+    def test_save_zarr_2d_split1(self):
+        if not ht.io.supports_zarr():
+            self.skipTest("Requires zarr")
+
+        import zarr
+        
+        
+        for type in [ht.types.int32, ht.types.int64, ht.types.float32, ht.types.float64]:
+            for dims in [(self.ZARR_SHAPE[0], i) for i in range(max(10, ht.MPI_WORLD.size+1))]:
+                n = dims[0] * dims[1]
+                dndarray = ht.arange(0, n, dtype=type).reshape(dims).resplit(axis=1)
                 ht.save_zarr(self.ZARR_OUT_PATH, dndarray, overwrite=True)
                 dndnumpy = dndarray.numpy()
                 zarr_array = zarr.open_array(self.ZARR_OUT_PATH)
