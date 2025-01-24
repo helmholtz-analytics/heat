@@ -968,7 +968,7 @@ class TestIO(TestCase):
                 ht.MPI_WORLD.handle.Barrier()
         
                 
-    def test_save_zarr_1d(self):
+    def test_save_zarr_split_none(self):
         if not ht.io.supports_zarr():
             self.skipTest("Requires zarr")
 
@@ -986,3 +986,20 @@ class TestIO(TestCase):
 
                 ht.MPI_WORLD.handle.Barrier()
                 
+    def test_save_zarr_1d_split_0(self):
+        if not ht.io.supports_zarr():
+            self.skipTest("Requires zarr")
+
+        import zarr
+        
+        
+        for type in [ht.types.int32, ht.types.int64, ht.types.float32, ht.types.float64]:
+            for n in [10, 100, 1000]:
+                dndarray = ht.arange(n, dtype=type, split=0)
+                ht.save_zarr(self.ZARR_OUT_PATH, dndarray, overwrite=True)
+                arr = zarr.open_array(self.ZARR_OUT_PATH)     
+                dndnumpy = dndarray.numpy()   
+                if ht.MPI_WORLD.rank == 0:
+                    self.assertTrue((dndnumpy == arr).all())
+
+                ht.MPI_WORLD.handle.Barrier()
