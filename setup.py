@@ -48,5 +48,6 @@ setup(
         "examples": ["scikit-learn>=0.24.0", "matplotlib>=3.1.0"],
         "cb": ["perun>=0.2.0"],
         "pandas": ["pandas>=1.4"],
+        "zarr": ["zarr"]
     },
 )

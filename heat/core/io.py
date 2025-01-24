@@ -1386,28 +1386,61 @@ else:
             if os.path.exists(path) and not overwrite:
                 raise RuntimeError("Given Path already exists.")
 
-            # we need to define our own chunks, as two processes cannot write on the same chunk at the same time.
-            # Therefore get the split axis and chunk it on the smallest size of the world. 
-            # E.x. on split=0 with a (4,4) shape you would chunk it with (1,4) to get the smallest denominator for chunks.
-            # TODO: Have a better way to determine the chunk sizes for big matrices for better writes and more distribution
-            chunks = np.array(dndarray.gshape)
-            chunks[dndarray.split] //= MPI_WORLD.size
+            """
+            Zarr functions by chunking the data, were a chunk is a file inside the store.
+            The problem ist that only one process writes to it at a time. Therefore when two
+            processes try to write to the same chunk one will fail, unless the other finishes before
+            the other starts.
             
-            # if only one process it should not load the whole array into memory
-            # and let zarr determine the chunk size themselves
-            if MPI_WORLD.size == 1:
-                chunks=None
+            To alleviate it we can define the chunk sizes ourselves. To do this we just get the lowest size of
+            the distributed axis, ex: split=0 with a (4,4) shape with a worldsize of 4 you would chunk it with (1,4).
             
+            A problem arises when a process gets a bigger chunk and interferes with another process. Example:
+            N_PROCS = 4
+            SHAPE = (9,10)
+            SPLIT = 0
+            CHUNKS => (2,10)
+            
+            In this problem one process will have a write region of 3 rows and therefore be able to either not write
+            or overwrite what another process does therefore destroying the parallel write as it would at the end load
+            2 chunks to write 3 rows. 
+            To counter act this we just set the chunk size in the split axis to 1. This allows for no overwrites but can 
+            cripple write speeds and or even speed it up. 
+            
+            Another Problem with this approach is that we tell zarr have full chunks, i.e if array has shape (10_000, 10_000)
+            and we split it at axis=0 with 4 processes we have chunks of (2_500, 10_000). Zarr will load the whole chunk into
+            memory making it memory intensive and probably inefficient. Better approach would be to have a smaller chunk size
+            for example half of it but that cannot be determined at all times so the current approach is a compromise.
+            
+            Another Problem is the split=None scenario. In this case every processs has the same data, so only one needs to write
+            so we ignore chunking and let zarr decide the chunk size and let only one process, aka rank=0 write.
+            """
+            if dndarray.split is None or MPI_WORLD.size == 1:
+                chunks = None
+            else:
+                chunks = np.array(dndarray.gshape)
+                axis = dndarray.split
+
+                if chunks[axis] % MPI_WORLD.size != 0:
+                    chunks[axis] = 1
+                else:
+                    chunks[dndarray.split] //= MPI_WORLD.size
+                
             dtype = dndarray.dtype.char()
             zarr_array = zarr.create(store=path, shape=dndarray.gshape, dtype=dtype, overwrite=overwrite, chunks=chunks, **kwargs)
 
-        is_split = dndarray.split is not None
-        _, _, slices = MPI_WORLD.chunk(dndarray.gshape, dndarray.split if is_split else 0)
 
         # Wait for the file creation to finish
         MPI_WORLD.handle.Barrier()
-            
         zarr_array = zarr.open(store=path, mode="r+",**kwargs)
-        zarr_array[*slices] = dndarray.larray.numpy() # Numpy array needed as zarr can only understand numpy dtypes and infers it.
 
+    
+        if dndarray.split is not None:
+            _, _, slices = MPI_WORLD.chunk(dndarray.gshape, dndarray.split)
+
+            zarr_array[*slices] = dndarray.larray.numpy() # Numpy array needed as zarr can only understand numpy dtypes and infers it.
+        else:
+            if MPI_WORLD.rank == 0:
+                zarr_array[:] = dndarray.larray.numpy()
+            
         MPI_WORLD.handle.Barrier()

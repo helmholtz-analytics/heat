@@ -34,6 +34,12 @@ class TestIO(TestCase):
             .float()
             .to(cls.device.torch_device)
         )
+        
+        cls.ZARR_SHAPE = (100, 100)
+        cls.ZARR_OUT_PATH = pwd + "/zarr_test_out.zarr"
+        cls.ZARR_IN_PATH = pwd + "/zarr_test_in.zarr"
+        cls.ZARR_TEMP_PATH = pwd + "/zarr_temp.zarr"
+        
 
     def tearDown(self):
         # synchronize all nodes
@@ -52,6 +58,14 @@ class TestIO(TestCase):
             except FileNotFoundError:
                 pass
         # if ht.MPI_WORLD.rank == 0:
+
+        if ht.io.supports_zarr():
+            for file in [self.ZARR_TEMP_PATH, self.ZARR_IN_PATH, self.ZARR_OUT_PATH]:
+                try:
+                    shutil.rmtree(file)
+                except FileNotFoundError:
+                    pass
+                
 
         # synchronize all nodes
         ht.MPI_WORLD.Barrier()
@@ -892,3 +906,63 @@ class TestIO(TestCase):
             ht.MPI_WORLD.Barrier()
             if ht.MPI_WORLD.rank == 0:
                 shutil.rmtree(os.path.join(os.getcwd(), "heat/datasets/csv_tests"))
+    
+    def test_load_zarr(self):
+        if not ht.io.supports_zarr():
+            self.skipTest("Requires zarr")
+            
+        import zarr
+        
+        test_data = np.arange(self.ZARR_SHAPE[0]*self.ZARR_SHAPE[1]).reshape(self.ZARR_SHAPE)
+        
+        if ht.MPI_WORLD.rank == 0:
+            arr = zarr.create_array(self.ZARR_TEMP_PATH, shape=self.ZARR_SHAPE, dtype=np.float64)
+            arr[:] = test_data
+            
+        ht.MPI_WORLD.handle.Barrier()
+        
+        dndarray = ht.load_zarr(self.ZARR_TEMP_PATH)
+        dndnumpy = dndarray.numpy()
+        
+        if ht.MPI_WORLD.rank == 0:
+            self.assertTrue((dndnumpy == test_data).all())
+                
+    def test_save_zarr_2d(self):
+        if not ht.io.supports_zarr():
+            self.skipTest("Requires zarr")
+
+        import zarr
+        
+        
+        for type in [ht.types.int32, ht.types.int64, ht.types.float32, ht.types.float64]:
+            for dims in [(i, self.ZARR_SHAPE[1]) for i in range(max(10, ht.MPI_WORLD.size+1))]:
+                n = dims[0] * dims[1]
+                dndarray = ht.arange(0, n, dtype=type, split=0).reshape(dims)
+                ht.save_zarr(self.ZARR_OUT_PATH, dndarray, overwrite=True)
+                dndnumpy = dndarray.numpy()
+                zarr_array = zarr.open_array(self.ZARR_OUT_PATH)
+                
+                if ht.MPI_WORLD.rank == 0:
+                    self.assertTrue((dndnumpy == zarr_array).all())
+
+                ht.MPI_WORLD.handle.Barrier()
+        
+                
+    def test_save_zarr_1d(self):
+        if not ht.io.supports_zarr():
+            self.skipTest("Requires zarr")
+
+        import zarr
+        
+        
+        for type in [ht.types.int32, ht.types.int64, ht.types.float32, ht.types.float64]:
+            for n in [10, 100, 1000]:
+                dndarray = ht.arange(n, dtype=type, split=None)
+                ht.save_zarr(self.ZARR_OUT_PATH, dndarray, overwrite=True)
+                arr = zarr.open_array(self.ZARR_OUT_PATH)     
+                dndnumpy = dndarray.numpy()   
+                if ht.MPI_WORLD.rank == 0:
+                    self.assertTrue((dndnumpy == arr).all())
+
+                ht.MPI_WORLD.handle.Barrier()
+                
