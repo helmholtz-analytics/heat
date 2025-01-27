@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 import heat as ht
+import unittest
 
 from .test_suites.basic_test import TestCase
 
@@ -2492,3 +2493,23 @@ class TestCommunication(TestCase):
             test4.comm.Alltoallv(test4.larray, redistributed4, send_axis=2, recv_axis=2)
         with self.assertRaises(NotImplementedError):
             test4.comm.Alltoallv(test4.larray, redistributed4, send_axis=None)
+
+    # The following tests are only for bool data types and two processes to save memory
+    # skip if not exactly two processes
+    @unittest.skipIf(ht.MPI_WORLD.size != 2, "Only for two processes")
+    def test_largecount_workaround_IsendRecv(self):
+        shape = (2**15, 2**16)
+        data = (
+            torch.zeros(shape, dtype=torch.bool)
+            if ht.MPI_WORLD.rank % 2 == 0
+            else torch.ones(shape, dtype=torch.bool)
+        )
+        buf = torch.empty(shape, dtype=torch.bool)
+        req = ht.MPI_WORLD.Isend(
+            data, ht.MPI_WORLD.rank - 1 if ht.MPI_WORLD.rank > 0 else ht.MPI_WORLD.size - 1
+        )
+        ht.MPI_WORLD.Recv(
+            buf, ht.MPI_WORLD.rank + 1 if ht.MPI_WORLD.rank < ht.MPI_WORLD.size - 1 else 0
+        )
+        req.Wait()
+        self.assertTrue(buf.all() if ht.MPI_WORLD.rank % 2 == 0 else not buf.all())
