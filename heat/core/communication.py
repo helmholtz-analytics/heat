@@ -123,6 +123,8 @@ class MPICommunication(Communication):
         Handle for the mpi4py Communicator
     """
 
+    COUNT_LIMIT = torch.iinfo(torch.int32).max
+
     __mpi_type_mappings = {
         torch.bool: MPI.BOOL,
         torch.uint8: MPI.UNSIGNED_CHAR,
@@ -288,7 +290,33 @@ class MPICommunication(Communication):
 
         if is_contiguous:
             if counts is None:
-                return mpi_type, elements
+                if elements > cls.COUNT_LIMIT:
+                    # Uses vector type to get around the MAX_INT limit on certain MPI implementations
+                    # This is at the moment only applied when sending contiguous data, as the construction of data types to get around non-contiguous data naturally aliviates the problem to a certain extent.
+                    # Thanks to: J. R. Hammond, A. Schäfer and R. Latham, "To INT_MAX... and Beyond! Exploring Large-Count Support in MPI," 2014 Workshop on Exascale MPI at Supercomputing Conference, New Orleans, LA, USA, 2014, pp. 1-8, doi: 10.1109/ExaMPI.2014.5. keywords: {Vectors;Standards;Libraries;Optimization;Context;Memory management;Open area test sites},
+
+                    new_count = elements // cls.COUNT_LIMIT
+                    left_over = elements % cls.COUNT_LIMIT
+
+                    if new_count > cls.COUNT_LIMIT:
+                        raise ValueError("Tensor is too large")
+                    vector_type = mpi_type.Create_vector(
+                        new_count, cls.COUNT_LIMIT, cls.COUNT_LIMIT
+                    )
+                    if left_over > 0:
+                        left_over_mpi_type = mpi_type.Create_contiguous(left_over).Commit()
+                        _, old_type_extent = mpi_type.Get_extent()
+                        disp = cls.COUNT_LIMIT * new_count * old_type_extent
+                        struct_type = mpi_type.Create_struct(
+                            [1, 1], [0, disp], [vector_type, left_over_mpi_type]
+                        ).Commit()
+                        vector_type.Free()
+                        left_over_mpi_type.Free()
+                        return struct_type, 1
+                    else:
+                        return vector_type, 1
+                else:
+                    return mpi_type, elements
             factor = np.prod(obj.shape[1:], dtype=np.int32)
             return (
                 mpi_type,
