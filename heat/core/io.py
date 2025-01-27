@@ -1324,6 +1324,8 @@ else:
             Along which axis the loaded arrays should be concatenated.
         device : str, optional
             The device id on which to place the data, defaults to globally set default device.
+        comm : Communication, optional
+            The communication to use for the data distribution, default is 'heat.MPI_WORLD'
         **kwargs : Any
             extra Arguments to pass to zarr.open
         """
@@ -1350,8 +1352,8 @@ else:
         offset, local_shape, slices = comm.chunk(shape, split)
 
         return factories.array(
-            arr[*slices], dtype=dtype, is_split=split, device=device, comm=comm
-        )  # noqa: E999
+            arr[*slices], dtype=dtype, is_split=split, device=device, comm=comm  # noqa: E999
+        )
 
     def save_zarr(path: str, dndarray: DNDarray, overwrite: bool = False, **kwargs) -> None:
         """
