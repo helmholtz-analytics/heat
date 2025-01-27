@@ -1306,7 +1306,13 @@ else:
         """
         return True
 
-    def load_zarr(path: str, split: int = 0, device: Optional[str] = None, comm: Optional[Communication] = None, **kwargs) -> DNDarray:
+    def load_zarr(
+        path: str,
+        split: int = 0,
+        device: Optional[str] = None,
+        comm: Optional[Communication] = None,
+        **kwargs,
+    ) -> DNDarray:
         r"""
         Loads zarr-Format into DNDarray which will be returned. The data will be concatenated along the split axis provided as input.
 
@@ -1343,7 +1349,9 @@ else:
 
         offset, local_shape, slices = comm.chunk(shape, split)
 
-        return factories.array(arr[*slices], dtype=dtype, is_split=split, device=device, comm=comm)  # noqa: E999
+        return factories.array(
+            arr[*slices], dtype=dtype, is_split=split, device=device, comm=comm
+        )  # noqa: E999
 
     def save_zarr(path: str, dndarray: DNDarray, overwrite: bool = False, **kwargs) -> None:
         r"""
