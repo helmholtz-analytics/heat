@@ -197,7 +197,7 @@ class DMD(ht.RegressionMixin, ht.BaseEstimator):
         else:
             # compute SVD via "randomized" SVD
             U, S, V = ht.linalg.rsvd(
-                X[:, :-1] if X.split == 0 else X[:, :-1].balance_(),
+                X[:, :-1],
                 self.svd_rank,
             )
             self.rom_basis_ = U
