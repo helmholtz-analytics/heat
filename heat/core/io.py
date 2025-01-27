@@ -1351,9 +1351,7 @@ else:
 
         offset, local_shape, slices = comm.chunk(shape, split)
 
-        return factories.array(
-            arr[slices], dtype=dtype, is_split=split, device=device, comm=comm
-        )
+        return factories.array(arr[slices], dtype=dtype, is_split=split, device=device, comm=comm)
 
     def save_zarr(path: str, dndarray: DNDarray, overwrite: bool = False, **kwargs) -> None:
         """
