@@ -1352,7 +1352,7 @@ else:
         offset, local_shape, slices = comm.chunk(shape, split)
 
         return factories.array(
-            arr[*slices], dtype=dtype, is_split=split, device=device, comm=comm  # noqa: E999
+            arr[slices], dtype=dtype, is_split=split, device=device, comm=comm
         )
 
     def save_zarr(path: str, dndarray: DNDarray, overwrite: bool = False, **kwargs) -> None:
@@ -1445,7 +1445,7 @@ else:
         if dndarray.split is not None:
             _, _, slices = MPI_WORLD.chunk(dndarray.gshape, dndarray.split)
 
-            zarr_array[*slices] = (  # noqa: E999
+            zarr_array[slices] = (
                 dndarray.larray.numpy()  # Numpy array needed as zarr can only understand numpy dtypes and infers it.
             )
         else:
