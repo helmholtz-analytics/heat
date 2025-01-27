@@ -109,6 +109,9 @@ Lists all active containers
 > docker system prune 
 Closes all currently running containers and frees up the resources
 
+> docker system prune --all --force
+Frees up all space taken up by docker images, even stopped ones
+
 > docker images
 Lists all docker images
 

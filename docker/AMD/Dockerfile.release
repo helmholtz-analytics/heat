@@ -4,6 +4,8 @@
 # Template found in: github.com/ROCm/ROCm-docker/blob/master/rocm-terminal/Dockerile
 # Check out the following installation guide: https://github.com/ROCm/ROCm-docker/blob/master/quick-start.md
 # Check for Docker files under https://repo.radeon.com/rocm/manylinux/
+# https://hub.docker.com/r/rocm/pytorch
+# https://hub.docker.com/r/rocm/pytorch/tags
 ################################################################################################
 
 ARG HEAT_VERSION=1.5.x
@@ -12,7 +14,7 @@ ARG ROCM_VERSION=6.2
 ARG AMDGPU_VERSION=6.2
 
 # This is the base image for the release image
-FROM rocm/dev-ubuntu-24.04 AS base 
+FROM rocm/pytorch:latest AS base 
 COPY ./tzdata.seed /tmp/tzdata.seed
 RUN debconf-set-selections /tmp/tzdata.seed
 
@@ -22,7 +24,7 @@ ARG HEAT_VERSION
 # RUN /usr/bin/python3 -m pip install --upgrade pip
 ## Since we are in a container, it may be reasonable to do this instead of virtual environments (not sure)
 ## Currently still leads to an error
-RUN pip install --user mpi4py --no-binary :all: --break-system-packages 
+# RUN pip install --user mpi4py --no-binary :all: --break-system-packages 
 # RUN pip install mpi4py --no-binary :all:
 # RUN /usr/bin/python3 -m pip install mpi4py --no-binary :all:
 # RUN echo ${HEAT_VERSION}
