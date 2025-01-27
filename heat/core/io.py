@@ -1306,8 +1306,8 @@ else:
         """
         return True
 
-    def load_zarr(path: str, split: int = 0, device: Optional[str] = None, **kwargs) -> DNDarray:
-        """
+    def load_zarr(path: str, split: int = 0, device: Optional[str] = None, comm: Optional[Communication] = None, **kwargs) -> DNDarray:
+        r"""
         Loads zarr-Format into DNDarray which will be returned. The data will be concatenated along the split axis provided as input.
 
         Parameters
@@ -1339,13 +1339,14 @@ else:
 
         dtype = types.canonical_heat_type(arr.dtype)
         device = devices.sanitize_device(device)
+        comm = sanitize_comm(comm)
 
-        offset, local_shape, slices = MPI_WORLD.chunk(shape, split)
+        offset, local_shape, slices = comm.chunk(shape, split)
 
-        return factories.array(arr[*slices], dtype=dtype, is_split=split, device=device)
+        return factories.array(arr[*slices], dtype=dtype, is_split=split, device=device, comm=comm)  # noqa: E999
 
     def save_zarr(path: str, dndarray: DNDarray, overwrite: bool = False, **kwargs) -> None:
-        """
+        r"""
         Writes the DNDArray into the zarr-format.
 
         Parameters
@@ -1378,35 +1379,34 @@ else:
             if os.path.exists(path) and not overwrite:
                 raise RuntimeError("Given Path already exists.")
 
-            """
-            Zarr functions by chunking the data, were a chunk is a file inside the store.
-            The problem ist that only one process writes to it at a time. Therefore when two
-            processes try to write to the same chunk one will fail, unless the other finishes before
-            the other starts.
+            # Zarr functions by chunking the data, were a chunk is a file inside the store.
+            # The problem ist that only one process writes to it at a time. Therefore when two
+            # processes try to write to the same chunk one will fail, unless the other finishes before
+            # the other starts.
 
-            To alleviate it we can define the chunk sizes ourselves. To do this we just get the lowest size of
-            the distributed axis, ex: split=0 with a (4,4) shape with a worldsize of 4 you would chunk it with (1,4).
+            # To alleviate it we can define the chunk sizes ourselves. To do this we just get the lowest size of
+            # the distributed axis, ex: split=0 with a (4,4) shape with a worldsize of 4 you would chunk it with (1,4).
 
-            A problem arises when a process gets a bigger chunk and interferes with another process. Example:
-            N_PROCS = 4
-            SHAPE = (9,10)
-            SPLIT = 0
-            CHUNKS => (2,10)
+            # A problem arises when a process gets a bigger chunk and interferes with another process. Example:
+            # N_PROCS = 4
+            # SHAPE = (9,10)
+            # SPLIT = 0
+            # CHUNKS => (2,10)
 
-            In this problem one process will have a write region of 3 rows and therefore be able to either not write
-            or overwrite what another process does therefore destroying the parallel write as it would at the end load
-            2 chunks to write 3 rows.
-            To counter act this we just set the chunk size in the split axis to 1. This allows for no overwrites but can
-            cripple write speeds and or even speed it up.
+            # In this problem one process will have a write region of 3 rows and therefore be able to either not write
+            # or overwrite what another process does therefore destroying the parallel write as it would at the end load
+            # 2 chunks to write 3 rows.
+            # To counter act this we just set the chunk size in the split axis to 1. This allows for no overwrites but can
+            # cripple write speeds and or even speed it up.
 
-            Another Problem with this approach is that we tell zarr have full chunks, i.e if array has shape (10_000, 10_000)
-            and we split it at axis=0 with 4 processes we have chunks of (2_500, 10_000). Zarr will load the whole chunk into
-            memory making it memory intensive and probably inefficient. Better approach would be to have a smaller chunk size
-            for example half of it but that cannot be determined at all times so the current approach is a compromise.
+            # Another Problem with this approach is that we tell zarr have full chunks, i.e if array has shape (10_000, 10_000)
+            # and we split it at axis=0 with 4 processes we have chunks of (2_500, 10_000). Zarr will load the whole chunk into
+            # memory making it memory intensive and probably inefficient. Better approach would be to have a smaller chunk size
+            # for example half of it but that cannot be determined at all times so the current approach is a compromise.
 
-            Another Problem is the split=None scenario. In this case every processs has the same data, so only one needs to write
-            so we ignore chunking and let zarr decide the chunk size and let only one process, aka rank=0 write.
-            """
+            # Another Problem is the split=None scenario. In this case every processs has the same data, so only one needs to write
+            # so we ignore chunking and let zarr decide the chunk size and let only one process, aka rank=0 write.
+
             if dndarray.split is None or MPI_WORLD.size == 1:
                 chunks = None
             else:
@@ -1435,9 +1435,9 @@ else:
         if dndarray.split is not None:
             _, _, slices = MPI_WORLD.chunk(dndarray.gshape, dndarray.split)
 
-            zarr_array[*slices] = (
-                dndarray.larray.numpy()
-            )  # Numpy array needed as zarr can only understand numpy dtypes and infers it.
+            zarr_array[*slices] = (  # noqa: E999
+                dndarray.larray.numpy()  # Numpy array needed as zarr can only understand numpy dtypes and infers it.
+            )
         else:
             if MPI_WORLD.rank == 0:
                 zarr_array[:] = dndarray.larray.numpy()
