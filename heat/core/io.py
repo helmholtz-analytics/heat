@@ -1313,7 +1313,7 @@ else:
         comm: Optional[Communication] = None,
         **kwargs,
     ) -> DNDarray:
-        r"""
+        """
         Loads zarr-Format into DNDarray which will be returned. The data will be concatenated along the split axis provided as input.
 
         Parameters
@@ -1354,7 +1354,7 @@ else:
         )  # noqa: E999
 
     def save_zarr(path: str, dndarray: DNDarray, overwrite: bool = False, **kwargs) -> None:
-        r"""
+        """
         Writes the DNDArray into the zarr-format.
 
         Parameters
