@@ -74,7 +74,9 @@ def eq(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> DNDarr
     return res
 
 
-DNDarray.__eq__ = lambda self, other: eq(self, other)
+DNDarray.__eq__ = lambda self, other: (
+    eq(self, other) if type(other) in (DNDarray, int, float) else False
+)
 DNDarray.__eq__.__doc__ = eq.__doc__
 
 
@@ -413,7 +415,9 @@ def ne(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> DNDarr
     return res
 
 
-DNDarray.__ne__ = lambda self, other: ne(self, other)
+DNDarray.__ne__ = lambda self, other: (
+    ne(self, other) if type(other) in (DNDarray, int, float) else True
+)
 DNDarray.__ne__.__doc__ = ne.__doc__
 
 # alias
