@@ -32,12 +32,9 @@ class TestRelational(TestCase):
 
         self.assertEqual(ht.eq(self.a_split_tensor, self.a_tensor).dtype, ht.bool)
 
-        with self.assertRaises(ValueError):
-            ht.eq(self.a_tensor, self.another_vector)
-        with self.assertRaises(TypeError):
-            ht.eq(self.a_tensor, self.errorneous_type)
-        with self.assertRaises(TypeError):
-            ht.eq("self.a_tensor", "s")
+        self.assertFalse(ht.eq(self.a_tensor, self.another_vector))
+        self.assertFalse(ht.eq(self.a_tensor, self.errorneous_type))
+        self.assertFalse(ht.eq("self.a_tensor", "s"))
 
     def test_equal(self):
         self.assertTrue(ht.equal(self.a_tensor, self.a_tensor))
@@ -159,9 +156,6 @@ class TestRelational(TestCase):
 
         self.assertEqual(ht.ne(self.a_split_tensor, self.a_tensor).dtype, ht.bool)
 
-        with self.assertRaises(ValueError):
-            ht.ne(self.a_tensor, self.another_vector)
-        with self.assertRaises(TypeError):
-            ht.ne(self.a_tensor, self.errorneous_type)
-        with self.assertRaises(TypeError):
-            ht.ne("self.a_tensor", "s")
+        self.assertTrue(ht.ne(self.a_tensor, self.another_vector))
+        self.assertTrue(ht.ne(self.a_tensor, self.errorneous_type))
+        self.assertTrue(ht.ne("self.a_tensor", "s"))
