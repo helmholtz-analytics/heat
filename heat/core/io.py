@@ -37,8 +37,7 @@ __all__ = [
     "supports_hdf5",
     "supports_netcdf",
     "load_npy_from_path",
-    "load_zarr",
-    "save_zarr",
+    "supports_zarr",
 ]
 
 try:
@@ -1299,6 +1298,7 @@ except ModuleNotFoundError:
         return False
 
 else:
+    __all__.extend(["load_zarr", "save_zarr"])
 
     def supports_zarr() -> bool:
         """
