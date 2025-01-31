@@ -35,10 +35,10 @@ setup(
     install_requires=[
         "mpi4py>=3.0.0",
         "numpy>=1.22.0, <2",
-        "torch>=2.0.0, <2.5.2",
+        "torch>=2.0.0, <2.6.1",
         "scipy>=1.10.0",
         "pillow>=6.0.0",
-        "torchvision>=0.15.2, <0.20.2",
+        "torchvision>=0.15.2, <0.21.1",
     ],
     extras_require={
         "docutils": ["docutils>=0.16"],
