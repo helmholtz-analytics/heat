@@ -62,7 +62,7 @@ jobs:
 
           # Create PR for release
           gh pr create \
-          --base release \
+          --base stable \
           --head ${{ env.PR_BRANCH }} \
           --title "Heat ${{ env.VERSION }} - Release" \
           --body "Pre-release branch for Heat ${{ env.VERSION }}.
