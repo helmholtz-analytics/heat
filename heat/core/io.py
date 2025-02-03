@@ -1450,6 +1450,6 @@ else:
             )
         else:
             if MPI_WORLD.rank == 0:
-                zarr_array[:] = dndarray.larray.numpy(force=True)
+                zarr_array[:] = dndarray.larray.cpu().numpy()
 
         MPI_WORLD.Barrier()
