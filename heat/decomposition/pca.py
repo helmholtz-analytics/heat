@@ -4,6 +4,7 @@ Module implementing decomposition techniques, such as PCA.
 
 import heat as ht
 from typing import Optional, Tuple, Union
+from ..core.linalg.svdtools import _isvd
 
 try:
     from typing import Self
@@ -241,6 +242,159 @@ class PCA(ht.TransformMixin, ht.BaseEstimator):
         self.noise_variance_ = None  # not yet implemented
 
         return self
+
+    def transform(self, X: ht.DNDarray) -> ht.DNDarray:
+        """
+        Apply dimensionality based on PCA to X.
+
+        Parameters
+        ----------
+        X : DNDarray of shape (n_samples, n_features)
+            Data set to be transformed.
+        """
+        ht.sanitize_in(X)
+        if X.shape[1] != self.mean_.shape[0]:
+            raise ValueError(
+                f"X must have the same number of features as the training data. Expected {self.mean_.shape[0]} but got {X.shape[1]}."
+            )
+
+        # center data and apply PCA
+        X_centered = X - self.mean_
+        return X_centered @ self.components_.T
+
+    def inverse_transform(self, X: ht.DNDarray) -> ht.DNDarray:
+        """
+        Transform data back to its original space.
+
+        Parameters
+        ----------
+        X : DNDarray of shape (n_samples, n_components)
+            Data set to be transformed back.
+        """
+        ht.sanitize_in(X)
+        if X.shape[1] != self.n_components_:
+            raise ValueError(
+                f"Dimension mismatch. Expected input of shape n_points x {self.n_components_} but got {X.shape}."
+            )
+
+        return X @ self.components_ + self.mean_
+
+
+class IncrementalPCA(ht.TransformMixin, ht.BaseEstimator):
+    """
+    Incremental Principal Component Analysis (PCA).
+
+    This class allows for incremental updates of the PCA model. This is especially useful for large data sets that do not fit into memory.
+
+    An example how to apply this class is given in, e.g., `benchmarks/cb/decomposition.py`.
+
+    Parameters
+    ----------
+    n_components : int, optional
+        Number of components to keep. If `n_components` is not set all components are kept (default).
+    copy : bool, default=True
+        In-place operations are not yet supported. Please set `copy=True`.
+    whiten : bool, default=False
+        Not yet supported.
+    batch_size : int, optional
+        Currently not needed and only added for API consistency and possible future extensions.
+
+    Attributes
+    ----------
+    components_ : DNDarray of shape (n_components, n_features)
+        Principal axes in feature space, representing the directions of maximum variance in the data. The components are sorted by `explained_variance_.
+    singular_values_ : DNDarray of shape (n_components,)
+        The singular values corresponding to each of the selected components.
+    mean_ : DNDarray of shape (n_features,)
+        Per-feature empirical mean, estimated from the training set.
+    n_components_ : int
+        The estimated number of components.
+    n_samples_seen_ : int
+        Number of samples processed so far.
+    """
+
+    def __init__(
+        self,
+        n_components: Optional[int] = None,
+        copy: bool = True,
+        whiten: bool = False,
+        batch_size: Optional[int] = None,
+    ):
+        if not copy:
+            raise NotImplementedError(
+                "In-place operations for PCA are not supported at the moment. Please set copy=True."
+            )
+        if whiten:
+            raise NotImplementedError("Whitening is not yet supported. Please set whiten=False.")
+        if n_components is not None:
+            if not isinstance(n_components, int):
+                raise TypeError(
+                    f"n_components must be None or an integer, but is {type(n_components)}."
+                )
+            else:
+                if n_components < 1:
+                    raise ValueError("if an integer, n_components must be greater or equal to 1.")
+        self.whiten = whiten
+        self.n_components = n_components
+        self.batch_size = batch_size
+        self.components_ = None
+        # self.explained_variance_ = None            # not yet supported
+        # self.explained_variance_ratio_ = None      # not yet supported
+        self.singular_values_ = None
+        self.mean_ = None
+        self.n_components_ = None
+        self.batch_size_ = None
+        self.n_samples_seen_ = 0
+
+    def fit(self, X, y=None) -> Self:
+        """
+        Not yet implemented; please use `.partial_fit` instead.
+        Please open an issue on GitHub if you would like to see this method implemented and make a suggestion on how you would like to see it implemented.
+        """
+        raise NotImplementedError(
+            f"You have called IncrementalPCA's `.fit`-method with an argument of type {type(X)}. \n So far, we have only implemented the method `.partial_fit` which performs a single-step update of incremental PCA. \n Please consider using `.partial_fit` for the moment, and open an issue on GitHub in which we can discuss what you would like to see implemented for the `.fit`-method."
+        )
+
+    def partial_fit(self, X: ht.DNDarray, y=None):
+        """
+        One single step of incrementally building up the PCA.
+        Input X is the current batch of data that needs to be added to the existing PCA.
+        """
+        ht.sanitize_in(X)
+        if y is not None:
+            raise ValueError(
+                "Argument y is ignored and just present for API consistency by convention."
+            )
+        if self.n_samples_seen_ == 0:
+            # this is the first batch of data, hence we need to initialize everything
+            if self.n_components is None:
+                self.n_components_ = min(X.shape)
+            else:
+                self.n_components_ = min(X.shape[0], X.shape[1], self.n_components)
+
+            self.mean_ = X.mean(axis=0)
+            X_centered = X - self.mean_
+            _, S, V = ht.linalg.svd(X_centered)
+            self.components_ = V[:, : self.n_components_].T
+            self.singular_values_ = S[: self.n_components_]
+            self.n_samples_seen_ = X.shape[0]
+
+        else:
+            # if already batches of data have been seen before, only an update is necessary
+            U, S, mean = _isvd(
+                X.T,
+                self.components_.T,
+                self.singular_values_,
+                V_old=None,
+                maxrank=self.n_components,
+                old_matrix_size=self.n_samples_seen_,
+                old_rowwise_mean=self.mean_,
+            )
+            self.components_ = U.T
+            self.singular_values_ = S
+            self.mean_ = mean
+            self.n_samples_seen_ += X.shape[0]
+            self.n_components_ = self.components_.shape[0]
 
     def transform(self, X: ht.DNDarray) -> ht.DNDarray:
         """

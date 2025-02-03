@@ -2,7 +2,12 @@
 
 These are basic instructions for internal use. Will be expanded as the need arises.
 
-### Major or minor version update
+### Table of Contents
+- [Major or minor release](#major-or-minor-release)
+- [Patch release](#patch-release)
+- [conda-forge build](#conda-forge-build)
+
+### Major or minor release
 
 (e.g. 1.4 --> 1.5, or 1.5 --> 2.0)
 
@@ -21,7 +26,17 @@ git pull
 git checkout -b release/1.5.x
 ```
 
-2. Update `heat/core/version.py` like this:
+2. Create a new branch off `release/1.5.x` and update the version number in `heat/core/version.py`:
+
+```bash
+git checkout release/1.5.x
+git pull
+git checkout -b workflows/version-update
+```
+
+
+
+Update `heat/core/version.py` like this:
 
 ```python
 """This module contains Heat's version information."""
@@ -36,28 +51,36 @@ extension: str = "dev" # <-- set to None
 """Indicates special builds, e.g. for specific hardware."""
 ```
 
-3. Commit and push new `version.py` in `release/1.5.x`
+3. Commit and push new `version.py` in `workflows/version-update`.
 
-4. Draft release notes:
+4. If necessary, also update the Requirements section on README.md to reflect the latest version of the dependencies.
+
+5. Update `CITATION.cff` if needed, i.e. add names of non-core contributors (they are included in the Release notes draft you just created). Push to `workflows/version-update`.
+
+6. Create a pull request from `workflows/version-update` to `release/1.5.x`
+
+  - Remember to get a reviewers approval.
+  - Wait for the tests to finish.
+  - Squash and merge.
+
+7. Draft release notes:
 
   - Go to the GitHub repo's [Releases](https://github.com/helmholtz-analytics/heat/releases) page.
   - The release notes draft is automated. Click on Edit Draft
-  - Select the new tag: v1.3.0. Modify Target branch: `release/1.5.x`
+  - Select the new tag: v1.5.0. Modify Target branch: `release/1.5.x`
   - Edit release notes as needed (see older releases)
-  - Click on Save but do not publish yet
+  - Click on Save **but do not publish yet**
 
-5. Update `CITATION.cff` if needed, i.e. add names of non-core contributors (they are included in the Release notes draft you just created). Push to the release branch.
-
-6. Build wheel in your local `heat/` directory, make sure you are on branch `release/1.5.x`.
+8. Build wheel in your local `heat/` directory, make sure you are on branch `release/1.5.x`.
 
    ```bash
    rm -f dist/*
    python -m build
    ```
 
-   You might have to install the `build` package first (i.e. with `conda install build` or `pip install build`)
+   You might have to install the `build` package first (i.e. with `conda install -c conda-forge build` or `pip install build`)
 
-7. Upload to Test PyPI and verify things look right. You need to install `twine` first.
+9. Upload to Test PyPI and verify things look right. You need to install `twine` first.
 
     ```bash
      twine upload -r testpypi dist/*
@@ -65,52 +88,43 @@ extension: str = "dev" # <-- set to None
 
     `twine` will prompt for your username and password.
 
-8. When everything works, upload to PyPI:
+10. When everything works, upload to PyPI:
 
    ```bash
    twine upload dist/*
    ```
 
-9. Go back to the Release Notes draft and publish them. The new release is out!
+11. Go back to the Release Notes draft and publish them. The new release is out!
 
   - Make sure the CHANGELOG.md got updated, if not, call @JuanPedroGHM.
   - Check our [Zenodo page](https://zenodo.org/doi/10.5281/zenodo.2531472) to make sure a DOI was created for the release.
 
-10. Check status of our conda-forge recipe: (Need to be listed as maintainer, either @ClaudiaComito, @mrfh92, @JuanPedroGHM)
-  - Go to https://github.com/conda-forge/heat-feedstock
-  - A new PR should have been automatically created.
-  - Changes can be pushed to the PR.
-    - Make sure the version number is correct.
-    - Make sure the SHA points to the correct PyPI release.
-    - Make sure dependencies match.
-  - Once the PR is done, wait for the CI checks to finish and merge.
-  - Refer to the conda-forge docs if there are any issues: https://conda-forge.org/docs/maintainer/updating_pkgs.html#pushing-to-regro-cf-autotick-bot-branch
-
-11. Now we want to update `main` to include the latest release,  we want to modify the version on main so that `minor` is increased by 1, and  `extension` is "dev".  In this example we want the version on `main` to be:`1.4.0-dev`.
+12. On branch `main`,  we want to modify the version so that `minor` is increased by 1, and  `extension` is "dev".  In this example we want the version on `main` to be:`1.6.0-dev`. We need to create a new branch from `main`:
 
     ```bash
     git checkout main
     git pull
     git checkout -b workflows/update-version-main
-    git merge release/1.5.x --no-ff --no-commit
+    git branch
     ```
 
-    Modify `version.py` so that `extension` is `"dev"`. Commit and push the changes.
+    On branch `workflows/update-version-main`, modify `version.py` so that `minor` is increased by 1, and `extension` is `"dev"`. Commit and push the changes.
 
-12. Create a PR with `main` as the base branch.
+13. Create a PR with `main` as the base branch.
 
-13. Get approval and merge. You're done!
+14. Get approval and merge. You're done! Except if you're a conda-forge maintainer, then see [conda-forge build](#conda-forge-build).
+
 
 ### Patch release
 
-(e.g. 1.3.0 --> 1.3.1)
+(e.g. 1.5.0 --> 1.5.1)
 
-1. Check that all intended branches have been merged to the release branch you want to upgrade, in this example `release/1.3.x`. Branch off from `release/1.3.x` and create a new branch:
+1. Check that all intended branches have been merged to the release branch you want to upgrade, in this example `release/1.5.x`. Create a new branch off `release/1.5.x`, e.g.:
 
 ```bash
-git checkout release/1.3.x
+git checkout release/1.5.x
 git pull
-git checkout -b minor-version-update
+git checkout -b workflows/version-update
 ```
 
 2. Update `heat/core/version.py` like this:
@@ -120,7 +134,7 @@ git checkout -b minor-version-update
 
 major: int = 1
 """Indicates Heat's main version."""
-minor: int = 3
+minor: int = 5
 """Indicates feature extension."""
 micro: int = 0 # <-- update to 1
 """Indicates revisions for bugfixes."""
@@ -128,67 +142,14 @@ extension: str = None
 """Indicates special builds, e.g. for specific hardware."""
 ```
 
-3. Commit and push new `version.py` in `minor-version-update`
-
-4. Create a pull request from `minor-version-update` to `release/1.3.x`
-
-  - Remember to get a reviewers approval.
-  - Wait for the test to finish.
-  - Squash and merge.
+3. Follow steps 3-14 from the [Major or minor release section](#major-or-minor-release).
 
 
-5. Draft release notes:
-
-  - Go to the GitHub repo's [Releases](https://github.com/helmholtz-analytics/heat/releases) page.
-  - The release notes draft is automated. Click on Edit Draft
-  - Select the new tag: `v1.3.1`
-  - Edit release notes as needed (see older releases)
-  - Save the changes to the release notes WITHOUT PUBLISHING!!
-
-6. Build wheel in your local `heat/` directory, make sure you are on branch `release/1.3.x`.
-
-   ```bash
-   rm -f dist/*
-   python -m build
-   ```
-
-   You might have to install the `build` package first (i.e. with `conda install build` or `pip install build`)
-
-7. Upload to Test PyPI and verify things look right. You need to install `twine` first.
-
-    ```bash
-     twine upload -r testpypi dist/*
-     ```
-
-    `twine` will prompt for your username and password.
-
-    - Look at the testpypi repository and make sure everything is correct (version number, readme, etc.)
-
-8. When everything works, upload to PyPI:
-
-   ```bash
-   twine upload dist/*
-   ```
-
-9. Update conda-forge recipe (Need to be listed as maintainer, either @ClaudiaComito, @mrfh92, @JuanPedroGHM)
-  - Go to https://github.com/conda-forge/heat-feedstock
-  - A new PR should have been automatically created.
+## conda-forge build
+After releasing, the conda-forge automation will create a new PR on https://github.com/conda-forge/heat-feedstock. It's normal if this takes hours. conda-forge maintainers will review the PR and merge it if everything is correct.
   - Changes can be pushed to the PR.
     - Make sure the version number is correct.
     - Make sure the SHA points to the correct PyPI release.
     - Make sure dependencies match.
   - Once the PR is done, wait for the CI checks to finish and merge.
   - Refer to the conda-forge docs if there are any issues: https://conda-forge.org/docs/maintainer/updating_pkgs.html#pushing-to-regro-cf-autotick-bot-branch
-
-
-10. Go back to the Release Notes draft and publish them. The new release is out!
-  - Make sure the CHANGELOG.md got updated in the release branch, in this case `release/1.3.x`, if not, call @JuanPedroGHM.
-  - Check Zenodo to make sure a DOI was created for the release.
-
-11. Now we want to update `main` to the latest version, and we want the version on `main` to be `1.4.0-dev`.
-  - Create a new branch from `release/1.3.x`, for example `merge-latest-release-into-main`
-  - Merge `main` into `merge-latest-release-into-main`, resolve conflicts and push.
-  - Create a PR from `merge-latest-release-into-main`, base branch must be `main`
-  - Make sure the version number in `merge-latest-release-into-main` is correct (i.e., it matches that in `main`).
-  - Make sure the CHANGELOG.md in `merge-latest-release-into-main` matches that in the latest release branch, in this example`release/1.3.x`.
-  - Get a reviewers approval, wait for the CI checks to pass, and merge.
