@@ -1446,7 +1446,7 @@ else:
             _, _, slices = MPI_WORLD.chunk(dndarray.gshape, dndarray.split)
 
             zarr_array[slices] = (
-                dndarray.larray.numpy()  # Numpy array needed as zarr can only understand numpy dtypes and infers it.
+                dndarray.larray.cpu().numpy()  # Numpy array needed as zarr can only understand numpy dtypes and infers it.
             )
         else:
             if MPI_WORLD.rank == 0:
