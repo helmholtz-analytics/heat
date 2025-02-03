@@ -996,3 +996,40 @@ class TestIO(TestCase):
                     self.assertTrue((dndnumpy == arr).all())
 
                 ht.MPI_WORLD.handle.Barrier()
+
+    def test_load_zarr_arguments(self):
+        if not ht.io.supports_zarr():
+            self.skipTest("Requires zarr")
+
+        with self.assertRaises(TypeError):
+            ht.load_zarr(None)
+        with self.assertRaises(ValueError):
+            ht.load_zarr("data.npy")
+        with self.assertRaises(TypeError):
+            ht.load_zarr("", "")
+        with self.assertRaises(TypeError):
+            ht.load_zarr("", device=1)
+
+    def test_save_zarr_arguments(self):
+        if not ht.io.supports_zarr():
+            self.skipTest("Requires zarr")
+
+        import zarr
+
+        with self.assertRaises(TypeError):
+            ht.save_zarr(None, None)
+        with self.assertRaises(ValueError):
+            ht.save_zarr("data.npy", None)
+
+        comm = ht.MPI_WORLD
+        if comm.rank == 0:
+            zarr.create(
+                store=self.ZARR_TEMP_PATH,
+                shape=(4, 4),
+                dtype=ht.types.int.char(),
+                overwrite=True,
+            )
+        comm.Barrier()
+
+        with self.assertRaises(RuntimeError):
+            ht.save_zarr(self.ZARR_TEMP_PATH, ht.arange(16).reshape((4, 4)))

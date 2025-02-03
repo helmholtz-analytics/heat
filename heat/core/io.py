@@ -1413,10 +1413,10 @@ else:
         else:
             raise ValueError("path does not end on an Zarr extension.")
 
-        if MPI_WORLD.rank == 0:
-            if os.path.exists(path) and not overwrite:
-                raise RuntimeError("Given Path already exists.")
+        if os.path.exists(path) and not overwrite:
+            raise RuntimeError("Given Path already exists.")
 
+        if MPI_WORLD.rank == 0:
             if dndarray.split is None or MPI_WORLD.size == 1:
                 chunks = None
             else:
