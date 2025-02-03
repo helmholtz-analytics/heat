@@ -101,8 +101,7 @@ jobs:
           TODO:
           - [ ] Make sure version.py is updated to reflect the dev version.
           - [ ] Ensure Citation file is up to date.
-          - [ ] Ensure the Changelog is up to date.
-
+          - [ ] Ensure the Changelog is up to date." \
           --label "pre-release"
 
       
