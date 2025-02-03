@@ -94,7 +94,7 @@ autolabeler:
   - label: 'docker'
     files:
       - 'docker/**/*'
-  - label: 'backport release'
+  - label: 'backport stable'
     title:
       - '/bug/i'
       - '/resolve/i'
