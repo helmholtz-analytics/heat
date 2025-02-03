@@ -61,7 +61,7 @@ jobs:
           sed -i "s/micro: int = \([0-9]\+\)/micro: int = $MICRO/g" heat/core/version.py
           sed -i "s/extension: str = .*/extension: str = None/g" heat/core/version.py
           
-          { echo -n "# v${MAJOR}.${MINOR}.${MICRO} - ${{github.event.inputs.title}}\n${{ steps.release_drafter.outputs.body}}"; cat CHANGELOG.md; } > tmp.md
+          { echo -e "# v${MAJOR}.${MINOR}.${MICRO} - ${{github.event.inputs.title}}\n${{ steps.release_drafter.outputs.body}}\n"; cat CHANGELOG.md; } > tmp.md
           mv tmp.md CHANGELOG.md
 
           # Git configuration with anonymous user and email
@@ -81,22 +81,28 @@ jobs:
           --head ${{ env.PR_BRANCH }} \
           --title "Heat ${{ env.VERSION }} - Release" \
           --body "Pre-release branch for Heat ${{ env.VERSION }}.
-          Any release work should be done on this branch, and then merged into the release branch and main, following git-flow.
+          Any release work should be done on this branch, and then merged into the release branch and main, following git-flow guidelines.
 
           TODO:
           - [x] Update version.py
-          - [ ] update the Requirements section on README.md if needed
-          - [ ] Update CITATION.cff if needed
-          - [ ] Ensure the Changelog is up to date
+          - [ ] Ensure Citation file is up to date.
+          - [ ] Ensure the Changelog is up to date.
 
-          [1]: https://github.com/peter-evans/create-pull-request" \
+          DO NOT DELETE BRANCH AFTER MERGING!" \
           --label "pre-release"
 
           # Create PR for main
           gh pr create --base main \
           --head ${{ env.PR_BRANCH }} \
           --title "Heat ${{ env.VERSION }} - Main" \
-          --body "Copy of latest pre-release PR targeting release." \
+          --body "Copy of latest pre-release PR targeting release. 
+          DO NOT CHANGE ANYTHING UNTIL THE RELEASE BRANCH HAS BEEN MERGED. 
+
+          TODO:
+          - [ ] Make sure version.py is updated to reflect the dev version.
+          - [ ] Ensure Citation file is up to date.
+          - [ ] Ensure the Changelog is up to date.
+
           --label "pre-release"
 
       
