@@ -833,6 +833,8 @@ class MPICommunication(Communication):
         sbuf = None
         rbuf = None
         buf = None
+        print(f"Sendbuf: {sendbuf}")
+        print(f"Recvbuf: {recvbuf}")
         # unpack the send buffer if it is a HeAT tensor
         if isinstance(sendbuf, DNDarray):
             sendbuf = sendbuf.larray
@@ -840,58 +842,63 @@ class MPICommunication(Communication):
         if isinstance(recvbuf, DNDarray):
             recvbuf = recvbuf.larray
 
+        print(f"Sendbuf: {sendbuf}")
+        print(f"Recvbuf: {recvbuf}")
         # harmonize the input and output buffers
         # MPI requires send and receive buffers to be of same type and length. If the torch tensors are either not both
         # contiguous or differently strided, they have to be made matching (if possible) first.
         if isinstance(sendbuf, torch.Tensor):
             # convert the send buffer to a pointer, number of elements and type are identical to the receive buffer
-            dummy = (
-                sendbuf.contiguous()
-            )  # make a contiguous copy and reassign the storage, old will be collected
-            # In PyTorch Version >= 2.0.0 we can use untyped_storage() instead of storage
-            # to keep backward compatibility with earlier PyTorch versions (where no untyped_storage() exists) we use a try/except
-            # (this applies to all places of Heat where untyped_storage() is used without further comment)
-            try:
-                sendbuf.set_(
-                    dummy.untyped_storage(),
-                    dummy.storage_offset(),
-                    size=dummy.shape,
-                    stride=dummy.stride(),
-                )
-            except AttributeError:
-                sendbuf.set_(
-                    dummy.storage(),
-                    dummy.storage_offset(),
-                    size=dummy.shape,
-                    stride=dummy.stride(),
-                )
             sbuf = sendbuf if CUDA_AWARE_MPI else sendbuf.cpu()
             sendbuf = self.as_buffer(sbuf)
+            # dummy = (
+            #     sendbuf.contiguous()
+            # )  # make a contiguous copy and reassign the storage, old will be collected
+            # # In PyTorch Version >= 2.0.0 we can use untyped_storage() instead of storage
+            # # to keep backward compatibility with earlier PyTorch versions (where no untyped_storage() exists) we use a try/except
+            # # (this applies to all places of Heat where untyped_storage() is used without further comment)
+            # try:
+            #     sendbuf.set_(
+            #         dummy.untyped_storage(),
+            #         dummy.storage_offset(),
+            #         size=dummy.shape,
+            #         stride=dummy.stride(),
+            #     )
+            # except AttributeError:
+            #     sendbuf.set_(
+            #         dummy.storage(),
+            #         dummy.storage_offset(),
+            #         size=dummy.shape,
+            #         stride=dummy.stride(),
+            #     )
         if isinstance(recvbuf, torch.Tensor):
-            buf = recvbuf
-            # nothing matches, the buffers have to be made contiguous
-            dummy = recvbuf.contiguous()
-            try:
-                recvbuf.set_(
-                    dummy.untyped_storage(),
-                    dummy.storage_offset(),
-                    size=dummy.shape,
-                    stride=dummy.stride(),
-                )
-            except AttributeError:
-                recvbuf.set_(
-                    dummy.storage(),
-                    dummy.storage_offset(),
-                    size=dummy.shape,
-                    stride=dummy.stride(),
-                )
             rbuf = recvbuf if CUDA_AWARE_MPI else recvbuf.cpu()
-            if sendbuf is MPI.IN_PLACE:
-                recvbuf = self.as_buffer(rbuf)
-            else:
-                recvbuf = (self.as_mpi_memory(rbuf), sendbuf[1], sendbuf[2])
+            recvbuf = self.as_buffer(rbuf)
+            # # nothing matches, the buffers have to be made contiguous
+            # dummy = recvbuf.contiguous()
+            # try:
+            #     recvbuf.set_(
+            #         dummy.untyped_storage(),
+            #         dummy.storage_offset(),
+            #         size=dummy.shape,
+            #         stride=dummy.stride(),
+            #     )
+            # except AttributeError:
+            #     recvbuf.set_(
+            #         dummy.storage(),
+            #         dummy.storage_offset(),
+            #         size=dummy.shape,
+            #         stride=dummy.stride(),
+            #     )
+            # rbuf = recvbuf if CUDA_AWARE_MPI else recvbuf.cpu()
+            # if sendbuf is MPI.IN_PLACE:
+            #     recvbuf = self.as_buffer(rbuf)
+            # else:
+            #     recvbuf = (self.as_mpi_memory(rbuf), sendbuf[1], sendbuf[2])
 
         # perform the actual reduction operation
+        print(f"Sendbuf: {sendbuf}")
+        print(f"Recvbuf: {recvbuf}")
         return func(sendbuf, recvbuf, *args, **kwargs), sbuf, rbuf, buf
 
     def Allreduce(
@@ -912,6 +919,7 @@ class MPICommunication(Communication):
         op: MPI.Op
             The operation to perform upon reduction
         """
+        print("Here")
         ret, sbuf, rbuf, buf = self.__reduce_like(self.handle.Allreduce, sendbuf, recvbuf, op)
         if buf is not None and isinstance(buf, torch.Tensor) and buf.is_cuda and not CUDA_AWARE_MPI:
             buf.copy_(rbuf)
