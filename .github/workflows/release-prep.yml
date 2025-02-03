@@ -11,6 +11,10 @@ on:
         description: "The base branch to create the release branch from"
         required: true
         default: "main"
+      title:
+        description: "Release title"
+        required: False
+        default: "Heat"
 
 permissions:
   contents: write
@@ -29,6 +33,14 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.inputs.base_branch }}
+      - uses: release-drafter/release-drafter@v6 # v6.0.0
+        id: release_drafter
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          commitish: 'stable'
+          name: ${{ github.event.inputs.title }}
+          config-name: rd-release-config.yml
       - name: Bump version.py and create PR
         env:
           PR_BRANCH: pre-release/${{ inputs.release_version }}
@@ -48,13 +60,16 @@ jobs:
           sed -i "s/minor: int = \([0-9]\+\)/minor: int = $MINOR/g" heat/core/version.py
           sed -i "s/micro: int = \([0-9]\+\)/micro: int = $MICRO/g" heat/core/version.py
           sed -i "s/extension: str = .*/extension: str = None/g" heat/core/version.py
+          
+          { echo -n "# v${MAJOR}.${MINOR}.${MICRO} - ${{github.event.inputs.title}}\n${{ steps.release_drafter.outputs.body}}"; cat CHANGELOG.md; } > tmp.md
+          mv tmp.md CHANGELOG.md
 
           # Git configuration with anonymous user and email
           git config --global user.email ""
           git config --global user.name "Heat Release Bot"
 
           # Commit the changes
-          git add heat/core/version.py
+          git add heat/core/version.py CHANGELOG.md
           git commit -m "Bump version to $VERSION"
 
           # Push the changes
@@ -75,11 +90,13 @@ jobs:
           - [ ] Ensure the Changelog is up to date
 
           [1]: https://github.com/peter-evans/create-pull-request" \
-          --label invalid
+          --label "pre-release"
 
           # Create PR for main
           gh pr create --base main \
           --head ${{ env.PR_BRANCH }} \
           --title "Heat ${{ env.VERSION }} - Main" \
           --body "Copy of latest pre-release PR targeting release." \
-          --label invalid
+          --label "pre-release"
+
+      
