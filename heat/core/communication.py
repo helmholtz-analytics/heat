@@ -878,6 +878,7 @@ class MPICommunication(Communication):
         sendbuf: Union[DNDarray, torch.Tensor, Any],
         recvbuf: Union[DNDarray, torch.Tensor, Any],
         op: MPI.Op,
+        *args,
         **kwargs,
     ) -> Tuple[Optional[DNDarray, torch.Tensor]]:
         """
@@ -917,10 +918,33 @@ class MPICommunication(Communication):
                 sendbuf.stride() != recvbuf.stride()
                 or sendbuf.storage_offset() != recvbuf.storage_offset()
             ):
+                print("Here!!!!")
                 if not sendbuf.is_contiguous():
-                    sendbuf = sendbuf.contiguous()
+                    tmp = sendbuf.contiguous()
+                    try:
+                        sendbuf.set_(
+                            tmp.untyped_storage(),
+                            tmp.storage_offset(),
+                            size=tmp.shape,
+                            stride=tmp.stride(),
+                        )
+                    except AttributeError:
+                        sendbuf.set_(
+                            tmp.storage(), tmp.storage_offset(), size=tmp.shape, stride=tmp.stride()
+                        )
                 if not recvbuf.is_contiguous():
-                    recvbuf = recvbuf.contiguous()
+                    tmp = recvbuf.contiguous()
+                    try:
+                        recvbuf.set_(
+                            tmp.untyped_storage(),
+                            tmp.storage_offset(),
+                            size=tmp.shape,
+                            stride=tmp.stride(),
+                        )
+                    except AttributeError:
+                        recvbuf.set_(
+                            tmp.storage(), tmp.storage_offset(), size=tmp.shape, stride=tmp.stride()
+                        )
 
         if isinstance(recvbuf, torch.Tensor):
             # Datatype and count shall be derived from the recv buffer, and applied to both, as they should match after the last code block
