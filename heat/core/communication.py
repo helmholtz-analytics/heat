@@ -5,6 +5,8 @@ Module implementing the communication layer of HeAT
 from __future__ import annotations
 
 import numpy as np
+import math
+import ctypes
 import os
 import subprocess
 import torch
@@ -345,7 +347,7 @@ class MPICommunication(Communication):
         return mpi_type, elements
 
     @classmethod
-    def as_mpi_memory(cls, obj) -> MPI.memory:
+    def as_mpi_memory(cls, obj: torch.Tensor) -> MPI.memory:
         """
         Converts the passed ``torch.Tensor`` into an MPI compatible memory view.
 
@@ -355,7 +357,8 @@ class MPICommunication(Communication):
             The tensor to be converted into a MPI memory view.
         """
         # TODO: MPI.memory might be depraecated in future versions of mpi4py. The following code might need to be adapted and use MPI.buffer instead.
-        return MPI.memory.fromaddress(obj.data_ptr(), 0)
+        nbytes = obj.dtype.itemsize * obj.numel()
+        return MPI.memory.fromaddress(obj.data_ptr(), nbytes)
 
     @classmethod
     def as_buffer(
@@ -812,12 +815,15 @@ class MPICommunication(Communication):
 
     def __derived_op(
         self, tensor: torch.Tensor, datatype: MPI.Datatype, operation: MPI.Op
-    ) -> Callable[[MPI.buffer, MPI.buffer, MPI.Datatype], None]:
+    ) -> Callable[[MPI.memory, MPI.memory, MPI.Datatype], None]:
 
         # Based from this conversation on the internet: https://groups.google.com/g/mpi4py/c/UkDT_9pp4V4?pli=1
         shape = tensor.shape
         dtype = tensor.dtype
+        stride = tensor.stride()
         offset = tensor.storage_offset()
+        count = tensor.numel()
+
         mpiOp2torch = {
             MPI.SUM.handle: torch.add,
             MPI.PROD.handle: torch.mul,
@@ -832,11 +838,35 @@ class MPICommunication(Communication):
             # MPI.MINLOC.handle: torch.argmin, Not supported, seems to be an invalid inplace operation
             # MPI.MAXLOC.handle: torch.argmax
         }
+        mpiDtype2Ctype = {
+            torch.bool: ctypes.c_bool,
+            torch.uint8: ctypes.c_uint8,
+            torch.uint16: ctypes.c_uint16,
+            torch.uint32: ctypes.c_uint32,
+            torch.uint64: ctypes.c_uint64,
+            torch.int8: ctypes.c_int8,
+            torch.int16: ctypes.c_int16,
+            torch.int32: ctypes.c_int32,
+            torch.int64: ctypes.c_int64,
+            torch.float32: ctypes.c_float,
+            torch.float64: ctypes.c_double,
+            torch.complex64: ctypes.c_double,
+            torch.complex128: ctypes.c_longdouble,
+        }
+        ctype_size = mpiDtype2Ctype[dtype]
+        print(ctype_size)
         torch_op = mpiOp2torch[operation.handle]
 
-        def op(sendbuf, recvbuf, datatype):
-            send_tensor = torch.frombuffer(sendbuf, dtype=dtype, offset=offset).view(*shape)
-            recv_tensor = torch.frombuffer(recvbuf, dtype=dtype, offset=offset).view(*shape)
+        def op(sendbuf: MPI.memory, recvbuf: MPI.memory, datatype):
+            send_arr = (ctype_size * (count + offset)).from_address(sendbuf.address)
+            recv_arr = (ctype_size * (count + offset)).from_address(recvbuf.address)
+
+            send_tensor = torch.as_strided(
+                torch.frombuffer(send_arr, dtype=dtype, count=count, offset=offset), shape, stride
+            )
+            recv_tensor = torch.as_strided(
+                torch.frombuffer(recv_arr, dtype=dtype, count=count, offset=offset), shape, stride
+            )
             torch_op(send_tensor, recv_tensor, out=recv_tensor)
 
         op = MPI.Op.Create(op)
@@ -896,7 +926,7 @@ class MPICommunication(Communication):
         if isinstance(recvbuf, torch.Tensor):
             # Datatype and count shall be derived from the recv buffer, and applied to both, as they should match after the last code block
             rbuf = recvbuf if CUDA_AWARE_MPI else recvbuf.cpu()
-            recvbuf: Tuple[MPI.buffer, int, MPI.Datatype] = self.as_buffer(rbuf)
+            recvbuf: Tuple[MPI.memory, int, MPI.Datatype] = self.as_buffer(rbuf)
             if not recvbuf[2].is_predefined:
                 # If using a derived datatype, we need to define the reduce operation to be able to handle the it.
                 print("Not predefined datatype")
