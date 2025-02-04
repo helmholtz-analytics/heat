@@ -918,7 +918,6 @@ class MPICommunication(Communication):
                 sendbuf.stride() != recvbuf.stride()
                 or sendbuf.storage_offset() != recvbuf.storage_offset()
             ):
-                print("Here!!!!")
                 if not sendbuf.is_contiguous():
                     tmp = sendbuf.contiguous()
                     try:
