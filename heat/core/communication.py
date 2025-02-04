@@ -854,7 +854,6 @@ class MPICommunication(Communication):
             torch.complex128: ctypes.c_longdouble,
         }
         ctype_size = mpiDtype2Ctype[dtype]
-        print(ctype_size)
         torch_op = mpiOp2torch[operation.handle]
 
         def op(sendbuf: MPI.memory, recvbuf: MPI.memory, datatype):
@@ -908,7 +907,7 @@ class MPICommunication(Communication):
         # harmonize the input and output buffers
         # MPI requires send and receive buffers to be of same type and length. If the torch tensors are either not both
         # contiguous or differently strided, they have to be made matching (if possible) first.
-        if sendbuf != MPI.IN_PLACE:
+        if sendbuf is not MPI.IN_PLACE:
             # Send and recv buffer need the same number of elements.
             if sendbuf.numel() != recvbuf.numel():
                 raise ValueError("Send and recv buffers need the same number of elements.")
@@ -926,10 +925,9 @@ class MPICommunication(Communication):
         if isinstance(recvbuf, torch.Tensor):
             # Datatype and count shall be derived from the recv buffer, and applied to both, as they should match after the last code block
             rbuf = recvbuf if CUDA_AWARE_MPI else recvbuf.cpu()
-            recvbuf: Tuple[MPI.memory, int, MPI.Datatype] = self.as_buffer(rbuf)
+            recvbuf: Tuple[MPI.memory, int, MPI.Datatype] = self.as_buffer(rbuf, is_contiguous=True)
             if not recvbuf[2].is_predefined:
                 # If using a derived datatype, we need to define the reduce operation to be able to handle the it.
-                print("Not predefined datatype")
                 derived_op = self.__derived_op(rbuf, recvbuf[2], op)
                 op = derived_op
 
@@ -938,8 +936,6 @@ class MPICommunication(Communication):
             sendbuf = (self.as_mpi_memory(sbuf), recvbuf[1], recvbuf[2])
 
         # perform the actual reduction operation
-        print(f"Sendbuf: {sendbuf}")
-        print(f"Recvbuf: {recvbuf}")
         return func(sendbuf, recvbuf, op, **kwargs), sbuf, rbuf, buf
 
     def Allreduce(
@@ -960,7 +956,6 @@ class MPICommunication(Communication):
         op: MPI.Op
             The operation to perform upon reduction
         """
-        print("Here")
         ret, sbuf, rbuf, buf = self.__reduce_like(self.handle.Allreduce, sendbuf, recvbuf, op)
         if buf is not None and isinstance(buf, torch.Tensor) and buf.is_cuda and not CUDA_AWARE_MPI:
             buf.copy_(rbuf)
