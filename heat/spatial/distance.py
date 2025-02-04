@@ -11,7 +11,7 @@ from ..core import factories
 from ..core import types
 from ..core.dndarray import DNDarray
 
-__all__ = ["cdist", "manhattan", "rbf"]
+__all__ = ["cdist", "cdist_small", "manhattan", "rbf"]
 
 
 def _euclidian(x: torch.tensor, y: torch.tensor) -> torch.tensor:
@@ -204,6 +204,40 @@ def manhattan(X: DNDarray, Y: DNDarray = None, expand: bool = False):
         return _dist(X, Y, lambda x, y: _manhattan_fast(x, y))
     else:
         return _dist(X, Y, lambda x, y: _manhattan(x, y))
+
+
+def cdist_small(X: DNDarray, Y: DNDarray, n_smallest: int = 100) -> DNDarray:
+    """
+    Calculate the pairwise distances between two DNDarrays, which has on optimized memory consumption if only
+    the ``n_smallest`` smallest distances are needed. Note that the matrix will is not symmetric as in the usual
+    function cdist.
+
+    Parameters
+    ----------
+    X : DNDarray
+        2D array of size :math: `m \\times f`
+    Y : DNDarray
+        2D array of size :math: `n \\times f`
+    n_smallest : int
+        Number of smallest distances to be calculated
+
+    Returns
+    -------
+    dist_small: DNDarray, shape (m, n_smallest)
+        Distance matrix storing the smallest distances between the elements of ``X`` and ``Y``
+
+    Raises
+    ------
+    ValueError
+        If ``n_smallest`` is larger than the number of elements in ``Y``
+    NotImplementedError
+        If split axes of ``X`` and ``Y`` are not 0
+    """
+    # TODO: Implement the function
+    dist_small = factories.zeros(
+        (X.shape[0], n_smallest), dtype=X.dtype, split=X.split, device=X.device, comm=X.comm
+    )
+    return dist_small
 
 
 def _dist(X: DNDarray, Y: DNDarray = None, metric: Callable = _euclidian) -> DNDarray:
