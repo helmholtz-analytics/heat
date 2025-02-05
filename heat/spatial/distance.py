@@ -206,7 +206,9 @@ def manhattan(X: DNDarray, Y: DNDarray = None, expand: bool = False):
         return _dist(X, Y, lambda x, y: _manhattan(x, y))
 
 
-def cdist_small(X: DNDarray, Y: DNDarray, n_smallest: int = 100) -> DNDarray:
+def cdist_small(
+    X: DNDarray, Y: DNDarray, metric: Callable = _euclidian, n_smallest: int = 100
+) -> DNDarray:
     """
     Calculate the pairwise distances between two DNDarrays, which has on optimized memory consumption if only
     the ``n_smallest`` smallest distances are needed. Note that the matrix will is not symmetric as in the usual
@@ -218,6 +220,8 @@ def cdist_small(X: DNDarray, Y: DNDarray, n_smallest: int = 100) -> DNDarray:
         2D array of size :math: `m \\times f`
     Y : DNDarray
         2D array of size :math: `n \\times f`
+    metric: Callable
+        The distance to be calculated between ``X`` and ``Y``
     n_smallest : int
         Number of smallest distances to be calculated
 
@@ -234,9 +238,84 @@ def cdist_small(X: DNDarray, Y: DNDarray, n_smallest: int = 100) -> DNDarray:
         If split axes of ``X`` and ``Y`` are not 0
     """
     # TODO: Implement the function
+
+    # input sanitation
+    if X.shape[1] != Y.shape[1]:
+        raise ValueError(f"Inputs must have same shape[1], but have {X.shape[1]} and {Y.shape[1]}")
+    valid_metrics = ["_euclidean", "_gaussian", "_manhattan"]
+    if metric.__name__ not in valid_metrics:
+        raise ValueError(f"Inputs must have same shape[1], but have {X.shape[1]} and {Y.shape[1]}")
+
+    # type promotion
+    promoted_type = types.promote_types(X.dtype, Y.dtype)
+    promoted_type = types.promote_types(promoted_type, types.float32)
+    X = X.astype(promoted_type)
+    Y = Y.astype(promoted_type)
+    if promoted_type == types.float32:
+        torch_type = torch.float32
+        mpi_type = MPI.FLOAT
+    elif promoted_type == types.float64:
+        torch_type = torch.float64
+        mpi_type = MPI.DOUBLE
+    else:
+        raise NotImplementedError(f"Datatype {X.dtype} currently not supported as input")
+
+    # setup for MPI communication
+    comm = X.comm
+    rank = comm.Get_rank()
+    size = comm.Get_size()
+    m, f = X.shape
+    xcounts, xdispl, _ = X.comm.counts_displs_shape(X.shape, X.split)
+    ycounts, ydispl, _ = Y.comm.counts_displs_shape(Y.shape, Y.split)
+    num_iter = size
+    x_ = X.larray
+    y_ = Y.larray
+
+    # columns of Y that are assgined to the current process
+    # cols = (ydispl[rank], ydispl[rank + 1] if (rank + 1) != size else n)
+
+    # distance betweeen X and Y that are currently assigned to the same process (before each communication step!)
+    current_dist = metric(x_, y_)
+    # take only the n_smallest distances
+    current_dist = torch.topk(current_dist, n_smallest, largest=False)
+
+    # Communicate the parts of Y between the processes in a circular fashion and keep parts of X fixed.
+    # Reduce memory consumption of the distance matrix with the following strategy (during each communication step):
+    #   1. Caluclate the distances between the parts of X in each process with the part of Y that is sent to
+    #      the same process
+    #   2. Reduce the memory consumption by storing only the n_smallest distances in dist_small
+    #   3. Compare the
+    # circular communication of the parts of Y between the processes
+    for iter in range(1, num_iter):
+        # TODO: how to store the indices?
+        receiver = (rank + iter) % size
+        sender = (rank - iter) % size
+
+        # setup a dynamic buffer to store the part of Y that is sent to the next process
+        stat = MPI.Status()
+        Y.comm.handle.Probe(source=sender, tag=iter, status=stat)
+        count = int(stat.Get_count(mpi_type) / f)
+        dynamic_buffer = torch.zeros((count, f), dtype=torch_type, device=X.device.torch_device)
+
+        # send the part of Y to the next process
+        Y.comm.Recv(dynamic_buffer, source=sender, tag=iter)
+        Y.comm.Send(y_, dest=receiver, tag=iter)
+
+        # TODO: finish the communication of y first before continuing with the calculation of new_dist
+        # distance between the part of X stored in the current process and the newly received part of Y
+        new_dist = metric(x_, y_)
+        # take only the n_smallest distances
+        new_dist = torch.topk(new_dist, n_smallest, largest=False)
+        # compare each entries of the current and the new distances and take smallest ones
+        current_dist = torch.minimum(current_dist, new_dist)
+
+    # initiate the distance matrix
     dist_small = factories.zeros(
         (X.shape[0], n_smallest), dtype=X.dtype, split=X.split, device=X.device, comm=X.comm
     )
+    dist_small.larray[:] = current_dist
+
+    # TODO: indices should be returned as well
     return dist_small
 
 
