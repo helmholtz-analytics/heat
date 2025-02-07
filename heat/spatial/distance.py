@@ -207,7 +207,7 @@ def manhattan(X: DNDarray, Y: DNDarray = None, expand: bool = False):
 
 
 def cdist_small(
-    X: DNDarray, Y: DNDarray, metric: Callable = _euclidian, n_smallest: int = 100
+    X: DNDarray, Y: DNDarray, n_smallest: int = 100, metric: Callable = _euclidian
 ) -> DNDarray:
     """
     Calculate the pairwise distances between two DNDarrays, which has on optimized memory consumption if only
@@ -237,14 +237,26 @@ def cdist_small(
     NotImplementedError
         If split axes of ``X`` and ``Y`` are not 0
     """
-    # TODO: Implement the function
-
     # input sanitation
+    if not isinstance(X, DNDarray) or not isinstance(Y, DNDarray):
+        raise ValueError(f"Inputs must be DNDarrays, but got X = {type(X)} and Y = {type(Y)}")
+    if X.split != 0 or Y.split != 0:
+        raise NotImplementedError(
+            "Currently, only split axis 0 is supported, "
+            f"but got X.split = {X.split} and Y.split = {Y.split}"
+        )
     if X.shape[1] != Y.shape[1]:
-        raise ValueError(f"Inputs must have same shape[1], but have {X.shape[1]} and {Y.shape[1]}")
-    valid_metrics = ["_euclidean", "_gaussian", "_manhattan"]
+        raise ValueError(
+            f"Inputs must have same shape[1], but have X.shape[1]={X.shape[1]} and Y.shape[1]={Y.shape[1]}"
+        )
+    valid_metrics = ["_euclidian", "_gaussian", "_manhattan"]
     if metric.__name__ not in valid_metrics:
-        raise ValueError(f"Inputs must have same shape[1], but have {X.shape[1]} and {Y.shape[1]}")
+        raise ValueError(f"Invalid metric '{metric.__name__}'. Must be one of {valid_metrics}.")
+    if n_smallest > Y.shape[0]:
+        raise ValueError(
+            f"n_smallest must be smaller than the number of elements in Y, but got "
+            f"n_smallest={n_smallest} and Y.shape[0]={Y.shape[0]}. In this case, use the function cdist instead."
+        )
 
     # type promotion
     promoted_type = types.promote_types(X.dtype, Y.dtype)
@@ -267,17 +279,14 @@ def cdist_small(
     m, f = X.shape
     xcounts, xdispl, _ = X.comm.counts_displs_shape(X.shape, X.split)
     ycounts, ydispl, _ = Y.comm.counts_displs_shape(Y.shape, Y.split)
-    num_iter = size
     x_ = X.larray
     y_ = Y.larray
-
-    # columns of Y that are assgined to the current process
-    # cols = (ydispl[rank], ydispl[rank + 1] if (rank + 1) != size else n)
 
     # distance betweeen X and Y that are currently assigned to the same process (before each communication step!)
     current_dist = metric(x_, y_)
     # take only the n_smallest distances
-    current_dist = torch.topk(current_dist, n_smallest, largest=False)
+    current_dist, current_idx = torch.topk(current_dist, n_smallest, largest=False)
+    current_idx += ydispl[rank]
 
     # Communicate the parts of Y between the processes in a circular fashion and keep parts of X fixed.
     # Reduce memory consumption of the distance matrix with the following strategy (during each communication step):
@@ -286,37 +295,53 @@ def cdist_small(
     #   2. Reduce the memory consumption by storing only the n_smallest distances in dist_small
     #   3. Compare the
     # circular communication of the parts of Y between the processes
-    for iter in range(1, num_iter):
-        # TODO: how to store the indices?
+    print(f"process {X.comm.Get_rank()}: Starting iterations...")
+    for iter in range(1, size):
         receiver = (rank + iter) % size
         sender = (rank - iter) % size
 
+        # send the individually stored parts of Y to the next process
+        Y.comm.Isend(y_, dest=receiver, tag=iter)
+
+        print(f"process {X.comm.Get_rank()}: Starting dynamic buffer...")
         # setup a dynamic buffer to store the part of Y that is sent to the next process
         stat = MPI.Status()
+        print(f"process {X.comm.Get_rank()}: stat={stat}")
         Y.comm.handle.Probe(source=sender, tag=iter, status=stat)
+        print(f"process {X.comm.Get_rank()}: Probe done")
         count = int(stat.Get_count(mpi_type) / f)
         dynamic_buffer = torch.zeros((count, f), dtype=torch_type, device=X.device.torch_device)
 
-        # send the part of Y to the next process
-        Y.comm.Recv(dynamic_buffer, source=sender, tag=iter)
-        Y.comm.Send(y_, dest=receiver, tag=iter)
+        # receive the part of Y to the next process
+        Y.comm.Irecv(dynamic_buffer, source=sender, tag=iter)
+        # make sure that the communication is finished
+        # MPI.Request.Waitall([receiving, sending])
 
-        # TODO: finish the communication of y first before continuing with the calculation of new_dist
         # distance between the part of X stored in the current process and the newly received part of Y
-        new_dist = metric(x_, y_)
+        new_dist = metric(x_, dynamic_buffer)
         # take only the n_smallest distances
-        new_dist = torch.topk(new_dist, n_smallest, largest=False)
-        # compare each entries of the current and the new distances and take smallest ones
-        current_dist = torch.minimum(current_dist, new_dist)
+        new_dist, new_idx = torch.topk(new_dist, n_smallest, largest=False)
+        new_idx += ydispl[receiver]
+
+        # compare each entries of the current and new distances and take smallest ones
+        condition = current_dist < new_dist
+        current_dist = torch.where(condition, current_dist, new_dist)
+        current_idx = torch.where(condition, current_idx, new_idx)
 
     # initiate the distance matrix
     dist_small = factories.zeros(
         (X.shape[0], n_smallest), dtype=X.dtype, split=X.split, device=X.device, comm=X.comm
     )
-    dist_small.larray[:] = current_dist
+    # initiate the index matrix
+    indices = factories.zeros(
+        (X.shape[0], n_smallest), dtype=X.dtype, split=X.split, device=X.device, comm=X.comm
+    )
 
-    # TODO: indices should be returned as well
-    return dist_small
+    # assign the local results on each process to the distance and index matrix
+    dist_small.larray[:] = current_dist
+    indices.larray[:] = current_idx
+
+    return dist_small, indices
 
 
 def _dist(X: DNDarray, Y: DNDarray = None, metric: Callable = _euclidian) -> DNDarray:
