@@ -512,7 +512,7 @@ else:
         path: str,
         dataset: str,
         dtype: datatype = types.float32,
-        slices: Optional[Tuple[slice]] = None,
+        slices: Optional[Tuple[Optional[slice], ...]] = None,
         split: Optional[int] = None,
         device: Optional[str] = None,
         comm: Optional[Communication] = None,
