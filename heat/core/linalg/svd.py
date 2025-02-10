@@ -160,9 +160,13 @@ def svd(
     else:
         # this is the non-distributed case
         if compute_uv:
-            U_loc, S_loc, Vt_loc = torch.linalg.svd(A.larray, full_matrices=full_matrices)
+            try:
+                U_loc, S_loc, Vt_loc = torch.linalg.svd(A.larray, full_matrices=full_matrices)
+            except:  # noqa: E722
+                Q, R = torch.linalg.qr(A.larray, mode="reduced")
+                U_loc, S_loc, Vt_loc = torch.linalg.svd(R, full_matrices=full_matrices)
             U = DNDarray(
-                U_loc,
+                Q @ U_loc,
                 tuple(U_loc.shape),
                 dtype=A.dtype,
                 split=None,
