@@ -947,6 +947,7 @@ class MPICommunication(Communication):
 
         if isinstance(recvbuf, torch.Tensor):
             # Datatype and count shall be derived from the recv buffer, and applied to both, as they should match after the last code block
+            buf = recvbuf
             rbuf = recvbuf if CUDA_AWARE_MPI else recvbuf.cpu()
             recvbuf: Tuple[MPI.memory, int, MPI.Datatype] = self.as_buffer(rbuf, is_contiguous=True)
             if not recvbuf[2].is_predefined:
