@@ -168,7 +168,7 @@ def svd(
                     U_loc, S_loc, Vt_loc = torch.linalg.svd(R, full_matrices=full_matrices)
                     U_loc = Q @ U_loc
                 except:  # noqa: E722
-                    Q, R = torch.qr(A.larray.T, mode="reduced")
+                    Q, R = torch.linalg.qr(A.larray.T, mode="reduced")
                     u, S_loc, v = torch.linalg.svd(R, full_matrices=full_matrices)
                     Vt_loc = u.T @ Q.T
                     U_loc = v.T
