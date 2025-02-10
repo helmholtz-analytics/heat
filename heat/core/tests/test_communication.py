@@ -2494,9 +2494,8 @@ class TestCommunication(TestCase):
         with self.assertRaises(NotImplementedError):
             test4.comm.Alltoallv(test4.larray, redistributed4, send_axis=None)
 
-    # The following tests are only for bool data types and two processes to save memory
-    # skip if not exactly two processes
-    @unittest.skipIf(ht.MPI_WORLD.size != 2, "Only for two processes")
+    # The following test is only for the bool data type to save memory
+    # memory requirement: ~16MB * number of processes
     def test_largecount_workaround_IsendRecv(self):
         shape = (2**15, 2**16)
         data = (
@@ -2512,4 +2511,17 @@ class TestCommunication(TestCase):
             buf, ht.MPI_WORLD.rank + 1 if ht.MPI_WORLD.rank < ht.MPI_WORLD.size - 1 else 0
         )
         req.Wait()
-        self.assertTrue(buf.all() if ht.MPI_WORLD.rank % 2 == 0 else not buf.all())
+        self.assertTrue(
+            buf.all()
+            if (ht.MPI_WORLD.rank % 2 == 0 and ht.MPI_WORLD.rank != ht.MPI_WORLD.size - 1)
+            else not buf.all()
+        )
+
+    # the following test is only for two processes to save memory
+    # memory requirement: ~8.5GB * number of processes
+    @unittest.skipIf(ht.MPI_WORLD.size != 2, "Only for two processes")
+    def test_largecount_workaround_Allreduce(self):
+        shape = (2**15, 2**16)
+        data = (ht.MPI_WORLD.rank + 1) * torch.ones(shape, dtype=torch.float32)
+        ht.MPI_WORLD.Allreduce(ht.MPI.IN_PLACE, data, op=ht.MPI.SUM)
+        self.assertTrue((data == (ht.MPI_WORLD.size * (ht.MPI_WORLD.size + 1)) // 2).all())
