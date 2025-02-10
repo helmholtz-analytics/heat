@@ -163,10 +163,17 @@ def svd(
             try:
                 U_loc, S_loc, Vt_loc = torch.linalg.svd(A.larray, full_matrices=full_matrices)
             except:  # noqa: E722
-                Q, R = torch.linalg.qr(A.larray, mode="reduced")
-                U_loc, S_loc, Vt_loc = torch.linalg.svd(R, full_matrices=full_matrices)
+                try:
+                    Q, R = torch.linalg.qr(A.larray, mode="reduced")
+                    U_loc, S_loc, Vt_loc = torch.linalg.svd(R, full_matrices=full_matrices)
+                    U_loc = Q @ U_loc
+                except:  # noqa: E722
+                    Q, R = torch.qr(A.larray.T, mode="reduced")
+                    u, S_loc, v = torch.linalg.svd(R, full_matrices=full_matrices)
+                    Vt_loc = u.T @ Q.T
+                    U_loc = v.T
             U = DNDarray(
-                Q @ U_loc,
+                U_loc,
                 tuple(U_loc.shape),
                 dtype=A.dtype,
                 split=None,
