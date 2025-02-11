@@ -30,34 +30,34 @@ def test_cdist_small():
     """
     Testfunction for the cdist_small function.
     """
-    print("Start test_cdist_small...\n")
-
     # Create toy data
-    X = ht.array([[1.0, 2.0], [3.0, 4.0], [5.0, 5.0], [0.0, 1.0]], split=0)
-    Y = ht.array([[0.0, 0.0], [70.0, 80.0], [200.0, 200.0], [20.0, 20.0], [0.0, 1.0]], split=0)
+    X = ht.array([[1.0, 1.0], [19.0, 19.0], [3.0, 3.0]], split=0)
+    # Y = ht.array([[0.0, 1.0], [0.0, 2.0], [100.0, 10.0], [100.0, 10.0]], split=0)
+    Y = ht.array(
+        [[0.0, 1.0], [100.0, 100.0], [200.0, 200.0], [30.0, 30.0], [20.0, 20.0], [2.0, 0.0]],
+        split=0,
+    )
 
     # Compute pairwise distances with n_smallest = 2
-    print("execute cdist_small...\n")
+    # print("execute cdist_small...\n")
     n_smallest = 2
     dist, indices = distance.cdist_small(X, Y, n_smallest=n_smallest)
-    print("finish executing cdist_small...\n")
+    # print("finish executing cdist_small...\n")
 
-    # Gather results for validation
-    dist_np = dist.numpy()
-    indices_np = indices.numpy()
-
-    print("Distances:\n", dist_np)
-    print("Indices:\n", indices_np)
+    # print("Distances:\n", dist_np)
+    # print("Indices:\n", indices_np)
 
     dist = dist.resplit_(None)
 
     # Manually compute expected distances
-    print("computing expected distances...\n")
+    # print("computing expected distances...\n")
     expected_distances = ht.spatial.cdist(X, Y)
-    print("computing expected indices...\n")
-    expected_dist, expected_idx = ht.topk(expected_distances, n_smallest, largest=False)
+    # print("computing expected indices...\n")
+    expected_dist, expected_idx = ht.topk(
+        expected_distances, n_smallest, largest=False, sorted=False
+    )
 
-    print("validating results...\n")
+    # print("validating results...\n")
     # Validate results
     print(f"process: {ht.MPI_WORLD.rank}, dist={dist}\n expected_dist={expected_dist}")
     print(f"process: {ht.MPI_WORLD.rank}, indices={indices}\n expected_idx={expected_idx}")
@@ -69,3 +69,7 @@ def test_cdist_small():
 
 # Run the test
 test_cdist_small()
+
+# Y = ht.array([[0.0, 1.0], [100.0, 100.0], [200.0, 200.0], [30.0, 30.0], [20.0, 20.0]], split=0)
+# lshap=Y.lshape_map[ht.MPI_WORLD.rank,0]
+# print(f"process: {ht.MPI_WORLD.rank}, lshape={lshap}")
