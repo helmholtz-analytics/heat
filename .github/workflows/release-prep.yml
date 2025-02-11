@@ -95,6 +95,7 @@ jobs:
           gh pr create --base main \
           --head ${{ env.PR_BRANCH }} \
           --title "Heat ${{ env.VERSION }} - Main" \
+          --draft \
           --body "Copy of latest pre-release PR targeting release. 
           DO NOT CHANGE ANYTHING UNTIL "Heat ${{ env.VERSION }} - Release" HAS BEEN MERGED. 
 
