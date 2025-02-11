@@ -30,7 +30,7 @@ In the following, we assume we are about to release Heat v1.5.0.
 
 When the workflow is done, you should see two new pull requests. One targeting `main`, the other one targeting `stable`. Both should be created for the same branch, `pre-release/x.y.z`. The new branch should include changes with the new version number on `version.py`, and an up-to-date `CHANGELOG.md`. For now, ignore the PR targeting main. That PR should only be merged after the release has been merged to `stable`.
 
-2. Ensure that the changes to `version.py` and `CHANGELOG.md` are correct, if not, fix them. 
+2. Ensure that the changes to `version.py` and `CHANGELOG.md` are correct, if not, fix them.
 
 4. If necessary, also update the Requirements section on README.md to reflect the latest version of the dependencies.
 
