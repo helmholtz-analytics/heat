@@ -22,9 +22,9 @@ In the following, we assume we are about to release Heat v1.5.0.
 
 1. Got to [this GH Action](https://github.com/helmholtz-analytics/heat/actions/workflows/release-prep.yml) and start a new manual workflow.
 
-  1. Use workflow from should always be main.
+  1. `Use workflow from` should always be `main`.
   2. Change the version number to the next release (1.5.0) in this case.
-  3. Because this is a mayor or minor release, the base branch should be `main`.
+  3. Because this is a major or minor release, the base branch should be `main`.
   4. Change the title, if you want to give the release a special name.
   5. Run the workflow.
 
@@ -97,7 +97,7 @@ Go to the main repo page, and then to releases (right panel). There should be a 
 
   1. Use workflow from should always be main.
   2. Change the version number to the next release (1.5.1) in this case.
-  3. Because this is a mayor or minor release, the base branch should be `stable`.
+  3. Because this is a patch release, the base branch should be `stable`.
   4. Change the title, if you want to give the release a special name.
   5. Run the workflow.
 

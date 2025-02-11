@@ -81,11 +81,11 @@ jobs:
           --head ${{ env.PR_BRANCH }} \
           --title "Heat ${{ env.VERSION }} - Release" \
           --body "Pre-release branch for Heat ${{ env.VERSION }}.
-          Any release work should be done on this branch, and then merged into the release branch and main, following git-flow guidelines.
+          Any release work should be done on this branch, and then merged into `stable` and `main`, following git-flow guidelines.
 
           TODO:
           - [x] Update version.py
-          - [ ] Ensure Citation file is up to date.
+          - [ ] Ensure Citation file `CITATION.cff` is up to date.
           - [ ] Ensure the Changelog is up to date.
 
           DO NOT DELETE BRANCH AFTER MERGING!" \
@@ -96,7 +96,7 @@ jobs:
           --head ${{ env.PR_BRANCH }} \
           --title "Heat ${{ env.VERSION }} - Main" \
           --body "Copy of latest pre-release PR targeting release. 
-          DO NOT CHANGE ANYTHING UNTIL THE RELEASE BRANCH HAS BEEN MERGED. 
+          DO NOT CHANGE ANYTHING UNTIL "Heat ${{ env.VERSION }} - Release" HAS BEEN MERGED. 
 
           TODO:
           - [ ] Make sure version.py is updated to reflect the dev version.
