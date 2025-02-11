@@ -17,7 +17,7 @@ class TestRelational(TestCase):
         cls.a_split_tensor = cls.another_tensor.copy().resplit_(0)
         cls.split_ones_tensor = ht.ones((2, 2), split=1)
 
-        cls.errorneous_type = (2, 2)
+        cls.erroneous_type = (2, 2)
 
     def test_eq(self):
         result = ht.array([[False, True], [False, False]])
@@ -33,7 +33,7 @@ class TestRelational(TestCase):
         self.assertEqual(ht.eq(self.a_split_tensor, self.a_tensor).dtype, ht.bool)
 
         self.assertFalse(ht.eq(self.a_tensor, self.another_vector))
-        self.assertFalse(ht.eq(self.a_tensor, self.errorneous_type))
+        self.assertFalse(ht.eq(self.a_tensor, self.erroneous_type))
         self.assertFalse(ht.eq("self.a_tensor", "s"))
 
     def test_equal(self):
@@ -75,7 +75,7 @@ class TestRelational(TestCase):
         with self.assertRaises(ValueError):
             ht.ge(self.a_tensor, self.another_vector)
         with self.assertRaises(TypeError):
-            ht.ge(self.a_tensor, self.errorneous_type)
+            ht.ge(self.a_tensor, self.erroneous_type)
         with self.assertRaises(TypeError):
             ht.ge("self.a_tensor", "s")
 
@@ -96,7 +96,7 @@ class TestRelational(TestCase):
         with self.assertRaises(ValueError):
             ht.gt(self.a_tensor, self.another_vector)
         with self.assertRaises(TypeError):
-            ht.gt(self.a_tensor, self.errorneous_type)
+            ht.gt(self.a_tensor, self.erroneous_type)
         with self.assertRaises(TypeError):
             ht.gt("self.a_tensor", "s")
 
@@ -117,7 +117,7 @@ class TestRelational(TestCase):
         with self.assertRaises(ValueError):
             ht.le(self.a_tensor, self.another_vector)
         with self.assertRaises(TypeError):
-            ht.le(self.a_tensor, self.errorneous_type)
+            ht.le(self.a_tensor, self.erroneous_type)
         with self.assertRaises(TypeError):
             ht.le("self.a_tensor", "s")
 
@@ -138,7 +138,7 @@ class TestRelational(TestCase):
         with self.assertRaises(ValueError):
             ht.lt(self.a_tensor, self.another_vector)
         with self.assertRaises(TypeError):
-            ht.lt(self.a_tensor, self.errorneous_type)
+            ht.lt(self.a_tensor, self.erroneous_type)
         with self.assertRaises(TypeError):
             ht.lt("self.a_tensor", "s")
 
@@ -157,5 +157,5 @@ class TestRelational(TestCase):
         self.assertEqual(ht.ne(self.a_split_tensor, self.a_tensor).dtype, ht.bool)
 
         self.assertTrue(ht.ne(self.a_tensor, self.another_vector))
-        self.assertTrue(ht.ne(self.a_tensor, self.errorneous_type))
+        self.assertTrue(ht.ne(self.a_tensor, self.erroneous_type))
         self.assertTrue(ht.ne("self.a_tensor", "s"))
