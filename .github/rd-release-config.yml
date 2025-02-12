@@ -94,11 +94,12 @@ autolabeler:
   - label: 'docker'
     files:
       - 'docker/**/*'
-  - label: 'backport release'
+  - label: 'backport stable'
     title:
       - '/bug/i'
       - '/resolve/i'
       - '/fix/i'
+      - '/\[pre\-commit\.ci\]/i'
     branch:
       - '/bug/i'
       - '/fix/i'
