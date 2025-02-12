@@ -579,10 +579,6 @@ else:
             new_gshape = tuple()
             offsets = [0] * len(gshape)
             if slices is not None:
-                if len(slices) != len(gshape):
-                    raise ValueError(
-                        f"Number of slices ({len(slices)}) does not match the number of dimensions ({len(gshape)})"
-                    )
                 for i, s in enumerate(slices):
                     if s:
                         if s.step is not None and s.step != 1:
