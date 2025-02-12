@@ -920,9 +920,8 @@ class TestIO(TestCase):
             (slice(None, None, None), slice(2, 4, None)),
             (slice(50), None),
             (None, slice(0, 3, 2)),
-            (slice(50),)(
-                slice(50, 100),
-            ),
+            (slice(50),),
+            (slice(50, 100),),
         ]
         test_cases = [(a, s) for a in test_axis for s in test_slices]
 
