@@ -99,6 +99,7 @@ autolabeler:
       - '/bug/i'
       - '/resolve/i'
       - '/fix/i'
+      - '/\[pre\-commit\.ci\]/i'
     branch:
       - '/bug/i'
       - '/fix/i'
