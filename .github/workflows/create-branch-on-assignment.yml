@@ -10,7 +10,12 @@ jobs:
   create_issue_branch_job:
     runs-on: ubuntu-latest
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@cb605e52c26070c328afc4562f0b4ada7618a84e # v2.10.4
+        with:
+          egress-policy: audit
+
       - name: Create Issue Branch
-        uses: robvanderleek/create-issue-branch@main
+        uses: robvanderleek/create-issue-branch@d44e1ee3a3b9301dde1dcf8f20c72d08f646f101 # main
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -3,7 +3,7 @@ Module implementing basic data preprocessing techniques
 """
 
 import heat as ht
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Union
 
 try:
     from typing import Self
@@ -115,7 +115,7 @@ class StandardScaler(ht.TransformMixin, ht.BaseEstimator):
         self.scale_ = 1.0 / (self.scale_) ** 0.5
         return self
 
-    def transform(self, X: ht.DNDarray) -> ht.DNDarray:
+    def transform(self, X: ht.DNDarray) -> Union[Self, ht.DNDarray]:
         """Applies standardization to input data ``X`` by centering and scaling w.r.t. mean and std previously computed and saved in ``StandardScaler`` with :meth:``fit``.
 
         Parameters
@@ -129,12 +129,12 @@ class StandardScaler(ht.TransformMixin, ht.BaseEstimator):
         _has_n_features(self.mean_, X)
         if self.copy:
             return (X - self.mean_) * self.scale_
-        # else in place:
+        # else in-place:
         X -= self.mean_
         X *= self.scale_
-        return X
+        return self
 
-    def inverse_transform(self, Y: ht.DNDarray) -> ht.DNDarray:
+    def inverse_transform(self, Y: ht.DNDarray) -> Union[Self, ht.DNDarray]:
         """
         Scale back the data to the original representation, i.e. apply the inverse of :meth:``transform`` to the input ``Y``.
 
@@ -152,7 +152,7 @@ class StandardScaler(ht.TransformMixin, ht.BaseEstimator):
         # else in-place:
         Y /= self.scale_
         Y += self.mean_
-        return Y
+        return self
 
 
 class MinMaxScaler(ht.TransformMixin, ht.BaseEstimator):
@@ -240,7 +240,7 @@ class MinMaxScaler(ht.TransformMixin, ht.BaseEstimator):
         self.min_ = -self.data_min_ * self.scale_ + self.feature_range[0]
         return self
 
-    def transform(self, X: ht.DNDarray) -> ht.DNDarray:
+    def transform(self, X: ht.DNDarray) -> Union[Self, ht.DNDarray]:
         """
         Transform input data with MinMaxScaler: i.e. scale features of ``X`` according to feature_range.
 
@@ -258,9 +258,9 @@ class MinMaxScaler(ht.TransformMixin, ht.BaseEstimator):
         X -= self.data_min_
         X *= self.scale_
         X += self.feature_range[0]
-        return X
+        return self
 
-    def inverse_transform(self, Y: ht.DNDarray) -> ht.DNDarray:
+    def inverse_transform(self, Y: ht.DNDarray) -> Union[Self, ht.DNDarray]:
         """
         Apply the inverse of :meth:``fit``.
 
@@ -278,7 +278,7 @@ class MinMaxScaler(ht.TransformMixin, ht.BaseEstimator):
         Y -= self.feature_range[0]
         Y /= self.scale_
         Y += self.data_min_
-        return Y
+        return self
 
 
 class Normalizer(ht.TransformMixin, ht.BaseEstimator):
@@ -324,7 +324,7 @@ class Normalizer(ht.TransformMixin, ht.BaseEstimator):
         """Since :object:``Normalizer`` is stateless, this function is only a dummy."""
         return self
 
-    def transform(self, X: ht.DNDarray) -> ht.DNDarray:
+    def transform(self, X: ht.DNDarray) -> Union[Self, ht.DNDarray]:
         """
         Apply Normalizer trasformation: scales each data point of the input data set ``X`` to unit norm (w.r.t. to ``norm``).
 
@@ -352,7 +352,7 @@ class Normalizer(ht.TransformMixin, ht.BaseEstimator):
         # else in-place:
         X /= X_norms
         del X_norms
-        return X
+        return self
 
 
 class MaxAbsScaler(ht.TransformMixin, ht.BaseEstimator):
@@ -404,7 +404,7 @@ class MaxAbsScaler(ht.TransformMixin, ht.BaseEstimator):
         self.scale_ = 1.0 / self.scale_
         return self
 
-    def transform(self, X: ht.DNDarray) -> ht.DNDarray:
+    def transform(self, X: ht.DNDarray) -> Union[Self, ht.DNDarray]:
         """
         Scale the data with the MaxAbsScaler.
 
@@ -420,9 +420,9 @@ class MaxAbsScaler(ht.TransformMixin, ht.BaseEstimator):
             return Y
         # else in-place:
         X *= self.scale_
-        return X
+        return self
 
-    def inverse_transform(self, Y: ht.DNDarray) -> ht.DNDarray:
+    def inverse_transform(self, Y: ht.DNDarray) -> Union[Self, ht.DNDarray]:
         """
         Apply the inverse of :meth:``transform``, i.e. scale the input data ``Y`` back to the original representation.
 
@@ -438,7 +438,7 @@ class MaxAbsScaler(ht.TransformMixin, ht.BaseEstimator):
             return X
         # else in-place:
         Y /= self.scale_
-        return Y
+        return self
 
 
 class RobustScaler(ht.TransformMixin, ht.BaseEstimator):
@@ -447,6 +447,10 @@ class RobustScaler(ht.TransformMixin, ht.BaseEstimator):
     that are robust to outliers: it removes the median and scales the data according to
     the quantile range (defaults to IQR: Interquartile Range); this routine is similar
     to ``sklearn.preprocessing.RobustScaler``.
+
+    Per default, the "true" median and IQR of the entire data set is computed; however, the argument
+    `sketched` allows to switch to a faster but inaccurate version that computes
+    median and IQR only on behalf of a random subset of the data set ("sketch") of size `sketch_size`.
 
     The underyling data set to be scaled must be stored as a 2D-`DNDarray` of shape (n_datapoints, n_features).
     Each feature is centered and scaled independently.
@@ -470,6 +474,14 @@ class RobustScaler(ht.TransformMixin, ht.BaseEstimator):
     unit_variance : not yet supported.
         raises ``NotImplementedError``
 
+    sketched : bool, default=False
+        If `True`, use a sketch of the data set to compute the median and IQR.
+        This is faster but less accurate. The size of the sketch is determined by the argument `sketch_size`.
+
+    sketch_size : float, default=1./ht.MPI_WORLD.size
+        Fraction of the data set to be used for the sketch if `sketched=True`. The default value is 1/N, where N is the number of MPI processes.
+        Ignored if `sketched=False`.
+
     Attributes
     ----------
     center_ : DNDarray of shape (n_features,)
@@ -490,11 +502,15 @@ class RobustScaler(ht.TransformMixin, ht.BaseEstimator):
         quantile_range: Tuple[float, float] = (25.0, 75.0),
         copy: bool = True,
         unit_variance: bool = False,
+        sketched: bool = False,
+        sketch_size: Optional[float] = 1.0 / ht.MPI_WORLD.size,
     ):
         self.with_centering = with_centering
         self.with_scaling = with_scaling
         self.quantile_range = quantile_range
         self.copy = copy
+        self.sketched = sketched
+        self.sketch_size = sketch_size
         if not with_centering and not with_scaling:
             raise ValueError(
                 "Both centering and scaling are disabled, thus RobustScaler could do nothing. At least one of with_scaling or with_centering must be True."
@@ -525,10 +541,22 @@ class RobustScaler(ht.TransformMixin, ht.BaseEstimator):
         """
         _is_2D_float_DNDarray(X)
         if self.with_centering:
-            self.center_ = ht.median(X, axis=0)
+            self.center_ = ht.median(
+                X, axis=0, sketched=self.sketched, sketch_size=self.sketch_size
+            )
         if self.with_scaling:
-            self.iqr_ = ht.percentile(X, self.quantile_range[1], axis=0) - ht.percentile(
-                X, self.quantile_range[0], axis=0
+            self.iqr_ = ht.percentile(
+                X,
+                self.quantile_range[1],
+                axis=0,
+                sketched=self.sketched,
+                sketch_size=self.sketch_size,
+            ) - ht.percentile(
+                X,
+                self.quantile_range[0],
+                axis=0,
+                sketched=self.sketched,
+                sketch_size=self.sketch_size,
             )
 
             # if length of iqr is close to zero, do not scale this feature
@@ -544,7 +572,7 @@ class RobustScaler(ht.TransformMixin, ht.BaseEstimator):
             self.scale_ = 1.0 / self.scale_
         return self
 
-    def transform(self, X: ht.DNDarray) -> ht.DNDarray:
+    def transform(self, X: ht.DNDarray) -> Union[Self, ht.DNDarray]:
         """
         Transform given data with RobustScaler
 
@@ -572,7 +600,7 @@ class RobustScaler(ht.TransformMixin, ht.BaseEstimator):
             X *= self.scale_
         return X
 
-    def inverse_transform(self, Y: ht.DNDarray) -> ht.DNDarray:
+    def inverse_transform(self, Y: ht.DNDarray) -> Union[Self, ht.DNDarray]:
         """
         Apply inverse of :meth:``transform``.
 

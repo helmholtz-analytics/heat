@@ -52,7 +52,7 @@ def abs(
     if dtype is not None and not issubclass(dtype, dtype):
         raise TypeError("dtype must be a heat data type")
 
-    absolute_values = _operations.__local_op(torch.abs, x, out)
+    absolute_values = _operations.__local_op(torch.abs, x, out, no_cast=True)
     if dtype is not None:
         absolute_values.larray = absolute_values.larray.type(dtype.torch_type())
         absolute_values._DNDarray__dtype = dtype
@@ -60,9 +60,9 @@ def abs(
     return absolute_values
 
 
-DNDarray.abs: Callable[
-    [DNDarray, Optional[DNDarray], Optional[datatype]], DNDarray
-] = lambda self, out=None, dtype=None: abs(self, out, dtype)
+DNDarray.abs: Callable[[DNDarray, Optional[DNDarray], Optional[datatype]], DNDarray] = (
+    lambda self, out=None, dtype=None: abs(self, out, dtype)
+)
 DNDarray.abs.__doc__ = abs.__doc__
 
 
@@ -87,9 +87,9 @@ def absolute(
     return abs(x, out, dtype)
 
 
-DNDarray.absolute: Callable[
-    [DNDarray, Optional[DNDarray], Optional[datatype]], DNDarray
-] = lambda self, out=None, dtype=None: absolute(self, out, dtype)
+DNDarray.absolute: Callable[[DNDarray, Optional[DNDarray], Optional[datatype]], DNDarray] = (
+    lambda self, out=None, dtype=None: absolute(self, out, dtype)
+)
 DNDarray.absolute.__doc__ = absolute.__doc__
 
 
@@ -181,7 +181,11 @@ def fabs(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
         If not provided or ``None``, a freshly-allocated array is returned.
 
     """
-    return abs(x, out, dtype=None)
+    if isinstance(x, DNDarray):
+        dtype = types.promote_types(x.dtype, types.float32)
+    else:
+        dtype = types.float32
+    return abs(x, out, dtype=dtype)
 
 
 DNDarray.fabs: Callable[[DNDarray, Optional[DNDarray]], DNDarray] = lambda self, out=None: fabs(
@@ -330,9 +334,9 @@ def round(
     return rounded_values
 
 
-DNDarray.round: Callable[
-    [DNDarray, int, Optional[DNDarray], Optional[datatype]], DNDarray
-] = lambda self, decimals=0, out=None, dtype=None: round(self, decimals, out, dtype)
+DNDarray.round: Callable[[DNDarray, int, Optional[DNDarray], Optional[datatype]], DNDarray] = (
+    lambda self, decimals=0, out=None, dtype=None: round(self, decimals, out, dtype)
+)
 DNDarray.round.__doc__ = round.__doc__
 
 

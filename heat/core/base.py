@@ -63,7 +63,7 @@ class BaseEstimator:
         indent : int, default: 1
             Indicates the indentation for the top-level output.
         """
-        return "{}({})".format(self.__class__.__name__, json.dumps(self.get_params(), indent=4))
+        return f"{self.__class__.__name__}({json.dumps(self.get_params(), indent=4)})"
 
     def set_params(self, **params: Dict[str, object]) -> self:
         """

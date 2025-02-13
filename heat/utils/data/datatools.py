@@ -83,7 +83,8 @@ class DataLoader:
                 f"dataset must be a torch Dataset, heat Dataset, heat PartialH5Dataset, currently: {type(dataset)}"
             )
         self.dataset = dataset
-        self.ishuffle = self.dataset.ishuffle
+        if hasattr(self.dataset, "ishuffle"):
+            self.ishuffle = self.dataset.ishuffle
         if isinstance(self.dataset, partial_dataset.PartialH5Dataset):
             drop_last = True
 
@@ -110,7 +111,7 @@ class DataLoader:
         """
         if isinstance(self.dataset, partial_dataset.PartialH5Dataset):
             return partial_dataset.PartialH5DataLoaderIter(self)
-        if hasattr(self, "_full_dataset_shuffle_iter"):
+        if hasattr(self, "_full_dataset_shuffle_iter") and hasattr(self.dataset, "ishuffle"):
             # if it is a normal heat dataset then this is defined
             self._full_dataset_shuffle_iter()
         return self.DataLoader.__iter__()

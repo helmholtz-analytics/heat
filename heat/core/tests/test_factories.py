@@ -106,6 +106,9 @@ class TestFactories(TestCase):
         # make an in direct check for the sequence, compare against the gaussian sum
         self.assertEqual(three_arg_arange_dtype_float64.sum(axis=0, keepdims=True), 20.0)
 
+        check_precision = ht.arange(16777217.0, 16777218, 1, dtype=ht.float64)
+        self.assertEqual(check_precision.sum(), 16777217)
+
         # exceptions
         with self.assertRaises(ValueError):
             ht.arange(-5, 3, split=1)
@@ -142,6 +145,8 @@ class TestFactories(TestCase):
                 == torch.tensor(tuple_data, dtype=torch.int8, device=self.device.torch_device)
             ).all()
         )
+        check_precision = ht.array(16777217.0, dtype=ht.float64)
+        self.assertEqual(check_precision.sum(), 16777217)
 
         # basic array function, unsplit data, no copy
         torch_tensor = torch.tensor([6, 5, 4, 3, 2, 1], device=self.device.torch_device)
@@ -199,6 +204,69 @@ class TestFactories(TestCase):
                 dndarray_2d.larray == torch.tensor([1.0, 2.0, 3.0], device=self.device.torch_device)
             ).all()
         )
+
+        # distributed array, chunk local data (split), copy False, torch devices
+        array_2d = torch.tensor(
+            [[1.0, 2.0, 3.0], [1.0, 2.0, 3.0], [1.0, 2.0, 3.0]],
+            dtype=torch.double,
+            device=self.device.torch_device,
+        )
+        dndarray_2d = ht.array(array_2d, split=0, copy=False, dtype=ht.double)
+        self.assertIsInstance(dndarray_2d, ht.DNDarray)
+        self.assertEqual(dndarray_2d.dtype, ht.float64)
+        self.assertEqual(dndarray_2d.gshape, (3, 3))
+        self.assertEqual(len(dndarray_2d.lshape), 2)
+        self.assertLessEqual(dndarray_2d.lshape[0], 3)
+        self.assertEqual(dndarray_2d.lshape[1], 3)
+        self.assertEqual(dndarray_2d.split, 0)
+        self.assertTrue(
+            (
+                dndarray_2d.larray == torch.tensor([1.0, 2.0, 3.0], device=self.device.torch_device)
+            ).all()
+        )
+        # Check that the array is not a copy, (only really works when the array is not split)
+        if ht.communication.MPI_WORLD.size == 1:
+            self.assertIs(dndarray_2d.larray, array_2d)
+
+        # The array should not change as all properties match
+        dndarray_2d_new = ht.array(dndarray_2d, split=0, copy=False, dtype=ht.double)
+        self.assertIsInstance(dndarray_2d_new, ht.DNDarray)
+        self.assertEqual(dndarray_2d_new.dtype, ht.float64)
+        self.assertEqual(dndarray_2d_new.gshape, (3, 3))
+        self.assertEqual(len(dndarray_2d_new.lshape), 2)
+        self.assertLessEqual(dndarray_2d_new.lshape[0], 3)
+        self.assertEqual(dndarray_2d_new.lshape[1], 3)
+        self.assertEqual(dndarray_2d_new.split, 0)
+        self.assertTrue(
+            (
+                dndarray_2d.larray == torch.tensor([1.0, 2.0, 3.0], device=self.device.torch_device)
+            ).all()
+        )
+        # Reuse the same array
+        self.assertIs(dndarray_2d_new.larray, dndarray_2d.larray)
+
+        # Should throw exeception because of resplit it causes a resplit
+        with self.assertRaises(ValueError):
+            dndarray_2d_new = ht.array(dndarray_2d, split=1, copy=False, dtype=ht.double)
+
+        # The array should not change as all properties match
+        dndarray_2d_new = ht.array(dndarray_2d, is_split=0, copy=False, dtype=ht.double)
+        self.assertIsInstance(dndarray_2d_new, ht.DNDarray)
+        self.assertEqual(dndarray_2d_new.dtype, ht.float64)
+        self.assertEqual(dndarray_2d_new.gshape, (3, 3))
+        self.assertEqual(len(dndarray_2d_new.lshape), 2)
+        self.assertLessEqual(dndarray_2d_new.lshape[0], 3)
+        self.assertEqual(dndarray_2d_new.lshape[1], 3)
+        self.assertEqual(dndarray_2d_new.split, 0)
+        self.assertTrue(
+            (
+                dndarray_2d.larray == torch.tensor([1.0, 2.0, 3.0], device=self.device.torch_device)
+            ).all()
+        )
+
+        # Should throw exeception because of array is split along another dimension
+        with self.assertRaises(ValueError):
+            dndarray_2d_new = ht.array(dndarray_2d, is_split=1, copy=False, dtype=ht.double)
 
         # distributed array, partial data (is_split)
         if ht.communication.MPI_WORLD.rank == 0:
@@ -341,7 +409,7 @@ class TestFactories(TestCase):
         arr = np.array([1, 2, 3, 4])
         asarr = ht.asarray(arr)
 
-        self.assertTrue(np.alltrue(np.equal(asarr.numpy(), arr)))
+        self.assertTrue(np.all(np.equal(asarr.numpy(), arr)))
 
         asarr[0] = 0
         if asarr.device == ht.cpu:
@@ -664,6 +732,8 @@ class TestFactories(TestCase):
 
         zero_samples = ht.linspace(-3, 5, num=0)
         self.assertEqual(zero_samples.size, 0)
+        check_precision = ht.linspace(0.0, 16777217.0, num=2, dtype=torch.float64)
+        self.assertEqual(check_precision.sum(), 16777217)
 
         # simple inverse linear space
         descending = ht.linspace(-5, 3, num=100)
