@@ -2518,7 +2518,7 @@ class TestCommunication(TestCase):
         )
 
     # the following test is only for two processes to save memory
-    # memory requirement: ~8.5GB * number of processes
+    # memory requirement: ~16MB * number of processes
     @unittest.skipIf(ht.MPI_WORLD.size != 2, "Only for two processes")
     def test_largecount_workaround_Allreduce(self):
         shape = (2**10, 2**11, 2**10)
