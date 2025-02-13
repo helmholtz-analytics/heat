@@ -579,8 +579,10 @@ else:
             new_gshape = tuple()
             offsets = [0] * len(gshape)
             if slices is not None:
-                for i, s in enumerate(slices):
-                    if s:
+                for i in range(len(gshape)):
+
+                    if i < len(slices) and slices[i]:
+                        s = slices[i]
                         if s.step is not None and s.step != 1:
                             raise ValueError("Slices with step != 1 are not supported")
                         new_axis_size, offset = size_from_slice(gshape[i], s)
