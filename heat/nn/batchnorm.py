@@ -1,6 +1,7 @@
 """
 This file is for the BatchNorm classes for heat..
 """
+
 import torch
 from torch.autograd.function import Function
 import torch.nn.functional as F
