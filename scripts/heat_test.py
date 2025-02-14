@@ -1,4 +1,4 @@
-""" Test script for MPI & Heat installation """
+"""Test script for MPI & Heat installation"""
 
 import heat as ht
 
