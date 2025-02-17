@@ -34,7 +34,7 @@ When the workflow is done, you should see two new pull requests. One targeting `
 
 4. If necessary, also update the Requirements section on README.md to reflect the latest version of the dependencies.
 
-5. Update `CITATION.cff` if needed, i.e. add names of non-core contributors (they are included in the Release notes draft you just created). Push to `workflows/version-update`.
+5. Update `CITATION.cff` if needed, i.e. add names of non-core contributors (they are included in the Release notes draft you just created).
 
 6. Once the changes are done, merge the pull request.
   - ONLY MERGE THE PR FOR `stable`
