@@ -1,3 +1,21 @@
+# v1.5.1 - Heat 1.5.1
+## Changes
+
+- #1791 [Backport stable] ,  now allow non-array operands (by @[github-actions[bot]](https://github.com/apps/github-actions))
+- #1790 [Backport stable] Fixed precision loss in several functions when dtype is float64 (by @[github-actions[bot]](https://github.com/apps/github-actions))
+- #1764 [Backport release/1.5.x] Bug fix: printing non-distributed data  (by @[github-actions[bot]](https://github.com/apps/github-actions))
+- #1750 [Backport release/1.5.x] Linters  will no longer format tutorials (by @[github-actions[bot]](https://github.com/apps/github-actions))
+- #1745 [Backport release/1.5.x] make it easier to get to GitHub from the docs (by @[github-actions[bot]](https://github.com/apps/github-actions))
+- #1743 [Backport release/1.5.x] Modernise setup.py configuration (by @[github-actions[bot]](https://github.com/apps/github-actions))
+- #1708 [Backport release/1.5.x] Documentation updates after new release (by @[github-actions[bot]](https://github.com/apps/github-actions))
+- #1706 Support PyTorch 2.5.1 (#1701) (by @mtar)
+- #1698 [Backport release/1.5.x] Added Dalcin et al 2018 reference to  (by @[github-actions[bot]](https://github.com/apps/github-actions))
+
+## Contributors
+
+@ClaudiaComito, @JuanPedroGHM, @github-actions[bot], @joernhees, @mrfh92, @mtar and [github-actions[bot]](https://github.com/apps/github-actions)
+
+
 # v1.5.0
 
 ## Changes
