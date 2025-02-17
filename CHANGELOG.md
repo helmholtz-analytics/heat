@@ -3,6 +3,7 @@
 
 ### Compatibility
 - #1706 Support PyTorch 2.5.1 (#1701) (by @mtar)
+- #1775 Support PyTorch 2.6.0 (#1775) (by @mrfh92)
 
 ### Bug Fixes
 - #1791 `heat.eq`, `heat.ne` now allow non-array operands (by @[github-actions[bot]](https://github.com/apps/github-actions))
