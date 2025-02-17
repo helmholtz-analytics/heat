@@ -827,14 +827,16 @@ class TestLinalgBasics(TestCase):
                 a = ht.zeros((3, 3, 3), split=0)
                 b = ht.zeros((4, 3, 3), split=0)
                 ht.matmul(a, b)
-            # not implemented split
-            """
-            todo
+            # split along different batch dimension
             with self.assertRaises(NotImplementedError):
-                a = ht.zeros((3, 3, 3))
-                b = ht.zeros((3, 3, 3))
+                a = ht.zeros((4, 3, 3, 3), split=0)
+                b = ht.zeros((4, 3, 3, 3), split=1)
                 ht.matmul(a, b)
-            """
+            # batched matrix-vector multiplication
+            with self.assertRaises(NotImplementedError):
+                a = ht.zeros((3, 3, 3), split=0)
+                b = ht.zeros((3, 3), split=0)
+                ht.matmul(a, b)
 
             # batched, split batch
             n = 11  # number of batches
