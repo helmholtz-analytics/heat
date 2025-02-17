@@ -31,7 +31,7 @@ CUDA_AWARE_MPI = CUDA_AWARE_MPI or os.environ.get("PSP_CUDA") == "1"
 # warn the user if CUDA-aware MPI is not available, but PyTorch can use GPUs
 if torch.cuda.is_available() and not CUDA_AWARE_MPI:
     warnings.warn(
-        f"PyTorch has GPU-support ({torch.__version__}), but CUDA-awareness of MPI could not be detected. \n This may lead to performance degradation as direct MPI-communication between GPUs is not possible.",
+        f"Heat has GPU-support (PyTorch version {torch.__version__}), but CUDA-awareness of MPI could not be detected. \n This may lead to performance degradation as direct MPI-communication between GPUs is not possible.",
         UserWarning,
     )
 
