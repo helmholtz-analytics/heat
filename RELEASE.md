@@ -18,52 +18,38 @@ In the following, we assume we are about to release Heat v1.5.0.
 - You need [PyPi](https://pypi.org/), [Test.PyPi](https://test.pypi.org/) account
 - All intended PRs are merged, all tests have passed, and the `main` branch is ready for release.
 
-1. We will release all new features in the development branch `main`. Branch off  `main` to create a new release branch, e.g.:
+**Create Pre-release Branch**
 
-```bash
-git checkout main
-git pull
-git checkout -b release/1.5.x
-```
+1. Got to [this GH Action](https://github.com/helmholtz-analytics/heat/actions/workflows/release-prep.yml) and start a new manual workflow.
 
-2. Create a new branch off `release/1.5.x` and update the version number in `heat/core/version.py`:
+    a. `Use workflow from` should always be `main`.
 
-```bash
-git checkout release/1.5.x
-git pull
-git checkout -b workflows/version-update
-```
+    b. Set the version number to the next release (1.5.0) in this case.
 
+    c. Because this is a major or minor release, the base branch should be `main`.
 
+    d. Change the title, if you want to give the release a special name.
 
-Update `heat/core/version.py` like this:
+    e. Run the workflow.
 
-```python
-"""This module contains Heat's version information."""
+When the workflow is done, you should see two new pull requests. One targeting `main`, the other one targeting `stable`. Both should be created for the same branch, `pre-release/x.y.z`. The new branch should include changes with the new version number on `version.py`, and an up-to-date `CHANGELOG.md`. For now, **ignore the PR targeting `main`**. That PR should only be merged after the release has been merged to `stable`.
 
-major: int = 1
-"""Indicates Heat's main version."""
-minor: int = 4 # <-- update to 5
-"""Indicates feature extension."""
-micro: int = 2 # <-- update to 0
-"""Indicates revisions for bugfixes."""
-extension: str = "dev" # <-- set to None
-"""Indicates special builds, e.g. for specific hardware."""
-```
+2. Ensure that the changes to `version.py` and `CHANGELOG.md` are correct, if not, fix them.
 
-3. Commit and push new `version.py` in `workflows/version-update`.
+3. If necessary, also update the Requirements section on README.md to reflect the latest version of the dependencies.
 
-4. If necessary, also update the Requirements section on README.md to reflect the latest version of the dependencies.
+4. Update `CITATION.cff` if needed, i.e. add names of non-core contributors (they are included in the Release notes draft you just created).
 
-5. Update `CITATION.cff` if needed, i.e. add names of non-core contributors (they are included in the Release notes draft you just created). Push to `workflows/version-update`.
-
-6. Create a pull request from `workflows/version-update` to `release/1.5.x`
-
-  - Remember to get a reviewers approval.
+5. Once the changes are done:
+  - Get a reviewers approval.
+  - ONLY MERGE THE PR FOR `stable`
+  - DO NOT DELETE THE BRANCH AFTERWARDS.
   - Wait for the tests to finish.
   - Squash and merge.
 
-7. Draft release notes:
+Go to the main repo page, and then to releases (right panel). There should be a draft release with the changes made by the latest release.
+
+6. Draft release notes:
 
   - Go to the GitHub repo's [Releases](https://github.com/helmholtz-analytics/heat/releases) page.
   - The release notes draft is automated. Click on Edit Draft
@@ -71,7 +57,8 @@ extension: str = "dev" # <-- set to None
   - Edit release notes as needed (see older releases)
   - Click on Save **but do not publish yet**
 
-8. Build wheel in your local `heat/` directory, make sure you are on branch `release/1.5.x`.
+7. On your local machine, fetch all the changes from origin, checkout the `stable` branch.
+8. Build wheel in your local `heat/` directory.
 
    ```bash
    rm -f dist/*
@@ -99,50 +86,28 @@ extension: str = "dev" # <-- set to None
   - Make sure the CHANGELOG.md got updated, if not, call @JuanPedroGHM.
   - Check our [Zenodo page](https://zenodo.org/doi/10.5281/zenodo.2531472) to make sure a DOI was created for the release.
 
-12. On branch `main`,  we want to modify the version so that `minor` is increased by 1, and  `extension` is "dev".  In this example we want the version on `main` to be:`1.6.0-dev`. We need to create a new branch from `main`:
+12. On branch `main`, we want to modify the version so that `minor` is increased by 1, and `extension` is "dev". We also want to merge any changes to the changelog, and overall make sure it is up to date with the latest release changes. That is what the second PR is for. In this example we want the version on `main` to be:`1.6.0-dev`. We go to the left over PR, and change the version number accordingly. Make sure to also fix any merge conflicts.
 
-    ```bash
-    git checkout main
-    git pull
-    git checkout -b workflows/update-version-main
-    git branch
-    ```
-
-    On branch `workflows/update-version-main`, modify `version.py` so that `minor` is increased by 1, and `extension` is `"dev"`. Commit and push the changes.
-
-13. Create a PR with `main` as the base branch.
-
-14. Get approval and merge. You're done! Except if you're a conda-forge maintainer, then see [conda-forge build](#conda-forge-build).
+13. Get approval and merge. You're done! Except if you're a conda-forge maintainer, then see [conda-forge build](#conda-forge-build).
 
 
 ### Patch release
 
 (e.g. 1.5.0 --> 1.5.1)
 
-1. Check that all intended branches have been merged to the release branch you want to upgrade, in this example `release/1.5.x`. Create a new branch off `release/1.5.x`, e.g.:
+1. Check that all intended branches have been merged to the `stable` branch.
 
-```bash
-git checkout release/1.5.x
-git pull
-git checkout -b workflows/version-update
-```
+2. Got to [this GH Action](https://github.com/helmholtz-analytics/heat/actions/workflows/release-prep.yml) and start a new manual workflow.
 
-2. Update `heat/core/version.py` like this:
+  1. `Use workflow from` should always be `main`.
+  2. Set the version number to the next release (1.5.1 in this case).
+  3. Because this is a patch release, the base branch should be `stable`.
+  4. Change the title, if you want to give the release a special name.
+  5. Run the workflow.
 
-```python
-"""This module contains Heat's version information."""
+When the workflow is done, you should see two new pull requests. One targeting `main`, the other one targeting `stable`. Both should be created for the same branch, `pre-release/x.y.z`. The new branch should include changes with the new version number on `version.py`, and an update `CHANGELOG.md`. For now, **ignore the PR targeting `main`**. That PR should only be merged after the release has been merged to `stable`.
 
-major: int = 1
-"""Indicates Heat's main version."""
-minor: int = 5
-"""Indicates feature extension."""
-micro: int = 0 # <-- update to 1
-"""Indicates revisions for bugfixes."""
-extension: str = None
-"""Indicates special builds, e.g. for specific hardware."""
-```
-
-3. Follow steps 3-14 from the [Major or minor release section](#major-or-minor-release).
+3. Follow steps 2-14 from the [Major or minor release section](#major-or-minor-release).
 
 
 ## conda-forge build

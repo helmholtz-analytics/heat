@@ -565,7 +565,7 @@ def heat_type_is_complexfloating(ht_dtype: Type[datatype]) -> bool:
 
 
 def heat_type_of(
-    obj: Union[str, Type[datatype], Any, Iterable[str, Type[datatype], Any]]
+    obj: Union[str, Type[datatype], Any, Iterable[str, Type[datatype], Any]],
 ) -> Type[datatype]:
     """
     Returns the corresponding HeAT data type of given object, i.e. scalar, array or iterable. Attempts to determine the

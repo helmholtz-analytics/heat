@@ -312,7 +312,7 @@ def sanitize_out(
 
 
 def sanitize_sequence(
-    seq: Union[Sequence[int, ...], Sequence[float, ...], DNDarray, torch.Tensor]
+    seq: Union[Sequence[int, ...], Sequence[float, ...], DNDarray, torch.Tensor],
 ) -> List:
     """
     Check if sequence is valid, return list.

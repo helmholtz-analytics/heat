@@ -1,3 +1,27 @@
+# v1.5.1
+## Changes
+
+### Compatibility
+- #1706 Support PyTorch 2.5.1 (#1701) (by @mtar)
+- #1775 Support PyTorch 2.6.0 (#1775) (by @mrfh92)
+
+### Bug Fixes
+- #1791 `heat.eq`, `heat.ne` now allow non-array operands (by @[github-actions[bot]](https://github.com/apps/github-actions))
+- #1790 Fixed precision loss in several functions when dtype is float64 (by @[github-actions[bot]](https://github.com/apps/github-actions))
+- #1764 Printing non-distributed data  (by @[github-actions[bot]](https://github.com/apps/github-actions))
+
+### CI
+- #1750 Linters will no longer format tutorials (by @[github-actions[bot]](https://github.com/apps/github-actions))
+- #1708 Documentation updates after new release (by @[github-actions[bot]](https://github.com/apps/github-actions))
+- #1743 Modernise setup.py configuration (by @[github-actions[bot]](https://github.com/apps/github-actions))
+
+### Docs
+- #1698 Added Dalcin et al. 2018 reference to `manipulations._axis2axisResplit` (by @[github-actions[bot]](https://github.com/apps/github-actions))
+- #1745 Easier access to GitHub from the docs (by @[github-actions[bot]](https://github.com/apps/github-actions))
+
+## Contributors
+@ClaudiaComito, @JuanPedroGHM, @github-actions[bot], @joernhees, @mrfh92, @mtar and [github-actions[bot]](https://github.com/apps/github-actions) v1.5.1 - Heat 1.5.1
+
 # v1.5.0
 
 ## Changes
