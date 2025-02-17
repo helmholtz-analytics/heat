@@ -23,9 +23,9 @@ In the following, we assume we are about to release Heat v1.5.0.
 1. Got to [this GH Action](https://github.com/helmholtz-analytics/heat/actions/workflows/release-prep.yml) and start a new manual workflow.
 
     a. `Use workflow from` should always be `main`.
-   
+
     b. Set the version number to the next release (1.5.0) in this case.
-   
+
     c. Because this is a major or minor release, the base branch should be `main`.
 
     d. Change the title, if you want to give the release a special name.
