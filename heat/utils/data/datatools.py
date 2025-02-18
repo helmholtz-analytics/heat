@@ -2,9 +2,13 @@
 Function and classes useful for loading data into neural networks
 """
 
+import random
 import torch
+import torch.distributed
 from torch.utils import data as torch_data
 from typing import Callable, List, Iterator, Union, Optional, Sized
+
+import torch.utils
 
 from ...core.dndarray import DNDarray
 from ...core.communication import MPI_WORLD
@@ -242,6 +246,49 @@ class Dataset(torch_data.Dataset):
         """
         if not self.test_set:
             dataset_ishuffle(dataset=self, attrs=[["data", "htdata"]])
+
+
+class DistributedDataset(torch_data.Dataset):
+    """
+    A DistributedDataset for usage in PyTorch. Saves the dndarray and the larray tensor. Uses the larray tensor
+    for the distribution and getting the items.
+    """
+    def __init__(self, dndarray: DNDarray):
+        self.dndarray = dndarray
+        self.tensor = dndarray.larray
+
+    def __len__(self) -> int:
+        return len(self.tensor)
+
+    def __getitem__(self, index):
+        return self.tensor[index]
+
+    def __getitems__(self, indices):
+        return tuple(self.tensor[index] for index in indices)
+
+
+class DistributedSampler(torch_data.Sampler):
+    """
+    A DistributedSampler for usage in PyTorch with Heat Arrays. Uses the nature of the Heat DNDArray
+    to give the locally stored data on the larray. Shuffling is done by shuffling the indices.
+    The given Indices corrospond to the index of the larray tensor. 
+    """
+    def __init__(self, dndset: DistributedDataset, shuffle: bool = False, seed: int = None) -> None:
+        self.dndset = dndset
+        self.tensor = dndset.tensor
+        self.indices = list(range(len(self.tensor)))
+        self.shuffle = shuffle
+        self.seed = seed
+
+    def __iter__(self) -> Iterator[int]:
+        if self.shuffle:
+            if self.seed is not None:
+                random.seed(self.seed)
+            random.shuffle(self.indices)
+        return iter(self.indices)
+
+    def __len__(self) -> int:
+        return len(self.tensor)
 
 
 def dataset_shuffle(dataset: Union[Dataset, torch_data.Dataset], attrs: List[list]):
