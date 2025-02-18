@@ -1432,7 +1432,9 @@ else:
 
                     CODEC_LIMIT_BYTES = 2**31 - 1  # PR#1766
 
-                    for _ in range(10):  # Use for loop instead of while true for better handling of edge cases
+                    for _ in range(
+                        10
+                    ):  # Use for loop instead of while true for better handling of edge cases
                         byte_size = reduce(operator.mul, chunks, 1) * 8
                         if byte_size > CODEC_LIMIT_BYTES:
                             if chunks[axis] % 2 == 0:
@@ -1445,7 +1447,9 @@ else:
                             break
                     else:
                         chunks[axis] = 1
-                        warnings.warn("Calculation of chunk size for zarr format unexpectadly defaulted to 1 on the split axis")
+                        warnings.warn(
+                            "Calculation of chunk size for zarr format unexpectadly defaulted to 1 on the split axis"
+                        )
 
             dtype = dndarray.dtype.char()
             zarr_array = zarr.create(
