@@ -97,10 +97,10 @@ jobs:
           --title "Heat ${{ env.VERSION }} - Main" \
           --draft \
           --body "Copy of latest pre-release PR targeting release.
-          DO NOT CHANGE ANYTHING UNTIL "Heat ${{ env.VERSION }} - Release" HAS BEEN MERGED.
+          DO NOT CHANGE ANYTHING UNTIL `Heat ${{ env.VERSION }} - Release` HAS BEEN MERGED.
 
           TODO:
           - [ ] Make sure version.py is updated to reflect the dev version.
           - [ ] Ensure Citation file is up to date.
           - [ ] Ensure the Changelog is up to date." \
-          --label "pre-release"
+          --label "post-release"
