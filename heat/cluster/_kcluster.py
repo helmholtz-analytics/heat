@@ -96,9 +96,7 @@ class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
         """
         return self._functional_value
 
-    def _initialize_cluster_centers(
-        self, x: DNDarray, oversampling: float = 100, iter_multiplier: float = 20
-    ):
+    def _initialize_cluster_centers(self, x: DNDarray, oversampling: float, iter_multiplier: float):
         """
         Initializes the K-Means centroids.
 
@@ -112,7 +110,24 @@ class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
 
         iter_multiplier : float
             factor that increases the number of iterations used in the initialization of centroids
+
+        Raises
+        ------
+        TypeError
+            If the input is not a DNDarray
+        ValueError
+            If the oversampling factor or the iteration multiplier is too small
         """
+        # input sanitation
+        if not isinstance(x, DNDarray):
+            raise ValueError(f"Input x needs to be a ht.DNDarray, but was {type(x)}")
+        if oversampling < 2:
+            raise ValueError(f"Oversampling factor should be at least 2, but was {oversampling}")
+        if iter_multiplier < 1:
+            raise ValueError(
+                f"Iteration multiplier should be at least 1, but was {iter_multiplier}"
+            )
+
         # always initialize the random state
         if self.random_state is not None:
             ht.random.seed(self.random_state)
@@ -159,7 +174,7 @@ class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
                 # output format: scalar
                 #
                 # Iteratively fill the tensor storing the centroids
-                for _ in ht.arange(0, iter_multiplier * ht.log(init_cost)):
+                for _ in range(0, int(iter_multiplier * ht.log(init_cost))):
                     # Calculate the distance between data points and the current set of centroids
                     distance = ht.spatial.distance.cdist(x, centroids, quadratic_expansion=True)
                     min_distance = distance.min(axis=1)
@@ -180,8 +195,8 @@ class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
                 # Evaluate distance between final centroids and data points
                 if centroids.shape[0] <= self.n_clusters:
                     raise ValueError(
-                        "The oversampling factor and/or the number of iterations are chosen"
-                        "too small for the initialization of cluster centers."
+                        f"The parameter oversampling={oversampling} and/or iter_multiplier={iter_multiplier} "
+                        "are chosen too small for the initialization of cluster centers."
                     )
                 # Evaluate the distance between data and the final set of centroids for the initialization
                 final_distance = ht.spatial.distance.cdist(x, centroids, quadratic_expansion=True)
@@ -227,7 +242,7 @@ class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
                 ht.MPI_WORLD.Bcast(
                     reclustered_centroids, root=0
                 )  # by default it is broadcasted from process 0
-                reclustered_centroids = ht.array(reclustered_centroids, split=x.split)
+                reclustered_centroids = ht.array(reclustered_centroids, split=None)
                 # --> transform back to DNDarray
                 self._cluster_centers = reclustered_centroids
                 # --> final result for initialized cluster centers

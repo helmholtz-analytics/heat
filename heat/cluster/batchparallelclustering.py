@@ -174,7 +174,7 @@ class _BatchParallelKCluster(ht.ClusteringMixin, ht.BaseEstimator):
         """
         return self._functional_value
 
-    def fit(self, x: DNDarray, weights: torch.tensor = 1):
+    def fit(self, x: DNDarray):
         """
         Computes the centroid of the clustering algorithm to fit the data ``x``.
 
@@ -205,7 +205,6 @@ class _BatchParallelKCluster(ht.ClusteringMixin, ht.BaseEstimator):
             self.max_iter,
             self.tol,
             local_random_state,
-            weights,
         )
 
         # hierarchical approach to obtail "global" cluster centers from the "local" centers
@@ -241,7 +240,6 @@ class _BatchParallelKCluster(ht.ClusteringMixin, ht.BaseEstimator):
                         self.max_iter,
                         self.tol,
                         local_random_state,
-                        weights,
                     )
                     del gathered_centers_local
                     n_iters_local += n_iters_local_new
