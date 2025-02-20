@@ -212,9 +212,9 @@ def cdist_small(
     X: DNDarray, Y: DNDarray, n_smallest: int = 100, metric: Callable = _euclidian
 ) -> DNDarray:
     """
-    Calculate the pairwise distances between two DNDarrays, which has on optimized memory consumption if only
-    the ``n_smallest`` smallest distances are needed. Note that the matrix will is not symmetric as in the usual
-    function cdist.
+    Calculate the pairwise distances between two DNDarrays (values sorted from smallest to largest), which has
+    on optimized memory consumption if only the ``n_smallest`` smallest distances are needed. Note that the
+    matrix will is not symmetric as in the usual function cdist.
 
     Parameters
     ----------
@@ -230,7 +230,8 @@ def cdist_small(
     Returns
     -------
     dist_small: DNDarray, shape (m, n_smallest)
-        Distance matrix storing the smallest distances between the elements of ``X`` and ``Y``
+        Distance matrix storing the n_smallest smallest distances between the elements of ``X`` and ``Y``,
+        sorted from smallest to largest
 
     Raises
     ------
@@ -287,20 +288,17 @@ def cdist_small(
     # distance betweeen X and Y that are currently assigned to the same process (before each communication step!)
     current_dist = metric(x_, y_)
     # take only the n_smallest distances
-    current_dist, current_idx = torch.topk(current_dist, n_smallest, largest=False, sorted=False)
+    current_dist, current_idx = torch.topk(current_dist, n_smallest, largest=False, sorted=True)
     current_idx += ydispl[rank]
 
     # Communicate the parts of Y between the processes in a circular fashion and keep parts of X fixed.
     # Reduce memory consumption of the distance matrix with the following strategy (during each communication step):
-    #   1. Caluclate the distances between the parts of X in each process with the part of Y that is sent to
-    #      the same process
-    #   2. Reduce the memory consumption by storing only the n_smallest distances in dist_small
-    #   3. Compare the
-    # circular communication of the parts of Y between the processes
-    print(
-        f"Before iteration: process= {ht.MPI_WORLD.rank}\n -------------- \n current_dist={current_dist}\n current_idx={current_idx}\n\n"
-    )
+    #   1.  Caluclate the distances between the parts of X in each process with the part of Y that is received
+    #       by the respective process. Result is stored in the local matrix `new_dist`
+    #   2.  Merge `new_dist` and `current_dist` to one matrix and take only the n_smallest distances. Result is stored in `current_dist`
+    #   3.  Constantly keep track of indices of the n_smallest distances.
 
+    # circular communication of the parts of Y between the processes
     for iter in range(1, size):
         receiver = (rank + iter) % size
         sender = (rank - iter) % size
@@ -314,62 +312,28 @@ def cdist_small(
             dtype=torch_type,
             device=X.device.torch_device,
         )
-        # stat = MPI.Status()
-        # Y.comm.handle.Probe(source=sender, tag=iter, status=stat)
-        # count = int(stat.Get_count(mpi_type) / f)
-        # dynamic_buffer = torch.zeros((count, f), dtype=torch_type, device=X.device.torch_device)
 
         # receive the part of Y to the next process
         Y.comm.Irecv(buffer, source=sender, tag=iter)
-        # make sure that the communication is finished
-        # MPI.Request.Waitall([receiving, sending])
-        print(
-            f"During iteration: process= {ht.MPI_WORLD.rank}\n -------------- \n buffer={buffer}\n"
-        )
+
         # distance between the part of X stored in the current process and the newly received part of Y
         new_dist = metric(x_, buffer)
         # take only the n_smallest distances
-        new_dist, new_idx = torch.topk(new_dist, n_smallest, largest=False, sorted=False)
+        new_dist, new_idx = torch.topk(new_dist, n_smallest, largest=False, sorted=True)
         new_idx += ydispl[receiver]
-        print(
-            f"During iteration: process= {ht.MPI_WORLD.rank}\n -------------- \n new_dist={new_dist}\n new_idx={new_idx}\n\n"
-        )
-        # print(f"process= {ht.MPI_WORLD.rank}\n new_idx_with_displ={new_idx}")
 
         # merge the current distances with the new distances in one matrix (analogous for indices)
         merged_dist = torch.cat((current_dist, new_dist), dim=1)
         merged_idx = torch.cat((current_idx, new_idx), dim=1)
 
         # take only the n_smallest distances
-        current_dist, topk_indices = torch.topk(
-            merged_dist, n_smallest, largest=False, sorted=False
-        )
+        current_dist, topk_indices = torch.topk(merged_dist, n_smallest, largest=False, sorted=True)
         # extract the corresponding indices
         current_idx = torch.gather(merged_idx, 1, topk_indices)
-        # current_dist = torch.min(current_dist, new_dist)
-        # current_idx = torch.where(current_dist == new_dist, current_idx, new_idx)
-        # current_dist = torch.where(condition, current_dist, new_dist)
-        # current_idx = torch.where(condition, current_idx, new_idx)
-        # print(f"During iteration: process= {ht.MPI_WORLD.rank}\n current_dist={current_dist}\n current_idx={current_idx}")
 
-    # initiate the distance matrix
-    # dist_small = factories.zeros(
-    #    (X.shape[0], n_smallest), dtype=X.dtype, split=X.split, device=X.device, comm=X.comm
-    # )
-    # initiate the index matrix
-    # indices = factories.zeros(
-    #    (X.shape[0], n_smallest), dtype=X.dtype, split=X.split, device=X.device, comm=X.comm
-    # )
-    print(
-        f"After iteration: process= {ht.MPI_WORLD.rank}\n -------------- \n current_dist={current_dist}\n current_idx={current_idx}\n\n"
-    )
-    # assign the local results on each process to the distance and index matrix
-    # dist_small.larray[:] = current_dist
-    # indices.larray[:] = current_idx
-
+    # assign the local results on each process (torch.tensor) to the distributed distance and index matrix (ht.DNDarray)
     dist_small = ht.array(current_dist, is_split=0)
     indices = ht.array(current_idx, is_split=0)
-    # print(f"process= {ht.MPI_WORLD.rank}\n dist_small={dist_small.larray}\n current_idx={indices.larray}")
 
     return dist_small, indices
 
