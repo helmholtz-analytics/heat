@@ -5,6 +5,8 @@ Module implementing the communication layer of HeAT
 from __future__ import annotations
 
 import numpy as np
+import math
+import ctypes
 import os
 import subprocess
 import torch
@@ -345,7 +347,7 @@ class MPICommunication(Communication):
         return mpi_type, elements
 
     @classmethod
-    def as_mpi_memory(cls, obj) -> MPI.memory:
+    def as_mpi_memory(cls, obj: torch.Tensor) -> MPI.memory:
         """
         Converts the passed ``torch.Tensor`` into an MPI compatible memory view.
 
@@ -355,7 +357,8 @@ class MPICommunication(Communication):
             The tensor to be converted into a MPI memory view.
         """
         # TODO: MPI.memory might be depraecated in future versions of mpi4py. The following code might need to be adapted and use MPI.buffer instead.
-        return MPI.memory.fromaddress(obj.data_ptr(), 0)
+        nbytes = obj.dtype.itemsize * obj.numel()
+        return MPI.memory.fromaddress(obj.data_ptr(), nbytes)
 
     @classmethod
     def as_buffer(
@@ -810,11 +813,71 @@ class MPICommunication(Communication):
 
     Ibcast.__doc__ = MPI.Comm.Ibcast.__doc__
 
+    def __derived_op(
+        self, tensor: torch.Tensor, datatype: MPI.Datatype, operation: MPI.Op
+    ) -> Callable[[MPI.memory, MPI.memory, MPI.Datatype], None]:
+
+        # Based from this conversation on the internet: https://groups.google.com/g/mpi4py/c/UkDT_9pp4V4?pli=1
+        shape = tensor.shape
+        dtype = tensor.dtype
+        stride = tensor.stride()
+        offset = tensor.storage_offset()
+        count = tensor.numel()
+
+        mpiOp2torch = {
+            MPI.SUM.handle: torch.add,
+            MPI.PROD.handle: torch.mul,
+            MPI.MIN.handle: torch.min,
+            MPI.MAX.handle: torch.max,
+            MPI.LAND.handle: torch.logical_and,
+            MPI.LOR.handle: torch.logical_or,
+            MPI.LXOR.handle: torch.logical_xor,
+            MPI.BAND.handle: torch.bitwise_and,
+            MPI.BOR.handle: torch.bitwise_or,
+            MPI.BXOR.handle: torch.bitwise_xor,
+            # MPI.MINLOC.handle: torch.argmin, Not supported, seems to be an invalid inplace operation
+            # MPI.MAXLOC.handle: torch.argmax
+        }
+        mpiDtype2Ctype = {
+            torch.bool: ctypes.c_bool,
+            torch.uint8: ctypes.c_uint8,
+            torch.uint16: ctypes.c_uint16,
+            torch.uint32: ctypes.c_uint32,
+            torch.uint64: ctypes.c_uint64,
+            torch.int8: ctypes.c_int8,
+            torch.int16: ctypes.c_int16,
+            torch.int32: ctypes.c_int32,
+            torch.int64: ctypes.c_int64,
+            torch.float32: ctypes.c_float,
+            torch.float64: ctypes.c_double,
+            torch.complex64: ctypes.c_double,
+            torch.complex128: ctypes.c_longdouble,
+        }
+        ctype_size = mpiDtype2Ctype[dtype]
+        torch_op = mpiOp2torch[operation.handle]
+
+        def op(sendbuf: MPI.memory, recvbuf: MPI.memory, datatype):
+            send_arr = (ctype_size * (count + offset)).from_address(sendbuf.address)
+            recv_arr = (ctype_size * (count + offset)).from_address(recvbuf.address)
+
+            send_tensor = torch.as_strided(
+                torch.frombuffer(send_arr, dtype=dtype, count=count, offset=offset), shape, stride
+            )
+            recv_tensor = torch.as_strided(
+                torch.frombuffer(recv_arr, dtype=dtype, count=count, offset=offset), shape, stride
+            )
+            torch_op(send_tensor, recv_tensor, out=recv_tensor)
+
+        op = MPI.Op.Create(op)
+
+        return op
+
     def __reduce_like(
         self,
         func: Callable,
         sendbuf: Union[DNDarray, torch.Tensor, Any],
         recvbuf: Union[DNDarray, torch.Tensor, Any],
+        op: MPI.Op,
         *args,
         **kwargs,
     ) -> Tuple[Optional[DNDarray, torch.Tensor]]:
@@ -829,6 +892,8 @@ class MPICommunication(Communication):
             Buffer address of the send message
         recvbuf: Union[DNDarray, torch.Tensor, Any]
             Buffer address where to store the result of the reduction
+        op: MPI.Op
+            Operation to apply during the reduction.
         """
         sbuf = None
         rbuf = None
@@ -843,56 +908,59 @@ class MPICommunication(Communication):
         # harmonize the input and output buffers
         # MPI requires send and receive buffers to be of same type and length. If the torch tensors are either not both
         # contiguous or differently strided, they have to be made matching (if possible) first.
-        if isinstance(sendbuf, torch.Tensor):
-            # convert the send buffer to a pointer, number of elements and type are identical to the receive buffer
-            dummy = (
-                sendbuf.contiguous()
-            )  # make a contiguous copy and reassign the storage, old will be collected
-            # In PyTorch Version >= 2.0.0 we can use untyped_storage() instead of storage
-            # to keep backward compatibility with earlier PyTorch versions (where no untyped_storage() exists) we use a try/except
-            # (this applies to all places of Heat where untyped_storage() is used without further comment)
-            try:
-                sendbuf.set_(
-                    dummy.untyped_storage(),
-                    dummy.storage_offset(),
-                    size=dummy.shape,
-                    stride=dummy.stride(),
-                )
-            except AttributeError:
-                sendbuf.set_(
-                    dummy.storage(),
-                    dummy.storage_offset(),
-                    size=dummy.shape,
-                    stride=dummy.stride(),
-                )
-            sbuf = sendbuf if CUDA_AWARE_MPI else sendbuf.cpu()
-            sendbuf = self.as_buffer(sbuf)
+        if sendbuf is not MPI.IN_PLACE:
+            # Send and recv buffer need the same number of elements.
+            if sendbuf.numel() != recvbuf.numel():
+                raise ValueError("Send and recv buffers need the same number of elements.")
+
+            # Stride and offset should be the same to create the same datatype and operation. If they differ, they should be made contiguous (at the expense of memory)
+            if (
+                sendbuf.stride() != recvbuf.stride()
+                or sendbuf.storage_offset() != recvbuf.storage_offset()
+            ):
+                if not sendbuf.is_contiguous():
+                    tmp = sendbuf.contiguous()
+                    try:
+                        sendbuf.set_(
+                            tmp.untyped_storage(),
+                            tmp.storage_offset(),
+                            size=tmp.shape,
+                            stride=tmp.stride(),
+                        )
+                    except AttributeError:
+                        sendbuf.set_(
+                            tmp.storage(), tmp.storage_offset(), size=tmp.shape, stride=tmp.stride()
+                        )
+                if not recvbuf.is_contiguous():
+                    tmp = recvbuf.contiguous()
+                    try:
+                        recvbuf.set_(
+                            tmp.untyped_storage(),
+                            tmp.storage_offset(),
+                            size=tmp.shape,
+                            stride=tmp.stride(),
+                        )
+                    except AttributeError:
+                        recvbuf.set_(
+                            tmp.storage(), tmp.storage_offset(), size=tmp.shape, stride=tmp.stride()
+                        )
+
         if isinstance(recvbuf, torch.Tensor):
+            # Datatype and count shall be derived from the recv buffer, and applied to both, as they should match after the last code block
             buf = recvbuf
-            # nothing matches, the buffers have to be made contiguous
-            dummy = recvbuf.contiguous()
-            try:
-                recvbuf.set_(
-                    dummy.untyped_storage(),
-                    dummy.storage_offset(),
-                    size=dummy.shape,
-                    stride=dummy.stride(),
-                )
-            except AttributeError:
-                recvbuf.set_(
-                    dummy.storage(),
-                    dummy.storage_offset(),
-                    size=dummy.shape,
-                    stride=dummy.stride(),
-                )
             rbuf = recvbuf if CUDA_AWARE_MPI else recvbuf.cpu()
-            if sendbuf is MPI.IN_PLACE:
-                recvbuf = self.as_buffer(rbuf)
-            else:
-                recvbuf = (self.as_mpi_memory(rbuf), sendbuf[1], sendbuf[2])
+            recvbuf: Tuple[MPI.memory, int, MPI.Datatype] = self.as_buffer(rbuf, is_contiguous=True)
+            if not recvbuf[2].is_predefined:
+                # If using a derived datatype, we need to define the reduce operation to be able to handle the it.
+                derived_op = self.__derived_op(rbuf, recvbuf[2], op)
+                op = derived_op
+
+        if isinstance(sendbuf, torch.Tensor):
+            sbuf = sendbuf if CUDA_AWARE_MPI else sendbuf.cpu()
+            sendbuf = (self.as_mpi_memory(sbuf), recvbuf[1], recvbuf[2])
 
         # perform the actual reduction operation
-        return func(sendbuf, recvbuf, *args, **kwargs), sbuf, rbuf, buf
+        return func(sendbuf, recvbuf, op, **kwargs), sbuf, rbuf, buf
 
     def Allreduce(
         self,
