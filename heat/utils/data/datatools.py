@@ -253,6 +253,7 @@ class DistributedDataset(torch_data.Dataset):
     A DistributedDataset for usage in PyTorch. Saves the dndarray and the larray tensor. Uses the larray tensor
     for the distribution and getting the items.
     """
+
     def __init__(self, dndarray: DNDarray):
         self.dndarray = dndarray
         self.tensor = dndarray.larray
@@ -271,8 +272,9 @@ class DistributedSampler(torch_data.Sampler):
     """
     A DistributedSampler for usage in PyTorch with Heat Arrays. Uses the nature of the Heat DNDArray
     to give the locally stored data on the larray. Shuffling is done by shuffling the indices.
-    The given Indices corrospond to the index of the larray tensor. 
+    The given Indices corrospond to the index of the larray tensor.
     """
+
     def __init__(self, dndset: DistributedDataset, shuffle: bool = False, seed: int = None) -> None:
         self.dndset = dndset
         self.tensor = dndset.tensor
