@@ -3,140 +3,188 @@
 import heat as ht
 import torch
 from heat.spatial import distance
+from localoutlierfactor import LocalOutlierFactor
 
-# a = ht.array([10, 20, 2, 17, 8], split=0)
-# print(f"a={a}, \n b={b}, \n c={c}")
+# from heat.classification import localoutlierfactor
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.legend_handler import HandlerPathCollection
 
-# y = ht.array([[2, 3, 1, 4], [5, 6, 4, 2], [7, 8, 9, 1]], split=0)
-# o = ht.zeros([y.shape[0], y.shape[1]], split=0)
+# ht.use_device("gpu")
 
-# values, indices=torch.topk(y.larray, 3)
-# values, ydispl, _ = y.comm.counts_displs_shape(y.shape, y.split)
-# process=ht.MPI_WORLD.rank
-# global_idx=indices+ydispl[process]
-# print(f"indices={indices}\n ydispl={ydispl}")
-# print(f"indices+ydispl={global_idx}\n process= {process}")
+""" # Generate random data with outliers
+np.random.seed(42)
 
-# x = y.larray
-# buffer = torch.zeros_like(x)
-# o.larray[:] = x
+X_inliers = 0.3 * np.random.randn(100, 2)
+X_inliers = np.r_[X_inliers + 2, X_inliers - 2]
+X_outliers = np.random.uniform(low=-4, high=4, size=(20, 2))
+X = np.r_[X_inliers, X_outliers]
 
+n_outliers = len(X_outliers)
+ground_truth = np.ones(len(X), dtype=int)
+ground_truth[-n_outliers:] = -1
 
-# print(f"y.shape[0]={y.shape[0]}\n y.shape[1]={y.shape[1]}")
-# print(f"process= {ht.MPI_WORLD.rank}\n o={o}\n buffer={buffer}")
+# Convert data to HeAT tensor
+ht_X = ht.array(X, split=0)
 
-# Create toy data
-X = ht.array([[1.0, 1.0], [19.0, 19.0], [3.0, 3.0]], split=0)
-# Y = ht.array([[0.0, 1.0], [0.0, 2.0], [100.0, 10.0], [100.0, 10.0]], split=0)
-Y = ht.array(
-    [
-        [0.0, 1.0],
-        [100.0, 100.0],
-        [200.0, 200.0],
-        [30.0, 30.0],
-        [20.0, 20.0],
-        [20.0, 0.0],
-        [30.0, 30.0],
-        [20.0, 20.0],
-        [2.0, 1.0],
-    ],
-    split=0,
-)
+# Compute the LOF scores
+lof = LocalOutlierFactor(n_neighbors=20, metric="euclidian", binary_decision="threshold", threshold=1.5, top_n=10)
+lof.fit(ht_X)
 
+# Get LOF scores and anomaly labels
+lof_scores = lof.lof_scores.numpy()
+anomaly = lof.anomaly.numpy()
 
-def test_cdist_small():
-    """
-    Testfunction for the cdist_small function.
-    """
-    # Compute pairwise distances with n_smallest = 2
-    # print("execute cdist_small...\n")
-    n_smallest = 4
-    dist, indices = distance.cdist_small(X, Y, n_smallest=n_smallest)
-    # print("finish executing cdist_small...\n")
+# Plot data points with LOF scores
+plt.figure(figsize=(10, 6))
+scatter = plt.scatter(X[:, 0], X[:, 1], c=lof_scores, cmap="coolwarm", edgecolors="k", s=60, alpha=0.8)
 
-    # print("Distances:\n", dist_np)
-    # print("Indices:\n", indices_np)
+# Highlight outliers with a larger marker
+outlier_indices = np.where(anomaly == 1)[0]
+plt.scatter(X[outlier_indices, 0], X[outlier_indices, 1], facecolors='none', edgecolors='black', s=120, linewidths=2, label="Outliers")
 
-    dist = dist.resplit_(None)
+# Add colorbar to indicate LOF score intensity
+plt.colorbar(scatter, label="LOF Score")
 
-    # Manually compute expected distances
-    # print("computing expected distances...\n")
-    expected_distances = ht.spatial.cdist(X, Y)
-    # print("computing expected indices...\n")
-    expected_dist, expected_idx = ht.topk(expected_distances, n_smallest, largest=False)
+# Labels and title
+plt.xlabel("Feature 1")
+plt.ylabel("Feature 2")
+plt.title("Local Outlier Factor (LOF) - Anomaly Detection")
+plt.legend()
+plt.show() """
 
-    # print("validating results...\n")
-    # Validate results
-    print(f"process: {ht.MPI_WORLD.rank}, dist={dist}\n expected_dist={expected_dist}")
-    print(f"process: {ht.MPI_WORLD.rank}, indices={indices}\n expected_idx={expected_idx}")
-
-    assert ht.allclose(dist, expected_dist), "Distance matrix incorrect!"
-    assert ht.equal(indices, expected_idx), "Index matrix incorrect!"
-    print("Test passed successfully!")
-
-
-# Run the test
-# test_cdist_small()
-
-# a = ht.array([0,10, 0], split=0)
-# b = ht.array([[1,1,1], [2,2,2], [3,3,3], [4,4,4]], split=0)
-# max=ht.maximum(a,b)
-# print(f"process: {ht.MPI_WORLD.rank}, max={max}")
-
-Y = ht.array(
-    [
-        [0.0, 1.0],
-        [100.0, 100.0],
-        [200.0, 200.0],
-        [30.0, 30.0],
-        [20.0, 20.0],
-        [21.0, 0],
-        [31.0, 0],
-        [40.0, 40.0],
-        [2.0, 1.0],
-    ],
-    split=0,
-)
-dist, indices = distance.cdist_small(Y, Y, n_smallest=3)
-
-
-X = ht.array([[0], [4], [2]], split=0)  # Punkt 0  # Punkt 1  # Punkt 2
-
-Y = ht.array(
-    [[0], [3], [1], [100], [100], [100], [100], [100], [100]],  # Punkt 0  # Punkt 1  # Punkt 2
-    split=0,
-)
-dist, indices = distance.cdist_small(X, Y, n_smallest=3, metric=distance._manhattan)
-# print(f"process: {ht.MPI_WORLD.rank}, dist={dist}\n indices={indices}")
-
-
-# k_dist=dist[:, -1]
-# idx_k_dist=indices[:, -1]
-
-# rank = X.comm.Get_rank()
-# _, displ, _ = X.comm.counts_displs_shape(dist.shape, dist.split)
-
-# idx_test=idx_k_dist-displ[rank]
-
-# rd=ht.maximum(k_dist, dist[idx_k_dist,-1])
-
-# k_dist=ht.array((3,4,2,5,4),split=0)
-# idx_k_dist=ht.array((1,0,0,3,2),split=0)
-# rd=ht.maximum(k_dist, k_dist[idx_k_dist])
-
-# rank = k_dist.comm.Get_rank()
-# _, displ, _ = k_dist.comm.counts_displs_shape(k_dist.shape, k_dist.split)
-# idx_k_dist-=displ[rank]
-# rd=ht.where(idx_k_dist<0,0,ht.maximum(k_dist, k_dist[idx_k_dist]))
 
 # print(f"process: {ht.MPI_WORLD.rank} \n k_dist.larray={k_dist.larray}, \n  rd.larray={rd.larray}\n")
 
-k_dist = ht.array((3, 4, 2, 5, 4, 1), split=0)
-idx_k_dist = ht.array((1, 0, 0, 3, 2, 0), split=0)
-k_dist_gathered = k_dist.resplit_(None)
-k_dist_indexed = k_dist_gathered[idx_k_dist]
-k_dist_indexed = k_dist_indexed.resplit_(0)
-rd = ht.maximum(k_dist, k_dist[idx_k_dist])
-print(f"process: {ht.MPI_WORLD.rank} \n  k_dist_indexed={k_dist_indexed}\n rd={rd}\n")
+cdist_small = ht.array([[0, 1, 3], [0, 3, 4], [0, 1, 2]], split=0)
 
-rd = ht.maximum(k_dist, k_dist_indexed)
+indices = ht.array([[0, 1, 2], [1, 2, 0], [2, 0, 1]], split=0)
+
+k_dist = cdist_small[:, -1]
+idx_k_dist = indices[:, -1]
+dist = cdist_small
+
+# reachability_dist = ht.maximum(k_dist[:, None], cdist_small[idx_k_dist,:])
+
+idx = ht.array([2, 0, 1], split=0)
+
+
+""" dist = cdist_small.resplit_(None)
+dist = dist[idx_k_dist]
+dist = dist.resplit_(0)
+
+# dist = cdist_small[idx_k_dist]
+
+
+
+
+# reachability_dist = ht.zeros((3,3),split=0)
+
+# for i in range(3):
+#     for j in range(3):
+#         reachability_dist[i,j] = ht.maximum(k_dist[i], cdist_small[idx_k_dist[i],j])
+
+
+reachability_dist = ht.maximum(
+            k_dist[:,None], dist[idx_k_dist,:]
+        )
+
+expected_result=indices = ht.array(
+    [[3,3,3],
+     [4,4,4],
+     [2,3,4]],split=0) """
+
+
+def _map_idx_to_proc(idx, comm):
+    size = comm.Get_size()
+    _, displ, _ = comm.counts_displs_shape(idx.shape, idx.split)
+    mapped_idx = ht.zeros_like(idx)
+    for rank in range(size):
+        lower_bound = displ[rank]
+        if rank == size - 1:  # size-1 is the last rank
+            upper_bound = idx.shape[0]
+        else:
+            upper_bound = displ[rank + 1]
+        mask = (idx >= lower_bound) & (idx < upper_bound)
+        mapped_idx[mask] = rank
+    print(f"process {ht.MPI_WORLD.rank}: \n displ={displ}")
+    return mapped_idx
+
+
+# Berechnung der reachability_dist als reine Array-Operation
+
+comm = dist.comm
+rank = comm.Get_rank()
+_, displ, _ = comm.counts_displs_shape(dist.shape, dist.split)
+
+# print(f"process {ht.MPI_WORLD.rank}: \n displ={displ}")
+# TODO: add a type promotion to float32 or float64
+# promoted_type = types.promote_types(dist.dtype)
+# promoted_type = types.promote_types(promoted_type, types.float32)
+# X = X.astype(promoted_type)
+# Y = Y.astype(promoted_type)
+# if promoted_type == types.float32:
+#     torch_type = torch.float32
+#     # mpi_type = MPI.FLOAT
+# elif promoted_type == types.float64:
+#     torch_type = torch.float64
+#     # mpi_type = MPI.DOUBLE
+# else:
+#     raise NotImplementedError(f"Datatype {X.dtype} currently not supported as input")
+# map the indices in idx_k_dist to the corresponding MPI process that is responsible for
+# the corresponding sample in dist
+
+mapped_idx = _map_idx_to_proc(idx_k_dist, comm)
+
+# reachability_dist = ht.zeros_like(dist)
+
+reachability_dist = ht.zeros_like(dist).larray
+
+local_k_dist = k_dist.larray
+local_dist = dist.larray
+
+for i in range(int(idx_k_dist.lshape[0])):
+    # evaluate reachability distance for the current process
+    if mapped_idx[i] == rank:
+        # print(f"\n\n\n process: {ht.MPI_WORLD.rank} \n dist={dist}\n\n\n ")
+        # print(f"\n\n\n process: {ht.MPI_WORLD.rank} \n dist[{i},:]={dist[int(idx_k_dist[i]),:]}\n\n\n ")
+        reachability_dist[i, :] = torch.maximum(
+            local_k_dist[i, None], local_dist[int(idx_k_dist[i]) - displ[rank], :]
+        )
+        # reachability_dist = ht.maximum(k_dist[:, None], cdist_small[idx_k_dist,:])
+    else:
+        receiver = rank
+        sender = int(mapped_idx[i])
+        # print(f"\n\n\n process: {ht.MPI_WORLD.rank} \n idx_k_dist[i]={idx_k_dist[i]},\n sender={sender}\n\n\n ")
+        # select the distances to communicate between the processes according to the mapped inidces
+        dist_comm = dist[int(idx_k_dist[i]) - displ[sender], :]
+        # set a buffer to store the part of Y that is sent to the next process
+        buffer = torch.zeros(
+            (dist_comm.lshape_map[sender, 0]),
+            # dtype=torch_type,
+            device=dist_comm.device.torch_device,
+        )
+        dist_comm = dist_comm.larray
+        comm.Isend(dist_comm, dest=receiver, tag=i)
+        # receive the part of Y to the next process
+        comm.Irecv(buffer, source=sender, tag=i)
+
+        # TODO:
+        # check whether
+        # - torch.tensors and ht.DNDarrays were used consistently
+        # - larrays were used consistently
+        # - the correct result is computed
+        reachability_dist[i] = torch.maximum(local_k_dist[i, None], buffer[:])
+    reachability_dist = ht.array(reachability_dist, is_split=0)
+
+
+# Erwartetes Ergebnis für den Vergleich
+expected_result = ht.array([[3, 3, 3], [4, 4, 4], [2, 3, 4]], split=0)
+
+
+print(f"process: {ht.MPI_WORLD.rank} \n reachability_dist={reachability_dist},\n ")
+
+if not ht.allclose(reachability_dist, expected_result):
+    print(f"process: {ht.MPI_WORLD.rank} \n -----------------Fail!---------------,\n ")
+else:
+    print(f"process: {ht.MPI_WORLD.rank} \n ###################Success!#############,\n ")
