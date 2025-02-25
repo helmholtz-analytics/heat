@@ -220,47 +220,47 @@ from ...core.tests.test_suites.basic_test import TestCase
 
 
 class TestDMDc(TestCase):
-    # def test_dmdc_setup_and_catch_wrong(self):
-    #     # catch wrong inputs
-    #     with self.assertRaises(TypeError):
-    #         ht.decomposition.DMDc(svd_solver=0)
-    #     with self.assertRaises(ValueError):
-    #         ht.decomposition.DMDc(svd_solver="Gramian")
-    #     with self.assertRaises(ValueError):
-    #         ht.decomposition.DMDc(svd_solver="full", svd_rank=3, svd_tol=1e-1)
-    #     with self.assertRaises(ValueError):
-    #         ht.decomposition.DMDc(svd_solver="full", svd_tol=-0.031415926)
-    #     with self.assertRaises(ValueError):
-    #         ht.decomposition.DMDc(svd_solver="hierarchical")
-    #     with self.assertRaises(ValueError):
-    #         ht.decomposition.DMDc(svd_solver="hierarchical", svd_rank=3, svd_tol=1e-1)
-    #     with self.assertRaises(ValueError):
-    #         ht.decomposition.DMDc(svd_solver="randomized")
-    #     with self.assertRaises(ValueError):
-    #         ht.decomposition.DMDc(svd_solver="randomized", svd_rank=2, svd_tol=1e-1)
-    #     with self.assertRaises(TypeError):
-    #         ht.decomposition.DMDc(svd_solver="full", svd_rank=0.1)
-    #     with self.assertRaises(ValueError):
-    #         ht.decomposition.DMDc(svd_solver="hierarchical", svd_rank=0)
-    #     with self.assertRaises(TypeError):
-    #         ht.decomposition.DMDc(svd_solver="hierarchical", svd_tol="auto")
-    #     with self.assertRaises(ValueError):
-    #         ht.decomposition.DMDc(svd_solver="randomized", svd_rank=0)
+    def test_dmdc_setup_and_catch_wrong(self):
+        # catch wrong inputs
+        with self.assertRaises(TypeError):
+            ht.decomposition.DMDc(svd_solver=0)
+        with self.assertRaises(ValueError):
+            ht.decomposition.DMDc(svd_solver="Gramian")
+        with self.assertRaises(ValueError):
+            ht.decomposition.DMDc(svd_solver="full", svd_rank=3, svd_tol=1e-1)
+        with self.assertRaises(ValueError):
+            ht.decomposition.DMDc(svd_solver="full", svd_tol=-0.031415926)
+        with self.assertRaises(ValueError):
+            ht.decomposition.DMDc(svd_solver="hierarchical")
+        with self.assertRaises(ValueError):
+            ht.decomposition.DMDc(svd_solver="hierarchical", svd_rank=3, svd_tol=1e-1)
+        with self.assertRaises(ValueError):
+            ht.decomposition.DMDc(svd_solver="randomized")
+        with self.assertRaises(ValueError):
+            ht.decomposition.DMDc(svd_solver="randomized", svd_rank=2, svd_tol=1e-1)
+        with self.assertRaises(TypeError):
+            ht.decomposition.DMDc(svd_solver="full", svd_rank=0.1)
+        with self.assertRaises(ValueError):
+            ht.decomposition.DMDc(svd_solver="hierarchical", svd_rank=0)
+        with self.assertRaises(TypeError):
+            ht.decomposition.DMDc(svd_solver="hierarchical", svd_tol="auto")
+        with self.assertRaises(ValueError):
+            ht.decomposition.DMDc(svd_solver="randomized", svd_rank=0)
 
-    #     dmd = ht.decomposition.DMDc(svd_solver="full")
-    #     # wrong dimensions of input
-    #     with self.assertRaises(ValueError):
-    #         dmd.fit(ht.zeros((5 * ht.MPI_WORLD.size, 2, 2), split=0), ht.zeros((2, 4), split=0))
-    #     with self.assertRaises(ValueError):
-    #         dmd.fit(ht.zeros((2, 4), split=0), ht.zeros((5 * ht.MPI_WORLD.size, 2, 2), split=0))
-    #     # less than two timesteps
-    #     with self.assertRaises(ValueError):
-    #         dmd.fit(ht.zeros((5 * ht.MPI_WORLD.size, 1), split=0), ht.zeros((2, 4), split=0))
-    #     with self.assertRaises(ValueError):
-    #         dmd.fit(ht.zeros((2, 4), split=0), ht.zeros((5 * ht.MPI_WORLD.size, 1), split=0))
-    #     # inconsistent number of timesteps
-    #     with self.assertRaises(ValueError):
-    #         dmd.fit(ht.zeros((5 * ht.MPI_WORLD.size, 3), split=0), ht.zeros((2, 4), split=0))
+        dmd = ht.decomposition.DMDc(svd_solver="full")
+        # wrong dimensions of input
+        with self.assertRaises(ValueError):
+            dmd.fit(ht.zeros((5 * ht.MPI_WORLD.size, 2, 2), split=0), ht.zeros((2, 4), split=0))
+        with self.assertRaises(ValueError):
+            dmd.fit(ht.zeros((2, 4), split=0), ht.zeros((5 * ht.MPI_WORLD.size, 2, 2), split=0))
+        # less than two timesteps
+        with self.assertRaises(ValueError):
+            dmd.fit(ht.zeros((5 * ht.MPI_WORLD.size, 1), split=0), ht.zeros((2, 4), split=0))
+        with self.assertRaises(ValueError):
+            dmd.fit(ht.zeros((2, 4), split=0), ht.zeros((5 * ht.MPI_WORLD.size, 1), split=0))
+        # inconsistent number of timesteps
+        with self.assertRaises(ValueError):
+            dmd.fit(ht.zeros((5 * ht.MPI_WORLD.size, 3), split=0), ht.zeros((2, 4), split=0))
 
     def test_dmdc_functionality_split0(self):
         # check whether the everything works with split=0, various checks are scattered over the different cases
