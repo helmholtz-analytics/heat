@@ -152,24 +152,27 @@ class TestBatchParallelKCluster(TestCase):
             X = ht.random.randn(ht.MPI_WORLD.size * 10, 2, split=0)
             with self.assertRaises(RuntimeError):
                 parallelclusterer.predict(X)
-            parallelclusterer = ParallelClusterer()
-            X = ht.random.randn(ht.MPI_WORLD.size * 10, 2, split=0)
-            parallelclusterer.fit_predict(X)
-            # wrong dtype for predict
-            with self.assertRaises(TypeError):
-                parallelclusterer.predict("abc")
-            # wrong dimension for predict
-            X = ht.random.randn(4, 2, 2, split=0)
-            with self.assertRaises(ValueError):
-                parallelclusterer.predict(X)
-            # wrong split dimension for predict
-            X = ht.random.randn(4, ht.MPI_WORLD.size * 10, split=1)
-            with self.assertRaises(ValueError):
-                parallelclusterer.predict(X)
-            # wrong shape for predict
-            X = ht.random.randn(ht.MPI_WORLD.size * 10, 3, split=0)
-            with self.assertRaises(ValueError):
-                parallelclusterer.predict(X)
+            if ht.MPI_WORLD.size > 1:
+                if not self.is_mps:
+                    # parallelclusterer.fit() fails on MPS
+                    parallelclusterer = ParallelClusterer()
+                    X = ht.random.randn(ht.MPI_WORLD.size * 10, 2, split=0)
+                    parallelclusterer.fit_predict(X)
+                    # wrong dtype for predict
+                    with self.assertRaises(TypeError):
+                        parallelclusterer.predict("abc")
+                    # wrong dimension for predict
+                    X = ht.random.randn(4, 2, 2, split=0)
+                    with self.assertRaises(ValueError):
+                        parallelclusterer.predict(X)
+                    # wrong split dimension for predict
+                    X = ht.random.randn(4, ht.MPI_WORLD.size * 10, split=1)
+                    with self.assertRaises(ValueError):
+                        parallelclusterer.predict(X)
+                    # wrong shape for predict
+                    X = ht.random.randn(ht.MPI_WORLD.size * 10, 3, split=0)
+                    with self.assertRaises(ValueError):
+                        parallelclusterer.predict(X)
             # wrong inputs for constructor
             with self.assertRaises(ValueError):
                 parallelclusterer = ParallelClusterer(n_clusters=-1)
