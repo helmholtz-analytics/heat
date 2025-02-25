@@ -5,7 +5,6 @@ import platform
 import numpy as np
 import torch
 import heat as ht
-import unittest
 
 from .test_suites.basic_test import TestCase
 
