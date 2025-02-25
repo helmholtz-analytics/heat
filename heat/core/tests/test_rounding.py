@@ -19,8 +19,9 @@ class TestRounding(TestCase):
         int16_absolute_values_fabs = ht.fabs(int16_tensor_fabs)
         int32_tensor_fabs = ht.arange(-10.5, 10.5, dtype=ht.int32, split=0)
         int32_absolute_values_fabs = ht.fabs(int32_tensor_fabs)
-        int64_tensor_fabs = ht.arange(-10.5, 10.5, dtype=ht.int64, split=0)
-        int64_absolute_values_fabs = ht.fabs(int64_tensor_fabs)
+        if not self.is_mps:
+            int64_tensor_fabs = ht.arange(-10.5, 10.5, dtype=ht.int64, split=0)
+            int64_absolute_values_fabs = ht.fabs(int64_tensor_fabs)
         float32_tensor_fabs = ht.arange(-10.5, 10.5, dtype=ht.float32, split=0)
         float32_absolute_values_fabs = ht.fabs(float32_tensor_fabs)
         if not self.is_mps:
@@ -35,7 +36,8 @@ class TestRounding(TestCase):
         self.assertEqual(int8_absolute_values_fabs.sum(axis=0), 100.0)
         self.assertEqual(int16_absolute_values_fabs.sum(axis=0), 100.0)
         self.assertEqual(int32_absolute_values_fabs.sum(axis=0), 100.0)
-        self.assertEqual(int64_absolute_values_fabs.sum(axis=0), 100.0)
+        if not self.is_mps:
+            self.assertEqual(int64_absolute_values_fabs.sum(axis=0), 100.0)
         self.assertEqual(float32_absolute_values_fabs.sum(axis=0), 110.5)
         if not self.is_mps:
             self.assertEqual(float64_absolute_values_fabs.sum(axis=0), 110.5)
@@ -277,13 +279,14 @@ class TestRounding(TestCase):
         self.assert_array_equal(float32_round, comparison)
 
         # exponential of float64
-        comparison = torch.arange(start, end, step, dtype=torch.float64).round()
-        float64_tensor = ht.array(comparison, dtype=ht.float64)
-        float64_round = float64_tensor.round()
-        self.assertIsInstance(float64_round, ht.DNDarray)
-        self.assertEqual(float64_round.dtype, ht.float64)
-        self.assertEqual(float64_round.dtype, ht.float64)
-        self.assert_array_equal(float64_round, comparison)
+        if not self.is_mps:
+            comparison = torch.arange(start, end, step, dtype=torch.float64).round()
+            float64_tensor = ht.array(comparison, dtype=ht.float64)
+            float64_round = float64_tensor.round()
+            self.assertIsInstance(float64_round, ht.DNDarray)
+            self.assertEqual(float64_round.dtype, ht.float64)
+            self.assertEqual(float64_round.dtype, ht.float64)
+            self.assert_array_equal(float64_round, comparison)
 
         # check exceptions
         with self.assertRaises(TypeError):
@@ -297,24 +300,25 @@ class TestRounding(TestCase):
 
         # with split tensors
 
-        # exponential of float32
-        comparison = torch.arange(start, end, step, dtype=torch.float32)  # .round()
-        float32_tensor_distrbd = ht.array(comparison, split=0, dtype=ht.double)
-        comparison = comparison.round()
-        float32_round_distrbd = float32_tensor_distrbd.round(dtype=ht.float)
-        self.assertIsInstance(float32_round_distrbd, ht.DNDarray)
-        self.assertEqual(float32_round_distrbd.dtype, ht.float32)
-        self.assert_array_equal(float32_round_distrbd, comparison)
+        if not self.is_mps:
+            # exponential of float32
+            comparison = torch.arange(start, end, step, dtype=torch.float32)  # .round()
+            float32_tensor_distrbd = ht.array(comparison, split=0, dtype=ht.double)
+            comparison = comparison.round()
+            float32_round_distrbd = float32_tensor_distrbd.round(dtype=ht.float)
+            self.assertIsInstance(float32_round_distrbd, ht.DNDarray)
+            self.assertEqual(float32_round_distrbd.dtype, ht.float32)
+            self.assert_array_equal(float32_round_distrbd, comparison)
 
-        # exponential of float64
-        comparison = torch.arange(start, end, step, dtype=torch.float64)  # .round()
-        float64_tensor_distrbd = ht.array(comparison, split=0)
-        comparison = comparison.round()
-        float64_round_distrbd = float64_tensor_distrbd.round()
-        self.assertIsInstance(float64_round_distrbd, ht.DNDarray)
-        self.assertEqual(float64_round_distrbd.dtype, ht.float64)
-        self.assertEqual(float64_round_distrbd.dtype, ht.float64)
-        self.assert_array_equal(float64_round_distrbd, comparison)
+            # exponential of float64
+            comparison = torch.arange(start, end, step, dtype=torch.float64)  # .round()
+            float64_tensor_distrbd = ht.array(comparison, split=0)
+            comparison = comparison.round()
+            float64_round_distrbd = float64_tensor_distrbd.round()
+            self.assertIsInstance(float64_round_distrbd, ht.DNDarray)
+            self.assertEqual(float64_round_distrbd.dtype, ht.float64)
+            self.assertEqual(float64_round_distrbd.dtype, ht.float64)
+            self.assert_array_equal(float64_round_distrbd, comparison)
 
     def test_sgn(self):
         # floats

@@ -107,8 +107,8 @@ class TestFactories(TestCase):
             # make an in direct check for the sequence, compare against the gaussian sum
             self.assertEqual(three_arg_arange_dtype_float64.sum(axis=0, keepdims=True), 20.0)
 
-        check_precision = ht.arange(16777217.0, 16777218, 1, dtype=ht.float64)
-        self.assertEqual(check_precision.sum(), 16777217)
+            check_precision = ht.arange(16777217.0, 16777218, 1, dtype=ht.float64)
+            self.assertEqual(check_precision.sum(), 16777217)
 
         # exceptions
         with self.assertRaises(ValueError):
@@ -146,8 +146,9 @@ class TestFactories(TestCase):
                 == torch.tensor(tuple_data, dtype=torch.int8, device=self.device.torch_device)
             ).all()
         )
-        check_precision = ht.array(16777217.0, dtype=ht.float64)
-        self.assertEqual(check_precision.sum(), 16777217)
+        if not self.is_mps:
+            check_precision = ht.array(16777217.0, dtype=ht.float64)
+            self.assertEqual(check_precision.sum(), 16777217)
 
         # basic array function, unsplit data, no copy
         torch_tensor = torch.tensor([6, 5, 4, 3, 2, 1], device=self.device.torch_device)
@@ -743,8 +744,9 @@ class TestFactories(TestCase):
 
         zero_samples = ht.linspace(-3, 5, num=0)
         self.assertEqual(zero_samples.size, 0)
-        check_precision = ht.linspace(0.0, 16777217.0, num=2, dtype=torch.float64)
-        self.assertEqual(check_precision.sum(), 16777217)
+        if not self.is_mps:
+            check_precision = ht.linspace(0.0, 16777217.0, num=2, dtype=torch.float64)
+            self.assertEqual(check_precision.sum(), 16777217)
 
         # simple inverse linear space
         descending = ht.linspace(-5, 3, num=100)
