@@ -561,6 +561,10 @@ class DMDc(ht.RegressionMixin, ht.BaseEstimator):
             Utilde2 = Utilde[X.shape[0] :, :]
             Vtilde = Vtilde[:-1, :]
 
+        # ensure that everything is balanced for the following steps
+        Utilde2.balance_()
+        Utilde1.balance_()
+        Vtilde.balance_()
         # second step of DMD: compute the reduced order model transfer matrix
         # we need to assume that the the transfer matrix of the ROM is small enough to fit into memory of one process
         self.rom_transfer_matrix_ = (
