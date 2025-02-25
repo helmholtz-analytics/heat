@@ -112,10 +112,7 @@ class TestKMeans(TestCase):
         self.assertEqual(kmedoid.cluster_centers_.shape, (4, 3))
         for i in range(kmedoid.cluster_centers_.shape[0]):
             self.assertTrue(
-                ht.any(
-                    ht.sum(ht.abs(kmedoid.cluster_centers_[i, :] - data.astype(ht.float32)), axis=1)
-                    == 0
-                )
+                ht.any(ht.sum(ht.abs(kmedoid.cluster_centers_[i, :] - data), axis=1) == 0)
             )
 
         # on Ints (different radius, offset and datatype
