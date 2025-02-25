@@ -288,7 +288,7 @@ class TestLinalgBasics(TestCase):
         self.assertTrue(ht.allclose(ainv, ares, atol=1e-6))
 
         # pivoting row change
-        dtype = ht.floa32 if self.is_mps else ht.float64
+        dtype = ht.float32 if self.is_mps else ht.float64
         atol = 1e-6 if dtype == ht.float32 else 1e-12
 
         ares = ht.array([[-1, 0, 2], [2, 0, -1], [-6, 3, 0]], dtype=dtype, split=0) / 3.0
