@@ -736,7 +736,7 @@ def __factory(
     shape : int or Sequence[ints,...]
         Desired shape of the output array, e.g. 1 or (1, 2, 3,).
     dtype : datatype
-        The desired HeAT data type for the array, defaults to ht.float32.
+        The desired Heat data type for the array, defaults to ht.float32.
     split : int or None
         The axis along which the array is split and distributed.
     local_factory : callable
