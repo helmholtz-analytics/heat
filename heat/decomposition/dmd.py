@@ -320,6 +320,32 @@ class DMD(ht.RegressionMixin, ht.BaseEstimator):
                 "Predicting multiple time steps in one go is not supported for the given data layout. Please, use 'predict_next' instead, or open an issue on GitHub if you require this feature."
             )
 
+    def __str__(self):
+        if ht.MPI_WORLD.rank == 0:
+            if self.rom_basis_ is not None:
+                return (
+                    f"-------------------- DMD (Dynamic Mode Decomposition) --------------------\n"
+                    f"Number of modes: {self.n_modes_}\n"
+                    f"State space dimension: {self.rom_basis_.shape[0]}\n"
+                    f"DMD eigenvalues: {self.rom_eigenvalues_.larray}\n"
+                    f"--------------------------------------------------------------------------\n"
+                    f"ROM basis of shape {self.rom_basis_.shape}:\n"
+                    f"\t split axis: {self.rom_basis_.split}\n"
+                    f"\t device: {self.rom_basis_.device.__str__().split(':')[-2]}\n"
+                    f"--------------------------------------------------------------------------\n"
+                )
+            else:
+                return (
+                    f"---------------- UNFITTED DMD (Dynamic Mode Decomposition) ---------------\n"
+                    f"Parameters for fit are as follows: \n"
+                    f"\t SVD-solver: {self.svd_solver}\n"
+                    f"\t SVD-rank: {self.svd_rank}\n"
+                    f"\t SVD-tolerance: {self.svd_tol}\n"
+                    f"--------------------------------------------------------------------------\n"
+                )
+        else:
+            return ""
+
 
 class DMDc(ht.RegressionMixin, ht.BaseEstimator):
     """
@@ -375,8 +401,6 @@ class DMDc(ht.RegressionMixin, ht.BaseEstimator):
         svd_solver: Optional[str] = "full",
         svd_rank: Optional[int] = None,
         svd_tol: Optional[float] = None,
-        svd_rank_system: Optional[int] = None,
-        svd_tol_system: Optional[float] = None,
     ):
         # Check if the specified SVD algorithm is valid
         if not isinstance(svd_solver, str):
@@ -470,6 +494,10 @@ class DMDc(ht.RegressionMixin, ht.BaseEstimator):
         if X.shape[1] != C.shape[1]:
             raise ValueError(
                 f"Invalid number of time steps {X.shape[1]} in input data 'X' and {C.shape[1]} in input data 'C'. Must have the same number of time steps."
+            )
+        if X.split is not None and C.split is not None and X.split != C.split:
+            raise ValueError(
+                f"If both input data 'X' and 'C' are distributed, they must be distributed along the same axis, but X.split={X.split}, C.split={C.split}."
             )
         Xplus = X[:, 1:]
         Xplus.balance_()
@@ -565,6 +593,8 @@ class DMDc(ht.RegressionMixin, ht.BaseEstimator):
         Utilde2.balance_()
         Utilde1.balance_()
         Vtilde.balance_()
+        if Utilde2.split is not None and Utilde2.shape[Utilde2.split] < Utilde2.comm.size:
+            Utilde2.resplit_((Utilde2.split + 1) % 2)
         # second step of DMD: compute the reduced order model transfer matrix
         # we need to assume that the the transfer matrix of the ROM is small enough to fit into memory of one process
         self.rom_transfer_matrix_ = (
@@ -581,3 +611,93 @@ class DMDc(ht.RegressionMixin, ht.BaseEstimator):
         self.dmdmodes_ = (
             Xplus @ (Vtilde / Stilde) @ Utilde1.T @ self.rom_basis_ @ self.rom_eigenmodes_
         )
+
+    def predict(self, X: ht.DNDarray, C: ht.DNDarray) -> ht.DNDarray:
+        """
+        Predicts and returns future states given the current state(s) ``X`` and control trajectory ``C``.
+
+        Parameters
+        ----------
+        X : DNDarray
+            The current state(s) for the prediction. Must have the same number of features as the training data, but can be batched for multiple current states,
+            i.e., X can be of shape (n_state_features,) or (n_batch, n_state_features).
+        C : DNDarray
+            The control trajectory for the prediction. Must have the same number of control features as the training data, i.e., C must be of shape
+            (n_control_features,) --for a single time step-- or (n_control_features, n_timesteps).
+        """
+        if self.rom_basis_ is None:
+            raise RuntimeError("Model has not been fitted yet. Call 'fit' first.")
+        # sanitize input data
+        ht.sanitize_in(X)
+        ht.sanitize_in(C)
+        # if X is a 1-D DNDarray, we add an artificial batch dimension; check correct dimensions for X
+        if X.ndim == 1:
+            X = X.expand_dims(0)
+        if X.ndim > 2:
+            raise ValueError(
+                f"Invalid shape '{X.shape}' for input data 'X'. Must be a 2-D DNDarray of shape (n_batch, n_state_features) or a 1-D DNDarray of shape (n_state_features,)."
+            )
+        # if C is a 1-D DNDarray, we add an artificial dimension for the single time step; check correct dimensions for C
+        if C.ndim == 1:
+            C = C.expand_dims(1)
+        if C.ndim > 2:
+            raise ValueError(
+                f"Invalid shape '{C.shape}' for input data 'C'. Must be a 2-D DNDarray of shape (n_control_features, n_timesteps) or a 1-D DNDarray of shape (n_control_features,) for a single time step."
+            )
+        # check if the input data has the right number of features for control and state space
+        if X.shape[1] != self.rom_basis_.shape[0]:
+            raise ValueError(
+                f"Invalid number of features '{X.shape[1]}' in input data 'X'. Must have the same number of features as the training data (={self.rom_basis_.shape[0]})."
+            )
+        if C.shape[0] != self.rom_control_matrix_.shape[1]:
+            raise ValueError(
+                f"Invalid number of features '{C.shape[1]}' in input data 'C'. Must have the same number of features as the training data (={self.rom_control_matrix_.shape[1]})."
+            )
+        # different cases
+        if C.split is not None:
+            raise ValueError("So far only C.split = None is supported .")
+        # time evolution in the reduced order model
+        X_red = X @ self.rom_basis_
+        X_red_full = ht.zeros(
+            (X.shape[0], self.rom_basis_.shape[1], C.shape[1]),
+            split=X_red.split,
+            device=X.device,
+            dtype=X.dtype,
+        )
+        X_red_full[:, :, 0] = X_red
+        for i in range(1, C.shape[1]):
+            X_red_full[:, :, i] = (self.rom_transfer_matrix_ @ X_red_full[:, :, i - 1].T).T + (
+                self.rom_control_matrix_ @ C[:, i]
+            ).T
+        # reshape in order to be able to multiply with basis again
+        X_red_full = X_red_full.reshape(self.rom_basis_.shape[1], -1)
+        X_pred = self.rom_basis_ @ X_red_full
+        # reshape again and return
+        return X_pred.reshape(X.shape[0], X.shape[1], C.shape[1])
+
+    def __str__(self):
+        if ht.MPI_WORLD.rank == 0:
+            if self.rom_basis_ is not None:
+                return (
+                    f"----------- DMDc (Dynamic Mode Decomposition with control) ---------------\n"
+                    f"Number of modes: {self.n_modes_}\n"
+                    f"State space dimension: {self.rom_basis_.shape[0]}\n"
+                    f"Control space dimension: {self.rom_control_matrix_.shape[1]}\n"
+                    f"DMD eigenvalues: {self.rom_eigenvalues_.larray}\n"
+                    f"--------------------------------------------------------------------------\n"
+                    f"ROM basis of shape {self.rom_basis_.shape}:\n"
+                    f"\t split axis: {self.rom_basis_.split}\n"
+                    f"\t device: {self.rom_basis_.device.__str__().split(':')[-2]}\n"
+                    f"--------------------------------------------------------------------------\n"
+                )
+            else:
+                return (
+                    f"-------- UNFITTED DMDc (Dynamic Mode Decomposition with control) ---------\n"
+                    f"Parameters for fit are as follows: \n"
+                    f"\t SVD-solver: {self.svd_solver}\n"
+                    f"\t SVD-rank: {self.svd_rank}\n"
+                    f"\t SVD-tolerance: {self.svd_tol}\n"
+                    f"--------------------------------------------------------------------------\n"
+                )
+        else:
+            return ""
