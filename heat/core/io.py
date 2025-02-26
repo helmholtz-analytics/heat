@@ -38,6 +38,29 @@ __all__ = [
     "load_npy_from_path",
 ]
 
+
+def size_from_slice(size: int, s: slice) -> Tuple[int, int]:
+    """
+    Determines the size of a slice object.
+
+    Parameters
+    ----------
+    size: int
+        The size of the array the slice object is applied to.
+    s : slice
+        The slice object to determine the size of.
+
+    Returns
+    -------
+    int
+        The size of the sliced object.
+    int
+        The start index of the slice object.
+    """
+    new_range = range(size)[s]
+    return len(new_range), new_range.start if len(new_range) > 0 else 0
+
+
 try:
     import netCDF4 as nc
 except ImportError:
@@ -489,7 +512,7 @@ else:
         path: str,
         dataset: str,
         dtype: datatype = types.float32,
-        load_fraction: float = 1.0,
+        slices: Optional[Tuple[Optional[slice], ...]] = None,
         split: Optional[int] = None,
         device: Optional[str] = None,
         comm: Optional[Communication] = None,
@@ -505,10 +528,8 @@ else:
             Name of the dataset to be read.
         dtype : datatype, optional
             Data type of the resulting array.
-        load_fraction : float between 0. (excluded) and 1. (included), default is 1.
-            if 1. (default), the whole dataset is loaded from the file specified in path
-            else, the dataset is loaded partially, with the fraction of the dataset (along the split axis) specified by load_fraction
-            If split is None, load_fraction is automatically set to 1., i.e. the whole dataset is loaded.
+        slices : tuple of slice objects, optional
+            Load only the specified slices of the dataset.
         split : int or None, optional
             The axis along which the data is distributed among the processing cores.
         device : str, optional
@@ -545,14 +566,6 @@ else:
         elif split is not None and not isinstance(split, int):
             raise TypeError(f"split must be None or int, not {type(split)}")
 
-        if not isinstance(load_fraction, float):
-            raise TypeError(f"load_fraction must be float, but is {type(load_fraction)}")
-        else:
-            if split is not None and (load_fraction <= 0.0 or load_fraction > 1.0):
-                raise ValueError(
-                    f"load_fraction must be between 0. (excluded) and 1. (included), but is {load_fraction}."
-                )
-
         # infer the type and communicator for the loaded array
         dtype = types.canonical_heat_type(dtype)
         # determine the comm and device the data will be placed on
@@ -563,13 +576,34 @@ else:
         with h5py.File(path, "r") as handle:
             data = handle[dataset]
             gshape = data.shape
-            if split is not None:
-                gshape = list(gshape)
-                gshape[split] = int(gshape[split] * load_fraction)
-                gshape = tuple(gshape)
+            new_gshape = tuple()
+            offsets = [0] * len(gshape)
+            if slices is not None:
+                for i in range(len(gshape)):
+
+                    if i < len(slices) and slices[i]:
+                        s = slices[i]
+                        if s.step is not None and s.step != 1:
+                            raise ValueError("Slices with step != 1 are not supported")
+                        new_axis_size, offset = size_from_slice(gshape[i], s)
+                        new_gshape += (new_axis_size,)
+                        offsets[i] = offset
+                    else:
+                        new_gshape += (gshape[i],)
+                        offsets[i] = 0
+
+                gshape = new_gshape
+
             dims = len(gshape)
             split = sanitize_axis(gshape, split)
             _, _, indices = comm.chunk(gshape, split)
+
+            if slices is not None:
+                new_indices = tuple()
+                for offset, index in zip(offsets, indices):
+                    new_indices += (slice(index.start + offset, index.stop + offset),)
+                indices = new_indices
+
             balanced = True
             if split is None:
                 data = torch.tensor(
