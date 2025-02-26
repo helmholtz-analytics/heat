@@ -191,7 +191,7 @@ def qr(
 
     if A.split == A.ndim - 2:
         # check that data distribution is reasonable for TS-QR
-        # we regard a matrix with split = 0 as suitable for TS-QR is largest local chunk of data has at least as many rows as columns
+        # we regard a matrix with split = 0 as suitable for TS-QR if its largest local chunk of data has at least as many rows as columns
         biggest_number_of_local_rows = A.lshape_map[:, -2].max().item()
         if biggest_number_of_local_rows < A.shape[-1]:
             column_idx = torch.cumsum(A.lshape_map[:, -2], 0)

@@ -20,6 +20,11 @@ def qr_split_0(a):
 
 
 @monitor()
+def qr_split_0_square(a):
+    qr = ht.linalg.qr(a)
+
+
+@monitor()
 def qr_split_1(a):
     qr = ht.linalg.qr(a)
 
@@ -65,6 +70,11 @@ def run_linalg_benchmarks():
     m = MPI.COMM_WORLD.size * n
     a_0 = ht.random.random((m, n), split=0)
     qr_split_0(a_0)
+    del a_0
+
+    n = 2000
+    a_0 = ht.random.random((n, n), split=0)
+    qr_split_0_square(a_0)
     del a_0
 
     n = 2000
