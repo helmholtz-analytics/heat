@@ -11,7 +11,7 @@ from ..communication import MPICommunication, MPI
 from ..dndarray import DNDarray
 from .. import factories
 from .. import types
-from ..linalg import matrix_norm, vector_norm, matmul, qr, solve_triangular
+from . import matrix_norm, vector_norm, matmul, qr, solve_triangular
 from .basics import _estimate_largest_singularvalue, condest
 from ..indexing import where
 from ..random import randn
@@ -23,7 +23,7 @@ from .. import statistics
 from scipy.special import ellipj
 from scipy.special import ellipkm1
 
-__all__ = ["pd"]
+__all__ = ["polar"]
 
 
 def _zolopd_n_iterations(r: int, kappa: float) -> int:
@@ -129,7 +129,7 @@ def _in_place_qr_with_q_only(A: DNDarray, procs_to_merge: int = 2) -> None:
         del r
 
 
-def pd(
+def polar(
     A: DNDarray,
     r: int = None,
     calcH: bool = True,

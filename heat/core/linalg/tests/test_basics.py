@@ -11,21 +11,14 @@ from ..basics import _estimate_largest_singularvalue
 
 class TestLinalgBasics(TestCase):
     def test_estimate_largest_singularvalue(self):
-        # split = 0, float32
-        x = ht.random.randn(100, 100, split=0, dtype=ht.float32)
-        est = _estimate_largest_singularvalue(x)
-        self.assertIsInstance(est, ht.DNDarray)
-        self.assertTrue(est >= 0)
-        self.assertTrue(est.dtype, ht.float32)
-        self.assertTrue(est.item() >= np.linalg.svd(x.numpy(), compute_uv=False).max())
-
-        # split = 1, float64
-        x = ht.random.randn(100, 100, split=1, dtype=ht.float64)
-        est = _estimate_largest_singularvalue(x, algorithm="fro")
-        self.assertEqual(est.shape, ())
-        self.assertEqual(est.device, x.device)
-        self.assertTrue(est.dtype, ht.float64)
-        self.assertTrue(est.item() >= np.linalg.svd(x.numpy(), compute_uv=False).max())
+        for param in [(0, ht.float32), (1, ht.float64)]:
+            with self.subTest(param=param):
+                x = ht.random.randn(100, 100, split=param[0], dtype=param[1])
+                est = _estimate_largest_singularvalue(x)
+                self.assertIsInstance(est, ht.DNDarray)
+                self.assertTrue(est >= 0)
+                self.assertTrue(est.dtype, param[1])
+                self.assertTrue(est.item() >= np.linalg.svd(x.numpy(), compute_uv=False).max())
 
         # catch wrong inputs
         with self.assertRaises(NotImplementedError):

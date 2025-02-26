@@ -75,7 +75,7 @@ def condest(
     A: DNDarray, p: Union[int, str] = None, algorithm: str = "randomized", params: list = None
 ) -> DNDarray:
     """
-    Computes a (possibly randomized) upper estimate the l2-condition number of the input 2D DNDarray.
+    Computes a (possibly randomized) upper estimate of the l2-condition number of the input 2D DNDarray.
 
     Parameters
     ----------
