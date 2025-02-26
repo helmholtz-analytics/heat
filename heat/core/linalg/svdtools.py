@@ -14,7 +14,7 @@ from .. import types
 from ..linalg import matmul, vector_norm, qr, svd
 from ..indexing import where
 from ..random import randn
-
+from ..sanitation import sanitize_in_nd_realfloating
 from ..manipulations import vstack, hstack, diag, balance
 
 from .. import statistics
@@ -22,19 +22,6 @@ from math import log, ceil, floor, sqrt
 
 
 __all__ = ["hsvd_rank", "hsvd_rtol", "hsvd", "rsvd", "isvd"]
-
-
-def _check_is_nd_realfloating(input, inputname, allowed_ns):
-    if not isinstance(input, DNDarray):
-        raise TypeError(f"Argument {inputname} needs to be a DNDarray but is {type(input)}.")
-    if input.ndim not in allowed_ns:
-        raise ValueError(
-            f"Argument {inputname} needs to be a {allowed_ns}-dimensional, but is {input.ndim}-dimensional."
-        )
-    if not types.heat_type_is_realfloating(input.dtype):
-        raise TypeError(
-            f"Argument {inputname} needs to be a DNDarray with datatype float32 or float64, but data type is {input.dtype}."
-        )
 
 
 #######################################################################################
@@ -98,7 +85,7 @@ def hsvd_rank(
         [1] Iwen, Ong. A distributed and incremental SVD algorithm for agglomerative data analysis on large networks. SIAM J. Matrix Anal. Appl., 37(4), 2016.
         [2] Himpe, Leibner, Rave. Hierarchical approximate proper orthogonal decomposition. SIAM J. Sci. Comput., 40 (5), 2018.
     """
-    _check_is_nd_realfloating(A, "A", [2])
+    sanitize_in_nd_realfloating(A, "A", [2])
     A_local_size = max(A.lshape_map[:, 1])
 
     if maxmergedim is not None and maxmergedim < 2 * (maxrank + safetyshift) + 1:
@@ -201,7 +188,7 @@ def hsvd_rtol(
         [1] Iwen, Ong. A distributed and incremental SVD algorithm for agglomerative data analysis on large networks. SIAM J. Matrix Anal. Appl., 37(4), 2016.
         [2] Himpe, Leibner, Rave. Hierarchical approximate proper orthogonal decomposition. SIAM J. Sci. Comput., 40 (5), 2018.
     """
-    _check_is_nd_realfloating(A, "A", [2])
+    sanitize_in_nd_realfloating(A, "A", [2])
     A_local_size = max(A.lshape_map[:, 1])
 
     if maxmergedim is not None and maxrank is None:
@@ -558,7 +545,7 @@ def rsvd(
     -----------
     [1] Halko, N., Martinsson, P. G., & Tropp, J. A. (2011). Finding structure with randomness: Probabilistic algorithms for constructing approximate matrix decompositions. SIAM review, 53(2), 217-288.
     """
-    _check_is_nd_realfloating(A, "A", [2])
+    sanitize_in_nd_realfloating(A, "A", [2])
     if not isinstance(rank, int):
         raise TypeError(f"rank must be an integer, but is {type(rank)}.")
     if rank < 1:
@@ -782,10 +769,10 @@ def isvd(
     [1] Brand, M. (2006). Fast low-rank modifications of the thin singular value decomposition. Linear algebra and its applications, 415(1), 20-30.
     """
     # check if new_data, U_old, V_old are 2D DNDarrays and float32/64
-    _check_is_nd_realfloating(new_data, "new_data", [2])
-    _check_is_nd_realfloating(U_old, "U_old", [2])
-    _check_is_nd_realfloating(S_old, "S_old", [1])
-    _check_is_nd_realfloating(V_old, "V_old", [2])
+    sanitize_in_nd_realfloating(new_data, "new_data", [2])
+    sanitize_in_nd_realfloating(U_old, "U_old", [2])
+    sanitize_in_nd_realfloating(S_old, "S_old", [1])
+    sanitize_in_nd_realfloating(V_old, "V_old", [2])
     # check if number of columns of U_old and V_old match the number of elements in S_old
     if U_old.shape[1] != S_old.shape[0]:
         raise ValueError(

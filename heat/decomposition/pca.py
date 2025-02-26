@@ -286,6 +286,8 @@ class IncrementalPCA(ht.TransformMixin, ht.BaseEstimator):
 
     This class allows for incremental updates of the PCA model. This is especially useful for large data sets that do not fit into memory.
 
+    An example how to apply this class is given in, e.g., `benchmarks/cb/decomposition.py`.
+
     Parameters
     ----------
     n_components : int, optional
