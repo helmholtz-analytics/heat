@@ -11,6 +11,10 @@ on:
         description: "The base branch to create the release branch from"
         required: true
         default: "main"
+      title:
+        description: "Release title"
+        required: False
+        default: "Heat"
 
 permissions:
   contents: write
@@ -22,13 +26,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@cb605e52c26070c328afc4562f0b4ada7618a84e # v2.10.4
+        uses: step-security/harden-runner@4d991eb9b905ef189e4c376166672c3f2f230481 # v2.11.0
         with:
           egress-policy: audit
 
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.inputs.base_branch }}
+      - uses: release-drafter/release-drafter@v6 # v6.0.0
+        id: release_drafter
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          commitish: 'stable'
+          name: ${{ github.event.inputs.title }}
+          config-name: rd-release-config.yml
       - name: Bump version.py and create PR
         env:
           PR_BRANCH: pre-release/${{ inputs.release_version }}
@@ -49,12 +61,15 @@ jobs:
           sed -i "s/micro: int = \([0-9]\+\)/micro: int = $MICRO/g" heat/core/version.py
           sed -i "s/extension: str = .*/extension: str = None/g" heat/core/version.py
 
+          { echo -e "# v${MAJOR}.${MINOR}.${MICRO} - ${{github.event.inputs.title}}\n${{ steps.release_drafter.outputs.body}}\n"; cat CHANGELOG.md; } > tmp.md
+          mv tmp.md CHANGELOG.md
+
           # Git configuration with anonymous user and email
           git config --global user.email ""
           git config --global user.name "Heat Release Bot"
 
           # Commit the changes
-          git add heat/core/version.py
+          git add heat/core/version.py CHANGELOG.md
           git commit -m "Bump version to $VERSION"
 
           # Push the changes
@@ -62,24 +77,30 @@ jobs:
 
           # Create PR for release
           gh pr create \
-          --base release \
+          --base stable \
           --head ${{ env.PR_BRANCH }} \
           --title "Heat ${{ env.VERSION }} - Release" \
           --body "Pre-release branch for Heat ${{ env.VERSION }}.
-          Any release work should be done on this branch, and then merged into the release branch and main, following git-flow.
+          Any release work should be done on this branch, and then merged into `stable` and `main`, following git-flow guidelines.
 
           TODO:
           - [x] Update version.py
-          - [ ] update the Requirements section on README.md if needed
-          - [ ] Update CITATION.cff if needed
-          - [ ] Ensure the Changelog is up to date
+          - [ ] Ensure Citation file `CITATION.cff` is up to date.
+          - [ ] Ensure the Changelog is up to date.
 
-          [1]: https://github.com/peter-evans/create-pull-request" \
-          --label invalid
+          DO NOT DELETE BRANCH AFTER MERGING!" \
+          --label "pre-release"
 
           # Create PR for main
           gh pr create --base main \
           --head ${{ env.PR_BRANCH }} \
           --title "Heat ${{ env.VERSION }} - Main" \
-          --body "Copy of latest pre-release PR targeting release." \
-          --label invalid
+          --draft \
+          --body "Copy of latest pre-release PR targeting release.
+          DO NOT CHANGE ANYTHING UNTIL `Heat ${{ env.VERSION }} - Release` HAS BEEN MERGED.
+
+          TODO:
+          - [ ] Make sure version.py is updated to reflect the dev version.
+          - [ ] Ensure Citation file is up to date.
+          - [ ] Ensure the Changelog is up to date." \
+          --label "post-release"
