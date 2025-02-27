@@ -257,7 +257,7 @@ def cdist_small(
         raise ValueError(f"Invalid metric '{metric.__name__}'. Must be one of {valid_metrics}.")
     if n_smallest > Y.larray.shape[0]:
         raise ValueError(
-            "Then parameter n_smallest must be smaller than the number of elements of Y in each process."
+            "The parameter n_smallest must be smaller than the number of elements of Y in each process."
             "In this case, use the function cdist instead."
         )
 
@@ -331,6 +331,7 @@ def cdist_small(
         # extract the corresponding indices
         current_idx = torch.gather(merged_idx, 1, topk_indices)
 
+    print(f"\n\n\n process: {ht.MPI_WORLD.rank} \n current_idx={current_idx}\n\n\n ")
     # assign the local results on each process (torch.tensor) to the distributed distance and index matrix (ht.DNDarray)
     dist_small = ht.array(current_dist, is_split=0)
     indices = ht.array(current_idx, is_split=0)
