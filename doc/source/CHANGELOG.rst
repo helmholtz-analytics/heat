@@ -1,14 +1,135 @@
-Changelog
-=========
-
-v1.4.2 - Maintenance release
-----------------------------
+v1.5.1
+======
 
 Changes
+-------
+
+Compatibility
+~~~~~~~~~~~~~
+
+-  #1706 Support PyTorch 2.5.1 (#1701) (by @mtar)
+-  #1775 Support PyTorch 2.6.0 (#1775) (by @mrfh92)
+
+Bug Fixes
+~~~~~~~~~
+
+-  #1791 ``heat.eq``, ``heat.ne`` now allow non-array operands (by
+   @\ `github-actions[bot] <https://github.com/apps/github-actions>`__)
+-  #1790 Fixed precision loss in several functions when dtype is float64
+   (by
+   @\ `github-actions[bot] <https://github.com/apps/github-actions>`__)
+-  #1764 Printing non-distributed data (by
+   @\ `github-actions[bot] <https://github.com/apps/github-actions>`__)
+
+CI
+~~
+
+-  #1750 Linters will no longer format tutorials (by
+   @\ `github-actions[bot] <https://github.com/apps/github-actions>`__)
+-  #1708 Documentation updates after new release (by
+   @\ `github-actions[bot] <https://github.com/apps/github-actions>`__)
+-  #1743 Modernise setup.py configuration (by
+   @\ `github-actions[bot] <https://github.com/apps/github-actions>`__)
+
+Docs
+~~~~
+
+-  #1698 Added Dalcin et al. 2018 reference to
+   ``manipulations._axis2axisResplit`` (by
+   @\ `github-actions[bot] <https://github.com/apps/github-actions>`__)
+-  #1745 Easier access to GitHub from the docs (by
+   @\ `github-actions[bot] <https://github.com/apps/github-actions>`__)
+
+Contributors
+------------
+
+@ClaudiaComito, @JuanPedroGHM, @github-actions [bot], @joernhees,
+@mrfh92, @mtar and
+`github-actions[bot] <https://github.com/apps/github-actions>`__ v1.5.1
+- Heat 1.5.1
+
+v1.5.0
+======
+
+.. _changes-1:
+
+Changes
+-------
+
+Cluster
 ~~~~~~~
 
+-  #1593 Improved Batch Parallelization. (by @mrfh92)
+
+Data
+~~~~
+
+-  #1529 Make ``dataset.ishuffle`` optional.
+
+IO
+~~
+
+-  #1602 Improved load balancing when loading .npy files from path. (by
+   @Reisii)
+-  #1551 Improved load balancing when loading .csv files from path. (by
+   @Reisii)
+
+Linear Algebra
+~~~~~~~~~~~~~~
+
+-  #1261 Batched matrix multiplication. (by @FOsterfeld)
+-  #1504 Add solver for triangular systems. (by @FOsterfeld)
+
+Manipulations
+~~~~~~~~~~~~~
+
+-  #1419 Implement distributed ``unfold`` operation. (by @FOsterfeld)
+
+Random
+~~~~~~
+
+-  #1508 Introduce Batchparallel for RNG as default. (by @mrfh92)
+
+Signal
+~~~~~~
+
+-  #1515 Support batch 1-d convolution in ``ht.signal.convolve``. (by
+   @ClaudiaComito)
+
+Statistics
+~~~~~~~~~~
+
+-  #1510 Support multiple axes for ``ht.percentile``. (by
+   @ClaudiaComito)
+
+Sparse
+~~~~~~
+
+-  #1377 Distributed Compressed Sparse Column Matrix. (by @Mystic-Slice)
+
+Other
+~~~~~
+
+-  #1618 Support mpi4py 4.x.x (by @JuanPedroGHM)
+
+.. _contributors-1:
+
+Contributors
+------------
+
+@ClaudiaComito, @FOsterfeld, @JuanPedroGHM, @Reisii, @mrfh92, @mtar and
+Hoppe
+
+v1.4.2 - Maintenance release
+============================
+
+.. _changes-2:
+
+Changes
+-------
+
 Maintenance
-^^^^^^^^^^^
+~~~~~~~~~~~
 
 -  `#1467 <https://github.com/helmholtz-analytics/heat/pull/1467>`__,
    `#1525 <https://github.com/helmholtz-analytics/heat/pull/1525>`__
@@ -18,15 +139,17 @@ Maintenance
    @ClaudiaComito)
 
 v1.4.1 - Bug fix release
-------------------------
+========================
 
-.. _changes-1:
+.. _changes-3:
 
 Changes
-~~~~~~~
+-------
+
+.. _bug-fixes-1:
 
 Bug fixes
-^^^^^^^^^
+~~~~~~~~~
 
 -  #1472 DNDarrays returned by ``_like`` functions default to same
    device as input DNDarray (by @mrfh92, @ClaudiaComito)
@@ -34,36 +157,36 @@ Bug fixes
 .. _maintenance-1:
 
 Maintenance
-^^^^^^^^^^^
+~~~~~~~~~~~
 
 -  #1441 added names of non-core members in citation file (by @mrfh92)
 
 v1.4.0 - Interactive HPC tutorials, distributed FFT, batch-parallel clustering, support PyTorch 2.2.2
------------------------------------------------------------------------------------------------------
+=====================================================================================================
 
-.. _changes-2:
+.. _changes-4:
 
 Changes
-~~~~~~~
+-------
 
 Documentation
-^^^^^^^^^^^^^
+~~~~~~~~~~~~~
 
 -  #1406 New tutorials for interactive parallel mode for both HPC and
    local usage (by @ClaudiaComito)
 
 🔥 Features
-^^^^^^^^^^^
+~~~~~~~~~~~
 
 -  #1288 Batch-parallel K-means and K-medians (by @mrfh92)
 -  #1228 Introduce in-place-operators for ``arithmetics.py`` (by
    @LScheib)
 -  #1218 Distributed Fast Fourier Transforms (by @ClaudiaComito)
 
-.. _bug-fixes-1:
+.. _bug-fixes-2:
 
 Bug fixes
-^^^^^^^^^
+~~~~~~~~~
 
 -  #1363 ``ht.array`` constructor respects implicit torch device when
    copy is set to false (by @JuanPedroGHM)
@@ -73,39 +196,39 @@ Bug fixes
    TS-QR for split=0 (by @mrfh92)
 
 Interoperability
-^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~
 
 -  #1418 and #1290: Support PyTorch 2.2.2 (by @mtar)
 -  #1315 and #1337: Fix some NumPy deprecations in the core and
    statistics tests (by @FOsterfeld)
 
 v1.3.1 - Bug fixes, Docker documentation update
------------------------------------------------
+===============================================
 
-.. _bug-fixes-2:
+.. _bug-fixes-3:
 
 Bug fixes
-~~~~~~~~~
+---------
 
 -  #1259 Bug-fix for ``ht.regression.Lasso()`` on GPU (by @mrfh92)
 -  #1201 Fix ``ht.diff`` for 1-element-axis edge case (by @mtar)
 
-.. _changes-3:
+.. _changes-5:
 
 Changes
-~~~~~~~
+-------
 
 .. _interoperability-1:
 
 Interoperability
-^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~
 
 -  #1257 Docker release 1.3.x update (by @JuanPedroGHM)
 
 .. _maintenance-2:
 
 Maintenance
-^^^^^^^^^^^
+~~~~~~~~~~~
 
 -  #1274 Update version before release (by @ClaudiaComito)
 -  #1267 Unit tests: Increase tolerance for ``ht.allclose`` on
@@ -117,7 +240,7 @@ Maintenance
 -  #1187 Create configuration file for Read the Docs (by @mtar)
 
 v1.3.0 - Scalable SVD, GSoC`22 contributions, Docker image, PyTorch 2 support, AMD GPUs acceleration
-----------------------------------------------------------------------------------------------------
+====================================================================================================
 
 This release includes many important updates (see below). We
 particularly would like to thank our enthusiastic
@@ -126,7 +249,7 @@ tentative GSoC2023 contributors @Mystic-Slice @neosunhan @Sai-Suraj-27
 @shahpratham @AsRaNi1 @Ishaan-Chandak 🙏🏼 Thank you so much!
 
 Highlights
-~~~~~~~~~~
+----------
 
 -  #1155 Support PyTorch 2.0.1 (by @ClaudiaComito)
 -  #1152 Support AMD GPUs (by @mtar)
@@ -147,13 +270,11 @@ Highlights
    documentation <https://github.com/helmholtz-analytics/heat/tree/release/1.3.x/docker>`__
    (by @bhagemeier)
 
-.. _changelog-1:
-
 Changelog
-~~~~~~~~~
+---------
 
 Array-API compliance / Interoperability
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 -  #1154 Introduce ``DNDarray.__array__()`` method for interoperability
    with ``numpy``, ``xarray`` (by @ClaudiaComito)
@@ -170,7 +291,7 @@ Array-API compliance / Interoperability
    (by @coquelin77 @fschlimb )
 
 New Features
-^^^^^^^^^^^^
+~~~~~~~~~~~~
 
 -  #1126 `Distributed hierarchical
    SVD <https://helmholtz-analytics.github.io/heat/2023/06/16/new-feature-hsvd.html>`__
@@ -181,10 +302,10 @@ New Features
    @shahpratham)
 -  #1063 add **eq** to Device (by @mtar)
 
-.. _bug-fixes-3:
+.. _bug-fixes-4:
 
 Bug Fixes
-^^^^^^^^^
+~~~~~~~~~
 
 -  #1141 ``heat.pow()`` speed-up when exponent is ``int`` (by
    @ClaudiaComito)
@@ -204,60 +325,64 @@ Bug Fixes
    of ``weights`` to match shape of input (by @Mystic-Slice)
 
 Benchmarking
-^^^^^^^^^^^^
+~~~~~~~~~~~~
 
 -  #1137 Continous Benchmarking of runtime (by @JuanPedroGHM)
 
 .. _documentation-1:
 
 Documentation
-^^^^^^^^^^^^^
+~~~~~~~~~~~~~
 
 -  #1150 Refactoring for efficiency and readability (by @Sai-Suraj-27)
 -  #1130 Reintroduce Quick Start (by @ClaudiaComito)
 -  #1079 A better README file (by @Sai-Suraj-27)
 
+.. _linear-algebra-1:
+
 Linear Algebra
-^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~
 
 -  #1126, #1160 `Distributed hierarchical
    SVD <https://helmholtz-analytics.github.io/heat/2023/06/16/new-feature-hsvd.html>`__
    (by @mrfh92 @ClaudiaComito )
 
 v1.2.2 - Bug fixes, support OpenMPI>=4.1.2, support PyTorch 1.13.1
-------------------------------------------------------------------
+==================================================================
 
-.. _changes-4:
+.. _changes-6:
 
 Changes
-~~~~~~~
+-------
 
 Communication
-~~~~~~~~~~~~~
+-------------
 
 -  #1058 Fix edge-case contiguity mismatch for Allgatherv (by
    @ClaudiaComito)
 
+.. _contributors-2:
+
 Contributors
-~~~~~~~~~~~~
+------------
 
 @ClaudiaComito, @JuanPedroGHM
 
 v1.2.1
-------
+======
 
-.. _changes-5:
+.. _changes-7:
 
 Changes
-~~~~~~~
+-------
 
 -  #1048 Support PyTorch 1.13.0 on branch release/1.2.x (by
    @github-actions)
 
-.. _bug-fixes-4:
+.. _bug-fixes-5:
 
 🐛 Bug Fixes
-~~~~~~~~~~~~
+------------
 
 -  #1038 Lanczos decomposition ``linalg.solver.lanczos``: Support double
    precision, complex data types (by @ClaudiaComito)
@@ -265,28 +390,28 @@ Changes
    construction with incompatible shapes of local arrays (by
    @Mystic-Slice)
 
-.. _linear-algebra-1:
+.. _linear-algebra-2:
 
 Linear Algebra
-~~~~~~~~~~~~~~
+--------------
 
 -  #1038 Lanczos decomposition ``linalg.solver.lanczos``: Support double
    precision, complex data types (by @ClaudiaComito)
 
 🧪 Testing
-~~~~~~~~~~
+----------
 
 -  #1025 mirror repository on gitlab + ci (by @mtar)
 -  #1014 fix: set cuda rng state on gpu tests for test_random.py (by
    @JuanPedroGHM)
 
 v1.2.0
-------
+======
 
 .. _highlights-1:
 
 Highlights
-~~~~~~~~~~
+----------
 
 -  `#906 <https://github.com/helmholtz-analytics/heat/pull/906>`__
    PyTorch 1.11 support
@@ -300,10 +425,10 @@ Highlights
 -  Expanded memory-distributed `linear algebra <#linalg>`__,
    `manipulations <#manipulations>`__ modules.
 
-.. _bug-fixes-5:
+.. _bug-fixes-6:
 
 Bug Fixes
-~~~~~~~~~
+---------
 
 -  `#826 <https://github.com/helmholtz-analytics/heat/pull/826>`__ Fixed
    ``__setitem__`` handling of distributed ``DNDarray`` values which
@@ -323,13 +448,13 @@ Bug Fixes
 .. _new-features-1:
 
 New features
-~~~~~~~~~~~~
+------------
 
 Arithmetics
-^^^^^^^^^^^
+~~~~~~~~~~~
 
 -  `#945 <https://github.com/helmholtz-analytics/heat/pull/945>`__
-   ``ht.divide`` now supports ``out`` and ``where`` kwargs ####
+   ``ht.divide`` now supports ``out`` and ``where`` kwargs ###
    Communication
 -  `#868 <https://github.com/helmholtz-analytics/heat/pull/868>`__ New
    ``MPICommunication`` method ``Split``
@@ -339,12 +464,12 @@ Arithmetics
    independent.
 
 DNDarray
-^^^^^^^^
+~~~~~~~~
 
 -  `#856 <https://github.com/helmholtz-analytics/heat/pull/856>`__ New
    ``DNDarray`` method ``__torch_proxy__``
 -  `#885 <https://github.com/helmholtz-analytics/heat/pull/885>`__ New
-   ``DNDarray`` method ``conj`` #### Linear Algebra
+   ``DNDarray`` method ``conj`` ### Linear Algebra
 -  `#840 <https://github.com/helmholtz-analytics/heat/pull/840>`__ New
    feature: ``vecdot()``
 -  `#842 <https://github.com/helmholtz-analytics/heat/pull/842>`__ New
@@ -356,27 +481,27 @@ DNDarray
 -  `#877 <https://github.com/helmholtz-analytics/heat/pull/877>`__ New
    feature ``det``
 -  `#875 <https://github.com/helmholtz-analytics/heat/pull/875>`__ New
-   feature ``inv`` #### Logical
+   feature ``inv`` ### Logical
 -  `#862 <https://github.com/helmholtz-analytics/heat/pull/862>`__ New
-   feature ``signbit`` #### Manipulations
+   feature ``signbit`` ### Manipulations
 -  `#829 <https://github.com/helmholtz-analytics/heat/pull/829>`__ New
    feature: ``roll``
 -  `#853 <https://github.com/helmholtz-analytics/heat/pull/853>`__ New
    Feature: ``swapaxes``
 -  `#854 <https://github.com/helmholtz-analytics/heat/pull/854>`__ New
-   Feature: ``moveaxis`` #### Printing
+   Feature: ``moveaxis`` ### Printing
 -  `#816 <https://github.com/helmholtz-analytics/heat/pull/816>`__ New
    feature: Local printing (``ht.local_printing()``) and global printing
    options
 -  `#816 <https://github.com/helmholtz-analytics/heat/pull/816>`__ New
    feature: print only on process 0 with ``print0(...)`` and
-   ``ht.print0(...)`` #### Random
+   ``ht.print0(...)`` ### Random
 -  `#858 <https://github.com/helmholtz-analytics/heat/pull/858>`__ New
-   Feature: ``standard_normal``, ``normal`` #### Rounding
+   Feature: ``standard_normal``, ``normal`` ### Rounding
 -  `#827 <https://github.com/helmholtz-analytics/heat/pull/827>`__ New
-   feature: ``sign``, ``sgn`` #### Statistics
+   feature: ``sign``, ``sgn`` ### Statistics
 -  `#928 <https://github.com/helmholtz-analytics/heat/pull/928>`__ New
-   feature: ``bucketize``, ``digitize`` #### General
+   feature: ``bucketize``, ``digitize`` ### General
 -  `#876 <https://github.com/helmholtz-analytics/heat/pull/876>`__ Fix
    examples (Lasso and kNN)
 -  `#894 <https://github.com/helmholtz-analytics/heat/pull/894>`__
@@ -388,7 +513,7 @@ DNDarray
    with\ ``DNDarray`` contruct in random.py
 
 v1.1.1
-------
+======
 
 -  `#864 <https://github.com/helmholtz-analytics/heat/pull/864>`__
    Dependencies: constrain ``torchvision`` version range to match
@@ -397,7 +522,7 @@ v1.1.1
 .. _highlights-2:
 
 Highlights
-~~~~~~~~~~
+----------
 
 -  Slicing/indexing overhaul for a more NumPy-like user experience.
    Warning for distributed arrays: `breaking
@@ -409,7 +534,7 @@ Highlights
    incl. `meshgrid <https://github.com/helmholtz-analytics/heat/pull/794>`__.
 
 Breaking Changes
-~~~~~~~~~~~~~~~~
+----------------
 
 -  `#758 <https://github.com/helmholtz-analytics/heat/pull/758>`__
    Indexing a distributed ``DNDarray`` along the ``DNDarray.split``
@@ -446,10 +571,10 @@ Breaking Changes
       >>> [0] None
       >>> [1] None
 
-.. _bug-fixes-6:
+.. _bug-fixes-7:
 
 Bug Fixes
-~~~~~~~~~
+---------
 
 -  `#758 <https://github.com/helmholtz-analytics/heat/pull/758>`__ Fix
    indexing inconsistencies in ``DNDarray.__getitem__()``
@@ -482,18 +607,18 @@ Bug Fixes
    ``__getitem__`` handling of ``array-like`` 1-element key
 
 Feature additions
-~~~~~~~~~~~~~~~~~
+-----------------
 
 Exponential
-^^^^^^^^^^^
+~~~~~~~~~~~
 
 -  `#812 <https://github.com/helmholtz-analytics/heat/pull/712>`__ New
    feature: ``logaddexp``, ``logaddexp2``
 
-.. _linear-algebra-2:
+.. _linear-algebra-3:
 
 Linear Algebra
-^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~
 
 -  `#718 <https://github.com/helmholtz-analytics/heat/pull/718>`__ New
    feature: ``trace()``
@@ -502,15 +627,17 @@ Linear Algebra
 -  `#820 <https://github.com/helmholtz-analytics/heat/pull/820>`__
    ``dot`` can handle matrix-vector operation now
 
+.. _manipulations-1:
+
 Manipulations
-^^^^^^^^^^^^^
+~~~~~~~~~~~~~
 
 -  `#796 <https://github.com/helmholtz-analytics/heat/pull/796>`__
    ``DNDarray.reshape(shape)``: method now allows shape elements to be
    passed in as single arguments.
 
 Trigonometrics / Arithmetic
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 -  `#806 <https://github.com/helmholtz-analytics/heat/pull/809>`__ New
    feature: ``square``
@@ -518,7 +645,7 @@ Trigonometrics / Arithmetic
    feature: ``acosh``, ``asinh``, ``atanh``
 
 Misc.
-^^^^^
+~~~~~
 
 -  `#761 <https://github.com/helmholtz-analytics/heat/pull/761>`__ New
    feature: ``result_type``
@@ -532,10 +659,10 @@ Misc.
    ``ht.resplit(array, None)`` now works on imbalanced arrays as well.
 
 v1.0.0
-------
+======
 
 New features / Highlights
-~~~~~~~~~~~~~~~~~~~~~~~~~
+-------------------------
 
 -  `#660 <https://github.com/helmholtz-analytics/heat/pull/660>`__ NN
    module for data parallel neural networks
@@ -549,10 +676,10 @@ New features / Highlights
 -  `#757 <https://github.com/helmholtz-analytics/heat/pull/757>`__ Major
    documentation overhaul, custom docstrings formatting
 
-.. _bug-fixes-7:
+.. _bug-fixes-8:
 
 Bug fixes
-^^^^^^^^^
+~~~~~~~~~
 
 -  `#706 <https://github.com/helmholtz-analytics/heat/pull/706>`__ Bug
    fix: prevent ``__setitem__``, ``__getitem__`` from modifying key in
@@ -582,7 +709,7 @@ Bug fixes
 .. _dndarray-1:
 
 DNDarray
-^^^^^^^^
+~~~~~~~~
 
 -  `#680 <https://github.com/helmholtz-analytics/heat/pull/680>`__ New
    property: ``larray``: extract local torch.Tensor
@@ -592,23 +719,25 @@ DNDarray
    property: ``balanced``
 
 Factories
-^^^^^^^^^
+~~~~~~~~~
 
 -  `#707 <https://github.com/helmholtz-analytics/heat/pull/707>`__ New
    feature: ``asarray()``
 
+.. _io-1:
+
 I/O
-^^^
+~~~
 
 -  `#559 <https://github.com/helmholtz-analytics/heat/pull/559>`__
    Enhancement: ``save_netcdf`` allows naming dimensions, creating
    unlimited dimensions, using existing dimensions and variables,
    slicing
 
-.. _linear-algebra-3:
+.. _linear-algebra-4:
 
 Linear Algebra
-^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~
 
 -  `#658 <https://github.com/helmholtz-analytics/heat/pull/658>`__
    Bugfix: ``matmul`` on GPU will cast away from ``int``\ s to
@@ -617,17 +746,17 @@ Linear Algebra
    DNDarrays
 
 Logical
-^^^^^^^
+~~~~~~~
 
 -  `#711 <https://github.com/helmholtz-analytics/heat/pull/711>`__
    ``isfinite()``, ``isinf()``, ``isnan()``
 -  `#743 <https://github.com/helmholtz-analytics/heat/pull/743>`__
    ``isneginf()``, ``isposinf()``
 
-.. _manipulations-1:
+.. _manipulations-2:
 
 Manipulations
-^^^^^^^^^^^^^
+~~~~~~~~~~~~~
 
 -  `#677 <https://github.com/helmholtz-analytics/heat/pull/677>`__ New
    features: ``split``, ``vsplit``, ``dsplit``, ``hsplit``
@@ -644,7 +773,7 @@ Manipulations
    place
 
 Neural Networks
-^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~
 
 -  `#660 <https://github.com/helmholtz-analytics/heat/pull/660>`__ New
    submodule: ``nn.DataParallel`` for creating and training data
@@ -674,30 +803,30 @@ Neural Networks
    plateaus.
 
 Relational
-^^^^^^^^^^
+~~~~~~~~~~
 
 -  `#792 <https://github.com/helmholtz-analytics/heat/pull/792>`__ API
    extension (aliases): ``greater``,\ ``greater_equal``, ``less``,
    ``less_equal``, ``not_equal``
 
 Statistical Functions
-^^^^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~~~~
 
 -  `#679 <https://github.com/helmholtz-analytics/heat/pull/679>`__ New
    feature: ``histc()`` and ``histogram()``
 
 Types
-^^^^^
+~~~~~
 
 -  `#712 <https://github.com/helmholtz-analytics/heat/pull/712>`__ New
    function: ``issubdtype``
 -  `#738 <https://github.com/helmholtz-analytics/heat/pull/738>`__
    ``iscomplex()``, ``isreal()``
 
-.. _bug-fixes-8:
+.. _bug-fixes-9:
 
 Bug fixes
-~~~~~~~~~
+---------
 
 -  `#709 <https://github.com/helmholtz-analytics/heat/pull/709>`__ Set
    the encoding for README.md in setup.py explicitly.
@@ -720,19 +849,19 @@ Bug fixes
    an issue where ``repr`` was giving the wrong output.
 
 Enhancements
-~~~~~~~~~~~~
+------------
 
-.. _manipulations-2:
+.. _manipulations-3:
 
 Manipulations
-^^^^^^^^^^^^^
+~~~~~~~~~~~~~
 
 -  `#690 <https://github.com/helmholtz-analytics/heat/pull/690>`__
    Enhancement: reshape accepts shape arguments with one unknown
    dimension.
 -  `#706 <https://github.com/helmholtz-analytics/heat/pull/706>`__ Bug
    fix: prevent ``__setitem__``, ``__getitem__`` from modifying key in
-   place #### Unit testing / CI
+   place ### Unit testing / CI
 -  `#717 <https://github.com/helmholtz-analytics/heat/pull/717>`__
    Switch CPU CI over to Jenkins and pre-commit to GitHub action.
 -  `#720 <https://github.com/helmholtz-analytics/heat/pull/720>`__
@@ -743,7 +872,7 @@ Manipulations
    Reference Jenkins CI tests and set development status to Beta.
 
 v0.5.1
-------
+======
 
 -  `#678 <https://github.com/helmholtz-analytics/heat/pull/678>`__
    Bugfix: Internal functions now use explicit device parameters for
@@ -752,7 +881,7 @@ v0.5.1
    fix: distributed ``reshape`` now works on booleans as well.
 
 v0.5.0
-------
+======
 
 -  `#488 <https://github.com/helmholtz-analytics/heat/pull/488>`__
    Enhancement: Rework of the test device selection.
@@ -864,7 +993,7 @@ v0.5.0
    function
 
 v0.4.0
-------
+======
 
 -  Update documentation theme to “Read the Docs”
 -  `#429 <https://github.com/helmholtz-analytics/heat/pull/429>`__
@@ -941,7 +1070,7 @@ v0.4.0
    given, error will come from torch upon the setting of the value
 
 v0.3.0
-------
+======
 
 -  `#454 <https://github.com/helmholtz-analytics/heat/issues/454>`__
    Update lasso example
@@ -966,7 +1095,7 @@ v0.3.0
    second input argument is None
 
 v0.2.2
-------
+======
 
 This version adds support for PyTorch 1.4.0. There are also several
 minor feature improvements and bug fixes listed below. -
@@ -986,13 +1115,13 @@ non-distributed mode (cf. [#464]) -
 Lasso tests now run with both GPUs and CPUs
 
 v0.2.1
-------
+======
 
 This version fixes the packaging, such that installed versions of HeAT
 contain all required Python packages.
 
 v0.2.0
-------
+======
 
 This version varies greatly from the previous version (0.1.0). This
 version includes a great increase in functionality and there are many
@@ -1003,7 +1132,7 @@ this package and we work hard to solve the issues which you report to
 us. Thank you!
 
 Updated Package Requirements
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+----------------------------
 
 -  python >= 3.5
 -  mpi4py >= 3.0.0
@@ -1011,17 +1140,17 @@ Updated Package Requirements
 -  torch >= 1.3.0
 
 Optional Packages
-'''''''''''''''''
+^^^^^^^^^^^^^^^^^
 
 -  h5py >= 2.8.0
 -  netCDF4 >= 1.4.0, <= 1.5.2
 -  pre-commit >= 1.18.3 (development requirement)
 
 Additions
-~~~~~~~~~
+---------
 
 GPU Support
-^^^^^^^^^^^
+~~~~~~~~~~~
 
 `#415 <https://github.com/helmholtz-analytics/heat/pull/415>`__ GPU
 support was added for this release. To set the default device use
@@ -1031,7 +1160,7 @@ is different than the default. If no device is specified then that
 device is assumed to be “cpu”.
 
 Basic Operations
-''''''''''''''''
+^^^^^^^^^^^^^^^^
 
 -  `#308 <https://github.com/helmholtz-analytics/heat/pull/308>`__
    balance
@@ -1067,7 +1196,7 @@ Basic Operations
 -  `#304 <https://github.com/helmholtz-analytics/heat/pull/304>`__ where
 
 Basic Multi-DNDarray Operations
-'''''''''''''''''''''''''''''''
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 -  `#366 <https://github.com/helmholtz-analytics/heat/pull/366>`__
    bit-wise AND, OR, and XOR
@@ -1079,7 +1208,7 @@ Basic Multi-DNDarray Operations
    vstack
 
 Developmental
-'''''''''''''
+^^^^^^^^^^^^^
 
 -  Code of conduct
 -  Contribution guidelines
@@ -1099,7 +1228,7 @@ Developmental
    suite
 
 Linear Algebra and Statistics
-'''''''''''''''''''''''''''''
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 -  `#352 <https://github.com/helmholtz-analytics/heat/pull/352>`__
    average
@@ -1111,7 +1240,7 @@ Linear Algebra and Statistics
    for all numerical HeAT dtypes available
 
 Regression, Clustering, and Misc.
-'''''''''''''''''''''''''''''''''
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 -  `#307 <https://github.com/helmholtz-analytics/heat/pull/307>`__ lasso
    regression example
@@ -1120,10 +1249,10 @@ Regression, Clustering, and Misc.
 -  `#435 <https://github.com/helmholtz-analytics/heat/pull/435>`__
    Parter matrix
 
-.. _bug-fixes-9:
+.. _bug-fixes-10:
 
 Bug Fixes
----------
+=========
 
 -  KMeans bug fixes
 
