@@ -11,28 +11,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.legend_handler import HandlerPathCollection
 
-# ht.use_device("gpu")
-
-# X=ht.array([[0, 1, 3], [0, 3, 4], [0, 1, 2]], split=0)
-# data=X[1].larray
-
-# comm=X.comm
-# rank = comm.Get_rank()
-# sender=0
-# receiver=1
-
-# buf= torch.zeros(
-#     data.shape,
-#     dtype=X.dtype.torch_type(),
-#     device=X.device.torch_device,
-#     )
-
-
-# if rank== sender:
-#      comm.Send(data, dest=receiver, tag=1)
-# if rank== receiver:
-#      comm.Recv(buf, source=sender, tag=1)
-# print(f"--------------\n process: {ht.MPI_WORLD.rank} \n buf={buf}\n-------------- ")
+ht.use_device("gpu")
 
 """ # Generate random data with outliers
 np.random.seed(42)
@@ -78,17 +57,18 @@ plt.show() """
 
 # print(f"process: {ht.MPI_WORLD.rank} \n k_dist.larray={k_dist.larray}, \n  rd.larray={rd.larray}\n")
 
-cdist_small = ht.array([[0, 1, 3], [0, 3, 4], [0, 1, 2]], split=0)
+# cdist_small = ht.array([[0, 1, 3], [0, 3, 4], [0, 1, 2]], split=0)
+# indices = ht.array([[0, 1, 2], [1, 2, 0], [2, 0, 1]], split=0)
 
-indices = ht.array([[0, 1, 2], [1, 2, 0], [2, 0, 1]], split=0)
+cdist_small = ht.array([[0, 4, 7], [0, 2, 5], [0, 1, 6], [0, 2, 3], [0, 8, 9]], split=0)
+indices = ht.array([[0, 3, 2], [0, 2, 3], [0, 1, 0], [0, 2, 0], [0, 3, 0]], split=0)
+# indices = ht.array([[0, 3, 4], [0, 2, 4], [0, 1, 4], [0, 2, 4], [0, 3, 4]], split=0)
 
 k_dist = cdist_small[:, -1]
 idx_k_dist = indices[:, -1]
 dist = cdist_small
 
 # reachability_dist = ht.maximum(k_dist[:, None], cdist_small[idx_k_dist,:])
-
-idx = ht.array([2, 0, 1], split=0)
 
 
 # distance.cdist_small(indices,indices,n_smallest=1)
@@ -157,7 +137,7 @@ _, displ, _ = comm.counts_displs_shape(dist.shape, dist.split)
 # map the indices in idx_k_dist to the corresponding MPI process that is responsible for
 # the corresponding sample in dist
 
-mapped_idx = _map_idx_to_proc(idx_k_dist, comm)
+""" mapped_idx = _map_idx_to_proc(idx_k_dist, comm)
 mapped_idx_ = mapped_idx.larray
 
 
@@ -189,10 +169,9 @@ buffer = torch.zeros(
 for i in range(int(mapped_idx_global.shape[0])):
     receiver = proc_id_global[i].item()
     sender = mapped_idx_global[i].item()
-    print(
-        f"------------------ \n process: {ht.MPI_WORLD.rank} \n int(idx_k_dist_global[i])={int(idx_k_dist_global[i])}\n "
-    )
-    # dist_row = dist_[int(idx_k_dist_global[i]), :]
+    tag=i
+    # map the global index i to the local index of the reachability_dist array
+    idx_reach_dist = i-displ[rank]
     # check if current process needs to send the corresponding row of its distance matrix
     if sender != receiver:
         # send
@@ -205,29 +184,19 @@ for i in range(int(mapped_idx_global.shape[0])):
             # only send if the sender is not the same as the current process
             if not displ[rank] <= i < upper_bound:
                 # select the row of the distance matrix to communicate between the processes
-                print(
-                    f"------------------ \n process: {ht.MPI_WORLD.rank} \n displ[sender]={sender}\n "
-                )
                 dist_row = dist_[int(idx_k_dist_global[i]) - displ[sender], :]
                 sent_to_buffer = dist_row
                 # send the row to the next process
-                print(
-                    f"------------------ \n process: {ht.MPI_WORLD.rank} \n sending with tag {i}\n "
-                )
-                comm.Send(sent_to_buffer, dest=receiver, tag=i)
-            # else:
-            # reachability_dist=torch.maximum(k_dist_global[i, None], dist_row)
+                comm.Send(sent_to_buffer, dest=receiver, tag=tag)
         # receive
         if rank == receiver:
-            print(
-                f"------------------ \n process: {ht.MPI_WORLD.rank} \n receiving with tag {i}\n "
-            )
-            comm.Recv(buffer, source=sender, tag=i)
+            comm.Recv(buffer, source=sender, tag=tag)
             dist_row = buffer
 
-            print(f"\n\n\n process: {ht.MPI_WORLD.rank} \n buffer={buffer}\n\n\n ")
-            # reachability_dist[i]=torch.maximum(dist_row, dist_row)
-            # TODO: check if the buffer is overwritten
+            k_dist_compare = k_dist_global[i, None]
+            k_dist_compare = k_dist_compare.larray
+            reachability_dist[idx_reach_dist] = torch.maximum(k_dist_compare, dist_row)
+
     # no communication required
     elif sender == receiver:
         # no only take the row of the distance matrix that is already available
@@ -235,126 +204,24 @@ for i in range(int(mapped_idx_global.shape[0])):
             print(
                 f"------------------ \n process: {ht.MPI_WORLD.rank} \n calculating w/o communication \n "
             )
-            dist_row = dist_[int(idx_k_dist_global[i]), :]
+            dist_row = dist_[int(idx_k_dist_global[i]) - displ[sender], :]
 
-            k_dist_compare = k_dist_global[i - displ[rank], None]
+            k_dist_compare = k_dist_global[i, None]
             k_dist_compare = k_dist_compare.larray
-            reachability_dist[i] = torch.maximum(k_dist_compare, dist_row)
+            reachability_dist[idx_reach_dist] = torch.maximum(k_dist_compare, dist_row)
         else:
             pass
-    # TODO: reachability_dist should be a local torch tensor and cannot have i in range(int(mapped_idx_global.shape[0]))
-    # entries. How do overcome this issue?
 
-# print(f"\n\n\n process: {ht.MPI_WORLD.rank} \n buffer={buffer}\n\n\n ")
+reachability_dist = ht.array(reachability_dist, is_split=0) """
 
+lof = LocalOutlierFactor(n_neighbors=20)
 
-# for i in range(int(idx_k_dist_.shape[0])):
-#     for receiver in range(size):
-
-#         sender = int(mapped_idx[i])
-#         # select the distances to communicate between the processes according to the mapped inidces
-
-#         if rank == sender:
-#             # define    part of distance matrix to communicate
-#             dist_comm_ = dist_[int(idx_k_dist_[i]) - displ[sender], :]
-#             comm.Isend(dist_comm_, dest=receiver, tag=i)
-
-#             # calculate part of dist that should enter the reachability distance (here: no communication required)
-#             if sender == receiver:
-#                 dist_row = dist_comm_
-
-#         if rank == receiver:
-#                 # receiving only required if sender is not the same as receiver
-#                 if sender != receiver:
-#                     # setup for receiving
-#                     buffer = torch.zeros(
-#                         (1,dist_.shape[1]),
-#                         dtype=dist.dtype.torch_type(),
-#                         device=dist.device.torch_device,
-#                     )
-
-#                     # receive part of dist that should enter the reachability distance
-#                     comm.Irecv(buffer, source=sender, tag=i)
-#                     dist_row = buffer
-
-
-#         # no communication required
-#         if sender == receiver:
-#             dist_row=dist_[int(idx_k_dist_[i]) - displ[receiver], :]
-
-#         # communication required
-#         else:
-
-
-#             # Sender schickt die Daten
-#             dist_comm = dist[int(idx_k_dist_[i]) - displ[sender], :]
-#             dist_comm_=dist_comm.larray
-#             comm.Isend(dist_comm_, dest=receiver, tag=receiver)
-#             # Starte Empfang zuerst
-#             comm.Irecv(buffer, source=sender, tag=receiver)
-#             dist_row = buffer
-
-#     # Berechnung der reachability_dist
-#     reachability_dist[i] = torch.maximum(k_dist_[i, None], dist_row)
-
-
-# for receiver in range(size):  # Über alle Prozesse iterieren
-#     for i in range(int(idx_k_dist_.shape[0])):
-#         sender = int(mapped_idx[i])  # Wo soll die Zeile hin?
-
-#         tag = i  # Einfacher Tag für jeden Datenaustausch
-
-#         if sender == rank:  # Dieser Prozess ist Sender
-#             if receiver != sender:  # Nicht an sich selbst senden
-#                 dist_comm = dist_[int(idx_k_dist_[i]) - displ[sender], :]
-#                 req_send = comm.Isend(dist_comm, dest=receiver, tag=tag)
-
-#         elif receiver == rank:  # Dieser Prozess ist Empfänger
-#             buffer = torch.zeros(
-#                 (dist_.shape[1],),
-#                 dtype=dist.dtype.torch_type(),
-#                 device=dist.device.torch_device,
-#             )
-#             req_recv = comm.Irecv(buffer, source=sender, tag=tag)
-#             req_recv.Wait()
-#             dist_row = buffer
-#         else:
-#             continue  # Falls dieser Prozess nicht beteiligt ist
-
-#         if rank == receiver:  # Berechnung nur beim Empfänger
-#             reachability_dist[i] = torch.maximum(k_dist_[i, None], dist_row)
-
-#     if sender == rank:
-#         req_send.Wait()  # Sicherstellen, dass alle Sends abgeschlossen sind
-
-print(f"\n\n\n process: {ht.MPI_WORLD.rank} \n buffer={buffer}\n\n\n ")
-
-# dist_comm = dist[int(idx_k_dist_[i]) - displ[sender], :]
-# #dist_comm=dist
-# dist_comm_=dist_comm.larray
-# buffer = torch.zeros(
-#     dist_comm_.shape,
-#     dtype=dist.dtype.torch_type(),
-#     device=dist.device.torch_device,
-#     )
-# comm.Isend(dist_comm_, dest=receiver, tag=i)
-
-# # evaluate reachability distance for the current process
-# if sender==receiver:
-#     # reachability_dist[i] = torch.maximum(
-#     #     k_dist_[i, None], dist_[int(idx_k_dist_[i]) - displ[rank], :]
-#     # )
-#     dist_row=dist_[int(idx_k_dist_[i]) - displ[rank], :]
-# else:
-#     dist_row=buffer[:]
-# comm.Irecv(buffer, source=sender, tag=i)
-# reachability_dist[i] = torch.maximum(k_dist_[i, None], dist_row)
-
-reachability_dist = ht.array(reachability_dist, is_split=0)
+reachability_dist = lof._reach_dist(dist, indices)
 
 # Erwartetes Ergebnis für den Vergleich
-expected_result = ht.array([[3, 3, 3], [4, 4, 4], [2, 3, 4]], split=0)
-# reachability_dist = ht.zeros(expected_result.shape, split=0)
+# expected_result = ht.array([[3, 3, 3], [4, 4, 4], [2, 3, 4]], split=0)
+expected_result = ht.array([[7, 7, 7], [5, 5, 5], [6, 6, 7], [3, 4, 7], [9, 9, 9]], split=0)
+# expected_result = ht.array([[7,8,9],[5,8,9],[6,8,9],[3,8,9], [9,9,9]], split=0)
 
 print(f"process: {ht.MPI_WORLD.rank} \n reachability_dist={reachability_dist},\n ")
 

@@ -126,65 +126,9 @@ class LocalOutlierFactor:
             X, X, metric=self.metric, n_smallest=self.n_neighbors + 1
         )  # cdist_small stores also the distance of each point to itself, therefore use n_neighbors+1
 
-        # Compute the k-distance for each point
-        k_dist = dist[:, -1]  # k-distance = largest value in dist for each row
-        idx_k_dist = idx[:, -1]  # indices corresponding to k_dist
+        # Compute the reachability distance matrix
+        reachability_dist = self._reach_dist(dist, idx)
 
-        # Compute the reachability distance for each point by comparing the k-distance of the neighbors with the distance to the neighbors
-        # Note:
-        # - this implementation is simplified by assuming that k_dist fits in the memory of each process
-
-        comm = dist.comm
-        rank = comm.Get_rank()
-        _, displ, _ = comm.counts_displs_shape(dist.shape, dist.split)
-
-        # TODO: add a type promotion to float32 or float64
-        # promoted_type = types.promote_types(dist.dtype)
-        # promoted_type = types.promote_types(promoted_type, types.float32)
-        # X = X.astype(promoted_type)
-        # Y = Y.astype(promoted_type)
-        # if promoted_type == types.float32:
-        #     torch_type = torch.float32
-        #     # mpi_type = MPI.FLOAT
-        # elif promoted_type == types.float64:
-        #     torch_type = torch.float64
-        #     # mpi_type = MPI.DOUBLE
-        # else:
-        #     raise NotImplementedError(f"Datatype {X.dtype} currently not supported as input")
-
-        # map the indices in idx_k_dist to the corresponding MPI process that is responsible for
-        # the corresponding sample in dist
-        mapped_idx = self._map_idx_to_proc(idx_k_dist, comm)
-
-        reachability_dist = ht.zeros_like(dist)
-        for i in range(int(idx_k_dist.lshape[0])):
-            # evaluate reachability distance for the current process
-            if mapped_idx[i] == rank:
-                reachability_dist[i] = ht.maximum(k_dist[i, None], dist[idx_k_dist[i], :])
-            else:
-                receiver = rank
-                sender = mapped_idx[i]
-
-                # select the distances to communicate between the processes according to the mapped inidces
-                dist_comm = dist[idx_k_dist[i] - displ[sender], :]
-                dist_comm = dist_comm.larray
-                comm.Isend(dist_comm, dest=receiver, tag=i)
-
-                # set a buffer to store the part of Y that is sent to the next process
-                buffer = torch.zeros(
-                    (dist_comm.lshape_map[sender, 0], dist_comm.lshape_map[sender, 1]),
-                    # dtype=torch_type,
-                    device=X.device.torch_device,
-                )
-
-                # receive the part of Y to the next process
-                comm.Irecv(buffer, source=sender, tag=i)
-
-                reachability_dist[i] = ht.maximum(k_dist[i], buffer[:])
-
-        print(
-            f"process: {ht.MPI_WORLD.rank}: \n ------------------------------ \n rd.larray={reachability_dist.larray}\n ------------------------------ \n"
-        )
         # Compute the local reachability density (lrd) for each point
         lrd = self.n_neighbors / (
             ht.sum(reachability_dist, axis=1) + 1e-10
@@ -227,7 +171,129 @@ class LocalOutlierFactor:
         # Classify anomalies based on the threshold value
         self.anomaly = ht.where(self.lof_scores >= threshold_value, 1, -1)
 
-    def _map_idx_to_proc(idx, comm):
+    def _reach_dist(self, dist, idx):
+        """
+        Computes the reachability distance matrix using MPI communication.
+
+        The reachability distance is defined as [1]:
+            reachability_dist(p, o) = max(k_dist(p), dist(p, o))
+        where:
+            - `p` is a reference point,
+            - `o` is another data point,
+            - `k_dist(p)` is the k-distance of `p`,
+            - `dist(p, o)` is the pairwise distance between `p` and `o`.
+
+        This function handles distributed computation by leveraging MPI communication.
+        It ensures that each process retrieves the necessary distance rows, either locally
+        or via communication with other processes, and then computes the maximum
+        between `k_dist` and `dist`.
+
+        Parameters:
+        -----------
+        dist : ht.DNDarray
+            Pairwise distances between data points, calculated with the 'cdist_small' function in heat.
+            It is expected to be split along the first axis (`split=0`).
+
+        idx : ht.DNDarray
+            Indices of the k-nearest neighbors from dist.
+            Used to determine which rows of `dist` need to be accessed or communicated.
+
+        Returns:
+        --------
+        reach_dist : ht.DNDarray
+            Reachability distance matrix.
+
+        Notes:
+        ------
+        - The auxiliary index arrays (`proc_id_global`, `k_dist_global`, `idx_k_dist_global`, `mapped_idx_global`)
+          are assumed to fit into the memory of each process. This assumption helps to minimize
+          communication overhead by storing global indices locally.
+        - The MPI communication uses blocking send and receive commands. Non-blocking sending/receiving would
+          mess up with functionality (overwriting the buffer)
+        """
+        # Compute the k-distance for each point
+        k_dist = dist[:, -1]  # k-distance = largest value in dist for each row
+        idx_k_dist = idx[:, -1]  # indices corresponding to k_dist
+
+        # Set up communication parameters
+        comm = dist.comm
+        rank = comm.Get_rank()
+        size = comm.Get_size()
+        _, displ, _ = comm.counts_displs_shape(dist.shape, dist.split)
+
+        # TODO: add a type promotion to float32 or float64
+
+        reach_dist = ht.zeros_like(dist)
+        reach_dist = reach_dist.larray
+        dist_ = dist.larray
+
+        # define helpful arrays for simplified indexing
+        mapped_idx = self._map_idx_to_proc(
+            idx_k_dist, comm
+        )  # map the indices of idx_k_dist to respective process
+        ones = ht.ones(int(idx_k_dist.shape[0]), split=0)
+        proc_id = ones * rank  # store the rank of each process
+
+        # use arrays as global ones to reduce communication overhead (assume they fit into memory of each process)
+        proc_id_global = proc_id.resplit_(None)
+        k_dist_global = k_dist.resplit_(None)
+        idx_k_dist_global = idx_k_dist.resplit_(None)
+        mapped_idx_global = mapped_idx.resplit_(None)
+
+        # buffer to store one row of the distance matrix that is sent to the next process
+        buffer = torch.zeros(
+            (1, dist_.shape[1]),
+            dtype=dist.dtype.torch_type(),
+            device=dist.device.torch_device,
+        )
+
+        for i in range(int(mapped_idx_global.shape[0])):
+            receiver = proc_id_global[i].item()
+            sender = mapped_idx_global[i].item()
+            tag = i
+            # map the global index i to the local index of the reachability_dist array
+            idx_reach_dist = i - displ[rank]
+            # check if current process needs to send the corresponding row of its distance matrix
+            if sender != receiver:
+                # send
+                if rank == sender:
+                    if rank == size - 1:
+                        upper_bound = mapped_idx_global.shape[0]
+                    else:
+                        upper_bound = displ[rank + 1]
+
+                    # only send if the sender is not the same as the current process
+                    if not displ[rank] <= i < upper_bound:
+                        # select the row of the distance matrix to communicate between the processes
+                        dist_row = dist_[int(idx_k_dist_global[i]) - displ[sender], :]
+                        sent_to_buffer = dist_row
+                        # send the row to the next process
+                        comm.Send(sent_to_buffer, dest=receiver, tag=tag)
+                # receive
+                if rank == receiver:
+                    comm.Recv(buffer, source=sender, tag=tag)
+                    dist_row = buffer
+
+                    k_dist_compare = k_dist_global[i, None]
+                    k_dist_compare = k_dist_compare.larray
+                    reach_dist[idx_reach_dist] = torch.maximum(k_dist_compare, dist_row)
+
+            # no communication required
+            elif sender == receiver:
+                # no only take the row of the distance matrix that is already available
+                if rank == sender:
+                    dist_row = dist_[int(idx_k_dist_global[i]) - displ[sender], :]
+
+                    k_dist_compare = k_dist_global[i, None]
+                    k_dist_compare = k_dist_compare.larray
+                    reach_dist[idx_reach_dist] = torch.maximum(k_dist_compare, dist_row)
+                else:
+                    pass
+
+        reach_dist = ht.array(reach_dist, is_split=0)
+        return reach_dist
+
+    def _map_idx_to_proc(self, idx, comm):
         """
         Helper function to map indices to the corresponding MPI process ranks.
 
