@@ -7,7 +7,7 @@ Usefull Pages for new and existing contributors.
 
    contributing
    RELEASE
-   CODO_OF_CONDUCT
+   CODE_OF_CONDUCT
    coverage_tables
    SECURITY
    documentation_howto
