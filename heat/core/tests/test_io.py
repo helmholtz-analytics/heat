@@ -1,3 +1,4 @@
+from typing import Iterable
 import numpy as np
 import os
 import torch
@@ -925,6 +926,38 @@ class TestIO(TestCase):
         if ht.MPI_WORLD.rank == 0:
             self.assertTrue((dndnumpy == test_data).all())
 
+        ht.MPI_WORLD.Barrier()
+
+    def test_load_zarr_slice(self):
+        if not ht.io.supports_zarr():
+            self.skipTest("Requires zarr")
+
+        import zarr
+
+        test_data = np.arange(25).reshape(5, 5)
+
+        if ht.MPI_WORLD.rank == 0:
+            arr = zarr.create_array(self.ZARR_TEMP_PATH, shape=test_data.shape, dtype=test_data.dtype)
+            arr[:] = test_data
+
+        ht.MPI_WORLD.Barrier()
+
+        slices_to_test = [None, slice(None), slice(1, -1), [None], [None, slice(None)], [None, slice(1, -1)], [slice(1, -1)], [slice(1, -1), None]]
+
+        for slices in slices_to_test:
+            dndarray = ht.load_zarr(self.ZARR_TEMP_PATH, slices=slices)
+            dndnumpy = dndarray.numpy()
+
+            if not isinstance(slices, Iterable):
+                slices = [slices]
+
+            slices = tuple(slice(elem) if not isinstance(elem, slice) else elem for elem in slices)
+
+            if ht.MPI_WORLD.rank == 0:
+                self.assertTrue((dndnumpy == test_data[slices]).all())
+
+            ht.MPI_WORLD.Barrier()
+
     def test_save_zarr_2d_split0(self):
         if not ht.io.supports_zarr():
             self.skipTest("Requires zarr")
@@ -1009,6 +1042,10 @@ class TestIO(TestCase):
             ht.load_zarr("", "")
         with self.assertRaises(TypeError):
             ht.load_zarr("", device=1)
+        with self.assertRaises(TypeError):
+            ht.load_zarr("", slices=0)
+        with self.assertRaises(TypeError):
+            ht.load_zarr("", slices=[0])
 
     def test_save_zarr_arguments(self):
         if not ht.io.supports_zarr():

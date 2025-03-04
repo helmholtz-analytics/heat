@@ -1313,6 +1313,7 @@ else:
         split: int = 0,
         device: Optional[str] = None,
         comm: Optional[Communication] = None,
+        slices: Union[None, slice, Iterable[Union[slice, None]]] = None,
         **kwargs,
     ) -> DNDarray:
         """
@@ -1328,6 +1329,8 @@ else:
             The device id on which to place the data, defaults to globally set default device.
         comm : Communication, optional
             The communication to use for the data distribution, default is 'heat.MPI_WORLD'
+        slices: Union[None, slice, Iterable[Union[slice, None]]]
+            Load only a slice of the array instead of everything
         **kwargs : Any
             extra Arguments to pass to zarr.open
         """
@@ -1337,6 +1340,13 @@ else:
             raise TypeError(f"split must be None or int, not {type(split)}")
         if device is not None and not isinstance(device, str):
             raise TypeError(f"device must be None or str, not {type(split)}")
+        if not isinstance(slices, (slice, Iterable)) and slices is not None:
+            raise TypeError(f"Slices Argument must be slice, tuple or None and not {type(slices)}")
+        if isinstance(slices, Iterable):
+            for elem in slices:
+                if isinstance(elem, slice) or elem is None:
+                    continue
+                raise TypeError(f"Tuple values of slices must be slice or None, not {type(elem)}")
 
         for extension in __ZARR_EXTENSIONS:
             if fnmatch.fnmatch(path, f"*{extension}"):
@@ -1347,13 +1357,25 @@ else:
         arr: zarr.Array = zarr.open_array(store=path, **kwargs)
         shape = arr.shape
 
+        if isinstance(slices, slice) or slices is None:
+            slices = [slices]
+
+        if len(shape) < len(slices):
+            raise ValueError(f"slices Argument has more arguments than the length of the shape of the array. {len(shape)} < {len(slices)}")
+
+        slices = [elem if elem is not None else slice(None) for elem in slices]
+        slices.extend([slice(None) for _ in range(abs(len(slices) - len(shape)))])
+
         dtype = types.canonical_heat_type(arr.dtype)
         device = devices.sanitize_device(device)
         comm = sanitize_comm(comm)
 
-        offset, local_shape, slices = comm.chunk(shape, split)
+        # slices = tuple(slice(*tslice.indices(length)) for length, tslice in zip(shape, slices))
+        slices = tuple(slices)
+        shape = [len(range(*tslice.indices(length))) for length, tslice in zip(shape, slices)]
+        offset, local_shape, local_slices = comm.chunk(shape, split)
 
-        return factories.array(arr[slices], dtype=dtype, is_split=split, device=device, comm=comm)
+        return factories.array(arr[slices][local_slices], dtype=dtype, is_split=split, device=device, comm=comm)
 
     def save_zarr(path: str, dndarray: DNDarray, overwrite: bool = False, **kwargs) -> None:
         """
