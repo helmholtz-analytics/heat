@@ -1361,7 +1361,9 @@ else:
             slices = [slices]
 
         if len(shape) < len(slices):
-            raise ValueError(f"slices Argument has more arguments than the length of the shape of the array. {len(shape)} < {len(slices)}")
+            raise ValueError(
+                f"slices Argument has more arguments than the length of the shape of the array. {len(shape)} < {len(slices)}"
+            )
 
         slices = [elem if elem is not None else slice(None) for elem in slices]
         slices.extend([slice(None) for _ in range(abs(len(slices) - len(shape)))])
@@ -1375,7 +1377,9 @@ else:
         shape = [len(range(*tslice.indices(length))) for length, tslice in zip(shape, slices)]
         offset, local_shape, local_slices = comm.chunk(shape, split)
 
-        return factories.array(arr[slices][local_slices], dtype=dtype, is_split=split, device=device, comm=comm)
+        return factories.array(
+            arr[slices][local_slices], dtype=dtype, is_split=split, device=device, comm=comm
+        )
 
     def save_zarr(path: str, dndarray: DNDarray, overwrite: bool = False, **kwargs) -> None:
         """

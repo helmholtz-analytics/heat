@@ -937,12 +937,23 @@ class TestIO(TestCase):
         test_data = np.arange(25).reshape(5, 5)
 
         if ht.MPI_WORLD.rank == 0:
-            arr = zarr.create_array(self.ZARR_TEMP_PATH, shape=test_data.shape, dtype=test_data.dtype)
+            arr = zarr.create_array(
+                self.ZARR_TEMP_PATH, shape=test_data.shape, dtype=test_data.dtype
+            )
             arr[:] = test_data
 
         ht.MPI_WORLD.Barrier()
 
-        slices_to_test = [None, slice(None), slice(1, -1), [None], [None, slice(None)], [None, slice(1, -1)], [slice(1, -1)], [slice(1, -1), None]]
+        slices_to_test = [
+            None,
+            slice(None),
+            slice(1, -1),
+            [None],
+            [None, slice(None)],
+            [None, slice(1, -1)],
+            [slice(1, -1)],
+            [slice(1, -1), None],
+        ]
 
         for slices in slices_to_test:
             dndarray = ht.load_zarr(self.ZARR_TEMP_PATH, slices=slices)
