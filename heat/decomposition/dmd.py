@@ -390,6 +390,8 @@ class DMDc(ht.RegressionMixin, ht.BaseEstimator):
     Notes
     ----------
     We follow the approach described in [1], Sects. 3.3 and 3.4.
+    In the case that svd_rank is prescribed, the rank of the SVD of the full system matrix is set to svd_rank + n_control_features; cf. https://github.com/dynamicslab/pykoopman
+    for the same approach.
 
     References
     ----------
@@ -501,7 +503,7 @@ class DMDc(ht.RegressionMixin, ht.BaseEstimator):
             )
         Xplus = X[:, 1:]
         Xplus.balance_()
-        Omega = ht.concatenate((X, C), axis=0)
+        Omega = ht.concatenate((X, C), axis=0)[:, :-1]
         # first step of DMDc: compute the SVD of the input data from first to second last time step
         # as well as of the full system matrix
         if self.svd_solver == "full" or not X.is_distributed():
@@ -532,7 +534,7 @@ class DMDc(ht.RegressionMixin, ht.BaseEstimator):
             self.rom_basis_ = U[:, : self.n_modes_]
             V = V[:, : self.n_modes_]
             S = S[: self.n_modes_]
-            Vtilde = Vtilde[:-1, : self.n_modes_system_]
+            Vtilde = Vtilde[:, : self.n_modes_system_]
             Stilde = Stilde[: self.n_modes_system_]
             Utilde1 = Utilde[: X.shape[0], : self.n_modes_system_]
             Utilde2 = Utilde[X.shape[0] :, : self.n_modes_system_]
@@ -562,7 +564,7 @@ class DMDc(ht.RegressionMixin, ht.BaseEstimator):
                 )
                 Utilde, Stilde, Vtilde, _ = ht.linalg.hsvd_rank(
                     Omega,
-                    self.svd_rank,
+                    self.svd_rank + C.shape[0],
                     compute_sv=True,
                     safetyshift=5,
                 )
@@ -571,7 +573,6 @@ class DMDc(ht.RegressionMixin, ht.BaseEstimator):
             self.n_modes_system_ = Utilde.shape[1]
             Utilde1 = Utilde[: X.shape[0], :]
             Utilde2 = Utilde[X.shape[0] :, :]
-            Vtilde = Vtilde[:-1, :]
         else:
             # compute SVD via "randomized" SVD
             U, S, V = ht.linalg.rsvd(
@@ -580,14 +581,13 @@ class DMDc(ht.RegressionMixin, ht.BaseEstimator):
             )
             Utilde, Stilde, Vtilde = ht.linalg.rsvd(
                 Omega,
-                self.svd_rank,
+                self.svd_rank + C.shape[0],
             )
             self.rom_basis_ = U
             self.n_modes_ = U.shape[1]
             self.n_modes_system_ = Utilde.shape[1]
             Utilde1 = Utilde[: X.shape[0], :]
             Utilde2 = Utilde[X.shape[0] :, :]
-            Vtilde = Vtilde[:-1, :]
 
         # ensure that everything is balanced for the following steps
         Utilde2.balance_()
@@ -595,12 +595,19 @@ class DMDc(ht.RegressionMixin, ht.BaseEstimator):
         Vtilde.balance_()
         if Utilde2.split is not None and Utilde2.shape[Utilde2.split] < Utilde2.comm.size:
             Utilde2.resplit_((Utilde2.split + 1) % 2)
+        if Utilde1.split is not None and Utilde1.shape[Utilde1.split] < Utilde1.comm.size:
+            Utilde1.resplit_((Utilde1.split + 1) % 2)
+        if Vtilde.split is not None and Vtilde.shape[Vtilde.split] < Vtilde.comm.size:
+            Vtilde.resplit_((Vtilde.split + 1) % 2)
         # second step of DMD: compute the reduced order model transfer matrix
         # we need to assume that the the transfer matrix of the ROM is small enough to fit into memory of one process
         self.rom_transfer_matrix_ = (
-            self.rom_basis_.T @ Xplus @ (Vtilde / Stilde) @ Utilde1.T @ self.rom_basis_
+            self.rom_basis_.T
+            @ Xplus
+            @ (Vtilde / Stilde)
+            @ (Utilde1.T @ self.rom_basis_).resplit_(None)
         )
-        self.rom_control_matrix_ = self.rom_basis_.T @ Xplus @ (Vtilde / Stilde) @ Utilde2.T
+        self.rom_control_matrix_ = self.rom_basis_.T @ (Xplus @ ((Vtilde / Stilde) @ Utilde2.T))
         self.rom_transfer_matrix_.resplit_(None)
         self.rom_control_matrix_.resplit_(None)
 
@@ -670,10 +677,13 @@ class DMDc(ht.RegressionMixin, ht.BaseEstimator):
                 self.rom_control_matrix_ @ C[:, i]
             ).T
         # reshape in order to be able to multiply with basis again
+        X_red_full = X_red_full.transpose([1, 0, 2])
         X_red_full = X_red_full.reshape(self.rom_basis_.shape[1], -1)
+        if X_red_full.split is not None and X_red_full.shape[X_red_full.split] < ht.MPI_WORLD.size:
+            X_red_full.resplit_((X_red_full.split + 1) % 2)
         X_pred = self.rom_basis_ @ X_red_full
         # reshape again and return
-        return X_pred.reshape(X.shape[0], X.shape[1], C.shape[1])
+        return X_pred.reshape(X.shape[1], X.shape[0], C.shape[1]).transpose([1, 0, 2])
 
     def __str__(self):
         if ht.MPI_WORLD.rank == 0:

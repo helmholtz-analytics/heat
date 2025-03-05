@@ -356,3 +356,65 @@ class TestDMDc(TestCase):
         Z = dmd.predict(Y, C)
         self.assertTrue(Z.dtype == Y.dtype)
         self.assertEqual(Z.shape, (1, 1000, 10 * ht.MPI_WORLD.size))
+
+    def test_dmdc_correctness(self):
+        r = 3
+        A_red = ht.array(
+            [
+                [0.0, 1, 0.0],
+                [-1.0, 0.0, 0.0],
+                [0.0, 0.0, 0.1],
+            ],
+            split=None,
+            dtype=ht.float64,
+        )
+        B_red = ht.array(
+            [
+                [1.0, 0.0],
+                [0.0, -1.0],
+                [0.0, 1.0],
+            ],
+            split=None,
+            dtype=ht.float64,
+        )
+        x0_red = ht.array(
+            [
+                [
+                    10.0,
+                ],
+                [
+                    5.0,
+                ],
+                [
+                    10.0,
+                ],
+            ],
+            split=None,
+            dtype=ht.float64,
+        )
+        m, n = 100 * ht.MPI_WORLD.size, 100
+        C = 0.1 * ht.random.randn(2, n, split=None, dtype=ht.float64)
+        X_red = [x0_red]
+        for k in range(n - 1):
+            X_red.append(A_red @ X_red[-1] + B_red @ C[:, k].reshape(-1, 1))
+        X = ht.stack(X_red, axis=1).squeeze()
+        U = ht.random.randn(m, r, split=0, dtype=ht.float64)
+        U, _ = ht.linalg.qr(U)
+        X = U @ X
+
+        dmd = ht.decomposition.DMDc(svd_solver="full", svd_rank=3)
+        dmd.fit(X, C)
+
+        # check whether the DMD-modes are correct
+        sorted_ev_1 = np.sort_complex(dmd.rom_eigenvalues_.numpy())
+        sorted_ev_2 = np.sort_complex(np.linalg.eigvals(A_red.numpy()))
+        self.assertTrue(np.allclose(sorted_ev_1, sorted_ev_2, atol=1e-6, rtol=1e-6))
+
+        # check prediction of next states
+        X_red = dmd.rom_basis_.T @ X
+        res = (
+            X_red[:, 1:]
+            - dmd.rom_transfer_matrix_ @ X_red[:, :-1]
+            - dmd.rom_control_matrix_ @ C[:, :-1]
+        )
+        self.assertTrue(ht.abs(res).max() < 1e-12)
