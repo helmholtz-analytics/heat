@@ -1,3 +1,98 @@
+# v1.5.1
+## Changes
+
+### Compatibility
+- #1706 Support PyTorch 2.5.1 (#1701) (by @mtar)
+- #1775 Support PyTorch 2.6.0 (#1775) (by @mrfh92)
+
+### Bug Fixes
+- #1791 `heat.eq`, `heat.ne` now allow non-array operands (by @[github-actions[bot]](https://github.com/apps/github-actions))
+- #1790 Fixed precision loss in several functions when dtype is float64 (by @[github-actions[bot]](https://github.com/apps/github-actions))
+- #1764 Printing non-distributed data  (by @[github-actions[bot]](https://github.com/apps/github-actions))
+
+### CI
+- #1750 Linters will no longer format tutorials (by @[github-actions[bot]](https://github.com/apps/github-actions))
+- #1708 Documentation updates after new release (by @[github-actions[bot]](https://github.com/apps/github-actions))
+- #1743 Modernise setup.py configuration (by @[github-actions[bot]](https://github.com/apps/github-actions))
+
+### Docs
+- #1698 Added Dalcin et al. 2018 reference to `manipulations._axis2axisResplit` (by @[github-actions[bot]](https://github.com/apps/github-actions))
+- #1745 Easier access to GitHub from the docs (by @[github-actions[bot]](https://github.com/apps/github-actions))
+
+## Contributors
+@ClaudiaComito, @JuanPedroGHM, @github-actions[bot], @joernhees, @mrfh92, @mtar and [github-actions[bot]](https://github.com/apps/github-actions) v1.5.1 - Heat 1.5.1
+
+# v1.5.0
+
+## Changes
+
+### Cluster
+
+- #1593 Improved Batch Parallelization. (by @mrfh92)
+
+### Data
+
+- #1529 Make `dataset.ishuffle` optional.
+
+### IO
+
+- #1602 Improved load balancing when loading .npy files from path. (by @Reisii)
+- #1551 Improved load balancing when loading .csv files from path.  (by @Reisii)
+
+### Linear Algebra
+
+- #1261 Batched matrix multiplication. (by @FOsterfeld)
+- #1504 Add solver for triangular systems. (by @FOsterfeld)
+
+### Manipulations
+
+- #1419 Implement distributed `unfold` operation. (by @FOsterfeld)
+
+### Random
+
+- #1508 Introduce Batchparallel for RNG as default. (by @mrfh92)
+
+### Signal
+
+- #1515 Support batch 1-d convolution in `ht.signal.convolve`.  (by @ClaudiaComito)
+
+### Statistics
+
+- #1510 Support multiple axes for `ht.percentile`. (by @ClaudiaComito)
+
+### Sparse
+
+- #1377 Distributed Compressed Sparse Column Matrix. (by @Mystic-Slice)
+
+### Other
+
+- #1618 Support mpi4py 4.x.x (by @JuanPedroGHM)
+
+
+## Contributors
+
+@ClaudiaComito, @FOsterfeld, @JuanPedroGHM, @Reisii, @mrfh92, @mtar and Hoppe
+
+
+# v1.4.2 - Maintenance release
+
+## Changes
+
+### Maintenance
+
+- [#1467](https://github.com/helmholtz-analytics/heat/pull/1467), [#1525](https://github.com/helmholtz-analytics/heat/pull/1525) Support PyTorch 2.3.1 (by @mtar)
+- [#1535](https://github.com/helmholtz-analytics/heat/pull/1535) Address test failures after netCDF4 1.7.1, numpy 2 releases (by @ClaudiaComito)
+
+# v1.4.1 - Bug fix release
+
+## Changes
+
+### Bug fixes
+- #1472 DNDarrays returned by `_like` functions default to same device as input DNDarray  (by @mrfh92, @ClaudiaComito)
+
+### Maintenance
+- #1441 added names of non-core members in citation file (by @mrfh92)
+
 # v1.4.0 - Interactive HPC tutorials, distributed FFT, batch-parallel clustering, support PyTorch 2.2.2
 
 ## Changes

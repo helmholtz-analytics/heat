@@ -304,13 +304,13 @@ class TestLinalgBasics(TestCase):
         ainv = ht.linalg.inv(a)
         i = ht.eye(a.shape, split=1, dtype=a.dtype)
         # loss of precision in distributed floating-point ops
-        self.assertTrue(ht.allclose(a @ ainv, i, atol=1e-12))
+        self.assertTrue(ht.allclose(a @ ainv, i, atol=1e-10))
 
         ht.random.seed(42)
         a = ht.random.random((20, 20), dtype=ht.float64, split=0)
         ainv = ht.linalg.inv(a)
         i = ht.eye(a.shape, split=0, dtype=a.dtype)
-        self.assertTrue(ht.allclose(a @ ainv, i, atol=1e-12))
+        self.assertTrue(ht.allclose(a @ ainv, i, atol=1e-10))
 
         with self.assertRaises(RuntimeError):
             ht.linalg.inv(ht.array([1, 2, 3], split=0))
@@ -565,6 +565,7 @@ class TestLinalgBasics(TestCase):
             ret00 = ht.matmul(a, b)
 
             ret_comp = ht.array(a_torch @ b_torch, split=None)
+
             self.assertTrue(ht.equal(ret00, ret_comp))
             self.assertIsInstance(ret00, ht.DNDarray)
             self.assertEqual(ret00.shape, (k,))
@@ -807,12 +808,119 @@ class TestLinalgBasics(TestCase):
             self.assertEqual(ret00.dtype, ht.int64)
             self.assertEqual(ret00.split, 0)
 
+            """
             with self.assertRaises(NotImplementedError):
                 a = ht.zeros((3, 3, 3), split=2)
                 b = a.copy()
                 a @ b
+            """
+
             with self.assertRaises(TypeError):
                 "T" @ ht.zeros((3, 3, 3))
+
+            # batched, dimension errors
+            # different number of batch dimensions
+            with self.assertRaises(ValueError):
+                a = ht.zeros((3, 3, 3))
+                b = ht.zeros((3,))
+                ht.matmul(a, b)
+            # different batch dimension shape
+            with self.assertRaises(ValueError):
+                a = ht.zeros((3, 3, 3), split=0)
+                b = ht.zeros((4, 3, 3), split=0)
+                ht.matmul(a, b)
+            # split along different batch dimension
+            with self.assertRaises(NotImplementedError):
+                a = ht.zeros((4, 3, 3, 3), split=0)
+                b = ht.zeros((4, 3, 3, 3), split=1)
+                ht.matmul(a, b)
+            # batched matrix-vector multiplication
+            with self.assertRaises(NotImplementedError):
+                a = ht.zeros((3, 3, 3), split=0)
+                b = ht.zeros((3, 3), split=0)
+                ht.matmul(a, b)
+
+            # batched, split batch
+            n = 11  # number of batches
+            k = 100  # data dimension size
+            s1 = ht.arange(n, dtype=ht.int64).reshape((n, 1, 1))
+            zeros = ht.zeros((n, 1, k - 1), dtype=ht.int64)
+            a = ht.concatenate((s1, zeros), 2)
+            a.resplit_(0)
+            z1 = ht.ones((n, 1, 1), dtype=ht.int64)
+            zeros = ht.zeros((n, k - 1, 1), dtype=ht.int64)
+            b = ht.concatenate((z1, zeros), 1)
+            b.resplit_(0)
+            ret_batched = ht.matmul(a, b)
+
+            self.assertTrue(ht.equal(ret_batched, s1))
+            self.assertIsInstance(ret_batched, ht.DNDarray)
+            self.assertEqual(
+                ret_batched.shape,
+                (
+                    n,
+                    1,
+                    1,
+                ),
+            )
+            self.assertEqual(ret_batched.dtype, ht.int64)
+            self.assertEqual(ret_batched.split, 0)
+
+            # batched
+            n = 11  # number of batches
+            k = 100  # data dimension size
+            m = 100
+
+            torch.manual_seed(42)
+
+            # integer
+            at = torch.randint(0, 100, (n, m, k))
+            bt = torch.randint(0, 100, (n, k, m))
+            ct = at @ bt
+
+            a = ht.factories.asarray(at, copy=True)
+            b = ht.factories.asarray(bt, copy=True)
+            c = ht.factories.asarray(ct, copy=True)
+
+            la_splits = (None, 0, 1)
+            # test all possible la split combinations
+            for s0 in la_splits:
+                if s0 is not None:
+                    s0 -= 2
+                for s1 in la_splits:
+                    if s1 is not None:
+                        s1 -= 2
+                    a.resplit_(s0)
+                    b.resplit_(s1)
+
+                    ret_batched = ht.matmul(a, b)
+
+                    self.assertTrue(ht.equal(ret_batched, c))
+
+            # float
+            at = torch.randn((n, m, k))
+            bt = torch.randn((n, k, m))
+            ct = at @ bt
+
+            a = ht.factories.asarray(at, copy=True)
+            b = ht.factories.asarray(bt, copy=True)
+            c = ht.factories.asarray(ct, copy=True)
+
+            for s0 in la_splits:
+                if s0 is not None:
+                    s0 -= 2
+                for s1 in la_splits:
+                    if s1 is not None:
+                        s1 -= 2
+                    a.resplit_(s0)
+                    b.resplit_(s1)
+
+                    ret_batched = ht.matmul(a, b)
+                    # print(f"{s0}{s1}: {ht.max(ht.abs(ret_batched - c)).item()}")
+                    max_diff = ht.max(ht.abs(ret_batched - c)).item()
+
+                    # self.assertTrue(ht.allclose(ret_batched, c, 1e-2))
+                    self.assertTrue(max_diff < 1e-4)
 
     def test_matrix_norm(self):
         a = ht.arange(9, dtype=ht.float) - 4
@@ -849,13 +957,13 @@ class TestLinalgBasics(TestCase):
         m = ht.arange(8).reshape(2, 2, 2)
         mn = ht.linalg.matrix_norm(m, axis=(2, 1), ord=ht.inf)
         self.assertEqual(mn.split, m.split)
-        self.assertEqual(mn.dtype, ht.float)
+        self.assertEqual(mn.dtype, ht.int64)
         self.assertEqual(mn.device, m.device)
         self.assertTrue(ht.equal(mn, ht.array([4.0, 12.0])))
 
         mn = ht.linalg.matrix_norm(m, axis=(2, 1), ord=-ht.inf)
         self.assertEqual(mn.split, m.split)
-        self.assertEqual(mn.dtype, ht.float)
+        self.assertEqual(mn.dtype, ht.int64)
         self.assertEqual(mn.device, m.device)
         self.assertTrue(ht.equal(mn, ht.array([2.0, 10.0])))
 

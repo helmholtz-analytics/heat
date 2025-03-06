@@ -138,10 +138,12 @@ def arange(
     # compose the local tensor
     start += offset * step
     stop = start + lshape[0] * step
-    data = torch.arange(start, stop, step, device=device.torch_device)
-
     htype = types.canonical_heat_type(dtype)
-    data = data.type(htype.torch_type())
+    if types.issubdtype(htype, types.floating):
+        data = torch.arange(start, stop, step, dtype=htype.torch_type(), device=device.torch_device)
+    else:
+        data = torch.arange(start, stop, step, device=device.torch_device)
+        data = data.type(htype.torch_type())
 
     return DNDarray(data, gshape, htype, split, device, comm, balanced)
 
@@ -288,8 +290,11 @@ def array(
          [torch.LongStorage of size 6]
     """
     # sanitize the data type
-    if dtype is not None:
+    if dtype is None:
+        torch_dtype = None
+    else:
         dtype = types.canonical_heat_type(dtype)
+        torch_dtype = dtype.torch_type()
 
     # sanitize device
     if device is not None:
@@ -337,6 +342,7 @@ def array(
             try:
                 obj = torch.tensor(
                     obj,
+                    dtype=torch_dtype,
                     device=(
                         device.torch_device
                         if device is not None
@@ -360,15 +366,13 @@ def array(
                     "argument `copy` is set to False, but copy of input object is necessary. \n Set copy=None to reuse the memory buffer whenever possible and allow for copies otherwise."
                 )
         try:
-            if not isinstance(obj, torch.Tensor):
-                obj = torch.as_tensor(
-                    obj,
-                    device=(
-                        device.torch_device
-                        if device is not None
-                        else devices.get_device().torch_device
-                    ),
-                )
+            obj = torch.as_tensor(
+                obj,
+                dtype=torch_dtype,
+                device=(
+                    device.torch_device if device is not None else devices.get_device().torch_device
+                ),
+            )
         except RuntimeError:
             raise TypeError(f"invalid data of type {type(obj)}")
 
@@ -376,7 +380,6 @@ def array(
     if dtype is None:
         dtype = types.canonical_heat_type(obj.dtype)
     else:
-        torch_dtype = dtype.torch_type()
         if obj.dtype != torch_dtype:
             obj = obj.type(torch_dtype)
 
@@ -598,13 +601,13 @@ def empty_like(
 ) -> DNDarray:
     """
     Returns a new uninitialized :class:`~heat.core.dndarray.DNDarray` with the same type, shape and data distribution
-    of given object. Data type and data distribution strategy can be explicitly overriden.
+    of given object. Data type, data distribution axis, and device can be explicitly overridden.
 
     Parameters
     ----------
     a : DNDarray
-        The shape and data-type of ``a`` define these same attributes of the returned array. Uninitialized array with
-        the same shape, type and split axis as ``a`` unless overriden.
+        The shape, data-type, split axis and device of ``a`` define these same attributes of the returned array. Uninitialized array with
+        the same shape, type, split axis and device as ``a`` unless overriden.
     dtype : datatype, optional
         Overrides the data type of the result.
     split: int or None, optional
@@ -794,8 +797,7 @@ def __factory_like(
     factory : function
         Function that creates a DNDarray.
     device : str
-        Specifies the :class:`~heat.core.devices.Device` the array shall be allocated on, defaults to globally set
-        default device.
+        Specifies the :class:`~heat.core.devices.Device` the array shall be allocated on, defaults to the same device as ``a``.
     comm: Communication
         Handle to the nodes holding distributed parts or copies of this array.
     order: str, optional
@@ -833,6 +835,13 @@ def __factory_like(
         except AttributeError:
             # do not split at all
             pass
+
+    # infer the device, otherwise default to a.device
+    if device is None:
+        try:
+            device = a.device
+        except AttributeError:
+            device = devices.get_device()
 
     # use the default communicator, if not set
     comm = sanitize_comm(comm)
@@ -1057,21 +1066,20 @@ def full_like(
     order: str = "C",
 ) -> DNDarray:
     """
-    Return a full :class:`~heat.core.dndarray.DNDarray` with the same shape and type as a given array.
+    Return a full :class:`~heat.core.dndarray.DNDarray` with the same shape and type as a given array. Data type, data distribution axis, and device can be explicitly overridden.
 
     Parameters
     ----------
     a : DNDarray
-        The shape and data-type of ``a`` define these same attributes of the returned array.
+        The shape, data-type, split axis and device of ``a`` define these same attributes of the returned array.
     fill_value : scalar
         Fill value.
     dtype : datatype, optional
-        Overrides the data type of the result.
+        The data type of the result, defaults to `a.dtype`.
     split: int or None, optional
-        The axis along which the array is split and distributed; ``None`` means no distribution.
+        The axis along which the array is split and distributed; defaults to `a.split`.
     device : str or Device, optional
-        Specifies the :class:`~heat.core.devices.Device` the array shall be allocated on, defaults to globally set
-        default device.
+        Specifies the :class:`~heat.core.devices.Device` the array shall be allocated on, defaults to `a.device`.
     comm: Communication, optional
         Handle to the nodes holding distributed parts or copies of this array.
     order: str, optional
@@ -1167,9 +1175,18 @@ def linspace(
     # compose the local tensor
     start += offset * step
     stop = start + lshape[0] * step - step
-    data = torch.linspace(start, stop, lshape[0], device=device.torch_device)
-    if dtype is not None:
-        data = data.type(types.canonical_heat_type(dtype).torch_type())
+    if dtype is not None and types.issubdtype(dtype, types.floating):
+        data = torch.linspace(
+            start,
+            stop,
+            lshape[0],
+            dtype=types.canonical_heat_type(dtype).torch_type(),
+            device=device.torch_device,
+        )
+    else:
+        data = torch.linspace(start, stop, lshape[0], device=device.torch_device)
+        if dtype is not None:
+            data = data.type(types.canonical_heat_type(dtype).torch_type())
 
     # construct the resulting global tensor
     ht_tensor = DNDarray(
@@ -1386,19 +1403,18 @@ def ones_like(
 ) -> DNDarray:
     """
     Returns a new :class:`~heat.core.dndarray.DNDarray` filled with ones with the same type,
-    shape and data distribution of given object. Data type and data distribution strategy can be explicitly overriden.
+    shape, data distribution and device of the input object. Data type, data distribution axis, and device can be explicitly overridden.
 
     Parameters
     ----------
     a : DNDarray
-        The shape and data-type of ``a`` define these same attributes of the returned array.
+        The shape, data-type, split axis and device of ``a`` define these same attributes of the returned array.
     dtype : datatype, optional
         Overrides the data type of the result.
     split: int or None, optional
-        The axis along which the array is split and distributed; ``None`` means no distribution.
+        The axis along which the array is split and distributed; defaults to `a.split`.
     device : str or Device, optional
-        Specifies the :class:`~heat.core.devices.Device` the array shall be allocated on, defaults to globally set
-        default device.
+        Specifies the :class:`~heat.core.devices.Device` the array shall be allocated on, defaults to `a.device`.
     comm: Communication, optional
         Handle to the nodes holding distributed parts or copies of this array.
     order: str, optional
@@ -1482,20 +1498,19 @@ def zeros_like(
     order: str = "C",
 ) -> DNDarray:
     """
-    Returns a new :class:`~heat.core.dndarray.DNDarray` filled with zeros with the same type, shape and data
-    distribution of given object. Data type and data distribution strategy can be explicitly overriden.
+    Returns a new :class:`~heat.core.dndarray.DNDarray` filled with zeros with the same type, shape, data
+    distribution, and device of the input object. Data type, data distribution axis, and device can be explicitly overridden.
 
     Parameters
     ----------
     a : DNDarray
-        The shape and data-type of ``a`` define these same attributes of the returned array.
+        The shape, data-type, split axis, and device  of ``a`` define these same attributes of the returned array.
     dtype : datatype, optional
         Overrides the data type of the result.
     split: int or None, optional
-        The axis along which the array is split and distributed; ``None`` means no distribution.
+        The axis along which the array is split and distributed; defaults to `a.split`.
     device : str or Device, optional
-        Specifies the :class:`~heat.core.devices.Device` the array shall be allocated on, defaults to globally set
-        default device.
+        Specifies the :class:`~heat.core.devices.Device` the array shall be allocated on, defaults to `a.device`.
     comm: Communication, optional
         Handle to the nodes holding distributed parts or copies of this array.
     order: str, optional

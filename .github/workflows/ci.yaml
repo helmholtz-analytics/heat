@@ -12,43 +12,41 @@ jobs:
       fail-fast: false
       matrix:
         py-version:
-          - 3.8
           - 3.9
           - '3.10'
           - 3.11
+          - 3.12
         mpi: [ 'openmpi' ]
-        install-options: [ '.', '.[hdf5,netcdf]' ]
+        install-options: [ '.', '.[hdf5,netcdf,pandas,zarr]' ]
         pytorch-version:
-          - 'torch==1.11.0+cpu torchvision==0.12.0+cpu torchaudio==0.11.0'
-          - 'torch==1.12.1+cpu torchvision==0.13.1+cpu torchaudio==0.12.1'
-          - 'torch==1.13.1+cpu torchvision==0.14.1+cpu torchaudio==0.13.1'
-          - 'torch==2.0.1 torchvision==0.15.2 torchaudio==2.0.2'
           - 'torch==2.1.2 torchvision==0.16.2 torchaudio==2.1.2'
-          - 'torch torchvision torchaudio'
+          - 'torch==2.2.2 torchvision==0.17.2 torchaudio==2.2.2'
+          - 'torch==2.3.1 torchvision==0.18.1 torchaudio==2.3.1'
+          - 'torch==2.4.1 torchvision==0.19.1 torchaudio==2.4.1'
+          - 'torch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1'
+          - 'torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0'
         exclude:
-          - py-version: '3.11'
-            pytorch-version: 'torch==1.11.0+cpu torchvision==0.12.0+cpu torchaudio==0.11.0'
-          - py-version: '3.11'
-            pytorch-version: 'torch==1.12.1+cpu torchvision==0.13.1+cpu torchaudio==0.12.1'
-          - py-version: '3.11'
-            pytorch-version: 'torch==1.13.1+cpu torchvision==0.14.1+cpu torchaudio==0.13.1'
+          - py-version: '3.12'
+            pytorch-version: 'torch==2.1.2 torchvision==0.16.2 torchaudio==2.1.2'
+          - py-version: '3.12'
+            pytorch-version: 'torch==2.2.2 torchvision==0.17.2 torchaudio==2.2.2'
 
 
     name: Python ${{ matrix.py-version }} with ${{ matrix.pytorch-version }}; options ${{ matrix.install-options }}
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        uses: step-security/harden-runner@4d991eb9b905ef189e4c376166672c3f2f230481 # v2.11.0
         with:
           egress-policy: audit
 
       - name: Checkout
-        uses: actions/checkout@v4.1.3
+        uses: actions/checkout@v4.2.2
       - name: Setup MPI
         uses: mpi4py/setup-mpi@v1.2.0
         with:
           mpi: ${{ matrix.mpi }}
       - name: Use Python ${{ matrix.py-version }}
-        uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d # v5.1.0
+        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
         with:
           python-version: ${{ matrix.py-version }}
           architecture: x64

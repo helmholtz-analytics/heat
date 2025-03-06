@@ -6,6 +6,8 @@
 - Implementation:
     - [ ] unit tests: all split configurations tested
     - [ ] unit tests: multiple dtypes tested
+    - [ ] benchmarks: created for new functionality
+    - [ ] benchmarks: performance improved or maintained
     - [ ] documentation updated where needed
 
 ## Description
