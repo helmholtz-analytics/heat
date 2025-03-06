@@ -103,8 +103,13 @@ class TestKMeans(TestCase):
 
         # different datatype
         n = 20 * ht.MPI_WORLD.size
+        # MPS does not support float64
+        if self.is_mps:
+            dtype = ht.float32
+        else:
+            dtype = ht.float64
         data = create_spherical_dataset(
-            num_samples_cluster=n, radius=1.0, offset=4.0, dtype=ht.float64, random_state=seed
+            num_samples_cluster=n, radius=1.0, offset=4.0, dtype=dtype, random_state=seed
         )
         kmedoid = ht.cluster.KMedoids(n_clusters=4, init="kmedoids++")
         kmedoid.fit(data)
