@@ -31,6 +31,8 @@ class LocalOutlierFactor:
     ----------
     n_neighbors : int
         Number of neighbors used to calculate the density of points in the lof algorithm. Denoted as MinPts in [1].
+    binary_decision: string
+        Method that converts lof score into a binary decision of outlier and non-outlier. Can be "threshold" or "topN".
     metric : str
         The measure of the distance. Can be "euclidian", "manhattan", or "gaussian".
     threshold : float
@@ -80,6 +82,7 @@ class LocalOutlierFactor:
             raise ValueError(f"Invalid metric '{metric}'. Must be one of {valid_metrics}.")
 
         self.n_neighbors = n_neighbors
+        self.binary_decision = binary_decision
         self.threshold = threshold
         self.top_n = top_n
         self.lof_scores = None
@@ -108,14 +111,13 @@ class LocalOutlierFactor:
         X : DNDarray
             Data points.
         """
-        print(
-            f"process: {ht.MPI_WORLD.rank}: \n ------------------------------ \n X.larray={X.larray}\n ------------------------------ \n"
-        )
+        # number of data points
+        length = X.shape[0]
         # input sanitation
         # If n_neighbors is larger than or equal the number of samples, continue with the whole sample when evaluating the LOF
-        if self.n_neighbors >= X.shape[0]:
-            self.n_neighbors = X.shape[0] - 1  # n_neighbors + the point itself = X.shape[0]
-        if X.shape[0] <= 10:  # [1] suggests a minimum of 10 neighbors
+        if self.n_neighbors >= length:
+            self.n_neighbors = length - 1  # length of data is n_neighbors + the point itself
+        if length <= 10:  # [1] suggests a minimum of 10 neighbors
             raise ValueError(
                 f"The data set is too small for a reasonable LOF evaluation. The number of samples should be larger than 10, but was {X.shape[0]}."
             )
@@ -128,16 +130,22 @@ class LocalOutlierFactor:
 
         # Compute the reachability distance matrix
         reachability_dist = self._reach_dist(dist, idx)
-
         # Compute the local reachability density (lrd) for each point
         lrd = self.n_neighbors / (
             ht.sum(reachability_dist, axis=1) + 1e-10
         )  # add 1e-10 to avoid division by zero
-        lrd_neighbors = lrd[idx[:, 1:]]
 
+        # define a matrix storing the lrd of all neighbors for each point
+        lrd = lrd.resplit_(None)
+        lrd_neighbors = ht.zeros((length, self.n_neighbors), split=None)
+
+        # TODO: Once the advanced indexing is implemented in Heat, replace this loop by lrd_neighbors = lrd[idx[:, 1:]]
+        for i in range(length):
+            lrd_neighbors[i, :] = lrd[idx[i, 1:]]
+        lrd = lrd.resplit_(X.split)
+        lrd_neighbors = lrd_neighbors.resplit_(X.split)
         # Compute the local outlier factor for each point
         lof = ht.sum(lrd_neighbors, axis=1) / (self.n_neighbors * lrd + 1e-10)
-
         # Store the LOF scores in the class attribute
         self.lof_scores = lof
 
