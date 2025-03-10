@@ -387,7 +387,7 @@ def solve_triangular(A: DNDarray, b: DNDarray) -> DNDarray:
     if A.split >= batch_dim:  # both splits in la dims
         A_lshapes_cum = torch.hstack(
             [
-                torch.zeros(1, dtype=torch.int32, device=tdev),
+                torch.zeros(1, dtype=torch.int64, device=tdev),
                 torch.cumsum(A.lshape_map[:, A.split], 0),
             ]
         )
@@ -411,7 +411,11 @@ def solve_triangular(A: DNDarray, b: DNDarray) -> DNDarray:
                 displ[i:] = 0
 
                 res_send = torch.empty(0)
-                res_recv = torch.zeros((*batch_shape, count[comm.rank], b.shape[-1]), device=tdev)
+                res_recv = torch.zeros(
+                    (*batch_shape, count[comm.rank], b.shape[-1]),
+                    device=tdev,
+                    dtype=b.dtype.torch_type(),
+                )
 
                 if comm.rank == i:
                     x.larray = torch.linalg.solve_triangular(
