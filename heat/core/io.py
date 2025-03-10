@@ -558,6 +558,59 @@ else:
         >>> b.lshape
         [0/2] (3,)
         [1/2] (2,)
+
+        Using the slicing argument:
+        >>> not_sliced = ht.load_hdf5('other_data.h5', dataset='DATA', split=0)
+        >>> not_sliced.shape
+        [0/2] (10,2)
+        [1/2] (10,2)
+        >>> not_sliced.lshape
+        [0/2] (5,2)
+        [1/2] (5,2)
+        >>> not_sliced.larray
+        [0/2] [[ 0,  1],
+               [ 2,  3],
+               [ 4,  5],
+               [ 6,  7],
+               [ 8,  9]]
+        [1/2] [[10, 11],
+               [12, 13],
+               [14, 15],
+               [16, 17],
+               [18, 19]]
+
+        >>> sliced = ht.load_hdf5('other_data.h5', dataset='DATA', split=0, slices=slice(8))
+        >>> sliced.shape
+        [0/2] (8,2)
+        [1/2] (8,2)
+        >>> sliced.lshape
+        [0/2] (4,2)
+        [1/2] (4,2)
+        >>> sliced.larray
+        [0/2] [[ 0,  1],
+               [ 2,  3],
+               [ 4,  5],
+               [ 6,  7]]
+        [1/2] [[ 8,  9],
+               [10, 11],
+               [12, 13],
+               [14, 15],
+               [16, 17]]
+
+        >>> sliced = ht.load_hdf5('other_data.h5', dataset='DATA', split=0, slices=(slice(2,8), slice(0,1))
+        >>> sliced.shape
+        [0/2] (6,1)
+        [1/2] (6,1)
+        >>> sliced.lshape
+        [0/2] (3,1)
+        [1/2] (3,1)
+        >>> sliced.larray
+        [0/2] [[ 4, ],
+               [ 6, ],
+               [ 8, ]]
+        [1/2] [[10, ],
+               [12, ],
+               [14, ]]
         """
         if not isinstance(path, str):
             raise TypeError(f"path must be str, not {type(path)}")
