@@ -32,13 +32,14 @@ class TestMatrixgallery(TestCase):
         self.assertTrue(A_err <= 1e-6)
 
         for posdef in [True, False]:
-            # test complex double precision
-            A = ht.utils.data.matrixgallery.hermitian(
-                20, dtype=ht.complex128, split=0, positive_definite=posdef
-            )
-            A_err = ht.norm(A - A.T.conj().resplit_(A.split)) / ht.norm(A)
-            self.assertTrue(A.dtype == ht.complex128)
-            self.assertTrue(A_err <= 1e-12)
+            if not self.is_mps:
+                # test complex double precision
+                A = ht.utils.data.matrixgallery.hermitian(
+                    20, dtype=ht.complex128, split=0, positive_definite=posdef
+                )
+                A_err = ht.norm(A - A.T.conj().resplit_(A.split)) / ht.norm(A)
+                self.assertTrue(A.dtype == ht.complex128)
+                self.assertTrue(A_err <= 1e-12)
 
             # test real datatype
             A = ht.utils.data.matrixgallery.hermitian(

@@ -1,4 +1,6 @@
 import unittest
+import os
+import platform
 import heat as ht
 import torch
 
@@ -7,9 +9,13 @@ from heat.core.tests.test_suites.basic_test import TestCase
 from typing import Tuple
 
 
+envar = os.getenv("HEAT_TEST_USE_DEVICE", "cpu")
+is_mps = envar == "gpu" and platform.system() == "Darwin"
+
+
 @unittest.skipIf(
-    int(torch.__version__.split(".")[0]) <= 1 and int(torch.__version__.split(".")[1]) < 12,
-    f"ht.sparse requires torch >= 1.12. Found version {torch.__version__}.",
+    is_mps,
+    "sparse_csr_tensor not supported on MPS (PyTorch 2.3)",
 )
 class TestDCSR_matrix(TestCase):
     @classmethod
