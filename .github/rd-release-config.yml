@@ -1,0 +1,253 @@
+filter-by-commitish: False
+include-pre-releases: false
+categories:
+  - title: 'Features'
+    labels:
+      - 'features'
+  - title: 'Enhancements'
+    labels:
+      - 'performance'
+      - 'enhancement'
+  - title: 'Bug Fixes'
+    labels:
+      - 'bug'
+  - title: 'Benchmarking'
+    label: 'benchmarking'
+  - title: 'Documentation'
+    labels:
+      - 'documentation'
+  - title: 'Testing'
+    label: 'testing'
+  - title: 'Security'
+    labels:
+      - 'security'
+  - title: 'Core'
+    label: 'core'
+  - title: 'Classification'
+    label: 'classification'
+  - title: 'Cluster'
+    label: 'cluster'
+  - title: 'Datasets'
+    label: 'datasets'
+  - title: 'Decomposition'
+    label: 'decomposition'
+  - title: 'FFT'
+    label: 'fft'
+  - title: 'Graph'
+    label: 'graph'
+  - title: 'Linear Algebra'
+    label: 'linalg'
+  - title: 'Naive Bayes'
+    label: 'naive bayes'
+  - title: 'Neural Networks'
+    labels:
+      - 'nn'
+      - 'neural net'
+  - title: 'Optimization'
+    label: 'optim'
+  - title: 'Preprocessing'
+    label: 'preprocessing'
+  - title: 'Regression'
+    label: 'regression'
+  - title: 'Sparse'
+    label: 'sparse'
+  - title: 'Spatial'
+    label: 'spatial'
+  - title: 'Utils'
+    label: 'utils'
+exclude-labels:
+  - 'github-actions'
+  - 'dependencies'
+  - 'chore'
+  - 'workflows'
+
+autolabeler:
+  - label: 'workflows'
+    files:
+      - '.github/**/*'
+    title:
+      - '/Workflow.+/'
+  - label: 'chore'
+    title:
+      - '/\[pre-commit.ci\].+/'
+  - label: 'features'
+    title:
+    - '/feat/i'
+    - '/feature/i'
+    - '/implement/i'
+    - '/add/i'
+    - '/new/i'
+    branch:
+      - '/feature/i'
+      - '/feat/i'
+  - label: 'enhancement'
+    title:
+      - '/Refactor.+/'
+      - '/Expand.+/'
+  - label: 'documentation'
+    files:
+      - 'doc/**/*'
+      - '*.md'
+  - label: 'benchmarking'
+    files:
+      - 'benchmarks/**/*'
+  - label: 'docker'
+    files:
+      - 'docker/**/*'
+  - label: 'backport stable'
+    title:
+      - '/bug/i'
+      - '/resolve/i'
+      - '/fix/i'
+      - '/\[pre\-commit\.ci\]/i'
+    branch:
+      - '/bug/i'
+      - '/fix/i'
+  - label: 'bug'
+    title:
+      - '/bug/i'
+      - '/resolve/i'
+      - '/fix/i'
+    branch:
+      - '/bug/i'
+      - '/fix/i'
+  - label: 'interoperability'
+    title:
+      - '/Support.+/'
+  - label: 'classification'
+    files:
+      - 'heat/classification/**/*'
+  - label: 'cluster'
+    files:
+      - 'heat/cluster/**/*'
+  - label: 'core'
+    files:
+      - 'heat/core/**/*'
+  - label: 'datasets'
+    files:
+      - 'heat/datasets/**/*'
+  - label: 'decomposition'
+    files:
+      - 'heat/decomposition/**/*'
+  - label: 'fft'
+    files:
+      - 'heat/fft/**/*'
+  - label: 'graph'
+    files:
+      - 'heat/graph/**/*'
+  - label: 'naive bayes'
+    files:
+      - 'heat/naive_bayes/**/*'
+  - label: 'nn'
+    files:
+      - 'heat/nn/**/*'
+  - label: 'optim'
+    files:
+      - 'heat/optim/**/*'
+  - label: 'preprocessing'
+    files:
+      - 'heat/preprocessing/**/*'
+  - label: 'regression'
+    files:
+      - 'heat/regression/**/*'
+  - label: 'sparse'
+    files:
+      - 'heat/sparse/**/*'
+  - label: 'spatial'
+    files:
+      - 'heat/spatial/**/*'
+  - label: 'utils'
+    files:
+      - 'heat/utils/**/*'
+  - label: 'linalg'
+    files:
+      - 'heat/core/linalg/**/*'
+  - label: 'arithmetics'
+    files:
+      - 'heat/core/arithmetics.py'
+  - label: 'base'
+    files:
+      - 'heat/core/base.py'
+  - label: 'communication'
+    files:
+      - 'heat/core/communication.py'
+  - label: 'complex_math'
+    files:
+      - 'heat/core/complex_math.py'
+  - label: 'constants'
+    files:
+      - 'heat/core/constants.py'
+  - label: 'devices'
+    files:
+      - 'heat/core/devices.py'
+  - label: 'dndarray'
+    files:
+      - 'heat/core/dndarray.py'
+  - label: 'exponential'
+    files:
+      - 'heat/core/exponential.py'
+  - label: 'indexing'
+    files:
+      - 'heat/core/indexing.py'
+  - label: 'io'
+    files:
+      - 'heat/core/io.py'
+  - label: 'logical'
+    files:
+      - 'heat/core/logical.py'
+  - label: 'manipulations'
+    files:
+      - 'heat/core/manipulations.py'
+  - label: 'memory'
+    files:
+      - 'heat/core/memory.py'
+  - label: 'printing'
+    files:
+      - 'heat/core/printing.py'
+  - label: 'random'
+    files:
+      - 'heat/core/random.py'
+  - label: 'relational'
+    files:
+      - 'heat/core/relational.py'
+  - label: 'rounding'
+    files:
+      - 'heat/core/rounding.py'
+  - label: 'santiation'
+    files:
+      - 'heat/core/sanitation.py'
+  - label: 'signal'
+    files:
+      - 'heat/core/signal.py'
+  - label: 'statistics'
+    files:
+      - 'heat/core/statistics.py'
+  - label: 'stride_tricks'
+    files:
+      - 'heat/core/stride_tricks.py'
+  - label: 'tiling'
+    files:
+      - 'heat/core/tiling.py'
+  - label: 'trigonometrics'
+    files:
+      - 'heat/core/trigonometrics.py'
+  - label: 'types'
+    files:
+      - 'heat/core/types.py'
+  - label: 'version'
+    files:
+      - 'heat/core/version.py'
+  - label: 'vmap'
+    files:
+      - 'heat/core/vmap.py'
+
+change-template: '- #$NUMBER $TITLE (by @$AUTHOR)'
+category-template: '### $TITLE'
+template: |
+  ## Changes
+
+  $CHANGES
+
+  ## Contributors
+
+  $CONTRIBUTORS

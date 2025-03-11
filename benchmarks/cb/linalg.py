@@ -39,6 +39,16 @@ def lanczos(B):
     V, T = ht.lanczos(B, m=B.shape[0])
 
 
+@monitor()
+def zolopd_split0(A):
+    U, H = ht.linalg.polar(A)
+
+
+@monitor()
+def zolopd_split1(A):
+    U, H = ht.linalg.polar(A)
+
+
 def run_linalg_benchmarks():
     n = 3000
     a = ht.random.random((n, n), split=0)
@@ -74,3 +84,12 @@ def run_linalg_benchmarks():
     hierachical_svd_rank(data, 10)
     hierachical_svd_tol(data, 1e-2)
     del data
+
+    n = 1000
+    A = ht.random.random((n, n), split=0)
+    zolopd_split0(A)
+    del A
+
+    A = ht.random.random((n, n), split=1)
+    zolopd_split1(A)
+    del A
