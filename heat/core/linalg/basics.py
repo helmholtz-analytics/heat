@@ -699,11 +699,11 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
                 kB, a.gshape[-1]
             )  # shouldnt this always be kB and be the same as for split 11?
 
-        if a.lshape[-1] % kB != 0 or (
-            kB == 1 and a.lshape[-1] != 1
-        ):  # does kb == 1 imply a.lshape[-1] > 1?
+        if (kB == 1 and a.lshape[-1] != 1) or a.lshape[
+            -1
+        ] % kB != 0:  # does kb == 1 imply a.lshape[-1] > 1?
             rem_a = 1
-        if b.lshape[-2] % kB != 0 or (kB == 1 and b.lshape[-2] != 1):
+        if (kB == 1 and b.lshape[-2] != 1) or b.lshape[-2] % kB != 0:
             rem_b = 1
 
         # get the lshape map to determine what needs to be sent where as well as M and N

@@ -386,14 +386,14 @@ class TestDMDc(TestCase):
                     5.0,
                 ],
                 [
-                    10.0,
+                    -10.0,
                 ],
             ],
             split=None,
             dtype=ht.float64,
         )
-        m, n = 100 * ht.MPI_WORLD.size, 100
-        C = 0.1 * ht.random.randn(2, n, split=None, dtype=ht.float64)
+        m, n = 10 * ht.MPI_WORLD.size, 10
+        C = 0.1 * ht.ones((2, n), split=None, dtype=ht.float64)
         X_red = [x0_red]
         for k in range(n - 1):
             X_red.append(A_red @ X_red[-1] + B_red @ C[:, k].reshape(-1, 1))
@@ -408,13 +408,26 @@ class TestDMDc(TestCase):
         # check whether the DMD-modes are correct
         sorted_ev_1 = np.sort_complex(dmd.rom_eigenvalues_.numpy())
         sorted_ev_2 = np.sort_complex(np.linalg.eigvals(A_red.numpy()))
-        self.assertTrue(np.allclose(sorted_ev_1, sorted_ev_2, atol=1e-6, rtol=1e-6))
+        self.assertTrue(np.allclose(sorted_ev_1, sorted_ev_2, atol=1e-12, rtol=1e-12))
 
-        # check prediction of next states
+        # check if DMD fits the data correctly
         X_red = dmd.rom_basis_.T @ X
-        res = (
+        X_res = (
             X_red[:, 1:]
             - dmd.rom_transfer_matrix_ @ X_red[:, :-1]
             - dmd.rom_control_matrix_ @ C[:, :-1]
         )
-        self.assertTrue(ht.abs(res).max() < 1e-12)
+        self.assertTrue(ht.max(ht.abs(X_res)) < 1e-12)
+
+        # check predict
+        Y = dmd.predict(X[:, 0], C[:, :10]).squeeze()
+
+        # check prediction of next states
+        Y_red = dmd.rom_basis_.T @ Y
+        Y_res = (
+            Y_red[:, 1:]
+            - dmd.rom_transfer_matrix_ @ Y_red[:, :-1]
+            - dmd.rom_control_matrix_ @ C[:, :-1]
+        )
+        self.assertTrue(ht.max(ht.abs(Y_res)) < 1e-12)
+        self.assertTrue(ht.allclose(Y[:, :], X[:, :10], atol=1e-12, rtol=1e-12))

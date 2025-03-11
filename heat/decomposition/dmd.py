@@ -5,6 +5,7 @@ Module implementing the Dynamic Mode Decomposition (DMD) algorithm.
 import heat as ht
 from typing import Optional, Tuple, Union, List
 import torch
+import numpy as np
 
 try:
     from typing import Self
@@ -531,6 +532,7 @@ class DMDc(ht.RegressionMixin, ht.BaseEstimator):
                 # no truncation
                 self.n_modes_ = S.shape[0]
                 self.n_modes_system = Stilde.shape[0]
+
             self.rom_basis_ = U[:, : self.n_modes_]
             V = V[:, : self.n_modes_]
             S = S[: self.n_modes_]
@@ -607,7 +609,9 @@ class DMDc(ht.RegressionMixin, ht.BaseEstimator):
             @ (Vtilde / Stilde)
             @ (Utilde1.T @ self.rom_basis_).resplit_(None)
         )
-        self.rom_control_matrix_ = self.rom_basis_.T @ (Xplus @ ((Vtilde / Stilde) @ Utilde2.T))
+        self.rom_control_matrix_ = (self.rom_basis_.T @ Xplus) @ (
+            (Vtilde / Stilde) @ Utilde2.T
+        ).resplit_(0)
         self.rom_transfer_matrix_.resplit_(None)
         self.rom_control_matrix_.resplit_(None)
 
@@ -674,16 +678,17 @@ class DMDc(ht.RegressionMixin, ht.BaseEstimator):
         X_red_full[:, :, 0] = X_red
         for i in range(1, C.shape[1]):
             X_red_full[:, :, i] = (self.rom_transfer_matrix_ @ X_red_full[:, :, i - 1].T).T + (
-                self.rom_control_matrix_ @ C[:, i]
+                self.rom_control_matrix_ @ C[:, i - 1]
             ).T
         # reshape in order to be able to multiply with basis again
-        X_red_full = X_red_full.transpose([1, 0, 2])
-        X_red_full = X_red_full.reshape(self.rom_basis_.shape[1], -1)
-        if X_red_full.split is not None and X_red_full.shape[X_red_full.split] < ht.MPI_WORLD.size:
-            X_red_full.resplit_((X_red_full.split + 1) % 2)
+        X_red_full = X_red_full.reshape(self.rom_basis_.shape[1], -1).resplit_(
+            1 if X_red_full.split == 0 else None
+        )
+        # if X_red_full.split is not None and X_red_full.shape[X_red_full.split] < ht.MPI_WORLD.size:
+        #     X_red_full.resplit_(1)
         X_pred = self.rom_basis_ @ X_red_full
         # reshape again and return
-        return X_pred.reshape(X.shape[1], X.shape[0], C.shape[1]).transpose([1, 0, 2])
+        return X_pred.reshape(X.shape[0], X.shape[1], C.shape[1])
 
     def __str__(self):
         if ht.MPI_WORLD.rank == 0:
