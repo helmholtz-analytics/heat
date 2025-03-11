@@ -1559,7 +1559,7 @@ else:
                     for _ in range(
                         10
                     ):  # Use for loop instead of while true for better handling of edge cases
-                        byte_size = reduce(operator.mul, chunks, 1) * 8
+                        byte_size = reduce(operator.mul, chunks, 1) * dndarray.larray.element_size()
                         if byte_size > CODEC_LIMIT_BYTES:
                             if chunks[axis] % 2 == 0:
                                 chunks[axis] /= 2
