@@ -687,7 +687,7 @@ def load(
     """
     Attempts to load data from a file stored on disk. Attempts to auto-detect the file format by determining the
     extension. Supports at least CSV files, HDF5 and netCDF4 are additionally possible if the corresponding libraries
-    are installed.
+    are installed.is
 
     Parameters
     ----------
@@ -728,6 +728,12 @@ def load(
             return load_netcdf(path, *args, **kwargs)
         else:
             raise RuntimeError(f"netcdf is required for file extension {extension}")
+    elif extension in __ZARR_EXTENSIONS:
+        if supports_zarr():
+            return load_zarr(path, *args, **kwargs)
+        else:
+            raise RuntimeError(f"zarr is required for file extension {extension}")
+
     else:
         raise ValueError(f"Unsupported file extension {extension}")
 
@@ -1138,6 +1144,11 @@ def save(
             raise RuntimeError(f"netcdf is required for file extension {extension}")
     elif extension in __CSV_EXTENSION:
         save_csv(data, path, *args, **kwargs)
+    elif extension in __ZARR_EXTENSIONS:
+        if supports_zarr():
+            return save_zarr(data, path, *args, **kwargs)
+        else:
+            raise RuntimeError(f"zarr is required for file extension {extension}")
     else:
         raise ValueError(f"Unsupported file extension {extension}")
 
@@ -1381,16 +1392,16 @@ else:
             arr[slices][local_slices], dtype=dtype, is_split=split, device=device, comm=comm
         )
 
-    def save_zarr(path: str, dndarray: DNDarray, overwrite: bool = False, **kwargs) -> None:
+    def save_zarr(dndarray: DNDarray, path: str, overwrite: bool = False, **kwargs) -> None:
         """
         Writes the DNDArray into the zarr-format.
 
         Parameters
         ----------
-        path : str
-            path to save to.
         dndarray : DNDarray
             DNDArray to save.
+        path : str
+            path to save to.
         overwrite : bool
             Wether to overwrite an existing array.
         **kwargs : Any

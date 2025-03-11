@@ -979,7 +979,7 @@ class TestIO(TestCase):
             for dims in [(i, self.ZARR_SHAPE[1]) for i in range(max(10, ht.MPI_WORLD.size + 1))]:
                 n = dims[0] * dims[1]
                 dndarray = ht.arange(0, n, dtype=type, split=0).reshape(dims)
-                ht.save_zarr(self.ZARR_OUT_PATH, dndarray, overwrite=True)
+                ht.save_zarr(dndarray, self.ZARR_OUT_PATH, overwrite=True)
                 dndnumpy = dndarray.numpy()
                 zarr_array = zarr.open_array(self.ZARR_OUT_PATH)
 
@@ -998,7 +998,7 @@ class TestIO(TestCase):
             for dims in [(self.ZARR_SHAPE[0], i) for i in range(max(10, ht.MPI_WORLD.size + 1))]:
                 n = dims[0] * dims[1]
                 dndarray = ht.arange(0, n, dtype=type).reshape(dims).resplit(axis=1)
-                ht.save_zarr(self.ZARR_OUT_PATH, dndarray, overwrite=True)
+                ht.save_zarr(dndarray, self.ZARR_OUT_PATH, overwrite=True)
                 dndnumpy = dndarray.numpy()
                 zarr_array = zarr.open_array(self.ZARR_OUT_PATH)
 
@@ -1016,7 +1016,7 @@ class TestIO(TestCase):
         for type in [ht.types.int32, ht.types.int64, ht.types.float32, ht.types.float64]:
             for n in [10, 100, 1000]:
                 dndarray = ht.arange(n, dtype=type, split=None)
-                ht.save_zarr(self.ZARR_OUT_PATH, dndarray, overwrite=True)
+                ht.save_zarr(dndarray, self.ZARR_OUT_PATH, overwrite=True)
                 arr = zarr.open_array(self.ZARR_OUT_PATH)
                 dndnumpy = dndarray.numpy()
                 if ht.MPI_WORLD.rank == 0:
@@ -1033,7 +1033,7 @@ class TestIO(TestCase):
         for type in [ht.types.int32, ht.types.int64, ht.types.float32, ht.types.float64]:
             for n in [10, 100, 1000]:
                 dndarray = ht.arange(n, dtype=type, split=0)
-                ht.save_zarr(self.ZARR_OUT_PATH, dndarray, overwrite=True)
+                ht.save_zarr(dndarray, self.ZARR_OUT_PATH, overwrite=True)
                 arr = zarr.open_array(self.ZARR_OUT_PATH)
                 dndnumpy = dndarray.numpy()
                 if ht.MPI_WORLD.rank == 0:
@@ -1067,7 +1067,7 @@ class TestIO(TestCase):
         with self.assertRaises(TypeError):
             ht.save_zarr(None, None)
         with self.assertRaises(ValueError):
-            ht.save_zarr("data.npy", None)
+            ht.save_zarr(None, "data.npy")
 
         comm = ht.MPI_WORLD
         if comm.rank == 0:
@@ -1080,4 +1080,4 @@ class TestIO(TestCase):
         comm.Barrier()
 
         with self.assertRaises(RuntimeError):
-            ht.save_zarr(self.ZARR_TEMP_PATH, ht.arange(16).reshape((4, 4)))
+            ht.save_zarr(ht.arange(16).reshape((4, 4)), self.ZARR_TEMP_PATH)
