@@ -408,7 +408,8 @@ class DistributedSampler(torch_data.Sampler):
             seed to set
         """
         self._seed = value
-        torch.manual_seed(value)
+        if value is not None:
+            torch.manual_seed(value)
 
     def __iter__(self) -> Iterator[int]:
         if self.shuffle:
