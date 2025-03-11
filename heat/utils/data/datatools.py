@@ -2,7 +2,9 @@
 Function and classes useful for loading data into neural networks
 """
 
+from functools import reduce
 import random
+import mpi4py
 import torch
 import torch.distributed
 from torch.utils import data as torch_data
@@ -11,7 +13,7 @@ from typing import Callable, List, Iterator, Union, Optional, Sized
 import torch.utils
 
 from ...core.dndarray import DNDarray
-from ...core.communication import MPI_WORLD
+from ...core.communication import MPI_WORLD, MPICommunication
 from . import partial_dataset
 
 __all__ = ["DataLoader", "Dataset", "dataset_shuffle", "dataset_ishuffle"]
@@ -253,19 +255,17 @@ class DistributedDataset(torch_data.Dataset):
     A DistributedDataset for usage in PyTorch. Saves the dndarray and the larray tensor. Uses the larray tensor
     for the distribution and getting the items.
     """
-
     def __init__(self, dndarray: DNDarray):
         self.dndarray = dndarray
-        self.tensor = dndarray.larray
 
     def __len__(self) -> int:
-        return len(self.tensor)
+        return len(self.dndarray)
 
     def __getitem__(self, index):
-        return self.tensor[index]
+        return self.dndarray.larray[index]
 
     def __getitems__(self, indices):
-        return tuple(self.tensor[index] for index in indices)
+        return tuple(self.dndarray.larray[index] for index in indices)
 
 
 class DistributedSampler(torch_data.Sampler):
@@ -274,23 +274,146 @@ class DistributedSampler(torch_data.Sampler):
     to give the locally stored data on the larray. Shuffling is done by shuffling the indices.
     The given Indices corrospond to the index of the larray tensor.
     """
-
-    def __init__(self, dndset: DistributedDataset, shuffle: bool = False, seed: int = None) -> None:
-        self.dndset = dndset
-        self.tensor = dndset.tensor
-        self.indices = list(range(len(self.tensor)))
+    def __init__(self, dataset: DistributedDataset, shuffle: bool = False, seed: int = None) -> None:
+        """
+        Parameters
+        ----------
+        dataset : DistributedDataset
+            Dataset to be shuffled
+        shuffle : bool, optional
+            If the underlying DNDarray should be shuffled, by default False
+        seed : int, optional
+            seed for shuffling, by default None
+        """
+        self.dataset = dataset
+        self.dndarray = dataset.dndarray
         self.shuffle = shuffle
-        self.seed = seed
+        self.set_seed(seed)
+
+    @staticmethod
+    def _in_slice(idx: int, a_slice: slice) -> bool:
+        """Check if the given index is inside the given slice
+
+        Parameters
+        ----------
+        idx : int
+            Index to check
+        a_slice : slice
+            Slice to check
+
+        Returns
+        -------
+        bool
+            Wether index is in slice
+        """
+        if idx < a_slice.start or idx >= a_slice.stop:
+            return False
+        step = a_slice.step if a_slice.step else 1
+        if (idx - a_slice.start) % step == 0:
+            return True
+        else:
+            return False
+
+    def _shuffle(self) -> None:
+        """Shuffles the given dndarray at creation across processes."""
+        dtype = self.dndarray.dtype.torch_type()
+        comm: MPICommunication = self.dndarray.comm
+        rank: int = comm.rank
+        world_size: int = comm.size
+        N: int = self.dndarray.gshape[0]
+
+        if rank == 0:
+            indices = torch.randperm(N, dtype=torch.int32)
+        else:
+            indices = torch.empty(N, dtype=torch.int32)
+        mpi4py.MPI.COMM_WORLD.Bcast(indices, root=0)
+
+        indice_buffers: List[List[int]] = [list() for _ in range(world_size)]
+        rank_slices: List[slice] = [
+            comm.chunk((N,), split=0, rank=i)[-1][0] for i in range(world_size)
+        ]
+        local_slice: slice = rank_slices[rank]
+
+        # Now figure out which rank needs to send what to each rank and what this rank will receive
+        for i, idx in enumerate(indices):
+            idx = idx.item()
+            for data_send_rank, tslice in enumerate(rank_slices):
+                if not self._in_slice(idx, tslice):
+                    continue
+                break
+            for data_recv_rank, tslice in enumerate(rank_slices):
+                if not self._in_slice(i, tslice):
+                    continue
+                break
+            if data_recv_rank == rank:
+                indice_buffers[rank].append(idx)
+            elif data_send_rank == rank:
+                indice_buffers[data_recv_rank].append(idx)
+
+        torch_send_buffers: List[torch.Tensor] = list()
+        row_length: int = reduce(lambda a, b: a * b, self.dndarray.gshape[1:], 1)
+        local_recv_buffer: torch.Tensor = torch.empty(
+            len(indice_buffers[rank]) * row_length, dtype=dtype
+        )
+
+        for current_rank in range(world_size):
+            if current_rank == rank:
+                send_indice = [
+                    idx for idx in indice_buffers[current_rank] if self._in_slice(idx, local_slice)
+                ]
+            else:
+                send_indice = indice_buffers[current_rank]
+
+            if len(send_indice) == 1:
+                send_indice = tuple(send_indice)  # issue#1816
+
+            buf = self.dndarray[send_indice].larray
+            torch_send_buffers.append(buf)
+
+        send_elems = [torch.flatten(elem) for elem in torch_send_buffers]
+        send_counts = torch.tensor([len(elem) for elem in send_elems])
+        send_displs = torch.zeros(world_size)
+        send_displs[1:] = torch.cumsum(send_counts[:-1], dim=0)
+
+        recv_counts = torch.zeros(world_size)
+        for idx in indice_buffers[rank]:
+            for i, tslice in enumerate(rank_slices):
+                if not self._in_slice(idx, tslice):
+                    continue
+                recv_counts[i] += 1
+                break
+        recv_counts *= row_length
+
+        recv_displs = torch.zeros(world_size)
+        recv_displs[1:] = torch.cumsum(recv_counts[:-1], dim=0)
+
+        comm.Alltoallv(
+            (torch.cat(send_elems).contiguous(), send_counts, send_displs),
+            (local_recv_buffer, recv_counts, recv_displs),
+        )
+
+        arr = local_recv_buffer.reshape(-1, *self.dndarray.gshape[1:])
+        self.dndarray.larray = arr
+
+    def set_seed(self, value: int) -> None:
+        """Sets the seed for the torch.randperm
+
+        Parameters
+        ----------
+        value : int
+            seed to set
+        """
+        self._seed = value
+        torch.manual_seed(value)
 
     def __iter__(self) -> Iterator[int]:
         if self.shuffle:
-            if self.seed is not None:
-                random.seed(self.seed)
-            random.shuffle(self.indices)
+            self._shuffle()
+        self.indices = list(range(len(self.dndarray.larray)))
         return iter(self.indices)
 
     def __len__(self) -> int:
-        return len(self.tensor)
+        return len(self.dndarray.larray)
 
 
 def dataset_shuffle(dataset: Union[Dataset, torch_data.Dataset], attrs: List[list]):
