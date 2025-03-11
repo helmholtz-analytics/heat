@@ -69,6 +69,31 @@ class TestIO(TestCase):
         # synchronize all nodes
         ht.MPI_WORLD.Barrier()
 
+    def test_size_from_slice(self):
+        test_cases = [
+            (1000, slice(500)),
+            (10, slice(0, 10, 2)),
+            (100, slice(0, 100, 10)),
+            (1000, slice(0, 1000, 100)),
+            (0, slice(0)),
+        ]
+        for size, slice_obj in test_cases:
+            with self.subTest(size=size, slice=slice_obj):
+                expected_sequence = list(range(size))[slice_obj]
+                if len(expected_sequence) == 0:
+                    expected_offset = 0
+                else:
+                    expected_offset = expected_sequence[0]
+
+                expected_new_size = len(expected_sequence)
+
+                new_size, offset = ht.io.size_from_slice(size, slice_obj)
+                print(f"Expected sequence: {expected_sequence}")
+                print(f"Expected new size: {expected_new_size}, new size: {new_size}")
+                print(f"Expected offset: {expected_offset}, offset: {offset}")
+                self.assertEqual(expected_new_size, new_size)
+                self.assertEqual(expected_offset, offset)
+
     # catch-all loading
     def test_load(self):
         # HDF5
@@ -554,10 +579,6 @@ class TestIO(TestCase):
         self.assertEqual(iris.larray.dtype, torch.float32)
         self.assertTrue((self.IRIS == iris.larray).all())
 
-        # cropped load
-        iris_cropped = ht.load_hdf5(self.HDF5_PATH, self.HDF5_DATASET, split=0, load_fraction=0.5)
-        self.assertEqual(iris_cropped.shape[0], iris.shape[0] // 2)
-
         # positive split axis
         iris = ht.load_hdf5(self.HDF5_PATH, self.HDF5_DATASET, split=0)
         self.assertIsInstance(iris, ht.DNDarray)
@@ -595,10 +616,6 @@ class TestIO(TestCase):
             ht.load_hdf5("iris.h5", 1)
         with self.assertRaises(TypeError):
             ht.load_hdf5("iris.h5", dataset="data", split=1.0)
-        with self.assertRaises(TypeError):
-            ht.load_hdf5(self.HDF5_PATH, self.HDF5_DATASET, load_fraction="a")
-        with self.assertRaises(ValueError):
-            ht.load_hdf5(self.HDF5_PATH, self.HDF5_DATASET, load_fraction=0.0, split=0)
 
         # file or dataset does not exist
         with self.assertRaises(IOError):
@@ -1081,3 +1098,45 @@ class TestIO(TestCase):
 
         with self.assertRaises(RuntimeError):
             ht.save_zarr(ht.arange(16).reshape((4, 4)), self.ZARR_TEMP_PATH)
+
+    @unittest.skipIf(not ht.io.supports_hdf5(), reason="Requires HDF5")
+    def test_load_partial_hdf5(self):
+        test_axis = [None, 0, 1]
+        test_slices = [
+            (slice(0, 50, None), slice(None, None, None)),
+            (slice(0, 50, None), slice(0, 2, None)),
+            (slice(50, 100, None), slice(None, None, None)),
+            (slice(None, None, None), slice(2, 4, None)),
+            (slice(50), None),
+            (None, slice(0, 3, 2)),
+            (slice(50),),
+            (slice(50, 100),),
+        ]
+        test_cases = [(a, s) for a in test_axis for s in test_slices]
+
+        for axis, slices in test_cases:
+            with self.subTest(axis=axis, slices=slices):
+                print("axis: ", axis)
+                print("slices: ", slices)
+                HDF5_PATH = os.path.join(os.getcwd(), "heat/datasets/iris.h5")
+                HDF5_DATASET = "data"
+                expect_error = False
+                for s in slices:
+                    if s and s.step not in [None, 1]:
+                        expect_error = True
+                        break
+
+                if expect_error:
+                    with self.assertRaises(ValueError):
+                        sliced_iris = ht.load_hdf5(
+                            HDF5_PATH, HDF5_DATASET, split=axis, slices=slices
+                        )
+                else:
+                    original_iris = ht.load_hdf5(HDF5_PATH, HDF5_DATASET, split=axis)
+                    tmp_slices = tuple(slice(None) if s is None else s for s in slices)
+                    expected_iris = original_iris[tmp_slices]
+                    sliced_iris = ht.load_hdf5(HDF5_PATH, HDF5_DATASET, split=axis, slices=slices)
+                    print("Original shape: " + str(original_iris.shape))
+                    print("Sliced shape: " + str(sliced_iris.shape))
+                    print("Expected shape: " + str(expected_iris.shape))
+                    self.assertTrue(ht.equal(sliced_iris, expected_iris))
