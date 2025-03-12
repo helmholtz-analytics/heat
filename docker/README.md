@@ -128,9 +128,14 @@ For further info refer to the [Github documentation on package registries](https
 ## How to push a new image to ghcr.io
 
 1. Make sure you have a github access token set up in the CLI
+> [Authenticating to the container registry](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry#authenticating-to-the-container-registry)
+
+> docker login ghcr.io -u USERNAME -p GITHUB_PERSONAL_ACCESS_TOKEN
+
 2. Rename the local image in the following format:
 > docker tag current:name ghcr.io/helmholtz-analytics/heat:1.X.X-torchX.X_cudaXX.X_py3.XX
-3. Upload the image via:
+1. Upload the image via:
 > docker push ghcr.io/helmholtz-analytics/heat:1.X.X-torchX.X_cudaXX.X_py3.XX
 
 For further info refer to the [Github documentation on package registries](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry)
+

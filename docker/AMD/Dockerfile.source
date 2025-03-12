@@ -1,6 +1,6 @@
 ########################################################################################
-# AMD Docker Source File
 # Development Environment
+# Pulls Pytorch image and installs heat + dependencies
 ########################################################################################
 
 ARG PYTORCH_IMG=24.10-py3
