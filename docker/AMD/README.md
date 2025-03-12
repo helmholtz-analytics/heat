@@ -17,4 +17,3 @@ Check out the following [installation guide](https://github.com/ROCm/ROCm-docker
 
 #### General Things I realized
 You might run into an error that no space is left on your device when trying to build the pytorch container. Within Docker Desktop you can specify a limit for file sizes. Since containers can take up to 100GB, it might take some free storage.
-

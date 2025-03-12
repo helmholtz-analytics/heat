@@ -106,7 +106,7 @@ Runs the container in interactive mode (Opens a terminal)
 > docker ps -a
 Lists all active containers
 
-> docker system prune 
+> docker system prune
 Closes all currently running containers and frees up the resources
 
 > docker system prune --all --force
@@ -138,4 +138,3 @@ For further info refer to the [Github documentation on package registries](https
 > docker push ghcr.io/helmholtz-analytics/heat:1.X.X-torchX.X_cudaXX.X_py3.XX
 
 For further info refer to the [Github documentation on package registries](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry)
-
