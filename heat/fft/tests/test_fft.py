@@ -123,7 +123,7 @@ class TestFFT(TestCase):
         x = ht.random.randn(10, 8, 6, dtype=ht.float64, split=0)
         # FFT along last 2 axes
         y = ht.fft.fftn(x, s=(6, 6))
-        np_y = np.fft.fftn(x.numpy(), s=(6, 6))
+        np_y = np.fft.fftn(x.numpy(), s=(6, 6), axes=(1, 2))
         self.assertIsInstance(y, ht.DNDarray)
         self.assertEqual(y.shape, np_y.shape)
         self.assertTrue(y.split == 0)
