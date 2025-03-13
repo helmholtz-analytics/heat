@@ -4,6 +4,7 @@ Function and classes useful for loading data into neural networks
 
 from functools import reduce
 import random
+import warnings
 import mpi4py
 import torch
 import torch.distributed
@@ -253,10 +254,15 @@ class Dataset(torch_data.Dataset):
 class DistributedDataset(torch_data.Dataset):
     """
     A DistributedDataset for usage in PyTorch. Saves the dndarray and the larray tensor. Uses the larray tensor
-    for the distribution and getting the items.
+    for the distribution and getting the items. Intented to be used with DistributedSampler.
     """
 
     def __init__(self, dndarray: DNDarray):
+        if not isinstance(dndarray, DNDarray):
+            raise TypeError(f"Expected DNDarray but got {type(dndarray)}")
+        if dndarray.split != 0:
+            raise ValueError("DistributedDataset only works with a DNDarray split of 0")
+
         self.dndarray = dndarray
 
     def __len__(self) -> int:
@@ -274,10 +280,11 @@ class DistributedSampler(torch_data.Sampler):
     A DistributedSampler for usage in PyTorch with Heat Arrays. Uses the nature of the Heat DNDArray
     to give the locally stored data on the larray. Shuffling is done by shuffling the indices.
     The given Indices corrospond to the index of the larray tensor.
+    Works only with DNDarray that are split on axis 0
     """
 
     def __init__(
-        self, dataset: DistributedDataset, shuffle: bool = False, seed: int = None
+        self, dataset: DistributedDataset, shuffle: bool = False, seed: Optional[int] = None
     ) -> None:
         """
         Parameters
@@ -289,10 +296,20 @@ class DistributedSampler(torch_data.Sampler):
         seed : int, optional
             seed for shuffling, by default None
         """
+        if not isinstance(dataset, DistributedDataset):
+            raise TypeError(f"Expected DistributedDataset for dataset not {type(dataset)}")
+        if not isinstance(shuffle, bool):
+            raise TypeError(f"Expected bool for shuffle not {type(shuffle)}")
+        if not isinstance(seed, int) and seed is not None:
+            raise TypeError(f"Expected int or None for seed not {type(shuffle)}")
+
         self.dataset = dataset
         self.dndarray = dataset.dndarray
         self.shuffle = shuffle
         self.set_seed(seed)
+
+        if self.dndarray.split != 0:
+            raise ValueError("DistributedSampler only works with a DNDarray split of 0")
 
     @staticmethod
     def _in_slice(idx: int, a_slice: slice) -> bool:
