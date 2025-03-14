@@ -2,8 +2,9 @@
 
 import heat as ht
 import torch
+import warnings
 from heat.core.dndarray import DNDarray
-from heat.spatial.distance import cdist_small, _euclidian, _manhattan, _gaussian
+from heat.spatial.distance import cdist, cdist_small, _euclidian, _manhattan, _gaussian
 
 __all__ = ["LocalOutlierFactor"]
 
@@ -21,34 +22,40 @@ class LocalOutlierFactor:
     binary_decision : string, optional
         Defines which classification method should be used:
         - "threshold": everything greater or equal to the specified threshold is considered an outlier.
-        - "topN": the data points with the ``topN`` largest outlier scores are considered outliers.
+        - "top_n": the data points with the ``top_n`` largest outlier scores are considered outliers.
         Default is "threshold".
     threshold : float, optional
         The threshold value for the "threshold" method. Default is 1.5.
     top_n : int, optional
-        The number of top outliers for the "topN" method. Default is 10.
+        The number of top outliers for the "top_n" method. Default is 10.
+
     Attributes
     ----------
     n_neighbors : int
         Number of neighbors used to calculate the density of points in the lof algorithm. Denoted as MinPts in [1].
     binary_decision: string
-        Method that converts lof score into a binary decision of outlier and non-outlier. Can be "threshold" or "topN".
+        Method that converts lof score into a binary decision of outlier and non-outlier. Can be "threshold" or "top_n".
     metric : str
         The measure of the distance. Can be "euclidian", "manhattan", or "gaussian".
     threshold : float
         The threshold value for the "threshold" method used for binary classification.
     top_n : int
-        The number of top outliers for the "topN" method used for binary classification.
+        The number of top outliers for the "top_n" method used for binary classification.
     lof_scores : DNDarray
         The local outlier factor for each sample in the data set.
     anomaly : DNDarray
         Array with binary outlier classification (1 -> outlier, -1 -> inlier).
+
     Raises
     ------
     ValueError
-        If ``n_neighbors`` is in a non-suitable range for the lof.
-        If ``binary_decision`` is not "threshold" or "topN".
+        If ``binary_decision`` is not "threshold" or "top_n".
         If ``metric`` is neither "euclidian", "manhattan", nor "gaussian".
+
+    Warnings
+    --------
+        If ``n_neighbors`` is in a non-suitable range for the lof.
+
     References
     ----------
     [1] Breunig, M. M., Kriegel, H. P., Ng, R. T., & Sander, J. (2000). LOF: identifying density-based local outliers.
@@ -60,26 +67,8 @@ class LocalOutlierFactor:
         metric="euclidian",
         binary_decision="threshold",
         threshold=1.5,
-        top_n=10,
+        top_n=None,
     ):
-        # input sanitation
-        if n_neighbors < 10 and n_neighbors > 1000:  # [1] suggests a minimum of 10 neighbors
-            raise ValueError(
-                f"For a reasonable results, the parameter n_neighbors should be between 10 and 1000, but was {self.n_neighbors}."
-            )
-        if binary_decision not in ["threshold", "topN"]:
-            raise ValueError(
-                f"Unknown method for binary decision: {self.binary_decision}. Use 'threshold' or 'topN'."
-            )
-        if metric == "gaussian":
-            self.metric = _gaussian
-        elif metric == "manhattan":
-            self.metric = _manhattan
-        elif metric == "euclidian":
-            self.metric = _euclidian
-        else:
-            valid_metrics = ["euclidian", "gaussian", "manhattan"]
-            raise ValueError(f"Invalid metric '{metric}'. Must be one of {valid_metrics}.")
 
         self.n_neighbors = n_neighbors
         self.binary_decision = binary_decision
@@ -87,6 +76,9 @@ class LocalOutlierFactor:
         self.top_n = top_n
         self.lof_scores = None
         self.anomaly = None
+        self.metric = metric
+
+        self._input_sanitation()
 
     def fit(self, X: DNDarray):
         """
@@ -113,21 +105,30 @@ class LocalOutlierFactor:
         """
         # number of data points
         length = X.shape[0]
+
         # input sanitation
         # If n_neighbors is larger than or equal the number of samples, continue with the whole sample when evaluating the LOF
         if self.n_neighbors >= length:
             self.n_neighbors = length - 1  # length of data is n_neighbors + the point itself
-        if length <= 10:  # [1] suggests a minimum of 10 neighbors
+        # [1] suggests a minimum of 10 neighbors
+        if length <= 10:
             raise ValueError(
                 f"The data set is too small for a reasonable LOF evaluation. The number of samples should be larger than 10, but was {X.shape[0]}."
             )
+
         # Compute the distance matrix for the n_neighbors nearest neighbors of each point and the corresponding indices
         # (only these are needed for the LOF computation).
-        # Note that cdist_small sorts from the lowest to the highest distance
-        dist, idx = cdist_small(
-            X, X, metric=self.metric, n_smallest=self.n_neighbors + 1
-        )  # cdist_small stores also the distance of each point to itself, therefore use n_neighbors+1
-
+        if X.split == 0:
+            # Note that cdist_small sorts from the lowest to the highest distance
+            dist, idx = cdist_small(
+                X, X, metric=self.metric, n_smallest=self.n_neighbors + 1
+            )  # cdist_small stores also the distance of each point to itself, therefore use n_neighbors+1
+        elif X.split == 1:
+            dist, idx = cdist(X, X, metric=self.metric, n_smallest=self.n_neighbors + 1)
+        else:
+            raise ValueError(
+                f"The data should be split among axis 0 or 1, but was split along axis {X.split}."
+            )
         # Compute the reachability distance matrix
         reachability_dist = self._reach_dist(dist, idx)
         # Compute the local reachability density (lrd) for each point
@@ -153,7 +154,7 @@ class LocalOutlierFactor:
         """
         Binary classification of the data points as outliers or inliers based on their non-binary LOF. According to the method,
         the data points are classified as outliers if their LOF is greater or equal to a specified threshold or if they have one
-        of the topN largest LOF scores.
+        of the top_n largest LOF scores.
 
         Returns
         -------
@@ -163,17 +164,19 @@ class LocalOutlierFactor:
         Raises
         ------
         ValueError
-            If ``method`` is not "threshold" or "topN".
+            If ``method`` is not "threshold" or "top_n".
         """
         if self.binary_decision == "threshold":
             # Use the provided threshold value
             threshold_value = self.threshold
-        elif self.binary_decision == "topN":
+        elif self.binary_decision == "top_n":
             # Determine the threshold based on the top_n largest LOF scores
-            threshold_value = ht.sort(self.lof_scores)[0][-self.top_n]
+            threshold_value = ht.topk(self.lof_scores, k=self.top_n, sorted=True, largest=True)[0][
+                -1
+            ]
         else:
             raise ValueError(
-                f"Unknown method for binary decision: {self.binary_decision}. Use 'threshold' or 'topN'."
+                f"Unknown method for binary decision: {self.binary_decision}. Use 'threshold' or 'top_n'."
             )
 
         # Classify anomalies based on the threshold value
@@ -215,7 +218,7 @@ class LocalOutlierFactor:
         ------
         - The auxiliary index arrays (`proc_id_global`, `k_dist_global`, `idx_k_dist_global`, `mapped_idx_global`)
           are assumed to fit into the memory of each process. This assumption helps to minimize
-          communication overhead by storing global indices locally.
+          communication overhead by storing global indices locally and speeds up the computation.
         - The MPI communication uses blocking send and receive commands. Non-blocking sending/receiving would
           mess up with functionality (overwriting the buffer)
         """
@@ -228,8 +231,6 @@ class LocalOutlierFactor:
         rank = comm.Get_rank()
         size = comm.Get_size()
         _, displ, _ = comm.counts_displs_shape(dist.shape, dist.split)
-
-        # TODO: add a type promotion to float32 or float64
 
         reach_dist = ht.zeros_like(dist)
         reach_dist = reach_dist.larray
@@ -247,14 +248,12 @@ class LocalOutlierFactor:
         k_dist_global = k_dist.resplit_(None)
         idx_k_dist_global = idx_k_dist.resplit_(None)
         mapped_idx_global = mapped_idx.resplit_(None)
-
         # buffer to store one row of the distance matrix that is sent to the next process
         buffer = torch.zeros(
             (1, dist_.shape[1]),
             dtype=dist.dtype.torch_type(),
             device=dist.device.torch_device,
         )
-
         for i in range(int(mapped_idx_global.shape[0])):
             receiver = proc_id_global[i].item()
             sender = mapped_idx_global[i].item()
@@ -269,7 +268,6 @@ class LocalOutlierFactor:
                         upper_bound = mapped_idx_global.shape[0]
                     else:
                         upper_bound = displ[rank + 1]
-
                     # only send if the sender is not the same as the current process
                     if not displ[rank] <= i < upper_bound:
                         # select the row of the distance matrix to communicate between the processes
@@ -281,23 +279,19 @@ class LocalOutlierFactor:
                 if rank == receiver:
                     comm.Recv(buffer, source=sender, tag=tag)
                     dist_row = buffer
-
                     k_dist_compare = k_dist_global[i, None]
                     k_dist_compare = k_dist_compare.larray
                     reach_dist[idx_reach_dist] = torch.maximum(k_dist_compare, dist_row)
-
             # no communication required
             elif sender == receiver:
                 # no only take the row of the distance matrix that is already available
                 if rank == sender:
                     dist_row = dist_[int(idx_k_dist_global[i]) - displ[sender], :]
-
                     k_dist_compare = k_dist_global[i, None]
                     k_dist_compare = k_dist_compare.larray
                     reach_dist[idx_reach_dist] = torch.maximum(k_dist_compare, dist_row)
                 else:
                     pass
-
         reach_dist = ht.array(reach_dist, is_split=0)
         return reach_dist
 
@@ -306,7 +300,7 @@ class LocalOutlierFactor:
         Helper function to map indices to the corresponding MPI process ranks.
 
         This function takes an array of indices and determines which MPI process
-        each index belongs to based on the distribution of data across processes.
+        each index belongs to, based on the distribution of data across processes.
         It returns an array where each index is replaced by the rank of the process
         that contains the corresponding data.
 
@@ -336,3 +330,55 @@ class LocalOutlierFactor:
             mask = (idx >= lower_bound) & (idx < upper_bound)
             mapped_idx[mask] = rank
         return mapped_idx
+
+    def _input_sanitation(self):
+        """
+        Check if the input parameters are valid and raise warnings or exceptions.
+        """
+        # check number of neighbors, [1] suggests n_neighbors >= 10
+        if self.n_neighbors < 10 and self.n_neighbors > 100:
+            warnings.warn(
+                f"For reasonable results n_neighbors is expected between 10 and 100, but was {self.n_neighbors}.",
+                UserWarning,
+            )
+
+        # check for correctly binary decision method
+        if self.binary_decision not in ["threshold", "top_n"]:
+            raise ValueError(
+                f"Unknown method for binary decision: {self.binary_decision}. Use 'threshold' or 'top_n'."
+            )
+
+        # check if the top_n parameter is specified when using the top_n method
+        if self.binary_decision == "top_n":
+            if self.top_n < 1 or self.top_n is None:
+                raise ValueError(
+                    "For binary decision='top_n', the parameter 'top_n' has to be >=1."
+                )
+
+            if self.threshold != 1.5:
+                warnings.warn(
+                    "You are specifying the parameter threshold, although binary_decision is set to 'top_n'. The threshold will be ignored.",
+                    UserWarning,
+                )
+
+        if self.binary_decision == "threshold":
+            if self.threshold <= 1 or self.threshold is None:
+                raise ValueError("The threshold should be greater than one.")
+            if self.top_n is not None:
+                warnings.warn(
+                    "You are specifying the parameter top_n, although binary_decision is set to 'threshold'. The value of top_n will be ignored.",
+                    UserWarning,
+                )
+
+        # check for valid metric
+        valid_metrics = ["euclidian", "gaussian", "manhattan"]
+        if self.metric not in valid_metrics:
+            raise ValueError(f"Invalid metric '{self.metric}'. Must be one of {valid_metrics}.")
+
+        # replace the name of the metric with the corresponding function
+        if self.metric == "gaussian":
+            self.metric = _gaussian
+        elif self.metric == "manhattan":
+            self.metric = _manhattan
+        elif self.metric == "euclidian":
+            self.metric = _euclidian
