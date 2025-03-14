@@ -8,19 +8,22 @@ from heat.core.tests.test_suites.basic_test import TestCase
 class TestLOF(TestCase):
     def test_exception(self):
         with self.assertRaises(ValueError):
-            LocalOutlierFactor(n_neighbors=10, binary_decision=None)
+            LocalOutlierFactor(binary_decision=None)
 
         with self.assertRaises(ValueError):
-            LocalOutlierFactor(n_neighbors=10, binary_decision="top_n", top_n=None)
+            LocalOutlierFactor(binary_decision="top_n", top_n=None)
 
         with self.assertRaises(ValueError):
-            LocalOutlierFactor(n_neighbors=10, binary_decision="threshold", top_n=3)
+            LocalOutlierFactor(binary_decision="top_n", top_n=-1)
 
         with self.assertRaises(ValueError):
-            LocalOutlierFactor(n_neighbors=10, threshold=0.5)
+            LocalOutlierFactor(threshold=0.5)
 
         with self.assertRaises(ValueError):
-            LocalOutlierFactor(n_neighbors=10, binary_decision="top_n", top_n=-1)
+            LocalOutlierFactor(n_neighbors=0)
+
+        with self.assertRaises(ValueError):
+            LocalOutlierFactor(metric=None)
 
     def test_utility(self):
         # Generate toy data, with 2 clusters

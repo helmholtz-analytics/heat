@@ -336,6 +336,8 @@ class LocalOutlierFactor:
         Check if the input parameters are valid and raise warnings or exceptions.
         """
         # check number of neighbors, [1] suggests n_neighbors >= 10
+        if self.n_neighbors < 1:
+            raise ValueError(f"n_neighbors must be great one. but was {self.n_neighbors}.")
         if self.n_neighbors < 10 and self.n_neighbors > 100:
             warnings.warn(
                 f"For reasonable results n_neighbors is expected between 10 and 100, but was {self.n_neighbors}.",
@@ -350,11 +352,12 @@ class LocalOutlierFactor:
 
         # check if the top_n parameter is specified when using the top_n method
         if self.binary_decision == "top_n":
-            if self.top_n < 1 or self.top_n is None:
+            if self.top_n is None:
                 raise ValueError(
-                    "For binary decision='top_n', the parameter 'top_n' has to be >=1."
+                    "For binary decision='top_n', the parameter 'top_n' has to be specified."
                 )
-
+            elif self.top_n < 1:
+                raise ValueError("The number of top outliers should be greater than one.")
             if self.threshold != 1.5:
                 warnings.warn(
                     "You are specifying the parameter threshold, although binary_decision is set to 'top_n'. The threshold will be ignored.",
