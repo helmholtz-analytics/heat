@@ -376,7 +376,7 @@ def __local_op(
     # we need floating point numbers here, due to PyTorch only providing sqrt() implementation for float32/64
     if not no_cast:
         promoted_type = types.promote_types(x.dtype, types.float32)
-        if promoted_type is types.float64 and x.device.torch_device.startswith("mps"):
+        if promoted_type is types.float64 and x.larray.is_mps:
             promoted_type = types.float32
         torch_type = promoted_type.torch_type()
     else:
