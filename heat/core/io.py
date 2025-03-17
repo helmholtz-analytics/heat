@@ -798,6 +798,16 @@ def load(
     DNDarray([ 1.0000,  2.7183,  7.3891, 20.0855, 54.5981], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.load('data.nc', variable='DATA')
     DNDarray([ 1.0000,  2.7183,  7.3891, 20.0855, 54.5981], dtype=ht.float32, device=cpu:0, split=None)
+
+    See Also
+    --------
+    :func:`load_csv` : Loads data from a CSV file.
+    :func:`load_netcdf` : Loads data from a NetCDF4 file.
+    :func:`load_hdf5` : Loads data from an HDF5 file.
+    :func:`load_zarr` : Loads zarr-Format into DNDarray which will be returned.
+    :func:`load_npy_from_path` : Loads multiple .npy files into one DNDarray which will be returned.
+    :func:`load_csv_from_folder` : Loads multiple .csv files into one DNDarray which will be returned.
+
     """
     if not isinstance(path, str):
         raise TypeError(f"Expected path to be str, but was {type(path)}")
@@ -1415,7 +1425,7 @@ else:
         **kwargs,
     ) -> DNDarray:
         """
-        Loads zarr-Format into DNDarray which will be returned. The data will be concatenated along the split axis provided as input.
+        Loads zarr-Format into DNDarray which will be returned.
 
         Parameters
         ----------
