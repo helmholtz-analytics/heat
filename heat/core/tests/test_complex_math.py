@@ -27,16 +27,19 @@ class TestComplex(TestCase):
             self.assertEqual(absolute.shape, (5,))
             self.assertTrue(torch.equal(absolute.larray, res))
 
-            a = ht.array(
-                [[1.0, 1.0j], [1 + 1j, -2 + 2j], [3 - 3j, -4 - 4j]], split=1, dtype=ht.complex128
-            )
-            absolute = ht.absolute(a)
-            res = torch.abs(a.larray)
+            if not self.is_mps:
+                a = ht.array(
+                    [[1.0, 1.0j], [1 + 1j, -2 + 2j], [3 - 3j, -4 - 4j]],
+                    split=1,
+                    dtype=ht.complex128,
+                )
+                absolute = ht.absolute(a)
+                res = torch.abs(a.larray)
 
-            self.assertIs(absolute.device, self.device)
-            self.assertIs(absolute.dtype, ht.double)
-            self.assertEqual(absolute.shape, (3, 2))
-            self.assertTrue(torch.equal(absolute.larray, res))
+                self.assertIs(absolute.device, self.device)
+                self.assertIs(absolute.dtype, ht.double)
+                self.assertEqual(absolute.shape, (3, 2))
+                self.assertTrue(torch.equal(absolute.larray, res))
 
     def test_angle(self):
         if not self.is_mps or int(platform.mac_ver()[0].split(".")[0]) >= 14:
