@@ -83,7 +83,7 @@ class TestCase(unittest.TestCase):
             cls._hostnames = set(cls.__comm.handle.allgather(host))
         return cls._hostnames
 
-    def assert_array_equal(self, heat_array, expected_array):
+    def assert_array_equal(self, heat_array, expected_array, rtol=1e-05, atol=1e-08):
         """
         Check if the heat_array is equivalent to the expected_array. Therefore first the split heat_array is compared to
         the corresponding expected_array slice locally and second the heat_array is combined and fully compared with the
@@ -151,7 +151,8 @@ class TestCase(unittest.TestCase):
         )
         # compare local tensors to corresponding slice of expected_array
         is_allclose = torch.tensor(
-            np.allclose(heat_array.larray.cpu(), expected_array[slices]), dtype=torch.int32
+            np.allclose(heat_array.larray.cpu(), expected_array[slices], atol=atol, rtol=rtol),
+            dtype=torch.int32,
         )
         heat_array.comm.Allreduce(MPI.IN_PLACE, is_allclose, MPI.SUM)
         self.assertTrue(is_allclose == heat_array.comm.size)
