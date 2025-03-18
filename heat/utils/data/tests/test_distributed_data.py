@@ -64,7 +64,9 @@ class TestDistbributedData(unittest.TestCase):
             dset = DistributedDataset(arr)
             dsampler = DistributedSampler(dset, shuffle=True, seed=42)
 
-        dataloader = torch.utils.data.DataLoader(dset, batch_size=1, shuffle=False, sampler=dsampler)
+        dataloader = torch.utils.data.DataLoader(
+            dset, batch_size=1, shuffle=False, sampler=dsampler
+        )
 
         for batch in dataloader:
             self.assertTrue(batch in reference.larray)
