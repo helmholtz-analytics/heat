@@ -498,6 +498,21 @@ class DNDarray:
 
         """
         dtype = canonical_heat_type(dtype)
+        if self.__array.is_mps:
+            if dtype == types.float64:
+                # print warning
+                warnings.warn(
+                    "MPS does not support float64. Casting to float32 instead.",
+                    ResourceWarning,
+                )
+                dtype = types.float32
+            elif dtype == types.complex128:
+                # print warning
+                warnings.warn(
+                    "MPS does not support complex128. Casting to complex64 instead.",
+                    ResourceWarning,
+                )
+                dtype = types.complex64
         casted_array = self.__array.type(dtype.torch_type())
         if copy:
             return DNDarray(
@@ -1902,6 +1917,7 @@ from . import sanitation
 from . import statistics
 from . import stride_tricks
 from . import tiling
+from . import types
 
 from .devices import Device
 from .stride_tricks import sanitize_axis
