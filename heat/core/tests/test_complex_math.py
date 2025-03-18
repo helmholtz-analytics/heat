@@ -98,7 +98,9 @@ class TestComplex(TestCase):
             self.assertEqual(conj.shape, (5,))
             # equal on complex numbers does not work on PyTorch
             self.assertTrue(ht.equal(ht.real(conj), ht.real(res)))
-            self.assertTrue(ht.equal(ht.imag(conj), ht.imag(res)))
+            if not self.is_mps:
+                # precision loss on imaginary part on MPS
+                self.assertTrue(ht.equal(ht.imag(conj), ht.imag(res)))
 
             a = ht.array([[1.0, 1.0j], [1 + 1j, -2 + 2j], [3 - 3j, -4 - 4j]], split=0)
             conj = ht.conjugate(a)
@@ -114,25 +116,31 @@ class TestComplex(TestCase):
             self.assertEqual(conj.shape, (3, 2))
             # equal on complex numbers does not work on PyTorch
             self.assertTrue(ht.equal(ht.real(conj), ht.real(res)))
-            self.assertTrue(ht.equal(ht.imag(conj), ht.imag(res)))
+            if not self.is_mps:
+                # precision loss on imaginary part on MPS
+                self.assertTrue(ht.equal(ht.imag(conj), ht.imag(res)))
 
-            a = ht.array(
-                [[1.0, 1.0j], [1 + 1j, -2 + 2j], [3 - 3j, -4 - 4j]], dtype=ht.complex128, split=1
-            )
-            conj = ht.conjugate(a)
-            res = ht.array(
-                [[1 - 0j, -1j], [1 - 1j, -2 - 2j], [3 + 3j, -4 + 4j]],
-                dtype=ht.complex128,
-                device=self.device,
-                split=1,
-            )
+            if not self.is_mps:
+                # complex128 not supported on MPS
+                a = ht.array(
+                    [[1.0, 1.0j], [1 + 1j, -2 + 2j], [3 - 3j, -4 - 4j]],
+                    dtype=ht.complex128,
+                    split=1,
+                )
+                conj = ht.conjugate(a)
+                res = ht.array(
+                    [[1 - 0j, -1j], [1 - 1j, -2 - 2j], [3 + 3j, -4 + 4j]],
+                    dtype=ht.complex128,
+                    device=self.device,
+                    split=1,
+                )
 
-            self.assertIs(conj.device, self.device)
-            self.assertIs(conj.dtype, ht.complex128)
-            self.assertEqual(conj.shape, (3, 2))
-            # equal on complex numbers does not work on PyTorch
-            self.assertTrue(ht.equal(ht.real(conj), ht.real(res)))
-            self.assertTrue(ht.equal(ht.imag(conj), ht.imag(res)))
+                self.assertIs(conj.device, self.device)
+                self.assertIs(conj.dtype, ht.complex128)
+                self.assertEqual(conj.shape, (3, 2))
+                # equal on complex numbers does not work on PyTorch
+                self.assertTrue(ht.equal(ht.real(conj), ht.real(res)))
+                self.assertTrue(ht.equal(ht.imag(conj), ht.imag(res)))
 
             # Not complex
             a = ht.ones((4, 4))

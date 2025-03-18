@@ -385,16 +385,18 @@ class TestRounding(TestCase):
             self.assertTrue(ht.allclose(signed.imag, comparison.imag, atol=2e-5))
 
             # zeros + 3d + complex + split
-            a = ht.zeros((4, 4, 4), dtype=ht.complex128, split=2)
-            signed = ht.sign(a)
-            comparison = ht.zeros((4, 4, 4), dtype=ht.complex128, split=2)
+            if not self.is_mps:
+                # double precision complex not supported on MPS
+                a = ht.zeros((4, 4, 4), dtype=ht.complex128, split=2)
+                signed = ht.sign(a)
+                comparison = ht.zeros((4, 4, 4), dtype=ht.complex128, split=2)
 
-            self.assertEqual(signed.dtype, comparison.dtype)
-            self.assertEqual(signed.shape, comparison.shape)
-            self.assertEqual(signed.device, a.device)
-            self.assertEqual(signed.split, a.split)
-            self.assertTrue(ht.allclose(signed.real, comparison.real))
-            self.assertTrue(ht.allclose(signed.imag, comparison.imag, atol=2e-5))
+                self.assertEqual(signed.dtype, comparison.dtype)
+                self.assertEqual(signed.shape, comparison.shape)
+                self.assertEqual(signed.device, a.device)
+                self.assertEqual(signed.split, a.split)
+                self.assertTrue(ht.allclose(signed.real, comparison.real))
+                self.assertTrue(ht.allclose(signed.imag, comparison.imag, atol=2e-5))
 
     def test_trunc(self):
         base_array = np.random.randn(20)
