@@ -14,10 +14,10 @@ from typing import Callable, List, Iterator, Union, Optional, Sized
 import torch.utils
 
 from ...core.dndarray import DNDarray
-from ...core.communication import MPI_WORLD, MPICommunication
+from ...core.communication import CUDA_AWARE_MPI, MPI_WORLD, MPICommunication
 from . import partial_dataset
 
-__all__ = ["DataLoader", "Dataset", "dataset_shuffle", "dataset_ishuffle"]
+__all__ = ["DataLoader", "Dataset", "dataset_shuffle", "dataset_ishuffle", "DistributedDataset", "DistributedSampler"]
 
 
 class DataLoader:
@@ -407,13 +407,17 @@ class DistributedSampler(torch_data.Sampler):
 
         recv_displs = torch.zeros(world_size)
         recv_displs[1:] = torch.cumsum(recv_counts[:-1], dim=0)
+        send_elems = torch.cat(send_elems)
+        send_elems = send_elems if CUDA_AWARE_MPI else send_elems.cpu()
 
         comm.Alltoallv(
-            (torch.cat(send_elems).contiguous(), send_counts, send_displs),
+            (send_elems, send_counts, send_displs),
             (local_recv_buffer, recv_counts, recv_displs),
         )
 
         arr = local_recv_buffer.reshape(-1, *self.dndarray.gshape[1:])
+        if arr.device != self.dndarray.larray.device:
+            arr = arr.to(device=self.dndarray.larray.device)
         self.dndarray.larray = arr
 
     def set_seed(self, value: int) -> None:
