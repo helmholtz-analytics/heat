@@ -102,5 +102,9 @@ jobs:
           TODO:
           - [ ] Make sure version.py is updated to reflect the dev version.
           - [ ] Ensure Citation file is up to date.
-          - [ ] Ensure the Changelog is up to date." \
+          - [ ] Ensure the Changelog is up to date.
+          - [ ] Test and merge conda-forge build (PR is usually created within a few hours of PyPi release)
+          - [ ] Update docker image and related documentation (see #1716 )
+          - [ ] Update spack recipe
+          - [ ] Update easybuild recipe" \
           --label "post-release"
