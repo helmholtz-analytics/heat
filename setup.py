@@ -12,7 +12,7 @@ with open("./heat/core/version.py") as handle:
 setup(
     name="heat",
     packages=find_packages(exclude=("*tests*", "*benchmarks*")),
-    package_data={"heat.datasets": ["*.csv", "*.h5", "*.nc"]},
+    package_data={"heat.datasets": ["*.csv", "*.h5", "*.nc"], "heat": ["py.typed"]},
     version=__version__,
     description="A framework for high-performance data analytics and machine learning.",
     long_description=long_description,
@@ -46,7 +46,7 @@ setup(
         "netcdf": ["netCDF4>=1.5.6"],
         "dev": ["pre-commit>=1.18.3"],
         "examples": ["scikit-learn>=0.24.0", "matplotlib>=3.1.0"],
-        "cb": ["perun>=0.2.0"],
+        "cb": ["perun>=0.8"],
         "pandas": ["pandas>=1.4"],
         "zarr": ["zarr"],
     },
