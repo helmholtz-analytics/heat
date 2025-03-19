@@ -97,3 +97,44 @@ srun --mpi="pmi2" apptainer exec --nv heat_1.2.0_torch.11_cuda11.5_py3.9.sif bas
 ## Scripts
 
 The scripts folder has a small collection of helper scripts to automate certain tasks, primarly meant for heat developers. Explanations are given at the top of the script.
+
+## Useful commands for first-time docker users
+
+> docker run -it [docker container id]
+Runs the container in interactive mode (Opens a terminal)
+
+> docker ps -a
+Lists all active containers
+
+> docker system prune
+Closes all currently running containers and frees up the resources
+
+> docker system prune --all --force
+Frees up all space taken up by docker images, even stopped ones
+
+> docker images
+Lists all docker images
+
+> docker tag <old_image_name>:<old_image_tag> <new_image_name>:<new_image_tag>
+Rename the docker container (Needed to upload)
+
+## How to download a pre-built image from the container registry
+The github container registry (ghcr.io) contains different docker versions of heat / pytorch / cuda / rocm.
+
+> docker pull ghcr.io/NAMESPACE/IMAGE_NAME
+
+For further info refer to the [Github documentation on package registries](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry)
+
+## How to push a new image to ghcr.io
+
+1. Make sure you have a github access token set up in the CLI
+> [Authenticating to the container registry](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry#authenticating-to-the-container-registry)
+
+> docker login ghcr.io -u USERNAME -p GITHUB_PERSONAL_ACCESS_TOKEN
+
+2. Rename the local image in the following format:
+> docker tag current:name ghcr.io/helmholtz-analytics/heat:1.X.X-torchX.X_cudaXX.X_py3.XX
+1. Upload the image via:
+> docker push ghcr.io/helmholtz-analytics/heat:1.X.X-torchX.X_cudaXX.X_py3.XX
+
+For further info refer to the [Github documentation on package registries](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry)
