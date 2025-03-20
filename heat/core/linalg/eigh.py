@@ -38,14 +38,19 @@ def _subspaceiteration(
     """
     This auxiliary function implements the subspace iteration as required for symmetric eigenvalue decomposition
     via polar decomposition; cf. Ref. 2 below. The algorithm for subspace iteration itself is taken from Ref. 1,
-    Algorithm 3.
+    Algorithm 3 in Sect. 5.1.
 
-    --- TODO explain what the function does TODO ---
+    Given a symmetric matrix ``A`` and and a matrix ``C`` that is the orthogonal projection onto an invariant
+    subspace of A, this function computes and returns an orthogonal matrix ``Q`` such that Q = [V_1 V_2] with
+    C = V_1 V_1.T. Moreover, the dimension of the invariant subspace, i.e., the number of column of V_1 is
+    returned as well.
 
     References
     ------------
-    1. Nakatsukasa, Y., & Higham, N. J. (2013). Stable and efficient spectral divide and conquer algorithms for Hermitian eigenproblems. SIAM Journal on Scientific Computing, 35(3).
-    2. Nakatsukasa, Y., & Freund, R. W. (2016). Computing fundamental matrix decompositions accurately via the matrix sign function in two iterations: The power of Zolotarev's functions. SIAM Review, 58(3).
+    1.  Nakatsukasa, Y., & Higham, N. J. (2013). Stable and efficient spectral divide and conquer algorithms for
+        Hermitian eigenproblems. SIAM Journal on Scientific Computing, 35(3).
+    2.  Nakatsukasa, Y., & Freund, R. W. (2016). Computing fundamental matrix decompositions accurately via the
+        matrix sign function in two iterations: The power of Zolotarev's functions. SIAM Review, 58(3).
     """
     # set parameters for convergence
     if A.dtype == types.float64:
