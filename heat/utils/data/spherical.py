@@ -63,7 +63,7 @@ def create_clusters(
     The clusters are of the same size (quantitatively) and distributed evenly over the processes, unless cluster_weight is specified.
 
     Parameters
-    ------------
+    ----------
     n_samples: int
         Number of overall samples
     n_features: int

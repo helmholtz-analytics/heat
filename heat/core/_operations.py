@@ -63,7 +63,7 @@ def __binary_op(
 
     MPI communication is necessary when both operands are distributed along the same dimension, but the distribution maps do not match. E.g.:
     ```
-    a =  ht.ones(10000, split=0)
+    a = ht.ones(10000, split=0)
     b = ht.zeros(10000, split=0)
     c = a[:-1] + b[1:]
     ```
@@ -357,13 +357,15 @@ def __local_op(
     out : DNDarray, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided or
         set to None, a fresh tensor is allocated.
+    **kwargs:
+        Arguments to be passed to the operation.
 
     Warning
     -------
     The gshape of the result DNDarray will be the same as that of x
 
     Raises
-    -------
+    ------
     TypeError
         If the input is not a tensor or the output is not a tensor or None.
     """
@@ -435,6 +437,8 @@ def __reduce_op(
         Neutral element, i.e. an element that does not change the result of the reduction operation. Needed for
         those cases where 'x.gshape[x.split] < x.comm.rank', that is, the shape of the distributed tensor is such
         that one or more processes will be left without data.
+    **kwargs:
+        Arguments to be passed to the operation.
 
     Raises
     ------

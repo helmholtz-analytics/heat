@@ -1,30 +1,26 @@
-import unittest
-import platform
 import os
-
-from heat.core import dndarray, MPICommunication, MPI, types, factories
-import heat as ht
+import platform
+import unittest
 
 import numpy as np
 import torch
+from typing import Optional, Callable, Any, Union
+
+import heat as ht
+from heat.core import MPI, MPICommunication, dndarray, factories, types, Device
 
 
 # TODO adapt for GPU once this is working properly
 class TestCase(unittest.TestCase):
     __comm = MPICommunication()
-    __device = None
-    _hostnames: list[str] = None
+    device: Device = ht.cpu
+    _hostnames: Optional[list[str]] = None
+    other_device: Optional[Device] = None
+    envar: Optional[str] = None
 
-    @property
-    def comm(self):
-        return TestCase.__comm
-
-    @property
-    def device(self):
-        return TestCase.__device
 
     @classmethod
-    def setUpClass(cls):
+    def setUpClass(cls) -> None:
         """
         Read the environment variable 'HEAT_TEST_USE_DEVICE' and return the requested devices.
         Supported values
@@ -36,7 +32,6 @@ class TestCase(unittest.TestCase):
         RuntimeError if value of 'HEAT_TEST_USE_DEVICE' is not recognized
 
         """
-
         envar = os.getenv("HEAT_TEST_USE_DEVICE", "cpu")
         is_mps = False
 
@@ -67,23 +62,28 @@ class TestCase(unittest.TestCase):
 
         cls.device, cls.other_device, cls.envar, cls.is_mps = ht_device, other_device, envar, is_mps
 
-    def get_rank(self):
+    @property
+    def comm(self) -> MPICommunication:
+        return self.__comm
+
+
+    def get_rank(self) -> Optional[int]:
         return self.comm.rank
 
-    def get_size(self):
+    def get_size(self) -> Optional[int]:
         return self.comm.size
 
     @classmethod
-    def get_hostnames(cls):
+    def get_hostnames(cls) -> list[str]:
         if not cls._hostnames:
             if platform.system() == "Windows":
                 host = platform.uname().node
             else:
                 host = os.uname()[1]
-            cls._hostnames = set(cls.__comm.handle.allgather(host))
+            cls._hostnames = list(set(cls.__comm.handle.allgather(host)))
         return cls._hostnames
 
-    def assert_array_equal(self, heat_array, expected_array, rtol=1e-05, atol=1e-08):
+    def assert_array_equal(self, heat_array: ht.DNDarray, expected_array: Union[np.ndarray,torch.Tensor]) -> None:
         """
         Check if the heat_array is equivalent to the expected_array. Therefore first the split heat_array is compared to
         the corresponding expected_array slice locally and second the heat_array is combined and fully compared with the
@@ -159,16 +159,16 @@ class TestCase(unittest.TestCase):
 
     def assert_func_equal(
         self,
-        shape,
-        heat_func,
-        numpy_func,
-        distributed_result=True,
-        heat_args=None,
-        numpy_args=None,
-        data_types=(np.int32, np.int64, np.float32, np.float64),
-        low=-10000,
-        high=10000,
-    ):
+        shape: Union[tuple[Any, ...],list[Any]],
+        heat_func: Callable[..., Any],
+        numpy_func: Callable[..., Any],
+        distributed_result: bool=True,
+        heat_args: Optional[dict[str, Any]]=None,
+        numpy_args:Optional[dict[str, Any]]=None,
+        data_types: tuple[type,...]=(np.int32, np.int64, np.float32, np.float64),
+        low:int=-10000,
+        high:int=10000,
+    ) -> None:
         """
         This function will create random tensors of the given shape with different data types.
         All of these tensors will be tested with `ht.assert_func_equal_for_tensor`.
@@ -214,9 +214,11 @@ class TestCase(unittest.TestCase):
         AssertionError: [...]
         >>> self.assert_func_equal((1, 3, 5), ht.any, np.any, distributed_result=False)
 
-        >>> heat_args = {'sorted': True, 'axis': 0}
-        >>> numpy_args = {'axis': 0}
-        >>> self.assert_func_equal([5, 5, 5, 5], ht.unique, np.unique, heat_arg=heat_args, numpy_args=numpy_args)
+        >>> heat_args = {"sorted": True, "axis": 0}
+        >>> numpy_args = {"axis": 0}
+        >>> self.assert_func_equal(
+        ...     [5, 5, 5, 5], ht.unique, np.unique, heat_arg=heat_args, numpy_args=numpy_args
+        ... )
         """
         if not isinstance(shape, tuple) and not isinstance(shape, list):
             raise ValueError(f"The shape must be either a list or a tuple but was {type(shape)}")
@@ -238,13 +240,13 @@ class TestCase(unittest.TestCase):
 
     def assert_func_equal_for_tensor(
         self,
-        tensor,
-        heat_func,
-        numpy_func,
-        heat_args=None,
-        numpy_args=None,
-        distributed_result=True,
-    ):
+        tensor: Union[np.ndarray,torch.Tensor],
+        heat_func: Callable[..., Any],
+        numpy_func: Callable[..., Any],
+        heat_args:Optional[dict[str,Any]]=None,
+        numpy_args:Optional[dict[str,Any]]=None,
+        distributed_result:bool=True,
+    ) -> None:
         """
         This function tests if the heat function and the numpy function create the equal result on the given tensor.
 
@@ -282,9 +284,11 @@ class TestCase(unittest.TestCase):
         >>> self.assert_func_equal_for_tensor(a, ht.any, np.any, distributed_result=False)
 
         >>> a = torch.ones([5, 5, 5, 5])
-        >>> heat_args = {'sorted': True, 'axis': 0}
-        >>> numpy_args = {'axis': 0}
-        >>> self.assert_func_equal_for_tensor(a, ht.unique, np.unique, heat_arg=heat_args, numpy_args=numpy_args)
+        >>> heat_args = {"sorted": True, "axis": 0}
+        >>> numpy_args = {"axis": 0}
+        >>> self.assert_func_equal_for_tensor(
+        ...     a, ht.unique, np.unique, heat_arg=heat_args, numpy_args=numpy_args
+        ... )
         """
         self.assertTrue(callable(heat_func))
         self.assertTrue(callable(numpy_func))
@@ -324,12 +328,12 @@ class TestCase(unittest.TestCase):
             else:
                 self.assertTrue(np.array_equal(ht_res.larray.cpu().numpy(), np_res))
 
-    def assertTrue_memory_layout(self, tensor, order):
+    def assertTrue_memory_layout(self, tensor: ht.DNDarray, order: str) -> None:
         """
         Checks that the memory layout of a given heat tensor is as specified by argument order.
 
-        Parameters:
-        -----------
+        Parameters
+        ----------
         order: str, 'C' for C-like (row-major), 'F' for Fortran-like (column-major) memory layout.
         """
         stride = tensor.larray.stride()
@@ -342,7 +346,7 @@ class TestCase(unittest.TestCase):
         else:
             raise ValueError(f"expected order to be 'C' or 'F', but was {order}")
 
-    def __create_random_np_array(self, shape, dtype=np.float32, low=-10000, high=10000):
+    def __create_random_np_array(self, shape: Union[list[Any],tuple[Any]], dtype:type=np.float32, low:int=-10000, high:int=10000) -> np.ndarray:
         """
         Creates a random array based on the input parameters.
         The used seed will be printed to stdout for debugging purposes.
@@ -378,7 +382,7 @@ class TestCase(unittest.TestCase):
         self.comm.Bcast(seed, root=0)
         np.random.seed(seed=seed.item())
         if issubclass(dtype, np.floating):
-            array = np.random.randn(*shape)
+            array: np.ndarray = np.random.randn(*shape)
         elif issubclass(dtype, np.integer):
             array = np.random.randint(low=low, high=high, size=shape)
         else:

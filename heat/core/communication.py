@@ -134,8 +134,8 @@ class MPICommunication(Communication):
     def __init__(self, handle=MPI.COMM_WORLD):
         self.handle = handle
         try:
-            self.rank = handle.Get_rank()
-            self.size = handle.Get_size()
+            self.rank: Optional[int] = handle.Get_rank()
+            self.size: Optional[int] = handle.Get_size()
         except MPI.Exception:
             # ranks not within the group will fail with an MPI.Exception, this is expected
             self.rank = None
@@ -521,7 +521,7 @@ class MPICommunication(Communication):
         Nonblocking receive
 
         Parameters
-        ------------
+        ----------
         buf: Union[DNDarray, torch.Tensor, Any]
             Buffer address where to place the received message
         source: int, optional
@@ -550,7 +550,7 @@ class MPICommunication(Communication):
         Blocking receive
 
         Parameters
-        ------------
+        ----------
         buf: Union[DNDarray, torch.Tensor, Any]
             Buffer address where to place the received message
         source: int, optional
@@ -581,7 +581,7 @@ class MPICommunication(Communication):
         Generic function for sending a message to process with rank "dest"
 
         Parameters
-        ------------
+        ----------
         func: Callable
             The respective MPI sending function
         buf: Union[DNDarray, torch.Tensor, Any]
@@ -605,7 +605,7 @@ class MPICommunication(Communication):
         Blocking buffered send
 
         Parameters
-        ------------
+        ----------
         buf: Union[DNDarray, torch.Tensor, Any]
             Buffer address of the message to be send
         dest: int, optional
@@ -624,7 +624,7 @@ class MPICommunication(Communication):
         Nonblocking buffered send
 
         Parameters
-        ------------
+        ----------
         buf: Union[DNDarray, torch.Tensor, Any]
             Buffer address of the message to be send
         dest: int, optional
@@ -643,7 +643,7 @@ class MPICommunication(Communication):
         Nonblocking ready send
 
         Parameters
-        ------------
+        ----------
         buf: Union[DNDarray, torch.Tensor, Any]
             Buffer address of the message to be send
         dest: int, optional
@@ -660,7 +660,7 @@ class MPICommunication(Communication):
         Nonblocking send
 
         Parameters
-        ------------
+        ----------
         buf: Union[DNDarray, torch.Tensor, Any]
             Buffer address of the message to be send
         dest: int, optional
@@ -679,7 +679,7 @@ class MPICommunication(Communication):
         Nonblocking synchronous send
 
         Parameters
-        ------------
+        ----------
         buf: Union[DNDarray, torch.Tensor, Any]
             Buffer address of the message to be send
         dest: int, optional
@@ -696,7 +696,7 @@ class MPICommunication(Communication):
         Blocking ready send
 
         Parameters
-        ------------
+        ----------
         buf: Union[DNDarray, torch.Tensor, Any]
             Buffer address of the message to be send
         dest: int, optional
@@ -713,7 +713,7 @@ class MPICommunication(Communication):
         Blocking synchronous send
 
         Parameters
-        ------------
+        ----------
         buf: Union[DNDarray, torch.Tensor, Any]
             Buffer address of the message to be send
         dest: int, optional
@@ -730,7 +730,7 @@ class MPICommunication(Communication):
         Blocking send
 
         Parameters
-        ------------
+        ----------
         buf: Union[DNDarray, torch.Tensor, Any]
             Buffer address of the message to be send
         dest: int, optional
@@ -750,7 +750,7 @@ class MPICommunication(Communication):
         communicator
 
         Parameters
-        ------------
+        ----------
         func: Callable
             The respective MPI broadcast function
         buf: Union[DNDarray, torch.Tensor, Any]
@@ -774,7 +774,7 @@ class MPICommunication(Communication):
         Blocking Broadcast
 
         Parameters
-        ------------
+        ----------
         buf: Union[DNDarray, torch.Tensor, Any]
             Buffer address of the message to be broadcasted
         root: int
@@ -792,7 +792,7 @@ class MPICommunication(Communication):
         Nonblocking Broadcast
 
         Parameters
-        ------------
+        ----------
         buf: Union[DNDarray, torch.Tensor, Any]
             Buffer address of the message to be broadcasted
         root: int
@@ -805,7 +805,6 @@ class MPICommunication(Communication):
     def __derived_op(
         self, tensor: torch.Tensor, datatype: MPI.Datatype, operation: MPI.Op
     ) -> Callable[[MPI.memory, MPI.memory, MPI.Datatype], None]:
-
         # Based from this conversation on the internet: https://groups.google.com/g/mpi4py/c/UkDT_9pp4V4?pli=1
         shape = tensor.shape
         dtype = tensor.dtype
@@ -867,14 +866,13 @@ class MPICommunication(Communication):
         sendbuf: Union[DNDarray, torch.Tensor, Any],
         recvbuf: Union[DNDarray, torch.Tensor, Any],
         op: MPI.Op,
-        *args,
         **kwargs,
     ) -> Tuple[Optional[DNDarray, torch.Tensor]]:
         """
         Generic function for reduction operations.
 
         Parameters
-        ------------
+        ----------
         func: Callable
             The respective MPI reduction operation
         sendbuf: Union[DNDarray, torch.Tensor, Any]
@@ -883,6 +881,9 @@ class MPICommunication(Communication):
             Buffer address where to store the result of the reduction
         op: MPI.Op
             Operation to apply during the reduction.
+        **kwargs,
+            Arguments to be passed to the function
+
         """
         sbuf = None
         rbuf = None
@@ -961,7 +962,7 @@ class MPICommunication(Communication):
         Combines values from all processes and distributes the result back to all processes
 
         Parameters
-        ---------
+        ----------
         sendbuf: Union[DNDarray, torch.Tensor, Any]
             Buffer address of the send message
         recvbuf: Union[DNDarray, torch.Tensor, Any]
@@ -986,7 +987,7 @@ class MPICommunication(Communication):
         Computes the exclusive scan (partial reductions) of data on a collection of processes
 
         Parameters
-        ------------
+        ----------
         sendbuf: Union[DNDarray, torch.Tensor, Any]
             Buffer address of the send message
         recvbuf: Union[DNDarray, torch.Tensor, Any]
@@ -1011,7 +1012,7 @@ class MPICommunication(Communication):
         Nonblocking allreduce reducing values on all processes to a single value
 
         Parameters
-        ---------
+        ----------
         sendbuf: Union[DNDarray, torch.Tensor, Any]
             Buffer address of the send message
         recvbuf: Union[DNDarray, torch.Tensor, Any]
@@ -1033,7 +1034,7 @@ class MPICommunication(Communication):
         Nonblocking Exscan
 
         Parameters
-        ------------
+        ----------
         sendbuf: Union[DNDarray, torch.Tensor, Any]
             Buffer address of the send message
         recvbuf: Union[DNDarray, torch.Tensor, Any]
@@ -1055,7 +1056,7 @@ class MPICommunication(Communication):
         Nonblocking Scan
 
         Parameters
-        ------------
+        ----------
         sendbuf: Union[DNDarray, torch.Tensor, Any]
             Buffer address of the send message
         recvbuf: Union[DNDarray, torch.Tensor, Any]
@@ -1078,7 +1079,7 @@ class MPICommunication(Communication):
         Nonblocking reduction operation
 
         Parameters
-        ---------
+        ----------
         sendbuf: Union[DNDarray, torch.Tensor, Any]
             Buffer address of the send message
         recvbuf: Union[DNDarray, torch.Tensor, Any]
@@ -1103,7 +1104,7 @@ class MPICommunication(Communication):
         Reduce values from all processes to a single value on process "root"
 
         Parameters
-        ---------
+        ----------
         sendbuf: Union[DNDarray, torch.Tensor, Any]
             Buffer address of the send message
         recvbuf: Union[DNDarray, torch.Tensor, Any]
@@ -1130,7 +1131,7 @@ class MPICommunication(Communication):
         Computes the scan (partial reductions) of data on a collection of processes in a nonblocking way
 
         Parameters
-        ------------
+        ----------
         sendbuf: Union[DNDarray, torch.Tensor, Any]
             Buffer address of the send message
         recvbuf: Union[DNDarray, torch.Tensor, Any]
@@ -1166,6 +1167,8 @@ class MPICommunication(Communication):
             Buffer address where to store the result
         axis: int
             Concatenation axis: The axis along which ``sendbuf`` is packed and along which ``recvbuf`` puts together individual chunks
+        **kwargs
+            Extra arguments to be passed to the function.
         """
         # dummy allocation for *v calls
         # ToDO: Propper implementation of usage
@@ -1361,6 +1364,8 @@ class MPICommunication(Communication):
                 - if ``send_axis`` or ``recv_axis`` are ``None``, an error will be thrown
         recv_axis: int
             Prior split axis, along which blocks are received from the individual ranks
+        **kwargs
+            Extra arguments to be passed to the function.
         """
         if send_axis is None:
             raise NotImplementedError(
@@ -1576,7 +1581,6 @@ class MPICommunication(Communication):
             lshape, subsizes, substarts = subarray_params
 
             if np.all(np.array(subsizes) > 0):
-
                 if is_contiguous:
                     # Commit the source subarray datatypes
                     # Subarray parameters are calculated based on the work by Dalcin et al. (https://arxiv.org/abs/1804.09536)
@@ -1672,7 +1676,9 @@ class MPICommunication(Communication):
         >>> datatype = MPI.INT
         >>> tensor_stride = [1, 2, 3]
         >>> subarray_sizes = [4, 5, 6]
-        >>> recursive_vectortype = create_recursive_vectortype(datatype, tensor_stride, subarray_sizes)
+        >>> recursive_vectortype = create_recursive_vectortype(
+        ...     datatype, tensor_stride, subarray_sizes
+        ... )
         """
         datatype_history = []
         current_datatype = datatype
@@ -1810,6 +1816,8 @@ class MPICommunication(Communication):
             Number of elements to be scattered (vor non-v-calls)
         recv_factor: int
             Number of elements to be gathered (vor non-v-calls)
+        **kwargs
+            Extra arguments to be passed to the function.
         """
         sbuf, rbuf, recv_axis_permutation = None, None, None
 
@@ -2052,6 +2060,8 @@ class MPICommunication(Communication):
             Number of elements to be scattered (vor non-v-calls)
         recv_factor: int
             Number of elements to be gathered (vor non-v-calls)
+        **kwargs
+            Extra arguments to be passed to the function.
         """
         sbuf, rbuf, recv_axis_permutation = None, None, None
 
