@@ -332,7 +332,7 @@ def normal(
 
     Examples
     --------
-    >>> ht.random.normal(ht.array([-1,2]), ht.array([0.5, 2]), (2,))
+    >>> ht.random.normal(ht.array([-1, 2]), ht.array([0.5, 2]), (2,))
     DNDarray([-1.4669,  1.6596], dtype=ht.float64, device=cpu:0, split=None)
     """
     if not (isinstance(mean, (float, int))) and not isinstance(mean, DNDarray):
@@ -354,7 +354,7 @@ def permutation(x: Union[int, DNDarray], **kwargs) -> DNDarray:
     along its first index.
 
     Parameters
-    -----------
+    ----------
     x : int or DNDarray
         If ``x`` is an integer, call :func:`heat.random.randperm <heat.core.random.randperm>`. If ``x`` is an array,
         make a copy and shuffle the elements randomly.
@@ -363,11 +363,11 @@ def permutation(x: Union[int, DNDarray], **kwargs) -> DNDarray:
         If ``x`` is an integer, define the device where the random permutation is generated. Can be 'cpu', 'gpu', 'mps' or None. Default is None (= cpu).
 
     See Also
-    -----------
+    --------
     :func:`heat.random.randperm <heat.core.random.randperm>` for randomly permuted ranges.
 
     Examples
-    ----------
+    --------
     >>> ht.random.permutation(10)
     DNDarray([9, 1, 5, 4, 8, 2, 7, 6, 3, 0], dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.random.permutation(ht.array([1, 4, 9, 12, 15]))
@@ -437,7 +437,7 @@ def permutation(x: Union[int, DNDarray], **kwargs) -> DNDarray:
 
 
 def rand(
-    *args: List[int],
+    *d: int,
     dtype: Type[datatype] = types.float32,
     split: Optional[int] = None,
     device: Optional[Device] = None,
@@ -449,7 +449,7 @@ def rand(
 
     Parameters
     ----------
-    d1,d2,…,dn : List[int,...]
+    *d : int, optional
         The dimensions of the returned array, should all be positive. If no argument is given a single random samples is
         generated.
     dtype : Type[datatype], optional
@@ -475,11 +475,11 @@ def rand(
     DNDarray([0.1921, 0.9635, 0.5047], dtype=ht.float32, device=cpu:0, split=None)
     """
     # if args are not set, generate a single sample
-    if not args:
+    if not d:
         shape = (1,)
     else:
         # ensure that the passed dimensions are positive integer-likes
-        shape = tuple(int(ele) for ele in args)
+        shape = tuple(int(ele) for ele in d)
     if any(ele <= 0 for ele in shape):
         raise ValueError("negative dimensions are not allowed")
 
@@ -526,7 +526,7 @@ def rand(
         )
         if split is None:
             x = x.resplit_(None)
-        if not args or shape == ():
+        if not d or shape == ():
             x = x.item()
         return x
 
@@ -566,7 +566,7 @@ def randint(
         Handle to the nodes holding distributed parts or copies of this array.
 
     Raises
-    -------
+    ------
     TypeError
         If one of low or high is not an int.
     ValueError
@@ -667,7 +667,7 @@ def random_integer(
 
 
 def randn(
-    *args: List[int],
+    *d: int,
     dtype: Type[datatype] = types.float32,
     split: Optional[int] = None,
     device: Optional[str] = None,
@@ -678,7 +678,7 @@ def randn(
 
     Parameters
     ----------
-    d1,d2,…,dn : List[int,...]
+    *d : int, optional
         The dimensions of the returned array, should be all positive.
     dtype : Type[datatype], optional
         The datatype of the returned values. Has to be one of :class:`~heat.core.types.float32` or
@@ -699,7 +699,7 @@ def randn(
         Accepts arguments for mean and standard deviation.
 
     Raises
-    -------
+    ------
     TypeError
         If one of ``d1`` to ``dn`` is not an integer.
     ValueError
@@ -718,7 +718,7 @@ def randn(
     if __rng == "Threefry":
         # use threefry RNG and the Kundu transform to generate normally distributed random numbers
         # generate uniformly distributed random numbers first
-        normal_tensor = rand(*args, dtype=dtype, split=split, device=device, comm=comm)
+        normal_tensor = rand(*d, dtype=dtype, split=split, device=device, comm=comm)
         # convert the the values to a normal distribution using the Kundu transform
         normal_tensor.larray = __kundu_transform(normal_tensor.larray)
 
@@ -726,11 +726,11 @@ def randn(
     else:
         # use batchparallel RNG and torch's generation of normally distributed random numbers
         # if args are not set, generate a single sample
-        if not args:
+        if not d:
             shape = (1,)
         else:
             # ensure that the passed dimensions are positive integer-likes
-            shape = tuple(int(ele) for ele in args)
+            shape = tuple(int(ele) for ele in d)
         if any(ele <= 0 for ele in shape):
             raise ValueError("negative dimensions are not allowed")
 
@@ -751,7 +751,7 @@ def randn(
         )
         if split is None:
             x = x.resplit_(None)
-        if not args or shape == ():
+        if not d or shape == ():
             x = x.item()
         return x
 
@@ -781,7 +781,7 @@ def randperm(
         Handle to the nodes holding distributed parts or copies of this array.
 
     Raises
-    -------
+    ------
     TypeError
         If ``n`` is not an integer.
 

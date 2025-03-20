@@ -108,7 +108,7 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
         set on :class:`GaussianNB`.
         """
         if getattr(self, "classes_", None) is None and classes is None:
-            raise ValueError("classes must be passed on the first call " "to partial_fit.")
+            raise ValueError("classes must be passed on the first call to partial_fit.")
 
         elif classes is not None:
             unique_labels = classes
@@ -273,7 +273,7 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
                 raise ValueError("Sample weights must be 1D tensor")
             if sample_weight.shape != (n_samples,):
                 raise ValueError(
-                    f"sample_weight.shape == {sample_weight.shape}, expected {(n_samples, )}!"
+                    f"sample_weight.shape == {sample_weight.shape}, expected {(n_samples,)}!"
                 )
 
         # If the ratio of data variance between dimensions is too small, it
@@ -309,7 +309,7 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
                     priors = self.priors
                 # Check that the provide prior match the number of classes
                 if len(priors) != n_classes:
-                    raise ValueError("Number of priors must match number of" " classes.")
+                    raise ValueError("Number of priors must match number of classes.")
                 # Check that the sum is 1
                 if not ht.isclose(priors.sum(), ht.array(1.0, dtype=priors.dtype)):
                     raise ValueError("The sum of the priors should be 1.")

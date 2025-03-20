@@ -2,5 +2,148 @@
 requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
-[tool.black]
+[project]
+name="heat"
+dynamic = ["version"]
+description="A framework for high-performance data analytics and machine learning."
+readme = "README.md"
+authors = [
+    { name = "Helmholtz Association", email = "martin.siggel@dlr.de"}
+]
+maintainers = [
+
+]
+license = { file = "LICENSE" }
+keywords=["data", "analytics", "tensors", "distributed", "gpu"]
+classifiers=[
+    "Development Status :: 5 - Production/Stable",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "License :: OSI Approved :: MIT License",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering",
+    "Operating System :: Unix",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+    "Topic :: Scientific/Engineering :: Mathematics",
+    "Typing :: Typed"
+]
+
+requires-python = ">=3.9"
+
+dependencies = [
+    "mpi4py>=3.0.0",
+    "torch>=2.0.0, <2.6.1",
+]
+
+[project.optional-dependencies]
+## IO Modules
+hdf5 = ["h5py>=2.8.0"]
+netcdf = ["netCDF4>=1.5.6"]
+zarr = ["zarr"]
+
+## Examples and tutorial
+examples = [
+    "scikit-learn>=0.24.0",
+    "matplotlib>=3.1.0",
+    "jupyter",
+    "ipyparallel"
+]
+dev = [
+    # QA
+    "pre-commit>=1.18.3",
+    "ruff",
+
+    # Testing
+    "pytest",
+    "coverage",
+    "numpy>=1.22.0, <2",
+    "scipy>=1.10.0",
+    "torchvision>=0.15.2, <0.21.1",
+
+    # Benchmarking
+    "perun>=0.8",
+
+    # Docs
+    "docutils>=0.16"
+]
+
+[project.scripts]
+heat = "heat.cli:cli"
+
+[project.urls]
+Homepage = "https://github.com/helmholtz-analytics/heat"
+Documentation = "https://heat.readthedocs.io/"
+Repository = "https://github.com/helmholtz-analytics/heat"
+Issues = "https://github.com/helmholtz-analytics/heat/issues"
+Changelog = "https://github.com/helmholtz-analytics/heat/blob/main/CHANGELOG.md"
+
+[tool.setuptools]
+packages = ["heat"]
+
+[tool.setuptools.package-data]
+datasets = ["*.csv", "*.h5", "*.nc"]
+heat = ["py.typed"]
+
+# Mypy
+[tool.mypy]
+packages=["heat"]
+python_version="3.9"
+exclude=[
+    'test_\w+\.py$'
+]
+
+# Strict configuration from https://careers.wolt.com/en/blog/tech/professional-grade-mypy-configuration
+disallow_untyped_defs = true
+disallow_any_unimported = true
+no_implicit_optional = true
+check_untyped_defs=true
+warn_return_any=true
+show_error_codes =true
+warn_unused_ignores=true
+
+# Ignore most the errors now, focus only ont eh core module
+ignore_errors=true
+
+[[tool.mypy.overrides]]
+module = "heat.core.*"
+ignore_errors=false
+
+
+# Ruff
+[tool.ruff]
+target-version = "py39"
+exclude = ["tutorials", "examples", "benchmarks", "scripts", "**/tests/", "doc", "docker"]
 line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "D", "W", "D417"]
+
+ignore = [
+    "E203",
+    "E402",
+    "E501",
+    "F401",
+    "F403",
+    "D105",
+    "D107",
+    "D200",
+    "D203",
+    "D205",
+    "D212",
+    "D301",
+    "D400",
+    "D401",
+    "D402",
+    "D410",
+    "D415",
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
+
+[tool.ruff.format]
+docstring-code-format = true

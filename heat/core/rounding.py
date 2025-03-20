@@ -45,7 +45,7 @@ def abs(
         precision.
 
     Raises
-    -------
+    ------
     TypeError
         If dtype is not a heat type.
     """
@@ -143,7 +143,7 @@ def clip(x: DNDarray, min, max, out: Optional[DNDarray] = None) -> DNDarray:
         the right shape to hold the output. Its type is preserved.
 
     Raises
-    -------
+    ------
     ValueError
         if either min or max is not set
     """
@@ -237,7 +237,7 @@ def modf(x: DNDarray, out: Optional[Tuple[DNDarray, DNDarray]] = None) -> Tuple[
         If not provided or ``None``, a freshly-allocated array is returned.
 
     Raises
-    -------
+    ------
     TypeError
         if ``x`` is not a :class:`~heat.core.dndarray.DNDarray`
     TypeError
@@ -305,7 +305,7 @@ def round(
         precision.
 
     Raises
-    -------
+    ------
     TypeError
         if dtype is not a heat data type
 
@@ -361,7 +361,7 @@ def sgn(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     >>> a = ht.array([-1, -0.5, 0, 0.5, 1])
     >>> ht.sign(a)
     DNDarray([-1., -1.,  0.,  1.,  1.], dtype=ht.float32, device=cpu:0, split=None)
-    >>> ht.sgn(ht.array([5-2j, 3+4j]))
+    >>> ht.sgn(ht.array([5 - 2j, 3 + 4j]))
     DNDarray([(0.9284766912460327-0.3713906705379486j),  (0.6000000238418579+0.800000011920929j)], dtype=ht.complex64, device=cpu:0, split=None)
     """
     return _operations.__local_op(torch.sgn, x, out)
@@ -388,7 +388,7 @@ def sign(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     >>> a = ht.array([-1, -0.5, 0, 0.5, 1])
     >>> ht.sign(a)
     DNDarray([-1., -1.,  0.,  1.,  1.], dtype=ht.float32, device=cpu:0, split=None)
-    >>> ht.sign(ht.array([5-2j, 3+4j]))
+    >>> ht.sign(ht.array([5 - 2j, 3 + 4j]))
     DNDarray([(1+0j), (1+0j)], dtype=ht.complex64, device=cpu:0, split=None)
     """
     # special case for complex values

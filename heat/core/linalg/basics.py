@@ -288,7 +288,7 @@ def det(a: DNDarray) -> DNDarray:
 
     Examples
     --------
-    >>> a = ht.array([[-2,-1,2],[2,1,4],[-3,3,-1]])
+    >>> a = ht.array([[-2, -1, 2], [2, 1, 4], [-3, 3, -1]])
     >>> ht.linalg.det(a)
     DNDarray(54., dtype=ht.float64, device=cpu:0, split=None)
     """
@@ -442,7 +442,7 @@ def inv(a: DNDarray) -> DNDarray:
 
     Examples
     --------
-    >>> a = ht.array([[1., 2], [2, 3]])
+    >>> a = ht.array([[1.0, 2], [2, 3]])
     >>> ht.linalg.inv(a)
     DNDarray([[-3.,  2.],
               [ 2., -1.]], dtype=ht.float32, device=cpu:0, split=None)
@@ -548,7 +548,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
     Batched inputs (with batch dimensions being leading dimensions) are allowed; see also the Notes below.
 
     Parameters
-    -----------
+    ----------
     a : DNDarray
         matrix :math:`L \\times P` or vector :math:`P` or batch of matrices: :math:`B_1 \\times ... \\times B_k \\times L \\times P`
     b : DNDarray
@@ -558,13 +558,13 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
         Default is ``False``. If ``True``, if both are not split then ``a`` will be distributed in-place along axis 0.
 
     Notes
-    -----------
+    -----
     - For batched inputs, batch dimensions must coincide and if one matrix is split along a batch axis the other must be split along the same axis.
     - If ``a`` or ``b`` is a vector the result will also be a vector.
     - We recommend to avoid the particular split combinations ``1``-``0``, ``None``-``0``, and ``1``-``None`` (for ``a.split``-``b.split``) due to their comparably high memory consumption, if possible. Applying ``DNDarray.resplit_`` or ``heat.resplit`` on one of the two factors before calling ``matmul`` in these situations might improve performance of your code / might avoid memory bottlenecks.
 
     References
-    -----------
+    ----------
     [1] R. Gu, et al., "Improving Execution Concurrency of Large-scale Matrix Multiplication on
     Distributed Data-parallel Platforms," IEEE Transactions on Parallel and Distributed Systems,
     vol 28, no. 9. 2017. \n
@@ -573,7 +573,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
     Workshops (IPDPSW), Vancouver, BC, 2018, pp. 877-882.
 
     Examples
-    -----------
+    --------
     >>> a = ht.ones((n, m), split=1)
     >>> a[0] = ht.arange(1, m + 1)
     >>> a[:, -1] = ht.arange(1, n + 1).larray
@@ -1360,9 +1360,9 @@ def matrix_norm(
 
     Examples
     --------
-    >>> ht.matrix_norm(ht.array([[1,2],[3,4]]))
+    >>> ht.matrix_norm(ht.array([[1, 2], [3, 4]]))
     DNDarray([[5.4772]], dtype=ht.float64, device=cpu:0, split=None)
-    >>> ht.matrix_norm(ht.array([[1,2],[3,4]]), keepdims=True, ord=-1)
+    >>> ht.matrix_norm(ht.array([[1, 2], [3, 4]]), keepdims=True, ord=-1)
     DNDarray([[4.]], dtype=ht.float64, device=cpu:0, split=None)
     """
     sanitation.sanitize_in(x)
@@ -1506,9 +1506,9 @@ def norm(
     DNDarray(7.7460, dtype=ht.float32, device=cpu:0, split=None)
     >>> LA.norm(b)
     DNDarray(7.7460, dtype=ht.float32, device=cpu:0, split=None)
-    >>> LA.norm(b, ord='fro')
+    >>> LA.norm(b, ord="fro")
     DNDarray(7.7460, dtype=ht.float32, device=cpu:0, split=None)
-    >>> LA.norm(a, float('inf'))
+    >>> LA.norm(a, float("inf"))
     DNDarray([4.], dtype=ht.float32, device=cpu:0, split=None)
     >>> LA.norm(b, ht.inf)
     DNDarray([9.], dtype=ht.float32, device=cpu:0, split=None)
@@ -1540,8 +1540,8 @@ def norm(
     DNDarray([3.7417, 4.2426], dtype=ht.float64, device=cpu:0, split=None)
     >>> LA.norm(c, axis=1, ord=1)
     DNDarray([6., 6.], dtype=ht.float64, device=cpu:0, split=None)
-    >>> m = ht.arange(8).reshape(2,2,2)
-    >>> LA.norm(m, axis=(1,2))
+    >>> m = ht.arange(8).reshape(2, 2, 2)
+    >>> LA.norm(m, axis=(1, 2))
     DNDarray([ 3.7417, 11.2250], dtype=ht.float32, device=cpu:0, split=None)
     >>> LA.norm(m[0, :, :]), LA.norm(m[1, :, :])
     (DNDarray(3.7417, dtype=ht.float32, device=cpu:0, split=None), DNDarray(11.2250, dtype=ht.float32, device=cpu:0, split=None))
@@ -2453,11 +2453,11 @@ def vdot(x1: DNDarray, x2: DNDarray) -> DNDarray:
 
     Examples
     --------
-    >>> a = ht.array([1+1j, 2+2j])
-    >>> b = ht.array([1+2j, 3+4j])
-    >>> ht.vdot(a,b)
+    >>> a = ht.array([1 + 1j, 2 + 2j])
+    >>> b = ht.array([1 + 2j, 3 + 4j])
+    >>> ht.vdot(a, b)
     DNDarray([(17+3j)], dtype=ht.complex64, device=cpu:0, split=None)
-    >>> ht.vdot(b,a)
+    >>> ht.vdot(b, a)
     DNDarray([(17-3j)], dtype=ht.complex64, device=cpu:0, split=None)
     """
     x1 = manipulations.flatten(x1)
@@ -2490,7 +2490,7 @@ def vecdot(
 
     Examples
     --------
-    >>> ht.vecdot(ht.full((3,3,3),3), ht.ones((3,3)), axis=0)
+    >>> ht.vecdot(ht.full((3, 3, 3), 3), ht.ones((3, 3)), axis=0)
     DNDarray([[9., 9., 9.],
               [9., 9., 9.],
               [9., 9., 9.]], dtype=ht.float32, device=cpu:0, split=None)
@@ -2557,9 +2557,9 @@ def vector_norm(
 
     Examples
     --------
-    >>> ht.vector_norm(ht.array([1,2,3,4]))
+    >>> ht.vector_norm(ht.array([1, 2, 3, 4]))
     DNDarray([5.4772], dtype=ht.float64, device=cpu:0, split=None)
-    >>> ht.vector_norm(ht.array([[1,2],[3,4]]), axis=0, ord=1)
+    >>> ht.vector_norm(ht.array([[1, 2], [3, 4]]), axis=0, ord=1)
     DNDarray([[4., 6.]], dtype=ht.float64, device=cpu:0, split=None)
     """
     sanitation.sanitize_in(x)

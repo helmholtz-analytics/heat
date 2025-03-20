@@ -9,24 +9,25 @@ repos:
       - id: check-yaml
       - id: check-added-large-files
       - id: check-toml
-  - repo: https://github.com/psf/black-pre-commit-mirror
-    rev: 25.1.0
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.16.0 # Use the sha / tag you want to point at
     hooks:
-    - id: black
-  - repo: https://github.com/PyCQA/flake8
-    rev: 7.2.0
+      - id: mypy
+        args: []
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    # Ruff version.
+    rev: v0.11.13
     hooks:
-      - id: flake8
+      # Run the linter.
+      - id: ruff
+        args: [ --fix ]
+      # Run the formatter.
+      - id: ruff-format
   - repo: https://github.com/kynan/nbstripout
     rev: 0.8.1
     hooks:
       - id: nbstripout
-        args: ['--keep-output', '--drop-empty-cells']
-  - repo: https://github.com/pycqa/pydocstyle
-    rev: 6.3.0 # pick a git hash / tag to point to
-    hooks:
-      - id: pydocstyle
-        exclude: "tutorials|tests|benchmarks|examples|scripts|setup.py" #|heat/utils/data/mnist.py|heat/utils/data/_utils.py  ?
+        args: ['--keep-output']
   - repo: "https://github.com/citation-file-format/cffconvert"
     rev: "054bda51dbe278b3e86f27c890e3f3ac877d616c"
     hooks:
