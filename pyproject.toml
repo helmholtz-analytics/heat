@@ -56,6 +56,7 @@ dev = [
     # QA
     "pre-commit>=1.18.3",
     "ruff",
+    "mypy",
 
     # Testing
     "pytest",
