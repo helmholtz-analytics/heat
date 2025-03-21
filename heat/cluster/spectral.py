@@ -11,21 +11,23 @@ from heat.core.dndarray import DNDarray
 
 class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
     """
-    Spectral clustering
+    Spectral clustering of large memory-distributed datasets.
 
     Attributes
     ----------
-    n_clusters : int
+    n_clusters : int, default=8
         Number of clusters to fit
-    gamma : float
+    eigen_solver : str, default='lanczos'
+        Eigenvalue decomposition strategy to use. Currently only 'lanczos' is supported
+    gamma : float, default=1.0
         Kernel coefficient sigma for 'rbf', ignored for affinity='euclidean'
-    affinity : string
+    affinity : str, default='rbf'
         How to construct the similarity (affinity) matrix.
 
             - 'rbf' : construct the similarity matrix using a radial basis function (RBF) kernel.
             - 'euclidean' : construct the similarity matrix as only euclidean distance.
             - 'precomputed' : interpret ``X`` as precomputed affinity matrix.
-    laplacian : str
+    laplacian : str, default='fully_connected'
         How to calculate the graph laplacian (affinity)
         Currently supported : 'fully_connected', 'eNeighbour'
     threshold : float
@@ -34,9 +36,9 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
     boundary : str
         How to interpret threshold: 'upper', 'lower'
         Ignorded for laplacian='fully_connected'
-    n_lanczos : int
+    n_lanczos : int, default=300
         number of Lanczos iterations for Eigenvalue decomposition
-    assign_labels: str
+    assign_labels: str, default='kmeans'
          The strategy to use to assign labels in the embedding space.
     **params: dict
           Parameter dictionary for the assign_labels estimator
@@ -45,6 +47,7 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
     def __init__(
         self,
         n_clusters: int = None,
+        eigen_solver: str = "lanczos",
         gamma: float = 1.0,
         affinity: str = "rbf",
         laplacian: str = "fully_connected",
@@ -55,6 +58,7 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
         **params,
     ):
         self.n_clusters = n_clusters
+        self.eigen_solver = eigen_solver
         self.gamma = gamma
         self.affinity = affinity
         self.laplacian = laplacian
@@ -109,34 +113,39 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
         """
         return self._labels
 
-    def _spectral_embedding(self, x: DNDarray) -> Tuple[DNDarray, DNDarray]:
+    def spectral_embedding(self, x: DNDarray, eigen_solver: str) -> Tuple[DNDarray, DNDarray]:
         """
-        Helper function for dataset x embedding.
-        Returns Tupel(Eigenvalues, Eigenvectors) of the graph's Laplacian matrix.
+        Returns Tuple(Eigenvalues, Eigenvectors) of the graph's Laplacian matrix.
 
         Parameters
         ----------
         x : DNDarray
             Sample Matrix for which the embedding should be calculated
+        eigen_solver : str
+            Eigenvalue decomposition strategy to use. Currently only 'lanczos' is supported
+
+        See Also
+        --------
+        :func:`heat.linalg.lanczos`
 
         Notes
         -----
-        This will throw out the complex side of the eigenvalues found during this.
-
+        The imaginary part of the eigenvalues is discarded, as the Laplacian matrix is symmetric and the eigenvectors
+        are real.
         """
         L = self._laplacian.construct(x)
-        # 3. Eigenvalue and -vector calculation via Lanczos Algorithm
-        v0 = ht.full(
-            (L.shape[0],),
-            fill_value=1.0 / math.sqrt(L.shape[0]),
-            dtype=L.dtype,
-            split=0,
-            device=L.device,
-        )
-        V, T = ht.lanczos(L, self.n_lanczos, v0)
+        # 3. Eigenvalue and -vector calculation
+        # for now via Lanczos Algorithm only
+        if eigen_solver == "lanczos":
+            v0 = ht.full(
+                (L.shape[0],),
+                fill_value=1.0 / math.sqrt(L.shape[0]),
+                dtype=L.dtype,
+                split=0,
+                device=L.device,
+            )
+            V, T = ht.lanczos(L, self.n_lanczos, v0)
 
-        # if int(torch.__version__.split(".")[1]) >= 9:
-        try:
             # 4. Calculate and Sort Eigenvalues and Eigenvectors of tridiagonal matrix T
             eval, evec = torch.linalg.eig(T.larray)
 
@@ -146,15 +155,10 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
             eigenvectors = ht.matmul(V, ht.array(evec))[:, idx]
 
             return eigenvalues.real, eigenvectors.real
-        except AttributeError:  # torch version is less than 1.9.0
-            # 4. Calculate and Sort Eigenvalues and Eigenvectors of tridiagonal matrix T
-            eval, evec = torch.eig(T.larray, eigenvectors=True)
-            # If x is an Eigenvector of T, then y = V@x is the corresponding Eigenvector of L
-            eval, idx = torch.sort(eval[:, 0], dim=0)
-            eigenvalues = ht.array(eval)
-            eigenvectors = ht.matmul(V, ht.array(evec))[:, idx]
-
-            return eigenvalues, eigenvectors
+        else:
+            raise NotImplementedError(
+                "Other Eigenvalue Decomposition methods are not yet supported"
+            )
 
     def fit(self, x: DNDarray):
         """
@@ -177,7 +181,7 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
         if x.split is not None and x.split != 0:
             raise NotImplementedError("Not implemented for other splitting-axes")
         # 2. Embed Dataset into lower-dimensional Eigenvector space
-        eigenvalues, eigenvectors = self._spectral_embedding(x)
+        eigenvalues, eigenvectors = self.spectral_embedding(x, self.eigen_solver)
 
         # 3. Find the spectral gap, if number of clusters is not defined from the outside
         if self.n_clusters is None:
@@ -219,7 +223,7 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
         if x.split is not None and x.split != 0:
             raise NotImplementedError("Not implemented for other splitting-axes")
 
-        _, eigenvectors = self._spectral_embedding(x)
+        _, eigenvectors = self.spectral_embedding(x, self.eigen_solver)
 
         components = eigenvectors[:, : self.n_clusters].copy()
 
