@@ -174,6 +174,7 @@ class PartialH5Dataset(torch_data.Dataset):
 
     def __getitem__(self, index: Union[int, slice, List[int], torch.Tensor]) -> torch.Tensor:
         """
+        Abstract __getitem__ method.
         This should be defined by the user at runtime. This function needs to be designed such
         that the data is in the 0th dimension and the indexes called are only in the 0th dim!
         """

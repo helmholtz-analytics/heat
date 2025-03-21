@@ -64,7 +64,7 @@ class DMD(ht.RegressionMixin, ht.BaseEstimator):
         The reduced order model eigenmodes ("DMD modes")
 
     Notes
-    ----------
+    -----
     We follow the "exact DMD" method as described in [1], Sect. 2.2.
 
     References

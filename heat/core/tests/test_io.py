@@ -203,7 +203,7 @@ class TestIO(TestCase):
 
                             if data.comm.rank == 0:
                                 tmpfile = tempfile.NamedTemporaryFile(
-                                    prefix="test_io_", suffix=".csv", delete=False
+                                    prefix="test_io_", suffix=".csv", delete_on_close=False
                                 )
                                 tmpfile.close()
                                 filename = tmpfile.name
@@ -233,7 +233,7 @@ class TestIO(TestCase):
         # Test vector
         data = ht.random.randint(0, 100, size=(150,))
         if data.comm.rank == 0:
-            tmpfile = tempfile.NamedTemporaryFile(prefix="test_io_", suffix=".csv", delete=False)
+            tmpfile = tempfile.NamedTemporaryFile(prefix="test_io_", suffix=".csv", delete_on_close=False)
             tmpfile.close()
             filename = tmpfile.name
         else:
@@ -249,7 +249,7 @@ class TestIO(TestCase):
         # Test 0 matrix
         data = ht.zeros((10, 10))
         if data.comm.rank == 0:
-            tmpfile = tempfile.NamedTemporaryFile(prefix="test_io_", suffix=".csv", delete=False)
+            tmpfile = tempfile.NamedTemporaryFile(prefix="test_io_", suffix=".csv", delete_on_close=False)
             tmpfile.close()
             filename = tmpfile.name
         else:
@@ -266,7 +266,7 @@ class TestIO(TestCase):
         data = ht.random.rand(100, 100)
         data = data - 500
         if data.comm.rank == 0:
-            tmpfile = tempfile.NamedTemporaryFile(prefix="test_io_", suffix=".csv", delete=False)
+            tmpfile = tempfile.NamedTemporaryFile(prefix="test_io_", suffix=".csv", delete_on_close=False)
             tmpfile.close()
             filename = tmpfile.name
         else:

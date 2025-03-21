@@ -58,7 +58,7 @@ def sanitize_distribution(
         When the split-axes or sizes along the split-axis do not match.
 
     See Also
-    ---------
+    --------
     :func:`~heat.core.dndarray.create_lshape_map`
         Function to create the lshape_map.
     """
@@ -139,8 +139,7 @@ def sanitize_distribution(
             )
         elif not (
             # False
-            target_balanced
-            and arg.is_balanced(force_check=False)
+            target_balanced and arg.is_balanced(force_check=False)
         ):  # Split axes are the same and atleast one is not balanced
             current_map = arg.lshape_map
             out_map = current_map.clone()
@@ -196,7 +195,7 @@ def sanitize_infinity(x: Union[DNDarray, torch.Tensor]) -> Union[int, float]:
     Returns largest possible value for the ``dtype`` of the input array.
 
     Parameters
-    -----------
+    ----------
     x: Union[DNDarray, torch.Tensor]
         Input object.
     """

@@ -48,9 +48,9 @@ def eq(x, y) -> DNDarray:
         The second operand involved in the comparison
 
     Examples
-    ---------
+    --------
     >>> import heat as ht
-    >>> x = ht.float32([[1, 2],[3, 4]])
+    >>> x = ht.float32([[1, 2], [3, 4]])
     >>> ht.eq(x, 3.0)
     DNDarray([[False, False],
               [ True, False]], dtype=ht.bool, device=cpu:0, split=None)
@@ -97,10 +97,10 @@ def equal(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> boo
         The second operand involved in the comparison
 
     Examples
-    ---------
+    --------
     >>> import heat as ht
-    >>> x = ht.float32([[1, 2],[3, 4]])
-    >>> ht.equal(x, ht.float32([[1, 2],[3, 4]]))
+    >>> x = ht.float32([[1, 2], [3, 4]])
+    >>> ht.equal(x, ht.float32([[1, 2], [3, 4]]))
     True
     >>> y = ht.float32([[2, 2], [2, 2]])
     >>> ht.equal(x, y)
@@ -196,9 +196,9 @@ def ge(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> DNDarr
        The second operand to be compared less than or equal to first operand
 
     Examples
-    -------
+    --------
     >>> import heat as ht
-    >>> x = ht.float32([[1, 2],[3, 4]])
+    >>> x = ht.float32([[1, 2], [3, 4]])
     >>> ht.ge(x, 3.0)
     DNDarray([[False, False],
               [ True,  True]], dtype=ht.bool, device=cpu:0, split=None)
@@ -245,9 +245,9 @@ def gt(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> DNDarr
        The second operand to be compared less than first operand
 
     Examples
-    -------
+    --------
     >>> import heat as ht
-    >>> x = ht.float32([[1, 2],[3, 4]])
+    >>> x = ht.float32([[1, 2], [3, 4]])
     >>> ht.gt(x, 3.0)
     DNDarray([[False, False],
               [False,  True]], dtype=ht.bool, device=cpu:0, split=None)
@@ -294,9 +294,9 @@ def le(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> DNDarr
        The second operand to be compared greater than or equal to first operand
 
     Examples
-    -------
+    --------
     >>> import heat as ht
-    >>> x = ht.float32([[1, 2],[3, 4]])
+    >>> x = ht.float32([[1, 2], [3, 4]])
     >>> ht.le(x, 3.0)
     DNDarray([[ True,  True],
               [ True, False]], dtype=ht.bool, device=cpu:0, split=None)
@@ -343,9 +343,9 @@ def lt(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> DNDarr
         The second operand to be compared greater than first operand
 
     Examples
-    -------
+    --------
     >>> import heat as ht
-    >>> x = ht.float32([[1, 2],[3, 4]])
+    >>> x = ht.float32([[1, 2], [3, 4]])
     >>> ht.lt(x, 3.0)
     DNDarray([[ True,  True],
               [False, False]], dtype=ht.bool, device=cpu:0, split=None)
@@ -393,9 +393,9 @@ def ne(x, y) -> DNDarray:
         The second operand involved in the comparison
 
     Examples
-    ---------
+    --------
     >>> import heat as ht
-    >>> x = ht.float32([[1, 2],[3, 4]])
+    >>> x = ht.float32([[1, 2], [3, 4]])
     >>> ht.ne(x, 3.0)
     DNDarray([[ True,  True],
               [False,  True]], dtype=ht.bool, device=cpu:0, split=None)

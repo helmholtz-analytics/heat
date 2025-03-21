@@ -24,7 +24,7 @@ class KNeighborsClassifier(ht.BaseEstimator, ht.ClassificationMixin):
         The distance function used to identify the nearest neighbors, defaults to the Euclidean distance.
 
     References
-    --------
+    ----------
     [1] T. Cover and P. Hart, "Nearest Neighbor Pattern Classification," in IEEE Transactions on Information Theory,
     vol. 13, no. 1, pp. 21-27, January 1967, doi: 10.1109/TIT.1967.1053964.
     """

@@ -55,7 +55,7 @@ def qr(
     the backend. For split=0 (-2, in the batched case), tall-skinny QR (TS-QR) is implemented, while for split=1 (-1, in the batched case) a block-wise version of stabilized Gram-Schmidt orthogonalization is used.
 
     References
-    -----------
+    ----------
     Basic information about QR factorization/decomposition can be found at, e.g.:
 
         - https://en.wikipedia.org/wiki/QR_factorization,

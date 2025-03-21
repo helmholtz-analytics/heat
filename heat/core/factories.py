@@ -59,15 +59,12 @@ def arange(
 
     Parameters
     ----------
-    start : scalar, optional
-        Start of interval.  The interval includes this value.  The default start value is 0.
-    stop : scalar
-        End of interval.  The interval does not include this value, except in some cases where ``step`` is not an
-        integer and floating point round-off affects the length of ``out``.
-    step : scalar, optional
-        Spacing between values.  For any output ``out``, this is the distance between two adjacent values,
-        ``out[i+1]-out[i]``. The default step size is 1. If ``step`` is specified as a position argument, ``start``
-        must also be given.
+    *args : int or float, optional
+        Positional arguments defining the interval. Can be:
+        - A single argument: interpreted as `stop`, with `start=0` and `step=1`.
+        - Two arguments: interpreted as `start` and `stop`, with `step=1`.
+        - Three arguments: interpreted as `start`, `stop`, and `step`.
+        The function raises a `TypeError` if more than three arguments are provided.
     dtype : datatype, optional
         The type of the output array.  If `dtype` is not given, it is automatically inferred from the other input
         arguments.
@@ -247,7 +244,7 @@ def array(
      4
      5
     [torch.LongStorage of size 6]
-    >>> c = ht.array(a, order='F')
+    >>> c = ht.array(a, order="F")
     >>> c
     DNDarray([[0, 1, 2],
               [3, 4, 5]], dtype=ht.int64, device=cpu:0, split=None)
@@ -264,7 +261,7 @@ def array(
     >>> a = np.arange(4 * 3).reshape(4, 3)
     >>> a.strides
     (24, 8)
-    >>> b = ht.array(a, order='F', split=0)
+    >>> b = ht.array(a, order="F", split=0)
     >>> b
     DNDarray([[ 0,  1,  2],
               [ 3,  4,  5],
@@ -324,7 +321,6 @@ def array(
                 f"'is_split' and the split axis of the object do not match ({is_split} != {obj.split}).\nIf you are trying to resplit an existing DNDarray in-place, use the method `DNDarray.resplit_()` instead."
             )
         elif device is not None and device != obj.device and copy is False:
-
             raise ValueError(
                 "argument `copy` is set to False, but copy of input object is necessary as the array is being copied across devices.\nUse the method `DNDarray.cpu()` or  `DNDarray.gpu()` to move the array to the desired device."
             )
@@ -516,24 +512,24 @@ def asarray(
 
     Examples
     --------
-    >>> a = [1,2]
+    >>> a = [1, 2]
     >>> ht.asarray(a)
     DNDarray([1, 2], dtype=ht.int64, device=cpu:0, split=None)
-    >>> a = np.array([1,2,3])
+    >>> a = np.array([1, 2, 3])
     >>> n = ht.asarray(a)
     >>> n
     DNDarray([1, 2, 3], dtype=ht.int64, device=cpu:0, split=None)
     >>> n[0] = 0
     >>> a
     DNDarray([0, 2, 3], dtype=ht.int64, device=cpu:0, split=None)
-    >>> a = torch.tensor([1,2,3])
+    >>> a = torch.tensor([1, 2, 3])
     >>> t = ht.asarray(a)
     >>> t
     DNDarray([1, 2, 3], dtype=ht.int64, device=cpu:0, split=None)
     >>> t[0] = 0
     >>> a
     DNDarray([0, 2, 3], dtype=ht.int64, device=cpu:0, split=None)
-    >>> a = ht.array([1,2,3,4], dtype=ht.float32)
+    >>> a = ht.array([1, 2, 3, 4], dtype=ht.float32)
     >>> ht.asarray(a, dtype=ht.float32) is a
     True
     >>> ht.asarray(a, dtype=ht.float64) is a
@@ -583,7 +579,12 @@ def empty(
     DNDarray([0., 0., 0.], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.empty(3, dtype=ht.int)
     DNDarray([59140784,        0, 59136816], dtype=ht.int32, device=cpu:0, split=None)
-    >>> ht.empty((2, 3,))
+    >>> ht.empty(
+    ...     (
+    ...         2,
+    ...         3,
+    ...     )
+    ... )
     DNDarray([[-1.7206e-10,  4.5905e-41, -1.7206e-10],
               [ 4.5905e-41,  4.4842e-44,  0.0000e+00]], dtype=ht.float32, device=cpu:0, split=None)
     """
@@ -629,7 +630,12 @@ def empty_like(
 
     Examples
     --------
-    >>> x = ht.ones((2, 3,))
+    >>> x = ht.ones(
+    ...     (
+    ...         2,
+    ...         3,
+    ...     )
+    ... )
     >>> x
     DNDarray([[1., 1., 1.],
               [1., 1., 1.]], dtype=ht.float32, device=cpu:0, split=None)
@@ -804,6 +810,8 @@ def __factory_like(
         Options: ``'C'`` or ``'F'``. Specifies the memory layout of the newly created array. Default is ``order='C'``,
         meaning the array will be stored in row-major order (C-like). If ``order=‘F’``, the array will be stored in
         column-major order (Fortran-like).
+    **kwargs
+        Keyword arguments for the factory method.
 
     Raises
     ------
@@ -867,7 +875,7 @@ def from_partitioned(x, comm: Optional[Communication] = None) -> DNDarray:
     comm: Communication, optional
         Handle to the nodes holding distributed parts or copies of this array.
 
-    See also
+    See Also
     --------
     :func:`ht.core.DNDarray.create_partition_interface <ht.core.DNDarray.create_partition_interface>`.
 
@@ -883,11 +891,11 @@ def from_partitioned(x, comm: Optional[Communication] = None) -> DNDarray:
     Examples
     --------
     >>> import heat as ht
-    >>> a = ht.ones((44,55), split=0)
+    >>> a = ht.ones((44, 55), split=0)
     >>> b = ht.from_partitioned(a)
-    >>> assert (a==b).all()
+    >>> assert (a == b).all()
     >>> a[40] = 4711
-    >>> assert (a==b).all()
+    >>> assert (a == b).all()
     """
     comm = sanitize_comm(comm)
     parted = x.__partitioned__
@@ -912,7 +920,7 @@ def from_partition_dict(parted: dict, comm: Optional[Communication] = None) -> D
     comm: Communication, optional
         Handle to the nodes holding distributed parts or copies of this array.
 
-    See also
+    See Also
     --------
     :func:`ht.core.DNDarray.create_partition_interface <ht.core.DNDarray.create_partition_interface>`.
 
@@ -928,11 +936,11 @@ def from_partition_dict(parted: dict, comm: Optional[Communication] = None) -> D
     Examples
     --------
     >>> import heat as ht
-    >>> a = ht.ones((44,55), split=0)
+    >>> a = ht.ones((44, 55), split=0)
     >>> b = ht.from_partition_dict(a.__partitioned__)
-    >>> assert (a==b).all()
+    >>> assert (a == b).all()
     >>> a[40] = 4711
-    >>> assert (a==b).all()
+    >>> assert (a == b).all()
     """
     comm = sanitize_comm(comm)
     return __from_partition_dict_helper(parted, comm)
@@ -971,7 +979,7 @@ def __from_partition_dict_helper(parted: dict, comm: Communication):
     gshape_list = list(gshape)
     lshape_list = list(data.shape)
     shape_diff = torch.tensor(
-        [g - l for g, l in zip(gshape_list, lshape_list)]
+        [g_shape - l_shape for g_shape, l_shape in zip(gshape_list, lshape_list)]
     )  # dont care about device
     nz = torch.nonzero(shape_diff)
 
@@ -1094,7 +1102,12 @@ def full_like(
 
     Examples
     --------
-    >>> x = ht.zeros((2, 3,))
+    >>> x = ht.zeros(
+    ...     (
+    ...         2,
+    ...         3,
+    ...     )
+    ... )
     >>> x
     DNDarray([[0., 0., 0.],
               [0., 0., 0.]], dtype=ht.float32, device=cpu:0, split=None)
@@ -1284,7 +1297,7 @@ def meshgrid(*arrays: Sequence[DNDarray], indexing: str = "xy") -> List[DNDarray
     --------
     >>> x = ht.arange(4)
     >>> y = ht.arange(3)
-    >>> xx, yy = ht.meshgrid(x,y)
+    >>> xx, yy = ht.meshgrid(x, y)
     >>> xx
     DNDarray([[0, 1, 2, 3],
           [0, 1, 2, 3],
@@ -1385,7 +1398,12 @@ def ones(
     DNDarray([1., 1., 1.], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.ones(3, dtype=ht.int)
     DNDarray([1, 1, 1], dtype=ht.int32, device=cpu:0, split=None)
-    >>> ht.ones((2, 3,))
+    >>> ht.ones(
+    ...     (
+    ...         2,
+    ...         3,
+    ...     )
+    ... )
     DNDarray([[1., 1., 1.],
           [1., 1., 1.]], dtype=ht.float32, device=cpu:0, split=None)
     """
@@ -1429,7 +1447,12 @@ def ones_like(
 
     Examples
     --------
-    >>> x = ht.zeros((2, 3,))
+    >>> x = ht.zeros(
+    ...     (
+    ...         2,
+    ...         3,
+    ...     )
+    ... )
     >>> x
     DNDarray([[0., 0., 0.],
               [0., 0., 0.]], dtype=ht.float32, device=cpu:0, split=None)
@@ -1481,7 +1504,12 @@ def zeros(
     DNDarray([0., 0., 0.], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.zeros(3, dtype=ht.int)
     DNDarray([0, 0, 0], dtype=ht.int32, device=cpu:0, split=None)
-    >>> ht.zeros((2, 3,))
+    >>> ht.zeros(
+    ...     (
+    ...         2,
+    ...         3,
+    ...     )
+    ... )
     DNDarray([[0., 0., 0.],
               [0., 0., 0.]], dtype=ht.float32, device=cpu:0, split=None)
     """
@@ -1525,7 +1553,12 @@ def zeros_like(
 
     Examples
     --------
-    >>> x = ht.ones((2, 3,))
+    >>> x = ht.ones(
+    ...     (
+    ...         2,
+    ...         3,
+    ...     )
+    ... )
     >>> x
     DNDarray([[1., 1., 1.],
               [1., 1., 1.]], dtype=ht.float32, device=cpu:0, split=None)
