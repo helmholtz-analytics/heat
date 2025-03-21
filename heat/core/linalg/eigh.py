@@ -11,18 +11,14 @@ from ..communication import MPICommunication
 from ..dndarray import DNDarray
 from .. import factories
 from .. import types
-from ..linalg import matrix_norm, vector_norm, matmul, qr, solve_triangular
-from .basics import _estimate_largest_singularvalue, condest
+from ..linalg import matrix_norm, vector_norm, matmul, qr
 from ..indexing import where
 from ..random import randn
 from ..devices import Device
 from ..manipulations import vstack, hstack, concatenate, diag, balance
-from ..exponential import sqrt
 from .. import statistics
 from mpi4py import MPI
 
-from scipy.special import ellipj
-from scipy.special import ellipkm1
 
 __all__ = []
 
@@ -84,7 +80,12 @@ def _subspaceiteration(
             [
                 X,
                 randn(
-                    X.shape[0], X.shape[0] - X.shape[1], dtype=X.dtype, device=X.device, comm=X.comm
+                    X.shape[0],
+                    X.shape[0] - X.shape[1],
+                    dtype=X.dtype,
+                    device=X.device,
+                    comm=X.comm,
+                    split=X.split,
                 ),
             ]
         )
