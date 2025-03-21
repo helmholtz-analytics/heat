@@ -11,7 +11,7 @@ from ..communication import MPICommunication
 from ..dndarray import DNDarray
 from .. import factories
 from .. import types
-from ..linalg import matrix_norm, vector_norm, matmul, qr
+from ..linalg import matrix_norm, vector_norm, matmul, qr, polar
 from ..indexing import where
 from ..random import randn
 from ..devices import Device
@@ -20,7 +20,7 @@ from .. import statistics
 from mpi4py import MPI
 
 
-__all__ = []
+__all__ = ["_eigh", "_subspaceiteration"]
 
 
 def _subspaceiteration(
@@ -92,7 +92,7 @@ def _subspaceiteration(
         Q, _ = qr(X)
         Q_k = Q[:, :k].balance()
         Q_k_orth = Q[:, k:].balance()
-        E = Q_k_orth.T @ A @ Q_k
+        E = (Q_k_orth.T @ A) @ Q_k
         Enorm = matrix_norm(E, ord="fro")
         if Enorm / Anorm < tol:
             # exit if success
@@ -110,102 +110,76 @@ def _subspaceiteration(
     return Q, k
 
 
-# def eigh(
-#     A: DNDarray,
-#     r: int = 8,
-#     depth: int = 0,
-#     group: int = 0,
-#     orig_lsize: int = 0,
-#     silent: bool = True,
-# ) -> Tuple[DNDarray, DNDarray]:
-#     """
-#     Eigenvalue decomposition of symmetric matrices
-#     following the approach based on Zolotarev-PD
-#     """
-#     # consistency checks
-#     if not isinstance(A, DNDarray):
-#         raise RuntimeError("Argument needs to be a DNDarray but is {}.".format(type(A)))
-#     if A.shape[0] != A.shape[1]:
-#         raise RuntimeError(
-#             "Computation of Eigenvalues requires square matrix, but matrix is %d x %d"
-#             % (A.shape[0], A.shape[1])
-#         )
-#     if not A.ndim == 2:
-#         raise RuntimeError("A needs to be a 2D matrix")
-#     if r > 8:
-#         raise RuntimeError("It is required that r <= 8, but input was r=%d." % r)
+def _eigh(
+    A: DNDarray,
+    r: int = None,
+    calcH: bool = True,
+    condition_estimate: float = 0.0,
+    silent: bool = True,
+    r_max: int = 8,
+    depth: int = 0,
+    group: int = 0,
+    orig_lsize: int = 0,
+) -> Tuple[DNDarray, DNDarray]:
+    """
+    Auxiliary function for eigh containing the main algorithmic content
+    """
+    n = A.shape[0]
+    global_comm = A.comm
+    nprocs = global_comm.Get_size()
+    rank = global_comm.rank
+    if orig_lsize == 0:
+        orig_lsize = min(A.lshape_map[:, A.split])
 
-#     n = A.shape[0]
-#     nprocs = A.comm.Get_size()
-#     global_comm = A.comm.handle
-#     if orig_lsize == 0:
-#         orig_lsize = min(A.lshape_map[:, A.split])
+    # now we handle the main case: Zolo-PD is used to reduce the problem to two independent problems
+    sigma = statistics.median(diag(A))
+    U = polar(
+        A
+        - sigma * factories.eye((n, n), dtype=A.dtype, device=A.device, comm=A.comm, split=A.split),
+        r,
+        False,
+    )
+    V, k = _subspaceiteration(
+        A,
+        0.5
+        * (U + factories.eye((n, n), dtype=A.dtype, device=A.device, comm=A.comm, split=A.split)),
+        silent,
+    )
+    A = V.T @ A @ V
+    A.resplit_(A.split)
 
-#     # handle the case where there is no split
-#     if A.split is None:
-#         lamda, v = torch.linalg.eigh(A.larray)
-#         Lambda = factories.array(lamda, device=A.device, split=A.split, comm=A.comm)
-#         V = factories.array(v, device=A.device, split=A.split, comm=A.comm)
-#         if A.comm.rank == 0 and not silent:
-#             print(
-#                 "\t" * depth
-#                 + +"At depth %d: solution of symmetric eigenvalue problem of size %dx%d in pytorch."
-#                 % (depth, n, n)
-#             )
-#             print("\t" * depth + "             (no split dimension)")
-#         return Lambda, V
+    if A.comm.rank == 0 and not silent:
+        print(
+            "\t" * depth
+            + f"At depth {depth}: Zolo-PD(r={'auto' if r is None else r}) on {nprocs} processes reduced symmetric eigenvalue problem of size {n} to"
+        )
+        print(
+            "\t" * depth
+            + f"            two independent problems of size {k} and {n-k} respectively."
+        )
 
-#     # handle the case where there is a split dimension, but the number of processes is too small to apply ZoloPD efficiently
-#     if nprocs < r or (r == 1 and nprocs == 1) or A.shape[0] <= orig_lsize:
-#         lamda, v = torch.linalg.eigh(A.copy().resplit_(None).larray)
-#         Lambda = factories.array(lamda, device=A.device, split=0, comm=A.comm)
-#         V = factories.array(v, device=A.device, split=A.split, comm=A.comm)
-#         if A.comm.rank == 0 and not silent:
-#             print(
-#                 "\t" * depth
-#                 + "At depth %d: solution of symmetric eigenvalue problem of size %dx%d in pytorch."
-#                 % (depth, n, n)
-#             )
-#             if nprocs < r:
-#                 print(
-#                     "\t" * depth
-#                     + "             (only %d processes left, and ZoloPD requires %d.)" % (nprocs, r)
-#                 )
-#             else:
-#                 print("\t" * depth + "             (problem small enough for direct solution)")
-#         return Lambda, V
+    # from the "global" A, two independent "local" A's are created
+    nprocs1 = round(k / n * nprocs)
+    nprocs2 = nprocs - nprocs1
+    new_lshapes = torch.tensor(
+        [k // nprocs1 + (i < k % nprocs1) for i in range(nprocs1)]
+        + [(n - k) // nprocs2 + (i < (n - k) % nprocs2) for i in range(nprocs2)]
+    )
+    new_lshape_map = A.lshape_map
+    new_lshape_map[:, A.split] = new_lshapes
+    A.redistribute_(target_map=new_lshape_map)
+    local_comm = A.comm.Split(color=rank < nprocs1, key=rank)
+    A_local = factories.array(
+        A.larray[:k, :] if rank < nprocs1 else A.larray[k:, :], comm=local_comm, is_split=A.split
+    )
+    print(A_local)
 
-#     # now we have to handle the main case: there is a split dimension and the number of processes is high enough to apply ZoloPD
+    # TODO recursively call _eigh on the two independent problems
 
-#     sigma = statistics.median(diag(A))
+    # TODO get results back from the two independent problems to the global level
 
-#     U = pd(
-#         A
-#         - sigma * factories.eye((n, n), dtype=A.dtype, device=A.device, comm=A.comm, split=A.split),
-#         r,
-#         False,
-#     )
+    # TODO post-process the local results aka merge them into the global outcome
 
-#     V, k = subspaceiteration(
-#         A,
-#         0.5
-#         * (U + factories.eye((n, n), dtype=A.dtype, device=A.device, comm=A.comm, split=A.split)),
-#         silent,
-#     )
-
-#     A = (V.T @ A @ V).resplit(A.split)
-
-#     if A.comm.rank == 0 and not silent:
-#         print(
-#             "\t" * depth
-#             + "At depth %d: ZoloPD(r=%d) on %d processes reduced sym.eig. problem of size %dx%d to"
-#             % (depth, r, nprocs, n, n)
-#         )
-#         print(
-#             "\t" * depth
-#             + "            two independent problems of size %dx%d and %dx%d respectively."
-#             % (k, k, n - k, n - k)
-#         )
 
 #     # Get A1 and A2 from the paper as matrices on the respective process groups...
 #     # strategy (very first rough idea):
