@@ -197,6 +197,10 @@ def __binary_op(
         sanitation.sanitize_out(out, output_shape, output_split, output_device, output_comm)
         t1, t2 = sanitation.sanitize_distribution(t1, t2, target=out)
 
+    # MPS does not support float64
+    if t1.larray.is_mps and promoted_type == torch.float64:
+        promoted_type = torch.float32
+
     result = operation(t1.larray.to(promoted_type), t2.larray.to(promoted_type), **fn_kwargs)
 
     if out is None and where is True:
@@ -282,6 +286,9 @@ def __cum_op(
 
     if dtype is not None:
         dtype = types.canonical_heat_type(dtype)
+        if x.larray.is_mps and dtype == types.float64:
+            warnings.warn("MPS does not support float64, will cast to float32")
+            dtype = types.float32
 
     if out is not None:
         sanitation.sanitize_out(out, x.shape, x.split, x.device)
@@ -369,6 +376,8 @@ def __local_op(
     # we need floating point numbers here, due to PyTorch only providing sqrt() implementation for float32/64
     if not no_cast:
         promoted_type = types.promote_types(x.dtype, types.float32)
+        if promoted_type is types.float64 and x.larray.is_mps:
+            promoted_type = types.float32
         torch_type = promoted_type.torch_type()
     else:
         torch_type = x.larray.dtype

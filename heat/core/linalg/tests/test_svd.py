@@ -8,7 +8,11 @@ from ...tests.test_suites.basic_test import TestCase
 
 class TestTallSkinnySVD(TestCase):
     def test_tallskinny_split0(self):
-        for dtype in [ht.float32, ht.float64]:
+        if self.is_mps:
+            dtypes = [ht.float32]
+        else:
+            dtypes = [ht.float32, ht.float64]
+        for dtype in dtypes:
             for n_merge in [0, None]:
                 tol = 1e-5 if dtype == ht.float32 else 1e-10
                 X = ht.random.randn(ht.MPI_WORLD.size * 10 + 3, 10, split=0, dtype=dtype)
@@ -30,7 +34,11 @@ class TestTallSkinnySVD(TestCase):
                 self.assertTrue(ht.all(S >= 0))
 
     def test_shortfat_split1(self):
-        for dtype in [ht.float32, ht.float64]:
+        if self.is_mps:
+            dtypes = [ht.float32]
+        else:
+            dtypes = [ht.float32, ht.float64]
+        for dtype in dtypes:
             tol = 1e-5 if dtype == ht.float32 else 1e-10
             X = ht.random.randn(10, ht.MPI_WORLD.size * 10 + 3, split=1, dtype=dtype)
             U, S, V = ht.linalg.svd(X)
@@ -48,7 +56,11 @@ class TestTallSkinnySVD(TestCase):
             self.assertTrue(ht.all(S >= 0))
 
     def test_singvals_only(self):
-        for dtype in [ht.float32, ht.float64]:
+        if self.is_mps:
+            dtypes = [ht.float32]
+        else:
+            dtypes = [ht.float32, ht.float64]
+        for dtype in dtypes:
             tol = 1e-5 if dtype == ht.float32 else 1e-10
             for split in [0, 1]:
                 shape = (
