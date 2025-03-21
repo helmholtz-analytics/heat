@@ -104,7 +104,7 @@ def _subspaceiteration(
     # warning if the iteration did not converge within the maximum number of iterations
     if A.comm.rank == 0 and not silent:
         print(
-            f"Subspace iteration did not converge in {maxit} iterations. \n It holds ||E||_F/||A||_F = {Enorm/Anorm}, which might impair the accuracy of the result."
+            f"Subspace iteration did not converge in {maxit} iterations. \n It holds ||E||_F/||A||_F = {Enorm/Anorm}, which might impair the accuracy of the result."  # noqa E226
         )
     return Q, k
 
