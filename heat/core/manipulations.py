@@ -850,13 +850,11 @@ def diagonal(a: DNDarray, offset: int = 0, dim1: int = 0, dim2: int = 1) -> DNDa
         split = len(shape) - 1
 
     if a.split is None or a.split not in (dim1, dim2):
-        result = torch.diagonal(a.larray, offset=offset, dim1=dim1, dim2=dim2).contiguous()
+        result = torch.diagonal(a.larray, offset=offset, dim1=dim1, dim2=dim2)
     else:
         vz = 1 if a.split == dim1 else -1
         off, _, _ = a.comm.chunk(a.shape, a.split)
-        result = torch.diagonal(
-            a.larray, offset=offset + vz * off, dim1=dim1, dim2=dim2
-        ).contiguous()
+        result = torch.diagonal(a.larray, offset=offset + vz * off, dim1=dim1, dim2=dim2)
     return factories.array(result, dtype=a.dtype, is_split=split, device=a.device, comm=a.comm)
 
 
@@ -2144,7 +2142,7 @@ def reshape(a: DNDarray, *shape: Union[int, Tuple[int, ...]], **kwargs) -> DNDar
             # keep local slice only
             _, _, local_slice = a.comm.chunk(shape, new_split)
             _ = local_a.reshape(shape)
-            local_a = _[local_slice].contiguous()
+            local_a = _[local_slice]
             del _
         else:
             local_a = local_a.reshape(shape)
