@@ -93,7 +93,9 @@ heat = ["py.typed"]
 packages=["heat"]
 python_version="3.9"
 exclude=[
-    'test_\w+\.py$'
+    'test_\w+\.py$',
+    '^benchmarks/',
+    '^examples/'
 ]
 
 # Strict configuration from https://careers.wolt.com/en/blog/tech/professional-grade-mypy-configuration
@@ -104,6 +106,8 @@ check_untyped_defs=true
 warn_return_any=true
 show_error_codes =true
 warn_unused_ignores=true
+follow_imports = "normal"
+follow_untyped_imports = true
 
 # Ignore most the errors now, focus only ont eh core module
 ignore_errors=true
