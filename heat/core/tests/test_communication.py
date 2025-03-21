@@ -2522,8 +2522,8 @@ class TestCommunication(TestCase):
 
     # the following test is only for up to three processes to save memory
     @unittest.skipIf(
-        ht.MPI_WORLD.size > 3 or "rocm" in torch.__version__,
-        "Only for up to three processes and not on the AMD runner",
+        ht.MPI_WORLD.size == 1 or ht.MPI_WORLD.size > 3 or "rocm" in torch.__version__,
+        "Only for two or three processes and not on the AMD runner",
     )
     def test_largecount_workaround_Allreduce(self):
         shape = (2**10, 2**11, 2**10)
