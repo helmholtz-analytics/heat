@@ -855,7 +855,9 @@ def issubdtype(
 
 
 def promote_types(
-    type1: Union[str, Type[datatype], Any], type2: Union[str, Type[datatype], Any]
+    type1: Union[str, Type[datatype], Any],
+    type2: Union[str, Type[datatype], Any],
+    device: Optional[torch.device] = None,
 ) -> Type[datatype]:
     """
     Returns the data type with the smallest size and smallest scalar kind to which both ``type1`` and ``type2`` may be
@@ -868,6 +870,9 @@ def promote_types(
         type of first operand
     type2 : type or str or datatype
         type of second operand
+    device : torch.device, optional
+        The device on which the promoted type should be used. If the device is an MPS device, the promoted type will be
+        downcasted to float32 or complex64.
 
     Examples
     --------
@@ -883,7 +888,15 @@ def promote_types(
     typecode_type1 = __type_codes[canonical_heat_type(type1)]
     typecode_type2 = __type_codes[canonical_heat_type(type2)]
 
-    return __type_promotions[typecode_type1][typecode_type2]
+    promote_type = __type_promotions[typecode_type1][typecode_type2]
+
+    if device is not None and device.type == "mps":
+        if promote_type is float64:
+            promote_type = float32
+        elif promote_type is complex128:
+            promote_type = complex64
+
+    return promote_type
 
 
 def result_type(
@@ -965,7 +978,25 @@ def result_type(
         # single argument
         return type1, prec1
 
-    return result_type_rec(*arrays_and_types)[0]
+    is_mps = False
+    for args in arrays_and_types:
+        if isinstance(args, dndarray.DNDarray):
+            if args.larray.is_mps:
+                is_mps = True
+                break
+        elif isinstance(args, torch.Tensor):
+            if args.is_mps:
+                is_mps = True
+                break
+
+    result = result_type_rec(*arrays_and_types)[0]
+    if is_mps:
+        if result is float64:
+            result = float32
+        elif result is complex128:
+            result = complex64
+
+    return result
 
 
 class finfo:
