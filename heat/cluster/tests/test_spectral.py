@@ -20,6 +20,7 @@ class TestSpectral(TestCase):
             params,
             {
                 "n_clusters": None,
+                "eigen_solver": "lanczos",
                 "gamma": 1.0,
                 "affinity": "rbf",
                 "laplacian": "fully_connected",
