@@ -1,11 +1,18 @@
+import os
+import unittest
+import platform
+
 import numpy as np
 import torch
 import heat as ht
-import unittest
 
 from .test_suites.basic_test import TestCase
 
+envar = os.getenv("HEAT_TEST_USE_DEVICE", "cpu")
+is_mps = envar == "gpu" and platform.machine() == "arm64"
 
+
+@unittest.skipIf(is_mps, "Distribution not supported on Apple MPS")
 class TestCommunication(TestCase):
     @classmethod
     def setUpClass(cls):
@@ -216,7 +223,6 @@ class TestCommunication(TestCase):
         # contiguous data
         data = ht.ones((1, 7))
         output = ht.zeros((ht.MPI_WORLD.size, 7))
-
         # ensure prior invariants
         self.assertTrue(data.larray.is_contiguous())
         self.assertTrue(output.larray.is_contiguous())
