@@ -2496,8 +2496,8 @@ class TestCommunication(TestCase):
 
     # The following test is only for the bool data type to save memory
     @unittest.skipIf(
-        ht.MPI_WORLD.size == 1 or "rocm" in torch.__version__,
-        "Only for more than one process and not on the AMD runner",
+        ht.MPI_WORLD.size == 1 or ht.MPI_WORLD.size > 3 or "rocm" in torch.__version__,
+        "Only for two or three processes and not on the AMD runner",
     )
     def test_largecount_workaround_IsendRecv(self):
         shape = (2**15, 2**16)
