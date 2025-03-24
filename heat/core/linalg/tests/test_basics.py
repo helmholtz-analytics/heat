@@ -955,13 +955,13 @@ class TestLinalgBasics(TestCase):
         m = ht.arange(8).reshape(2, 2, 2)
         mn = ht.linalg.matrix_norm(m, axis=(2, 1), ord=ht.inf)
         self.assertEqual(mn.split, m.split)
-        self.assertEqual(mn.dtype, ht.float)
+        self.assertEqual(mn.dtype, ht.int64)
         self.assertEqual(mn.device, m.device)
         self.assertTrue(ht.equal(mn, ht.array([4.0, 12.0])))
 
         mn = ht.linalg.matrix_norm(m, axis=(2, 1), ord=-ht.inf)
         self.assertEqual(mn.split, m.split)
-        self.assertEqual(mn.dtype, ht.float)
+        self.assertEqual(mn.dtype, ht.int64)
         self.assertEqual(mn.device, m.device)
         self.assertTrue(ht.equal(mn, ht.array([2.0, 10.0])))
 
