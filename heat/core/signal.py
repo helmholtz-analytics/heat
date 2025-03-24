@@ -115,10 +115,7 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
             v = array(v)
         except TypeError:
             raise TypeError(f"non-supported type for filter: {type(v)}")
-    promoted_type = promote_types(a.dtype, v.dtype)
-    if a.larray.is_mps and promoted_type == float64:
-        # cannot cast to float64 on MPS
-        promoted_type = float32
+    promoted_type = promote_types(a.dtype, v.dtype, device=a.larray.device)
 
     a = a.astype(promoted_type)
     v = v.astype(promoted_type)
