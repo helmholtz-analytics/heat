@@ -2501,7 +2501,10 @@ class TestCommunication(TestCase):
             test4.comm.Alltoallv(test4.larray, redistributed4, send_axis=None)
 
     # The following test is only for the bool data type to save memory
-    # memory requirement: ~16MB * number of processes
+    @unittest.skipIf(
+        ht.MPI_WORLD.size == 1 or ht.MPI_WORLD.size > 2 or "rocm" in torch.__version__,
+        "Only for two or three processes and not on the AMD runner",
+    )
     def test_largecount_workaround_IsendRecv(self):
         shape = (2**15, 2**16)
         data = (
@@ -2523,9 +2526,11 @@ class TestCommunication(TestCase):
             else not buf.all()
         )
 
-    # the following test is only for two processes to save memory
-    # memory requirement: ~16MB * number of processes
-    @unittest.skipIf(ht.MPI_WORLD.size != 2, "Only for two processes")
+    # the following test is only for up to three processes to save memory
+    @unittest.skipIf(
+        ht.MPI_WORLD.size == 1 or ht.MPI_WORLD.size > 2 or "rocm" in torch.__version__,
+        "Only for two or three processes and not on the AMD runner",
+    )
     def test_largecount_workaround_Allreduce(self):
         shape = (2**10, 2**11, 2**10)
         data = (
