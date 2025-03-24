@@ -347,7 +347,13 @@ def inv(a: DNDarray) -> DNDarray:
 
     # no split in the square matrices
     if not a.is_distributed() or a.split < a.ndim - 2:
-        data = torch.inverse(a.larray)
+        try:
+            data = torch.inverse(a.larray)
+        except RuntimeError as e:
+            raise RuntimeError(e)
+        # torch.linalg.inv does not raise RuntimeError on MPS when inversion fails
+        if data.is_mps and torch.any(data.isnan()):
+            raise RuntimeError("linalg.inv: inversion could not be performed")
         return DNDarray(
             data,
             a.shape,
@@ -1260,6 +1266,8 @@ def matrix_norm(
         raise TypeError("'axis' must be a 2-tuple.")
 
     row_axis, col_axis = axis
+
+    # dtype = types.promote_types(x.dtype, types.float32)
 
     if ord == 1:
         if col_axis > row_axis and not keepdims:
