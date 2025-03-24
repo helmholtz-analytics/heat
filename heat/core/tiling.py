@@ -509,7 +509,6 @@ class SquareDiagTiles:
         # if arr.split == 1:  # adjust the 0th dim to be the cumsum
         row_inds = [0] + row_inds[:-1]
         row_inds = torch.tensor(row_inds, device=arr.larray.device).cumsum(dim=0)
-
         for num, c in enumerate(col_inds):  # set columns
             tile_map[:, num, 1] = c
         for num, r in enumerate(row_inds):  # set rows
