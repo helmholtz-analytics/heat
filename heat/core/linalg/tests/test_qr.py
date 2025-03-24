@@ -84,7 +84,11 @@ class TestQR(TestCase):
         for procs_to_merge in [0, 2, 3]:
             for mode in ["reduced", "r"]:
                 # split = 0 can be handled only for tall skinny matrices s.t. the local chunks are at least square too
-                for shape in [(40 * ht.MPI_WORLD.size + 1, 40), (40 * ht.MPI_WORLD.size, 20)]:
+                for shape in [
+                    (20 * ht.MPI_WORLD.size + 1, 40 * ht.MPI_WORLD.size),
+                    (20 * ht.MPI_WORLD.size, 20 * ht.MPI_WORLD.size),
+                    (40 * ht.MPI_WORLD.size - 1, 20 * ht.MPI_WORLD.size),
+                ]:
                     for dtype in dtypes:
                         dtypetol = 1e-3 if dtype == ht.float32 else 1e-6
                         mat = ht.random.randn(*shape, dtype=dtype, split=split)
@@ -156,8 +160,11 @@ class TestQR(TestCase):
             self.assertTrue(ht.allclose(q @ r, x, atol=1e-6, rtol=1e-6))
 
     def test_batched_qr_split0(self):
+        ht.random.seed(424242)
         # one batch dimension, float32 data type, "split = 0" (second last dimension)
-        x = ht.random.randn(8, ht.MPI_WORLD.size * 10 + 3, 9, dtype=ht.float32, split=1)
+        x = ht.random.randn(
+            8, ht.MPI_WORLD.size * 10 + 3, ht.MPI_WORLD.size * 10 - 1, dtype=ht.float32, split=1
+        )
         q, r = ht.linalg.qr(x)
         batched_id = ht.stack([ht.eye(q.shape[2], dtype=ht.float32) for _ in range(q.shape[0])])
 
@@ -188,7 +195,3 @@ class TestQR(TestCase):
         # test wrong dtype
         with self.assertRaises(TypeError):
             ht.linalg.qr(ht.zeros((10, 10), dtype=ht.int32))
-        # test wrong shape for split=0
-        if ht.MPI_WORLD.size > 1:
-            with self.assertRaises(ValueError):
-                ht.linalg.qr(ht.zeros((10, 10), split=0))
