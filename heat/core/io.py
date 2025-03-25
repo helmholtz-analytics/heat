@@ -829,7 +829,7 @@ def load(
         if supports_zarr():
             return load_zarr(path, *args, **kwargs)
         else:
-            raise RuntimeError(f"zarr is required for file extension {extension}")
+            raise RuntimeError(f"Package zarr is required for file extension {extension}")
 
     else:
         raise ValueError(f"Unsupported file extension {extension}")
