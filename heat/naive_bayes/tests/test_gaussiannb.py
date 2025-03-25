@@ -23,14 +23,16 @@ class TestGaussianNB(TestCase):
         self.assertEqual(1e-10, gnb.var_smoothing)
 
     def test_fit_iris(self):
+        if self.is_mps:
+            dtype = ht.float32
+        else:
+            dtype = ht.float64
         # load sklearn train/test sets and resulting probabilities
-        X_train = ht.load("heat/datasets/iris_X_train.csv", sep=";", dtype=ht.float64)
-        X_test = ht.load("heat/datasets/iris_X_test.csv", sep=";", dtype=ht.float64)
+        X_train = ht.load("heat/datasets/iris_X_train.csv", sep=";", dtype=dtype)
+        X_test = ht.load("heat/datasets/iris_X_test.csv", sep=";", dtype=dtype)
         y_train = ht.load("heat/datasets/iris_y_train.csv", sep=";", dtype=ht.int64).squeeze()
         y_test = ht.load("heat/datasets/iris_y_test.csv", sep=";", dtype=ht.int64).squeeze()
-        y_pred_proba_sklearn = ht.load(
-            "heat/datasets/iris_y_pred_proba.csv", sep=";", dtype=ht.float64
-        )
+        y_pred_proba_sklearn = ht.load("heat/datasets/iris_y_pred_proba.csv", sep=";", dtype=dtype)
 
         # test ht.GaussianNB
         from heat.naive_bayes import GaussianNB

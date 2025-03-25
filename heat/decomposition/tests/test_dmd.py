@@ -1,12 +1,18 @@
 import os
 import unittest
+import platform
 import numpy as np
 import torch
 import heat as ht
 
 from ...core.tests.test_suites.basic_test import TestCase
 
+# MPS does not support non-float matrix multiplication
+envar = os.getenv("HEAT_TEST_USE_DEVICE", "cpu")
+is_mps = envar == "gpu" and platform.system() == "Darwin"
 
+
+@unittest.skipIf(is_mps, "MPS does not support non-float matrix multiplication")
 class TestDMD(TestCase):
     def test_dmd_setup_and_catch_wrong(self):
         # catch wrong inputs
