@@ -244,8 +244,14 @@ class TestDNDarray(TestCase):
         self.assertEqual(x.__array__().shape, x.gshape)
 
         # distributed case
-        x = ht.arange(6 * 7 * 8, dtype=ht.float64, split=0).reshape((6, 7, 8))
-        x_np = np.arange(6 * 7 * 8, dtype=np.float64).reshape((6, 7, 8))
+        if self.is_mps:
+            dtype = ht.float32
+            np_dtype = np.float32
+        else:
+            dtype = ht.float64
+            np_dtype = np.float64
+        x = ht.arange(6 * 7 * 8, dtype=dtype, split=0).reshape((6, 7, 8))
+        x_np = np.arange(6 * 7 * 8, dtype=np_dtype).reshape((6, 7, 8))
 
         self.assertTrue((x.__array__() == x.larray.cpu().numpy()).all())
         self.assertIsInstance(x.__array__(), np.ndarray)
@@ -320,12 +326,13 @@ class TestDNDarray(TestCase):
         self.assertEqual(as_uint8.larray.dtype, torch.uint8)
         self.assertIsNot(as_uint8, data)
 
-        # check the copy case for uint8
-        as_float64 = data.astype(ht.float64, copy=False)
-        self.assertIsInstance(as_float64, ht.DNDarray)
-        self.assertEqual(as_float64.dtype, ht.float64)
-        self.assertEqual(as_float64.larray.dtype, torch.float64)
-        self.assertIs(as_float64, data)
+        # check the copy case for float64
+        if not self.is_mps:
+            as_float64 = data.astype(ht.float64, copy=False)
+            self.assertIsInstance(as_float64, ht.DNDarray)
+            self.assertEqual(as_float64.dtype, ht.float64)
+            self.assertEqual(as_float64.larray.dtype, torch.float64)
+            self.assertIs(as_float64, data)
 
     def test_balance_and_lshape_map(self):
         data = ht.zeros((70, 20), split=0)
@@ -347,9 +354,10 @@ class TestDNDarray(TestCase):
         data.balance_()
         self.assertTrue(data.is_balanced())
 
-        data = ht.zeros((70, 20), split=0, dtype=ht.float64)
-        data = ht.balance(data[:50], copy=True)
-        self.assertTrue(data.is_balanced())
+        if not self.is_mps:
+            data = ht.zeros((70, 20), split=0, dtype=ht.float64)
+            data = ht.balance(data[:50], copy=True)
+            self.assertTrue(data.is_balanced())
 
         data = ht.zeros((4, 120), split=1, dtype=ht.int64)
         data = data[:, 40:70].balance()
@@ -357,7 +365,9 @@ class TestDNDarray(TestCase):
 
         data = np.loadtxt("heat/datasets/iris.csv", delimiter=";")
         htdata = ht.load("heat/datasets/iris.csv", sep=";", split=0)
-        self.assertTrue(ht.equal(htdata, ht.array(data, split=0, dtype=ht.float)))
+        self.assertTrue(
+            ht.equal(htdata, ht.array(data.astype(np.float32), split=0, dtype=ht.float))
+        )
 
         if ht.MPI_WORLD.size > 4:
             rank = ht.MPI_WORLD.rank
@@ -946,7 +956,8 @@ class TestDNDarray(TestCase):
 
         # float
         x_float32 = ht.arange(6 * 7 * 8, dtype=ht.float32).reshape((6, 7, 8))
-        x_float64 = ht.arange(6 * 7 * 8, dtype=ht.float64).reshape((6, 7, 8))
+        if not self.is_mps:
+            x_float64 = ht.arange(6 * 7 * 8, dtype=ht.float64).reshape((6, 7, 8))
 
         # bool
         x_bool = ht.arange(6 * 7 * 8, dtype=ht.bool).reshape((6, 7, 8))
@@ -958,7 +969,8 @@ class TestDNDarray(TestCase):
         self.assertEqual(x_int64.lnbytes, x_int64.gnbytes)
 
         self.assertEqual(x_float32.lnbytes, x_float32.gnbytes)
-        self.assertEqual(x_float64.lnbytes, x_float64.gnbytes)
+        if not self.is_mps:
+            self.assertEqual(x_float64.lnbytes, x_float64.gnbytes)
 
         self.assertEqual(x_bool.lnbytes, x_bool.gnbytes)
 
@@ -973,7 +985,8 @@ class TestDNDarray(TestCase):
 
         # float
         x_float32_d = ht.arange(6 * 7 * 8, split=0, dtype=ht.float32)
-        x_float64_d = ht.arange(6 * 7 * 8, split=0, dtype=ht.float64)
+        if not self.is_mps:
+            x_float64_d = ht.arange(6 * 7 * 8, split=0, dtype=ht.float64)
 
         # bool
         x_bool_d = ht.arange(6 * 7 * 8, split=0, dtype=ht.bool)
@@ -985,7 +998,8 @@ class TestDNDarray(TestCase):
         self.assertEqual(x_int64_d.lnbytes, x_int64_d.lnumel * 8)
 
         self.assertEqual(x_float32_d.lnbytes, x_float32_d.lnumel * 4)
-        self.assertEqual(x_float64_d.lnbytes, x_float64_d.lnumel * 8)
+        if not self.is_mps:
+            self.assertEqual(x_float64_d.lnbytes, x_float64_d.lnumel * 8)
 
         self.assertEqual(x_bool_d.lnbytes, x_bool_d.lnumel * 1)
 
@@ -1001,7 +1015,8 @@ class TestDNDarray(TestCase):
 
         # float
         x_float32 = ht.arange(6 * 7 * 8, dtype=ht.float32).reshape((6, 7, 8))
-        x_float64 = ht.arange(6 * 7 * 8, dtype=ht.float64).reshape((6, 7, 8))
+        if not self.is_mps:
+            x_float64 = ht.arange(6 * 7 * 8, dtype=ht.float64).reshape((6, 7, 8))
 
         # bool
         x_bool = ht.arange(6 * 7 * 8, dtype=ht.bool).reshape((6, 7, 8))
@@ -1013,7 +1028,8 @@ class TestDNDarray(TestCase):
         self.assertEqual(x_int64.nbytes, 336 * 8)
 
         self.assertEqual(x_float32.nbytes, 336 * 4)
-        self.assertEqual(x_float64.nbytes, 336 * 8)
+        if not self.is_mps:
+            self.assertEqual(x_float64.nbytes, 336 * 8)
 
         self.assertEqual(x_bool.nbytes, 336 * 1)
 
@@ -1025,7 +1041,8 @@ class TestDNDarray(TestCase):
         self.assertEqual(x_int64.nbytes, x_int64.gnbytes)
 
         self.assertEqual(x_float32.nbytes, x_float32.gnbytes)
-        self.assertEqual(x_float64.nbytes, x_float64.gnbytes)
+        if not self.is_mps:
+            self.assertEqual(x_float64.nbytes, x_float64.gnbytes)
 
         self.assertEqual(x_bool.nbytes, x_bool.gnbytes)
 
@@ -1040,7 +1057,8 @@ class TestDNDarray(TestCase):
 
         # float
         x_float32_d = ht.arange(6 * 7 * 8, split=0, dtype=ht.float32)
-        x_float64_d = ht.arange(6 * 7 * 8, split=0, dtype=ht.float64)
+        if not self.is_mps:
+            x_float64_d = ht.arange(6 * 7 * 8, split=0, dtype=ht.float64)
 
         # bool
         x_bool_d = ht.arange(6 * 7 * 8, split=0, dtype=ht.bool)
@@ -1052,7 +1070,8 @@ class TestDNDarray(TestCase):
         self.assertEqual(x_int64_d.nbytes, 336 * 8)
 
         self.assertEqual(x_float32_d.nbytes, 336 * 4)
-        self.assertEqual(x_float64_d.nbytes, 336 * 8)
+        if not self.is_mps:
+            self.assertEqual(x_float64_d.nbytes, 336 * 8)
 
         self.assertEqual(x_bool_d.nbytes, 336 * 1)
 
@@ -1064,7 +1083,8 @@ class TestDNDarray(TestCase):
         self.assertEqual(x_int64_d.nbytes, x_int64_d.gnbytes)
 
         self.assertEqual(x_float32_d.nbytes, x_float32_d.gnbytes)
-        self.assertEqual(x_float64_d.nbytes, x_float64_d.gnbytes)
+        if not self.is_mps:
+            self.assertEqual(x_float64_d.nbytes, x_float64_d.gnbytes)
 
         self.assertEqual(x_bool_d.nbytes, x_bool_d.gnbytes)
 
@@ -1073,21 +1093,23 @@ class TestDNDarray(TestCase):
         self.assertEqual(a.ndim, 4)
 
     def test_numpy(self):
-        # ToDo: numpy does not work for distributed tensors du to issue#
+        # ToDo: numpy does not work for distributed tensors due to issue#
         # Add additional tests if the issue is solved
-        a = np.random.randn(10, 8)
-        b = ht.array(a)
-        self.assertIsInstance(b.numpy(), np.ndarray)
-        self.assertEqual(b.numpy().shape, a.shape)
-        self.assertEqual(b.numpy().tolist(), b.larray.cpu().numpy().tolist())
+        if not self.is_mps:
+            a = np.random.randn(10, 8)
+            b = ht.array(a)
+            self.assertIsInstance(b.numpy(), np.ndarray)
+            self.assertEqual(b.numpy().shape, a.shape)
+            self.assertEqual(b.numpy().tolist(), b.larray.cpu().numpy().tolist())
 
         a = ht.ones((10, 8), dtype=ht.float32)
         b = np.ones((2, 2)).astype("float32")
         self.assertEqual(a.numpy().dtype, b.dtype)
 
-        a = ht.ones((10, 8), dtype=ht.float64)
-        b = np.ones((2, 2)).astype("float64")
-        self.assertEqual(a.numpy().dtype, b.dtype)
+        if not self.is_mps:
+            a = ht.ones((10, 8), dtype=ht.float64)
+            b = np.ones((2, 2)).astype("float64")
+            self.assertEqual(a.numpy().dtype, b.dtype)
 
         a = ht.ones((10, 8), dtype=ht.int32)
         b = np.ones((2, 2)).astype("int32")
@@ -1106,18 +1128,19 @@ class TestDNDarray(TestCase):
         )
 
     def test_partitioned(self):
-        a = ht.zeros((120, 120), split=0)
-        parted = a.__partitioned__
-        self.assertEqual(parted["shape"], (120, 120))
-        self.assertEqual(parted["partition_tiling"], (a.comm.size, 1))
-        self.assertEqual(parted["partitions"][(0, 0)]["start"], (0, 0))
+        if not self.is_mps:
+            a = ht.zeros((120, 120), split=0)
+            parted = a.__partitioned__
+            self.assertEqual(parted["shape"], (120, 120))
+            self.assertEqual(parted["partition_tiling"], (a.comm.size, 1))
+            self.assertEqual(parted["partitions"][(0, 0)]["start"], (0, 0))
 
-        a.resplit_(None)
-        self.assertIsNone(a.__partitions_dict__)
-        parted = a.__partitioned__
-        self.assertEqual(parted["shape"], (120, 120))
-        self.assertEqual(parted["partition_tiling"], (1, 1))
-        self.assertEqual(parted["partitions"][(0, 0)]["start"], (0, 0))
+            a.resplit_(None)
+            self.assertIsNone(a.__partitions_dict__)
+            parted = a.__partitioned__
+            self.assertEqual(parted["shape"], (120, 120))
+            self.assertEqual(parted["partition_tiling"], (1, 1))
+            self.assertEqual(parted["partitions"][(0, 0)]["start"], (0, 0))
 
     def test_redistribute(self):
         # need to test with 1, 2, 3, and 4 dims
@@ -1188,172 +1211,174 @@ class TestDNDarray(TestCase):
         self.assertEqual(a.__repr__(), a.__str__())
 
     def test_resplit(self):
-        # resplitting with same axis, should leave everything unchanged
-        shape = (ht.MPI_WORLD.size, ht.MPI_WORLD.size)
-        data = ht.zeros(shape, split=None)
-        data.resplit_(None)
+        # MPS tests are always 1 process only
+        if not self.is_mps:
+            # resplitting with same axis, should leave everything unchanged
+            shape = (ht.MPI_WORLD.size, ht.MPI_WORLD.size)
+            data = ht.zeros(shape, split=None)
+            data.resplit_(None)
 
-        self.assertIsInstance(data, ht.DNDarray)
-        self.assertEqual(data.shape, shape)
-        self.assertEqual(data.lshape, shape)
-        self.assertEqual(data.split, None)
+            self.assertIsInstance(data, ht.DNDarray)
+            self.assertEqual(data.shape, shape)
+            self.assertEqual(data.lshape, shape)
+            self.assertEqual(data.split, None)
 
-        # resplitting with same axis, should leave everything unchanged
-        shape = (ht.MPI_WORLD.size, ht.MPI_WORLD.size)
-        data = ht.zeros(shape, split=1)
-        data.resplit_(1)
+            # resplitting with same axis, should leave everything unchanged
+            shape = (ht.MPI_WORLD.size, ht.MPI_WORLD.size)
+            data = ht.zeros(shape, split=1)
+            data.resplit_(1)
 
-        self.assertIsInstance(data, ht.DNDarray)
-        self.assertEqual(data.shape, shape)
-        self.assertEqual(data.lshape, (data.comm.size, 1))
-        self.assertEqual(data.split, 1)
+            self.assertIsInstance(data, ht.DNDarray)
+            self.assertEqual(data.shape, shape)
+            self.assertEqual(data.lshape, (data.comm.size, 1))
+            self.assertEqual(data.split, 1)
 
-        # splitting an unsplit tensor should result in slicing the tensor locally
-        shape = (ht.MPI_WORLD.size, ht.MPI_WORLD.size)
-        data = ht.zeros(shape)
-        data.resplit_(-1)
+            # splitting an unsplit tensor should result in slicing the tensor locally
+            shape = (ht.MPI_WORLD.size, ht.MPI_WORLD.size)
+            data = ht.zeros(shape)
+            data.resplit_(-1)
 
-        self.assertIsInstance(data, ht.DNDarray)
-        self.assertEqual(data.shape, shape)
-        self.assertEqual(data.lshape, (data.comm.size, 1))
-        self.assertEqual(data.split, 1)
+            self.assertIsInstance(data, ht.DNDarray)
+            self.assertEqual(data.shape, shape)
+            self.assertEqual(data.lshape, (data.comm.size, 1))
+            self.assertEqual(data.split, 1)
 
-        # unsplitting, aka gathering a tensor
-        shape = (ht.MPI_WORLD.size + 1, ht.MPI_WORLD.size)
-        data = ht.ones(shape, split=0)
-        data.resplit_(None)
+            # unsplitting, aka gathering a tensor
+            shape = (ht.MPI_WORLD.size + 1, ht.MPI_WORLD.size)
+            data = ht.ones(shape, split=0)
+            data.resplit_(None)
 
-        self.assertIsInstance(data, ht.DNDarray)
-        self.assertEqual(data.shape, shape)
-        self.assertEqual(data.lshape, shape)
-        self.assertEqual(data.split, None)
+            self.assertIsInstance(data, ht.DNDarray)
+            self.assertEqual(data.shape, shape)
+            self.assertEqual(data.lshape, shape)
+            self.assertEqual(data.split, None)
 
-        # assign and entirely new split axis
-        shape = (ht.MPI_WORLD.size + 2, ht.MPI_WORLD.size + 1)
-        data = ht.ones(shape, split=0)
-        data.resplit_(1)
+            # assign and entirely new split axis
+            shape = (ht.MPI_WORLD.size + 2, ht.MPI_WORLD.size + 1)
+            data = ht.ones(shape, split=0)
+            data.resplit_(1)
 
-        self.assertIsInstance(data, ht.DNDarray)
-        self.assertEqual(data.shape, shape)
-        self.assertEqual(data.lshape[0], ht.MPI_WORLD.size + 2)
-        self.assertTrue(data.lshape[1] == 1 or data.lshape[1] == 2)
-        self.assertEqual(data.split, 1)
+            self.assertIsInstance(data, ht.DNDarray)
+            self.assertEqual(data.shape, shape)
+            self.assertEqual(data.lshape[0], ht.MPI_WORLD.size + 2)
+            self.assertTrue(data.lshape[1] == 1 or data.lshape[1] == 2)
+            self.assertEqual(data.split, 1)
 
-        # test sorting order of resplit
-        a_tensor = self.reference_tensor.copy()
-        N = ht.MPI_WORLD.size
+            # test sorting order of resplit
+            a_tensor = self.reference_tensor.copy()
+            N = ht.MPI_WORLD.size
 
-        # split along axis = 0
-        a_tensor.resplit_(axis=0)
-        local_shape = (1, N + 1, 2 * N)
-        local_tensor = self.reference_tensor[ht.MPI_WORLD.rank, :, :]
-        self.assertEqual(a_tensor.lshape, local_shape)
-        self.assertTrue((a_tensor.larray == local_tensor.larray).all())
+            # split along axis = 0
+            a_tensor.resplit_(axis=0)
+            local_shape = (1, N + 1, 2 * N)
+            local_tensor = self.reference_tensor[ht.MPI_WORLD.rank, :, :]
+            self.assertEqual(a_tensor.lshape, local_shape)
+            self.assertTrue((a_tensor.larray == local_tensor.larray).all())
 
-        # unsplit
-        a_tensor.resplit_(axis=None)
-        self.assertTrue((a_tensor.larray == self.reference_tensor.larray).all())
+            # unsplit
+            a_tensor.resplit_(axis=None)
+            self.assertTrue((a_tensor.larray == self.reference_tensor.larray).all())
 
-        # split along axis = 1
-        a_tensor.resplit_(axis=1)
-        if ht.MPI_WORLD.rank == 0:
-            local_shape = (N, 2, 2 * N)
-            local_tensor = self.reference_tensor[:, 0:2, :]
-        else:
-            local_shape = (N, 1, 2 * N)
+            # split along axis = 1
+            a_tensor.resplit_(axis=1)
+            if ht.MPI_WORLD.rank == 0:
+                local_shape = (N, 2, 2 * N)
+                local_tensor = self.reference_tensor[:, 0:2, :]
+            else:
+                local_shape = (N, 1, 2 * N)
+                local_tensor = self.reference_tensor[
+                    :, ht.MPI_WORLD.rank + 1 : ht.MPI_WORLD.rank + 2, :
+                ]
+
+            self.assertEqual(a_tensor.lshape, local_shape)
+            self.assertTrue((a_tensor.larray == local_tensor.larray).all())
+
+            # unsplit
+            a_tensor.resplit_(axis=None)
+            self.assertTrue((a_tensor.larray == self.reference_tensor.larray).all())
+
+            # split along axis = 2
+            a_tensor.resplit_(axis=2)
+            local_shape = (N, N + 1, 2)
             local_tensor = self.reference_tensor[
-                :, ht.MPI_WORLD.rank + 1 : ht.MPI_WORLD.rank + 2, :
+                :, :, 2 * ht.MPI_WORLD.rank : 2 * ht.MPI_WORLD.rank + 2
             ]
 
-        self.assertEqual(a_tensor.lshape, local_shape)
-        self.assertTrue((a_tensor.larray == local_tensor.larray).all())
+            self.assertEqual(a_tensor.lshape, local_shape)
+            self.assertTrue((a_tensor.larray == local_tensor.larray).all())
 
-        # unsplit
-        a_tensor.resplit_(axis=None)
-        self.assertTrue((a_tensor.larray == self.reference_tensor.larray).all())
+            expected = torch.ones(
+                (ht.MPI_WORLD.size, 100), dtype=torch.int64, device=self.device.torch_device
+            )
+            data = ht.array(expected, split=1)
+            data.resplit_(None)
 
-        # split along axis = 2
-        a_tensor.resplit_(axis=2)
-        local_shape = (N, N + 1, 2)
-        local_tensor = self.reference_tensor[
-            :, :, 2 * ht.MPI_WORLD.rank : 2 * ht.MPI_WORLD.rank + 2
-        ]
+            self.assertTrue(torch.equal(data.larray, expected))
+            self.assertFalse(data.is_distributed())
+            self.assertIsNone(data.split)
+            self.assertEqual(data.dtype, ht.int64)
+            self.assertEqual(data.larray.dtype, expected.dtype)
 
-        self.assertEqual(a_tensor.lshape, local_shape)
-        self.assertTrue((a_tensor.larray == local_tensor.larray).all())
+            expected = torch.zeros(
+                (100, ht.MPI_WORLD.size), dtype=torch.uint8, device=self.device.torch_device
+            )
+            data = ht.array(expected, split=0)
+            data.resplit_(None)
 
-        expected = torch.ones(
-            (ht.MPI_WORLD.size, 100), dtype=torch.int64, device=self.device.torch_device
-        )
-        data = ht.array(expected, split=1)
-        data.resplit_(None)
+            self.assertTrue(torch.equal(data.larray, expected))
+            self.assertFalse(data.is_distributed())
+            self.assertIsNone(data.split)
+            self.assertEqual(data.dtype, ht.uint8)
+            self.assertEqual(data.larray.dtype, expected.dtype)
 
-        self.assertTrue(torch.equal(data.larray, expected))
-        self.assertFalse(data.is_distributed())
-        self.assertIsNone(data.split)
-        self.assertEqual(data.dtype, ht.int64)
-        self.assertEqual(data.larray.dtype, expected.dtype)
+            # "in place"
+            length = torch.tensor([i + 20 for i in range(2)], device=self.device.torch_device)
+            test = torch.arange(
+                torch.prod(length), dtype=torch.float64, device=self.device.torch_device
+            ).reshape([i + 20 for i in range(2)])
+            a = ht.array(test, split=1)
+            a.resplit_(axis=0)
+            self.assertTrue(ht.equal(a, ht.array(test, split=0)))
+            self.assertEqual(a.split, 0)
+            self.assertEqual(a.dtype, ht.float64)
+            del a
 
-        expected = torch.zeros(
-            (100, ht.MPI_WORLD.size), dtype=torch.uint8, device=self.device.torch_device
-        )
-        data = ht.array(expected, split=0)
-        data.resplit_(None)
+            test = torch.arange(torch.prod(length), device=self.device.torch_device)
+            a = ht.array(test, split=0)
+            a.resplit_(axis=None)
+            self.assertTrue(ht.equal(a, ht.array(test, split=None)))
+            self.assertEqual(a.split, None)
+            self.assertEqual(a.dtype, ht.int64)
+            del a
 
-        self.assertTrue(torch.equal(data.larray, expected))
-        self.assertFalse(data.is_distributed())
-        self.assertIsNone(data.split)
-        self.assertEqual(data.dtype, ht.uint8)
-        self.assertEqual(data.larray.dtype, expected.dtype)
+            a = ht.array(test, split=None)
+            a.resplit_(axis=0)
+            self.assertTrue(ht.equal(a, ht.array(test, split=0)))
+            self.assertEqual(a.split, 0)
+            self.assertEqual(a.dtype, ht.int64)
+            del a
 
-        # "in place"
-        length = torch.tensor([i + 20 for i in range(2)], device=self.device.torch_device)
-        test = torch.arange(
-            torch.prod(length), dtype=torch.float64, device=self.device.torch_device
-        ).reshape([i + 20 for i in range(2)])
-        a = ht.array(test, split=1)
-        a.resplit_(axis=0)
-        self.assertTrue(ht.equal(a, ht.array(test, split=0)))
-        self.assertEqual(a.split, 0)
-        self.assertEqual(a.dtype, ht.float64)
-        del a
+            a = ht.array(test, split=0)
+            resplit_a = ht.manipulations.resplit(a, axis=None)
+            self.assertTrue(ht.equal(resplit_a, ht.array(test, split=None)))
+            self.assertEqual(resplit_a.split, None)
+            self.assertEqual(resplit_a.dtype, ht.int64)
+            del a
 
-        test = torch.arange(torch.prod(length), device=self.device.torch_device)
-        a = ht.array(test, split=0)
-        a.resplit_(axis=None)
-        self.assertTrue(ht.equal(a, ht.array(test, split=None)))
-        self.assertEqual(a.split, None)
-        self.assertEqual(a.dtype, ht.int64)
-        del a
+            a = ht.array(test, split=None)
+            resplit_a = ht.manipulations.resplit(a, axis=0)
+            self.assertTrue(ht.equal(resplit_a, ht.array(test, split=0)))
+            self.assertEqual(resplit_a.split, 0)
+            self.assertEqual(resplit_a.dtype, ht.int64)
+            del a
 
-        a = ht.array(test, split=None)
-        a.resplit_(axis=0)
-        self.assertTrue(ht.equal(a, ht.array(test, split=0)))
-        self.assertEqual(a.split, 0)
-        self.assertEqual(a.dtype, ht.int64)
-        del a
-
-        a = ht.array(test, split=0)
-        resplit_a = ht.manipulations.resplit(a, axis=None)
-        self.assertTrue(ht.equal(resplit_a, ht.array(test, split=None)))
-        self.assertEqual(resplit_a.split, None)
-        self.assertEqual(resplit_a.dtype, ht.int64)
-        del a
-
-        a = ht.array(test, split=None)
-        resplit_a = ht.manipulations.resplit(a, axis=0)
-        self.assertTrue(ht.equal(resplit_a, ht.array(test, split=0)))
-        self.assertEqual(resplit_a.split, 0)
-        self.assertEqual(resplit_a.dtype, ht.int64)
-        del a
-
-        # 1D non-contiguous resplit testing
-        t1 = ht.arange(10 * 10, split=0).reshape((10, 10))
-        t1_sub = t1[:, 1]  # .expand_dims(0)
-        res = ht.array([1, 11, 21, 31, 41, 51, 61, 71, 81, 91])
-        t1_sub.resplit_(axis=None)
-        self.assertTrue(ht.all(t1_sub == res))
-        self.assertEqual(t1_sub.split, None)
+            # 1D non-contiguous resplit testing
+            t1 = ht.arange(10 * 10, split=0).reshape((10, 10))
+            t1_sub = t1[:, 1]  # .expand_dims(0)
+            res = ht.array([1, 11, 21, 31, 41, 51, 61, 71, 81, 91])
+            t1_sub.resplit_(axis=None)
+            self.assertTrue(ht.all(t1_sub == res))
+            self.assertEqual(t1_sub.split, None)
 
     def test_setitem(self):
         # following https://numpy.org/doc/stable/user/basics.indexing.html
@@ -1799,23 +1824,25 @@ class TestDNDarray(TestCase):
     #     for c, i in enumerate(range(4)):
     #         self.assertEqual(a[1, c], i)
 
-    #     # setting with torch tensor
-    #     a = ht.zeros((4, 5), split=0)
-    #     a[1, 0:4] = torch.arange(4, device=self.device.torch_device)
-    #     # if a.comm.size == 2:
-    #     for c, i in enumerate(range(4)):
-    #         self.assertEqual(a[1, c], i)
+    # # setting with heat tensor
+    # a = ht.zeros((4, 5), split=0)
+    # if self.is_mps:
+    #     a[1, 0:4] = ht.arange(4, dtype=a.dtype)
+    # else:
+    #     a[1, 0:4] = ht.arange(4)
+    # # if a.comm.size == 2:
+    # for c, i in enumerate(range(4)):
+    #     self.assertEqual(a[1, c], i)
 
-    #     ###################################################
-    #     a = ht.zeros((13, 5), split=1)
-    #     # # set value on one node
-    #     a[10] = 1
-    #     self.assertEqual(a[10].dtype, ht.float32)
-    #     if a.comm.size == 2:
-    #         if a.comm.rank == 0:
-    #             self.assertEqual(a[10].lshape, (3,))
-    #         if a.comm.rank == 1:
-    #             self.assertEqual(a[10].lshape, (2,))
+    # # setting with torch tensor
+    # a = ht.zeros((4, 5), split=0)
+    # if self.is_mps:
+    #     a[1, 0:4] = torch.arange(4, dtype=a.larray.dtype, device=self.device.torch_device)
+    # else:
+    #     a[1, 0:4] = torch.arange(4, device=self.device.torch_device)
+    # # if a.comm.size == 2:
+    # for c, i in enumerate(range(4)):
+    #     self.assertEqual(a[1, c], i)
 
     #     a = ht.zeros((13, 5), split=1)
     #     # # set value on one node
@@ -1908,23 +1935,25 @@ class TestDNDarray(TestCase):
     #         if b.larray.numel() > 0:
     #             self.assertEqual(b.item(), i)
 
-    #     # setting with torch tensor
-    #     a = ht.zeros((4, 5), split=1)
-    #     a[1, 0:4] = torch.arange(4, device=self.device.torch_device)
-    #     for c, i in enumerate(range(4)):
-    #         self.assertEqual(a[1, c], i)
+    # # setting with heat tensor
+    # a = ht.zeros((4, 5), split=1)
+    # if self.is_mps:
+    #     a[1, 0:4] = ht.arange(4, dtype=a.dtype)
+    # else:
+    #     a[1, 0:4] = ht.arange(4)
+    # for c, i in enumerate(range(4)):
+    #     b = a[1, c]
+    #     if b.larray.numel() > 0:
+    #         self.assertEqual(b.item(), i)
 
-    #     ####################################################
-    #     a = ht.zeros((13, 5, 7), split=2)
-    #     # # set value on one node
-    #     a[10, :, :] = 1
-    #     self.assertEqual(a[10, :, :].dtype, ht.float32)
-    #     self.assertEqual(a[10, :, :].gshape, (5, 7))
-    #     if a.comm.size == 2:
-    #         if a.comm.rank == 0:
-    #             self.assertEqual(a[10, :, :].lshape, (5, 4))
-    #         if a.comm.rank == 1:
-    #             self.assertEqual(a[10, :, :].lshape, (5, 3))
+    # # setting with torch tensor
+    # a = ht.zeros((4, 5), split=1)
+    # if a.device.torch_device.startswith("mps"):
+    #     a[1, 0:4] = torch.arange(4, dtype=a.larray.dtype, device=self.device.torch_device)
+    # else:
+    #     a[1, 0:4] = torch.arange(4, device=self.device.torch_device)
+    # for c, i in enumerate(range(4)):
+    #     self.assertEqual(a[1, c], i)
 
     #     a = ht.zeros((13, 5, 7), split=2)
     #     # # set value on one node
@@ -2152,20 +2181,22 @@ class TestDNDarray(TestCase):
             self.assertEqual(heat_float32.strides, numpy_float32.strides)
 
         # Local, float64, column-major memory layout
-        torch_float64 = torch.arange(
-            6 * 5 * 3 * 4 * 5 * 7, dtype=torch.float64, device=self.device.torch_device
-        ).reshape(6, 5, 3, 4, 5, 7)
-        heat_float64_F = ht.array(torch_float64, order="F")
-        numpy_float64_F = np.array(torch_float64.cpu().numpy(), order="F")
-        self.assertNotEqual(heat_float64_F.stride(), torch_float64.stride())
-        if pytorch_major_version >= 2:
-            self.assertTrue(
-                (
-                    np.asarray(heat_float64_F.strides) * 8 == np.asarray(numpy_float64_F.strides)
-                ).all()
-            )
-        else:
-            self.assertEqual(heat_float64_F.strides, numpy_float64_F.strides)
+        if not self.is_mps:
+            torch_float64 = torch.arange(
+                6 * 5 * 3 * 4 * 5 * 7, dtype=torch.float64, device=self.device.torch_device
+            ).reshape(6, 5, 3, 4, 5, 7)
+            heat_float64_F = ht.array(torch_float64, order="F")
+            numpy_float64_F = np.array(torch_float64.cpu().numpy(), order="F")
+            self.assertNotEqual(heat_float64_F.stride(), torch_float64.stride())
+            if pytorch_major_version >= 2:
+                self.assertTrue(
+                    (
+                        np.asarray(heat_float64_F.strides) * 8
+                        == np.asarray(numpy_float64_F.strides)
+                    ).all()
+                )
+            else:
+                self.assertEqual(heat_float64_F.strides, numpy_float64_F.strides)
 
         # Distributed, int16, row-major memory layout
         size = ht.communication.MPI_WORLD.size
@@ -2211,24 +2242,25 @@ class TestDNDarray(TestCase):
             self.assertEqual(heat_float32_split.strides, numpy_float32_split_strides)
 
         # Distributed, float64, column-major memory layout
-        split = -2
-        torch_float64 = torch.arange(
-            6 * 5 * 3 * 4 * 5 * size * 7, dtype=torch.float64, device=self.device.torch_device
-        ).reshape(6, 5, 3, 4, 5 * size, 7)
-        heat_float64_F_split = ht.array(torch_float64, order="F", split=split)
-        numpy_float64_F = np.array(torch_float64.cpu().numpy(), order="F")
-        numpy_float64_F_split_strides = numpy_float64_F.strides[: split + 1] + tuple(
-            np.array(numpy_float64_F.strides[split + 1 :]) / size
-        )
-        if pytorch_major_version >= 2:
-            self.assertTrue(
-                (
-                    np.asarray(heat_float64_F_split.strides) * 8
-                    == np.asarray(numpy_float64_F_split_strides)
-                ).all()
+        if not self.is_mps:
+            split = -2
+            torch_float64 = torch.arange(
+                6 * 5 * 3 * 4 * 5 * size * 7, dtype=torch.float64, device=self.device.torch_device
+            ).reshape(6, 5, 3, 4, 5 * size, 7)
+            heat_float64_F_split = ht.array(torch_float64, order="F", split=split)
+            numpy_float64_F = np.array(torch_float64.cpu().numpy(), order="F")
+            numpy_float64_F_split_strides = numpy_float64_F.strides[: split + 1] + tuple(
+                np.array(numpy_float64_F.strides[split + 1 :]) / size
             )
-        else:
-            self.assertEqual(heat_float64_F_split.strides, numpy_float64_F_split_strides)
+            if pytorch_major_version >= 2:
+                self.assertTrue(
+                    (
+                        np.asarray(heat_float64_F_split.strides) * 8
+                        == np.asarray(numpy_float64_F_split_strides)
+                    ).all()
+                )
+            else:
+                self.assertEqual(heat_float64_F_split.strides, numpy_float64_F_split_strides)
 
     def test_tolist(self):
         a = ht.zeros([ht.MPI_WORLD.size, ht.MPI_WORLD.size, ht.MPI_WORLD.size], dtype=ht.int32)
