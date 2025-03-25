@@ -1,9 +1,17 @@
+import os
+import platform
+import unittest
+
 import torch
 
 import heat as ht
 from .test_suites.basic_test import TestCase
 
+envar = os.getenv("HEAT_TEST_USE_DEVICE", "cpu")
+is_mps = envar == "gpu" and platform.machine() == "arm64"
 
+
+@unittest.skipIf(is_mps, "Distribution not supported on Apple MPS")
 class TestSplitTiles(TestCase):
     # most of the cases are covered by the resplit tests
     def test_raises(self):

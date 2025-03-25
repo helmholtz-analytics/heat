@@ -192,12 +192,23 @@ class TestIO(TestCase):
         "Requires the environment variable 'TMPDIR' to point to a globally accessible path. Otherwise the test will be skiped on multi-node setups.",
     )
     def test_save_csv(self):
-        for rnd_type in [
-            (ht.random.randint, ht.types.int32),
-            (ht.random.randint, ht.types.int64),
-            (ht.random.rand, ht.types.float32),
-            (ht.random.rand, ht.types.float64),
-        ]:
+        # Test for different random types
+        # include float64 only if device is not MPS
+        data = None
+        if self.is_mps:
+            rnd_types = [
+                (ht.random.randint, ht.types.int32),
+                (ht.random.randint, ht.types.int64),
+                (ht.random.rand, ht.types.float32),
+            ]
+        else:
+            rnd_types = [
+                (ht.random.randint, ht.types.int32),
+                (ht.random.randint, ht.types.int64),
+                (ht.random.rand, ht.types.float32),
+                (ht.random.rand, ht.types.float64),
+            ]
+        for rnd_type in rnd_types:
             for separator in [",", ";", "|"]:
                 for split in [None, 0, 1]:
                     for headers in [None, ["# This", "# is a", "# test."]]:
@@ -813,17 +824,19 @@ class TestIO(TestCase):
             float_array = np.concatenate(crea_array, 1)
         ht.MPI_WORLD.Barrier()
 
-        load_array = ht.load_npy_from_path(
-            os.path.join(os.getcwd(), "heat/datasets"), dtype=ht.float64, split=1
-        )
-        load_array_npy = load_array.numpy()
-        self.assertIsInstance(load_array, ht.DNDarray)
-        self.assertEqual(load_array.dtype, ht.float64)
-        if ht.MPI_WORLD.rank == 0:
-            self.assertTrue((load_array_npy == float_array).all)
-            for file in os.listdir(os.path.join(os.getcwd(), "heat/datasets")):
-                if fnmatch.fnmatch(file, "*.npy"):
-                    os.remove(os.path.join(os.getcwd(), "heat/datasets", file))
+        if not self.is_mps:
+            # float64 not supported in MPS
+            load_array = ht.load_npy_from_path(
+                os.path.join(os.getcwd(), "heat/datasets"), dtype=ht.float64, split=1
+            )
+            load_array_npy = load_array.numpy()
+            self.assertIsInstance(load_array, ht.DNDarray)
+            self.assertEqual(load_array.dtype, ht.float64)
+            if ht.MPI_WORLD.rank == 0:
+                self.assertTrue((load_array_npy == float_array).all)
+                for file in os.listdir(os.path.join(os.getcwd(), "heat/datasets")):
+                    if fnmatch.fnmatch(file, "*.npy"):
+                        os.remove(os.path.join(os.getcwd(), "heat/datasets", file))
 
     def test_load_npy_exception(self):
         with self.assertRaises(TypeError):
