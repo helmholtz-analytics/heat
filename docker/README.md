@@ -1,3 +1,23 @@
+# Table of Contents
+- [Table of Contents](#table-of-contents)
+- [Docker images of Heat](#docker-images-of-heat)
+	- [General build](#general-build)
+		- [Docker](#docker)
+		- [Building for HPC](#building-for-hpc)
+			- [Apptainer (formerly singularity)](#apptainer-formerly-singularity)
+			- [SIB (Singularity Image Builder) for Apptainer images](#sib-singularity-image-builder-for-apptainer-images)
+	- [Running on HPC](#running-on-hpc)
+		- [Multi-node example](#multi-node-example)
+	- [Scripts](#scripts)
+	- [Useful commands for first-time docker users](#useful-commands-for-first-time-docker-users)
+		- [Run the container in interactive mode (in a terminal)](#run-the-container-in-interactive-mode-in-a-terminal)
+		- [List all active containers](#list-all-active-containers)
+		- [Close all currently running containers](#close-all-currently-running-containers)
+		- [List all images](#list-all-images)
+		- [Rename docker container](#rename-docker-container)
+	- [How to download a pre-built image from the container registry](#how-to-download-a-pre-built-image-from-the-container-registry)
+	- [How to push a new image to ghcr.io](#how-to-push-a-new-image-to-ghcrio)
+
 # Docker images of Heat
 
 There is some flexibility to building the Docker images of Heat.
@@ -99,43 +119,58 @@ srun --mpi="pmi2" apptainer exec --nv heat_1.2.0_torch.11_cuda11.5_py3.9.sif bas
 The scripts folder has a small collection of helper scripts to automate certain tasks, primarly meant for heat developers. Explanations are given at the top of the script.
 
 ## Useful commands for first-time docker users
+### Run the container in interactive mode (in a terminal)
+```bash
+docker run -it [docker container id]
+```
+### List all active containers
+```bash
+docker ps -a
+```
 
-> docker run -it [docker container id]
-Runs the container in interactive mode (Opens a terminal)
-
-> docker ps -a
-Lists all active containers
-
-> docker system prune 
-Closes all currently running containers and frees up the resources
-
-> docker system prune --all --force
-Frees up all space taken up by docker images, even stopped ones
-
-> docker images
-Lists all docker images
-
-> docker tag <old_image_name>:<old_image_tag> <new_image_name>:<new_image_tag>
-Rename the docker container (Needed to upload)
+### Close all currently running containers
+Free up resources
+```bash
+docker system prune
+```
+Free up all space taken up by docker image, even stopped ones
+```bash
+docker system prune --all --force
+```
+### List all images
+```bash
+docker images
+```
+### Rename docker container
+Needed to upload image
+```bash
+docker tag <old_image_name>:<old_image_tag> <new_image_name>:<new_image_tag>
+```
 
 ## How to download a pre-built image from the container registry
 The github container registry (ghcr.io) contains different docker versions of heat / pytorch / cuda / rocm.
-
-> docker pull ghcr.io/NAMESPACE/IMAGE_NAME
+```bash
+docker pull ghcr.io/NAMESPACE/IMAGE_NAME
+```
+> 
 
 For further info refer to the [Github documentation on package registries](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry)
 
 ## How to push a new image to ghcr.io
 
-1. Make sure you have a github access token set up in the CLI
-> [Authenticating to the container registry](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry#authenticating-to-the-container-registry)
+1. Make sure you have a github access token set up in the CLI.
+[Authenticating to the container registry](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry#authenticating-to-the-container-registry)
 
-> docker login ghcr.io -u USERNAME -p GITHUB_PERSONAL_ACCESS_TOKEN
-
+```bash
+docker login ghcr.io -u USERNAME -p GITHUB_PERSONAL_ACCESS_TOKEN
+```
 2. Rename the local image in the following format:
-> docker tag current:name ghcr.io/helmholtz-analytics/heat:1.X.X-torchX.X_cudaXX.X_py3.XX
-1. Upload the image via:
-> docker push ghcr.io/helmholtz-analytics/heat:1.X.X-torchX.X_cudaXX.X_py3.XX
-
+```bash
+docker tag current:name ghcr.io/helmholtz-analytics/heat:1.X.X-torchX.X_cudaXX.X_py3.XX
+```
+3. Upload the image via:
+```bash
+docker push ghcr.io/helmholtz-analytics/heat:1.X.X-torchX.X_cudaXX.X_py3.XX
+```
 For further info refer to the [Github documentation on package registries](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry)
 
