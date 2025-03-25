@@ -172,7 +172,7 @@ The github container registry (ghcr.io) contains different docker versions of he
 ```bash
 docker pull ghcr.io/NAMESPACE/IMAGE_NAME
 ```
-> 
+>
 
 For further info refer to the [Github documentation on package registries](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry)
 
