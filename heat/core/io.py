@@ -774,7 +774,7 @@ def load(
     """
     Attempts to load data from a file stored on disk. Attempts to auto-detect the file format by determining the
     extension. Supports at least CSV files, HDF5 and netCDF4 are additionally possible if the corresponding libraries
-    are installed.is
+    are installed.
 
     Parameters
     ----------
