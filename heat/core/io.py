@@ -802,11 +802,11 @@ def load(
     See Also
     --------
     :func:`load_csv` : Loads data from a CSV file.
-    :func:`load_netcdf` : Loads data from a NetCDF4 file.
-    :func:`load_hdf5` : Loads data from an HDF5 file.
-    :func:`load_zarr` : Loads zarr-Format into DNDarray which will be returned.
-    :func:`load_npy_from_path` : Loads multiple .npy files into one DNDarray which will be returned.
     :func:`load_csv_from_folder` : Loads multiple .csv files into one DNDarray which will be returned.
+    :func:`load_hdf5` : Loads data from an HDF5 file.
+    :func:`load_netcdf` : Loads data from a NetCDF4 file.
+    :func:`load_npy_from_path` : Loads multiple .npy files into one DNDarray which will be returned.
+    :func:`load_zarr` : Loads zarr-Format into DNDarray which will be returned.
 
     """
     if not isinstance(path, str):
