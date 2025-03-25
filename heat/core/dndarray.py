@@ -208,13 +208,16 @@ class DNDarray:
         """
         Number of total elements of the ``DNDarray``
         """
-        return (
-            torch.prod(
+        if self.larray.is_mps:
+            # MPS does not support double precision
+            size = torch.prod(
+                torch.tensor(self.gshape, dtype=torch.float32, device=self.device.torch_device)
+            )
+        else:
+            size = torch.prod(
                 torch.tensor(self.gshape, dtype=torch.float64, device=self.device.torch_device)
             )
-            .long()
-            .item()
-        )
+        return size.long().item()
 
     @property
     def gnbytes(self) -> int:
@@ -502,6 +505,21 @@ class DNDarray:
 
         """
         dtype = canonical_heat_type(dtype)
+        if self.__array.is_mps:
+            if dtype == types.float64:
+                # print warning
+                warnings.warn(
+                    "MPS does not support float64. Casting to float32 instead.",
+                    ResourceWarning,
+                )
+                dtype = types.float32
+            elif dtype == types.complex128:
+                # print warning
+                warnings.warn(
+                    "MPS does not support complex128. Casting to complex64 instead.",
+                    ResourceWarning,
+                )
+                dtype = types.complex64
         casted_array = self.__array.type(dtype.torch_type())
         if copy:
             return DNDarray(
@@ -1906,6 +1924,7 @@ from . import sanitation
 from . import statistics
 from . import stride_tricks
 from . import tiling
+from . import types
 
 from .devices import Device
 from .stride_tricks import sanitize_axis
