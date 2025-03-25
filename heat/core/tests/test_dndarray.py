@@ -1673,8 +1673,6 @@ class TestDNDarray(TestCase):
         arr_split2[mask_split2] = value[mask]
         self.assertTrue((arr_split2[mask_split2] == value[mask]).all().item())
 
-        # TODO boolean mask, distributed, distributed `value`
-
         # TODO: incorporate following in setitem/getitem tests
         # # 3D non-contiguous resplit testing (Column mayor ordering)
         # torch_array = torch.arange(100, device=self.device.torch_device).reshape((10, 5, 2))
