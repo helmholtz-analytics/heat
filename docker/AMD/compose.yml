@@ -5,5 +5,3 @@ services:
     image: rocm/dev-ubuntu-24.04
     container_name: rocm_dev_container
     restart: unless-stopped
-
-

@@ -128,6 +128,7 @@ docker run -it [docker container id]
 docker ps -a
 ```
 
+<<<<<<< HEAD
 ### Close all currently running containers
 Free up resources
 ```bash
@@ -146,6 +147,25 @@ Needed to upload image
 ```bash
 docker tag <old_image_name>:<old_image_tag> <new_image_name>:<new_image_tag>
 ```
+=======
+> docker run -it [docker container id]
+Runs the container in interactive mode (Opens a terminal)
+
+> docker ps -a
+Lists all active containers
+
+> docker system prune
+Closes all currently running containers and frees up the resources
+
+> docker system prune --all --force
+Frees up all space taken up by docker images, even stopped ones
+
+> docker images
+Lists all docker images
+
+> docker tag <old_image_name>:<old_image_tag> <new_image_name>:<new_image_tag>
+Rename the docker container (Needed to upload)
+>>>>>>> 42700de560856941e152c7212ff50a3528df9943
 
 ## How to download a pre-built image from the container registry
 The github container registry (ghcr.io) contains different docker versions of heat / pytorch / cuda / rocm.
@@ -173,4 +193,3 @@ docker tag current:name ghcr.io/helmholtz-analytics/heat:1.X.X-torchX.X_cudaXX.X
 docker push ghcr.io/helmholtz-analytics/heat:1.X.X-torchX.X_cudaXX.X_py3.XX
 ```
 For further info refer to the [Github documentation on package registries](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry)
-
