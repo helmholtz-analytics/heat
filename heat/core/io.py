@@ -1245,7 +1245,7 @@ def save(
         if supports_zarr():
             return save_zarr(data, path, *args, **kwargs)
         else:
-            raise RuntimeError(f"zarr is required for file extension {extension}")
+            raise RuntimeError(f"Package zarr is required for file extension {extension}")
     else:
         raise ValueError(f"Unsupported file extension {extension}")
 
