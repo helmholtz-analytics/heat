@@ -238,10 +238,11 @@ class TestDistances(TestCase):
         result = ht.array(res, dtype=ht.float32, split=0)
         self.assertTrue(ht.allclose(d, result, atol=1e-8))
 
-        B = A.astype(ht.float64)
-        d = ht.spatial.cdist(A, B, quadratic_expansion=False)
-        result = ht.array(res, dtype=ht.float64, split=0)
-        self.assertTrue(ht.allclose(d, result, atol=1e-8))
+        if not self.is_mps:
+            B = A.astype(ht.float64)
+            d = ht.spatial.cdist(A, B, quadratic_expansion=False)
+            result = ht.array(res, dtype=ht.float64, split=0)
+            self.assertTrue(ht.allclose(d, result, atol=1e-8))
 
         B = A.astype(ht.int16)
         d = ht.spatial.cdist(A, B, quadratic_expansion=False)
@@ -257,7 +258,8 @@ class TestDistances(TestCase):
         result = ht.array(res, dtype=ht.float32, split=0)
         self.assertTrue(ht.allclose(d, result, atol=1e-8))
 
-        B = A.astype(ht.float64)
-        d = ht.spatial.cdist(B, quadratic_expansion=False)
-        result = ht.array(res, dtype=ht.float64, split=0)
-        self.assertTrue(ht.allclose(d, result, atol=1e-8))
+        if not self.is_mps:
+            B = A.astype(ht.float64)
+            d = ht.spatial.cdist(B, quadratic_expansion=False)
+            result = ht.array(res, dtype=ht.float64, split=0)
+            self.assertTrue(ht.allclose(d, result, atol=1e-8))
