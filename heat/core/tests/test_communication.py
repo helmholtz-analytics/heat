@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 import heat as ht
+import unittest
 
 from .test_suites.basic_test import TestCase
 
@@ -2492,3 +2493,44 @@ class TestCommunication(TestCase):
             test4.comm.Alltoallv(test4.larray, redistributed4, send_axis=2, recv_axis=2)
         with self.assertRaises(NotImplementedError):
             test4.comm.Alltoallv(test4.larray, redistributed4, send_axis=None)
+
+    # The following test is only for the bool data type to save memory
+    @unittest.skipIf(
+        ht.MPI_WORLD.size == 1 or ht.MPI_WORLD.size > 2 or "rocm" in torch.__version__,
+        "Only for two or three processes and not on the AMD runner",
+    )
+    def test_largecount_workaround_IsendRecv(self):
+        shape = (2**15, 2**16)
+        data = (
+            torch.zeros(shape, dtype=torch.bool)
+            if ht.MPI_WORLD.rank % 2 == 0
+            else torch.ones(shape, dtype=torch.bool)
+        )
+        buf = torch.empty(shape, dtype=torch.bool)
+        req = ht.MPI_WORLD.Isend(
+            data, ht.MPI_WORLD.rank - 1 if ht.MPI_WORLD.rank > 0 else ht.MPI_WORLD.size - 1
+        )
+        ht.MPI_WORLD.Recv(
+            buf, ht.MPI_WORLD.rank + 1 if ht.MPI_WORLD.rank < ht.MPI_WORLD.size - 1 else 0
+        )
+        req.Wait()
+        self.assertTrue(
+            buf.all()
+            if (ht.MPI_WORLD.rank % 2 == 0 and ht.MPI_WORLD.rank != ht.MPI_WORLD.size - 1)
+            else not buf.all()
+        )
+
+    # the following test is only for up to three processes to save memory
+    @unittest.skipIf(
+        ht.MPI_WORLD.size == 1 or ht.MPI_WORLD.size > 2 or "rocm" in torch.__version__,
+        "Only for two or three processes and not on the AMD runner",
+    )
+    def test_largecount_workaround_Allreduce(self):
+        shape = (2**10, 2**11, 2**10)
+        data = (
+            torch.zeros(shape, dtype=torch.bool)
+            if ht.MPI_WORLD.rank % 2 == 0
+            else torch.ones(shape, dtype=torch.bool)
+        )
+        ht.MPI_WORLD.Allreduce(ht.MPI.IN_PLACE, data, op=ht.MPI.SUM)
+        self.assertTrue(data.all())
