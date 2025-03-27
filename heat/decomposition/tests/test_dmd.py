@@ -270,6 +270,9 @@ class TestDMDc(TestCase):
         # inconsistent number of timesteps
         with self.assertRaises(ValueError):
             dmd.fit(ht.zeros((5 * ht.MPI_WORLD.size, 3), split=0), ht.zeros((2, 4), split=0))
+        # predict for fit
+        with self.assertRaises(RuntimeError):
+            dmd.predict(ht.zeros((5 * ht.MPI_WORLD.size, 3), split=0), ht.zeros((2, 4), split=0))
 
     def test_dmdc_functionality_split0(self):
         # check whether the everything works with split=0, various checks are scattered over the different cases
@@ -328,6 +331,9 @@ class TestDMDc(TestCase):
         # wrong split for C
         with self.assertRaises(ValueError):
             dmd.predict(Y, ht.zeros((10, 5), split=1))
+        # wrong shape for C
+        with self.assertRaises(ValueError):
+            dmd.predict(Y, ht.zeros((5, 5), split=None))
 
     def test_dmdc_functionality_split1(self):
         # check whether everything works with split=1, various checks are scattered over the different cases
