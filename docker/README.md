@@ -20,6 +20,8 @@
 
 # Docker images of Heat
 
+Current and previous docker images can be found in our [Github Container Registry](https://github.com/helmholtz-analytics/heat/pkgs/container/heat)
+
 There is some flexibility to building the Docker images of Heat.
 
 Firstly, one can build from the released version taken from PyPI using `Dockerfile.release`. This will either be
