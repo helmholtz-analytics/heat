@@ -298,9 +298,9 @@ class TestDMDc(TestCase):
         dmd.fit(X, C)
         self.assertTrue(dmd.rom_basis_.shape[1] == 3)
         self.assertTrue(dmd.dmdmodes_.shape == (10 * ht.MPI_WORLD.size, 3))
-        dmd = ht.decomposition.DMDc(svd_solver="hierarchical", svd_rank=8)
+        dmd = ht.decomposition.DMDc(svd_solver="hierarchical", svd_rank=3)
         dmd.fit(X, C)
-        self.assertTrue(dmd.rom_eigenvalues_.shape == (8,))
+        self.assertTrue(dmd.rom_eigenvalues_.shape == (3,))
         dmd = ht.decomposition.DMDc(svd_solver="hierarchical", svd_tol=1e-1)
         dmd.fit(X, C)
         Y = ht.random.randn(3, 10 * ht.MPI_WORLD.size, split=1)
@@ -311,7 +311,7 @@ class TestDMDc(TestCase):
         self.assertTrue(dmd.dmdmodes_.dtype == ht.complex64)
 
         X = ht.random.randn(1000, 10 * ht.MPI_WORLD.size, split=0, dtype=ht.float32)
-        dmd = ht.decomposition.DMDc(svd_solver="randomized", svd_rank=max(4, ht.MPI_WORLD.size))
+        dmd = ht.decomposition.DMDc(svd_solver="randomized", svd_rank=4)
         # split mismatch for X and C
         C = ht.random.randn(10, 10 * ht.MPI_WORLD.size, split=1)
         with self.assertRaises(ValueError):
