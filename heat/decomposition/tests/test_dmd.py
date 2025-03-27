@@ -95,6 +95,9 @@ class TestDMD(TestCase):
                 ht.zeros((1000, 5), split=0),
                 "this is clearly neither an integer nor a list of integers",
             )
+        # what not has been implemented so far
+        with self.assertRaises(NotImplementedError):
+            dmd.predict(ht.zeros((1000, 5), split=0), 10)
 
     def test_dmd_functionality_split1(self):
         # check whether everything works with split=1, various checks are scattered over the different cases
