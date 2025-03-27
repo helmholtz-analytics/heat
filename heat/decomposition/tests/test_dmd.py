@@ -83,6 +83,10 @@ class TestDMD(TestCase):
         Z = dmd.predict_next(Y, 2)
         self.assertTrue(Z.dtype == ht.float32)
         self.assertEqual(Z.shape, Y.shape)
+        Y = ht.random.rand(1000, split=0, dtype=ht.float32)
+        Z = dmd.predict_next(Y, 2)
+        self.assertTrue(Z.dtype == ht.float32)
+        self.assertEqual(Z.shape, Y.shape)
 
         # wrong shape of input for prediction
         with self.assertRaises(ValueError):
