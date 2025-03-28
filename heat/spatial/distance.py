@@ -331,7 +331,6 @@ def cdist_small(
         # extract the corresponding indices
         current_idx = torch.gather(merged_idx, 1, topk_indices)
 
-    print(f"\n\n\n process: {ht.MPI_WORLD.rank} \n current_idx={current_idx}\n\n\n ")
     # assign the local results on each process (torch.tensor) to the distributed distance and index matrix (ht.DNDarray)
     dist_small = ht.array(current_dist, is_split=0)
     indices = ht.array(current_idx, is_split=0)
