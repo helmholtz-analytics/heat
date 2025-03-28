@@ -62,14 +62,20 @@ class TestLinalgBasics(TestCase):
         b_2d = ht.array(np_b[:-1, :, :], split=1)
         cross_3d_2d = ht.cross(a, b_2d, axisa=1, axisb=0)
         np_cross_3d_2d = np.cross(
-            np_a, np.concatenate([np_b[:-1, :, :], np.zeros((1, 40, 50))], axis=0), axisa=1, axisb=0
+            np_a,
+            np.concatenate([np_b[:-1, :, :], np.zeros((1, 40, 50))], axis=0, dtype=np.float32),
+            axisa=1,
+            axisb=0,
         )
         self.assert_array_equal(cross_3d_2d, np_cross_3d_2d)
 
         a_2d = ht.array(np_a[:, :-1, :], split=0)
         cross_2d_3d = ht.cross(a_2d, b, axisa=1, axisb=0)
         np_cross_2d_3d = np.cross(
-            np.concatenate([np_a[:, :-1, :], np.zeros((40, 1, 50))], axis=1), np_b, axisa=1, axisb=0
+            np.concatenate([np_a[:, :-1, :], np.zeros((40, 1, 50))], axis=1, dtype=np.float32),
+            np_b,
+            axisa=1,
+            axisb=0,
         )
         self.assert_array_equal(cross_2d_3d, np_cross_2d_3d)
 
