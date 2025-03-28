@@ -1001,9 +1001,7 @@ class DNDarray:
                                 except TypeError:
                                     # ndarray key
                                     sorted = torch.tensor(np.sort(key), device=arr.larray.device)
-                                split_key_is_ordered = torch.tensor(
-                                    key == sorted, dtype=torch.uint8
-                                ).item()
+                                split_key_is_ordered = (key == sorted).all().item()
                                 if not split_key_is_ordered:
                                     # prepare for distributed non-ordered indexing: distribute torch/numpy key
                                     key = factories.array(key, split=0, device=arr.device).larray
