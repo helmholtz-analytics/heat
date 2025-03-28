@@ -76,7 +76,7 @@ class TestLinalgBasics(TestCase):
         self.assert_array_equal(cross_2d_3d, np_cross_2d_3d)
 
         cross_z_comp = ht.cross(a_2d, b_2d, axisa=1, axisb=0)
-        np_cross_z_comp = np.cross(np_a[:, :-1, :], np_b[:-1, :, :], axisa=1, axisb=0)
+        np_cross_z_comp = np_a[:, 0, ...] * np_b[1, ...] - np_a[:, 1, ...] * np_b[0, ...]
         self.assert_array_equal(cross_z_comp, np_cross_z_comp)
 
         a_wrong_split = ht.array(np_a[:, :-1, :], split=2)
