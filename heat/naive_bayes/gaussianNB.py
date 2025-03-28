@@ -293,8 +293,12 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
             self.theta_ = ht.zeros((n_classes, n_features), dtype=x.dtype, device=x.device)
             self.sigma_ = ht.zeros((n_classes, n_features), dtype=x.dtype, device=x.device)
 
+            if x.larray.is_mps:
+                class_count_dtype = ht.float32
+            else:
+                class_count_dtype = ht.types.promote_types(x.dtype, ht.float)
             self.class_count_ = ht.zeros(
-                (x.comm.size, n_classes), dtype=ht.float64, device=x.device, split=0
+                (x.comm.size, n_classes), dtype=class_count_dtype, device=x.device, split=0
             )
             # Initialise the class prior
             # Take into account the priors
@@ -316,7 +320,7 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
             else:
                 # Initialize the priors to zeros for each class
                 self.class_prior_ = ht.zeros(
-                    len(self.classes_), dtype=ht.float64, split=None, device=x.device
+                    len(self.classes_), dtype=class_count_dtype, split=None, device=x.device
                 )
         else:
             if x.shape[1] != self.theta_.shape[1]:
