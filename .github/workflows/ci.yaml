@@ -30,6 +30,10 @@ jobs:
             pytorch-version: 'torch==2.1.2 torchvision==0.16.2 torchaudio==2.1.2'
           - py-version: '3.12'
             pytorch-version: 'torch==2.2.2 torchvision==0.17.2 torchaudio==2.2.2'
+          - py-version: '3.9'
+            install-options: '.[hdf5,netcdf,pandas,zarr]'
+          - py-version: '3.10'
+            install-options: '.[hdf5,netcdf,pandas,zarr]'
 
 
     name: Python ${{ matrix.py-version }} with ${{ matrix.pytorch-version }}; options ${{ matrix.install-options }}
