@@ -211,10 +211,6 @@ def arctan2(x1: DNDarray, x2: DNDarray) -> DNDarray:
     >>> ht.arctan2(y, x) * 180 / ht.pi
     DNDarray([-135.0000,  -45.0000,   45.0000,  135.0000], dtype=ht.float64, device=cpu:0, split=None)
     """
-    # Cast integer to float because torch.atan2() only supports integer types on PyTorch 1.5.0.
-    x1 = x1.astype(types.promote_types(x1.dtype, types.float))
-    x2 = x2.astype(types.promote_types(x2.dtype, types.float))
-
     return binary_op(torch.atan2, x1, x2)
 
 
