@@ -216,7 +216,7 @@ def __counter_sequence(
     tmp_counter += used_values
     __counter = tmp_counter & 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF  # 128-bit mask
 
-    return x_0.contiguous(), x_1.contiguous(), lshape, lslice
+    return x_0, x_1, lshape, lslice
 
 
 def get_state() -> Tuple[str, int, int, int, float]:
