@@ -107,7 +107,7 @@ def nonzero(x: DNDarray) -> Tuple[DNDarray, ...]:
     for i, nz_tensor in enumerate(global_nonzero):
         if nz_tensor.ndim > 1:
             # extra dimension in distributed case from usage of torch.split()
-            nz_tensor = nz_tensor.squeeze()
+            nz_tensor = nz_tensor.squeeze(dim=-1)
         nz_array = DNDarray(
             nz_tensor,
             gshape=output_shape,
