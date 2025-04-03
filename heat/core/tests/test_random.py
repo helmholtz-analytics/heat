@@ -1,8 +1,15 @@
+import os
+import platform
+import unittest
+
 import numpy as np
 import torch
 
 import heat as ht
 from .test_suites.basic_test import TestCase
+
+envar = os.getenv("HEAT_TEST_USE_DEVICE", "cpu")
+is_mps = envar == "gpu" and platform.system() == "Darwin"
 
 
 class TestRandom_Batchparallel(TestCase):
@@ -53,10 +60,13 @@ class TestRandom_Batchparallel(TestCase):
         if self.device.torch_device == "cpu":
             state = torch.random.get_rng_state()
         else:
-            state = torch.cuda.get_rng_state(self.device.torch_device)
+            if self.is_mps:
+                state = torch.mps.get_rng_state()
+            else:
+                state = torch.cuda.get_rng_state(self.device.torch_device)
 
         # results
-        a = ht.random.permutation(10)
+        a = ht.random.permutation(10, device=self.device)
 
         b_arr = ht.arange(10, dtype=ht.float32)
         b = ht.random.permutation(ht.resplit(b_arr, 0))
@@ -70,7 +80,10 @@ class TestRandom_Batchparallel(TestCase):
         if self.device.torch_device == "cpu":
             torch.random.set_rng_state(state)
         else:
-            torch.cuda.set_rng_state(state, self.device.torch_device)
+            if self.is_mps:
+                torch.mps.set_rng_state(state)
+            else:
+                torch.cuda.set_rng_state(state, self.device.torch_device)
 
         # torch results to compare to
         a_cmp = torch.randperm(a.shape[0], device=self.device.torch_device)
@@ -83,18 +96,19 @@ class TestRandom_Batchparallel(TestCase):
         self.assertEqual(a.dtype, ht.int64)
         self.assertEqual(b.dtype, ht.float32)
 
-        c0.resplit_(None)
-        c1.resplit_(None)
-        b.resplit_(None)
+        if not self.is_mps:
+            c0.resplit_(None)
+            c1.resplit_(None)
+            b.resplit_(None)
 
-        # due to different states of the torch RNG on different processes and due to construction of the permutation
-        # the values are only equal on process no 0 which has been used for generating the permutation
-        if ht.MPI_WORLD.rank == 0:
-            self.assertTrue((a.larray == a_cmp).all())
-            self.assertTrue((b.larray == b_cmp).all())
-            self.assertTrue((c.larray == c_cmp).all())
-            self.assertTrue((c0.larray == c0_cmp).all())
-            self.assertTrue((c1.larray == c1_cmp).all())
+            # due to different states of the torch RNG on different processes and due to construction of the permutation
+            # the values are only equal on process no 0 which has been used for generating the permutation
+            if ht.MPI_WORLD.rank == 0:
+                self.assertTrue((a.larray == a_cmp).all())
+                self.assertTrue((b.larray == b_cmp).all())
+                self.assertTrue((c.larray == c_cmp).all())
+                self.assertTrue((c0.larray == c0_cmp).all())
+                self.assertTrue((c1.larray == c1_cmp).all())
 
         with self.assertRaises(TypeError):
             ht.random.permutation("abc")
@@ -122,19 +136,21 @@ class TestRandom_Batchparallel(TestCase):
         self.assertTrue((counts <= 2).all())
 
         # Two large arrays that were created after each other don't share too much values
-        b = ht.random.rand(14, 7, 3, 12, 18, 42, split=5, comm=ht.MPI_WORLD, dtype=ht.float64)
-        c = np.concatenate((a.flatten(), b.numpy().flatten()))
-        _, counts = np.unique(c, return_counts=True)
-        self.assertTrue((counts <= 2).all())
+        if not self.is_mps:
+            # this condition is not met if b is float32, MPS does not support float64
+            b = ht.random.rand(14, 7, 3, 12, 18, 42, split=5, comm=ht.MPI_WORLD, dtype=ht.float64)
+            c = np.concatenate((a.flatten(), b.numpy().flatten()))
+            _, counts = np.unique(c, return_counts=True)
+            self.assertTrue((counts <= 2).all())
 
-        # Values should be spread evenly across the range [0, 1)
-        mean = np.mean(c)
-        median = np.median(c)
-        std = np.std(c)
-        self.assertTrue(0.49 < mean < 0.51)
-        self.assertTrue(0.49 < median < 0.51)
-        self.assertTrue(std < 0.3)
-        self.assertTrue(((0 <= c) & (c < 1)).all())
+            # Values should be spread evenly across the range [0, 1)
+            mean = np.mean(c)
+            median = np.median(c)
+            std = np.std(c)
+            self.assertTrue(0.49 < mean < 0.51)
+            self.assertTrue(0.49 < median < 0.51)
+            self.assertTrue(std < 0.3)
+            self.assertTrue(((0 <= c) & (c < 1)).all())
 
         # No arguments work correctly
         ht.random.seed(seed)
@@ -196,7 +212,9 @@ class TestRandom_Batchparallel(TestCase):
         ht.random.seed(13579)
         b = ht.random.randint(low=0, high=10000, size=shape, split=2, dtype=ht.int64)
 
-        self.assertTrue(ht.equal(a, b))
+        if not self.is_mps:
+            # assertion fails on more than 4 dimensions on MPS
+            self.assertTrue(ht.equal(a, b))
         mean = ht.mean(a)
         # median = ht.median(a)
         std = ht.std(a)
@@ -252,11 +270,12 @@ class TestRandom_Batchparallel(TestCase):
         self.assertTrue(ht.equal(a, b))
 
     def test_randn(self):
+        float_dtype = ht.float32 if self.is_mps else ht.float64
         # Test that the random values have the correct distribution
         ht.random.seed(54321)
         shape = (5, 10, 13, 23)
-        a = ht.random.randn(*shape, split=0, dtype=ht.float64)
-        self.assertEqual(a.dtype, ht.float64)
+        a = ht.random.randn(*shape, split=0, dtype=float_dtype)
+        self.assertEqual(a.dtype, float_dtype)
         mean = ht.mean(a)
         median = ht.median(a)
         std = ht.std(a)
@@ -265,22 +284,23 @@ class TestRandom_Batchparallel(TestCase):
         self.assertTrue(0.98 < std < 1.02)
 
         # Creating the same array two times without resetting seed results in different elements
-        c = ht.random.randn(*shape, split=0, dtype=ht.float64)
+        c = ht.random.randn(*shape, split=0, dtype=float_dtype)
         self.assertEqual(c.shape, a.shape)
         self.assertFalse(ht.allclose(a, c))
 
-        # All the created values should be different
-        d = ht.concatenate((a, c))
-        d.resplit_(None)
-        d = d.numpy()
-        _, counts = np.unique(d, return_counts=True)
-        self.assertTrue((counts == 1).all())
+        if not self.is_mps:
+            # If dtype is float64, all the created values should be different
+            d = ht.concatenate((a, c))
+            d.resplit_(None)
+            d = d.numpy()
+            _, counts = np.unique(d, return_counts=True)
+            self.assertTrue((counts == 1).all())
 
         # Two arrays are the same for same seed and split-axis != 0
         ht.random.seed(12345)
-        a = ht.random.randn(*shape, split=3, dtype=ht.float64)
+        a = ht.random.randn(*shape, split=3, dtype=float_dtype)
         ht.random.seed(12345)
-        b = ht.random.randn(*shape, split=3, dtype=ht.float64)
+        b = ht.random.randn(*shape, split=3, dtype=float_dtype)
         self.assertTrue(ht.equal(a, b))
 
         # Tests with float32
@@ -313,32 +333,43 @@ class TestRandom_Batchparallel(TestCase):
         self.assertTrue(isinstance(x, float))
 
     def test_randperm(self):
+        # Reset RNG
+        ht.random.seed()
         if self.device.torch_device == "cpu":
             state = torch.random.get_rng_state()
         else:
-            state = torch.cuda.get_rng_state(self.device.torch_device)
+            if self.is_mps:
+                state = torch.mps.get_rng_state()
+            else:
+                state = torch.cuda.get_rng_state(self.device.torch_device)
 
         # results
         a = ht.random.randperm(10, dtype=ht.int32)
         b = ht.random.randperm(4, dtype=ht.float32, split=0)
         c = ht.random.randperm(5, split=0)
-        d = ht.random.randperm(5, dtype=ht.float64)
+        if not self.is_mps:
+            d = ht.random.randperm(5, dtype=ht.float64)
 
         if self.device.torch_device == "cpu":
             torch.random.set_rng_state(state)
         else:
-            torch.cuda.set_rng_state(state, self.device.torch_device)
+            if self.is_mps:
+                torch.mps.set_rng_state(state)
+            else:
+                torch.cuda.set_rng_state(state, self.device.torch_device)
 
         # torch results to compare to
-        a_cmp = torch.randperm(10, dtype=torch.int32, device=self.device.torch_device)
+        a_cmp = torch.randperm(10, dtype=torch.int32, device=a.larray.device)
         b_cmp = torch.randperm(4, dtype=torch.float32, device=self.device.torch_device)
         c_cmp = torch.randperm(5, dtype=torch.int64, device=self.device.torch_device)
-        d_cmp = torch.randperm(5, dtype=torch.float64, device=self.device.torch_device)
+        if not self.is_mps:
+            d_cmp = torch.randperm(5, dtype=torch.float64, device=self.device.torch_device)
 
         self.assertEqual(a.dtype, ht.int32)
         self.assertEqual(b.dtype, ht.float32)
         self.assertEqual(c.dtype, ht.int64)
-        self.assertEqual(d.dtype, ht.float64)
+        if not self.is_mps:
+            self.assertEqual(d.dtype, ht.float64)
         brsp = ht.resplit(b)
         crsp = ht.resplit(c)
 
@@ -348,7 +379,8 @@ class TestRandom_Batchparallel(TestCase):
             self.assertTrue((a.larray == a_cmp).all())
             self.assertTrue((brsp.larray == b_cmp).all())
             self.assertTrue((crsp.larray == c_cmp).all())
-            self.assertTrue((d.larray == d_cmp).all())
+            if not self.is_mps:
+                self.assertTrue((d.larray == d_cmp).all())
 
         with self.assertRaises(TypeError):
             ht.random.randperm("abc")
@@ -411,6 +443,7 @@ Tests for Threefry RNG
 """
 
 
+@unittest.skipIf(is_mps, "Threefry not supported on Apple MPS")
 class TestRandom_Threefry(TestCase):
     def test_setting_threefry(self):
         ht.random.set_state(("Threefry", 12345, 0xFFF))

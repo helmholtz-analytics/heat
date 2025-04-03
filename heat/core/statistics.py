@@ -98,7 +98,13 @@ def argmax(
             offset, _, _ = x.comm.chunk(shape, x.split)
             indices += torch.tensor(offset, dtype=indices.dtype)
 
-        return torch.cat([maxima.double(), indices.double()])
+        if maxima.is_mps:
+            # MPS framework doesn't support float64
+            out = torch.cat([maxima.float(), indices.float()])
+        else:
+            out = torch.cat([maxima.double(), indices.double()])
+
+        return out
 
     # axis sanitation
     if axis is not None and not isinstance(axis, int):
@@ -156,21 +162,27 @@ def argmin(
         # argmin will be the flattened index, computed standalone and the actual minimum value obtain separately
         if len(args) <= 1 and axis < 0:
             indices = torch.argmin(*args, **kwargs).reshape(1)
-            minimums = args[0].flatten()[indices]
+            minima = args[0].flatten()[indices]
 
             # artificially flatten the input tensor shape to correct the offset computation
             axis = 0
             shape = [np.prod(shape)]
         # usual case where indices and minimum values are both returned. Axis is not equal to None
         else:
-            minimums, indices = torch.min(*args, **kwargs)
+            minima, indices = torch.min(*args, **kwargs)
 
         # add offset of data chunks if reduction is computed across split axis
         if axis == x.split:
             offset, _, _ = x.comm.chunk(shape, x.split)
             indices += torch.tensor(offset, dtype=indices.dtype)
 
-        return torch.cat([minimums.double(), indices.double()])
+        if minima.is_mps:
+            # MPS framework doesn't support float64
+            out = torch.cat([minima.float(), indices.float()])
+        else:
+            out = torch.cat([minima.double(), indices.double()])
+
+        return out
 
     # axis sanitation
     if axis is not None and not isinstance(axis, int):
@@ -659,7 +671,7 @@ def histc(
         out=out._DNDarray__array if out is not None and input.split is None else None,
     )
 
-    if input.split is None:
+    if not input.is_distributed():
         if out is None:
             out = DNDarray(
                 hist,
@@ -984,7 +996,7 @@ def mean(x: DNDarray, axis: Optional[Union[int, Tuple[int, ...]]] = None) -> DND
     # ----------------------------------------------------------------------------------------------
     # sanitize dtype
     if types.heat_type_is_exact(x.dtype):
-        if x.dtype is types.int64:
+        if x.dtype is types.int64 and not x.larray.is_mps:
             x = x.astype(types.float64)
         else:
             x = x.astype(types.float32)
@@ -1597,7 +1609,10 @@ def percentile(
         output_shape = perc_size + output_shape
 
     # output data type must be float
-    output_dtype = types.float32 if x.larray.element_size() == 4 else types.float64
+    if x.larray.element_size() == 4 or x.larray.is_mps:
+        output_dtype = types.float32
+    else:
+        output_dtype = types.float64
     if out is not None:
         sanitation.sanitize_out(out, output_shape, output_split, x.device, x.comm)
         if output_dtype != out.dtype:
@@ -1800,7 +1815,7 @@ def std(
     """
     # sanitize dtype
     if types.heat_type_is_exact(x.dtype):
-        if x.dtype is types.int64:
+        if x.dtype is types.int64 and not x.larray.is_mps:
             x = x.astype(types.float64)
         else:
             x = x.astype(types.float32)
