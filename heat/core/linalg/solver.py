@@ -411,7 +411,11 @@ def solve_triangular(A: DNDarray, b: DNDarray) -> DNDarray:
                 displ[i:] = 0
 
                 res_send = torch.empty(0)
-                res_recv = torch.zeros((*batch_shape, count[comm.rank], b.shape[-1]), device=tdev)
+                res_recv = torch.zeros(
+                    (*batch_shape, count[comm.rank], b.shape[-1]),
+                    device=tdev,
+                    dtype=b.dtype.torch_type(),
+                )
 
                 if comm.rank == i:
                     x.larray = torch.linalg.solve_triangular(

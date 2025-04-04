@@ -688,7 +688,8 @@ class TestManipulations(TestCase):
         res.balance_()
         self.assertTrue(
             torch.equal(
-                res.larray, torch.tensor([rank * 2, 1 + rank * 2], device=self.device.torch_device)
+                res.larray,
+                torch.tensor([rank * 2, 1 + rank * 2], device=self.device.torch_device),
             )
         )
 
@@ -705,7 +706,8 @@ class TestManipulations(TestCase):
         res.balance_()
         self.assertTrue(
             torch.equal(
-                res.larray, torch.tensor([rank * 2, 1 + rank * 2], device=self.device.torch_device)
+                res.larray,
+                torch.tensor([rank * 2, 1 + rank * 2], device=self.device.torch_device),
             )
         )
 
