@@ -191,7 +191,7 @@ class _BatchParallelKCluster(ht.ClusteringMixin, ht.BaseEstimator):
         # local k-clustering
         local_random_state = None if self.random_state is None else self.random_state + x.comm.rank
         centers_local, n_iters_local = _kmex(
-            x.larray,
+            x.V_local_larray,
             self._p,
             self.n_clusters,
             self._init,
@@ -213,12 +213,12 @@ class _BatchParallelKCluster(ht.ClusteringMixin, ht.BaseEstimator):
                 if local_comm.rank == 0:
                     gathered_centers_local = torch.zeros(
                         (local_comm.size, self.n_clusters, x.shape[1]),
-                        device=x.larray.device,
-                        dtype=x.larray.dtype,
+                        device=x.V_local_larray.device,
+                        dtype=x.V_local_larray.dtype,
                     )
                 else:
                     gathered_centers_local = torch.empty(
-                        0, device=x.larray.device, dtype=x.larray.dtype
+                        0, device=x.V_local_larray.device, dtype=x.V_local_larray.dtype
                     )
                 # gather centers from all processes of the process group of at most n_procs_to_merge processes
                 local_comm.Gather(centers_local, gathered_centers_local, root=0, axis=0)
@@ -294,7 +294,7 @@ class _BatchParallelKCluster(ht.ClusteringMixin, ht.BaseEstimator):
             )
 
         local_labels = _parallel_batched_kmex_predict(
-            x.larray, self._cluster_centers.larray, self._p
+            x.V_local_larray, self._cluster_centers.V_local_larray, self._p
         ).to(torch.int32)
         labels = DNDarray(
             local_labels,
@@ -308,13 +308,17 @@ class _BatchParallelKCluster(ht.ClusteringMixin, ht.BaseEstimator):
         if self._p == 2:
             self._functional_value = (
                 torch.norm(
-                    x.larray - self._cluster_centers.larray[local_labels, :].squeeze(), p="fro"
+                    x.V_local_larray
+                    - self._cluster_centers.V_local_larray[local_labels, :].squeeze(),
+                    p="fro",
                 )
                 ** 2
             )
         else:
             self._functional_value = torch.norm(
-                x.larray - self._cluster_centers.larray[local_labels, :].squeeze(), p=self._p, dim=1
+                x.V_local_larray - self._cluster_centers.V_local_larray[local_labels, :].squeeze(),
+                p=self._p,
+                dim=1,
             ).sum()
         x.comm.Allreduce(ht.communication.MPI.IN_PLACE, self._functional_value)
         self._functional_value = self._functional_value.item()

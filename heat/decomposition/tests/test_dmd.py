@@ -145,7 +145,11 @@ class TestDMD(TestCase):
         m, n = 25 * ht.MPI_WORLD.size, 15
         X = ht.hstack(
             [
-                (ht.array(torch.linalg.matrix_power(A_red.larray, i) @ x0_red.larray))
+                (
+                    ht.array(
+                        torch.linalg.matrix_power(A_red.V_local_larray, i) @ x0_red.V_local_larray
+                    )
+                )
                 for i in range(n + 1)
             ]
         )
@@ -183,7 +187,11 @@ class TestDMD(TestCase):
         m, n = 10, 15 * ht.MPI_WORLD.size + 2
         X = ht.hstack(
             [
-                (ht.array(torch.linalg.matrix_power(A_red.larray, i) @ x0_red.larray))
+                (
+                    ht.array(
+                        torch.linalg.matrix_power(A_red.V_local_larray, i) @ x0_red.V_local_larray
+                    )
+                )
                 for i in range(n + 1)
             ]
         )

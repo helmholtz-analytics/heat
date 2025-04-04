@@ -541,7 +541,7 @@ class MPICommunication(Communication):
             A Tag to identify the message
         """
         if isinstance(buf, DNDarray):
-            buf = buf.larray
+            buf = buf.V_local_larray
         if not isinstance(buf, torch.Tensor):
             return MPIRequest(self.handle.Irecv(buf, source, tag))
 
@@ -572,7 +572,7 @@ class MPICommunication(Communication):
             Details on the communication
         """
         if isinstance(buf, DNDarray):
-            buf = buf.larray
+            buf = buf.V_local_larray
         if not isinstance(buf, torch.Tensor):
             return self.handle.Recv(buf, source, tag, status)
 
@@ -603,7 +603,7 @@ class MPICommunication(Communication):
             A Tag to identify the message
         """
         if isinstance(buf, DNDarray):
-            buf = buf.larray
+            buf = buf.V_local_larray
         if not isinstance(buf, torch.Tensor):
             return func(buf, dest, tag), None
 
@@ -771,7 +771,7 @@ class MPICommunication(Communication):
         """
         # unpack the buffer if it is a HeAT tensor
         if isinstance(buf, DNDarray):
-            buf = buf.larray
+            buf = buf.V_local_larray
         # convert torch tensors to MPI memory buffers
         if not isinstance(buf, torch.Tensor):
             return func(buf, root), None, None, None
@@ -900,10 +900,10 @@ class MPICommunication(Communication):
         buf = None
         # unpack the send buffer if it is a HeAT tensor
         if isinstance(sendbuf, DNDarray):
-            sendbuf = sendbuf.larray
+            sendbuf = sendbuf.V_local_larray
         # unpack the receive buffer if it is a HeAT tensor
         if isinstance(recvbuf, DNDarray):
-            recvbuf = recvbuf.larray
+            recvbuf = recvbuf.V_local_larray
 
         # harmonize the input and output buffers
         # MPI requires send and receive buffers to be of same type and length. If the torch tensors are either not both
@@ -1186,7 +1186,7 @@ class MPICommunication(Communication):
         if isinstance(sendbuf, tuple):
             sendbuf, send_counts, send_displs = sendbuf
         if isinstance(sendbuf, DNDarray):
-            sendbuf = sendbuf.larray
+            sendbuf = sendbuf.V_local_larray
         if not isinstance(sendbuf, torch.Tensor) and axis != 0:
             raise TypeError(
                 f"sendbuf of type {type(sendbuf)} does not support concatenation axis != 0"
@@ -1195,7 +1195,7 @@ class MPICommunication(Communication):
         if isinstance(recvbuf, tuple):
             recvbuf, recv_counts, recv_displs = recvbuf
         if isinstance(recvbuf, DNDarray):
-            recvbuf = recvbuf.larray
+            recvbuf = recvbuf.V_local_larray
         if not isinstance(recvbuf, torch.Tensor) and axis != 0:
             raise TypeError(
                 f"recvbuf of type {type(recvbuf)} does not support concatenation axis != 0"
@@ -1388,7 +1388,7 @@ class MPICommunication(Communication):
         if isinstance(sendbuf, tuple):
             sendbuf, send_counts, send_displs = sendbuf
         if isinstance(sendbuf, DNDarray):
-            sendbuf = sendbuf.larray
+            sendbuf = sendbuf.V_local_larray
         if not isinstance(sendbuf, torch.Tensor) and send_axis != 0:
             raise TypeError(f"sendbuf of type {type(sendbuf)} does not support send_axis != 0")
 
@@ -1396,7 +1396,7 @@ class MPICommunication(Communication):
         if isinstance(recvbuf, tuple):
             recvbuf, recv_counts, recv_displs = recvbuf
         if isinstance(recvbuf, DNDarray):
-            recvbuf = recvbuf.larray
+            recvbuf = recvbuf.V_local_larray
         if not isinstance(recvbuf, torch.Tensor) and send_axis != 0:
             raise TypeError(f"recvbuf of type {type(recvbuf)} does not support send_axis != 0")
 
@@ -1835,7 +1835,7 @@ class MPICommunication(Communication):
         # if isinstance(sendbuf, tuple):
         #     sendbuf, send_counts, send_displs = sendbuf
         if isinstance(sendbuf, DNDarray):
-            sendbuf = sendbuf.larray
+            sendbuf = sendbuf.V_local_larray
         if not isinstance(sendbuf, torch.Tensor) and send_axis != 0:
             raise TypeError(f"sendbuf of type {type(sendbuf)} does not support send_axis != 0")
 
@@ -1843,7 +1843,7 @@ class MPICommunication(Communication):
         if isinstance(recvbuf, tuple):
             recvbuf, recv_counts, recv_displs = recvbuf
         if isinstance(recvbuf, DNDarray):
-            recvbuf = recvbuf.larray
+            recvbuf = recvbuf.V_local_larray
         if not isinstance(recvbuf, torch.Tensor) and recv_axis != 0:
             raise TypeError(f"recvbuf of type {type(recvbuf)} does not support recv_axis != 0")
 
@@ -2077,7 +2077,7 @@ class MPICommunication(Communication):
         if isinstance(sendbuf, tuple):
             sendbuf, send_counts, send_displs = sendbuf
         if isinstance(sendbuf, DNDarray):
-            sendbuf = sendbuf.larray
+            sendbuf = sendbuf.V_local_larray
         if not isinstance(sendbuf, torch.Tensor) and send_axis != 0:
             raise TypeError(f"sendbuf of type {type(sendbuf)} does not support send_axis != 0")
 
@@ -2085,7 +2085,7 @@ class MPICommunication(Communication):
         # if isinstance(recvbuf, tuple):
         #     recvbuf, recv_counts, recv_displs = recvbuf
         if isinstance(recvbuf, DNDarray):
-            recvbuf = recvbuf.larray
+            recvbuf = recvbuf.V_local_larray
         if not isinstance(recvbuf, torch.Tensor) and recv_axis != 0:
             raise TypeError(f"recvbuf of type {type(recvbuf)} does not support recv_axis != 0")
 

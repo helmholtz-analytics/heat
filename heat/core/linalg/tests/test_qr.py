@@ -55,7 +55,7 @@ class TestQR(TestCase):
                         self.assertEqual(qr.R.shape, (min(shape), shape[1]))
 
                         # compare with torch qr, due to different signs we can only compare absolute values
-                        mat_t = mat.resplit_(None).larray
+                        mat_t = mat.resplit_(None).V_local_larray
                         q_t, r_t = torch.linalg.qr(mat_t, mode=mode)
                         r_ht = qr.R.resplit_(None).larray
                         self.assertTrue(
@@ -112,7 +112,7 @@ class TestQR(TestCase):
                         self.assertEqual(qr.R.shape, (min(shape), shape[1]))
 
                         # compare with torch qr, due to different signs we can only compare absolute values
-                        mat_t = mat.resplit_(None).larray
+                        mat_t = mat.resplit_(None).V_local_larray
                         q_t, r_t = torch.linalg.qr(mat_t, mode=mode)
                         r_ht = qr.R.resplit_(None).larray
                         self.assertTrue(

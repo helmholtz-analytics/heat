@@ -74,7 +74,7 @@ class TestRandom_Batchparallel(TestCase):
 
         # torch results to compare to
         a_cmp = torch.randperm(a.shape[0], device=self.device.torch_device)
-        b_cmp = b_arr.larray[torch.randperm(b.shape[0], device=self.device.torch_device)]
+        b_cmp = b_arr.V_local_larray[torch.randperm(b.shape[0], device=self.device.torch_device)]
         c_cmp = c_arr.larray[torch.randperm(c.shape[0], device=self.device.torch_device)]
         c0_cmp = c_arr.larray[torch.randperm(c.shape[0], device=self.device.torch_device)]
         c1_cmp = c_arr.larray[torch.randperm(c.shape[0], device=self.device.torch_device)]
@@ -90,11 +90,11 @@ class TestRandom_Batchparallel(TestCase):
         # due to different states of the torch RNG on different processes and due to construction of the permutation
         # the values are only equal on process no 0 which has been used for generating the permutation
         if ht.MPI_WORLD.rank == 0:
-            self.assertTrue((a.larray == a_cmp).all())
-            self.assertTrue((b.larray == b_cmp).all())
-            self.assertTrue((c.larray == c_cmp).all())
-            self.assertTrue((c0.larray == c0_cmp).all())
-            self.assertTrue((c1.larray == c1_cmp).all())
+            self.assertTrue((a.V_local_larray == a_cmp).all())
+            self.assertTrue((b.V_local_larray == b_cmp).all())
+            self.assertTrue((c.V_local_larray == c_cmp).all())
+            self.assertTrue((c0.V_local_larray == c0_cmp).all())
+            self.assertTrue((c1.V_local_larray == c1_cmp).all())
 
         with self.assertRaises(TypeError):
             ht.random.permutation("abc")
@@ -107,7 +107,7 @@ class TestRandom_Batchparallel(TestCase):
         ht.random.seed(seed)
         a = ht.random.rand(2, 5, 7, 3, split=0)
         self.assertEqual(a.dtype, ht.float32)
-        self.assertEqual(a.larray.dtype, torch.float32)
+        self.assertEqual(a.V_local_larray.dtype, torch.float32)
         b = ht.random.rand(2, 5, 7, 3, split=0)
         self.assertFalse(ht.equal(a, b))
         ht.random.seed(seed)
@@ -149,7 +149,7 @@ class TestRandom_Batchparallel(TestCase):
         shape = (13, 43, 13, 23)
         a = ht.random.rand(*shape, dtype=ht.float32, split=0)
         self.assertEqual(a.dtype, ht.float32)
-        self.assertEqual(a.larray.dtype, torch.float32)
+        self.assertEqual(a.V_local_larray.dtype, torch.float32)
 
         a = ht.random.rand(21, 16, 17, 21, dtype=ht.float32, split=2)
         b = ht.random.rand(15, 11, 19, 31, dtype=ht.float32, split=0)
@@ -220,7 +220,7 @@ class TestRandom_Batchparallel(TestCase):
         b = ht.random.randint(50, 1000, size=(13, 45), dtype=ht.int32, split=0)
 
         self.assertEqual(a.dtype, ht.int32)
-        self.assertEqual(a.larray.dtype, torch.int32)
+        self.assertEqual(a.V_local_larray.dtype, torch.int32)
         self.assertEqual(b.dtype, ht.int32)
         self.assertTrue(ht.equal(a, b))
         self.assertTrue(((50 <= a) & (a < 1000)).all())
@@ -287,7 +287,7 @@ class TestRandom_Batchparallel(TestCase):
         ht.random.seed(272)
         a = ht.random.randn(30, 30, 30, dtype=ht.float32, split=2)
         self.assertEqual(a.dtype, ht.float32)
-        self.assertEqual(a.larray[0, 0, 0].dtype, torch.float32)
+        self.assertEqual(a.V_local_larray[0, 0, 0].dtype, torch.float32)
         mean = ht.mean(a)
         # median = np.median(a)
         std = ht.std(a)
@@ -345,10 +345,10 @@ class TestRandom_Batchparallel(TestCase):
         # due to different states of the torch RNG on different processes and due to construction of the permutation
         # the values are only equal on process no 0 which has been used for generating the permutation
         if ht.MPI_WORLD.rank == 0:
-            self.assertTrue((a.larray == a_cmp).all())
-            self.assertTrue((brsp.larray == b_cmp).all())
-            self.assertTrue((crsp.larray == c_cmp).all())
-            self.assertTrue((d.larray == d_cmp).all())
+            self.assertTrue((a.V_local_larray == a_cmp).all())
+            self.assertTrue((brsp.V_local_larray == b_cmp).all())
+            self.assertTrue((crsp.V_local_larray == c_cmp).all())
+            self.assertTrue((d.V_local_larray == d_cmp).all())
 
         with self.assertRaises(TypeError):
             ht.random.randperm("abc")
@@ -489,19 +489,19 @@ class TestRandom_Threefry(TestCase):
 
         # torch results to compare to
         a_cmp = torch.randperm(a.shape[0], device=self.device.torch_device)
-        b_cmp = b_arr.larray[torch.randperm(b.shape[0], device=self.device.torch_device)]
+        b_cmp = b_arr.V_local_larray[torch.randperm(b.shape[0], device=self.device.torch_device)]
         c_cmp = c_arr.larray[torch.randperm(c.shape[0], device=self.device.torch_device)]
         c0_cmp = c_arr.larray[torch.randperm(c.shape[0], device=self.device.torch_device)]
         c1_cmp = c_arr.larray[torch.randperm(c.shape[0], device=self.device.torch_device)]
 
         # compare
         self.assertEqual(a.dtype, ht.int64)
-        self.assertTrue((a.larray == a_cmp).all())
+        self.assertTrue((a.V_local_larray == a_cmp).all())
         self.assertEqual(b.dtype, ht.float32)
-        self.assertTrue((ht.resplit(b).larray == b_cmp).all())
-        self.assertTrue((c.larray == c_cmp).all())
-        self.assertTrue((ht.resplit(c0).larray == c0_cmp).all())
-        self.assertTrue((ht.resplit(c1).larray == c1_cmp).all())
+        self.assertTrue((ht.resplit(b).V_local_larray == b_cmp).all())
+        self.assertTrue((c.V_local_larray == c_cmp).all())
+        self.assertTrue((ht.resplit(c0).V_local_larray == c0_cmp).all())
+        self.assertTrue((ht.resplit(c1).V_local_larray == c1_cmp).all())
 
         with self.assertRaises(TypeError):
             ht.random.permutation("abc")
@@ -516,7 +516,7 @@ class TestRandom_Threefry(TestCase):
         ht.random.seed(seed)
         a = ht.random.rand(2, 5, 7, 3, split=0)
         self.assertEqual(a.dtype, ht.float32)
-        self.assertEqual(a.larray.dtype, torch.float32)
+        self.assertEqual(a.V_local_larray.dtype, torch.float32)
         b = ht.random.rand(2, 5, 7, 3, split=0)
         self.assertFalse(ht.equal(a, b))
         ht.random.seed(seed)
@@ -617,7 +617,7 @@ class TestRandom_Threefry(TestCase):
         shape = (13, 43, 13, 23)
         a = ht.random.rand(*shape, dtype=ht.float32, split=0)
         self.assertEqual(a.dtype, ht.float32)
-        self.assertEqual(a.larray.dtype, torch.float32)
+        self.assertEqual(a.V_local_larray.dtype, torch.float32)
 
         ht.random.seed(9876)
         b = ht.random.rand(np.prod(shape), dtype=ht.float32)
@@ -727,7 +727,7 @@ class TestRandom_Threefry(TestCase):
         b = ht.random.randint(50, 1000, size=(13, 45), dtype=ht.int32, split=0)
 
         self.assertEqual(a.dtype, ht.int32)
-        self.assertEqual(a.larray.dtype, torch.int32)
+        self.assertEqual(a.V_local_larray.dtype, torch.int32)
         self.assertEqual(b.dtype, ht.int32)
         self.assertTrue(ht.equal(a, b))
         self.assertTrue(((50 <= a) & (a < 1000)).all())
@@ -803,7 +803,7 @@ class TestRandom_Threefry(TestCase):
         ht.random.seed(54321)
         a = ht.random.randn(30, 30, 30, dtype=ht.float32, split=2)
         self.assertEqual(a.dtype, ht.float32)
-        self.assertEqual(a.larray[0, 0, 0].dtype, torch.float32)
+        self.assertEqual(a.V_local_larray[0, 0, 0].dtype, torch.float32)
         mean = ht.mean(a)
         #        median = np.median(a)
         std = ht.std(a)
@@ -845,13 +845,13 @@ class TestRandom_Threefry(TestCase):
         d_cmp = torch.randperm(5, dtype=torch.float64, device=self.device.torch_device)
 
         self.assertEqual(a.dtype, ht.int32)
-        self.assertTrue((a.larray == a_cmp).all())
+        self.assertTrue((a.V_local_larray == a_cmp).all())
         self.assertEqual(b.dtype, ht.float32)
-        self.assertTrue((ht.resplit(b).larray == b_cmp).all())
+        self.assertTrue((ht.resplit(b).V_local_larray == b_cmp).all())
         self.assertEqual(c.dtype, ht.int64)
-        self.assertTrue((ht.resplit(c).larray == c_cmp).all())
+        self.assertTrue((ht.resplit(c).V_local_larray == c_cmp).all())
         self.assertEqual(d.dtype, ht.float64)
-        self.assertTrue((d.larray == d_cmp).all())
+        self.assertTrue((d.V_local_larray == d_cmp).all())
 
         with self.assertRaises(TypeError):
             ht.random.randperm("abc")

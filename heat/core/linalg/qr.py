@@ -106,7 +106,7 @@ def qr(
 
     if not A.is_distributed() or A.split < A.ndim - 2:
         # handle the case of a single process or split=None: just PyTorch QR
-        Q, R = single_proc_qr(A.larray, mode=mode)
+        Q, R = single_proc_qr(A.V_local_larray, mode=mode)
         R = factories.array(R, is_split=A.split)
         if mode == "reduced":
             Q = factories.array(Q, is_split=A.split)
@@ -149,7 +149,7 @@ def qr(
             ]
         )
 
-        A_columns = A.larray.clone()
+        A_columns = A.V_local_larray.clone()
 
         for i in range(last_row_reached + 1):
             # this loop goes through all the column-blocks (i.e. local arrays) of the matrix
@@ -158,7 +158,9 @@ def qr(
             if i < nprocs - 1:
                 k_loc_i = min(A.shape[-2], A.lshape_map[i, -1])
                 Q_buf = torch.zeros(
-                    (*A.shape[:-1], k_loc_i), dtype=A.larray.dtype, device=A.device.torch_device
+                    (*A.shape[:-1], k_loc_i),
+                    dtype=A.V_local_larray.dtype,
+                    device=A.device.torch_device,
                 )
 
             if A.comm.rank == i:
@@ -167,9 +169,9 @@ def qr(
                 if i < nprocs - 1:
                     Q_buf = Q_curr.contiguous()
                 if mode == "reduced":
-                    Q.larray = Q_curr
-                r_size = R.larray[..., R_shapes[i] : R_shapes[i + 1], :].shape[-2]
-                R.larray[..., R_shapes[i] : R_shapes[i + 1], :] = R_loc[..., :r_size, :]
+                    Q.V_local_larray = Q_curr
+                r_size = R.V_local_larray[..., R_shapes[i] : R_shapes[i + 1], :].shape[-2]
+                R.V_local_larray[..., R_shapes[i] : R_shapes[i + 1], :] = R_loc[..., :r_size, :]
 
             if i < nprocs - 1:
                 # broadcast the orthogonalized block of columns to all other processes
@@ -179,8 +181,8 @@ def qr(
                 # subtract the contribution of the current block of columns from the remaining columns
                 R_loc = torch.transpose(Q_buf, -2, -1) @ A_columns
                 A_columns -= Q_buf @ R_loc
-                r_size = R.larray[..., R_shapes[i] : R_shapes[i + 1], :].shape[-2]
-                R.larray[..., R_shapes[i] : R_shapes[i + 1], :] = R_loc[..., :r_size, :]
+                r_size = R.V_local_larray[..., R_shapes[i] : R_shapes[i + 1], :].shape[-2]
+                R.V_local_larray[..., R_shapes[i] : R_shapes[i + 1], :] = R_loc[..., :r_size, :]
 
         if mode == "reduced":
             Q = Q[..., :, :k].balance()
@@ -221,18 +223,18 @@ def qr(
                         ...,
                         : (column_idx[k + 1] - column_idx[k]),
                         column_idx[k] : column_idx[k + 1],
-                    ] = Rnew.larray
+                    ] = Rnew.V_local_larray
                 if R.comm.rank > k:
                     R.larray[..., :, column_idx[k] : column_idx[k + 1]] *= 0
                 if k < len(column_idx) - 2:
                     coeffs = (
-                        torch.transpose(Qnew.larray, -2, -1)
+                        torch.transpose(Qnew.V_local_larray, -2, -1)
                         @ A_copy.larray[..., :, column_idx[k + 1] :]
                     )
                     R.comm.Allreduce(communication.MPI.IN_PLACE, coeffs)
                     if R.comm.rank == k:
                         R.larray[..., :, column_idx[k + 1] :] = coeffs
-                    A_copy.larray[..., :, column_idx[k + 1] :] -= Qnew.larray @ coeffs
+                    A_copy.larray[..., :, column_idx[k + 1] :] -= Qnew.V_local_larray @ coeffs
                 if mode == "reduced":
                     Q = Qnew if k == 0 else concatenate((Q, Qnew), axis=-1)
             if A.shape[-1] < A.shape[-2]:
@@ -248,7 +250,7 @@ def qr(
             current_procs = [i for i in range(A.comm.size)]
             current_comm = A.comm
             local_comm = current_comm.Split(current_comm.rank // procs_to_merge, A.comm.rank)
-            Q_loc, R_loc = single_proc_qr(A.larray, mode=mode)
+            Q_loc, R_loc = single_proc_qr(A.V_local_larray, mode=mode)
             R_loc = R_loc.contiguous()  # required for all the communication ops lateron
             if mode == "reduced":
                 leave_comm = current_comm.Split(current_comm.rank, A.comm.rank)

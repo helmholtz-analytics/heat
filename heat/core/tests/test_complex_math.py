@@ -9,51 +9,51 @@ class TestComplex(TestCase):
     def test_abs(self):
         a = ht.array([1.0, 1.0j, 1 + 1j, -2 + 2j, 3 - 3j])
         absolute = ht.absolute(a)
-        res = torch.abs(a.larray)
+        res = torch.abs(a.V_local_larray)
 
         self.assertIs(absolute.device, self.device)
         self.assertIs(absolute.dtype, ht.float)
         self.assertEqual(absolute.shape, (5,))
-        self.assertTrue(torch.equal(absolute.larray, res))
+        self.assertTrue(torch.equal(absolute.V_local_larray, res))
 
         a = ht.array([1.0, 1.0j, 1 + 1j, -2 + 2j, 3 - 3j], split=0)
         absolute = ht.absolute(a)
-        res = torch.abs(a.larray)
+        res = torch.abs(a.V_local_larray)
 
         self.assertIs(absolute.device, self.device)
         self.assertIs(absolute.dtype, ht.float)
         self.assertEqual(absolute.shape, (5,))
-        self.assertTrue(torch.equal(absolute.larray, res))
+        self.assertTrue(torch.equal(absolute.V_local_larray, res))
 
         a = ht.array(
             [[1.0, 1.0j], [1 + 1j, -2 + 2j], [3 - 3j, -4 - 4j]], split=1, dtype=ht.complex128
         )
         absolute = ht.absolute(a)
-        res = torch.abs(a.larray)
+        res = torch.abs(a.V_local_larray)
 
         self.assertIs(absolute.device, self.device)
         self.assertIs(absolute.dtype, ht.double)
         self.assertEqual(absolute.shape, (3, 2))
-        self.assertTrue(torch.equal(absolute.larray, res))
+        self.assertTrue(torch.equal(absolute.V_local_larray, res))
 
     def test_angle(self):
         a = ht.array([1.0, 1.0j, 1 + 1j, -2 + 2j, 3 - 3j])
         angle = ht.angle(a)
-        res = torch.angle(a.larray)
+        res = torch.angle(a.V_local_larray)
 
         self.assertIs(angle.device, self.device)
         self.assertIs(angle.dtype, ht.float)
         self.assertEqual(angle.shape, (5,))
-        self.assertTrue(torch.equal(angle.larray, res))
+        self.assertTrue(torch.equal(angle.V_local_larray, res))
 
         a = ht.array([1.0, 1.0j, 1 + 1j, -2 + 2j, 3 - 3j], split=0)
         angle = ht.angle(a)
-        res = torch.angle(a.larray)
+        res = torch.angle(a.V_local_larray)
 
         self.assertIs(angle.device, self.device)
         self.assertIs(angle.dtype, ht.float)
         self.assertEqual(angle.shape, (5,))
-        self.assertTrue(torch.equal(angle.larray, res))
+        self.assertTrue(torch.equal(angle.V_local_larray, res))
 
         a = ht.array([[1.0, 1.0j], [1 + 1j, -2 + 2j], [3 - 3j, -4 - 4j]], split=1)
         angle = ht.angle(a, deg=True)

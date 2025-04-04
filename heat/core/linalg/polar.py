@@ -84,7 +84,7 @@ def _in_place_qr_with_q_only(A: DNDarray, procs_to_merge: int = 2) -> None:
     if not A.is_distributed() or A.split < A.ndim - 2:
         # handle the case of a single process or split=None: just PyTorch QR
         # difference to heat.linalg.qr: we only return Q and put it directly in place of A
-        A.larray, R = torch.linalg.qr(A.larray, mode="reduced")
+        A.V_local_larray, R = torch.linalg.qr(A.V_local_larray, mode="reduced")
         del R
 
     elif A.split == A.ndim - 1:
@@ -102,7 +102,7 @@ def _in_place_qr_with_q_only(A: DNDarray, procs_to_merge: int = 2) -> None:
                     if A.comm.rank > i:
                         Q_buf = torch.zeros(
                             tuple(A_lshapes[i, :]),
-                            dtype=A.larray.dtype,
+                            dtype=A.V_local_larray.dtype,
                             device=A.device.torch_device,
                         )
                     color = 0 if A.comm.rank < i else 1
@@ -110,19 +110,19 @@ def _in_place_qr_with_q_only(A: DNDarray, procs_to_merge: int = 2) -> None:
 
                 if A.comm.rank == i:
                     # orthogonalize the current block of columns by utilizing PyTorch QR
-                    Q, R = torch.linalg.qr(A.larray, mode="reduced")
-                    A.larray = Q.contiguous()
+                    Q, R = torch.linalg.qr(A.V_local_larray, mode="reduced")
+                    A.V_local_larray = Q.contiguous()
                     del Q, R
                     if i < nprocs - 1:
-                        Q_buf = A.larray
+                        Q_buf = A.V_local_larray
 
                 if i < nprocs - 1 and A.comm.rank >= i:
                     sub_comm.Bcast(Q_buf, root=0)
 
                 if A.comm.rank > i:
                     # subtract the contribution of the current block of columns from the remaining columns
-                    R_loc = torch.transpose(Q_buf, -2, -1) @ A.larray
-                    A.larray -= Q_buf @ R_loc
+                    R_loc = torch.transpose(Q_buf, -2, -1) @ A.V_local_larray
+                    A.V_local_larray -= Q_buf @ R_loc
                     del R_loc, Q_buf
     else:
         A, r = qr(A)
@@ -222,7 +222,7 @@ def polar(
 
     # early out for the non-distributed case
     if not A.is_distributed():
-        U, s, vh = torch.linalg.svd(A.larray, full_matrices=False)
+        U, s, vh = torch.linalg.svd(A.V_local_larray, full_matrices=False)
         U @= vh
         H = vh.T @ torch.diag(s) @ vh
         if calcH:
@@ -348,13 +348,13 @@ def polar(
     displacements = [sum(counts[:r]) for r in range(horizontal_comm.size)]
 
     if A.split == 1:
-        U_local = X.larray[
+        U_local = X.V_local_larray[
             :,
             displacements[horizontal_comm.rank] : displacements[horizontal_comm.rank]
             + counts[horizontal_comm.rank],
         ]
     else:
-        U_local = X.larray[
+        U_local = X.V_local_larray[
             displacements[horizontal_comm.rank] : displacements[horizontal_comm.rank]
             + counts[horizontal_comm.rank],
             :,

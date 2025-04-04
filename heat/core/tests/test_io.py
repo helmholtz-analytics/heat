@@ -89,12 +89,12 @@ class TestIO(TestCase):
             self.assertIsInstance(iris, ht.DNDarray)
             # shape invariant
             self.assertEqual(iris.shape, self.IRIS.shape)
-            self.assertEqual(iris.larray.shape, self.IRIS.shape)
+            self.assertEqual(iris.V_local_larray.shape, self.IRIS.shape)
             # data type
             self.assertEqual(iris.dtype, ht.float32)
-            self.assertEqual(iris.larray.dtype, torch.float32)
+            self.assertEqual(iris.V_local_larray.dtype, torch.float32)
             # content
-            self.assertTrue((self.IRIS == iris.larray).all())
+            self.assertTrue((self.IRIS == iris.V_local_larray).all())
 
         else:
             with self.assertRaises(RuntimeError):
@@ -106,12 +106,12 @@ class TestIO(TestCase):
             self.assertIsInstance(iris, ht.DNDarray)
             # shape invariant
             self.assertEqual(iris.shape, self.IRIS.shape)
-            self.assertEqual(iris.larray.shape, self.IRIS.shape)
+            self.assertEqual(iris.V_local_larray.shape, self.IRIS.shape)
             # data type
             self.assertEqual(iris.dtype, ht.float32)
-            self.assertEqual(iris.larray.dtype, torch.float32)
+            self.assertEqual(iris.V_local_larray.dtype, torch.float32)
             # content
-            self.assertTrue((self.IRIS == iris.larray).all())
+            self.assertTrue((self.IRIS == iris.V_local_larray).all())
         else:
             with self.assertRaises(RuntimeError):
                 _ = ht.load(self.NETCDF_PATH, variable=self.NETCDF_VARIABLE)
@@ -129,8 +129,8 @@ class TestIO(TestCase):
         a = ht.load_csv(self.CSV_PATH, sep=";")
         self.assertEqual(len(a), csv_file_length)
         self.assertEqual(a.shape, (csv_file_length, csv_file_cols))
-        self.assertTrue(torch.equal(a.larray[0], first_value))
-        self.assertTrue(torch.equal(a.larray[9], tenth_value))
+        self.assertTrue(torch.equal(a.V_local_larray[0], first_value))
+        self.assertTrue(torch.equal(a.V_local_larray[9], tenth_value))
 
         a = ht.load_csv(self.CSV_PATH, sep=";", split=0)
         rank = a.comm.Get_rank()
@@ -142,7 +142,7 @@ class TestIO(TestCase):
         self.assertEqual(a.lshape, expected_lshape)
 
         if rank == 0:
-            self.assertTrue(torch.equal(a.larray[0], first_value))
+            self.assertTrue(torch.equal(a.V_local_larray[0], first_value))
 
         a = ht.load_csv(self.CSV_PATH, sep=";", header_lines=9, dtype=ht.float32, split=0)
         expected_gshape = (csv_file_length - 9, csv_file_cols)
@@ -153,7 +153,7 @@ class TestIO(TestCase):
         self.assertEqual(a.lshape, expected_lshape)
         self.assertEqual(a.dtype, ht.float32)
         if rank == 0:
-            self.assertTrue(torch.equal(a.larray[0], tenth_value))
+            self.assertTrue(torch.equal(a.V_local_larray[0], tenth_value))
 
         a = ht.load_csv(self.CSV_PATH, sep=";", split=1)
         self.assertEqual(a.shape, (csv_file_length, csv_file_cols))
@@ -314,7 +314,7 @@ class TestIO(TestCase):
                         dtype=torch.int32,
                         device=self.device.torch_device,
                     )
-                self.assertTrue((local_range.larray == comparison).all())
+                self.assertTrue((local_range.V_local_larray == comparison).all())
 
             # split range
             split_range = ht.arange(100, split=0)
@@ -326,7 +326,7 @@ class TestIO(TestCase):
                         dtype=torch.int32,
                         device=self.device.torch_device,
                     )
-                self.assertTrue((local_range.larray == comparison).all())
+                self.assertTrue((local_range.V_local_larray == comparison).all())
 
         if ht.io.supports_netcdf():
             # local range
@@ -339,7 +339,7 @@ class TestIO(TestCase):
                         dtype=torch.int32,
                         device=self.device.torch_device,
                     )
-                self.assertTrue((local_range.larray == comparison).all())
+                self.assertTrue((local_range.V_local_larray == comparison).all())
 
             # split range
             split_range = ht.arange(100, split=0)
@@ -351,7 +351,7 @@ class TestIO(TestCase):
                         dtype=torch.int32,
                         device=self.device.torch_device,
                     )
-                self.assertTrue((local_range.larray == comparison).all())
+                self.assertTrue((local_range.V_local_larray == comparison).all())
 
             # naming dimensions: string
             local_range = ht.arange(100, device=self.device)
@@ -391,7 +391,7 @@ class TestIO(TestCase):
                         device=self.device.torch_device,
                     )
                 self.assertTrue(
-                    (ht.concatenate((local_range, local_range)).larray == comparison).all()
+                    (ht.concatenate((local_range, local_range)).V_local_larray == comparison).all()
                 )
 
             # indexing netcdf file: single index
@@ -408,7 +408,7 @@ class TestIO(TestCase):
                         dtype=torch.int32,
                         device=self.device.torch_device,
                     )
-                self.assertTrue((ones.larray == comparison).all())
+                self.assertTrue((ones.V_local_larray == comparison).all())
 
             # indexing netcdf file: multiple indices
             ht.MPI_WORLD.Barrier()
@@ -425,7 +425,7 @@ class TestIO(TestCase):
                         dtype=torch.int32,
                         device=self.device.torch_device,
                     )
-                self.assertTrue((small_range.larray == comparison).all())
+                self.assertTrue((small_range.V_local_larray == comparison).all())
 
             # slicing netcdf file
             sslice = slice(7, 2, -1)
@@ -441,7 +441,7 @@ class TestIO(TestCase):
                         dtype=torch.int32,
                         device=self.device.torch_device,
                     )
-                self.assertTrue((range_five.larray == comparison).all())
+                self.assertTrue((range_five.V_local_larray == comparison).all())
 
             # indexing netcdf file: broadcasting array
             zeros = ht.zeros((2, 1, 1, 4), device=self.device)
@@ -457,7 +457,7 @@ class TestIO(TestCase):
                         dtype=torch.int32,
                         device=self.device.torch_device,
                     )
-                self.assertTrue((ones_nosplit.larray == comparison).all())
+                self.assertTrue((ones_nosplit.V_local_larray == comparison).all())
 
             # indexing netcdf file: broadcasting var
             ht.MPI_WORLD.Barrier()
@@ -474,7 +474,7 @@ class TestIO(TestCase):
                         dtype=torch.int32,
                         device=self.device.torch_device,
                     )
-                self.assertTrue((ones_nosplit.larray == comparison).all())
+                self.assertTrue((ones_nosplit.V_local_larray == comparison).all())
 
             # indexing netcdf file: broadcasting ones
             ht.MPI_WORLD.Barrier()
@@ -489,7 +489,7 @@ class TestIO(TestCase):
                         dtype=torch.int32,
                         device=self.device.torch_device,
                     )
-                self.assertTrue((ones.larray == comparison).all())
+                self.assertTrue((ones.V_local_larray == comparison).all())
 
             # different split and dtype
             ht.MPI_WORLD.Barrier()
@@ -503,7 +503,7 @@ class TestIO(TestCase):
                         dtype=torch.int32,
                         device=self.device.torch_device,
                     )
-                self.assertTrue((zeros_nosplit.larray == comparison).all())
+                self.assertTrue((zeros_nosplit.V_local_larray == comparison).all())
 
     def test_save_exception(self):
         data = ht.arange(1)
@@ -563,8 +563,8 @@ class TestIO(TestCase):
         self.assertIsInstance(iris, ht.DNDarray)
         self.assertEqual(iris.shape, self.IRIS.shape)
         self.assertEqual(iris.dtype, ht.float32)
-        self.assertEqual(iris.larray.dtype, torch.float32)
-        self.assertTrue((self.IRIS == iris.larray).all())
+        self.assertEqual(iris.V_local_larray.dtype, torch.float32)
+        self.assertTrue((self.IRIS == iris.V_local_larray).all())
 
         # positive split axis
         iris = ht.load_hdf5(self.HDF5_PATH, self.HDF5_DATASET, split=0)
@@ -589,7 +589,7 @@ class TestIO(TestCase):
         self.assertIsInstance(iris, ht.DNDarray)
         self.assertEqual(iris.shape, self.IRIS.shape)
         self.assertEqual(iris.dtype, ht.int8)
-        self.assertEqual(iris.larray.dtype, torch.int8)
+        self.assertEqual(iris.V_local_larray.dtype, torch.int8)
 
     def test_load_hdf5_exception(self):
         # HDF5 support is optional
@@ -625,7 +625,7 @@ class TestIO(TestCase):
                 comparison = torch.tensor(
                     handle[self.HDF5_DATASET], dtype=torch.int32, device=self.device.torch_device
                 )
-            self.assertTrue((local_data.larray == comparison).all())
+            self.assertTrue((local_data.V_local_larray == comparison).all())
 
         # distributed data range
         split_data = ht.arange(100, split=0)
@@ -637,7 +637,7 @@ class TestIO(TestCase):
                 comparison = torch.tensor(
                     handle[self.HDF5_DATASET], dtype=torch.int32, device=self.device.torch_device
                 )
-            self.assertTrue((local_data.larray == comparison).all())
+            self.assertTrue((local_data.V_local_larray == comparison).all())
 
     def test_save_hdf5_exception(self):
         # HDF5 support is optional
@@ -664,8 +664,8 @@ class TestIO(TestCase):
         self.assertIsInstance(iris, ht.DNDarray)
         self.assertEqual(iris.shape, self.IRIS.shape)
         self.assertEqual(iris.dtype, ht.float32)
-        self.assertEqual(iris.larray.dtype, torch.float32)
-        self.assertTrue((self.IRIS == iris.larray).all())
+        self.assertEqual(iris.V_local_larray.dtype, torch.float32)
+        self.assertTrue((self.IRIS == iris.V_local_larray).all())
 
         # positive split axis
         iris = ht.load_netcdf(self.NETCDF_PATH, self.NETCDF_VARIABLE, split=0)
@@ -690,7 +690,7 @@ class TestIO(TestCase):
         self.assertIsInstance(iris, ht.DNDarray)
         self.assertEqual(iris.shape, self.IRIS.shape)
         self.assertEqual(iris.dtype, ht.int8)
-        self.assertEqual(iris.larray.dtype, torch.int8)
+        self.assertEqual(iris.V_local_larray.dtype, torch.int8)
 
     def test_load_netcdf_exception(self):
         # netcdf support is optional
@@ -726,7 +726,7 @@ class TestIO(TestCase):
                     dtype=torch.int32,
                     device=self.device.torch_device,
                 )
-            self.assertTrue((local_data.larray == comparison).all())
+            self.assertTrue((local_data.V_local_larray == comparison).all())
 
         # distributed data range
         split_data = ht.arange(100, split=0)
@@ -738,7 +738,7 @@ class TestIO(TestCase):
                     dtype=torch.int32,
                     device=self.device.torch_device,
                 )
-            self.assertTrue((local_data.larray == comparison).all())
+            self.assertTrue((local_data.V_local_larray == comparison).all())
 
     def test_save_netcdf_exception(self):
         # netcdf support is optional

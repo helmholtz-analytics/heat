@@ -113,12 +113,9 @@ def _subspaceiteration(
 def _eigh(
     A: DNDarray,
     r: int = None,
-    calcH: bool = True,
-    condition_estimate: float = 0.0,
     silent: bool = True,
     r_max: int = 8,
     depth: int = 0,
-    group: int = 0,
     orig_lsize: int = 0,
 ) -> Tuple[DNDarray, DNDarray]:
     """
@@ -130,6 +127,15 @@ def _eigh(
     rank = global_comm.rank
     if orig_lsize == 0:
         orig_lsize = min(A.lshape_map[:, A.split])
+
+    # direct solution in torch if the problem is small enough
+    if n <= orig_lsize or nprocs == 1:
+        orig_split = A.split
+        A.resplit_(None)
+        Lambda_loc, Q_loc = torch.linalg.eigh(A.larray)
+        Lambda = factories.array(torch.flip(Lambda_loc, (0,)), split=0, comm=A.comm)
+        V = factories.array(torch.flip(Q_loc, (1,)), split=orig_split, comm=A.comm)
+        return Lambda, V
 
     # now we handle the main case: Zolo-PD is used to reduce the problem to two independent problems
     sigma = statistics.median(diag(A))
@@ -146,7 +152,6 @@ def _eigh(
         silent,
     )
     A = V.T @ A @ V
-    A.resplit_(A.split)
 
     if A.comm.rank == 0 and not silent:
         print(
@@ -169,10 +174,56 @@ def _eigh(
     new_lshape_map[:, A.split] = new_lshapes
     A.redistribute_(target_map=new_lshape_map)
     local_comm = A.comm.Split(color=rank < nprocs1, key=rank)
-    A_local = factories.array(
-        A.larray[:k, :] if rank < nprocs1 else A.larray[k:, :], comm=local_comm, is_split=A.split
-    )
-    print(A_local)
+    if A.split == 1:
+        A_local = factories.array(
+            A.larray[:k, :] if rank < nprocs1 else A.larray[k:, :],
+            comm=local_comm,
+            is_split=A.split,
+        )
+    else:
+        A_local = factories.array(
+            A.larray[:, :k] if rank < nprocs1 else A.larray[:, k:],
+            comm=local_comm,
+            is_split=A.split,
+        )
+
+    Lambda_local, V_local = _eigh(A_local, r, silent, r_max, depth + 1, orig_lsize)
+
+    Lambda = factories.array(Lambda_local.larray, split=0, comm=A.comm)
+    V_local_larray = V_local.larray
+    if A.split == 0:
+        if rank < nprocs1:
+            V_local_larray = torch.hstack(
+                [
+                    V_local_larray,
+                    torch.zeros(V_local_larray.shape[0], n - k, device=V_local.device.torch_device),
+                ]
+            )
+        else:
+            V_local_larray = torch.hstack(
+                [
+                    torch.zeros(V_local_larray.shape[0], k, device=V_local.device.torch_device),
+                    V_local_larray,
+                ]
+            )
+    else:
+        if rank < nprocs1:
+            V_local_larray = torch.vstack(
+                [
+                    V_local_larray,
+                    torch.zeros(n - k, V_local_larray.shape[1], device=V_local.device.torch_device),
+                ]
+            )
+        else:
+            V_local_larray = torch.vstack(
+                [
+                    torch.zeros(k, V_local_larray.shape[1], device=V_local.device.torch_device),
+                    V_local_larray,
+                ]
+            )
+    V_new = factories.array(V_local_larray, split=A.split, comm=A.comm)
+    V = V_new @ V
+    return Lambda, V
 
     # TODO recursively call _eigh on the two independent problems
 

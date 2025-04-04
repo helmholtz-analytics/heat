@@ -304,7 +304,7 @@ class TestCase(unittest.TestCase):
             ht_res = heat_func(ht_array, **heat_args)
 
             self.assertEqual(ht_array.device, ht_res.device)
-            self.assertEqual(ht_array.larray.device, ht_res.larray.device)
+            self.assertEqual(ht_array.V_local_larray.device, ht_res.larray.device)
             if distributed_result:
                 self.assert_array_equal(ht_res, np_res)
             else:

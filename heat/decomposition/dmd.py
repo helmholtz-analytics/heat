@@ -296,9 +296,11 @@ class DMD(ht.RegressionMixin, ht.BaseEstimator):
         steps = steps.reshape(-1, 1).repeat(1, self.rom_eigenvalues_.shape[0])
         X_rom = self.rom_basis_.T @ X
 
-        transfer_mat = _torch_matrix_diag(torch.pow(self.rom_eigenvalues_.larray, steps))
+        transfer_mat = _torch_matrix_diag(torch.pow(self.rom_eigenvalues_.V_local_larray, steps))
         transfer_mat = (
-            self.rom_eigenmodes_.larray @ transfer_mat @ self.rom_eigenmodes_.larray.inverse()
+            self.rom_eigenmodes_.V_local_larray
+            @ transfer_mat
+            @ self.rom_eigenmodes_.V_local_larray.inverse()
         )
         transfer_mat = torch.real(
             transfer_mat

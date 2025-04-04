@@ -87,7 +87,7 @@ def svd(
             if compute_uv:
                 # compute full SVD: first full QR, then SVD of R
                 Q, R = qr(A, mode="reduced", procs_to_merge=qr_procs_to_merge)
-                Utilde_loc, S_loc, Vt_loc = torch.linalg.svd(R.larray, full_matrices=False)
+                Utilde_loc, S_loc, Vt_loc = torch.linalg.svd(R.V_local_larray, full_matrices=False)
                 Utilde = DNDarray(
                     Utilde_loc,
                     tuple(Utilde_loc.shape),
@@ -120,7 +120,7 @@ def svd(
             else:
                 # compute only singular values: first only R of QR, then singular values only of R
                 _, R = qr(A, mode="r", procs_to_merge=qr_procs_to_merge)
-                S_loc = torch.linalg.svdvals(R.larray)
+                S_loc = torch.linalg.svdvals(R.V_local_larray)
                 S = DNDarray(
                     S_loc,
                     tuple(S_loc.shape),
@@ -160,7 +160,7 @@ def svd(
     else:
         # this is the non-distributed case
         if compute_uv:
-            U_loc, S_loc, Vt_loc = torch.linalg.svd(A.larray, full_matrices=full_matrices)
+            U_loc, S_loc, Vt_loc = torch.linalg.svd(A.V_local_larray, full_matrices=full_matrices)
             U = DNDarray(
                 U_loc,
                 tuple(U_loc.shape),
@@ -190,7 +190,7 @@ def svd(
             )
             return U, S, V
         else:
-            S_loc = torch.linalg.svdvals(A.larray)
+            S_loc = torch.linalg.svdvals(A.V_local_larray)
             S = DNDarray(
                 S_loc,
                 tuple(S_loc.shape),

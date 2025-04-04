@@ -137,14 +137,14 @@ class DNDarray:
         return self.__halo_prev
 
     @property
-    def larray(self) -> torch.Tensor:
+    def V_local_larray(self) -> torch.Tensor:
         """
         Returns the underlying process-local ``torch.Tensor`` of the ``DNDarray``
         """
         return self.__array
 
-    @larray.setter
-    def larray(self, array: torch.Tensor):
+    @V_local_larray.setter
+    def V_local_larray(self, array: torch.Tensor):
         """
         Setter for ``self.larray``, the underlying local ``torch.Tensor`` of the ``DNDarray``.
 
@@ -340,11 +340,11 @@ class DNDarray:
         """
         Returns bytes to step in each dimension when traversing a ``DNDarray``. numpy-like usage: ``self.strides()``
         """
-        steps = list(self.larray.stride())
+        steps = list(self.V_local_larray.stride())
         try:
-            itemsize = self.larray.untyped_storage().element_size()
+            itemsize = self.V_local_larray.untyped_storage().element_size()
         except AttributeError:
-            itemsize = self.larray.storage().element_size()
+            itemsize = self.V_local_larray.storage().element_size()
         strides = tuple(step * itemsize for step in steps)
         return strides
 
@@ -477,7 +477,7 @@ class DNDarray:
         """
         Returns a view of the process-local slice of the :class:`DNDarray` as a numpy ndarray, if the ``DNDarray`` resides on CPU. Otherwise, it returns a copy, on CPU, of the process-local slice of ``DNDarray`` as numpy ndarray.
         """
-        return self.larray.cpu().__array__()
+        return self.V_local_larray.cpu().__array__()
 
     def astype(self, dtype, copy=True) -> DNDarray:
         """
@@ -759,9 +759,9 @@ class DNDarray:
         for r in range(self.comm.size):
             if self.split is not None:
                 base_key[self.split] = r
-                dat = None if r != self.comm.rank else self.larray
+                dat = None if r != self.comm.rank else self.V_local_larray
             else:
-                dat = self.larray
+                dat = self.V_local_larray
             partitions[tuple(base_key)] = {
                 "start": tuple(start_idx_map[r].tolist()),
                 "shape": tuple(lshape_map[r].tolist()),
@@ -820,16 +820,16 @@ class DNDarray:
                     displ[self.comm.rank + 1] if (self.comm.rank + 1) != self.comm.size else k,
                 )
                 if self.split == 0:
-                    self.larray[:, indices[0] : indices[1]] = self.larray[
+                    self.V_local_larray[:, indices[0] : indices[1]] = self.V_local_larray[
                         :, indices[0] : indices[1]
                     ].fill_diagonal_(value)
                 elif self.split == 1:
-                    self.larray[indices[0] : indices[1], :] = self.larray[
+                    self.V_local_larray[indices[0] : indices[1], :] = self.V_local_larray[
                         indices[0] : indices[1], :
                     ].fill_diagonal_(value)
 
         else:
-            self.larray = self.larray.fill_diagonal_(value)
+            self.V_local_larray = self.V_local_larray.fill_diagonal_(value)
 
         return self
 
@@ -913,7 +913,7 @@ class DNDarray:
                 # this might be a good place to check if the dtype is there
                 try:
                     k = manipulations.resplit(k)
-                    key[i] = k.larray
+                    key[i] = k.V_local_larray
                 except AttributeError:
                     pass
 
@@ -1017,9 +1017,9 @@ class DNDarray:
                     lout[new_split] = len(loc_inds[0])
                 else:
                     lout = [0] * len(gout_full)
-                arr = torch.tensor([], dtype=self.larray.dtype, device=self.larray.device).reshape(
-                    tuple(lout)
-                )
+                arr = torch.tensor(
+                    [], dtype=self.V_local_larray.dtype, device=self.V_local_larray.device
+                ).reshape(tuple(lout))
 
         elif isinstance(key[self.split], slice):
             # standard slicing along the split axis,
@@ -1071,13 +1071,15 @@ class DNDarray:
                 key[self.split] -= chunk_start.item()
                 arr = self.__array[tuple(key)].reshape(tuple(lout))
             else:
-                arr = torch.empty(tuple(lout), dtype=self.larray.dtype, device=self.larray.device)
+                arr = torch.empty(
+                    tuple(lout), dtype=self.V_local_larray.dtype, device=self.V_local_larray.device
+                )
             # broadcast result
             # TODO: Replace with `self.comm.Bcast(arr, root=active_rank)` after fixing #784
             arr = self.comm.bcast(arr, root=active_rank)
-            if arr.device != self.larray.device:
+            if arr.device != self.V_local_larray.device:
                 # todo: remove when unnecessary (also after #784)
-                arr = arr.to(device=self.larray.device)
+                arr = arr.to(device=self.V_local_larray.device)
 
         return DNDarray(
             arr.type(l_dtype),
@@ -1491,7 +1493,7 @@ class DNDarray:
         )
 
         self._axis2axisResplit(
-            self.larray, self.split, arr_tiles, recv_buffer, axis, new_tiles, self.comm
+            self.V_local_larray, self.split, arr_tiles, recv_buffer, axis, new_tiles, self.comm
         )
 
         self.__array = recv_buffer
@@ -1595,7 +1597,7 @@ class DNDarray:
             for i, k in enumerate(key):
                 try:  # extract torch tensor
                     k = manipulations.resplit(k)
-                    key[i] = k.larray
+                    key[i] = k.V_local_larray
                 except AttributeError:
                     pass
                 # remove bools from a torch tensor in favor of indexes
@@ -1744,7 +1746,7 @@ class DNDarray:
                     key_start, math.ceil(torch.true_divide(key_stop, step2)), 1
                 )
 
-                self.__setter(tuple(key), value.larray)
+                self.__setter(tuple(key), value.V_local_larray)
                 return
 
             # if rank in actives:
@@ -1857,7 +1859,7 @@ class DNDarray:
         Return a 1-element `torch.Tensor` strided as the global `self` shape.
         Used internally for sanitation purposes.
         """
-        return torch.ones((1,), dtype=torch.int8, device=self.larray.device).as_strided(
+        return torch.ones((1,), dtype=torch.int8, device=self.V_local_larray.device).as_strided(
             self.gshape, [0] * self.ndim
         )
 

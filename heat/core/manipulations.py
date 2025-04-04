@@ -141,7 +141,7 @@ def broadcast_arrays(*arrays: DNDarray) -> List[DNDarray]:
         # extract global shapes
         gshapes.append(array.gshape)
         # extract local torch tensors
-        t_arrays.append(array.larray)
+        t_arrays.append(array.V_local_larray)
     t_arrays = tuple(t_arrays)
 
     # broadcast the global shapes
@@ -227,7 +227,7 @@ def broadcast_to(x: DNDarray, shape: Tuple[int, ...]) -> DNDarray:
     if not x.is_distributed():
         # return a view of the input data
         broadcasted = DNDarray(
-            x.larray.broadcast_to(shape),
+            x.V_local_larray.broadcast_to(shape),
             gshape=shape,
             dtype=x.dtype,
             split=output_split,
@@ -503,7 +503,9 @@ def concatenate(arrays: Sequence[DNDarray, ...], axis: int = 0) -> DNDarray:
     # no splits, local concat
     if s0 is None and s1 is None:
         return factories.array(
-            torch.cat((arr0.larray, arr1.larray), dim=axis), device=arr0.device, comm=arr0.comm
+            torch.cat((arr0.V_local_larray, arr1.V_local_larray), dim=axis),
+            device=arr0.device,
+            comm=arr0.comm,
         )
 
     # non-matching splits when both arrays are split
@@ -514,7 +516,7 @@ def concatenate(arrays: Sequence[DNDarray, ...], axis: int = 0) -> DNDarray:
         _, _, arr0_slice = arr1.comm.chunk(arr0.shape, arr1.split)
         _, _, arr1_slice = arr0.comm.chunk(arr1.shape, arr0.split)
         out = factories.array(
-            torch.cat((arr0.larray[arr0_slice], arr1.larray[arr1_slice]), dim=axis),
+            torch.cat((arr0.V_local_larray[arr0_slice], arr1.V_local_larray[arr1_slice]), dim=axis),
             dtype=out_dtype,
             is_split=s1 if s1 is not None else s0,
             device=arr1.device,
@@ -529,7 +531,7 @@ def concatenate(arrays: Sequence[DNDarray, ...], axis: int = 0) -> DNDarray:
             # torch cat arrays together and return a new array that is_split
 
             out = factories.array(
-                torch.cat((arr0.larray, arr1.larray), dim=axis),
+                torch.cat((arr0.V_local_larray, arr1.V_local_larray), dim=axis),
                 dtype=out_dtype,
                 is_split=s0,
                 device=arr0.device,
@@ -538,8 +540,8 @@ def concatenate(arrays: Sequence[DNDarray, ...], axis: int = 0) -> DNDarray:
             return out
 
         else:
-            t_arr0 = arr0.larray
-            t_arr1 = arr1.larray
+            t_arr0 = arr0.V_local_larray
+            t_arr1 = arr1.V_local_larray
             # maps are created for where the data is and the output shape is calculated
             lshape_map = torch.zeros((2, arr0.comm.size, len(arr0.gshape)), dtype=torch.int)
             lshape_map[0, arr0.comm.rank, :] = torch.Tensor(arr0.lshape)
@@ -779,7 +781,7 @@ def diag(a: DNDarray, offset: int = 0) -> DNDarray:
     a.balance_()
 
     local = torch.zeros(lshape, dtype=a.dtype.torch_type(), device=a.device.torch_device)
-    local[indices_x, indices_y] = a.larray[indices_x]
+    local[indices_x, indices_y] = a.V_local_larray[indices_x]
 
     return factories.array(local, dtype=a.dtype, is_split=a.split, device=a.device, comm=a.comm)
 
@@ -850,12 +852,12 @@ def diagonal(a: DNDarray, offset: int = 0, dim1: int = 0, dim2: int = 1) -> DNDa
         split = len(shape) - 1
 
     if a.split is None or a.split not in (dim1, dim2):
-        result = torch.diagonal(a.larray, offset=offset, dim1=dim1, dim2=dim2).contiguous()
+        result = torch.diagonal(a.V_local_larray, offset=offset, dim1=dim1, dim2=dim2).contiguous()
     else:
         vz = 1 if a.split == dim1 else -1
         off, _, _ = a.comm.chunk(a.shape, a.split)
         result = torch.diagonal(
-            a.larray, offset=offset + vz * off, dim1=dim1, dim2=dim2
+            a.V_local_larray, offset=offset + vz * off, dim1=dim1, dim2=dim2
         ).contiguous()
     return factories.array(result, dtype=a.dtype, is_split=split, device=a.device, comm=a.comm)
 
@@ -969,7 +971,7 @@ def expand_dims(a: DNDarray, axis: int) -> DNDarray:
         split_bookkeeping[a.split] = "split"
     output_shape = list(a.shape)
 
-    local_expansion = a.larray
+    local_expansion = a.V_local_larray
     if isinstance(axis, (tuple, list)):
         # sanitize axis, introduce arbitrary dummy dimensions to model expansion
         axis = stride_tricks.sanitize_axis(a.shape + (1,) * len(axis), axis)
@@ -1031,14 +1033,22 @@ def flatten(a: DNDarray) -> DNDarray:
 
     if a.split is None:
         return factories.array(
-            torch.flatten(a.larray), dtype=a.dtype, is_split=None, device=a.device, comm=a.comm
+            torch.flatten(a.V_local_larray),
+            dtype=a.dtype,
+            is_split=None,
+            device=a.device,
+            comm=a.comm,
         )
 
     if a.split > 0:
         a = resplit(a, 0)
 
     a = factories.array(
-        torch.flatten(a.larray), dtype=a.dtype, is_split=a.split, device=a.device, comm=a.comm
+        torch.flatten(a.V_local_larray),
+        dtype=a.dtype,
+        is_split=a.split,
+        device=a.device,
+        comm=a.comm,
     )
     a.balance_()
 
@@ -1085,7 +1095,7 @@ def flip(a: DNDarray, axis: Union[int, Tuple[int, ...]] = None) -> DNDarray:
     if isinstance(axis, int):
         axis = [axis]
 
-    flipped = torch.flip(a.larray, axis)
+    flipped = torch.flip(a.V_local_larray, axis)
 
     if a.split not in axis:
         return factories.array(
@@ -1100,7 +1110,7 @@ def flip(a: DNDarray, axis: Union[int, Tuple[int, ...]] = None) -> DNDarray:
 
     # Exchange local tensors
     req = a.comm.Isend(flipped, dest=dest_proc)
-    received = torch.empty(new_lshape, dtype=a.larray.dtype, device=a.device.torch_device)
+    received = torch.empty(new_lshape, dtype=a.V_local_larray.dtype, device=a.device.torch_device)
     a.comm.Recv(received, source=dest_proc)
 
     res = factories.array(received, dtype=a.dtype, is_split=a.split, device=a.device, comm=a.comm)
@@ -1546,7 +1556,7 @@ def pad(
     amount_pad_dim = len(pad) // 2
     pad_dim = [rank_array - i for i in range(1, amount_pad_dim + 1)]
 
-    array_torch = array.larray
+    array_torch = array.V_local_larray
 
     if array.split is not None:
         counts = array.comm.counts_displs_shape(array.gshape, array.split)[0]
@@ -2126,7 +2136,7 @@ def reshape(a: DNDarray, *shape: Union[int, Tuple[int, ...]], **kwargs) -> DNDar
     if a.split is not None:
         a.resplit_(axis=0)
 
-    local_a = a.larray
+    local_a = a.V_local_larray
 
     # check new_split parameter
     new_split = kwargs.get("new_split")
@@ -2203,7 +2213,7 @@ def reshape(a: DNDarray, *shape: Union[int, Tuple[int, ...]], **kwargs) -> DNDar
         target_map = lshape_map.clone()
         target_map[:, a.split] = target_numel
         reshape_first_pass.redistribute_(target_map=target_map)
-        local_a = reshape_first_pass.larray.reshape(second_local_shape)
+        local_a = reshape_first_pass.V_local_larray.reshape(second_local_shape)
     reshape_final = DNDarray(
         local_a,
         gshape=shape,
@@ -2298,7 +2308,7 @@ def roll(
                 recv_index = (index_old - shift) % x.gshape[x.split]
 
                 # exchange arrays
-                recv = torch.empty_like(x.larray)
+                recv = torch.empty_like(x.V_local_larray)
                 recv_splits = torch.split(recv, 1, dim=x.split)
                 recv_requests = [None for i in range(x.lshape[x.split])]
 
@@ -2307,7 +2317,7 @@ def roll(
                         recv_splits[i], index_map[recv_index[i]], index_old[i]
                     )
 
-                send_splits = torch.split(x.larray, 1, dim=x.split)
+                send_splits = torch.split(x.V_local_larray, 1, dim=x.split)
                 send_requests = [None for i in range(x.lshape[x.split])]
 
                 for i in range(x.lshape[x.split]):
@@ -2371,7 +2381,7 @@ def roll(
                 return x
 
     # use PyTorch for all other axes
-    rolled = torch.roll(x.larray, shift, axis)
+    rolled = torch.roll(x.V_local_larray, shift, axis)
     return DNDarray(
         rolled,
         gshape=x.shape,
@@ -2449,7 +2459,7 @@ def rot90(m: DNDarray, k: int = 1, axes: Sequence[int, int] = (0, 1)) -> DNDarra
 
     if m.split is None:
         return factories.array(
-            torch.rot90(m.larray, k, axes), dtype=m.dtype, device=m.device, comm=m.comm
+            torch.rot90(m.V_local_larray, k, axes), dtype=m.dtype, device=m.device, comm=m.comm
         )
 
     try:
@@ -2538,12 +2548,12 @@ def sort(a: DNDarray, axis: int = -1, descending: bool = False, out: Optional[DN
 
     if a.split is None or axis != a.split:
         # sorting is not affected by split -> we can just sort along the axis
-        final_result, final_indices = torch.sort(a.larray, dim=axis, descending=descending)
+        final_result, final_indices = torch.sort(a.V_local_larray, dim=axis, descending=descending)
 
     else:
         # sorting is affected by split, processes need to communicate results
         # transpose so we can work along the 0 axis
-        transposed = a.larray.transpose(axis, 0)
+        transposed = a.V_local_larray.transpose(axis, 0)
         local_sorted, local_indices = torch.sort(transposed, dim=0, descending=descending)
 
         size = a.comm.Get_size()
@@ -2739,7 +2749,7 @@ def sort(a: DNDarray, axis: int = -1, descending: bool = False, out: Optional[DN
         final_indices, dtype=types.int32, is_split=a.split, device=a.device, comm=a.comm
     )
     if out is not None:
-        out.larray = final_result
+        out.V_local_larray = final_result
         return return_indices
     else:
         tensor = factories.array(
@@ -3060,7 +3070,7 @@ def squeeze(x: DNDarray, axis: Union[int, Tuple[int, ...]] = None) -> DNDarray:
 
     out_lshape = tuple(x.lshape[dim] for dim in range(x.ndim) if dim not in axis)
     out_gshape = tuple(x.gshape[dim] for dim in range(x.ndim) if dim not in axis)
-    x_lsqueezed = x.larray.reshape(out_lshape)
+    x_lsqueezed = x.V_local_larray.reshape(out_lshape)
 
     # Calculate new split axis according to squeezed shape
     if x.split is not None:
@@ -3184,7 +3194,7 @@ def stack(
         raise ValueError(e) from e
 
     # extract torch tensors
-    t_arrays = [array.larray for array in arrays]
+    t_arrays = [array.V_local_larray for array in arrays]
 
     # output shape and split
     axis = stride_tricks.sanitize_axis(target.gshape + (len(arrays),), axis)
@@ -3206,7 +3216,7 @@ def stack(
     # return stacked DNDarrays
     if out is not None:
         sanitation.sanitize_out(out, stacked_shape, stacked_split, target.device)
-        out.larray = t_stacked.type(out.larray.dtype)
+        out.V_local_larray = t_stacked.type(out.V_local_larray.dtype)
         return out
 
     stacked = DNDarray(
@@ -3304,7 +3314,7 @@ def unique(
     """
     if a.split is None:
         torch_output = torch.unique(
-            a.larray, sorted=sorted, return_inverse=return_inverse, dim=axis
+            a.V_local_larray, sorted=sorted, return_inverse=return_inverse, dim=axis
         )
         if isinstance(torch_output, tuple):
             heat_output = tuple(
@@ -3317,7 +3327,7 @@ def unique(
             )
         return heat_output
 
-    local_data = a.larray
+    local_data = a.V_local_larray
     unique_axis = None
     inverse_indices = None
 
@@ -3532,7 +3542,7 @@ def unfold(a: DNDarray, axis: int, size: int, step: int = 1):
 
     if a.split is None or comm.size == 1 or a.split != axis:  # early out
         ret = factories.array(
-            a.larray.unfold(axis, size, step), is_split=a.split, device=dev, comm=comm
+            a.V_local_larray.unfold(axis, size, step), is_split=a.split, device=dev, comm=comm
         )
 
         return ret
@@ -3677,7 +3687,9 @@ def resplit(arr: DNDarray, axis: Optional[int] = None) -> DNDarray:
     if axis == arr.split:
         return arr.copy()
     if not arr.is_distributed():
-        return factories.array(arr.larray, split=axis, device=arr.device, comm=arr.comm, copy=True)
+        return factories.array(
+            arr.V_local_larray, split=axis, device=arr.device, comm=arr.comm, copy=True
+        )
 
     if axis is None:
         # new_arr = arr.copy()
@@ -3685,7 +3697,7 @@ def resplit(arr: DNDarray, axis: Optional[int] = None) -> DNDarray:
             arr.shape, dtype=arr.dtype.torch_type(), device=arr.device.torch_device
         )
         counts, displs = arr.counts_displs()
-        arr.comm.Allgatherv(arr.larray, (gathered, counts, displs), recv_axis=arr.split)
+        arr.comm.Allgatherv(arr.V_local_larray, (gathered, counts, displs), recv_axis=arr.split)
         new_arr = factories.array(
             gathered, is_split=axis, device=arr.device, comm=arr.comm, dtype=arr.dtype
         )
@@ -3696,8 +3708,8 @@ def resplit(arr: DNDarray, axis: Optional[int] = None) -> DNDarray:
     arr_tiles = tiling.SplitTiles(arr)
     new_tiles = tiling.SplitTiles(new_arr)
 
-    new_arr.larray = _axis2axisResplit(
-        arr.larray, arr.split, arr_tiles, new_arr.larray, axis, new_tiles, arr.comm
+    new_arr.V_local_larray = _axis2axisResplit(
+        arr.V_local_larray, arr.split, arr_tiles, new_arr.V_local_larray, axis, new_tiles, arr.comm
     )
 
     return new_arr
@@ -3969,7 +3981,7 @@ def tile(x: DNDarray, reps: Sequence[int, ...]) -> DNDarray:
     """
     # x can be DNDarray or scalar
     try:
-        _ = x.larray
+        _ = x.V_local_larray
     except AttributeError:
         try:
             _ = x.shape
@@ -4022,7 +4034,7 @@ def tile(x: DNDarray, reps: Sequence[int, ...]) -> DNDarray:
 
     if not x.is_distributed() or reps[x.split] == 1:
         # no repeats along the split axis: local operation
-        t_tiled = x.larray.repeat(reps)
+        t_tiled = x.V_local_larray.repeat(reps)
         out_gshape = tuple(x_proxy.repeat(reps).shape)
         return DNDarray(
             t_tiled,
@@ -4044,7 +4056,7 @@ def tile(x: DNDarray, reps: Sequence[int, ...]) -> DNDarray:
         x_proxy = x.__torch_proxy__()
         out_gshape = tuple(x_proxy.repeat(reps).shape)
 
-    local_x = x.larray
+    local_x = x.V_local_larray
 
     # allocate tiled DNDarray, at first tiled along split axis only
     split_reps = [rep if i == x.split else 1 for i, rep in enumerate(reps)]
@@ -4108,7 +4120,7 @@ def tile(x: DNDarray, reps: Sequence[int, ...]) -> DNDarray:
     offset_x = displs[rank]
     # impose load-balance on output
     offset_tiled, _, _ = tiled.comm.chunk(tiled.gshape, tiled.split)
-    t_tiled = tiled.larray
+    t_tiled = tiled.V_local_larray
 
     active_send_counts = send_slices.clone()
     active_send_counts[0] *= -1
@@ -4285,7 +4297,7 @@ def topk(
     )
 
     # Split data again to return a tuple
-    local_result = gres.larray
+    local_result = gres.V_local_larray
     shape_len = int(local_result[4])
 
     gres, gindices = local_result[5 + shape_len :].chunk(2)
@@ -4315,11 +4327,15 @@ def topk(
                 )
             )
         try:
-            out[0].larray.untyped_storage().copy_(final_array.larray.untyped_storage())
-            out[1].larray.untyped_storage().copy_(final_indices.larray.untyped_storage())
+            out[0].V_local_larray.untyped_storage().copy_(
+                final_array.V_local_larray.untyped_storage()
+            )
+            out[1].V_local_larray.untyped_storage().copy_(
+                final_indices.V_local_larray.untyped_storage()
+            )
         except AttributeError:
-            out[0].larray.storage().copy_(final_array.larray.storage())
-            out[1].larray.storage().copy_(final_indices.larray.storage())
+            out[0].V_local_larray.storage().copy_(final_array.V_local_larray.storage())
+            out[1].V_local_larray.storage().copy_(final_indices.V_local_larray.storage())
 
         out[0]._DNDarray__dtype = a.dtype
         out[1]._DNDarray__dtype = types.int64

@@ -56,7 +56,7 @@ class KNeighborsClassifier(ht.BaseEstimator, ht.ClassificationMixin):
         n_features = ht.max(x).item() + 1
 
         one_hot = ht.zeros((n_samples, n_features), split=x.split, device=x.device, comm=x.comm)
-        one_hot.lloc[range(one_hot.lshape[0]), x.larray] = 1
+        one_hot.lloc[range(one_hot.lshape[0]), x.V_local_larray] = 1
 
         return one_hot
 

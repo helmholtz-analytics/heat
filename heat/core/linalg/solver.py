@@ -195,7 +195,7 @@ def lanczos(
 
                 # Reorthogonalization
                 for j in range(i):
-                    vi_loc = V.larray[:, j]
+                    vi_loc = V.V_local_larray[:, j]
                     a = torch.dot(vr._DNDarray__array, torch.conj(vi_loc))
                     b = torch.dot(vi_loc, torch.conj(vi_loc))
                     A.comm.Allreduce(ht.communication.MPI.IN_PLACE, a, ht.communication.MPI.SUM)
@@ -235,7 +235,7 @@ def lanczos(
                 # orthogonalize v_r with respect to all vectors v[i]
                 for j in range(i):
                     vi_loc = V._DNDarray__array[:, j]
-                    a = torch.dot(vr.larray, vi_loc)
+                    a = torch.dot(vr.V_local_larray, vi_loc)
                     b = torch.dot(vi_loc, vi_loc)
                     A.comm.Allreduce(ht.communication.MPI.IN_PLACE, a, ht.communication.MPI.SUM)
                     A.comm.Allreduce(ht.communication.MPI.IN_PLACE, b, ht.communication.MPI.SUM)
@@ -247,7 +247,7 @@ def lanczos(
 
                 # Reorthogonalization
                 for j in range(i):
-                    vi_loc = V.larray[:, j]
+                    vi_loc = V.V_local_larray[:, j]
                     a = torch.dot(vr._DNDarray__array, vi_loc)
                     b = torch.dot(vi_loc, vi_loc)
                     A.comm.Allreduce(ht.communication.MPI.IN_PLACE, a, ht.communication.MPI.SUM)
@@ -333,7 +333,7 @@ def solve_triangular(A: DNDarray, b: DNDarray) -> DNDarray:
 
     if A.split is None:  # A not split
         if b.split is None:
-            x = torch.linalg.solve_triangular(A.larray, b.larray, upper=True)
+            x = torch.linalg.solve_triangular(A.V_local_larray, b.V_local_larray, upper=True)
 
             return factories.array(x, dtype=b.dtype, device=dev, comm=comm)
         else:  # A not split, b.split == -2
@@ -344,8 +344,8 @@ def solve_triangular(A: DNDarray, b: DNDarray) -> DNDarray:
                 ]
             )
 
-            btilde_loc = b.larray.clone()
-            A_loc = A.larray[..., b_lshapes_cum[comm.rank] : b_lshapes_cum[comm.rank + 1]]
+            btilde_loc = b.V_local_larray.clone()
+            A_loc = A.V_local_larray[..., b_lshapes_cum[comm.rank] : b_lshapes_cum[comm.rank + 1]]
 
             x = factories.zeros_like(b, device=dev, comm=comm)
 
@@ -359,12 +359,12 @@ def solve_triangular(A: DNDarray, b: DNDarray) -> DNDarray:
                 res_recv = torch.zeros((*batch_shape, count[comm.rank], b.shape[-1]), device=tdev)
 
                 if comm.rank == i:
-                    x.larray = torch.linalg.solve_triangular(
+                    x.V_local_larray = torch.linalg.solve_triangular(
                         A_loc[..., b_lshapes_cum[i] : b_lshapes_cum[i + 1], :],
                         btilde_loc,
                         upper=True,
                     )
-                    res_send = A_loc @ x.larray
+                    res_send = A_loc @ x.V_local_larray
 
                 comm.Scatterv((res_send, count, displ), res_recv, root=i, axis=batch_dim)
 
@@ -372,7 +372,7 @@ def solve_triangular(A: DNDarray, b: DNDarray) -> DNDarray:
                     btilde_loc -= res_recv
 
             if comm.rank == 0:
-                x.larray = torch.linalg.solve_triangular(
+                x.V_local_larray = torch.linalg.solve_triangular(
                     A_loc[..., : b_lshapes_cum[1], :], btilde_loc, upper=True
                 )
 
@@ -380,7 +380,9 @@ def solve_triangular(A: DNDarray, b: DNDarray) -> DNDarray:
 
     if A.split < batch_dim:  # batch split
         x = factories.zeros_like(b, device=dev, comm=comm, split=A.split)
-        x.larray = torch.linalg.solve_triangular(A.larray, b.larray, upper=True)
+        x.V_local_larray = torch.linalg.solve_triangular(
+            A.V_local_larray, b.V_local_larray, upper=True
+        )
 
         return x
 
@@ -393,11 +395,11 @@ def solve_triangular(A: DNDarray, b: DNDarray) -> DNDarray:
         )
 
         if b.split is None:
-            btilde_loc = b.larray[
+            btilde_loc = b.V_local_larray[
                 ..., A_lshapes_cum[comm.rank] : A_lshapes_cum[comm.rank + 1], :
             ].clone()
         else:  # b is split at la dim 0
-            btilde_loc = b.larray.clone()
+            btilde_loc = b.V_local_larray.clone()
 
         x = factories.zeros_like(
             b, device=dev, comm=comm, split=batch_dim
@@ -418,12 +420,12 @@ def solve_triangular(A: DNDarray, b: DNDarray) -> DNDarray:
                 )
 
                 if comm.rank == i:
-                    x.larray = torch.linalg.solve_triangular(
-                        A.larray[..., A_lshapes_cum[i] : A_lshapes_cum[i + 1], :],
+                    x.V_local_larray = torch.linalg.solve_triangular(
+                        A.V_local_larray[..., A_lshapes_cum[i] : A_lshapes_cum[i + 1], :],
                         btilde_loc,
                         upper=True,
                     )
-                    res_send = A.larray @ x.larray
+                    res_send = A.V_local_larray @ x.V_local_larray
 
                 comm.Scatterv((res_send, count, displ), res_recv, root=i, axis=batch_dim)
 
@@ -431,20 +433,20 @@ def solve_triangular(A: DNDarray, b: DNDarray) -> DNDarray:
                     btilde_loc -= res_recv
 
             if comm.rank == 0:
-                x.larray = torch.linalg.solve_triangular(
-                    A.larray[..., : A_lshapes_cum[1], :], btilde_loc, upper=True
+                x.V_local_larray = torch.linalg.solve_triangular(
+                    A.V_local_larray[..., : A_lshapes_cum[1], :], btilde_loc, upper=True
                 )
 
         else:  # split dim is la dim 0
             for i in range(nprocs - 1, 0, -1):
                 idims = tuple(x.lshape_map[i])
                 if comm.rank == i:
-                    x.larray = torch.linalg.solve_triangular(
-                        A.larray[..., :, A_lshapes_cum[i] : A_lshapes_cum[i + 1]],
+                    x.V_local_larray = torch.linalg.solve_triangular(
+                        A.V_local_larray[..., :, A_lshapes_cum[i] : A_lshapes_cum[i + 1]],
                         btilde_loc,
                         upper=True,
                     )
-                    x_from_i = x.larray
+                    x_from_i = x.V_local_larray
                 else:
                     x_from_i = torch.zeros(
                         idims,
@@ -456,12 +458,12 @@ def solve_triangular(A: DNDarray, b: DNDarray) -> DNDarray:
 
                 if comm.rank < i:
                     btilde_loc -= (
-                        A.larray[..., :, A_lshapes_cum[i] : A_lshapes_cum[i + 1]] @ x_from_i
+                        A.V_local_larray[..., :, A_lshapes_cum[i] : A_lshapes_cum[i + 1]] @ x_from_i
                     )
 
             if comm.rank == 0:
-                x.larray = torch.linalg.solve_triangular(
-                    A.larray[..., :, : A_lshapes_cum[1]], btilde_loc, upper=True
+                x.V_local_larray = torch.linalg.solve_triangular(
+                    A.V_local_larray[..., :, : A_lshapes_cum[1]], btilde_loc, upper=True
                 )
 
         return x

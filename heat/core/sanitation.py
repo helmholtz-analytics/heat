@@ -126,7 +126,7 @@ def sanitize_distribution(
                 )
                 out.append(
                     factories.array(
-                        arg.larray[tuple(idx)],
+                        arg.V_local_larray[tuple(idx)],
                         is_split=target_split,
                         copy=False,
                         comm=arg.comm,
@@ -200,7 +200,7 @@ def sanitize_infinity(x: Union[DNDarray, torch.Tensor]) -> Union[int, float]:
     x: Union[DNDarray, torch.Tensor]
         Input object.
     """
-    dtype = x.dtype if isinstance(x, torch.Tensor) else x.larray.dtype
+    dtype = x.dtype if isinstance(x, torch.Tensor) else x.V_local_larray.dtype
     try:
         largest = torch.finfo(dtype).max
     except TypeError:
@@ -368,7 +368,7 @@ def scalar_to_1d(x: DNDarray) -> DNDarray:
             f"Input needs to be a scalar DNDarray,but was found to be {x.ndim}d DNDarray"
         )
     return DNDarray(
-        x.larray.unsqueeze(0),
+        x.V_local_larray.unsqueeze(0),
         gshape=(1,),
         dtype=x.dtype,
         split=None,

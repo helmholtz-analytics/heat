@@ -55,12 +55,12 @@ def nonzero(x: DNDarray) -> DNDarray:
 
     if x.split is None:
         # if there is no split then just return the values from torch
-        lcl_nonzero = torch.nonzero(input=x.larray, as_tuple=False)
+        lcl_nonzero = torch.nonzero(input=x.V_local_larray, as_tuple=False)
         gout = list(lcl_nonzero.size())
         is_split = None
     else:
         # a is split
-        lcl_nonzero = torch.nonzero(input=x.larray, as_tuple=False)
+        lcl_nonzero = torch.nonzero(input=x.V_local_larray, as_tuple=False)
         _, _, slices = x.comm.chunk(x.shape, x.split)
         lcl_nonzero[..., x.split] += slices[x.split].start
         gout = list(lcl_nonzero.size())

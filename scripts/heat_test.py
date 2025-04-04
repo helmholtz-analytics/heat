@@ -6,4 +6,4 @@ x = ht.arange(10, split=0)
 if x.comm.rank == 0:
     print("x is distributed: ", x.is_distributed())
 print("Global DNDarray x: ", x)
-print("Local torch tensor on rank ", x.comm.rank, ": ", x.larray)
+print("Local torch tensor on rank ", x.comm.rank, ": ", x.V_local_larray)

@@ -68,7 +68,7 @@ class TestManipulations(TestCase):
 
         # check exceptions
         with self.assertRaises(TypeError):
-            ht.broadcast_to(a.larray, (10, 5))
+            ht.broadcast_to(a.V_local_larray, (10, 5))
 
     def test_column_stack(self):
         # test local column_stack, 2-D arrays
@@ -488,13 +488,13 @@ class TestManipulations(TestCase):
         data = torch.arange(size * 2, device=self.device.torch_device)
         a = ht.array(data)
         res = ht.diag(a)
-        self.assertTrue(torch.equal(res.larray, torch.diag(data)))
+        self.assertTrue(torch.equal(res.V_local_larray, torch.diag(data)))
 
         res = ht.diag(a, offset=size)
-        self.assertTrue(torch.equal(res.larray, torch.diag(data, diagonal=size)))
+        self.assertTrue(torch.equal(res.V_local_larray, torch.diag(data, diagonal=size)))
 
         res = ht.diag(a, offset=-size)
-        self.assertTrue(torch.equal(res.larray, torch.diag(data, diagonal=-size)))
+        self.assertTrue(torch.equal(res.V_local_larray, torch.diag(data, diagonal=-size)))
 
         a = ht.array(data, split=0)
         res = ht.diag(a)
@@ -505,7 +505,7 @@ class TestManipulations(TestCase):
         exp = torch.diag(data)
         counts, displs = res.counts_displs()
         local_exp = exp[displs[rank] : displs[rank] + counts[rank]]
-        self.assertTrue(torch.equal(res.larray, local_exp))
+        self.assertTrue(torch.equal(res.V_local_larray, local_exp))
 
         res = ht.diag(a, offset=size)
 
@@ -516,7 +516,7 @@ class TestManipulations(TestCase):
 
         torch.manual_seed(size)
         i = torch.randint(a.shape[0], ()).item()
-        self.assertTrue(torch.equal(res[i, i + size].larray, exp[i, i + size]))
+        self.assertTrue(torch.equal(res[i, i + size].V_local_larray, exp[i, i + size]))
 
         res = ht.diag(a, offset=-size)
         self.assertEqual(res.split, a.split)
@@ -525,7 +525,7 @@ class TestManipulations(TestCase):
         exp = torch.diag(data, diagonal=-size)
         counts, displs = res.counts_displs()
         local_exp = exp[displs[rank] : displs[rank] + counts[rank]]
-        self.assertTrue(torch.equal(res.larray, local_exp))
+        self.assertTrue(torch.equal(res.V_local_larray, local_exp))
 
         self.assertTrue(ht.equal(ht.diag(ht.diag(a)), a))
 
@@ -558,7 +558,7 @@ class TestManipulations(TestCase):
         i = torch.randint(size, ()).item()
         self.assertTrue(
             torch.equal(
-                res[i, i].larray,
+                res[i, i].V_local_larray,
                 torch.tensor(1, dtype=torch.int32, device=self.device.torch_device),
             )
         )
@@ -587,14 +587,14 @@ class TestManipulations(TestCase):
         a = ht.array(data)
         res = ht.diagonal(a)
         self.assertTrue(
-            torch.equal(res.larray, torch.arange(size, device=self.device.torch_device))
+            torch.equal(res.V_local_larray, torch.arange(size, device=self.device.torch_device))
         )
         self.assertEqual(res.split, None)
 
         a = ht.array(data, split=0)
         res = ht.diagonal(a)
         self.assertTrue(
-            torch.equal(res.larray, torch.tensor([rank], device=self.device.torch_device))
+            torch.equal(res.V_local_larray, torch.tensor([rank], device=self.device.torch_device))
         )
         self.assertEqual(res.split, 0)
 
@@ -604,7 +604,7 @@ class TestManipulations(TestCase):
 
         res = ht.diagonal(a)
         self.assertTrue(
-            torch.equal(res.larray, torch.tensor([rank], device=self.device.torch_device))
+            torch.equal(res.V_local_larray, torch.tensor([rank], device=self.device.torch_device))
         )
         self.assertEqual(res.split, 0)
 
@@ -620,39 +620,45 @@ class TestManipulations(TestCase):
         a = ht.array(data)
         res = ht.diagonal(a, offset=0)
         self.assertTrue(
-            torch.equal(res.larray, torch.arange(size + 1, device=self.device.torch_device))
+            torch.equal(res.V_local_larray, torch.arange(size + 1, device=self.device.torch_device))
         )
         res = ht.diagonal(a, offset=1)
         self.assertTrue(
-            torch.equal(res.larray, torch.arange(1, size + 1, device=self.device.torch_device))
+            torch.equal(
+                res.V_local_larray, torch.arange(1, size + 1, device=self.device.torch_device)
+            )
         )
         res = ht.diagonal(a, offset=-1)
         self.assertTrue(
-            torch.equal(res.larray, torch.arange(0, size, device=self.device.torch_device))
+            torch.equal(res.V_local_larray, torch.arange(0, size, device=self.device.torch_device))
         )
 
         a = ht.array(data, split=0)
         res = ht.diagonal(a, offset=1)
         res.balance_()
         self.assertTrue(
-            torch.equal(res.larray, torch.tensor([rank + 1], device=self.device.torch_device))
+            torch.equal(
+                res.V_local_larray, torch.tensor([rank + 1], device=self.device.torch_device)
+            )
         )
         res = ht.diagonal(a, offset=-1)
         res.balance_()
         self.assertTrue(
-            torch.equal(res.larray, torch.tensor([rank], device=self.device.torch_device))
+            torch.equal(res.V_local_larray, torch.tensor([rank], device=self.device.torch_device))
         )
 
         a = ht.array(data, split=1)
         res = ht.diagonal(a, offset=1)
         res.balance_()
         self.assertTrue(
-            torch.equal(res.larray, torch.tensor([rank + 1], device=self.device.torch_device))
+            torch.equal(
+                res.V_local_larray, torch.tensor([rank + 1], device=self.device.torch_device)
+            )
         )
         res = ht.diagonal(a, offset=-1)
         res.balance_()
         self.assertTrue(
-            torch.equal(res.larray, torch.tensor([rank], device=self.device.torch_device))
+            torch.equal(res.V_local_larray, torch.tensor([rank], device=self.device.torch_device))
         )
 
         data = (
@@ -664,12 +670,14 @@ class TestManipulations(TestCase):
         res = ht.diagonal(a, offset=10)
         self.assertTrue(
             torch.equal(
-                res.larray, torch.arange(10, 10 + size * 2, device=self.device.torch_device)
+                res.V_local_larray, torch.arange(10, 10 + size * 2, device=self.device.torch_device)
             )
         )
         res = ht.diagonal(a, offset=-10)
         self.assertTrue(
-            torch.equal(res.larray, torch.arange(0, size * 2, device=self.device.torch_device))
+            torch.equal(
+                res.V_local_larray, torch.arange(0, size * 2, device=self.device.torch_device)
+            )
         )
 
         a = ht.array(data, split=0)
@@ -677,7 +685,7 @@ class TestManipulations(TestCase):
         res.balance_()
         self.assertTrue(
             torch.equal(
-                res.larray,
+                res.V_local_larray,
                 torch.tensor([10 + rank * 2, 11 + rank * 2], device=self.device.torch_device),
             )
         )
@@ -685,7 +693,8 @@ class TestManipulations(TestCase):
         res.balance_()
         self.assertTrue(
             torch.equal(
-                res.larray, torch.tensor([rank * 2, 1 + rank * 2], device=self.device.torch_device)
+                res.V_local_larray,
+                torch.tensor([rank * 2, 1 + rank * 2], device=self.device.torch_device),
             )
         )
 
@@ -694,7 +703,7 @@ class TestManipulations(TestCase):
         res.balance_()
         self.assertTrue(
             torch.equal(
-                res.larray,
+                res.V_local_larray,
                 torch.tensor([10 + rank * 2, 11 + rank * 2], device=self.device.torch_device),
             )
         )
@@ -702,7 +711,8 @@ class TestManipulations(TestCase):
         res.balance_()
         self.assertTrue(
             torch.equal(
-                res.larray, torch.tensor([rank * 2, 1 + rank * 2], device=self.device.torch_device)
+                res.V_local_larray,
+                torch.tensor([rank * 2, 1 + rank * 2], device=self.device.torch_device),
             )
         )
 
@@ -715,7 +725,7 @@ class TestManipulations(TestCase):
         res = ht.diagonal(a)
         self.assertTrue(
             torch.equal(
-                res.larray,
+                res.V_local_larray,
                 torch.arange(size + 1, device=self.device.torch_device)
                 .repeat(size + 1)
                 .reshape(size + 1, size + 1)
@@ -725,7 +735,7 @@ class TestManipulations(TestCase):
         res = ht.diagonal(a, offset=1)
         self.assertTrue(
             torch.equal(
-                res.larray,
+                res.V_local_larray,
                 torch.arange(size + 1, device=self.device.torch_device)
                 .repeat(size)
                 .reshape(size, size + 1)
@@ -735,7 +745,7 @@ class TestManipulations(TestCase):
         res = ht.diagonal(a, offset=-1)
         self.assertTrue(
             torch.equal(
-                res.larray,
+                res.V_local_larray,
                 torch.arange(size + 1, device=self.device.torch_device)
                 .repeat(size)
                 .reshape(size, size + 1)
@@ -746,7 +756,7 @@ class TestManipulations(TestCase):
         res = ht.diagonal(a, dim1=1, dim2=2)
         self.assertTrue(
             torch.equal(
-                res.larray,
+                res.V_local_larray,
                 torch.arange(size + 1, device=self.device.torch_device)
                 .repeat(size + 1)
                 .reshape(size + 1, size + 1),
@@ -755,7 +765,7 @@ class TestManipulations(TestCase):
         res = ht.diagonal(a, offset=1, dim1=1, dim2=2)
         self.assertTrue(
             torch.equal(
-                res.larray,
+                res.V_local_larray,
                 torch.arange(1, size + 1, device=self.device.torch_device)
                 .repeat(size + 1)
                 .reshape(size + 1, size),
@@ -764,7 +774,7 @@ class TestManipulations(TestCase):
         res = ht.diagonal(a, offset=-1, dim1=1, dim2=2)
         self.assertTrue(
             torch.equal(
-                res.larray,
+                res.V_local_larray,
                 torch.arange(size, device=self.device.torch_device)
                 .repeat(size + 1)
                 .reshape(size + 1, size),
@@ -774,7 +784,7 @@ class TestManipulations(TestCase):
         res = ht.diagonal(a, dim1=0, dim2=2)
         self.assertTrue(
             torch.equal(
-                res.larray,
+                res.V_local_larray,
                 torch.arange(size + 1, device=self.device.torch_device)
                 .repeat(size + 1)
                 .reshape(size + 1, size + 1),
@@ -786,7 +796,7 @@ class TestManipulations(TestCase):
         res.balance_()
         self.assertTrue(
             torch.equal(
-                res.larray,
+                res.V_local_larray,
                 torch.arange(size + 1, device=self.device.torch_device).reshape(size + 1, 1),
             )
         )
@@ -796,7 +806,7 @@ class TestManipulations(TestCase):
         res.balance_()
         self.assertTrue(
             torch.equal(
-                res.larray,
+                res.V_local_larray,
                 torch.arange(size + 1, device=self.device.torch_device).reshape(size + 1, 1),
             )
         )
@@ -806,7 +816,7 @@ class TestManipulations(TestCase):
         res.balance_()
         self.assertTrue(
             torch.equal(
-                res.larray,
+                res.V_local_larray,
                 torch.empty((size + 1, 0), dtype=torch.int64, device=self.device.torch_device),
             )
         )
@@ -2473,7 +2483,7 @@ class TestManipulations(TestCase):
         self.assertEqual(rolled.size, a.size)
         self.assertEqual(rolled.dtype, a.dtype)
         self.assertEqual(rolled.split, a.split)
-        self.assertTrue(torch.equal(rolled.larray, compare))
+        self.assertTrue(torch.equal(rolled.V_local_larray, compare))
 
         rolled = ht.roll(a, 1, 0)
         compare = torch.roll(a.larray, 1, 0)
@@ -2481,7 +2491,7 @@ class TestManipulations(TestCase):
         self.assertEqual(rolled.size, a.size)
         self.assertEqual(rolled.dtype, a.dtype)
         self.assertEqual(rolled.split, a.split)
-        self.assertTrue(torch.equal(rolled.larray, compare))
+        self.assertTrue(torch.equal(rolled.V_local_larray, compare))
 
         rolled = ht.roll(a, -2, (0, 1))
         compare = np.roll(a.larray.cpu().numpy(), -2, (0, 1))
@@ -2489,7 +2499,7 @@ class TestManipulations(TestCase):
         self.assertEqual(rolled.size, a.size)
         self.assertEqual(rolled.dtype, a.dtype)
         self.assertEqual(rolled.split, a.split)
-        self.assertTrue(np.array_equal(rolled.larray.cpu().numpy(), compare))
+        self.assertTrue(np.array_equal(rolled.V_local_larray.cpu().numpy(), compare))
 
         rolled = ht.roll(a, (1, 2, 1), (0, 1, -2))
         compare = torch.roll(a.larray, (1, 2, 1), (0, 1, -2))
@@ -2497,7 +2507,7 @@ class TestManipulations(TestCase):
         self.assertEqual(rolled.size, a.size)
         self.assertEqual(rolled.dtype, a.dtype)
         self.assertEqual(rolled.split, a.split)
-        self.assertTrue(torch.equal(rolled.larray, compare))
+        self.assertTrue(torch.equal(rolled.V_local_larray, compare))
 
         # split
         # vector
@@ -2746,21 +2756,21 @@ class TestManipulations(TestCase):
         data = ht.array(tensor, split=None)
         result, result_indices = ht.sort(data, axis=0, descending=True)
         expected, exp_indices = torch.sort(tensor, dim=0, descending=True)
-        self.assertTrue(torch.equal(result.larray, expected))
-        self.assertTrue(torch.equal(result_indices.larray, exp_indices.int()))
+        self.assertTrue(torch.equal(result.V_local_larray, expected))
+        self.assertTrue(torch.equal(result_indices.V_local_larray, exp_indices.int()))
 
         result, result_indices = ht.sort(data, axis=1, descending=True)
         expected, exp_indices = torch.sort(tensor, dim=1, descending=True)
-        self.assertTrue(torch.equal(result.larray, expected))
-        self.assertTrue(torch.equal(result_indices.larray, exp_indices.int()))
+        self.assertTrue(torch.equal(result.V_local_larray, expected))
+        self.assertTrue(torch.equal(result_indices.V_local_larray, exp_indices.int()))
 
         data = ht.array(tensor, split=0)
 
         exp_axis_zero = torch.arange(size, device=self.device.torch_device).reshape(1, size)
         exp_indices = torch.tensor([[rank] * size], device=self.device.torch_device)
         result, result_indices = ht.sort(data, descending=True, axis=0)
-        self.assertTrue(torch.equal(result.larray, exp_axis_zero))
-        self.assertTrue(torch.equal(result_indices.larray, exp_indices.int()))
+        self.assertTrue(torch.equal(result.V_local_larray, exp_axis_zero))
+        self.assertTrue(torch.equal(result_indices.V_local_larray, exp_indices.int()))
 
         exp_axis_one, exp_indices = (
             torch.arange(size, device=self.device.torch_device)
@@ -2768,8 +2778,8 @@ class TestManipulations(TestCase):
             .sort(dim=1, descending=True)
         )
         result, result_indices = ht.sort(data, descending=True, axis=1)
-        self.assertTrue(torch.equal(result.larray, exp_axis_one))
-        self.assertTrue(torch.equal(result_indices.larray, exp_indices.int()))
+        self.assertTrue(torch.equal(result.V_local_larray, exp_axis_one))
+        self.assertTrue(torch.equal(result_indices.V_local_larray, exp_indices.int()))
 
         result1 = ht.sort(data, axis=1, descending=True)
         result2 = ht.sort(data, descending=True)
@@ -2785,10 +2795,10 @@ class TestManipulations(TestCase):
             size, dtype=torch.int64, device=self.device.torch_device
         ).reshape(size, 1)
         result, result_indices = ht.sort(data, axis=0, descending=True)
-        self.assertTrue(torch.equal(result.larray, exp_axis_zero))
+        self.assertTrue(torch.equal(result.V_local_larray, exp_axis_zero))
         # comparison value is only true on CPU
-        if result_indices.larray.is_cuda is False:
-            self.assertTrue(torch.equal(result_indices.larray, indices_axis_zero.int()))
+        if result_indices.V_local_larray.is_cuda is False:
+            self.assertTrue(torch.equal(result_indices.V_local_larray, indices_axis_zero.int()))
 
         exp_axis_one = (
             torch.tensor(size - rank - 1, device=self.device.torch_device)
@@ -2796,8 +2806,8 @@ class TestManipulations(TestCase):
             .reshape(size, 1)
         )
         result, result_indices = ht.sort(data, descending=True, axis=1)
-        self.assertTrue(torch.equal(result.larray, exp_axis_one))
-        self.assertTrue(torch.equal(result_indices.larray, exp_axis_one.int()))
+        self.assertTrue(torch.equal(result.V_local_larray, exp_axis_one))
+        self.assertTrue(torch.equal(result_indices.V_local_larray, exp_axis_one.int()))
 
         tensor = torch.tensor(
             [
@@ -2823,8 +2833,8 @@ class TestManipulations(TestCase):
                 [[0, 2, 2], [3, 0, 0]], dtype=torch.int32, device=self.device.torch_device
             )
         result, result_indices = ht.sort(data, axis=0)
-        first = result[0].larray
-        first_indices = result_indices[0].larray
+        first = result[0].V_local_larray
+        first_indices = result_indices[0].V_local_larray
         if rank == 0:
             self.assertTrue(torch.equal(first, exp_axis_zero))
             self.assertTrue(torch.equal(first_indices, indices_axis_zero))
@@ -2835,8 +2845,8 @@ class TestManipulations(TestCase):
             [[0, 1, 1]], dtype=torch.int32, device=self.device.torch_device
         )
         result, result_indices = ht.sort(data, axis=1)
-        first = result[0].larray[:1]
-        first_indices = result_indices[0].larray[:1]
+        first = result[0].V_local_larray[:1]
+        first_indices = result_indices[0].V_local_larray[:1]
         if rank == 0:
             self.assertTrue(torch.equal(first, exp_axis_one))
             self.assertTrue(torch.equal(first_indices, indices_axis_one))
@@ -2847,8 +2857,8 @@ class TestManipulations(TestCase):
             [[0], [1]], dtype=torch.int32, device=self.device.torch_device
         )
         result, result_indices = ht.sort(data, axis=2)
-        first = result[0].larray[:, :1]
-        first_indices = result_indices[0].larray[:, :1]
+        first = result[0].V_local_larray[:, :1]
+        first_indices = result_indices[0].V_local_larray[:, :1]
         if rank == 0:
             self.assertTrue(torch.equal(first, exp_axis_two))
             self.assertTrue(torch.equal(first_indices, indices_axis_two))
@@ -2871,7 +2881,9 @@ class TestManipulations(TestCase):
         for i, c in enumerate(counts):
             for idx in range(c - 1):
                 if rank == i:
-                    self.assertTrue(torch.lt(result.larray[idx], result.larray[idx + 1]).all())
+                    self.assertTrue(
+                        torch.lt(result.V_local_larray[idx], result.V_local_larray[idx + 1]).all()
+                    )
 
     def test_split(self):
         # ====================================
@@ -3166,11 +3178,13 @@ class TestManipulations(TestCase):
             local_shape = (1, N + 1, 2 * N)
             local_tensor = reference_tensor[ht.MPI_WORLD.rank, :, :]
             self.assertEqual(resplit_tensor.lshape, local_shape)
-            self.assertTrue((resplit_tensor.larray == local_tensor.larray).all())
+            self.assertTrue((resplit_tensor.V_local_larray == local_tensor.V_local_larray).all())
 
             # unsplit
             unsplit_tensor = ht.resplit(resplit_tensor, axis=None)
-            self.assertTrue((unsplit_tensor.larray == reference_tensor.larray).all())
+            self.assertTrue(
+                (unsplit_tensor.V_local_larray == reference_tensor.V_local_larray).all()
+            )
 
             # split along axis = 1
             resplit_tensor = ht.resplit(unsplit_tensor, axis=1)
@@ -3182,11 +3196,13 @@ class TestManipulations(TestCase):
                 local_tensor = reference_tensor[:, ht.MPI_WORLD.rank + 1 : ht.MPI_WORLD.rank + 2, :]
 
             self.assertEqual(resplit_tensor.lshape, local_shape)
-            self.assertTrue((resplit_tensor.larray == local_tensor.larray).all())
+            self.assertTrue((resplit_tensor.V_local_larray == local_tensor.V_local_larray).all())
 
             # unsplit
             unsplit_tensor = ht.resplit(resplit_tensor, axis=None)
-            self.assertTrue((unsplit_tensor.larray == reference_tensor.larray).all())
+            self.assertTrue(
+                (unsplit_tensor.V_local_larray == reference_tensor.V_local_larray).all()
+            )
 
             # split along axis = 2
             resplit_tensor = ht.resplit(unsplit_tensor, axis=2)
@@ -3194,7 +3210,7 @@ class TestManipulations(TestCase):
             local_tensor = reference_tensor[:, :, 2 * ht.MPI_WORLD.rank : 2 * ht.MPI_WORLD.rank + 2]
 
             self.assertEqual(resplit_tensor.lshape, local_shape)
-            self.assertTrue((resplit_tensor.larray == local_tensor.larray).all())
+            self.assertTrue((resplit_tensor.V_local_larray == local_tensor.V_local_larray).all())
 
             # order tests for resplit
             for dims in range(3, 5):
@@ -3221,31 +3237,31 @@ class TestManipulations(TestCase):
         result = ht.squeeze(data)
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(result.dtype, ht.float32)
-        self.assertEqual(result.larray.dtype, torch.float32)
+        self.assertEqual(result.V_local_larray.dtype, torch.float32)
         self.assertEqual(result.shape, (4, 5))
         self.assertEqual(result.lshape, (4, 5))
         self.assertEqual(result.split, None)
-        self.assertTrue((result.larray == data.larray.squeeze()).all())
+        self.assertTrue((result.V_local_larray == data.V_local_larray.squeeze()).all())
 
         # 4D local tensor, major axis
         result = ht.squeeze(data, axis=0)
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(result.dtype, ht.float32)
-        self.assertEqual(result.larray.dtype, torch.float32)
+        self.assertEqual(result.V_local_larray.dtype, torch.float32)
         self.assertEqual(result.shape, (4, 5, 1))
         self.assertEqual(result.lshape, (4, 5, 1))
         self.assertEqual(result.split, None)
-        self.assertTrue((result.larray == data.larray.squeeze(0)).all())
+        self.assertTrue((result.V_local_larray == data.V_local_larray.squeeze(0)).all())
 
         # 4D local tensor, minor axis
         result = ht.squeeze(data, axis=-1)
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(result.dtype, ht.float32)
-        self.assertEqual(result.larray.dtype, torch.float32)
+        self.assertEqual(result.V_local_larray.dtype, torch.float32)
         self.assertEqual(result.shape, (1, 4, 5))
         self.assertEqual(result.lshape, (1, 4, 5))
         self.assertEqual(result.split, None)
-        self.assertTrue((result.larray == data.larray.squeeze(-1)).all())
+        self.assertTrue((result.V_local_larray == data.V_local_larray.squeeze(-1)).all())
 
         # 4D local tensor, tuple axis
         result = data.squeeze(axis=(0, -1))
@@ -3255,14 +3271,14 @@ class TestManipulations(TestCase):
         self.assertEqual(result.shape, (4, 5))
         self.assertEqual(result.lshape, (4, 5))
         self.assertEqual(result.split, None)
-        self.assertTrue((result.larray == data.larray.squeeze()).all())
+        self.assertTrue((result.larray == data.V_local_larray.squeeze()).all())
 
         # 4D split tensor, along the axis
         data = ht.array(ht.random.randn(1, 4, 5, 1), split=1)
         result = ht.squeeze(data, axis=-1)
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(result.dtype, ht.float32)
-        self.assertEqual(result.larray.dtype, torch.float32)
+        self.assertEqual(result.V_local_larray.dtype, torch.float32)
         self.assertEqual(result.shape, (1, 4, 5))
         self.assertEqual(result.split, 1)
 
@@ -3271,7 +3287,7 @@ class TestManipulations(TestCase):
         result = ht.squeeze(data, axis=1)
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(result.dtype, ht.float32)
-        self.assertEqual(result.larray.dtype, torch.float32)
+        self.assertEqual(result.V_local_larray.dtype, torch.float32)
         self.assertEqual(result.shape, (3, 5, 6))
         self.assertEqual(result.split, None)
 
@@ -3280,7 +3296,7 @@ class TestManipulations(TestCase):
         result = ht.squeeze(data, axis=-1)
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(result.dtype, ht.float32)
-        self.assertEqual(result.larray.dtype, torch.float32)
+        self.assertEqual(result.V_local_larray.dtype, torch.float32)
         self.assertEqual(result.shape, (3, 6, 5))
         self.assertEqual(result.split, None)
 
@@ -3291,7 +3307,7 @@ class TestManipulations(TestCase):
         result = ht.squeeze(data, axis=0)
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(result.dtype, ht.float32)
-        self.assertEqual(result.larray.dtype, torch.float32)
+        self.assertEqual(result.V_local_larray.dtype, torch.float32)
         self.assertEqual(result.shape, (size * 2, size))
         self.assertEqual(result.lshape, (2, size))
         self.assertEqual(result.split, 0)
@@ -3468,7 +3484,8 @@ class TestManipulations(TestCase):
         )
         self.assertTrue(
             (
-                tiled_along_non_split.larray.cpu().numpy() == np_tiled_along_non_split[global_slice]
+                tiled_along_non_split.V_local_larray.cpu().numpy()
+                == np_tiled_along_non_split[global_slice]
             ).all()
         )
         self.assertTrue(tiled_along_non_split.dtype is x.dtype)
@@ -3507,38 +3524,38 @@ class TestManipulations(TestCase):
         exp_zero_indcs = ht.array(
             [[size - 1, size - 2] for i in range(size)], dtype=ht.int64, split=0
         )
-        self.assertTrue((res.larray == exp_zero.larray).all())
-        self.assertTrue((indcs.larray == exp_zero.larray).all())
-        self.assertTrue(indcs.larray.dtype == exp_zero_indcs.larray.dtype)
+        self.assertTrue((res.V_local_larray == exp_zero.V_local_larray).all())
+        self.assertTrue((indcs.V_local_larray == exp_zero.V_local_larray).all())
+        self.assertTrue(indcs.V_local_larray.dtype == exp_zero_indcs.V_local_larray.dtype)
 
         res, indcs = ht.topk(split_one, 2, sorted=True)
         exp_one = ht.array([[size - 1, size - 2] for i in range(size)], dtype=ht.int32, split=1)
         exp_one_indcs = ht.array(
             [[size - 1, size - 2] for i in range(size)], dtype=ht.int64, split=1
         )
-        self.assertTrue((res.larray == exp_one.larray).all())
-        self.assertTrue((indcs.larray == exp_one_indcs.larray).all())
-        self.assertTrue(indcs.larray.dtype == exp_one_indcs.larray.dtype)
+        self.assertTrue((res.V_local_larray == exp_one.V_local_larray).all())
+        self.assertTrue((indcs.V_local_larray == exp_one_indcs.V_local_larray).all())
+        self.assertTrue(indcs.V_local_larray.dtype == exp_one_indcs.V_local_larray.dtype)
 
         res, indcs = ht.topk(split_zero, 2, sorted=True, largest=False)
         exp_zero = ht.array([[0, 1] for i in range(size)], dtype=ht.int32, split=0)
         exp_zero_indcs = ht.array([[0, 1] for i in range(size)], dtype=ht.int64, split=0)
-        self.assertTrue((res.larray == exp_zero.larray).all())
-        self.assertTrue((indcs.larray == exp_zero.larray).all())
-        self.assertTrue(indcs.larray.dtype == exp_zero_indcs.larray.dtype)
+        self.assertTrue((res.V_local_larray == exp_zero.V_local_larray).all())
+        self.assertTrue((indcs.V_local_larray == exp_zero.V_local_larray).all())
+        self.assertTrue(indcs.V_local_larray.dtype == exp_zero_indcs.V_local_larray.dtype)
 
         exp_zero = ht.array([[0, 1] for i in range(size)], dtype=ht.int32, split=0)
         exp_zero_indcs = ht.array([[0, 1] for i in range(size)], dtype=ht.int64, split=0)
         out = (ht.empty_like(exp_zero), ht.empty_like(exp_zero_indcs))
         res, indcs = ht.topk(split_zero, 2, sorted=True, largest=False, out=out)
 
-        self.assertTrue((res.larray == exp_zero.larray).all())
-        self.assertTrue((indcs.larray == exp_zero.larray).all())
-        self.assertTrue(indcs.larray.dtype == exp_zero_indcs.larray.dtype)
+        self.assertTrue((res.V_local_larray == exp_zero.V_local_larray).all())
+        self.assertTrue((indcs.V_local_larray == exp_zero.V_local_larray).all())
+        self.assertTrue(indcs.V_local_larray.dtype == exp_zero_indcs.V_local_larray.dtype)
 
-        self.assertTrue((out[0].larray == exp_zero.larray).all())
-        self.assertTrue((out[1].larray == exp_zero.larray).all())
-        self.assertTrue(out[1].larray.dtype == exp_zero_indcs.larray.dtype)
+        self.assertTrue((out[0].V_local_larray == exp_zero.V_local_larray).all())
+        self.assertTrue((out[1].V_local_larray == exp_zero.V_local_larray).all())
+        self.assertTrue(out[1].V_local_larray.dtype == exp_zero_indcs.V_local_larray.dtype)
 
         torch_array = torch.arange(
             size, dtype=torch.float64, device=self.device.torch_device
@@ -3551,18 +3568,18 @@ class TestManipulations(TestCase):
         exp_zero_indcs = ht.array(
             [[size - 1, size - 2] for i in range(size)], dtype=ht.int64, split=0
         )
-        self.assertTrue((res.larray == exp_zero.larray).all())
-        self.assertTrue((indcs.larray == exp_zero_indcs.larray).all())
-        self.assertTrue(indcs.larray.dtype == exp_zero_indcs.larray.dtype)
+        self.assertTrue((res.V_local_larray == exp_zero.V_local_larray).all())
+        self.assertTrue((indcs.V_local_larray == exp_zero_indcs.V_local_larray).all())
+        self.assertTrue(indcs.V_local_larray.dtype == exp_zero_indcs.V_local_larray.dtype)
 
         res, indcs = ht.topk(split_one, 2, sorted=True)
         exp_one = ht.array([[size - 1, size - 2] for i in range(size)], dtype=ht.float64, split=1)
         exp_one_indcs = ht.array(
             [[size - 1, size - 2] for i in range(size)], dtype=ht.int64, split=1
         )
-        self.assertTrue((res.larray == exp_one.larray).all())
-        self.assertTrue((indcs.larray == exp_one_indcs.larray).all())
-        self.assertTrue(indcs.larray.dtype == exp_one_indcs.larray.dtype)
+        self.assertTrue((res.V_local_larray == exp_one.V_local_larray).all())
+        self.assertTrue((indcs.V_local_larray == exp_one_indcs.V_local_larray).all())
+        self.assertTrue(indcs.V_local_larray.dtype == exp_one_indcs.V_local_larray.dtype)
 
         with self.assertRaises(RuntimeError):
             exp_zero = ht.array([[0, 1] for i in range(size)], dtype=ht.int32, split=0)
@@ -3585,7 +3602,7 @@ class TestManipulations(TestCase):
 
         exp_axis_none = ht.array([rank], dtype=ht.int32)
         res = split_zero.unique(sorted=True)
-        self.assertTrue((res.larray == exp_axis_none.larray).all())
+        self.assertTrue((res.larray == exp_axis_none.V_local_larray).all())
 
         exp_axis_zero = ht.arange(size, dtype=ht.int32).expand_dims(0)
         res = ht.unique(split_zero, sorted=True, axis=0)
@@ -3600,7 +3617,7 @@ class TestManipulations(TestCase):
 
         exp_axis_none = ht.arange(size, dtype=ht.int32)
         res = ht.unique(split_one, sorted=True)
-        self.assertTrue((res.larray == exp_axis_none.larray).all())
+        self.assertTrue((res.larray == exp_axis_none.V_local_larray).all())
 
         exp_axis_zero = ht.array([rank], dtype=ht.int32).expand_dims(0)
         res = ht.unique(split_one, sorted=False, axis=0)

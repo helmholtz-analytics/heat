@@ -2517,7 +2517,7 @@ def pow(
     # early exit for integer scalars
     if isinstance(t2, int):
         try:
-            result = torch.pow(t1.larray, t2)
+            result = torch.pow(t1.V_local_larray, t2)
             return DNDarray(
                 result,
                 gshape=t1.gshape,
@@ -2532,7 +2532,7 @@ def pow(
             pass
     elif isinstance(t1, int):
         try:
-            result = torch.pow(t1, t2.larray)
+            result = torch.pow(t1, t2.V_local_larray)
             return DNDarray(
                 result,
                 gshape=t2.gshape,

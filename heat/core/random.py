@@ -420,7 +420,7 @@ def permutation(x: Union[int, DNDarray]) -> DNDarray:
 
         data = torch.stack(buf)
     else:
-        data = torch.empty_like(x.larray)
+        data = torch.empty_like(x.V_local_larray)
 
     return DNDarray(
         data,
@@ -717,7 +717,7 @@ def randn(
         # generate uniformly distributed random numbers first
         normal_tensor = rand(*args, dtype=dtype, split=split, device=device, comm=comm)
         # convert the the values to a normal distribution using the Kundu transform
-        normal_tensor.larray = __kundu_transform(normal_tensor.larray)
+        normal_tensor.V_local_larray = __kundu_transform(normal_tensor.V_local_larray)
 
         return normal_tensor
     else:
