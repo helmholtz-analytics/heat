@@ -37,14 +37,14 @@ class TestSpectral(TestCase):
         self.assertEqual(10, spectral.n_clusters)
 
     def test_fit_iris(self):
-        if not self.is_mps:       
+        if not self.is_mps:
             # get some test data
             iris = ht.load("heat/datasets/iris.csv", sep=";", split=0)
             m = 10
             # fit the clusters
             spectral = ht.cluster.SpectralClustering(
                 n_clusters=3, gamma=1.0, affinity="rbf", laplacian="fully_connected", n_lanczos=m
-            ) 
+            )
             spectral.fit(iris)
             self.assertIsInstance(spectral.labels_, ht.DNDarray)
 
