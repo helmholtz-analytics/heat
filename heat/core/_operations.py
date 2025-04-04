@@ -197,9 +197,7 @@ def __binary_op(
         sanitation.sanitize_out(out, output_shape, output_split, output_device, output_comm)
         t1, t2 = sanitation.sanitize_distribution(t1, t2, target=out)
 
-    result = operation(
-        t1.V_local_larray.to(promoted_type), t2.V_local_larray.to(promoted_type), **fn_kwargs
-    )
+    result = operation(t1.larray.to(promoted_type), t2.larray.to(promoted_type), **fn_kwargs)
 
     if out is None and where is True:
         return DNDarray(
@@ -223,9 +221,9 @@ def __binary_op(
             )
         if where.split != out.split:
             where = sanitation.sanitize_distribution(where, target=out)
-        result = torch.where(where.V_local_larray, result, out.V_local_larray)
+        result = torch.where(where.larray, result, out.larray)
 
-    out.V_local_larray.copy_(result)
+    out.larray.copy_(result)
     return out
 
 
@@ -290,9 +288,9 @@ def __cum_op(
         dtype = out.dtype
 
     cumop = partial_op(
-        x.V_local_larray,
+        x.larray,
         axis,
-        out=None if out is None else out.V_local_larray,
+        out=None if out is None else out.larray,
         dtype=None if dtype is None else dtype.torch_type(),
     )
 
@@ -373,11 +371,11 @@ def __local_op(
         promoted_type = types.promote_types(x.dtype, types.float32)
         torch_type = promoted_type.torch_type()
     else:
-        torch_type = x.V_local_larray.dtype
+        torch_type = x.larray.dtype
 
     # no defined output tensor, return a freshly created one
     if out is None:
-        result = operation(x.V_local_larray.type(torch_type), **kwargs)
+        result = operation(x.larray.type(torch_type), **kwargs)
         return DNDarray(
             result,
             x.gshape,
@@ -397,10 +395,8 @@ def __local_op(
     needs_repetition = builtins.any(multiple > 1 for multiple in multiples)
 
     # do an in-place operation into a provided buffer
-    casted = x.V_local_larray.type(torch_type)
-    operation(
-        casted.repeat(multiples) if needs_repetition else casted, out=out.V_local_larray, **kwargs
-    )
+    casted = x.larray.type(torch_type)
+    operation(casted.repeat(multiples) if needs_repetition else casted, out=out.larray, **kwargs)
 
     return out
 
@@ -462,7 +458,7 @@ def __reduce_op(
             device=x.device.torch_device,
         )
     else:
-        partial = x.V_local_larray
+        partial = x.larray
 
     # apply the partial reduction operation to the local tensor
     if axis is None:

@@ -339,12 +339,12 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
         # DNDarrays for distributed operations only
         for y_i in unique_y.larray:
             # assuming classes.split is None
-            if y_i in classes.V_local_larray:
-                i = torch.where(classes.V_local_larray == y_i)[0].item()
+            if y_i in classes.larray:
+                i = torch.where(classes.larray == y_i)[0].item()
             else:
-                classes_ext = torch.cat((classes.V_local_larray, y_i.larray.unsqueeze(0)))
+                classes_ext = torch.cat((classes.larray, y_i.larray.unsqueeze(0)))
                 i = torch.argsort(classes_ext)[-1].item()
-            where_y_i = torch.where(y.V_local_larray == y_i)[0]
+            where_y_i = torch.where(y.larray == y_i)[0]
             X_i = x[where_y_i, :]
 
             if sample_weight is not None:
@@ -359,7 +359,7 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
                 N_i = X_i.shape[0]
 
             new_theta, new_sigma = self.__update_mean_variance(
-                self.class_count_.V_local_larray[:, i].item(),
+                self.class_count_.larray[:, i].item(),
                 self.theta_[i, :],
                 self.sigma_[i, :],
                 X_i,
@@ -367,7 +367,7 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
             )
             self.theta_[i, :] = new_theta
             self.sigma_[i, :] = new_sigma
-            self.class_count_.V_local_larray[:, i] += N_i
+            self.class_count_.larray[:, i] += N_i
 
         self.sigma_[:, :] += self.epsilon_
 
@@ -386,7 +386,7 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
         Calculates joint log-likelihood for `n_samples` to be assigned to each class.
         Returns a ``DNDarray`` `joint_log_likelihood(n_samples, n_classes)`.
         """
-        jll_size = self.classes_.V_local_larray.numel()
+        jll_size = self.classes_.larray.numel()
         jll_shape = (x.shape[0], jll_size)
         joint_log_likelihood = ht.empty(jll_shape, dtype=x.dtype, split=x.split, device=x.device)
         for i in range(jll_size):
@@ -504,7 +504,7 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
         log_prob_x_shape = (jll.gshape[0], 1)
         log_prob_x = ht.empty(log_prob_x_shape, dtype=jll.dtype, split=jll.split, device=jll.device)
         # normalize by P(x) = P(f_1, ..., f_n)
-        log_prob_x.V_local_larray = self.logsumexp(jll, axis=1).V_local_larray.unsqueeze(1)
+        log_prob_x.larray = self.logsumexp(jll, axis=1).larray.unsqueeze(1)
         return jll - log_prob_x
 
     def predict_proba(self, x: DNDarray) -> DNDarray:

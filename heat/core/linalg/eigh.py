@@ -18,9 +18,10 @@ from ..devices import Device
 from ..manipulations import vstack, hstack, concatenate, diag, balance
 from .. import statistics
 from mpi4py import MPI
+from ..sanitation import sanitize_in_nd_realfloating
 
 
-__all__ = ["_eigh", "_subspaceiteration"]
+__all__ = ["eigh"]
 
 
 def _subspaceiteration(
@@ -30,6 +31,7 @@ def _subspaceiteration(
     safetyparam: int = 3,
     maxit: int = None,
     tol: float = None,
+    depth: int = 0,
 ) -> DNDarray:
     """
     This auxiliary function implements the subspace iteration as required for symmetric eigenvalue decomposition
@@ -97,7 +99,7 @@ def _subspaceiteration(
         if Enorm / Anorm < tol:
             # exit if success
             if A.comm.rank == 0 and not silent:
-                print(f"Number of subspace iterations: {it}")
+                print("\t" * depth + f"            Number of subspace iterations: {it}")
             return Q, k
         # else go on with iteration
         X = C @ Q_k
@@ -105,7 +107,10 @@ def _subspaceiteration(
     # warning if the iteration did not converge within the maximum number of iterations
     if A.comm.rank == 0 and not silent:
         print(
-            f"Subspace iteration did not converge in {maxit} iterations. \n It holds ||E||_F/||A||_F = {Enorm/Anorm}, which might impair the accuracy of the result."  # noqa E226
+            "\t" * depth
+            + f"            Subspace iteration did not converge in {maxit} iterations. \n"
+            + "\t" * depth
+            + f"            It holds ||E||_F/||A||_F = {Enorm/Anorm}, which might impair the accuracy of the result."  # noqa E226
         )
     return Q, k
 
@@ -119,23 +124,31 @@ def _eigh(
     orig_lsize: int = 0,
 ) -> Tuple[DNDarray, DNDarray]:
     """
-    Auxiliary function for eigh containing the main algorithmic content
+    Auxiliary function for eigh containing the main algorithmic content.
+    Inputs are as for the public `eigh`-function, except for:
+        `depth`:  an internal variable that is used to track the recursion depth,
+        `orig_lsize` an internal variable that is used to propagate the local shapes of the original input matrix
+            through the recursions in order to determine when the direct solution of the reduced problems is possible),
+        `r`: a hyperparameter for the computation of the polar decomposition via `heat.linalg.polar` which is
+            applied multiple times in this function. See the documentation of `heat.linalg.polar` for more details.
+            In the actual implementation, this parameter is set to `None` for simplicity.
     """
     n = A.shape[0]
     global_comm = A.comm
     nprocs = global_comm.Get_size()
     rank = global_comm.rank
-    if orig_lsize == 0:
-        orig_lsize = min(A.lshape_map[:, A.split])
 
     # direct solution in torch if the problem is small enough
-    if n <= orig_lsize or nprocs == 1:
+    if n <= orig_lsize or not A.is_distributed():
         orig_split = A.split
         A.resplit_(None)
         Lambda_loc, Q_loc = torch.linalg.eigh(A.larray)
         Lambda = factories.array(torch.flip(Lambda_loc, (0,)), split=0, comm=A.comm)
         V = factories.array(torch.flip(Q_loc, (1,)), split=orig_split, comm=A.comm)
         return Lambda, V
+
+    if orig_lsize == 0:
+        orig_lsize = min(A.lshape_map[:, A.split])
 
     # now we handle the main case: Zolo-PD is used to reduce the problem to two independent problems
     sigma = statistics.median(diag(A))
@@ -150,6 +163,7 @@ def _eigh(
         0.5
         * (U + factories.eye((n, n), dtype=A.dtype, device=A.device, comm=A.comm, split=A.split)),
         silent,
+        depth,
     )
     A = V.T @ A @ V
 
@@ -189,7 +203,7 @@ def _eigh(
 
     Lambda_local, V_local = _eigh(A_local, r, silent, r_max, depth + 1, orig_lsize)
 
-    Lambda = factories.array(Lambda_local.larray, split=0, comm=A.comm)
+    Lambda = factories.array(Lambda_local.larray, is_split=0, comm=A.comm)
     V_local_larray = V_local.larray
     if A.split == 0:
         if rank < nprocs1:
@@ -221,195 +235,59 @@ def _eigh(
                     V_local_larray,
                 ]
             )
-    V_new = factories.array(V_local_larray, split=A.split, comm=A.comm)
-    V = V_new @ V
+    V_new = factories.array(V_local_larray, is_split=A.split, comm=A.comm)
+    V.balance_()
+    V_new.balance_()
+    V = V @ V_new
+
+    if A.comm.rank == 0 and not silent:
+        print(
+            "\t" * depth
+            + f"At depth {depth}: solutions of two independent problems of size {k} and {n-k} have been merged successfully."
+        )
+
     return Lambda, V
 
-    # TODO recursively call _eigh on the two independent problems
 
-    # TODO get results back from the two independent problems to the global level
+def eigh(
+    A: DNDarray,
+    r_max_zolopd: int = 8,
+    silent: bool = True,
+) -> Tuple[DNDarray, DNDarray]:
+    """
+    Computes the symmetric eigenvalue decomposition of a symmetric n x n - matrix A, provided as a DNDarray.
 
-    # TODO post-process the local results aka merge them into the global outcome
+    The function returns DNDarrays Lambda (shape (n,) with split = 0) and V (shape (n,n)) such that
+    A = V @ diag(Lambda) @ V^T, where Lambda contains the eigenvalues of A and V is an orthonormal matrix
+    containing the corresponding eigenvectors as columns.
 
+    Parameters
+    ----------
+    A : DNDarray
+        The input matrix. Must be symmetric.
+    r_max_zolopd : int, optional
+        This is a hyperparameter for the computation of the polar decomposition via `heat.linalg.polar` which is
+        applied multiple times in this function. See the documentation of `heat.linalg.polar` for more details on its
+        meaning and the respective default value.
+    silent : bool, optional
+        If True (default), suppresses output messages; otherwise, some information on the recursion is printed to the console.
 
-#     # Get A1 and A2 from the paper as matrices on the respective process groups...
-#     # strategy (very first rough idea):
-#     #   1. we have already formed A = V.T A V (see above)
-#     #   2. This matrix is now sent to process groups 1 and 2
-#     #   3. On the groups the respective diagonal block of A is extracted
-
-#     nprocs1 = round(k / n * nprocs)
-#     idx_all = [i for i in range(nprocs)]
-#     idx1 = [i for i in range(nprocs1)]
-#     idx2 = [i for i in range(nprocs1, nprocs)]
-#     group1 = global_comm.group.Incl(idx1)
-#     group2 = global_comm.group.Incl(idx2)
-#     comm1 = global_comm.Create_group(group1)
-#     comm2 = global_comm.Create_group(group2)
-#     comm1_ht = MPICommunication(handle=comm1)
-#     comm2_ht = MPICommunication(handle=comm2)
-
-#     if global_comm.rank in idx1:
-#         comm_ht = comm1_ht
-#         group = 1
-#     else:
-#         comm_ht = comm2_ht
-#         group = 2
-
-#     A_local_shapes = A.lshape_map[:, A.split].numpy().tolist()
-
-#     Anew = factories.empty(A.shape, dtype=A.dtype, split=A.split, comm=comm_ht)
-
-#     Anew_local_shapes1 = (
-#         global_comm.bcast(Anew.lshape_map[:, A.split], root=idx1[0]).numpy().tolist()
-#     )
-#     Anew_local_shapes2 = (
-#         global_comm.bcast(Anew.lshape_map[:, A.split], root=idx2[0]).numpy().tolist()
-#     )
-
-#     # print(depth, global_comm.rank, A_local_shapes, Anew_local_shapes1, Anew_local_shapes2)
-#     to_send_to_1, to_recv_at_1 = what_to_send_and_to_recv(
-#         A_local_shapes, Anew_local_shapes1, idx_all, idx1
-#     )
-#     to_send_to_2, to_recv_at_2 = what_to_send_and_to_recv(
-#         A_local_shapes, Anew_local_shapes2, idx_all, idx2
-#     )
-#     to_send = to_send_to_1[global_comm.rank] + to_send_to_2[global_comm.rank]
-#     if global_comm.rank in idx1:
-#         to_recv = to_recv_at_1[global_comm.rank]
-#     else:
-#         to_recv = to_recv_at_2[global_comm.rank - nprocs1]
-
-#     if A.split == 0:
-#         recv_bufs = [
-#             torch.zeros(
-#                 (entry[1], A.shape[1]), dtype=A.dtype.torch_type(), device=A.device.torch_device
-#             )
-#             for entry in to_recv
-#         ]
-#     else:
-#         recv_bufs = [
-#             torch.zeros(
-#                 (A.shape[0], entry[1]), dtype=A.dtype.torch_type(), device=A.device.torch_device
-#             )
-#             for entry in to_recv
-#         ]
-#     reqs = [global_comm.Irecv(recv_bufs[k], to_recv[k][0], tag=1) for k in range(len(to_recv))]
-
-#     if A.split == 0:
-#         [
-#             global_comm.Send(A.larray[entry[1][0] : entry[1][1], :].clone(), entry[0], tag=1)
-#             for entry in to_send
-#         ]
-#     else:
-#         [
-#             global_comm.Send(A.larray[:, entry[1][0] : entry[1][1]].clone(), entry[0], tag=1)
-#             for entry in to_send
-#         ]
-
-#     [req.wait() for req in reqs]
-
-#     if A.split == 0:
-#         Anew.larray = torch.vstack(recv_bufs)
-#     elif A.split == 1:
-#         Anew.larray = torch.hstack(recv_bufs)
-#     del recv_bufs
-
-#     if global_comm.rank in idx1:
-#         Anew = balance(Anew[:k, :k])
-#     else:
-#         Anew = balance(Anew[k:, k:])
-
-#     Lambdanew, Vnew = eigh(Anew, r, depth + 1, group, orig_lsize, silent)
-
-#     if A.comm.rank == 0 and not silent:
-#         print(
-#             "\t" * depth
-#             + "At depth %d: subproblems of sizes %d and %d have been solved on level %d."
-#             % (depth, k, n - k, depth + 1)
-#         )
-
-#     # now we have to send back to all processes and to "merge"
-
-#     Lambda1 = factories.empty(k, dtype=A.dtype, split=0, comm=A.comm)
-#     Lambda2 = factories.empty(n - k, dtype=A.dtype, split=0, comm=A.comm)
-#     V1 = factories.empty((k, k), dtype=A.dtype, split=A.split, comm=A.comm)
-#     V2 = factories.empty((n - k, n - k), dtype=A.dtype, split=A.split, comm=A.comm)
-
-#     if A.comm.rank in idx1:
-#         target_loc_shapes_L = Lambda1.lshape_map[:, 0].numpy().tolist()
-#         target_loc_shapes_V = V1.lshape_map[:, V1.split].numpy().tolist()
-#         idx_curr = idx1
-#     else:
-#         target_loc_shapes_L = Lambda2.lshape_map[:, 0].numpy().tolist()
-#         target_loc_shapes_V = V2.lshape_map[:, V2.split].numpy().tolist()
-#         idx_curr = idx2
-
-#     Lambdanew_local_shapes = Lambdanew.lshape_map[:, 0].numpy().tolist()
-#     Vnew_local_shapes = Vnew.lshape_map[:, Vnew.split].numpy().tolist()
-
-#     # print(depth, global_comm.rank, Vnew_local_shapes, idx_curr)
-#     to_send_V, to_recv_V_prelim = what_to_send_and_to_recv(
-#         Vnew_local_shapes, target_loc_shapes_V, idx_curr, idx_all
-#     )
-#     to_send_L, to_recv_L_prelim = what_to_send_and_to_recv(
-#         Lambdanew_local_shapes, target_loc_shapes_L, idx_curr, idx_all
-#     )
-#     if A.comm.rank in idx2:
-#         to_send_V = to_send_V[global_comm.rank - len(idx1)]
-#         to_send_L = to_send_L[global_comm.rank - len(idx1)]
-#     else:
-#         to_send_V = to_send_V[global_comm.rank]
-#         to_send_L = to_send_L[global_comm.rank]
-
-#     to_recv_V1 = A.comm.bcast(to_recv_V_prelim, root=idx1[0])[global_comm.rank]
-#     to_recv_V2 = A.comm.bcast(to_recv_V_prelim, root=idx2[0])[global_comm.rank]
-#     to_recv_L1 = A.comm.bcast(to_recv_L_prelim, root=idx1[0])[global_comm.rank]
-#     to_recv_L2 = A.comm.bcast(to_recv_L_prelim, root=idx2[0])[global_comm.rank]
-
-#     send_reqs_L = [
-#         global_comm.isend(Lambdanew.larray[entry[1][0] : entry[1][1]], entry[0], tag=1)
-#         for entry in to_send_L
-#     ]
-#     if Vnew.split == 0:
-#         send_reqs_V = [
-#             global_comm.isend(Vnew.larray[entry[1][0] : entry[1][1], :], entry[0], tag=1)
-#             for entry in to_send_V
-#         ]
-#     elif Vnew.split == 1:
-#         send_reqs_V = [
-#             global_comm.isend(Vnew.larray[:, entry[1][0] : entry[1][1]], entry[0], tag=1)
-#             for entry in to_send_V
-#         ]
-#     else:
-#         raise NotImplementedError("Not yet implemented!")
-
-#     recv_arrays_L1 = [global_comm.recv(None, entry[0], tag=1) for entry in to_recv_L1]
-#     recv_arrays_L2 = [global_comm.recv(None, entry[0], tag=1) for entry in to_recv_L2]
-#     recv_arrays_V1 = [global_comm.recv(None, entry[0], tag=1) for entry in to_recv_V1]
-#     recv_arrays_V2 = [global_comm.recv(None, entry[0], tag=1) for entry in to_recv_V2]
-
-#     [req.wait() for req in send_reqs_L]
-#     [req.wait() for req in send_reqs_V]
-
-#     Lambda1.larray = torch.hstack(recv_arrays_L1)
-#     Lambda2.larray = torch.hstack(recv_arrays_L2)
-
-#     if A.split == 0:
-#         V1.larray = torch.vstack(recv_arrays_V1)
-#         V2.larray = torch.vstack(recv_arrays_V2)
-#     elif A.split == 1:
-#         V1.larray = torch.hstack(recv_arrays_V1)
-#         V2.larray = torch.hstack(recv_arrays_V2)
-
-#     del (recv_arrays_L1, recv_arrays_L2, recv_arrays_V1, recv_arrays_V2)
-
-#     Lambda = hstack([Lambda2, Lambda1])
-#     V = hstack([matmul(V[:, k:].balance(), V2), matmul(V[:, :k].balance(), V1)])
-
-#     del (V1, V2, Lambda1, Lambda2)
-
-#     if A.comm.rank == 0 and not silent:
-#         print("\t" * depth + "At depth %d: merged solution of sizes %d and %d." % (depth, k, n - k))
-
-#     return Lambda, V
+    Notes
+    -----
+    Unlike the `torch.linalg.eigh` function, the eigenvalues are returned in descending order.
+    Note that no check of symmetry is performed on the input matrix A; thus, applying this function to a non-symmetric matrix may
+    result in unpredictable behaviour without a specific error message pointing to this issue.
+    """
+    sanitize_in_nd_realfloating(A, "A", [2])
+    if A.shape[0] != A.shape[1]:
+        raise ValueError(
+            f"Input matrix must be symmetric and, consquently, square, but input shape was {A.shape[0]} x {A.shape[1]}."
+        )
+    return _eigh(
+        A,
+        None,
+        silent,
+        r_max_zolopd,
+        0,
+        0,
+    )

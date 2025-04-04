@@ -22,7 +22,7 @@ class TestLogical(TestCase):
 
         out_noaxis = ht.zeros(())
         ht.all(ones_noaxis, out=out_noaxis)
-        self.assertEqual(out_noaxis.V_local_larray, 1)
+        self.assertEqual(out_noaxis.larray, 1)
 
         # check all over all float elements of split 1d tensor
         ones_noaxis_split = ht.ones(array_len, split=0)
@@ -38,7 +38,7 @@ class TestLogical(TestCase):
 
         out_noaxis = ht.zeros(())
         ht.all(ones_noaxis_split, out=out_noaxis)
-        self.assertEqual(out_noaxis.V_local_larray, 1)
+        self.assertEqual(out_noaxis.larray, 1)
 
         # check all over all integer elements of 1d tensor locally
         ones_noaxis_int = ht.ones(array_len).astype(ht.int)
@@ -54,7 +54,7 @@ class TestLogical(TestCase):
 
         out_noaxis = ht.zeros(())
         ht.all(ones_noaxis_int, out=out_noaxis)
-        self.assertEqual(out_noaxis.V_local_larray, 1)
+        self.assertEqual(out_noaxis.larray, 1)
 
         # check all over all integer elements of split 1d tensor
         ones_noaxis_split_int = ht.ones(array_len, split=0).astype(ht.int)
@@ -70,7 +70,7 @@ class TestLogical(TestCase):
 
         out_noaxis = ht.zeros(())
         ht.all(ones_noaxis_split_int, out=out_noaxis)
-        self.assertEqual(out_noaxis.V_local_larray, 1)
+        self.assertEqual(out_noaxis.larray, 1)
 
         # check all over all float elements of 3d tensor locally
         ones_noaxis_volume = ht.ones((3, 3, 3))
@@ -86,7 +86,7 @@ class TestLogical(TestCase):
 
         out_noaxis = ht.zeros(())
         ht.all(ones_noaxis_volume, out=out_noaxis)
-        self.assertEqual(out_noaxis.V_local_larray, 1)
+        self.assertEqual(out_noaxis.larray, 1)
 
         # check sequence is not all one
         sequence = ht.arange(array_len)
@@ -102,7 +102,7 @@ class TestLogical(TestCase):
 
         out_noaxis = ht.zeros(())
         ht.all(sequence, out=out_noaxis)
-        self.assertEqual(out_noaxis.V_local_larray, 0)
+        self.assertEqual(out_noaxis.larray, 0)
 
         # check all over all float elements of split 3d tensor
         ones_noaxis_split_axis = ht.ones((3, 3, 3), split=0)

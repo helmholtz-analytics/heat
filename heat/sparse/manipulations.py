@@ -43,7 +43,7 @@ def __to_sparse(array: DNDarray, orientation="row") -> __DCSX_matrix:
     array.balance_()
     method = sparse_csr_matrix if orientation == "row" else sparse_csc_matrix
     result = method(
-        array.V_local_larray,
+        array.larray,
         dtype=array.dtype,
         is_split=array.split,
         device=array.device,
@@ -165,7 +165,7 @@ def to_dense(sparse_matrix: __DCSX_matrix, order="C", out: DNDarray = None) -> D
             order=order,
         )
 
-    out.V_local_larray = sanitize_memory_layout(sparse_matrix.larray.to_dense(), order=order)
+    out.larray = sanitize_memory_layout(sparse_matrix.larray.to_dense(), order=order)
     return out
 
 

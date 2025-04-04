@@ -11,7 +11,7 @@ class TestMemory(TestCase):
 
         # test identity inequality and value equality
         self.assertIsNot(tensor, copied)
-        self.assertIsNot(tensor.V_local_larray, copied.larray)
+        self.assertIsNot(tensor.larray, copied.larray)
         self.assertTrue((tensor == copied)._DNDarray__array.all())
 
         # test exceptions

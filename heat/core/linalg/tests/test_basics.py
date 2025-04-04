@@ -1093,9 +1093,9 @@ class TestLinalgBasics(TestCase):
         b = ht.arange(8, dtype=ht.float32)
         ht_outer = ht.outer(a, b, split=None)
         np_outer = np.outer(a.numpy(), b.numpy())
-        t_outer = torch.einsum("i,j->ij", a.V_local_larray, b.V_local_larray)
+        t_outer = torch.einsum("i,j->ij", a.larray, b.larray)
         self.assertTrue((ht_outer.numpy() == np_outer).all())
-        self.assertTrue(ht_outer.V_local_larray.dtype is t_outer.dtype)
+        self.assertTrue(ht_outer.larray.dtype is t_outer.dtype)
 
         # test outer, a and b distributed, no data on some ranks
         a_split = ht.arange(3, dtype=ht.float32, split=0)
@@ -1716,7 +1716,7 @@ class TestLinalgBasics(TestCase):
         self.assertEqual(array_4d_t.dtype, ht.float32)
         self.assertEqual(array_4d_t.split, None)
         self.assertEqual(array_4d_t.shape, (5, 2, 4, 3))
-        self.assertEqual(array_4d_t.V_local_larray.shape, (5, 2, 4, 3))
+        self.assertEqual(array_4d_t.larray.shape, (5, 2, 4, 3))
 
         # vector transpose, distributed
         vector_split = ht.arange(10, split=0)
@@ -1774,7 +1774,7 @@ class TestLinalgBasics(TestCase):
         self.assertEqual(result.shape, (5, 5))
         self.assertEqual(result.lshape, (5, 5))
         self.assertEqual(result.split, None)
-        self.assertTrue((result.V_local_larray == comparison).all())
+        self.assertTrue((result.larray == comparison).all())
 
         # 1D case, positive offset, data is not split, module-level call
         result = ht.tril(local_ones, k=2)
@@ -1783,7 +1783,7 @@ class TestLinalgBasics(TestCase):
         self.assertEqual(result.shape, (5, 5))
         self.assertEqual(result.lshape, (5, 5))
         self.assertEqual(result.split, None)
-        self.assertTrue((result.V_local_larray == comparison).all())
+        self.assertTrue((result.larray == comparison).all())
 
         # 1D case, negative offset, data is not split, module-level call
         result = ht.tril(local_ones, k=-2)
@@ -1792,7 +1792,7 @@ class TestLinalgBasics(TestCase):
         self.assertEqual(result.shape, (5, 5))
         self.assertEqual(result.lshape, (5, 5))
         self.assertEqual(result.split, None)
-        self.assertTrue((result.V_local_larray == comparison).all())
+        self.assertTrue((result.larray == comparison).all())
 
         local_ones = ht.ones((4, 5))
 
@@ -1996,7 +1996,7 @@ class TestLinalgBasics(TestCase):
         self.assertEqual(result.shape, (5, 5))
         self.assertEqual(result.lshape, (5, 5))
         self.assertEqual(result.split, None)
-        self.assertTrue((result.V_local_larray == comparison).all())
+        self.assertTrue((result.larray == comparison).all())
 
         # 1D case, positive offset, data is not split, module-level call
         result = ht.triu(local_ones, k=2)
@@ -2005,7 +2005,7 @@ class TestLinalgBasics(TestCase):
         self.assertEqual(result.shape, (5, 5))
         self.assertEqual(result.lshape, (5, 5))
         self.assertEqual(result.split, None)
-        self.assertTrue((result.V_local_larray == comparison).all())
+        self.assertTrue((result.larray == comparison).all())
 
         # 1D case, negative offset, data is not split, module-level call
         result = ht.triu(local_ones, k=-2)
@@ -2014,7 +2014,7 @@ class TestLinalgBasics(TestCase):
         self.assertEqual(result.shape, (5, 5))
         self.assertEqual(result.lshape, (5, 5))
         self.assertEqual(result.split, None)
-        self.assertTrue((result.V_local_larray == comparison).all())
+        self.assertTrue((result.larray == comparison).all())
 
         local_ones = ht.ones((4, 5))
 

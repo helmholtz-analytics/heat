@@ -142,15 +142,13 @@ def allclose(
 
     # no sanitation for shapes of x and y needed, torch.allclose raises relevant errors
     try:
-        _local_allclose = torch.tensor(
-            torch.allclose(t1.V_local_larray, t2.V_local_larray, rtol, atol, equal_nan)
-        )
+        _local_allclose = torch.tensor(torch.allclose(t1.larray, t2.larray, rtol, atol, equal_nan))
     except RuntimeError:
-        promoted_dtype = torch.promote_types(t1.V_local_larray.dtype, t2.V_local_larray.dtype)
+        promoted_dtype = torch.promote_types(t1.larray.dtype, t2.larray.dtype)
         _local_allclose = torch.tensor(
             torch.allclose(
-                t1.V_local_larray.type(promoted_dtype),
-                t2.V_local_larray.type(promoted_dtype),
+                t1.larray.type(promoted_dtype),
+                t2.larray.type(promoted_dtype),
                 rtol,
                 atol,
                 equal_nan,
@@ -252,7 +250,7 @@ def isclose(
     t1, t2 = __sanitize_close_input(x, y)
 
     # no sanitation for shapes of x and y needed, torch.isclose raises relevant errors
-    _local_isclose = torch.isclose(t1.V_local_larray, t2.V_local_larray, rtol, atol, equal_nan)
+    _local_isclose = torch.isclose(t1.larray, t2.larray, rtol, atol, equal_nan)
 
     # If x is distributed, then y is also distributed along the same axis
     if t1.comm.is_distributed() and t1.split is not None:
@@ -521,13 +519,13 @@ def __sanitize_close_input(x: DNDarray, y: DNDarray) -> Tuple[DNDarray, DNDarray
 
     # if one of the DNDarrays is distributed and the other is not
     if x.is_distributed() and not y.is_distributed() and y.ndim > 0:
-        t2 = factories.array(y.V_local_larray, device=x.device, split=x.split)
+        t2 = factories.array(y.larray, device=x.device, split=x.split)
         x, t2 = sanitation.sanitize_distribution(x, t2, target=x)
         return x, t2
 
     # if y is distributed, x is not distributed, and x is not a scalar
     elif y.is_distributed() and not x.is_distributed() and x.ndim > 0:
-        t1 = factories.array(x.V_local_larray, device=y.device, split=y.split)
+        t1 = factories.array(x.larray, device=y.device, split=y.split)
         t1, y = sanitation.sanitize_distribution(t1, y, target=y)
         return t1, y
 

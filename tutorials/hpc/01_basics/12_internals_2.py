@@ -23,7 +23,7 @@ a.redistribute_(target_map=target_map)
 a.lshape_map
 
 # local arrays after redistribution
-a.V_local_larray
+a.larray
 
 
 # resplit

@@ -66,7 +66,7 @@ def eq(x, y) -> DNDarray:
 
         if res.dtype != types.bool:
             res = dndarray.DNDarray(
-                res.V_local_larray.type(torch.bool),
+                res.larray.type(torch.bool),
                 res.gshape,
                 types.bool,
                 res.split,
@@ -144,7 +144,7 @@ def equal(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> boo
                     target_map[: x.comm.rank + 1, y.split].sum(),
                 )
                 x = factories.array(
-                    x.V_local_larray[tuple(idx)],
+                    x.larray[tuple(idx)],
                     is_split=y.split,
                     copy=False,
                     comm=x.comm,
@@ -161,7 +161,7 @@ def equal(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> boo
                     target_map[: y.comm.rank + 1, x.split].sum(),
                 )
                 y = factories.array(
-                    y.V_local_larray[tuple(idx)],
+                    y.larray[tuple(idx)],
                     is_split=x.split,
                     copy=False,
                     comm=y.comm,
@@ -182,8 +182,8 @@ def equal(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> boo
     x = x.astype(result_type)
     y = y.astype(result_type)
 
-    if x.V_local_larray.numel() > 0:
-        result_value = torch.equal(x.V_local_larray, y.V_local_larray)
+    if x.larray.numel() > 0:
+        result_value = torch.equal(x.larray, y.larray)
     else:
         result_value = True
 
@@ -219,7 +219,7 @@ def ge(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> DNDarr
 
     if res.dtype != types.bool:
         res = dndarray.DNDarray(
-            res.V_local_larray.type(torch.bool),
+            res.larray.type(torch.bool),
             res.gshape,
             types.bool,
             res.split,
@@ -268,7 +268,7 @@ def gt(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> DNDarr
 
     if res.dtype != types.bool:
         res = dndarray.DNDarray(
-            res.V_local_larray.type(torch.bool),
+            res.larray.type(torch.bool),
             res.gshape,
             types.bool,
             res.split,
@@ -317,7 +317,7 @@ def le(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> DNDarr
 
     if res.dtype != types.bool:
         res = dndarray.DNDarray(
-            res.V_local_larray.type(torch.bool),
+            res.larray.type(torch.bool),
             res.gshape,
             types.bool,
             res.split,
@@ -366,7 +366,7 @@ def lt(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> DNDarr
 
     if res.dtype != types.bool:
         res = dndarray.DNDarray(
-            res.V_local_larray.type(torch.bool),
+            res.larray.type(torch.bool),
             res.gshape,
             types.bool,
             res.split,
@@ -419,7 +419,7 @@ def ne(x, y) -> DNDarray:
 
         if res.dtype != types.bool:
             res = dndarray.DNDarray(
-                res.V_local_larray.type(torch.bool),
+                res.larray.type(torch.bool),
                 res.gshape,
                 types.bool,
                 res.split,

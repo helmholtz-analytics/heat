@@ -300,7 +300,7 @@ def hsvd(
     Anorm = vector_norm(A)
 
     if rtol is not None:
-        loc_atol = Anorm.V_local_larray * rtol / sqrt(2 * no_procs - 1)
+        loc_atol = Anorm.larray * rtol / sqrt(2 * no_procs - 1)
     else:
         loc_atol = None
 
@@ -316,7 +316,7 @@ def hsvd(
         )
 
     U_loc, sigma_loc, err_squared_loc = _compute_local_truncated_svd(
-        level, A.comm.rank, A.V_local_larray, maxrank, loc_atol, safetyshift
+        level, A.comm.rank, A.larray, maxrank, loc_atol, safetyshift
     )
     U_loc = torch.matmul(U_loc, torch.diag(sigma_loc))
 
@@ -367,7 +367,7 @@ def hsvd(
             U_loc = [U_loc] + [
                 torch.zeros(
                     (A.shape[0] + 1, dims_global[i]),
-                    dtype=A.V_local_larray.dtype,
+                    dtype=A.larray.dtype,
                     device=A.device.torch_device,
                 )
                 for i in recv_from[A.comm.rank]
@@ -419,7 +419,7 @@ def hsvd(
     U_loc = torch.vstack([U_loc, err_squared_loc])
     U_loc_shape = A.comm.bcast(U_loc.shape, root=0)
     if A.comm.rank != 0:
-        U_loc = torch.zeros(U_loc_shape, dtype=A.V_local_larray.dtype, device=A.device.torch_device)
+        U_loc = torch.zeros(U_loc_shape, dtype=A.larray.dtype, device=A.device.torch_device)
     A.comm.Bcast(U_loc, root=0)
     # separate U_loc and err_squared_loc again
     err_squared_loc = U_loc[-1, 0]

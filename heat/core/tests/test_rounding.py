@@ -56,7 +56,7 @@ class TestRounding(TestCase):
         self.assertIsInstance(absolute_values, ht.DNDarray)
         self.assertEqual(absolute_values.sum(axis=0), 100)
         self.assertEqual(absolute_values.dtype, ht.float32)
-        self.assertEqual(absolute_values.V_local_larray.dtype, torch.float32)
+        self.assertEqual(absolute_values.larray.dtype, torch.float32)
         check_precision = ht.asarray(9007199254740993, dtype=ht.int64)
         precision_absolute_values = ht.abs(check_precision, dtype=ht.int64)
         self.assertEqual(precision_absolute_values.sum(), check_precision.sum())

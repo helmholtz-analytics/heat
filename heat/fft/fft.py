@@ -42,7 +42,7 @@ def __fft_op(x: DNDarray, fft_op: callable, **kwargs) -> DNDarray:
     Helper function for 1-dimensional FFT.
     """
     try:
-        local_x = x.V_local_larray
+        local_x = x.larray
     except AttributeError:
         raise TypeError(f"x must be a DNDarray, is {type(x)}")
     original_split = x.split
@@ -141,7 +141,7 @@ def __fftn_op(x: DNDarray, fftn_op: callable, **kwargs) -> DNDarray:
     Helper function for fftn
     """
     try:
-        local_x = x.V_local_larray
+        local_x = x.larray
     except AttributeError:
         raise TypeError("x must be a DNDarray, is {}".format(type(x)))
 
@@ -364,7 +364,7 @@ def __real_fft_op(x: DNDarray, fft_op: callable, **kwargs) -> DNDarray:
     """
     Helper function for real 1-D FFTs.
     """
-    if x.V_local_larray.is_complex():
+    if x.larray.is_complex():
         raise TypeError(f"Input array must be real, is {x.dtype}.")
     return __fft_op(x, fft_op, **kwargs)
 
@@ -373,7 +373,7 @@ def __real_fftn_op(x: DNDarray, fftn_op: callable, **kwargs) -> DNDarray:
     """
     Helper function for real N-D FFTs.
     """
-    if x.V_local_larray.is_complex():
+    if x.larray.is_complex():
         raise TypeError(f"Input array must be real, is {x.dtype}.")
     return __fftn_op(x, fftn_op, **kwargs)
 

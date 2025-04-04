@@ -330,7 +330,7 @@ def array(
             )
 
         # extract the internal tensor
-        obj = obj.V_local_larray
+        obj = obj.larray
 
     # initialize the array
     if bool(copy):

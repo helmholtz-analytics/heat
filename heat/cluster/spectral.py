@@ -129,7 +129,7 @@ class Spectral(ht.ClusteringMixin, ht.BaseEstimator):
         # if int(torch.__version__.split(".")[1]) >= 9:
         try:
             # 4. Calculate and Sort Eigenvalues and Eigenvectors of tridiagonal matrix T
-            eval, evec = torch.linalg.eig(T.V_local_larray)
+            eval, evec = torch.linalg.eig(T.larray)
 
             # If x is an Eigenvector of T, then y = V@x is the corresponding Eigenvector of L
             eval, idx = torch.sort(eval.real, dim=0)
@@ -139,7 +139,7 @@ class Spectral(ht.ClusteringMixin, ht.BaseEstimator):
             return eigenvalues.real, eigenvectors.real
         except AttributeError:  # torch version is less than 1.9.0
             # 4. Calculate and Sort Eigenvalues and Eigenvectors of tridiagonal matrix T
-            eval, evec = torch.eig(T.V_local_larray, eigenvectors=True)
+            eval, evec = torch.eig(T.larray, eigenvectors=True)
             # If x is an Eigenvector of T, then y = V@x is the corresponding Eigenvector of L
             eval, idx = torch.sort(eval[:, 0], dim=0)
             eigenvalues = ht.array(eval)

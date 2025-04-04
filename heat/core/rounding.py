@@ -54,7 +54,7 @@ def abs(
 
     absolute_values = _operations.__local_op(torch.abs, x, out, no_cast=True)
     if dtype is not None:
-        absolute_values.V_local_larray = absolute_values.V_local_larray.type(dtype.torch_type())
+        absolute_values.larray = absolute_values.larray.type(dtype.torch_type())
         absolute_values._DNDarray__dtype = dtype
 
     return absolute_values
@@ -154,7 +154,7 @@ def clip(x: DNDarray, min, max, out: Optional[DNDarray] = None) -> DNDarray:
 
     if out is None:
         return dndarray.DNDarray(
-            x.V_local_larray.clamp(min, max),
+            x.larray.clamp(min, max),
             x.shape,
             x.dtype,
             x.split,
@@ -165,7 +165,7 @@ def clip(x: DNDarray, min, max, out: Optional[DNDarray] = None) -> DNDarray:
 
     sanitation.sanitize_out(out, x.gshape, x.split, x.device)
 
-    return x.V_local_larray.clamp(min, max, out=out.V_local_larray) and out
+    return x.larray.clamp(min, max, out=out.larray) and out
 
 
 DNDarray.clip = lambda self, a_min, a_max, out=None: clip(self, a_min, a_max, out)
@@ -274,8 +274,8 @@ def modf(x: DNDarray, out: Optional[Tuple[DNDarray, DNDarray]] = None) -> Tuple[
             raise TypeError(
                 f"expected out to be None or a tuple of DNDarray, but was ({type(out[0])}, {type(out[1])})"
             )
-        out[0].V_local_larray = fractionalParts.larray
-        out[1].V_local_larray = integralParts.V_local_larray
+        out[0].larray = fractionalParts.larray
+        out[1].larray = integralParts.larray
         return out
 
     return (fractionalParts, integralParts)
@@ -334,7 +334,7 @@ def round(
         rounded_values /= 10**decimals
 
     if dtype is not None:
-        rounded_values.V_local_larray = rounded_values.V_local_larray.type(dtype.torch_type())
+        rounded_values.larray = rounded_values.larray.type(dtype.torch_type())
         rounded_values._DNDarray__dtype = dtype
 
     return rounded_values
@@ -403,17 +403,17 @@ def sign(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     sanitation.sanitize_in(x)
     if out is not None:
         sanitation.sanitize_out(out, x.shape, x.split, x.device)
-        out.V_local_larray.copy_(x.V_local_larray)
-        data = out.V_local_larray
+        out.larray.copy_(x.larray)
+        data = out.larray
     else:
-        data = torch.clone(x.V_local_larray)
+        data = torch.clone(x.larray)
     # NOTE remove when min version >= 1.9
     if "1.8" in torch.__version__:  # pragma: no cover
         pos = data != 0
     else:
         indices = torch.nonzero(data)
         pos = torch.split(indices, 1, 1)
-    data[pos] = x.V_local_larray[pos] / torch.sqrt(torch.square(x.V_local_larray[pos]))
+    data[pos] = x.larray[pos] / torch.sqrt(torch.square(x.larray[pos]))
 
     if out is not None:
         out.__dtype = types.heat_type_of(data)

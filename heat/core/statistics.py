@@ -264,7 +264,7 @@ def average(
         result = mean(x, axis)
         num_elements = x.gnumel / result.gnumel
         cumwgt = factories.empty(1, dtype=result.dtype)
-        cumwgt.V_local_larray = torch.tensor(num_elements)
+        cumwgt.larray = torch.tensor(num_elements)
     else:
         # Weights sanitation:
         # weights (global) is either same size as x (global), or it is 1D and same size as x along chosen axis
@@ -286,7 +286,7 @@ def average(
             wgt = torch.empty(
                 wgt_lshape, dtype=weights.dtype.torch_type(), device=x.device.torch_device
             )
-            wgt[wgt_slice] = weights.V_local_larray
+            wgt[wgt_slice] = weights.larray
             wgt = factories.array(wgt, is_split=wgt_split, copy=False)
         else:
             if x.comm.is_distributed():
@@ -296,7 +296,7 @@ def average(
                         "weights.split does not match data.split: not implemented yet."
                     )
             wgt = factories.empty_like(weights, device=x.device)
-            wgt.V_local_larray = weights.V_local_larray
+            wgt.larray = weights.larray
         cumwgt = wgt.sum(axis=axis)
         if logical.any(cumwgt == 0.0):
             raise ZeroDivisionError("Weights sum to zero, can't be normalized")
@@ -306,7 +306,7 @@ def average(
     if returned:
         if cumwgt.gshape != result.gshape:
             cumwgt = factories.array(
-                torch.broadcast_tensors(cumwgt.V_local_larray, result.V_local_larray)[0],
+                torch.broadcast_tensors(cumwgt.larray, result.larray)[0],
                 is_split=result.split,
                 device=result.device,
                 comm=result.comm,
@@ -358,9 +358,9 @@ def bincount(x: DNDarray, weights: Optional[DNDarray] = None, minlength: int = 0
     if isinstance(weights, DNDarray):
         if weights.split != x.split:
             raise ValueError("weights must have the same split value as x")
-        weights = weights.V_local_larray
+        weights = weights.larray
 
-    counts = torch.bincount(x.V_local_larray, weights, minlength)
+    counts = torch.bincount(x.larray, weights, minlength)
 
     size = counts.numel()
     maxlength = x.comm.allreduce(size, op=MPI.MAX)
@@ -452,7 +452,7 @@ def bucketize(
     if isinstance(boundaries, DNDarray):
         if boundaries.is_distributed():
             raise RuntimeError("'boundaries' must not be distributed.")
-        boundaries = boundaries.V_local_larray
+        boundaries = boundaries.larray
     else:
         boundaries = torch.as_tensor(boundaries)
 
@@ -591,7 +591,7 @@ def digitize(x: DNDarray, bins: Union[DNDarray, torch.Tensor], right: bool = Fal
     if isinstance(bins, DNDarray):
         if bins.is_distributed():
             raise RuntimeError("'bins' must not be distributed.")
-        bins = bins.V_local_larray
+        bins = bins.larray
     else:
         bins = torch.as_tensor(bins)
 
@@ -962,7 +962,7 @@ def mean(x: DNDarray, axis: Optional[Union[int, Tuple[int, ...]]] = None) -> DND
             The calculated means.
         """
         if x.lshape[x.split] != 0:
-            mu = torch.mean(x.V_local_larray, dim=axis)
+            mu = torch.mean(x.larray, dim=axis)
         else:
             mu = factories.zeros(output_shape_i, device=x.device)
 
@@ -993,7 +993,7 @@ def mean(x: DNDarray, axis: Optional[Union[int, Tuple[int, ...]]] = None) -> DND
         # full matrix calculation
         if not x.is_distributed():
             # if x is not distributed do a torch.mean on x
-            ret = torch.mean(x.V_local_larray)
+            ret = torch.mean(x.larray)
             return DNDarray(
                 ret,
                 gshape=tuple(ret.shape),
@@ -1005,7 +1005,7 @@ def mean(x: DNDarray, axis: Optional[Union[int, Tuple[int, ...]]] = None) -> DND
             )
         else:
             # if x is distributed and no axis is given: return mean of the whole set
-            mu_in = torch.mean(x.V_local_larray)
+            mu_in = torch.mean(x.larray)
             if torch.isnan(mu_in):
                 mu_in = 0.0
             n = x.lnumel
@@ -1300,7 +1300,7 @@ def __moment_w_axis(
         output_shape = output_shape if output_shape else (1,)
 
         if x.split is None:  # x is *not* distributed -> no need to distribute
-            ret = function(x.V_local_larray, **kwargs)
+            ret = function(x.larray, **kwargs)
             return DNDarray(
                 ret,
                 gshape=tuple(ret.shape),
@@ -1313,7 +1313,7 @@ def __moment_w_axis(
         elif axis == x.split:  # x is distributed and axis chosen is == to split
             return elementwise_function(output_shape)
         # singular axis given (axis) not equal to split direction (x.split)
-        lcl = function(x.V_local_larray, **kwargs)
+        lcl = function(x.larray, **kwargs)
         return factories.array(
             lcl,
             is_split=x.split if axis > x.split else x.split - 1,
@@ -1345,7 +1345,7 @@ def __moment_w_axis(
     output_shape = [output_shape[it] for it in range(len(output_shape)) if it not in axis]
     # multiple dimensions
     if x.split is None:
-        ret = function(x.V_local_larray, **kwargs)
+        ret = function(x.larray, **kwargs)
         return DNDarray(
             ret,
             gshape=tuple(ret.shape),
@@ -1361,7 +1361,7 @@ def __moment_w_axis(
     # multiple dimensions which does *not* include the split axis
     # combine along the split axis
     return factories.array(
-        function(x.V_local_larray, **kwargs),
+        function(x.larray, **kwargs),
         is_split=x.split if x.split < len(output_shape) else len(output_shape) - 1,
         device=x.device,
         comm=x.comm,
@@ -1547,7 +1547,7 @@ def percentile(
             if isinstance(q, DNDarray):
                 # q must be local for now. TODO: support distributed q after indexing update
                 q.resplit_(axis=None)
-                q = q.V_local_larray
+                q = q.larray
             else:
                 raise TypeError(f"q can be scalar, list, tuple, or DNDarray, was {type(q)}.")
         except ValueError:
@@ -1597,7 +1597,7 @@ def percentile(
         output_shape = perc_size + output_shape
 
     # output data type must be float
-    output_dtype = types.float32 if x.V_local_larray.element_size() == 4 else types.float64
+    output_dtype = types.float32 if x.larray.element_size() == 4 else types.float64
     if out is not None:
         sanitation.sanitize_out(out, output_shape, output_split, x.device, x.comm)
         if output_dtype != out.dtype:
@@ -1699,9 +1699,7 @@ def percentile(
             # fractional_indices is still a torch tensor here
             fractional_indices.unsqueeze_(-1)
         if out is not None:
-            out.V_local_larray = floors.V_local_larray + (
-                ceils.V_local_larray - floors.V_local_larray
-            ) * (fractional_indices)
+            out.larray = floors.larray + (ceils.larray - floors.larray) * (fractional_indices)
             del floors, ceils, fractional_indices
             return out
         fractional_indices = factories.array(fractional_indices, device=x.device, comm=x.comm)
@@ -1709,7 +1707,7 @@ def percentile(
         del floors, ceils, fractional_indices
     else:
         if out is not None:
-            out.V_local_larray = sorted_x[perc_indices].V_local_larray
+            out.larray = sorted_x[perc_indices].larray
             del sorted_x
             return out
         percentile = sorted_x[perc_indices]
@@ -1820,7 +1818,7 @@ def std(
             unbiased = bool(ddof)
         ddof = 1 if unbiased else ddof
     if not x.is_distributed() and str(x.device).startswith("cpu"):
-        loc = np.std(x.V_local_larray.numpy(), axis=axis, ddof=ddof)
+        loc = np.std(x.larray.numpy(), axis=axis, ddof=ddof)
         if loc.size == 1:
             return loc.item()
         return factories.array(loc, copy=False)
@@ -1986,8 +1984,8 @@ def var(
             Iterable with the dimensions of the output of the var function.
         """
         if x.lshape[x.split] != 0:
-            mu = torch.mean(x.V_local_larray, dim=axis)
-            var = torch.var(x.V_local_larray, dim=axis, unbiased=unbiased)
+            mu = torch.mean(x.larray, dim=axis)
+            var = torch.var(x.larray, dim=axis, unbiased=unbiased)
         else:
             mu = factories.zeros(output_shape_i, dtype=x.dtype, device=x.device)
             var = factories.zeros(output_shape_i, dtype=x.dtype, device=x.device)
@@ -2011,14 +2009,14 @@ def var(
     # ----------------------------------------------------------------------------------------------
     if axis is None:  # no axis given
         if not x.is_distributed():  # not distributed (full tensor on one node)
-            ret = torch.var(x.V_local_larray.float(), unbiased=unbiased)
+            ret = torch.var(x.larray.float(), unbiased=unbiased)
             return DNDarray(
                 ret, tuple(ret.shape), types.heat_type_of(ret), None, x.device, x.comm, True
             )
 
         else:  # case for full matrix calculation (axis is None)
-            mu_in = torch.mean(x.V_local_larray)
-            var_in = torch.var(x.V_local_larray, unbiased=unbiased)
+            mu_in = torch.mean(x.larray)
+            var_in = torch.var(x.larray, unbiased=unbiased)
             # Nan is returned when local tensor is empty
             if torch.isnan(var_in):
                 var_in = 0.0

@@ -86,9 +86,9 @@ class Laplacian:
         degree.resplit_(axis=None)
         # Find stand-alone vertices with no connections
         temp = torch.ones(
-            degree.shape, dtype=degree.V_local_larray.dtype, device=degree.device.torch_device
+            degree.shape, dtype=degree.larray.dtype, device=degree.device.torch_device
         )
-        degree.V_local_larray = torch.where(degree.V_local_larray == 0, temp, degree.V_local_larray)
+        degree.larray = torch.where(degree.larray == 0, temp, degree.larray)
         L = A / ht.sqrt(ht.expand_dims(degree, axis=1))
         L = L / ht.sqrt(ht.expand_dims(degree, axis=0))
         L = L * (-1.0)

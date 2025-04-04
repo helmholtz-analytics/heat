@@ -209,7 +209,7 @@ class TestDistances(TestCase):
         for i in range(n):
             A[2 * i, :] = A[2 * i, :] * (2 * i)
             A[2 * i + 1, :] = A[2 * i + 1, :] * (2 * i + 1)
-        res = torch.cdist(A.V_local_larray, A.V_local_larray)
+        res = torch.cdist(A.larray, A.larray)
 
         A = ht.ones((n * 2, 6), dtype=ht.float32, split=0)
         for i in range(n):
@@ -226,7 +226,7 @@ class TestDistances(TestCase):
         for i in range(n):
             A[2 * i, :] = A[2 * i, :] * (2 * i)
             A[2 * i + 1, :] = A[2 * i + 1, :] * (2 * i + 1)
-        res = torch.cdist(A.V_local_larray, A.V_local_larray)
+        res = torch.cdist(A.larray, A.larray)
 
         A = ht.ones((n * 2, 6), dtype=ht.float32, split=0)
         for i in range(n):

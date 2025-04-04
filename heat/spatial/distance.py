@@ -258,7 +258,7 @@ def _dist(X: DNDarray, Y: DNDarray = None, metric: Callable = _euclidian) -> DND
         )
 
         if X.split is None:
-            d.V_local_larray = metric(X.V_local_larray, X.V_local_larray)
+            d.larray = metric(X.larray, X.larray)
 
         elif X.split == 0:
             comm = X.comm
@@ -269,12 +269,12 @@ def _dist(X: DNDarray, Y: DNDarray = None, metric: Callable = _euclidian) -> DND
             counts, displ, _ = comm.counts_displs_shape(X.shape, X.split)
             num_iter = (size + 1) // 2
 
-            stationary = X.V_local_larray
+            stationary = X.larray
             rows = (displ[rank], displ[rank + 1] if (rank + 1) != size else K)
 
             # 0th iteration, calculate diagonal
             d_ij = metric(stationary, stationary)
-            d.V_local_larray[:, rows[0] : rows[1]] = d_ij
+            d.larray[:, rows[0] : rows[1]] = d_ij
             for iter in range(1, num_iter):
                 # Send rank's part of the matrix to the next process in a circular fashion
                 receiver = (rank + iter) % size
@@ -301,7 +301,7 @@ def _dist(X: DNDarray, Y: DNDarray = None, metric: Callable = _euclidian) -> DND
                     comm.Recv(moving, source=sender, tag=iter)
 
                 d_ij = metric(stationary, moving)
-                d.V_local_larray[:, columns[0] : columns[1]] = d_ij
+                d.larray[:, columns[0] : columns[1]] = d_ij
 
                 # Receive calculated tile
                 scol1 = displ[receiver]
@@ -320,7 +320,7 @@ def _dist(X: DNDarray, Y: DNDarray = None, metric: Callable = _euclidian) -> DND
                 comm.Send(d_ij, dest=sender, tag=iter)
                 if (rank // iter) == 0:
                     comm.Recv(symmetric, source=receiver, tag=iter)
-                d.V_local_larray[:, scolumns[0] : scolumns[1]] = symmetric.transpose(0, 1)
+                d.larray[:, scolumns[0] : scolumns[1]] = symmetric.transpose(0, 1)
 
             if (size + 1) % 2 != 0:  # we need one mor iteration for the first n/2 processes
                 receiver = (rank + num_iter) % size
@@ -338,7 +338,7 @@ def _dist(X: DNDarray, Y: DNDarray = None, metric: Callable = _euclidian) -> DND
                     columns = (col1, col2)
 
                     d_ij = metric(stationary, moving)
-                    d.V_local_larray[:, columns[0] : columns[1]] = d_ij
+                    d.larray[:, columns[0] : columns[1]] = d_ij
 
                     # sending result back to sender of moving matrix (for symmetry)
                     comm.Send(d_ij, dest=sender, tag=num_iter)
@@ -357,7 +357,7 @@ def _dist(X: DNDarray, Y: DNDarray = None, metric: Callable = _euclidian) -> DND
                         device=X.device.torch_device,
                     )
                     comm.Recv(symmetric, source=receiver, tag=num_iter)
-                    d.V_local_larray[:, scolumns[0] : scolumns[1]] = symmetric.transpose(0, 1)
+                    d.larray[:, scolumns[0] : scolumns[1]] = symmetric.transpose(0, 1)
 
         else:
             raise NotImplementedError(
@@ -407,11 +407,11 @@ def _dist(X: DNDarray, Y: DNDarray = None, metric: Callable = _euclidian) -> DND
         )
 
         if X.split is None:
-            d.V_local_larray = metric(X.V_local_larray, Y.V_local_larray)
+            d.larray = metric(X.larray, Y.larray)
 
         elif X.split == 0:
             if Y.split is None:
-                d.V_local_larray = metric(X.V_local_larray, Y.V_local_larray)
+                d.larray = metric(X.larray, Y.larray)
 
             elif Y.split == 0:
                 if X.shape[1] != Y.shape[1]:
@@ -428,14 +428,14 @@ def _dist(X: DNDarray, Y: DNDarray = None, metric: Callable = _euclidian) -> DND
                 ycounts, ydispl, _ = Y.comm.counts_displs_shape(Y.shape, Y.split)
                 num_iter = size
 
-                x_ = X.V_local_larray
-                stationary = Y.V_local_larray
+                x_ = X.larray
+                stationary = Y.larray
                 # rows = (xdispl[rank], xdispl[rank + 1] if (rank + 1) != size else m)
                 cols = (ydispl[rank], ydispl[rank + 1] if (rank + 1) != size else n)
 
                 # 0th iteration, calculate diagonal
                 d_ij = metric(x_, stationary)
-                d.V_local_larray[:, cols[0] : cols[1]] = d_ij
+                d.larray[:, cols[0] : cols[1]] = d_ij
 
                 for iter in range(1, num_iter):
                     # Send rank's part of the matrix to the next process in a circular fashion
@@ -470,7 +470,7 @@ def _dist(X: DNDarray, Y: DNDarray = None, metric: Callable = _euclidian) -> DND
                         Y.comm.Recv(moving, source=sender, tag=iter)
 
                     d_ij = metric(x_, moving)
-                    d.V_local_larray[:, columns[0] : columns[1]] = d_ij
+                    d.larray[:, columns[0] : columns[1]] = d_ij
 
         elif X.split == 0:
             raise NotImplementedError(

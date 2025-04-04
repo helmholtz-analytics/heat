@@ -440,9 +440,9 @@ class TestExponential(TestCase):
         # check whether the output buffer still has the correct shape
         self.assertIsInstance(float32_sqrt, ht.DNDarray)
         self.assertEqual(float32_sqrt.dtype, ht.float32)
-        self.assertEqual(float32_sqrt.V_local_larray.shape, output_shape)
+        self.assertEqual(float32_sqrt.larray.shape, output_shape)
         for row in range(output_shape[0]):
-            self.assertTrue((float32_sqrt.V_local_larray[row] == comparison).all())
+            self.assertTrue((float32_sqrt.larray[row] == comparison).all())
 
         # exception
         with self.assertRaises(TypeError):

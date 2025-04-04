@@ -410,16 +410,12 @@ else:
                     merged_slices = __merge_slices(var, file_slices, data)
                     try:
                         var[merged_slices] = (
-                            data.V_local_larray.cpu()
-                            if is_split
-                            else data.V_local_larray[slices].cpu()
+                            data.larray.cpu() if is_split else data.larray[slices].cpu()
                         )
                     except RuntimeError:
                         var.set_collective(True)
                         var[merged_slices] = (
-                            data.V_local_larray.cpu()
-                            if is_split
-                            else data.V_local_larray[slices].cpu()
+                            data.larray.cpu() if is_split else data.larray[slices].cpu()
                         )
             except Exception as e:
                 failed = data.comm.rank + 1
@@ -440,9 +436,9 @@ else:
                     var.set_collective(False)  # not possible with non-parallel netcdf
                     if is_split:
                         merged_slices = __merge_slices(var, file_slices, data)
-                        var[merged_slices] = data.V_local_larray.cpu()
+                        var[merged_slices] = data.larray.cpu()
                     else:
-                        var[file_slices] = data.V_local_larray.cpu()
+                        var[file_slices] = data.larray.cpu()
             except Exception as e:
                 failed = 1
                 excep = e
@@ -462,7 +458,7 @@ else:
                         var = handle.variables[variable]
                         var.set_collective(False)  # not possible with non-parallel netcdf
                         merged_slices = __merge_slices(var, file_slices, data)
-                        var[merged_slices] = data.V_local_larray.cpu()
+                        var[merged_slices] = data.larray.cpu()
             except Exception as e:
                 failed = data.comm.rank + 1
                 excep = e
@@ -735,18 +731,16 @@ else:
         if h5py.get_config().mpi:
             with h5py.File(path, mode, driver="mpio", comm=data.comm.handle) as handle:
                 dset = handle.create_dataset(dataset, data.shape, **kwargs)
-                dset[slices] = (
-                    data.V_local_larray.cpu() if is_split else data.V_local_larray[slices].cpu()
-                )
+                dset[slices] = data.larray.cpu() if is_split else data.larray[slices].cpu()
 
         # otherwise a single rank only write is performed in case of local data (i.e. no split)
         elif data.comm.rank == 0:
             with h5py.File(path, mode) as handle:
                 dset = handle.create_dataset(dataset, data.shape, **kwargs)
                 if is_split:
-                    dset[slices] = data.V_local_larray.cpu()
+                    dset[slices] = data.larray.cpu()
                 else:
-                    dset[...] = data.V_local_larray.cpu()
+                    dset[...] = data.larray.cpu()
 
             # ping next rank if it exists
             if is_split and data.comm.size > 1:
@@ -758,7 +752,7 @@ else:
             # wait for the previous rank to finish writing its chunk, then write own part
             data.comm.Recv([None, 0, MPI.INT], source=data.comm.rank - 1)
             with h5py.File(path, "r+") as handle:
-                handle[dataset][slices] = data.V_local_larray.cpu()
+                handle[dataset][slices] = data.larray.cpu()
 
             # ping the next node in the communicator, wrap around to 0 to complete barrier behavior
             next_rank = (data.comm.rank + 1) % data.comm.size
@@ -1157,11 +1151,11 @@ def save_csv(
     for i in range(data.lshape[0]):
         # if lshape is of the form (x,), then there will only be a single element per row
         if len(data.lshape) == 1:
-            row = fmt % (data.V_local_larray[i])
+            row = fmt % (data.larray[i])
         else:
             if data.lshape[1] == 0:
                 break
-            row = sep.join(fmt % (item) for item in data.V_local_larray[i])
+            row = sep.join(fmt % (item) for item in data.larray[i])
 
         if (
             data.split is None

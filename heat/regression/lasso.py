@@ -116,7 +116,7 @@ class Lasso(ht.RegressionMixin, ht.BaseEstimator):
         yest : DNDarray
             Thresholded model data, Shape = (1,)
         """
-        return ht.sqrt((ht.mean((gt - yest) ** 2))).V_local_larray.item()
+        return ht.sqrt((ht.mean((gt - yest) ** 2))).larray.item()
 
     def fit(self, x: DNDarray, y: DNDarray) -> None:
         """
@@ -149,12 +149,10 @@ class Lasso(ht.RegressionMixin, ht.BaseEstimator):
 
             # Looping through each coordinate
             for j in range(n):
-                X_j = ht.array(
-                    x.V_local_larray[:, j : j + 1], is_split=0, device=x.device, comm=x.comm
-                )
+                X_j = ht.array(x.larray[:, j : j + 1], is_split=0, device=x.device, comm=x.comm)
 
                 y_est = x @ theta
-                theta_j = theta.V_local_larray[j].item()
+                theta_j = theta.larray[j].item()
 
                 rho = (X_j * (y - y_est + theta_j * X_j)).mean()
 

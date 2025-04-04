@@ -172,8 +172,8 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
 
     if batch_processing:
         # all operations are local torch operations, only the last dimension is convolved
-        local_a = a.V_local_larray
-        local_v = v.V_local_larray
+        local_a = a.larray
+        local_v = v.larray
         # flip filter for convolution, as Pytorch conv1d computes correlations
         local_v = torch.flip(local_v, [-1])
         local_batch_dims = tuple(local_a.shape[:-1])
@@ -233,20 +233,18 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
         # apply halos to local array
         signal = a.array_with_halos
     else:
-        signal = a.V_local_larray
+        signal = a.larray
 
     # flip filter for convolution as Pytorch conv1d computes correlations
     v = flip(v, [0])
-    if v.V_local_larray.shape != v.lshape_map[0]:
+    if v.larray.shape != v.lshape_map[0]:
         # pads weights if input kernel is uneven
-        target = torch.zeros(
-            v.lshape_map[0][0], dtype=v.V_local_larray.dtype, device=v.V_local_larray.device
-        )
-        pad_size = v.lshape_map[0][0] - v.V_local_larray.shape[0]
-        target[pad_size:] = v.V_local_larray
+        target = torch.zeros(v.lshape_map[0][0], dtype=v.larray.dtype, device=v.larray.device)
+        pad_size = v.lshape_map[0][0] - v.larray.shape[0]
+        target[pad_size:] = v.larray
         weight = target
     else:
-        weight = v.V_local_larray
+        weight = v.larray
 
     t_v = weight  # stores temporary weight
 
