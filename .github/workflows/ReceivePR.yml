@@ -25,8 +25,8 @@ jobs:
           python-version: 3.9
           architecture: x64
 
-      - name: Setup MPI
-        uses: mpi4py/setup-mpi@21db385b2b3aee87e8561d46d64805a59087e2b7 # v1.3.0
+      - name: Setup MPI 
+        uses: mpi4py/setup-mpi@f5f8f979b2090d14bf810bf16836a85793b5d095 # v1.3.1
         with:
           mpi: openmpi
 
