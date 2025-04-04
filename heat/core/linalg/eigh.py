@@ -53,10 +53,10 @@ def _subspaceiteration(
     # set parameters for convergence
     if A.dtype == types.float64:
         maxit = 3 if maxit is None else maxit
-        tol = 1e-12 if tol is None else tol
+        tol = 1e-8 if tol is None else tol
     elif A.dtype == types.float32:
         maxit = 6 if maxit is None else maxit
-        tol = 1e-6 if tol is None else tol
+        tol = 1e-4 if tol is None else tol
     else:
         raise TypeError(
             f"Input DNDarray must be of data type float32 or float64, but is of type {A.dtype}."
@@ -65,7 +65,7 @@ def _subspaceiteration(
     Anorm = matrix_norm(A, ord="fro")
 
     # this initialization is proposed in Ref. 1, Sect. 5.1
-    k = int(np.round(matrix_norm(C, ord="fro").numpy() ** 2))
+    k = int(np.round(matrix_norm(C, ord="fro").item() ** 2))
     columnnorms = vector_norm(C, axis=0)
     idx = where(
         columnnorms
@@ -145,6 +145,7 @@ def _eigh(
         Lambda_loc, Q_loc = torch.linalg.eigh(A.larray)
         Lambda = factories.array(torch.flip(Lambda_loc, (0,)), split=0, comm=A.comm)
         V = factories.array(torch.flip(Q_loc, (1,)), split=orig_split, comm=A.comm)
+        A.resplit_(orig_split)
         return Lambda, V
 
     if orig_lsize == 0:
@@ -152,12 +153,14 @@ def _eigh(
 
     # now we handle the main case: Zolo-PD is used to reduce the problem to two independent problems
     sigma = statistics.median(diag(A))
+
     U = polar(
         A
         - sigma * factories.eye((n, n), dtype=A.dtype, device=A.device, comm=A.comm, split=A.split),
         r,
         False,
     )
+
     V, k = _subspaceiteration(
         A,
         0.5

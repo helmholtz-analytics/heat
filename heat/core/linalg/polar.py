@@ -289,7 +289,6 @@ def polar(
                 print(f"Starting Zolotarev-PD iteration no. {it}...")
         # remember current X for later convergence check
         X_old = X.copy()
-
         cId = factories.eye(X.shape[1], dtype=X.dtype, comm=X.comm, split=X.split, device=X.device)
         cId *= c[2 * horizontal_comm.rank].item() ** 0.5
         X = concatenate([X, cId], axis=0)
@@ -332,6 +331,8 @@ def polar(
             for j in range(r):
                 ell *= (ellold**2 + c[2 * j + 1]) / (ellold**2 + c[2 * j])
             ell *= Mhat * ellold
+            if ell >= 1.0:
+                ell = 1.0 - tol
             c, a, Mhat = _compute_zolotarev_coefficients(r, ell, A.device, dtype=A.dtype)
         else:
             if not silent:
