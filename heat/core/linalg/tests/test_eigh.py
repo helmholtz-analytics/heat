@@ -22,7 +22,7 @@ class TestEigh(TestCase):
 
     def test_eigh(self):
         # test with default values
-        splits = [0, None]
+        splits = [0, 1, None]
         dtypes = [ht.float32, ht.float64]
         for split in splits:
             for dtype in dtypes:

@@ -174,7 +174,7 @@ def _eigh(
         )
         print(
             "\t" * depth
-            + f"            two independent problems of size {k} and {n-k} respectively."
+            + f"            two independent problems of size {k} and {n - k} respectively."
         )
 
     # from the "global" A, two independent "local" A's are created
@@ -243,7 +243,7 @@ def _eigh(
     if A.comm.rank == 0 and not silent:
         print(
             "\t" * depth
-            + f"At depth {depth}: solutions of two independent problems of size {k} and {n-k} have been merged successfully."
+            + f"At depth {depth}: solutions of two independent problems of size {k} and {n - k} have been merged successfully."
         )
 
     return Lambda, V
