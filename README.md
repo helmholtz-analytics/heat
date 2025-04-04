@@ -184,7 +184,7 @@ Heat is distributed under the MIT license, see our
 
 <!-- If you find Heat helpful for your research, please mention it in your publications. You can cite: -->
 
-Please do mention Heat in your publications if it helped your research. 
+Please do mention Heat in your publications if it helped your research.
 
 * You can cite, e.g., the **"original Heat-paper":**
 
@@ -217,7 +217,7 @@ Please do mention Heat in your publications if it helped your research.
   ```
 
 * In addition, you can use [**ZENODO-DOIs**](https://doi.org/10.5281/zenodo.2531472) to point to a specific release of Heat.
-  
+
 * Depending on the actual context you might also cite the following second "Heat-paper" that deals with our software from a **research software engineering perspective**:
 
   Hoppe, F., Gutiérrez Hermosillo Muriedas, J. P., Tarnawa, M., Knechtges, P., Hagemeier, B., Krajsek, K., Rüttgers, A., Götz, M., & Comito, C. (2025). *Engineering a large-scale data analytics and array computing library for research: Heat.* Electronic Communications of the EASST, 83. DOI: [10.14279/eceasst.v83.2626](https://doi.org/10.14279/eceasst.v83.2626)
@@ -262,7 +262,7 @@ Please do mention Heat in your publications if it helped your research.
   url={https://doi.org/10.1186/s40537-021-00556-1}
   }
   ```
-  
+
 
 
 # FAQ
