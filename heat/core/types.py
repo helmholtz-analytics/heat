@@ -857,7 +857,8 @@ def issubdtype(
 def promote_types(
     type1: Union[str, Type[datatype], Any],
     type2: Union[str, Type[datatype], Any],
-    device: Optional[torch.device] = None,
+    device1: Optional[Union[str, torch.device]] = None,
+    device2: Optional[Union[str, torch.device]] = None,
 ) -> Type[datatype]:
     """
     Returns the data type with the smallest size and smallest scalar kind to which both ``type1`` and ``type2`` may be
@@ -870,9 +871,10 @@ def promote_types(
         type of first operand
     type2 : type or str or datatype
         type of second operand
-    device : torch.device, optional
-        The device on which the promoted type should be used. If the device is an MPS device, the promoted type will be
-        downcasted to float32 or complex64.
+    device1 : devices.Device or torch.device, optional
+        device of first operand
+    device2 : devices.Device or torch.device, optional
+        device of second operand
 
     Examples
     --------
@@ -890,7 +892,16 @@ def promote_types(
 
     promote_type = __type_promotions[typecode_type1][typecode_type2]
 
-    if device is not None and device.type == "mps":
+    device1 = torch.device(device1) if isinstance(device1, str) else device1
+    device2 = torch.device(device2) if isinstance(device2, str) else device2
+
+    if (
+        device1 is not None
+        and device1.type == "mps"
+        or device2 is not None
+        and device2.type == "mps"
+    ):
+        # MPS does not support float64 and complex128
         if promote_type is float64:
             promote_type = float32
         elif promote_type is complex128:

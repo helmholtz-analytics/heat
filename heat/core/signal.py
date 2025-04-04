@@ -115,7 +115,9 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
             v = array(v)
         except TypeError:
             raise TypeError(f"non-supported type for filter: {type(v)}")
-    promoted_type = promote_types(a.dtype, v.dtype, device=a.larray.device)
+    promoted_type = promote_types(
+        a.dtype, v.dtype, device1=a.larray.device, device2=v.larray.device
+    )
 
     a = a.astype(promoted_type)
     v = v.astype(promoted_type)
