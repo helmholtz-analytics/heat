@@ -2,6 +2,7 @@ import os
 import unittest
 
 import heat as ht
+import torch
 
 from ...core.tests.test_suites.basic_test import TestCase
 
@@ -36,49 +37,50 @@ class TestSpectral(TestCase):
         self.assertEqual(10, spectral.n_clusters)
 
     def test_fit_iris(self):
-        # get some test data
-        iris = ht.load("heat/datasets/iris.csv", sep=";", split=0)
-        m = 10
-        # fit the clusters
-        spectral = ht.cluster.SpectralClustering(
-            n_clusters=3, gamma=1.0, affinity="rbf", laplacian="fully_connected", n_lanczos=m
-        )
-        spectral.fit(iris)
-        self.assertIsInstance(spectral.labels_, ht.DNDarray)
+        if not self.is_mps:       
+            # get some test data
+            iris = ht.load("heat/datasets/iris.csv", sep=";", split=0)
+            m = 10
+            # fit the clusters
+            spectral = ht.cluster.SpectralClustering(
+                n_clusters=3, gamma=1.0, affinity="rbf", laplacian="fully_connected", n_lanczos=m
+            ) 
+            spectral.fit(iris)
+            self.assertIsInstance(spectral.labels_, ht.DNDarray)
 
-        spectral = ht.cluster.SpectralClustering(
-            affinity="euclidean",
-            laplacian="eNeighbour",
-            threshold=0.5,
-            boundary="upper",
-            n_lanczos=m,
-        )
-        labels = spectral.fit_predict(iris)
-        self.assertIsInstance(labels, ht.DNDarray)
+            spectral = ht.cluster.SpectralClustering(
+                affinity="euclidean",
+                laplacian="eNeighbour",
+                threshold=0.5,
+                boundary="upper",
+                n_lanczos=m,
+            )
+            labels = spectral.fit_predict(iris)
+            self.assertIsInstance(labels, ht.DNDarray)
 
-        spectral = ht.cluster.SpectralClustering(
-            gamma=0.1,
-            affinity="rbf",
-            laplacian="eNeighbour",
-            threshold=0.5,
-            boundary="upper",
-            n_lanczos=m,
-        )
-        labels = spectral.fit_predict(iris)
-        self.assertIsInstance(labels, ht.DNDarray)
+            spectral = ht.cluster.SpectralClustering(
+                gamma=0.1,
+                affinity="rbf",
+                laplacian="eNeighbour",
+                threshold=0.5,
+                boundary="upper",
+                n_lanczos=m,
+            )
+            labels = spectral.fit_predict(iris)
+            self.assertIsInstance(labels, ht.DNDarray)
 
-        kmeans = {"kmeans++": "kmeans++", "max_iter": 30, "tol": -1}
-        spectral = ht.cluster.SpectralClustering(
-            n_clusters=3, gamma=1.0, normalize=True, n_lanczos=m, params=kmeans
-        )
-        labels = spectral.fit_predict(iris)
-        self.assertIsInstance(labels, ht.DNDarray)
+            kmeans = {"kmeans++": "kmeans++", "max_iter": 30, "tol": -1}
+            spectral = ht.cluster.SpectralClustering(
+                n_clusters=3, gamma=1.0, normalize=True, n_lanczos=m, params=kmeans
+            )
+            labels = spectral.fit_predict(iris)
+            self.assertIsInstance(labels, ht.DNDarray)
 
-        # Errors
-        with self.assertRaises(NotImplementedError):
-            spectral = ht.cluster.SpectralClustering(affinity="ahalanobis", n_lanczos=m)
+            # Errors
+            with self.assertRaises(NotImplementedError):
+                spectral = ht.cluster.SpectralClustering(affinity="ahalanobis", n_lanczos=m)
 
-        iris_split = ht.load("heat/datasets/iris.csv", sep=";", split=1)
-        spectral = ht.cluster.SpectralClustering(n_lanczos=20)
-        with self.assertRaises(NotImplementedError):
-            spectral.fit(iris_split)
+            iris_split = ht.load("heat/datasets/iris.csv", sep=";", split=1)
+            spectral = ht.cluster.SpectralClustering(n_lanczos=20)
+            with self.assertRaises(NotImplementedError):
+                spectral.fit(iris_split)

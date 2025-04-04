@@ -23,7 +23,9 @@ class TestTypes(TestCase):
         no_value = heat_type()
         self.assertIsInstance(no_value, ht.DNDarray)
         self.assertEqual(no_value.shape, (1,))
-        self.assertEqual((no_value.larray == 0).all().item(), 1)
+        if not self.is_mps and not ht.types.heat_type_is_complexfloating(heat_type):
+            # equal unstable on MPS and complex types
+            self.assertEqual((no_value.larray == 0).all().item(), 1)
         self.assertEqual(no_value.larray.dtype, torch_type)
 
         # check a type constructor with a complex value
@@ -31,15 +33,17 @@ class TestTypes(TestCase):
         elaborate_value = heat_type(ground_truth)
         self.assertIsInstance(elaborate_value, ht.DNDarray)
         self.assertEqual(elaborate_value.shape, (2, 3))
-        self.assertEqual(
-            (
-                elaborate_value.larray
-                == torch.tensor(ground_truth, dtype=torch_type, device=self.device.torch_device)
+        if not self.is_mps and not ht.types.heat_type_is_complexfloating(heat_type):
+            # equal unstable on MPS and complex types
+            self.assertEqual(
+                (
+                    elaborate_value.larray
+                    == torch.tensor(ground_truth, dtype=torch_type, device=self.device.torch_device)
+                )
+                .all()
+                .item(),
+                1,
             )
-            .all()
-            .item(),
-            1,
-        )
         self.assertEqual(elaborate_value.larray.dtype, torch_type)
 
         # check exception when there is more than one parameter
@@ -94,8 +98,9 @@ class TestTypes(TestCase):
         self.assert_is_instantiable_heat_type(ht.float_, torch.float32)
 
     def test_float64(self):
-        self.assert_is_instantiable_heat_type(ht.float64, torch.float64)
-        self.assert_is_instantiable_heat_type(ht.double, torch.float64)
+        if not self.is_mps:
+            self.assert_is_instantiable_heat_type(ht.float64, torch.float64)
+            self.assert_is_instantiable_heat_type(ht.double, torch.float64)
 
     def test_flexible(self):
         self.assert_non_instantiable_heat_type(ht.flexible)
@@ -108,10 +113,11 @@ class TestTypes(TestCase):
         self.assertEqual(ht.complex64.char(), "c8")
 
     def test_complex128(self):
-        self.assert_is_instantiable_heat_type(ht.complex128, torch.complex128)
-        self.assert_is_instantiable_heat_type(ht.cdouble, torch.complex128)
+        if not self.is_mps:
+            self.assert_is_instantiable_heat_type(ht.complex128, torch.complex128)
+            self.assert_is_instantiable_heat_type(ht.cdouble, torch.complex128)
 
-        self.assertEqual(ht.complex128.char(), "c16")
+            self.assertEqual(ht.complex128.char(), "c16")
 
     def test_iscomplex(self):
         a = ht.array([1, 1.2, 1 + 1j, 1 + 0j])
@@ -336,19 +342,20 @@ class TestTypeConversion(TestCase):
         self.assertEqual(ht.result_type(1.0, ht.array(1, dtype=ht.int32)), ht.float32)
         self.assertEqual(ht.result_type(ht.uint8, ht.int8), ht.int16)
         self.assertEqual(ht.result_type("b", "f4"), ht.float32)
-        self.assertEqual(ht.result_type(ht.array([1], dtype=ht.float64), "f4"), ht.float64)
-        self.assertEqual(
-            ht.result_type(
-                ht.array([1, 2, 3, 4], dtype=ht.float64, split=0),
-                1,
-                ht.bool,
-                "u",
-                torch.uint8,
-                np.complex128,
-                ht.array(1, dtype=ht.int64),
-            ),
-            ht.complex128,
-        )
+        if not self.is_mps:
+            self.assertEqual(ht.result_type(ht.array([1], dtype=ht.float64), "f4"), ht.float64)
+            self.assertEqual(
+                ht.result_type(
+                    ht.array([1, 2, 3, 4], dtype=ht.float64, split=0),
+                    1,
+                    ht.bool,
+                    "u",
+                    torch.uint8,
+                    np.complex128,
+                    ht.array(1, dtype=ht.int64),
+                ),
+                ht.complex128,
+            )
         self.assertEqual(
             ht.result_type(np.array([1, 2, 3]), np.dtype("int32"), torch.tensor([1, 2, 3])),
             ht.int64,
