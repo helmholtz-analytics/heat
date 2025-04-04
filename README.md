@@ -216,7 +216,7 @@ Please do mention Heat in your publications if it helped your research.
   }
   ```
 
-* In addition, you can use the **ZENODO-DOI** to refer to a specific release of Heat.
+* In addition, you can use [**ZENODO-DOIs**](https://doi.org/10.5281/zenodo.2531472) to point to a specific release of Heat.
   
 * Depending on the actual context you might also cite the following second "Heat-paper" that deals with our software from a **research software engineering perspective**:
 
@@ -236,7 +236,7 @@ Please do mention Heat in your publications if it helped your research.
   }
   ```
 
-* If you specifically refer to the DASO algorithm in the neural networks module, please also cite the "DASO-paper":
+* If you specifically refer to the **DASO algorithm** in the neural networks module, please also cite the "DASO-paper":
 
   Coquelin, D., Debus, C., Götz, M., von der Lehr, F., Kahn, J., Siggel, M. & Streit, A. (2022). *Accelerating neural network training with distributed asynchronous and selective optimization (DASO).* J Big Data 9, 14. DOI: [10.1186/s40537-021-00556-1](https://doi.org/10.1186/s40537-021-00556-1)
 
