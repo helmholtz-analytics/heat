@@ -75,7 +75,7 @@ def condest(
     A: DNDarray, p: Union[int, str] = None, algorithm: str = "randomized", params: list = None
 ) -> DNDarray:
     """
-    Computes a (possibly randomized) upper estimate the l2-condition number of the input 2D DNDarray.
+    Computes a (possibly randomized) upper estimate of the l2-condition number of the input 2D DNDarray.
 
     Parameters
     ----------
@@ -461,7 +461,13 @@ def inv(a: DNDarray) -> DNDarray:
 
     # no split in the square matrices
     if not a.is_distributed() or a.split < a.ndim - 2:
-        data = torch.inverse(a.larray)
+        try:
+            data = torch.inverse(a.larray)
+        except RuntimeError as e:
+            raise RuntimeError(e)
+        # torch.linalg.inv does not raise RuntimeError on MPS when inversion fails
+        if data.is_mps and torch.any(data.isnan()):
+            raise RuntimeError("linalg.inv: inversion could not be performed")
         return DNDarray(
             data,
             a.shape,

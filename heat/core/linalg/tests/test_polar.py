@@ -6,8 +6,8 @@ import numpy as np
 from ...tests.test_suites.basic_test import TestCase
 
 
-class TestZoloPD(TestCase):
-    def _check_pd(self, A, U, H, dtypetol):
+class TestZolopolar(TestCase):
+    def _check_polar(self, A, U, H, dtypetol):
         # check whether output has right type, shape and dtype
         self.assertTrue(isinstance(U, ht.DNDarray))
         self.assertEqual(U.shape, A.shape)
@@ -34,24 +34,24 @@ class TestZoloPD(TestCase):
     def test_catch_wrong_inputs(self):
         # if A is not a DNDarray
         with self.assertRaises(TypeError):
-            ht.pd("I am clearly not a DNDarray. Do you mind?")
+            ht.polar("I am clearly not a DNDarray. Do you mind?")
         # test wrong input dimension
         with self.assertRaises(ValueError):
-            ht.pd(ht.zeros((10, 10, 10), dtype=ht.float32))
+            ht.polar(ht.zeros((10, 10, 10), dtype=ht.float32))
         # test wrong input shape
         with self.assertRaises(ValueError):
-            ht.pd(ht.random.rand(10, 11, dtype=ht.float32))
+            ht.polar(ht.random.rand(10, 11, dtype=ht.float32))
         # test wrong input dtype
         with self.assertRaises(TypeError):
-            ht.pd(ht.ones((10, 10), dtype=ht.int32))
+            ht.polar(ht.ones((10, 10), dtype=ht.int32))
         # wrong input for r
         with self.assertRaises(ValueError):
-            ht.pd(ht.ones((11, 10)), r=1.0)
+            ht.polar(ht.ones((11, 10)), r=1.0)
         # wrong input for tol
         with self.assertRaises(TypeError):
-            ht.pd(ht.ones((11, 10)), r=2, condition_estimate=1)
+            ht.polar(ht.ones((11, 10)), r=2, condition_estimate=1)
 
-    def test_pd_split0(self):
+    def test_polar_split0(self):
         # split=0, float32, no condition estimate provided, silent mode
         for r in range(1, 9):
             with self.subTest(r=r):
@@ -60,31 +60,31 @@ class TestZoloPD(TestCase):
                 if (
                     ht.MPI_WORLD.size % r == 0 and ht.MPI_WORLD.size != r
                 ) or ht.MPI_WORLD.size == 1:
-                    U, H = ht.pd(A, r=r)
+                    U, H = ht.polar(A, r=r)
                     dtypetol = 1e-4
-                    self._check_pd(A, U, H, dtypetol)
+                    self._check_polar(A, U, H, dtypetol)
                 else:
                     with self.assertRaises(ValueError):
-                        U, H = ht.pd(A, r=r)
+                        U, H = ht.polar(A, r=r)
 
         # cases not covered so far
         A = ht.random.randn(100, 100, split=0, dtype=ht.float64)
-        U, H = ht.pd(A, condition_estimate=1.0e16, silent=False)
+        U, H = ht.polar(A, condition_estimate=1.0e16, silent=False)
         dtypetol = 1e-7
 
-        self._check_pd(A, U, H, dtypetol)
+        self._check_polar(A, U, H, dtypetol)
 
         # case without calculating H
         ht.random.seed(10122024)
         A = ht.random.randn(100, 10, split=0, dtype=ht.float32)
-        U = ht.pd(A, calcH=False)
+        U = ht.polar(A, calcH=False)
         U_np = U.numpy()
         self.assertTrue(np.allclose(U_np.T @ U_np, np.eye(U_np.shape[1]), atol=1e-4, rtol=1e-4))
         H_np = U_np.T @ A.numpy()
         self.assertTrue(np.allclose(H_np.T, H_np, atol=1e-4, rtol=1e-4))
         self.assertTrue((np.linalg.eigvalsh(H_np) > 0).all())
 
-    def test_pd_split1(self):
+    def test_polar_split1(self):
         # split=1, float64, condition estimate provided, non-silent mode
         for r in range(1, 9):
             with self.subTest(r=r):
@@ -93,23 +93,23 @@ class TestZoloPD(TestCase):
                 if (
                     ht.MPI_WORLD.size % r == 0 and ht.MPI_WORLD.size != r
                 ) or ht.MPI_WORLD.size == 1:
-                    U, H = ht.pd(A, r=r, silent=False, condition_estimate=1.0e16)
+                    U, H = ht.polar(A, r=r, silent=False, condition_estimate=1.0e16)
                     dtypetol = 1e-7
 
-                    self._check_pd(A, U, H, dtypetol)
+                    self._check_polar(A, U, H, dtypetol)
                 else:
                     with self.assertRaises(ValueError):
-                        U, H = ht.pd(A, r=r)
+                        U, H = ht.polar(A, r=r)
 
         # cases not covered so far
         A = ht.random.randn(100, 99, split=1, dtype=ht.float32)
-        U, H = ht.pd(A, silent=False, condition_estimate=1.0e16)
+        U, H = ht.polar(A, silent=False, condition_estimate=1.0e16)
         dtypetol = 1e-4
-        self._check_pd(A, U, H, dtypetol)
+        self._check_polar(A, U, H, dtypetol)
 
         # case without calculating H
         A = ht.random.randn(100, 100, split=1, dtype=ht.float64)
-        U = ht.pd(A, calcH=False, condition_estimate=1.0e16)
+        U = ht.polar(A, calcH=False, condition_estimate=1.0e16)
         U_np = U.numpy()
         self.assertTrue(np.allclose(U_np.T @ U_np, np.eye(U_np.shape[1]), atol=1e-7, rtol=1e-7))
         H_np = U_np.T @ A.numpy()

@@ -46,12 +46,12 @@ def lanczos(B):
 
 @monitor()
 def zolopd_split0(A):
-    U, H = ht.linalg.pd(A)
+    U, H = ht.linalg.polar(A)
 
 
 @monitor()
 def zolopd_split1(A):
-    U, H = ht.linalg.pd(A)
+    U, H = ht.linalg.polar(A)
 
 
 def run_linalg_benchmarks():
