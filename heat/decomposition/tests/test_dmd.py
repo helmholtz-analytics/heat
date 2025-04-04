@@ -83,6 +83,10 @@ class TestDMD(TestCase):
         Z = dmd.predict_next(Y, 2)
         self.assertTrue(Z.dtype == ht.float32)
         self.assertEqual(Z.shape, Y.shape)
+        Y = ht.random.rand(1000, split=0, dtype=ht.float32)
+        Z = dmd.predict_next(Y, 2)
+        self.assertTrue(Z.dtype == ht.float32)
+        self.assertEqual(Z.shape, Y.shape)
 
         # wrong shape of input for prediction
         with self.assertRaises(ValueError):
@@ -95,6 +99,9 @@ class TestDMD(TestCase):
                 ht.zeros((1000, 5), split=0),
                 "this is clearly neither an integer nor a list of integers",
             )
+        # what not has been implemented so far
+        with self.assertRaises(NotImplementedError):
+            dmd.predict(ht.zeros((1000, 5), split=0), 10)
 
     def test_dmd_functionality_split1(self):
         # check whether everything works with split=1, various checks are scattered over the different cases
@@ -270,6 +277,9 @@ class TestDMDc(TestCase):
         # inconsistent number of timesteps
         with self.assertRaises(ValueError):
             dmd.fit(ht.zeros((5 * ht.MPI_WORLD.size, 3), split=0), ht.zeros((2, 4), split=0))
+        # predict for fit
+        with self.assertRaises(RuntimeError):
+            dmd.predict(ht.zeros((5 * ht.MPI_WORLD.size, 3), split=0), ht.zeros((2, 4), split=0))
 
     def test_dmdc_functionality_split0(self):
         # check whether the everything works with split=0, various checks are scattered over the different cases
@@ -288,9 +298,9 @@ class TestDMDc(TestCase):
         dmd.fit(X, C)
         self.assertTrue(dmd.rom_basis_.shape[1] == 3)
         self.assertTrue(dmd.dmdmodes_.shape == (10 * ht.MPI_WORLD.size, 3))
-        dmd = ht.decomposition.DMDc(svd_solver="hierarchical", svd_rank=8)
+        dmd = ht.decomposition.DMDc(svd_solver="hierarchical", svd_rank=3)
         dmd.fit(X, C)
-        self.assertTrue(dmd.rom_eigenvalues_.shape == (8,))
+        self.assertTrue(dmd.rom_eigenvalues_.shape == (3,))
         dmd = ht.decomposition.DMDc(svd_solver="hierarchical", svd_tol=1e-1)
         dmd.fit(X, C)
         Y = ht.random.randn(3, 10 * ht.MPI_WORLD.size, split=1)
@@ -301,7 +311,7 @@ class TestDMDc(TestCase):
         self.assertTrue(dmd.dmdmodes_.dtype == ht.complex64)
 
         X = ht.random.randn(1000, 10 * ht.MPI_WORLD.size, split=0, dtype=ht.float32)
-        dmd = ht.decomposition.DMDc(svd_solver="randomized", svd_rank=max(4, ht.MPI_WORLD.size))
+        dmd = ht.decomposition.DMDc(svd_solver="randomized", svd_rank=4)
         # split mismatch for X and C
         C = ht.random.randn(10, 10 * ht.MPI_WORLD.size, split=1)
         with self.assertRaises(ValueError):
@@ -328,6 +338,9 @@ class TestDMDc(TestCase):
         # wrong split for C
         with self.assertRaises(ValueError):
             dmd.predict(Y, ht.zeros((10, 5), split=1))
+        # wrong shape for C
+        with self.assertRaises(ValueError):
+            dmd.predict(Y, ht.zeros((5, 5), split=None))
 
     def test_dmdc_functionality_split1(self):
         # check whether everything works with split=1, various checks are scattered over the different cases

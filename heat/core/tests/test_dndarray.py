@@ -1805,3 +1805,11 @@ class TestDNDarray(TestCase):
         self.assertTrue(
             ht.equal(int16_tensor ^ int16_vector, ht.bitwise_xor(int16_tensor, int16_vector))
         )
+
+    def test_info(self):
+        x = ht.zeros((4, 5), split=1)
+        self.assertTrue(isinstance(x.info, str))
+        self.assertTrue(
+            x.info
+            == f"MPI-rank: {x.comm.rank}, Shape: {x.shape}, Split: {x.split}, Local Shape: {x.lshape}, Device: {x.device}, Dtype: {x.dtype.__name__}"
+        )
