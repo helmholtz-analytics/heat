@@ -16,6 +16,7 @@ from . import dndarray
 from . import types
 from . import sanitation
 from . import factories
+from . import devices
 
 __all__ = [
     "eq",
@@ -179,6 +180,9 @@ def equal(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> boo
                 y = y.balance()
 
     result_type = types.result_type(x, y)
+    is_mps = x.larray.is_mps or y.larray.is_mps
+    if is_mps and result_type is types.float64:
+        result_type = types.float32
     x = x.astype(result_type)
     y = y.astype(result_type)
 

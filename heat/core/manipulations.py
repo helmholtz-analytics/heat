@@ -493,7 +493,12 @@ def concatenate(arrays: Sequence[DNDarray, ...], axis: int = 0) -> DNDarray:
         raise RuntimeError("Communicators of passed arrays mismatch.")
 
     # identify common data type
+    is_mps = arr0.larray.is_mps or arr1.larray.is_mps
     out_dtype = types.promote_types(arr0.dtype, arr1.dtype)
+    if is_mps and out_dtype == types.float64:
+        warnings.warn("MPS does not support float64, using float32 instead")
+        out_dtype = types.float32
+
     if arr0.dtype != out_dtype:
         arr0 = out_dtype(arr0, device=arr0.device)
     if arr1.dtype != out_dtype:
@@ -1097,7 +1102,7 @@ def flip(a: DNDarray, axis: Union[int, Tuple[int, ...]] = None) -> DNDarray:
 
     flipped = torch.flip(a.larray, axis)
 
-    if a.split not in axis:
+    if not a.is_distributed() or a.split not in axis:
         return factories.array(
             flipped, dtype=a.dtype, is_split=a.split, device=a.device, comm=a.comm
         )
@@ -2278,6 +2283,9 @@ def roll(
           [ 0,  1,  2,  3,  4]], dtype=ht.int32, device=cpu:0, split=None)
     """
     sanitation.sanitize_in(x)
+    if isinstance(axis, list):
+        axis = tuple(axis)
+    axis = stride_tricks.sanitize_axis(x.shape, axis)
 
     if axis is None:
         return roll(x.flatten(), shift, 0).reshape(x.shape, new_split=x.split)
@@ -2285,7 +2293,18 @@ def roll(
     # inputs are ints
     if isinstance(shift, int):
         if isinstance(axis, int):
-            if x.split is not None and (axis == x.split or (axis + x.ndim) == x.split):
+            if not x.is_distributed():
+                return DNDarray(
+                    torch.roll(x.larray, shift, axis),
+                    gshape=x.shape,
+                    dtype=x.dtype,
+                    split=x.split,
+                    device=x.device,
+                    comm=x.comm,
+                    balanced=x.balanced,
+                )
+            # x is distributed
+            if axis == x.split:
                 # roll along split axis
                 size = x.comm.Get_size()
                 rank = x.comm.Get_rank()
@@ -2294,9 +2313,6 @@ def roll(
                 lshape_map = x.create_lshape_map(force_check=False)[:, x.split]
                 cumsum_map = torch.cumsum(lshape_map, dim=0)  # cumulate along axis
                 indices = torch.arange(size, device=x.device.torch_device)
-                # NOTE Can be removed when min version>=1.9
-                if "1.8." in torch.__version__:  # pragma: no cover
-                    lshape_map = lshape_map.to(torch.int64)
                 index_map = torch.repeat_interleave(indices, lshape_map)  # index -> process
 
                 # compute index positions
@@ -2339,7 +2355,17 @@ def roll(
                 raise TypeError(f"axis must be a int, list or a tuple, got {type(axis)}")
 
             shift = [shift] * len(axis)
-
+            if not x.is_distributed():
+                return DNDarray(
+                    torch.roll(x.larray, shift, axis),
+                    gshape=x.shape,
+                    dtype=x.dtype,
+                    split=x.split,
+                    device=x.device,
+                    comm=x.comm,
+                    balanced=x.balanced,
+                )
+            # x is distributed
             return roll(x, shift, axis)
 
     else:  # input must be tuples now
@@ -2364,7 +2390,18 @@ def roll(
             if not isinstance(axis[i], int):
                 raise TypeError(f"Element {i} in axis is not an integer, got {type(axis[i])}")
 
-        if x.split is not None and (x.split in axis or (x.split - x.ndim) in axis):
+        if not x.is_distributed():
+            return DNDarray(
+                torch.roll(x.larray, shift, axis),
+                gshape=x.shape,
+                dtype=x.dtype,
+                split=x.split,
+                device=x.device,
+                comm=x.comm,
+                balanced=x.balanced,
+            )
+        # x is distributed
+        if x.split in axis:
             # remove split axis elements
             shift_split = 0
             for y in (x.split, x.split - x.ndim):
@@ -2546,7 +2583,7 @@ def sort(a: DNDarray, axis: int = -1, descending: bool = False, out: Optional[DN
     """
     stride_tricks.sanitize_axis(a.shape, axis)
 
-    if a.split is None or axis != a.split:
+    if not a.is_distributed() or axis != a.split:
         # sorting is not affected by split -> we can just sort along the axis
         final_result, final_indices = torch.sort(a.larray, dim=axis, descending=descending)
 
@@ -3280,7 +3317,7 @@ DNDarray.swapaxes.__doc__ = swapaxes.__doc__
 
 def unique(
     a: DNDarray, sorted: bool = False, return_inverse: bool = False, axis: int = None
-) -> Tuple[DNDarray, torch.tensor]:
+) -> Tuple[DNDarray, DNDarray]:
     """
     Finds and returns the unique elements of a `DNDarray`.
     If return_inverse is `True`, the second tensor will hold the list of inverse indices
@@ -3312,7 +3349,7 @@ def unique(
     array([[2, 3],
            [3, 1]])
     """
-    if a.split is None:
+    if not a.is_distributed():
         torch_output = torch.unique(
             a.larray, sorted=sorted, return_inverse=return_inverse, dim=axis
         )
@@ -3477,8 +3514,12 @@ def unique(
         result.resplit_(a.split)
 
     return_value = result
+
     if return_inverse:
-        return_value = [return_value, inverse_indices.to(a.device.torch_device)]
+        inverse_indices = factories.array(
+            inverse_indices, dtype=inverse_pos.dtype, device=a.device, comm=a.comm
+        )
+        return_value = [return_value, inverse_indices]
 
     return return_value
 
@@ -4277,10 +4318,16 @@ def topk(
         metadata = torch.tensor(
             [k, dim, largest, sorted, local_shape_len, *local_shape], device=indices.device
         )
-        send_buffer = torch.cat(
-            (metadata.double(), result.double().flatten(), indices.flatten().double())
-        )
 
+        if result.is_mps:
+            # MPS does not support double precision
+            send_buffer = torch.cat(
+                (metadata.float(), result.float().flatten(), indices.flatten().float())
+            )
+        else:
+            send_buffer = torch.cat(
+                (metadata.double(), result.double().flatten(), indices.flatten().double())
+            )
         return send_buffer
 
     gres = _operations.__reduce_op(
