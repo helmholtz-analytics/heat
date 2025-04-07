@@ -280,6 +280,12 @@ def eigh(
     Unlike the `torch.linalg.eigh` function, the eigenvalues are returned in descending order.
     Note that no check of symmetry is performed on the input matrix A; thus, applying this function to a non-symmetric matrix may
     result in unpredictable behaviour without a specific error message pointing to this issue.
+
+    The algorithm used for the computation of the symmetric eigenvalue decomposition is based on the Zolotarev polar decomposition;
+    see Algorithm 5.2 in:
+
+        Nakatsukasa, Y., & Freund, R. W. (2016). Computing fundamental matrix decompositions accurately via the
+        matrix sign function in two iterations: The power of Zolotarev's functions. SIAM Review, 58(3).
     """
     sanitize_in_nd_realfloating(A, "A", [2])
     if A.shape[0] != A.shape[1]:
