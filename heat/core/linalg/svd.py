@@ -202,6 +202,8 @@ def svd(
             return S
 
     else:
+        # this is the general, distributed case in which the matrix is neither tall skinny nor short fat
+        # we apply the Zolotarev-Polar Decomposition and the symmetric eigenvalue decomposition
         if A.shape[0] < A.shape[1]:
             # Zolo-PD requires A.shape[0] >= A.shape[1], so we need to transpose in this case
             if compute_uv:
