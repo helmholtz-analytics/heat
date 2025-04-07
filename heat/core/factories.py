@@ -425,7 +425,7 @@ def array(
     elif split is not None:
         # only keep local slice
         _, _, slices = comm.chunk(gshape, split)
-        _ = obj[slices]
+        _ = obj[slices].contiguous()
         del obj
 
         obj = sanitize_memory_layout(_, order=order)
