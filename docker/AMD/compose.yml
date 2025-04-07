@@ -1,7 +1,0 @@
-# version: '3.8'
-
-services:
-  rocm-dev:
-    image: rocm/dev-ubuntu-24.04
-    container_name: rocm_dev_container
-    restart: unless-stopped

@@ -1,5 +1,5 @@
 ########################################################################################
-# Development Environment
+# Development Environment WIP
 # Pulls Pytorch image and installs heat + dependencies
 ########################################################################################
 

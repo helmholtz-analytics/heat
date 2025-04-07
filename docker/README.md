@@ -2,10 +2,11 @@
 - [Table of Contents](#table-of-contents)
 - [Docker images of Heat](#docker-images-of-heat)
 	- [General build](#general-build)
-		- [Docker](#docker)
-		- [Building for HPC](#building-for-hpc)
-			- [Apptainer (formerly singularity)](#apptainer-formerly-singularity)
-			- [SIB (Singularity Image Builder) for Apptainer images](#sib-singularity-image-builder-for-apptainer-images)
+		- [CUDA](#docker-cuda)
+		- [AMD](#amd)
+	- [Building for HPC](#building-for-hpc)
+		- [Apptainer (formerly singularity)](#apptainer-formerly-singularity)
+		- [SIB (Singularity Image Builder) for Apptainer images](#sib-singularity-image-builder-for-apptainer-images)
 	- [Running on HPC](#running-on-hpc)
 		- [Multi-node example](#multi-node-example)
 	- [Scripts](#scripts)
@@ -33,7 +34,7 @@ branches can be specified using `--build-arg HEAT_BRANCH=<branch-name>`.
 
 ## General build
 
-### Docker
+### CUDA
 
 The [Dockerfile](./Dockerfile.release or ./Dockerfile.source) guiding the build of the Docker image is located in this directory. It is typically most convenient to `cd` to the `docker` directory and run the  build command as:
 
@@ -55,7 +56,14 @@ We also offer prebuilt images in our [Package registry](https://github.com/helmh
 $ docker pull ghcr.io/helmholtz-analytics/heat:<version-tag>
 ```
 
-### Building for HPC
+### AMD 
+The following only contains references to build a ROCm (Radeon Open Compute) docker image. They are quite large in file size (>100GB), so only references are provided. One can increase the disk space docker is capable of allocating.
+- [ROCm-terminal Dockerfile](github.com/ROCm/ROCm-docker/blob/master/rocm-terminal/Dockerile)
+- [Installation guide](https://github.com/ROCm/ROCm-docker/blob/master/quick-start.md)
+- [Radeon Repository Base Image](https://repo.radeon.com/rocm/manylinux/)
+- [ROCm docker hub](https://hub.docker.com/r/rocm/pytorch)
+
+## Building for HPC
 
 With Heat being a native HPC library, one would naturally want to build the container
 image also for HPC systems, such as the ones available at [Jülich Supercomputing Centre
@@ -121,6 +129,7 @@ srun --mpi="pmi2" apptainer exec --nv heat_1.2.0_torch.11_cuda11.5_py3.9.sif bas
 The scripts folder has a small collection of helper scripts to automate certain tasks, primarly meant for heat developers. Explanations are given at the top of the script.
 
 ## Useful commands for first-time docker users
+The following contains a small, non-exhaustive list of useful commands for first-time and occasional docker users.
 ### Run the container in interactive mode (in a terminal)
 ```bash
 docker run -it [docker container id]
@@ -129,9 +138,16 @@ docker run -it [docker container id]
 ```bash
 docker ps -a
 ```
+### List all images
+```bash
+docker images
+```
+### Rename docker container
+```bash
+docker tag <old_image_name>:<old_image_tag> <new_image_name>:<new_image_tag>
+```
 
-<<<<<<< HEAD
-### Close all currently running containers
+### Memory Management
 Free up resources
 ```bash
 docker system prune
@@ -140,46 +156,9 @@ Free up all space taken up by docker image, even stopped ones
 ```bash
 docker system prune --all --force
 ```
-### List all images
-```bash
-docker images
-```
-### Rename docker container
-Needed to upload image
-```bash
-docker tag <old_image_name>:<old_image_tag> <new_image_name>:<new_image_tag>
-```
-=======
-> docker run -it [docker container id]
-Runs the container in interactive mode (Opens a terminal)
 
-> docker ps -a
-Lists all active containers
-
-> docker system prune
-Closes all currently running containers and frees up the resources
-
-> docker system prune --all --force
-Frees up all space taken up by docker images, even stopped ones
-
-> docker images
-Lists all docker images
-
-> docker tag <old_image_name>:<old_image_tag> <new_image_name>:<new_image_tag>
-Rename the docker container (Needed to upload)
->>>>>>> 42700de560856941e152c7212ff50a3528df9943
-
-## How to download a pre-built image from the container registry
-The github container registry (ghcr.io) contains different docker versions of heat / pytorch / cuda / rocm.
-```bash
-docker pull ghcr.io/NAMESPACE/IMAGE_NAME
-```
->
-
-For further info refer to the [Github documentation on package registries](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry)
-
-## How to push a new image to ghcr.io
-
+## [Developers] Pushing a new image to ghcr.io
+For further info refer to the [Github documentation on package registries](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry).
 1. Make sure you have a github access token set up in the CLI.
 [Authenticating to the container registry](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry#authenticating-to-the-container-registry)
 
@@ -194,4 +173,4 @@ docker tag current:name ghcr.io/helmholtz-analytics/heat:1.X.X-torchX.X_cudaXX.X
 ```bash
 docker push ghcr.io/helmholtz-analytics/heat:1.X.X-torchX.X_cudaXX.X_py3.XX
 ```
-For further info refer to the [Github documentation on package registries](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry)
+
