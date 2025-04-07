@@ -14,7 +14,7 @@ class TestLinalgBasics(TestCase):
                 est = _estimate_largest_singularvalue(x)
                 self.assertIsInstance(est, ht.DNDarray)
                 self.assertTrue(est >= 0)
-                self.assertTrue(est.dtype, param[1])
+                self.assertEqual(est.dtype, param[1])
                 self.assertTrue(est.item() >= np.linalg.svd(x.numpy(), compute_uv=False).max())
 
         # catch wrong inputs
