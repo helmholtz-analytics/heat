@@ -44,6 +44,12 @@ class TestEigh(TestCase):
         self._check_eigh_result(X, Lambda, H)
 
     def test_eigh_catch_wrong_inputs(self):
+        # non-square DNDarray as input
         X = ht.random.rand(100, 101, split=0, dtype=ht.float32)
         with self.assertRaises(ValueError):
             ht.linalg.eigh(X)
+
+        # r_max_zolopd not of right type
+        X = ht.random.rand(100, 100, split=0, dtype=ht.float32)
+        with self.assertRaises(ValueError):
+            ht.linalg.eigh(X, r_max_zolopd=2.2)

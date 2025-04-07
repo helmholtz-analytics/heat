@@ -154,7 +154,7 @@ def _eigh(
     # now we handle the main case: Zolo-PD is used to reduce the problem to two independent problems
     sigma = statistics.median(diag(A))
 
-    U = polar(
+    U = polar.polar(
         A
         - sigma * factories.eye((n, n), dtype=A.dtype, device=A.device, comm=A.comm, split=A.split),
         r,

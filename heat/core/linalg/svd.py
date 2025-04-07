@@ -231,9 +231,8 @@ def svd(
                 "You are performing the full SVD of a distributed matrix that is neither of tall-skinny nor short-fat shape. \n This operation may be costly in terms of memory and compute time."
             )
             U, H = polar(A, r_max=r_max_zolopd)
-            V, S = eigh(H, r_max_zolopd=r_max_zolopd)
+            S, V = eigh(H, r_max_zolopd=r_max_zolopd)
             if not compute_uv:
                 return S
             else:
-                U = U @ V
-                return U, S, V
+                return U @ V, S, V
