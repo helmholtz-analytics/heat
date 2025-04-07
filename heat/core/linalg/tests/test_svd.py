@@ -112,3 +112,17 @@ class TestTallSkinnySVD(TestCase):
         X = ht.ones((10 * ht.MPI_WORLD.size, 10), split=0, dtype=ht.int32)
         with self.assertRaises(TypeError):
             ht.linalg.svd(X)
+
+
+def TestZoloSVD(TestCase):
+    def test_full_svd(self):
+        shapes = [(100, 100), (100, 101), (101, 100)]
+        splits = [None, 0, 1]
+        dtypes = [ht.float32, ht.float64]
+        for shape in shapes:
+            for split in splits:
+                for dtype in dtypes:
+                    with self.subTest(shape=shape, split=split, dtype=dtype):
+                        ht.random.seed(42)
+                        X = ht.random.randn(*shape, split=split, dtype=dtype)
+                        U, S, V = ht.linalg.svd(X)

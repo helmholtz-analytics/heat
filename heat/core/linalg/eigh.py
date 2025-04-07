@@ -292,6 +292,10 @@ def eigh(
         raise ValueError(
             f"Input matrix must be symmetric and, consquently, square, but input shape was {A.shape[0]} x {A.shape[1]}."
         )
+    if not isinstance(r_max_zolopd, int) or r_max_zolopd < 1 or r_max_zolopd > 8:
+        raise ValueError(
+            f"If provided, parameter r_max_zolopd must be a positive integer, but was {r_max_zolopd} of type {type(r_max_zolopd)}."
+        )
     return _eigh(
         A,
         None,

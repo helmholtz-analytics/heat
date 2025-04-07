@@ -78,6 +78,10 @@ def svd(
         )
     if qr_procs_to_merge == 0:
         qr_procs_to_merge = A.comm.size
+    if not isinstance(r_max_zolopd, int) or r_max_zolopd < 0 or r_max_zolopd > 8:
+        raise ValueError(
+            f"r_max_zolopd must be a non-negative int, but is currently {r_max_zolopd} of type {type(r_max_zolopd)}"
+        )
     if A.ndim != 2:
         raise ValueError(
             f"Array ``A`` must be 2 dimensional, buts has {A.ndim} dimensions. \n Please open an issue on GitHub if you require SVD for batches of matrices similar to PyTorch."
