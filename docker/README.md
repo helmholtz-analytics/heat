@@ -56,7 +56,7 @@ We also offer prebuilt images in our [Package registry](https://github.com/helmh
 $ docker pull ghcr.io/helmholtz-analytics/heat:<version-tag>
 ```
 
-### AMD 
+### AMD
 The following only contains references to build a ROCm (Radeon Open Compute) docker image. They are quite large in file size (>100GB), so only references are provided. One can increase the disk space docker is capable of allocating.
 - [ROCm-terminal Dockerfile](github.com/ROCm/ROCm-docker/blob/master/rocm-terminal/Dockerile)
 - [Installation guide](https://github.com/ROCm/ROCm-docker/blob/master/quick-start.md)
@@ -173,4 +173,3 @@ docker tag current:name ghcr.io/helmholtz-analytics/heat:1.X.X-torchX.X_cudaXX.X
 ```bash
 docker push ghcr.io/helmholtz-analytics/heat:1.X.X-torchX.X_cudaXX.X_py3.XX
 ```
-
