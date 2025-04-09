@@ -368,13 +368,6 @@ class DNDarray:
         """
         return self.__cat_halo()
 
-    @property
-    def info(self) -> str:
-        """
-        Returns information about the DNDarray
-        """
-        return f"MPI-rank: {self.comm.rank}, Shape: {self.shape}, Split: {self.split}, Local Shape: {self.lshape}, Device: {self.device}, Dtype: {self.dtype.__name__}"
-
     def __prephalo(self, start, end) -> torch.Tensor:
         """
         Extracts the halo indexed by start, end from ``self.array`` in the direction of ``self.split``
@@ -1216,9 +1209,10 @@ class DNDarray:
 
     def __repr__(self) -> str:
         """
-        Computes a printable representation of the passed DNDarray.
+        Returns a printable representation of the passed DNDarray.
+        Unlike the __str__ method, which prints a representation targeted at users, this method targets developers by showing key internal parameters of the DNDarray.
         """
-        return printing.__str__(self)
+        return f"MPI-rank: {self.comm.rank}, Shape: {self.shape}, Split: {self.split}, Local Shape: {self.lshape}, Device: {self.device}, Dtype: {self.dtype.__name__}"
 
     def ravel(self):
         """
