@@ -1209,10 +1209,9 @@ class DNDarray:
 
     def __repr__(self) -> str:
         """
-        Returns a printable representation of the passed DNDarray.
-        Unlike the __str__ method, which prints a representation targeted at users, this method targets developers by showing key internal parameters of the DNDarray.
+        Returns a printable representation of the passed DNDarray, targeting developers.
         """
-        return f"MPI-rank: {self.comm.rank}, Shape: {self.shape}, Split: {self.split}, Local Shape: {self.lshape}, Device: {self.device}, Dtype: {self.dtype.__name__}"
+        return printing.__repr__(self)
 
     def ravel(self):
         """

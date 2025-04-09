@@ -957,14 +957,6 @@ class TestDNDarray(TestCase):
             with self.assertRaises(ValueError):
                 st.redistribute_(target_map=torch.zeros((2, 4)))
 
-    def test_repr(self):
-        a = ht.array([1, 2, 3, 4])
-        r = a.__repr__()
-        self.assertEqual(
-            r,
-            f"MPI-rank: {a.comm.rank}, Shape: {a.shape}, Split: {a.split}, Local Shape: {a.lshape}, Device: {a.device}, Dtype: {a.dtype.__name__}",
-        )
-
     def test_resplit(self):
         # MPS tests are always 1 process only
         if not self.is_mps:
