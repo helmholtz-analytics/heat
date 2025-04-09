@@ -349,6 +349,7 @@ class DistributedSampler(torch_data.Sampler):
         rank: int = comm.rank
         world_size: int = comm.size
         N: int = self.dndarray.gshape[0]
+        mpi_type: mpi4py.MPI.Datatype = comm._MPICommunication__mpi_type_mappings[dtype]
 
         if rank == 0:
             indices = torch.randperm(N, dtype=torch.int32)
@@ -360,7 +361,10 @@ class DistributedSampler(torch_data.Sampler):
         rank_slices: List[slice] = [
             comm.chunk((N,), split=0, rank=i)[-1][0] for i in range(world_size)
         ]
+
+        block_length: int = reduce(lambda a, b: a * b, self.dndarray.gshape[1:], 1)
         local_slice: slice = rank_slices[rank]
+        local_displacement: int = self.dndarray.counts_displs()[1][rank] * block_length
 
         # Now figure out which rank needs to send what to each rank and what this rank will receive
         for i, idx in enumerate(indices):
@@ -378,10 +382,9 @@ class DistributedSampler(torch_data.Sampler):
             elif data_send_rank == rank:
                 indice_buffers[data_recv_rank].append(idx)
 
-        torch_send_buffers: List[torch.Tensor] = list()
-        row_length: int = reduce(lambda a, b: a * b, self.dndarray.gshape[1:], 1)
+        send_elems_dtype: List[mpi4py.MPI.Datatype] = list()
         local_recv_buffer: torch.Tensor = torch.empty(
-            len(indice_buffers[rank]) * row_length, dtype=dtype
+            self.dndarray.larray.shape, dtype=dtype
         )
 
         for current_rank in range(world_size):
@@ -391,17 +394,8 @@ class DistributedSampler(torch_data.Sampler):
                 ]
             else:
                 send_indice = indice_buffers[current_rank]
-
-            if len(send_indice) == 1:
-                send_indice = tuple(send_indice)  # issue#1816
-
-            buf = self.dndarray[send_indice].larray
-            torch_send_buffers.append(buf)
-
-        send_elems = [torch.flatten(elem) for elem in torch_send_buffers]
-        send_counts = torch.tensor([len(elem) for elem in send_elems])
-        send_displs = torch.zeros(world_size)
-        send_displs[1:] = torch.cumsum(send_counts[:-1], dim=0)
+            displacements = [disp * block_length - local_displacement for disp in send_indice]
+            send_elems_dtype.append(mpi_type.Create_indexed_block(blocklength=block_length, displacements=displacements).Commit())
 
         recv_counts = torch.zeros(world_size)
         for idx in indice_buffers[rank]:
@@ -410,22 +404,29 @@ class DistributedSampler(torch_data.Sampler):
                     continue
                 recv_counts[i] += 1
                 break
-        recv_counts *= row_length
+        recv_counts *= block_length
 
         recv_displs = torch.zeros(world_size)
         recv_displs[1:] = torch.cumsum(recv_counts[:-1], dim=0)
-        send_elems = torch.cat(send_elems)
+        send_elems = self.dndarray.larray
         send_elems = send_elems if CUDA_AWARE_MPI else send_elems.cpu()
 
-        comm.Alltoallv(
-            (send_elems, send_counts, send_displs),
-            (local_recv_buffer, recv_counts, recv_displs),
+        recv_displs *= send_elems.element_size()
+
+        recv_counts = list(map(int, recv_counts))
+        recv_displs = list(map(int, recv_displs))
+
+        send_elems = comm.as_mpi_memory(send_elems)
+        local_recv_mpi_buffer = comm.as_mpi_memory(local_recv_buffer)
+
+        mpi4py.MPI.COMM_WORLD.Alltoallw(
+            (send_elems, send_elems_dtype),
+            (local_recv_mpi_buffer, recv_counts, recv_displs, [mpi_type] * world_size),
         )
 
-        arr = local_recv_buffer.reshape(-1, *self.dndarray.gshape[1:])
-        if arr.device != self.dndarray.larray.device:
-            arr = arr.to(device=self.dndarray.larray.device)
-        self.dndarray.larray = arr
+        if local_recv_buffer.device != self.dndarray.larray.device:
+            local_recv_buffer = local_recv_buffer.to(device=self.dndarray.larray.device)
+        self.dndarray.larray = local_recv_buffer
 
     def set_seed(self, value: int) -> None:
         """Sets the seed for the torch.randperm
