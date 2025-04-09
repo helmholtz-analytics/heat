@@ -383,9 +383,7 @@ class DistributedSampler(torch_data.Sampler):
                 indice_buffers[data_recv_rank].append(idx)
 
         send_elems_dtype: List[mpi4py.MPI.Datatype] = list()
-        local_recv_buffer: torch.Tensor = torch.empty(
-            self.dndarray.larray.shape, dtype=dtype
-        )
+        local_recv_buffer: torch.Tensor = torch.empty(self.dndarray.larray.shape, dtype=dtype)
 
         for current_rank in range(world_size):
             if current_rank == rank:
@@ -395,7 +393,11 @@ class DistributedSampler(torch_data.Sampler):
             else:
                 send_indice = indice_buffers[current_rank]
             displacements = [disp * block_length - local_displacement for disp in send_indice]
-            send_elems_dtype.append(mpi_type.Create_indexed_block(blocklength=block_length, displacements=displacements).Commit())
+            send_elems_dtype.append(
+                mpi_type.Create_indexed_block(
+                    blocklength=block_length, displacements=displacements
+                ).Commit()
+            )
 
         recv_counts = torch.zeros(world_size)
         for idx in indice_buffers[rank]:
