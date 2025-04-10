@@ -549,7 +549,7 @@ class TestDMDc(TestCase):
             dtype=ht.float32,
         )
         x0_red = ht.ones((5, 1), split=None, dtype=ht.float32)
-        n = 5, 20 * ht.MPI_WORLD.size
+        n = 20 * ht.MPI_WORLD.size
         C = 0.1 * ht.random.randn(2, n, split=None, dtype=ht.float32)
         X_red = [x0_red]
         for k in range(n - 1):
