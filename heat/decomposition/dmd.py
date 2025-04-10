@@ -684,8 +684,6 @@ class DMDc(ht.RegressionMixin, ht.BaseEstimator):
         X_red_full = X_red_full.reshape(self.rom_basis_.shape[1], -1).resplit_(
             1 if X_red_full.split == 0 else None
         )
-        # if X_red_full.split is not None and X_red_full.shape[X_red_full.split] < ht.MPI_WORLD.size:
-        #     X_red_full.resplit_(1)
         X_pred = self.rom_basis_ @ X_red_full
         # reshape again and return
         return X_pred.reshape(X.shape[0], X.shape[1], C.shape[1])

@@ -236,9 +236,6 @@ def polar(
             f"Condition number estimate: {kappa:2.2e} / Estimate for largest singular value: {alpha:2.2e}."
         )
 
-    # initialize X for the iteration: input ``A``, normalized by largest singular value
-    A /= alpha
-
     # each of these communicators has size r, along these communicators we parallelize the r many QR decompositions that are performed in parallel
     horizontal_comm = A.comm.Split(A.comm.rank // r, A.comm.rank)
 
@@ -261,9 +258,7 @@ def polar(
 
     X = factories.array(X_collected_local, is_split=A.split, comm=vertical_comm)
     X.balance_()
-
-    # do not forget to scale A back
-    A *= alpha
+    X /= alpha
 
     # iteration counter and maximum number of iterations
     it = 0
@@ -329,7 +324,7 @@ def polar(
             if not silent:
                 if A.comm.rank == 0:
                     print(
-                        f"Zolotarev-PD iteration did not reach the convergence criterion after {itmax} iterations, which is most likely due to limited numerical accuracy and/or poor estimation of the condition number. The result may still be useful, but should be handeled with care!"
+                        f"Zolotarev-PD iteration did not reach the convergence criterion after {itmax} iterations, which is most likely due to limited numerical accuracy and/or poor estimation of the condition number. The result may still be useful, but should be handled with care!"
                     )
 
     # as every process has much more data than required, we need to split the result into the parts that are actually
