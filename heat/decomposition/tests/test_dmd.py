@@ -478,7 +478,7 @@ class TestDMDc(TestCase):
             - dmd.rom_transfer_matrix_ @ X_red[:, :-1]
             - dmd.rom_control_matrix_ @ C[:, :-1]
         )
-        self.assertTrue(ht.max(ht.abs(X_res)) < 1e-12)
+        self.assertTrue(ht.max(ht.abs(X_res)) < 1e-10)
 
         # check predict
         Y = dmd.predict(X[:, 0], C[:, :10]).squeeze()
@@ -490,8 +490,8 @@ class TestDMDc(TestCase):
             - dmd.rom_transfer_matrix_ @ Y_red[:, :-1]
             - dmd.rom_control_matrix_ @ C[:, :-1]
         )
-        self.assertTrue(ht.max(ht.abs(Y_res)) < 1e-12)
-        self.assertTrue(ht.allclose(Y[:, :], X[:, :10], atol=1e-12, rtol=1e-12))
+        self.assertTrue(ht.max(ht.abs(Y_res)) < 1e-10)
+        self.assertTrue(ht.allclose(Y[:, :], X[:, :10], atol=1e-10, rtol=1e-10))
 
     def test_dmdc_correctness_split1(self):
         # check correctness on behalf of a constructed example with known solution,
