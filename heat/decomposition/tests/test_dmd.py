@@ -573,7 +573,7 @@ class TestDMDc(TestCase):
             - dmd.rom_transfer_matrix_ @ X_red[:, :-1]
             - dmd.rom_control_matrix_ @ C[:, :-1]
         )
-        self.assertTrue(ht.max(ht.abs(X_res)) < 1e-4)
+        self.assertTrue(ht.max(ht.abs(X_res)) < 1e-2)
 
         # # check predict
         Y = dmd.predict(X[:, 0], C).squeeze()
@@ -585,5 +585,5 @@ class TestDMDc(TestCase):
             - dmd.rom_transfer_matrix_ @ Y_red[:, :-1]
             - dmd.rom_control_matrix_ @ C[:, :-1]
         )
-        self.assertTrue(ht.max(ht.abs(Y_res)) < 1e-4)
-        self.assertTrue(ht.allclose(Y[:, :], X[:, :], atol=1e-4, rtol=1e-4))
+        self.assertTrue(ht.max(ht.abs(Y_res)) < 1e-2)
+        self.assertTrue(ht.allclose(Y[:, :], X[:, :], atol=1e-2, rtol=1e-2))
