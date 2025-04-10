@@ -416,7 +416,7 @@ class TestDMDc(TestCase):
         self.assertTrue(Z.dtype == Y.dtype)
         self.assertEqual(Z.shape, (1, 1000, 10 * ht.MPI_WORLD.size))
 
-    def test_dmdc_correctness(self):
+    def test_dmdc_correctness_split0(self):
         # check correctness on behalf of a constructed example with known solution,
         # thus only the "full" solver is used
         r = 3
@@ -492,3 +492,98 @@ class TestDMDc(TestCase):
         )
         self.assertTrue(ht.max(ht.abs(Y_res)) < 1e-12)
         self.assertTrue(ht.allclose(Y[:, :], X[:, :10], atol=1e-12, rtol=1e-12))
+
+    def test_dmdc_correctness_split1(self):
+        # check correctness on behalf of a constructed example with known solution,
+        # thus only the "full" solver is used
+        A_red = ht.array(
+            [
+                [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                ],
+                [
+                    0.0,
+                    1.05,
+                    0.0,
+                    0.0,
+                    0.0,
+                ],
+                [
+                    0.0,
+                    0.0,
+                    -0.1,
+                    0.0,
+                    0.0,
+                ],
+                [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.5,
+                ],
+                [
+                    0.0,
+                    0.0,
+                    0.0,
+                    -0.5,
+                    0.0,
+                ],
+            ],
+            split=None,
+            dtype=ht.float32,
+        )
+        B_red = ht.array(
+            [
+                [1.0, 0.0],
+                [0.0, 1.0],
+                [1.0, 0.0],
+                [0.0, 1.0],
+                [0.0, 0.0],
+            ],
+            split=None,
+            dtype=ht.float32,
+        )
+        x0_red = ht.ones((5, 1), split=None, dtype=ht.float32)
+        n = 5, 20 * ht.MPI_WORLD.size
+        C = 0.1 * ht.random.randn(2, n, split=None, dtype=ht.float32)
+        X_red = [x0_red]
+        for k in range(n - 1):
+            X_red.append(A_red @ X_red[-1] + B_red @ C[:, k].reshape(-1, 1))
+        X = ht.stack(X_red, axis=1).squeeze()
+        X.resplit_(1)
+
+        dmd = ht.decomposition.DMDc(svd_solver="full")
+        dmd.fit(X, C)
+
+        # check whether the DMD-modes are correct
+        sorted_ev_1 = np.sort_complex(dmd.rom_eigenvalues_.numpy())
+        sorted_ev_2 = np.sort_complex(np.linalg.eigvals(A_red.numpy()))
+        self.assertTrue(np.allclose(sorted_ev_1, sorted_ev_2, atol=1e-4, rtol=1e-4))
+
+        # check if DMD fits the data correctly
+        X_red = dmd.rom_basis_.T @ X
+        X_red.resplit_(None)
+        X_res = (
+            X_red[:, 1:]
+            - dmd.rom_transfer_matrix_ @ X_red[:, :-1]
+            - dmd.rom_control_matrix_ @ C[:, :-1]
+        )
+        self.assertTrue(ht.max(ht.abs(X_res)) < 1e-4)
+
+        # # check predict
+        Y = dmd.predict(X[:, 0], C).squeeze()
+
+        # check prediction of next states
+        Y_red = dmd.rom_basis_.T @ Y
+        Y_res = (
+            Y_red[:, 1:]
+            - dmd.rom_transfer_matrix_ @ Y_red[:, :-1]
+            - dmd.rom_control_matrix_ @ C[:, :-1]
+        )
+        self.assertTrue(ht.max(ht.abs(Y_res)) < 1e-4)
+        self.assertTrue(ht.allclose(Y[:, :], X[:, :], atol=1e-4, rtol=1e-4))
