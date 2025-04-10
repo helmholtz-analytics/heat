@@ -34,11 +34,11 @@ setup(
     ],
     install_requires=[
         "mpi4py>=3.0.0",
-        "numpy>=1.22.0, <2",
-        "torch>=2.0.0, <2.6.1",
+        "numpy>=1.22.0",
+        "torch>=2.0.0",
         "scipy>=1.10.0",
         "pillow>=6.0.0",
-        "torchvision>=0.15.2, <0.21.1",
+        "torchvision>=0.15.2",
     ],
     extras_require={
         "docutils": ["docutils>=0.16"],
