@@ -15,7 +15,7 @@ is_mps = envar == "gpu" and platform.system() == "Darwin"
 @unittest.skipIf(is_mps, "MPS does not support non-float matrix multiplication")
 class TestDMD(TestCase):
     def test_dmd_setup_catch_wrong(self):
-        # catch wrong inputs
+        # catch wrong inputs during setup
         with self.assertRaises(TypeError):
             ht.decomposition.DMD(svd_solver=0)
         with self.assertRaises(ValueError):
