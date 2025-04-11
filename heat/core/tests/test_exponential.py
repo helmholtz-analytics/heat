@@ -107,7 +107,8 @@ class TestExponential(TestCase):
     def test_exp2(self):
         torch_dtype = self.set_torch_dtype()
         elements = 10
-        tmp = np.exp2(torch.arange(elements, dtype=torch_dtype))
+        tmp = np.exp2(torch.arange(elements, dtype=torch_dtype).numpy())
+        tmp = torch.tensor(tmp)
         tmp = tmp.to(self.device.torch_device)
         comparison = ht.array(tmp, device=self.device)
 
