@@ -835,6 +835,11 @@ class TestDNDarray(TestCase):
         mask_split2 = ht.array(mask, split=2)
         self.assert_array_equal(arr_split2[mask_split2], arr.numpy()[mask])
 
+        # boolean edge case
+        idx = ht.array([2, 0, 1], split=0)
+        mask = ht.array([True, False, True], split=0)
+        self.assertTrue((idx[mask] == ht.array([2, 1], dtype=idx.dtype, split=0)).all().item())
+
     def test_int_cast(self):
         # simple scalar tensor
         a = ht.ones(1)
