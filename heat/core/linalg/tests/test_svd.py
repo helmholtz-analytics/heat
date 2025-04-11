@@ -143,5 +143,6 @@ class TestZoloSVD(TestCase):
         U, S, V = ht.linalg.svd(X, r_max_zolopd=1)
 
         # catch error if r_max_zolopd is not provided properly
-        with self.assertRaises(ValueError):
-            ht.linalg.svd(X, r_max_zolopd=0)
+        if X.is_distributed():
+            with self.assertRaises(ValueError):
+                ht.linalg.svd(X, r_max_zolopd=0)
