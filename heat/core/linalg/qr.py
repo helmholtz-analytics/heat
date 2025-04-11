@@ -158,7 +158,9 @@ def qr(
             if i < nprocs - 1:
                 k_loc_i = min(A.shape[-2], A.lshape_map[i, -1])
                 Q_buf = torch.zeros(
-                    (*A.shape[:-1], k_loc_i), dtype=A.larray.dtype, device=A.device.torch_device
+                    (*A.shape[:-1], k_loc_i),
+                    dtype=A.larray.dtype,
+                    device=A.device.torch_device,
                 )
 
             if A.comm.rank == i:
