@@ -43,6 +43,7 @@ def _initialize_plus_plus(
         # calculate distances and use type promotion to handle numerical instabilities (restore original dtype afterwards)
         dist = torch.cdist(X.to(torch.float64), X[idxs[:i]].to(torch.float64), p=p).to(X.dtype)
         dist = torch.min(dist, dim=1)[0]
+        print(weights * dist)
         idxs[i] = torch.multinomial(weights * dist, 1)
     return X[idxs]
 
