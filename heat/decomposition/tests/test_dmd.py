@@ -310,7 +310,7 @@ class TestDMDc(TestCase):
         dmd = ht.decomposition.DMDc(svd_solver="randomized", svd_rank=4)
         C = ht.random.randn(10, 10 * ht.MPI_WORLD.size, split=None)
         dmd.fit(X, C)
-        Y = ht.random.randn(3, 10 * ht.MPI_WORLD.size, split=1)
+        Y = ht.random.randn(1000, 10 * ht.MPI_WORLD.size, split=1)
         # wrong dimensions of input for prediction
         with self.assertRaises(ValueError):
             dmd.predict(Y, ht.zeros((5, 5, 5), split=0))
