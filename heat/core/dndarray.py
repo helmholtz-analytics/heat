@@ -385,7 +385,7 @@ class DNDarray:
         except IndexError:
             print("Indices out of bound")
 
-        return self.__array[ix].clone().contiguous()
+        return self.__array[ix].clone()
 
     def get_halo(self, halo_size: int, prev: bool = True, next: bool = True) -> torch.Tensor:
         """
