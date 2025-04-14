@@ -7,7 +7,6 @@ import collections
 import torch
 from typing import Type, Callable, Dict, Any, TypeVar, Union, Tuple
 
-from ..communication import MPICommunication
 from ..dndarray import DNDarray
 from .. import factories
 from .. import types
@@ -181,7 +180,9 @@ def _eigh(
         )
 
     # from the "global" A, two independent "local" A's are created
-    nprocs1 = round(k / n * nprocs)
+    # the number of processes per local array is roughly proportional to their size with the constraint that
+    # each "local" A needs to get at least one process
+    nprocs1 = max(1, min(nprocs - 1, round(k / n * nprocs)))
     nprocs2 = nprocs - nprocs1
     new_lshapes = torch.tensor(
         [k // nprocs1 + (i < k % nprocs1) for i in range(nprocs1)]

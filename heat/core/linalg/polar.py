@@ -133,7 +133,7 @@ def polar(
     A: DNDarray,
     r: int = None,
     calcH: bool = True,
-    condition_estimate: float = 0.0,
+    condition_estimate: float = 1.0e16,
     silent: bool = True,
     r_max: int = 8,
 ) -> Tuple[DNDarray, DNDarray]:
@@ -152,10 +152,11 @@ def polar(
         If not provided, the largest 1 <= r <= r_max that divides the number of MPI processes is chosen.
     calcH : bool, optional, default: True
         If True, the function returns the symmetric, positive definite matrix H. If False, only the orthogonal matrix U is returned.
-    condition_estimate : float, optional, default: 0.
+    condition_estimate : float, optional, default: 1.e16.
         This argument allows to provide an estimate for the condition number of the input matrix ``A``, if such estimate is already known.
         If a positive number greater than 1., this value is used as an estimate for the condition number of A.
-        If smaller or equal than 1., the condition number is estimated internally (default).
+        If smaller or equal than 1., the condition number is estimated internally.
+        The default value of 1.e16 is the worst case scenario considered in [1].
     silent : bool, optional, default: True
         If True, the function does not print any output. If False, some information is printed during the computation.
     r_max : int, optional, default: 8
