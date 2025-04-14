@@ -946,7 +946,7 @@ class TestIO(TestCase):
                 arr = zarr.create_array(
                     self.ZARR_TEMP_PATH, shape=self.ZARR_SHAPE, dtype=np.float64
                 )
-            except ImportError:
+            except AttributeError:
                 arr = zarr.create(
                     store=self.ZARR_TEMP_PATH, shape=self.ZARR_SHAPE, dtype=np.float64
                 )
@@ -975,7 +975,7 @@ class TestIO(TestCase):
                 arr = zarr.create_array(
                     self.ZARR_TEMP_PATH, shape=test_data.shape, dtype=test_data.dtype
                 )
-            except ImportError:
+            except AttributeError:
                 arr = zarr.create(
                     store=self.ZARR_TEMP_PATH, shape=test_data.shape, dtype=test_data.dtype
                 )
