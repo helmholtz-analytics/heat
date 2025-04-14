@@ -1587,6 +1587,7 @@ class TestDNDarray(TestCase):
         k3 = np.array([1, 2, 3, 1])
         value = ht.array([99, 98, 97, 96], split=0)
         x[k1, k2, k3] = value
+        print("DEBUGGING: x[k1, k2, k3]", x[k1, k2, k3].larray)
         self.assertTrue((x[k1, k2, k3] == ht.array([96, 98, 97, 96], split=0)).all().item())
 
         # advanced indexing on non-consecutive dimensions, split dimension will be lost
@@ -1645,9 +1646,29 @@ class TestDNDarray(TestCase):
 
         x = ht.arange(10 * 20 * 30).reshape(10, 20, 30)
         x.resplit_(1)
-        ind_array = ht.random.randint(0, 20, (2, 3, 4), dtype=ht.int64)
+        # ind_array = ht.random.randint(0, 20, (2, 3, 4), dtype=ht.int64)
+        ind_array = ht.array(
+            torch.tensor(
+                [
+                    [[11, 10, 3, 2], [13, 10, 0, 4], [9, 3, 2, 0]],
+                    [[6, 10, 3, 8], [16, 10, 12, 9], [10, 18, 6, 15]],
+                ]
+            ),
+            dtype=ht.int64,
+        )
+        print("DEBUGGING: ind_array", ind_array.larray)
+        print("DEBUGGING: before setitem: x[..., ind_array, :]", x[..., ind_array, :].larray.shape)
         value = ht.ones((1, 2, 3, 4, 1))
         x[..., ind_array, :] = value
+        print(
+            "DEBUGGING: after setitem x[..., ind_array, :]",
+            x[..., ind_array, :].lshape,
+            x[..., ind_array, :].split,
+        )
+        print(
+            "DEBUGGING: x[..., ind_array, :] != value",
+            (x[..., ind_array, :] != value).nonzero()[0].shape,
+        )
         self.assertTrue((x[..., ind_array, :] == value).all().item())
 
         # boolean mask, local

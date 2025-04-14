@@ -385,7 +385,7 @@ class DNDarray:
         except IndexError:
             print("Indices out of bound")
 
-        return self.__array[ix].clone().contiguous()
+        return self.__array[ix].clone()
 
     def get_halo(self, halo_size: int, prev: bool = True, next: bool = True) -> torch.Tensor:
         """
@@ -2303,6 +2303,7 @@ class DNDarray:
             backwards_transpose_axes,
         ) = self.__process_key(key, return_local_indices=True, op="set")
 
+        # print("DEBUGGING: key, split_key_is_ordered", key, split_key_is_ordered)
         # match dimensions
         value, value_is_scalar = __broadcast_value(self, key, value, output_shape=output_shape)
 
@@ -2397,11 +2398,15 @@ class DNDarray:
                     ).flatten()
                     # keep local indexing key only and correct for displacements along the split axis
                     key = key[local_indices] - displs[rank]
-                    # set local elements of `self` to corresponding elements of `value`
-                    self.larray[key] = value.larray[local_indices].type(self.dtype.torch_type())
+                    if value_is_scalar:
+                        # no need to index value
+                        self.larray[key] = value.larray.type(self.dtype.torch_type())
+                    else:
+                        # set local elements of `self` to corresponding elements of `value`
+                        self.larray[key] = value.larray[local_indices].type(self.dtype.torch_type())
                     self = self.transpose(backwards_transpose_axes)
                     return
-                # key is a sequence of torch.Tensors
+                # key is a sequence
                 split_key = key[self.split]
                 split_key_dims = split_key.ndim
                 if split_key_dims > 1:
@@ -2414,7 +2419,9 @@ class DNDarray:
                         + [-1]
                         + new_shape[output_split + 1 :]
                     )
-                    value = value.reshape(new_shape)
+                    if not value_is_scalar:
+                        # reshape `value` to match indexed array
+                        value = value.reshape(new_shape)
                     output_split -= split_key_dims - 1
                 # find elements of `split_key` that are local to this process
                 local_indices = torch.nonzero(
@@ -2435,20 +2442,30 @@ class DNDarray:
                         ]
                     )
                     if not key[self.split].numel() == 0:
-                        self.larray[key] = value.larray[local_indices].type(self.dtype.torch_type())
+                        if value_is_scalar:
+                            # no need to index value
+                            self.larray[key] = value.larray.type(self.dtype.torch_type())
+                        else:
+                            self.larray[key] = value.larray[local_indices].type(
+                                self.dtype.torch_type()
+                            )
                 else:
                     # keep local indexing key and correct for displacements along split dimension
                     key[self.split] = split_key[local_indices] - displs[rank]
                     key = tuple(key)
-                    value_key = tuple(
-                        [
-                            local_indices if i == output_split else slice(None)
-                            for i in range(value.ndim)
-                        ]
-                    )
                     # set local elements of `self` to corresponding elements of `value`
                     if not key[self.split].numel() == 0:
-                        self.larray[key] = value.larray[value_key].type(self.dtype.torch_type())
+                        if value_is_scalar:
+                            # no need to index value
+                            self.larray[key] = value.larray.type(self.dtype.torch_type())
+                        else:
+                            value_key = tuple(
+                                [
+                                    local_indices if i == output_split else slice(None)
+                                    for i in range(value.ndim)
+                                ]
+                            )
+                            self.larray[key] = value.larray[value_key].type(self.dtype.torch_type())
                 self = self.transpose(backwards_transpose_axes)
                 return
 

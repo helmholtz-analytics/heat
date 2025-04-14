@@ -99,9 +99,14 @@ def qr(
 
     QR = collections.namedtuple("QR", "Q, R")
 
+    if A.ndim == 3:
+        single_proc_qr = torch.vmap(torch.linalg.qr, in_dims=0, out_dims=0)
+    else:
+        single_proc_qr = torch.linalg.qr
+
     if not A.is_distributed() or A.split < A.ndim - 2:
         # handle the case of a single process or split=None: just PyTorch QR
-        Q, R = torch.linalg.qr(A.larray, mode=mode)
+        Q, R = single_proc_qr(A.larray, mode=mode)
         R = factories.array(R, is_split=A.split)
         if mode == "reduced":
             Q = factories.array(Q, is_split=A.split)
@@ -158,7 +163,7 @@ def qr(
 
             if A.comm.rank == i:
                 # orthogonalize the current block of columns by utilizing PyTorch QR
-                Q_curr, R_loc = torch.linalg.qr(A_columns, mode="reduced")
+                Q_curr, R_loc = single_proc_qr(A_columns, mode="reduced")
                 if i < nprocs - 1:
                     Q_buf = Q_curr
                 if mode == "reduced":
@@ -243,8 +248,7 @@ def qr(
             current_procs = [i for i in range(A.comm.size)]
             current_comm = A.comm
             local_comm = current_comm.Split(current_comm.rank // procs_to_merge, A.comm.rank)
-            Q_loc, R_loc = torch.linalg.qr(A.larray, mode=mode)
-            R_loc = R_loc.contiguous()  # required for all the communication ops lateron
+            Q_loc, R_loc = single_proc_qr(A.larray, mode=mode)
             if mode == "reduced":
                 leave_comm = current_comm.Split(current_comm.rank, A.comm.rank)
 
@@ -272,13 +276,10 @@ def qr(
                     # perform QR decomposition on the concatenated, gathered R_loc's to obtain new R_loc
                     if local_comm.rank == 0:
                         previous_shape = R_loc.shape
-                        Q_buf, R_loc = torch.linalg.qr(gathered_R_loc, mode=mode)
-                        R_loc = R_loc.contiguous()
+                        Q_buf, R_loc = single_proc_qr(gathered_R_loc, mode=mode)
                     else:
                         Q_buf = torch.empty(0, device=R_loc.device, dtype=R_loc.dtype)
                     if mode == "reduced":
-                        if local_comm.rank == 0:
-                            Q_buf = Q_buf.contiguous()
                         scattered_Q_buf = torch.empty(
                             R_loc.shape if local_comm.rank != 0 else previous_shape,
                             device=R_loc.device,
