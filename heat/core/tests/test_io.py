@@ -88,9 +88,6 @@ class TestIO(TestCase):
                 expected_new_size = len(expected_sequence)
 
                 new_size, offset = ht.io.size_from_slice(size, slice_obj)
-                print(f"Expected sequence: {expected_sequence}")
-                print(f"Expected new size: {expected_new_size}, new size: {new_size}")
-                print(f"Expected offset: {expected_offset}, offset: {offset}")
                 self.assertEqual(expected_new_size, new_size)
                 self.assertEqual(expected_offset, offset)
 
@@ -1129,8 +1126,6 @@ class TestIO(TestCase):
 
         for axis, slices in test_cases:
             with self.subTest(axis=axis, slices=slices):
-                print("axis: ", axis)
-                print("slices: ", slices)
                 HDF5_PATH = os.path.join(os.getcwd(), "heat/datasets/iris.h5")
                 HDF5_DATASET = "data"
                 expect_error = False
@@ -1149,7 +1144,4 @@ class TestIO(TestCase):
                     tmp_slices = tuple(slice(None) if s is None else s for s in slices)
                     expected_iris = original_iris[tmp_slices]
                     sliced_iris = ht.load_hdf5(HDF5_PATH, HDF5_DATASET, split=axis, slices=slices)
-                    print("Original shape: " + str(original_iris.shape))
-                    print("Sliced shape: " + str(sliced_iris.shape))
-                    print("Expected shape: " + str(expected_iris.shape))
                     self.assertTrue(ht.equal(sliced_iris, expected_iris))
