@@ -87,7 +87,6 @@ class TestKMeans(TestCase):
         kmeans.fit(data)
         self.assertIsInstance(kmeans.cluster_centers_, ht.DNDarray)
         self.assertEqual(kmeans.cluster_centers_.shape, (4, 3))
-
         # More Samples
         n = 100 * ht.MPI_WORLD.size
         data = create_spherical_dataset(
