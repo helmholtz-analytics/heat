@@ -111,9 +111,25 @@ print(f"dist={dist},\n dist[2]={dist[2].larray}") """
 # return mapped_idx
 
 
-idx = ht.array([2, 0, 1], split=0)
-mask = ht.array([True, False, True], split=0)
-mapped_idx = ht.zeros_like(idx)
+# idx = ht.array([2, 0, 1], split=0)
+# mask = ht.array([True, False, True], split=0)
+# mapped_idx = ht.zeros_like(idx)
 
-mapped_idx[mask] = 42
-print(idx, mask, mapped_idx)
+# mapped_idx[mask] = 42
+# print(idx, mask, mapped_idx)
+
+
+# vec = ht.array([0,10,20,30,40,50], split=0)
+# mat = ht.array([[1, 2], [2, 3], [3, 4]], split=0)
+
+# test=vec[mat]
+# print(f"test={test}")
+
+
+vec = ht.array([0, 10, 20, 30, 40, 50], split=0)
+mat = ht.array([[1, 2], [2, 3], [3, 4]], split=0)
+
+test = ht.zeros_like(mat)
+for i in range(mat.shape[0]):
+    test[i] = vec[mat[i]]
+print(f"test={test}")
