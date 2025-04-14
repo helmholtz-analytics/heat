@@ -69,7 +69,7 @@ With Heat being a native HPC library, one would naturally want to build the cont
 image also for HPC systems, such as the ones available at [Jülich Supercomputing Centre
 (JSC)](https://www.fz-juelich.de/jsc/ "Juelich Supercomputing Centre"). We show two ways to convert the existing images from the registry into singularity containers.
 
-#### Apptainer (formerly singularity)
+### Apptainer (formerly singularity)
 
 To use one of the existing images from our registry:
 
@@ -79,7 +79,7 @@ Building the image can require root access in some systems. If that is the case,
 
 If you see an error indicating that there is not enough space, use the --tmpdir flag of the build command. [Apptainer docs](https://apptainer.org/docs/user/latest/build_a_container.html)
 
-#### SIB (Singularity Image Builder) for Apptainer images
+### SIB (Singularity Image Builder) for Apptainer images
 
 A simple `Dockerfile` (in addition to the one above) to be used with SIB could look like
 this:
