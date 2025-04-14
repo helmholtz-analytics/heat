@@ -418,12 +418,9 @@ class DistributedSampler(torch_data.Sampler):
         recv_counts = list(map(int, recv_counts))
         recv_displs = list(map(int, recv_displs))
 
-        send_elems = comm.as_mpi_memory(send_elems)
-        local_recv_mpi_buffer = comm.as_mpi_memory(local_recv_buffer)
-
         mpi4py.MPI.COMM_WORLD.Alltoallw(
             (send_elems, send_elems_dtype),
-            (local_recv_mpi_buffer, recv_counts, recv_displs, [mpi_type] * world_size),
+            (local_recv_buffer, recv_counts, recv_displs, [mpi_type] * world_size),
         )
 
         if local_recv_buffer.device != self.dndarray.larray.device:
