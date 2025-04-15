@@ -30,12 +30,16 @@ jobs:
             pytorch-version: 'torch==2.1.2 torchvision==0.16.2 torchaudio==2.1.2'
           - py-version: '3.12'
             pytorch-version: 'torch==2.2.2 torchvision==0.17.2 torchaudio==2.2.2'
+          - py-version: '3.9'
+            install-options: '.[hdf5,netcdf,pandas,zarr]'
+          - py-version: '3.10'
+            install-options: '.[hdf5,netcdf,pandas,zarr]'
 
 
     name: Python ${{ matrix.py-version }} with ${{ matrix.pytorch-version }}; options ${{ matrix.install-options }}
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@4d991eb9b905ef189e4c376166672c3f2f230481 # v2.11.0
+        uses: step-security/harden-runner@c6295a65d1254861815972266d5933fd6e532bdf # v2.11.1
         with:
           egress-policy: audit
 
@@ -46,7 +50,7 @@ jobs:
         with:
           mpi: ${{ matrix.mpi }}
       - name: Use Python ${{ matrix.py-version }}
-        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
+        uses: actions/setup-python@8d9ed9ac5c53483de85588cdf95a591a75ab9f55 # v5.5.0
         with:
           python-version: ${{ matrix.py-version }}
           architecture: x64

@@ -129,6 +129,7 @@ class TestDMD(TestCase):
         self.assertEqual(Z.shape, Y.shape)
 
     def test_dmd_correctness(self):
+        ht.random.seed(25032025)
         # test correctness on behalf of a constructed example with known solution
         # to do so we need to use the exact SVD, i.e., the "full" solver
 
