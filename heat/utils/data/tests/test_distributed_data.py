@@ -69,7 +69,13 @@ class TestDistbributedData(unittest.TestCase):
         )
 
         for batch in dataloader:
-            self.assertTrue(batch in reference.larray)
+            found = False
+            for larray in reference.larray:
+                if not torch.isclose(batch, larray):
+                    continue
+                found = True
+                break
+            self.assertTrue(found)
 
     def test_dataset_exceptions(self) -> bool:
         with self.assertRaises(TypeError):
