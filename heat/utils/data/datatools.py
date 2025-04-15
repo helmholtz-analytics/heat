@@ -423,6 +423,19 @@ class DistributedSampler(torch_data.Sampler):
             (local_recv_buffer, recv_counts, recv_displs, [mpi_type] * world_size),
         )
 
+        # As MPI indirectly sorts the data according to the rank we need to change that.
+        local_indices = indice_buffers[rank]
+        local_recv_indices = torch.arange(0, len(local_indices))
+        idx_to_rank = torch.empty(len(local_indices), dtype=int)
+        for i, indice in enumerate(local_indices):
+            for rrank, sslice in enumerate(rank_slices):
+                if not self._in_slice(indice, sslice):
+                    continue
+                idx_to_rank[i] = rrank
+
+        sort_idx = torch.argsort(idx_to_rank, stable=True)
+        local_recv_buffer[local_recv_indices] = local_recv_buffer[local_recv_indices[sort_idx]]
+
         if local_recv_buffer.device != self.dndarray.larray.device:
             local_recv_buffer = local_recv_buffer.to(device=self.dndarray.larray.device)
         self.dndarray.larray = local_recv_buffer
