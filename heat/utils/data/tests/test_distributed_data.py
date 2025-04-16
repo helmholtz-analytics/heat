@@ -71,7 +71,7 @@ class TestDistbributedData(unittest.TestCase):
         for batch in dataloader:
             found = False
             for larray in reference.larray:
-                if not torch.isclose(batch, larray):
+                if not torch.isclose(batch, larray).all():
                     continue
                 found = True
                 break
