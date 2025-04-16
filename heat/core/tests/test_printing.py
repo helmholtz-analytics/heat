@@ -430,6 +430,14 @@ class TestPrinting(TestCase):
         if dndarray.comm.rank == 0:
             self.assertEqual(comparison, __str)
 
+    def test___repr__(self):
+        a = ht.array([1, 2, 3, 4])
+        r = a.__repr__()
+        self.assertEqual(
+            r,
+            f"<DNDarray(MPI-rank: {a.comm.rank}, Shape: {a.shape}, Split: {a.split}, Local Shape: {a.lshape}, Device: {a.device}, Dtype: {a.dtype.__name__})>",
+        )
+
 
 class TestPrintingGPU(TestCase):
     def test_print_GPU(self):
