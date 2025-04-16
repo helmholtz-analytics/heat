@@ -30,10 +30,6 @@ class LocalOutlierFactor:
         The threshold value for the "threshold" method. Default is 1.5.
     top_n : int, optional
         The number of top outliers for the "top_n" method. Default is 10.
-    fully_distributed : bool, optional
-        If False, some auxiliary vectors are not distributed among the MPI processes, but kept as local ones.
-        This can reduce communication overhead and thus speed up the computation, but can lead to memory issues,
-        depending on the number of samples in the data. Default is True.
 
     Attributes
     ----------
@@ -51,8 +47,6 @@ class LocalOutlierFactor:
         The local outlier factor for each sample in the data set.
     anomaly : DNDarray
         Array with binary outlier classification (1 -> outlier, -1 -> inlier).
-    fully_distributed : bool
-        Decides whether to distribute every part of the computation among all MPI processes.
 
     Raises
     ------
@@ -76,7 +70,6 @@ class LocalOutlierFactor:
         binary_decision="threshold",
         threshold=1.5,
         top_n=None,
-        fully_distributed=True,
     ):
 
         self.n_neighbors = n_neighbors
@@ -86,7 +79,6 @@ class LocalOutlierFactor:
         self.lof_scores = None
         self.anomaly = None
         self.metric = metric
-        self.fully_distributed = fully_distributed
 
         self._input_sanitation()
 
@@ -128,47 +120,38 @@ class LocalOutlierFactor:
 
         # Compute the distance matrix for the n_neighbors nearest neighbors of each point and the corresponding indices
         # (only these are needed for the LOF computation).
-        if X.split == 0:
-            # Note that cdist_small sorts from the lowest to the highest distance
-            dist, idx = cdist_small(
-                X, X, metric=self.metric, n_smallest=self.n_neighbors + 1
-            )  # cdist_small stores also the distance of each point to itself, therefore use n_neighbors+1
-        elif X.split == 1:
-            dist, idx = cdist(X, X, metric=self.metric, n_smallest=self.n_neighbors + 1)
-        else:
-            raise ValueError(
-                f"The data should be split among axis 0 or 1, but was split along axis {X.split}."
-            )
+        # Note that cdist_small sorts from the lowest to the highest distance
+        dist, idx = cdist_small(
+            X, X, metric=self.metric, n_smallest=self.n_neighbors + 1
+        )  # cdist_small stores also the distance of each point to itself, therefore use n_neighbors+1
+
         # Compute the reachability distance matrix
         # reachability_dist = self._reach_dist(dist, idx)
+
         k_dist = dist[:, -1]
-        k_dist_neighbors = k_dist[idx[:, 1 : self.n_neighbors + 1]]
-        print(f"process {ht.MPI_WORLD.rank}: k_dist_neighbors={k_dist_neighbors}")
-        reachability_dist = ht.max(k_dist_neighbors, dist[:, 1 : self.n_neighbors + 1])
+        idx_neighbors = idx[:, 1 : self.n_neighbors + 1]
 
-        print(f"process {ht.MPI_WORLD.rank}: reachability_dist={reachability_dist}")
+        # TODO: currently, the required advanced indexing only works if k_dist=k_dist.resplit_(None).
+        # Once the advanced indexing is implemented for all split configurations, replace the following loop
+        # by k_dist_neighbors=k_dist[idx[:,1:self.n_neighbors+1]]
+        k_dist_neighbors = ht.zeros(idx_neighbors.shape, split=0)
+        for i in range(length):
+            k_dist_neighbors[i] = k_dist[idx_neighbors[i]]
+
+        reachability_dist = ht.maximum(k_dist_neighbors, dist[:, 1 : self.n_neighbors + 1])
+
         # Compute the local reachability density (lrd) for each point
-        lrd = self.n_neighbors / (
-            ht.sum(reachability_dist, axis=1) + 1e-10
-        )  # add 1e-10 to avoid division by zero
+        lrd = 1 / (
+            ht.mean(reachability_dist, axis=1) + 1e-10
+        )  # add 1e-10 to avoid division by zero (important for many duplicates in data)
 
-        lrd = 1 / (ht.mean(reachability_dist, axis=1) + 1e-10)
-        lrd_neighbors = lrd[idx[:, 1 : self.n_neighbors + 1]]
+        # TODO: Once the advanced indexing is implemented in Heat, replace this loop by lrd_neighbors = lrd[idx[:, 1:]]
+        lrd_neighbors = ht.zeros(idx_neighbors.shape, split=0)
+        for i in range(length):
+            lrd_neighbors[i] = lrd[idx_neighbors[i]]
+
         lof = ht.mean(lrd_neighbors, axis=1) / lrd
-        print(f"process {ht.MPI_WORLD.rank}: lrd={lrd}")
 
-        # # define a matrix storing the lrd of all neighbors for each point
-        # lrd = lrd.resplit_(None)
-        # lrd_neighbors = ht.zeros((length, self.n_neighbors), split=None)
-
-        # # TODO: Once the advanced indexing is implemented in Heat, replace this loop by lrd_neighbors = lrd[idx[:, 1:]]
-        # for i in range(length):
-        #     lrd_neighbors[i, :] = lrd[idx[i, 1:]]
-        # lrd = lrd.resplit_(X.split)
-        # lrd_neighbors = lrd_neighbors.resplit_(X.split)
-        # # Compute the local outlier factor for each point
-        # lof = ht.sum(lrd_neighbors, axis=1) / (self.n_neighbors * lrd + 1e-10)
-        # Store the LOF scores in the class attribute
         self.lof_scores = lof
 
     def _binary_classifier(self):
@@ -202,124 +185,6 @@ class LocalOutlierFactor:
 
         # Classify anomalies based on the threshold value
         self.anomaly = ht.where(self.lof_scores >= threshold_value, 1, -1)
-
-    def _reach_dist(self, dist, idx):
-        """
-        Computes the reachability distance matrix using MPI communication.
-
-        The reachability distance is defined as [1]:
-            reachability_dist(p, o) = max(k_dist(p), dist(p, o))
-        where:
-            - `p` is a reference point,
-            - `o` is another data point,
-            - `k_dist(p)` is the k-distance of `p`,
-            - `dist(p, o)` is the pairwise distance between `p` and `o`.
-
-        This function handles distributed computation by leveraging MPI communication.
-        It ensures that each process retrieves the necessary distance rows, either locally
-        or via communication with other processes, and then computes the maximum
-        between `k_dist` and `dist`.
-
-        Parameters:
-        -----------
-        dist : ht.DNDarray
-            Pairwise distances between data points, calculated with the 'cdist_small' function in heat.
-            It is expected to be split along the first axis (`split=0`).
-
-        idx : ht.DNDarray
-            Indices of the k-nearest neighbors from dist.
-            Used to determine which rows of `dist` need to be accessed or communicated.
-
-        Returns:
-        --------
-        reach_dist : ht.DNDarray
-            Reachability distance matrix.
-
-        Notes:
-        ------
-        - The auxiliary index arrays (`proc_id_global`, `k_dist_global`, `idx_k_dist_global`, `mapped_idx_global`)
-          are assumed to fit into the memory of each process. This assumption helps to minimize
-          communication overhead by storing global indices locally and speeds up the computation.
-        - The MPI communication uses blocking send and receive commands. Non-blocking sending/receiving would
-          mess up with functionality (overwriting the buffer)
-        """
-        # Compute the k-distance for each point
-        k_dist = dist[:, -1]  # k-distance = largest value in dist for each row
-        idx_k_dist = idx[:, -1]  # indices corresponding to k_dist
-
-        # Set up communication parameters
-        comm = dist.comm
-        rank = comm.Get_rank()
-        size = comm.Get_size()
-        _, displ, _ = comm.counts_displs_shape(dist.shape, dist.split)
-
-        reach_dist = ht.zeros_like(dist)
-        reach_dist_ = reach_dist.larray
-        dist_ = dist.larray
-
-        # buffer to store one row of the distance matrix that is sent to the next process
-        buffer = torch.zeros(
-            (1, dist_.shape[1]),
-            dtype=dist.dtype.torch_type(),
-            device=dist.device.torch_device,
-        )
-
-        # map the indices of idx_k_dist to respective process, this serves as the list of senders
-        senders = self._map_idx_to_proc(idx_k_dist, comm)
-        # define list of receivers
-        ones = ht.ones(int(idx_k_dist.shape[0]), split=0)
-        receivers = ones * rank  # store the rank of each process
-
-        if self.fully_distributed is True:
-            reach_dist = ht.maximum(
-                k_dist[idx[:, 1 : self.n_neighbors + 1]], dist[:, 1 : self.n_neighbors + 1]
-            )
-
-        if self.fully_distributed is False:
-            # use arrays as global ones to reduce communication overhead (assume they fit into memory of each process)
-            receivers_global = receivers.resplit_(None)
-            k_dist_global = k_dist.resplit_(None)
-            idx_k_dist_global = idx_k_dist.resplit_(None)
-            senders_global = senders.resplit_(None)
-            for i in range(int(senders_global.shape[0])):
-                receiver = receivers_global[i].item()
-                sender = senders_global[i].item()
-                tag = i
-                # map the global index i to the local index of the reachability_dist array
-                idx_reach_dist = i - displ[rank]
-                # check if current process needs to send the corresponding row of its distance matrix
-                if sender != receiver:
-                    # send
-                    if rank == sender:
-                        if rank == size - 1:
-                            upper_bound = senders_global.shape[0]
-                        else:
-                            upper_bound = displ[rank + 1]
-                        if not displ[rank] <= i < upper_bound:
-                            # select the row of the distance matrix to communicate between the processes
-                            dist_row = dist_[int(idx_k_dist_global[i]) - displ[sender], :]
-                            sent_to_buffer = dist_row
-                            # send the row to the next process
-                            comm.Send(sent_to_buffer, dest=receiver, tag=tag)
-                    # receive
-                    if rank == receiver:
-                        comm.Recv(buffer, source=sender, tag=tag)
-                        dist_row = buffer
-                        k_dist_compare = k_dist_global[i, None]
-                        k_dist_compare = k_dist_compare.larray
-                        reach_dist_[idx_reach_dist] = torch.maximum(k_dist_compare, dist_row)
-                # no communication required
-                elif sender == receiver:
-                    # only take the row of the distance matrix that is already available
-                    if rank == sender:
-                        dist_row = dist_[int(idx_k_dist_global[i]) - displ[sender], :]
-                        k_dist_compare = k_dist_global[i, None]
-                        k_dist_compare = k_dist_compare.larray
-                        reach_dist_[idx_reach_dist] = torch.maximum(k_dist_compare, dist_row)
-                    else:
-                        pass
-        reach_dist = ht.array(reach_dist_, is_split=0)
-        return reach_dist
 
     def _map_idx_to_proc(self, idx, comm):
         """
@@ -411,9 +276,3 @@ class LocalOutlierFactor:
             self.metric = _manhattan
         elif self.metric == "euclidian":
             self.metric = _euclidian
-
-        # if fully_distributed is not a boolean, raise an error
-        if self.fully_distributed is not False and self.fully_distributed is not True:
-            raise ValueError(
-                f"The parameter fully_distributed should be either True or False, but was {self.fully_distributed}."
-            )
