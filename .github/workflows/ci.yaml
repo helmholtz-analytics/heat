@@ -46,9 +46,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4.2.2
       - name: Setup MPI
-        uses: mpi4py/setup-mpi@v1.2.0
+        uses: mpi4py/setup-mpi@v1.3.1
         with:
           mpi: ${{ matrix.mpi }}
+        env:
+          OMPI_MCA_pml: ob1
       - name: Use Python ${{ matrix.py-version }}
         uses: actions/setup-python@8d9ed9ac5c53483de85588cdf95a591a75ab9f55 # v5.5.0
         with:
