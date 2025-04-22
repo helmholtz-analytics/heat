@@ -133,8 +133,9 @@ def polar(
     A: DNDarray,
     r: int = None,
     calcH: bool = True,
-    condition_estimate: float = 0.0,
+    condition_estimate: float = 1.0e16,
     silent: bool = True,
+    r_max: int = 8,
 ) -> Tuple[DNDarray, DNDarray]:
     """
     Computes the so-called polar decomposition of the input 2D DNDarray ``A``, i.e., it returns the orthogonal matrix ``U`` and the symmetric, positive definite
@@ -148,15 +149,19 @@ def polar(
     r : int, optional, default: None
         The parameter r used in the Zolotarev-PD algorithm; if provided, must be an integer between 1 and 8 that divides the number of MPI processes.
         Higher values of r lead to faster convergence, but memory consumption is proportional to r.
-        If not provided, the largest 1 <= r <= 8 that divides the number of MPI processes is chosen.
+        If not provided, the largest 1 <= r <= r_max that divides the number of MPI processes is chosen.
     calcH : bool, optional, default: True
         If True, the function returns the symmetric, positive definite matrix H. If False, only the orthogonal matrix U is returned.
-    condition_estimate : float, optional, default: 0.
+    condition_estimate : float, optional, default: 1.e16.
         This argument allows to provide an estimate for the condition number of the input matrix ``A``, if such estimate is already known.
         If a positive number greater than 1., this value is used as an estimate for the condition number of A.
-        If smaller or equal than 1., the condition number is estimated internally (default).
+        If smaller or equal than 1., the condition number is estimated internally.
+        The default value of 1.e16 is the worst case scenario considered in [1].
     silent : bool, optional, default: True
         If True, the function does not print any output. If False, some information is printed during the computation.
+    r_max : int, optional, default: 8
+        See the description of r for the meaning; r_max is only taken into account if r is not provided.
+
 
     Notes
     -----
@@ -198,13 +203,17 @@ def polar(
                 f"If specified, input ``r`` must be a non-trivial divisor of the number MPI processes , but r={r} and A.comm.size={A.comm.size}."
             )
     else:
-        for i in range(8, 0, -1):
+        if not isinstance(r_max, int) or r_max < 1 or r_max > 8:
+            raise ValueError(
+                f"If specified, input ``r_max`` must be an integer between 1 and 8, but is {r_max} of data type {type(r_max)}."
+            )
+        for i in range(r_max, 0, -1):
             if A.comm.size % i == 0 and A.comm.size // i > 1:
                 r = i
                 break
         if not silent:
             if A.comm.rank == 0:
-                print(f"Automatically chosen r={r}.")
+                print(f"Automatically chosen r={r} (r_max = {r_max}, {A.comm.size} processes).")
 
     # check if input for condition_estimate is reasonable
     if not isinstance(condition_estimate, float):
@@ -276,7 +285,6 @@ def polar(
                 print(f"Starting Zolotarev-PD iteration no. {it}...")
         # remember current X for later convergence check
         X_old = X.copy()
-
         cId = factories.eye(X.shape[1], dtype=X.dtype, comm=X.comm, split=X.split, device=X.device)
         cId *= c[2 * horizontal_comm.rank].item() ** 0.5
         X = concatenate([X, cId], axis=0)
@@ -319,6 +327,8 @@ def polar(
             for j in range(r):
                 ell *= (ellold**2 + c[2 * j + 1]) / (ellold**2 + c[2 * j])
             ell *= Mhat * ellold
+            if ell >= 1.0:
+                ell = 1.0 - tol
             c, a, Mhat = _compute_zolotarev_coefficients(r, ell, A.device, dtype=A.dtype)
         else:
             if not silent:
