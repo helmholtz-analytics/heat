@@ -4,14 +4,14 @@
 
 ---
 
-This is the **preview-branch for the ESA-funded project ESAPCA**, in which all developments done within this project are collected.  
+This is the **preview-branch for the ESA-funded project ESAPCA**, in which all developments done within this project are collected.
 
 The current development version ("main") can be found [here](https://github.com/helmholtz-analytics/heat), and the current official release version (also available via `pip install heat`) is [v1.5.0](https://github.com/helmholtz-analytics/heat/releases/tag/v1.5.0).
 
-Installation of the ESAPCA-branch: 
+Installation of the ESAPCA-branch:
 * clone the Heat-repo, `cd heat`
 * `git checkout features/ESAPCA`
-* `pip install -e .[netcdf,hdf5]` (usually, within a virtual environment) 
+* `pip install -e .[netcdf,hdf5]` (usually, within a virtual environment)
 
 ---
 
