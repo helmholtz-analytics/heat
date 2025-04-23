@@ -68,7 +68,12 @@ def _subspaceiteration(
     columnnorms = vector_norm(C, axis=0)
     idx = where(
         columnnorms
-        >= factories.ones(columnnorms.shape, comm=columnnorms.comm, split=columnnorms.split)
+        >= factories.ones(
+            columnnorms.shape,
+            comm=columnnorms.comm,
+            split=columnnorms.split,
+            device=columnnorms.device,
+        )
         * statistics.percentile(columnnorms, 100.0 * (1 - (k + safetyparam) / columnnorms.shape[0]))
     )
     X = C[:, idx].balance()
@@ -239,7 +244,7 @@ def _eigh(
                     V_local_larray,
                 ]
             )
-    V_new = factories.array(V_local_larray, is_split=A.split, comm=A.comm)
+    V_new = factories.array(V_local_larray, is_split=A.split, comm=A.comm, device=A.device)
     V.balance_()
     V_new.balance_()
     V = V @ V_new

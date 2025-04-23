@@ -356,7 +356,7 @@ def polar(
             + counts[horizontal_comm.rank],
             :,
         ]
-    U = factories.array(U_local, is_split=A.split, comm=A.comm)
+    U = factories.array(U_local, is_split=A.split, comm=A.comm, device=A.device)
     del X
     U.balance_()
 
