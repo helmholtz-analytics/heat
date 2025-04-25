@@ -268,10 +268,8 @@ def cdist_small(
     Y = Y.astype(promoted_type)
     if promoted_type == types.float32:
         torch_type = torch.float32
-        # mpi_type = MPI.FLOAT
     elif promoted_type == types.float64:
         torch_type = torch.float64
-        # mpi_type = MPI.DOUBLE
     else:
         raise NotImplementedError(f"Datatype {X.dtype} currently not supported as input")
 
@@ -279,9 +277,7 @@ def cdist_small(
     comm = X.comm
     rank = comm.Get_rank()
     size = comm.Get_size()
-    m, f = X.shape
-    xcounts, xdispl, _ = X.comm.counts_displs_shape(X.shape, X.split)
-    ycounts, ydispl, _ = Y.comm.counts_displs_shape(Y.shape, Y.split)
+    _, ydispl, _ = Y.comm.counts_displs_shape(Y.shape, Y.split)
     x_ = X.larray
     y_ = Y.larray
 
@@ -303,9 +299,6 @@ def cdist_small(
         receiver = (rank + iter) % size
         sender = (rank - iter) % size
 
-        # send the individually stored parts of Y to the next process
-        Y.comm.Isend(y_, dest=receiver, tag=iter)
-
         # set a buffer to store the part of Y that is sent to the next process
         buffer = torch.zeros(
             (Y.lshape_map[sender, 0], Y.lshape_map[sender, 1]),
@@ -313,8 +306,14 @@ def cdist_small(
             device=X.device.torch_device,
         )
 
-        # receive the part of Y to the next process
-        Y.comm.Irecv(buffer, source=sender, tag=iter)
+        # send the individually stored parts of Y to the next process,
+        # avoid deadlocks by alternating the order of Send and Recv depending on whether the rank is even or odd
+        if rank % 2 == 0:
+            Y.comm.Send(y_, dest=receiver, tag=iter)
+            Y.comm.Recv(buffer, source=sender, tag=iter)
+        else:
+            Y.comm.Recv(buffer, source=sender, tag=iter)
+            Y.comm.Send(y_, dest=receiver, tag=iter)
 
         # distance between the part of X stored in the current process and the newly received part of Y
         new_dist = metric(x_, buffer)
