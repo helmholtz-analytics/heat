@@ -47,9 +47,6 @@ class TestDistbributedData(unittest.TestCase):
         self.assertTrue((arr == reference).all())
 
     def test_batches(self) -> bool:
-        self.skipTest(
-            "Testing behaviour changes based on system, therefore not really reproducible and prone to fail."
-        )
         reference = ht.array(
             [
                 [10, 11, 12, 13, 14],
@@ -67,18 +64,18 @@ class TestDistbributedData(unittest.TestCase):
             dset = DistributedDataset(arr)
             dsampler = DistributedSampler(dset, shuffle=True, seed=42)
 
-        dataloader = torch.utils.data.DataLoader(
-            dset, batch_size=1, shuffle=False, sampler=dsampler
-        )
+            dataloader = torch.utils.data.DataLoader(
+                dset, batch_size=1, shuffle=False, sampler=dsampler
+            )
 
-        for batch in dataloader:
-            found = False
-            for larray in reference.larray:
-                if not torch.isclose(batch, larray).all():
-                    continue
-                found = True
-                break
-            self.assertTrue(found)
+            for batch in dataloader:
+                found = False
+                for larray in reference.larray:
+                    if not torch.isclose(batch, larray).all():
+                        continue
+                    found = True
+                    break
+                self.assertTrue(found)
 
     def test_dataset_exceptions(self) -> bool:
         with self.assertRaises(TypeError):

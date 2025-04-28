@@ -451,10 +451,10 @@ class DistributedSampler(torch_data.Sampler):
         self._seed = value
         if value is not None:
             torch.manual_seed(value)
-
-    def __iter__(self) -> Iterator[int]:
         if self.shuffle:
             self._shuffle()
+
+    def __iter__(self) -> Iterator[int]:
         self.indices = list(range(len(self.dndarray.larray)))
         return iter(self.indices)
 
