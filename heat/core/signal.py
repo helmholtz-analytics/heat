@@ -13,7 +13,7 @@ import torch.nn.functional as fc
 __all__ = ["convolve"]
 
 
-def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
+def convolve(a: DNDarray, v: DNDarray, mode: str = "full", stride: int = 1) -> DNDarray:
     """
     Returns the discrete, linear convolution of two one-dimensional `DNDarray`s or scalars.
     Unlike `numpy.signal.convolve`, if ``a`` and/or ``v`` have more than one dimension, batch-convolution along the last dimension will be attempted. See `Examples` below.
@@ -42,6 +42,9 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
           convolution product is only given for points where the signals
           overlap completely. Values outside the signal boundary have no
           effect.
+    stride : int
+        Stride of the convolution. Must be a positive integer. Default is 1.
+        Controls the shift of the Kernel during convolution and thereby change the output size depending on mode.
 
     Examples
     --------
@@ -156,11 +159,18 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
             f"1-D convolution only supported for 1-dimensional signal and kernel. Signal: {a.shape}, Filter: {v.shape}"
         )
 
+    # check mode and stride for value errors
+    if stride < 1:
+        raise ValueError("Stride must be at positive integer")
+    if stride > 1 and mode == "same":
+        raise ValueError("Stride must be 1 for mode 'same'")
+
     if mode == "same" and v.shape[-1] % 2 == 0:
         raise ValueError("Mode 'same' cannot be used with even-sized kernel")
     if not v.is_balanced():
         raise ValueError("Only balanced kernel weights are allowed")
 
+    # CF: Stopped here with stride implementation for first commit and tests
     # calculate pad size according to mode
     if mode == "full":
         pad_size = v.shape[-1] - 1

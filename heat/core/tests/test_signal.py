@@ -30,12 +30,16 @@ class TestSignal(TestCase):
 
         with self.assertRaises(TypeError):
             signal_wrong_type = [0, 1, 2, "tre", 4, "five", 6, "ʻehiku", 8, 9, 10]
-            ht.convolve(signal_wrong_type, kernel_odd, mode="full")
+            ht.convolve(signal_wrong_type, kernel_odd, mode="full", stride=1)
         with self.assertRaises(TypeError):
             filter_wrong_type = [1, 1, "pizza", "pineapple"]
-            ht.convolve(dis_signal, filter_wrong_type, mode="full")
+            ht.convolve(dis_signal, filter_wrong_type, mode="full", stride=1)
         with self.assertRaises(ValueError):
-            ht.convolve(dis_signal, kernel_odd, mode="invalid")
+            ht.convolve(dis_signal, kernel_odd, mode="invalid", stride=1)
+        with self.assertRaises(ValueError):
+            ht.convolve(dis_signal, kernel_even, mode="full", stride=0)
+        with self.assertRaises(ValueError):
+            ht.convolve(dis_signal, kernel_odd, mode="same", stride=2)
         if dis_signal.comm.size > 1:
             with self.assertRaises(ValueError):
                 s = dis_signal.reshape((2, -1)).resplit(axis=1)
