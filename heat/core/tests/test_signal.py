@@ -20,6 +20,10 @@ class TestSignal(TestCase):
             [0, 1, 3, 6, 10, 14, 18, 22, 26, 30, 34, 38, 42, 46, 50, 54, 42, 29, 15]
         ).astype(ht.int)
 
+        full_even_stride2 = ht.array([0, 3, 10, 18, 26, 34, 42, 50, 42, 15]).astype(ht.int)
+        full_odd_stride2 = ht.array([0, 3, 9, 15, 21, 27, 33, 39, 29]).astype(ht.int)
+        valid_even_stride2 = ht.array([6, 14, 22, 30, 38, 46, 54]).astype(ht.int)
+
         dis_signal = ht.arange(0, 16, split=0).astype(ht.int)
         signal = ht.arange(0, 16).astype(ht.int)
         full_ones = ht.ones(7, split=0).astype(ht.int)
@@ -73,9 +77,22 @@ class TestSignal(TestCase):
                     gathered = manipulations.resplit(conv, axis=None)
                     self.assertTrue(ht.equal(full_odd[i : len(full_odd) - i], gathered))
 
-                    conv = ht.convolve(signal, dis_kernel_odd, mode=mode)
+                    conv = ht.convolve(signal, dis_kernel_odd, mode=mode).astype(ht.float)
                     gathered = manipulations.resplit(conv, axis=None)
                     self.assertTrue(ht.equal(full_odd[i : len(full_odd) - i], gathered))
+
+                    if mode != "same":
+                        conv = ht.convolve(dis_signal, kernel_odd, mode=mode, stride=2)
+                        gathered = manipulations.resplit(conv, axis=None)
+                        self.assertTrue(ht.equal(full_odd_stride2[i : len(full_odd) - i], gathered))
+
+                        conv = ht.convolve(dis_signal, dis_kernel_odd, mode=mode, stride=2)
+                        gathered = manipulations.resplit(conv, axis=None)
+                        self.assertTrue(ht.equal(full_odd_stride2[i : len(full_odd) - i], gathered))
+
+                        conv = ht.convolve(signal, dis_kernel_odd, mode=mode, stride=2)
+                        gathered = manipulations.resplit(conv, axis=None)
+                        self.assertTrue(ht.equal(full_odd_stride2[i : len(full_odd) - i], gathered))
 
                 # different data types
                 conv = ht.convolve(dis_signal.astype(ht.float), kernel_odd)
@@ -90,6 +107,18 @@ class TestSignal(TestCase):
                 gathered = manipulations.resplit(conv, axis=None)
                 self.assertTrue(ht.equal(full_odd.astype(ht.float), gathered))
 
+                conv = ht.convolve(dis_signal.astype(ht.float), kernel_odd, stride=2)
+                gathered = manipulations.resplit(conv, axis=None)
+                self.assertTrue(ht.equal(full_odd_stride2.astype(ht.float), gathered))
+
+                conv = ht.convolve(dis_signal, dis_kernel_odd, stride=2)
+                gathered = manipulations.resplit(conv, axis=None)
+                self.assertTrue(ht.equal(full_odd_stride2.astype(ht.float), gathered))
+
+                conv = ht.convolve(signal, dis_kernel_odd, stride=2)
+                gathered = manipulations.resplit(conv, axis=None)
+                self.assertTrue(ht.equal(full_odd_stride2.astype(ht.float), gathered))
+
                 # even kernel size
                 # skip mode 'same' for even kernels
                 if mode != "same":
@@ -97,33 +126,67 @@ class TestSignal(TestCase):
                     if not self.is_mps:
                         conv = ht.convolve(dis_signal, kernel_even, mode=mode)
                         dis_conv = ht.convolve(dis_signal, dis_kernel_even, mode=mode)
+                        conv_stride2 = ht.convolve(dis_signal, kernel_even, mode=mode, stride=2)
+                        dis_conv_stride2 = ht.convolve(
+                            dis_signal, dis_kernel_even, mode=mode, stride=2
+                        )
                         gathered = manipulations.resplit(conv, axis=None)
                         dis_gathered = manipulations.resplit(dis_conv, axis=None)
+                        gathered_stride2 = manipulations.resplit(conv_stride2, axis=None)
+                        dis_gathered_stride2 = manipulations.resplit(dis_conv_stride2, axis=None)
 
                         if mode == "full":
                             self.assertTrue(ht.equal(full_even, gathered))
                             self.assertTrue(ht.equal(full_even, dis_gathered))
+                            self.assertTrue(ht.equal(full_even_stride2, gathered_stride2))
+                            self.assertTrue(ht.equal(full_even_stride2, dis_gathered_stride2))
                         else:
                             self.assertTrue(ht.equal(full_even[3:-3], gathered))
                             self.assertTrue(ht.equal(full_even[3:-3], dis_gathered))
+                            self.assertTrue(ht.equal(valid_even_stride2, gathered_stride2))
+                            self.assertTrue(ht.equal(valid_even_stride2, dis_gathered_stride2))
                     else:
                         # float tests
                         conv = ht.convolve(dis_signal.astype(ht.float), kernel_even, mode=mode)
                         dis_conv = ht.convolve(
                             dis_signal.astype(ht.float), dis_kernel_even.astype(ht.float), mode=mode
                         )
+                        conv_stride2 = ht.convolve(
+                            dis_signal.astype(ht.float), kernel_even, mode=mode, stride=2
+                        )
+                        dis_conv_stride2 = ht.convolve(
+                            dis_signal.astype(ht.float),
+                            dis_kernel_even.astype(ht.float),
+                            mode=mode,
+                            stride=2,
+                        )
                         gathered = manipulations.resplit(conv, axis=None)
                         dis_gathered = manipulations.resplit(dis_conv, axis=None)
+                        gathered_stride2 = manipulations.resplit(conv_stride2, axis=None)
+                        dis_gathered_stride2 = manipulations.resplit(dis_conv_stride2, axis=None)
 
                         if mode == "full":
                             self.assertTrue(ht.equal(full_even.astype(ht.float), gathered))
                             self.assertTrue(ht.equal(full_even.astype(ht.float), dis_gathered))
+                            self.assertTrue(
+                                ht.equal(full_even_stride2.astype(ht.float), gathered_stride2)
+                            )
+                            self.assertTrue(
+                                ht.equal(full_even_stride2.astype(ht.float), dis_gathered_stride2)
+                            )
                         else:
                             self.assertTrue(ht.equal(full_even[3:-3].astype(ht.float), gathered))
                             self.assertTrue(
                                 ht.equal(full_even[3:-3].astype(ht.float), dis_gathered)
                             )
+                            self.assertTrue(
+                                ht.equal(valid_even_stride2.astype(ht.float), gathered_stride2)
+                            )
+                            self.assertTrue(
+                                ht.equal(valid_even_stride2.astype(ht.float), dis_gathered_stride2)
+                            )
 
+                # CF: stopped testing here
                 # distributed large signal and kernel
                 np.random.seed(12)
                 np_a = np.random.randint(1000, size=4418)
