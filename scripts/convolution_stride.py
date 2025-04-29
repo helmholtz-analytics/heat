@@ -1,5 +1,7 @@
 import heat as ht
 from heat import manipulations
+import numpy as np
+import torch
 
 full_even_stride2 = ht.array([0, 3, 10, 18, 26, 34, 42, 50, 42, 15]).astype(ht.int)
 full_odd_stride2 = ht.array([0, 3, 9, 15, 21, 27, 33, 39, 29]).astype(ht.int)
@@ -13,34 +15,28 @@ kernel_even = [1, 1, 1, 1]
 dis_kernel_odd = ht.ones(3, split=0).astype(ht.int)
 dis_kernel_even = ht.ones(4, split=0).astype(ht.int)
 
-modes = ["full", "same", "valid"]
+modes = ["full", "valid"]
 for i, mode in enumerate(modes):
     print(mode)
-    if mode != "same":
-        # odd kernel
-        print("Odd kernel")
-        conv = ht.convolve(dis_signal, kernel_odd, mode=mode, stride=2)
-        gathered = manipulations.resplit(conv, axis=None)
-        print(ht.equal(full_odd_stride2[i // 2 : len(full_odd_stride2) - i // 2], gathered))
+    np.random.seed(12)
+    np_a = np.random.randint(1000, size=4418)
+    np_b = np.random.randint(1000, size=1543)
 
-        conv = ht.convolve(dis_signal, dis_kernel_odd, mode=mode, stride=2)
-        gathered = manipulations.resplit(conv, axis=None)
-        print(ht.equal(full_odd_stride2[i // 2 : len(full_odd_stride2) - i // 2], gathered))
+    stride = np.random.randint(1, high=len(np_a), size=1)[0]
+    print(stride)
+    t_a = torch.asarray(np_a, dtype=torch.int64).reshape([1, 1, len(np_a)])
+    t_b = torch.asarray(np_b, dtype=torch.int64).reshape([1, 1, len(np_b)])
+    t_b = torch.flip(t_b, [2])
+    if mode == "full":
+        torch_conv = torch.conv1d(t_a, t_b, stride=stride, padding=len(np_b) - 1)
+    else:
+        torch_conv = torch.conv1d(t_a, t_b, stride=stride, padding=0)
 
-        conv = ht.convolve(signal, dis_kernel_odd, mode=mode, stride=2)
-        gathered = manipulations.resplit(conv, axis=None)
-        print(ht.equal(full_odd_stride2[i // 2 : len(full_odd_stride2) - i // 2], gathered))
+    torch_conv = torch.squeeze(torch_conv)
 
-        # even kernel
-        print("Even kernel")
-        conv_stride2 = ht.convolve(dis_signal, kernel_even, mode=mode, stride=2)
-        dis_conv_stride2 = ht.convolve(dis_signal, dis_kernel_even, mode=mode, stride=2)
-        gathered_stride2 = manipulations.resplit(conv_stride2, axis=None)
-        dis_gathered_stride2 = manipulations.resplit(dis_conv_stride2, axis=None)
-
-        if mode == "full":
-            print(ht.equal(full_even_stride2, gathered_stride2))
-            print(ht.equal(full_even_stride2, dis_gathered_stride2))
-        else:
-            print(ht.equal(valid_even_stride2, gathered_stride2))
-            print(ht.equal(valid_even_stride2, dis_gathered_stride2))
+    a = ht.array(np_a, split=0, dtype=ht.int32)
+    b = ht.array(np_b, split=0, dtype=ht.int32)
+    conv = ht.convolve(a, b, mode=mode, stride=stride)
+    print(conv)
+    print(torch_conv.type(torch.int32))
+    print(ht.equal(conv, ht.array(torch_conv.type(torch.int32))))

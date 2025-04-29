@@ -217,6 +217,30 @@ class TestSignal(TestCase):
                     conv = ht.convolve(a, b, mode=mode)
                     self.assert_array_equal(conv, np_conv)
 
+                # with random stride
+                if mode != "same":
+                    np_stride = np.random.randint(1, high=len(np_a), size=1)[0]
+                    t_a = torch.asarray(np_a, dtype=torch.int64).reshape([1, 1, len(np_a)])
+                    t_b = torch.asarray(np_b, dtype=torch.int64).reshape([1, 1, len(np_b)])
+                    t_b = torch.flip(t_b, [2])
+                    if mode == "full":
+                        torch_conv = torch.conv1d(t_a, t_b, stride=np_stride, padding=len(np_b) - 1)
+                    else:
+                        torch_conv = torch.conv1d(t_a, t_b, stride=np_stride, padding=0)
+
+                    torch_conv = torch.squeeze(torch_conv)
+
+                    if self.is_mps:
+                        a = ht.array(np_a, split=0, dtype=ht.float32)
+                        b = ht.array(np_b, split=0, dtype=ht.float32)
+                        conv = ht.convolve(a, b, mode=mode, stride=np_stride)
+                        self.assertTrue(ht.equal(conv, ht.array(torch_conv)))
+                    else:
+                        a = ht.array(np_a, split=0, dtype=ht.int32)
+                        b = ht.array(np_b, split=0, dtype=ht.int32)
+                        conv = ht.convolve(a, b, mode=mode, stride=np_stride)
+                        self.assertTrue(ht.equal(conv, ht.array(torch_conv.type(torch.int32))))
+
         # test edge cases
         # non-distributed signal, size-1 kernel
         if self.is_mps:
