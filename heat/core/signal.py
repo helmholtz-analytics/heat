@@ -170,20 +170,19 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full", stride: int = 1) -> D
     if not v.is_balanced():
         raise ValueError("Only balanced kernel weights are allowed")
 
-    # CF: Stopped here with stride implementation for first commit and tests
     # calculate pad size according to mode
     if mode == "full":
         pad_size = v.shape[-1] - 1
-        gshape = v.shape[-1] + a.shape[-1] - 1
     elif mode == "same":
         pad_size = v.shape[-1] // 2
-        gshape = a.shape[-1]
     elif mode == "valid":
         pad_size = 0
-        gshape = a.shape[-1] - v.shape[-1] + 1
     else:
         raise ValueError(f"Supported modes are 'full', 'valid', 'same', got {mode}")
 
+    gshape = (a.shape[-1] + 2 * pad_size - v.shape[-1]) // stride + 1
+
+    # CF: ignore batch processing for stride implementation for now
     if batch_processing:
         # all operations are local torch operations, only the last dimension is convolved
         local_a = a.larray
@@ -280,7 +279,7 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full", stride: int = 1) -> D
             rec_v = t_v.clone()
             v.comm.Bcast(rec_v, root=r)
             t_v1 = rec_v.reshape(1, 1, rec_v.shape[0])
-            local_signal_filtered = fc.conv1d(signal, t_v1)
+            local_signal_filtered = fc.conv1d(signal, t_v1, stride=stride)
             # unpack 3D result into 1D
             local_signal_filtered = local_signal_filtered[0, 0, :]
 
@@ -312,7 +311,7 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full", stride: int = 1) -> D
 
     else:
         # apply torch convolution operator
-        signal_filtered = fc.conv1d(signal, weight)
+        signal_filtered = fc.conv1d(signal, weight, stride=stride)
 
         # unpack 3D result into 1D
         signal_filtered = signal_filtered[0, 0, :]
