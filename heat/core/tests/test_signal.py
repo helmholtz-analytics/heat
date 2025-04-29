@@ -84,15 +84,27 @@ class TestSignal(TestCase):
                     if mode != "same":
                         conv = ht.convolve(dis_signal, kernel_odd, mode=mode, stride=2)
                         gathered = manipulations.resplit(conv, axis=None)
-                        self.assertTrue(ht.equal(full_odd_stride2[i : len(full_odd) - i], gathered))
+                        self.assertTrue(
+                            ht.equal(
+                                full_odd_stride2[i // 2 : len(full_odd_stride2) - i // 2], gathered
+                            )
+                        )
 
                         conv = ht.convolve(dis_signal, dis_kernel_odd, mode=mode, stride=2)
                         gathered = manipulations.resplit(conv, axis=None)
-                        self.assertTrue(ht.equal(full_odd_stride2[i : len(full_odd) - i], gathered))
+                        self.assertTrue(
+                            ht.equal(
+                                full_odd_stride2[i // 2 : len(full_odd_stride2) - i // 2], gathered
+                            )
+                        )
 
                         conv = ht.convolve(signal, dis_kernel_odd, mode=mode, stride=2)
                         gathered = manipulations.resplit(conv, axis=None)
-                        self.assertTrue(ht.equal(full_odd_stride2[i : len(full_odd) - i], gathered))
+                        self.assertTrue(
+                            ht.equal(
+                                full_odd_stride2[i // 2 : len(full_odd_stride2) - i // 2], gathered
+                            )
+                        )
 
                 # different data types
                 conv = ht.convolve(dis_signal.astype(ht.float), kernel_odd)
