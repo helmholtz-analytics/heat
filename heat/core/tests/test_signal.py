@@ -198,7 +198,6 @@ class TestSignal(TestCase):
                                 ht.equal(valid_even_stride2.astype(ht.float), dis_gathered_stride2)
                             )
 
-                # CF: stopped testing here
                 # distributed large signal and kernel
                 np.random.seed(12)
                 np_a = np.random.randint(1000, size=4418)
@@ -249,17 +248,22 @@ class TestSignal(TestCase):
             alt_signal = (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15)
             kernel = ht.ones(1, dtype=ht.float32)
             conv = ht.convolve(alt_signal, kernel)
+            conv_stride2 = ht.convolve(alt_signal, kernel, stride=2)
         else:
             signal = ht.arange(0, 16).astype(ht.int)
             alt_signal = (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15)
             kernel = ht.ones(1).astype(ht.int)
             conv = ht.convolve(alt_signal, kernel)
+            conv_stride2 = ht.convolve(alt_signal, kernel, stride=2)
         self.assertTrue(ht.equal(signal, conv))
+        self.assertTrue(ht.equal(signal[0::2], conv_stride2))
 
         if not self.is_mps:
-            conv = ht.convolve(1, 5)
-            self.assertTrue(ht.equal(ht.array([5]), conv))
+            for stride in [1, 2]:
+                conv = ht.convolve(1, 5, stride=stride)
+                self.assertTrue(ht.equal(ht.array([5]), conv))
 
+        # CF: stopped testing here
         # test batched convolutions
         float_dtype = ht.float32 if self.is_mps else ht.float64
         # distributed along the first axis
