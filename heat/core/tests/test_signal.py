@@ -263,7 +263,6 @@ class TestSignal(TestCase):
                 conv = ht.convolve(1, 5, stride=stride)
                 self.assertTrue(ht.equal(ht.array([5]), conv))
 
-        # CF: stopped testing here
         # test batched convolutions
         float_dtype = ht.float32 if self.is_mps else ht.float64
         # distributed along the first axis
@@ -303,7 +302,8 @@ class TestSignal(TestCase):
         )
         self.assertTrue(
             ht.equal(
-                ht.convolve(signal, kernel, mode="valid", stride=50), batch_convolved_stride[0]
+                ht.convolve(signal, kernel, mode="valid", stride=50),
+                batch_convolved_stride[1, 2, 0],
             )
         )
 

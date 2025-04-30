@@ -182,7 +182,6 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full", stride: int = 1) -> D
 
     gshape = (a.shape[-1] + 2 * pad_size - v.shape[-1]) // stride + 1
 
-    # CF: ignore batch processing for stride implementation for now
     if batch_processing:
         # all operations are local torch operations, only the last dimension is convolved
         local_a = a.larray
@@ -217,7 +216,9 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full", stride: int = 1) -> D
 
         # apply torch convolution operator if local signal isn't empty
         if torch.prod(torch.tensor(local_a.shape, device=local_a.device)) > 0:
-            local_convolved = fc.conv1d(local_a, local_v, padding=pad_size, groups=channels)
+            local_convolved = fc.conv1d(
+                local_a, local_v, padding=pad_size, groups=channels, stride=stride
+            )
         else:
             empty_shape = tuple(local_a.shape[:-1] + (gshape,))
             local_convolved = torch.empty(empty_shape, dtype=local_a.dtype, device=local_a.device)
