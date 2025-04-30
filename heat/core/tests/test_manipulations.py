@@ -2698,7 +2698,10 @@ class TestManipulations(TestCase):
         # test local row_stack, 2-D arrays
         a = np.arange(10, dtype=np.float32).reshape(2, 5)
         b = np.arange(15, dtype=np.float32).reshape(3, 5)
-        np_rstack = np.row_stack((a, b))
+        if np.lib.NumpyVersion(np.__version__) >= "2.0.0b1":
+            np_rstack = np.vstack((a, b))
+        else:
+            np_rstack = np.row_stack((a, b))
         ht_a = ht.array(a)
         ht_b = ht.array(b)
         ht_rstack = ht.row_stack((ht_a, ht_b))
@@ -2706,14 +2709,20 @@ class TestManipulations(TestCase):
 
         # 2-D and 1-D arrays
         c = np.arange(5, dtype=np.float32)
-        np_rstack = np.row_stack((a, b, c))
+        if np.lib.NumpyVersion(np.__version__) >= "2.0.0b1":
+            np_rstack = np.vstack((a, b, c))
+        else:
+            np_rstack = np.row_stack((a, b, c))
         ht_c = ht.array(c)
         ht_rstack = ht.row_stack((ht_a, ht_b, ht_c))
         self.assertTrue((np_rstack == ht_rstack.numpy()).all())
 
         # 2-D and 1-D arrays, distributed
         c = np.arange(5, dtype=np.float32)
-        np_rstack = np.row_stack((a, b, c))
+        if np.lib.NumpyVersion(np.__version__) >= "2.0.0b1":
+            np_rstack = np.vstack((a, b, c))
+        else:
+            np_rstack = np.row_stack((a, b, c))
         ht_a = ht.array(a, split=0)
         ht_b = ht.array(b, split=0)
         ht_c = ht.array(c, split=0)
@@ -2724,7 +2733,10 @@ class TestManipulations(TestCase):
         # 1-D arrays, distributed, different dtypes
         d = np.arange(10).astype(np.float32)
         e = np.arange(10)
-        np_rstack = np.row_stack((d, e))
+        if np.lib.NumpyVersion(np.__version__) >= "2.0.0b1":
+            np_rstack = np.vstack((d, e))
+        else:
+            np_rstack = np.row_stack((d, e))
         ht_d = ht.array(d, split=0)
         ht_e = ht.array(e, split=0)
         ht_rstack = ht.row_stack((ht_d, ht_e))

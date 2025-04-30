@@ -21,10 +21,9 @@ setup(
     author_email="martin.siggel@dlr.de",
     url="https://github.com/helmholtz-analytics/heat",
     keywords=["data", "analytics", "tensors", "distributed", "gpu"],
-    python_requires=">=3.9",
+    python_requires=">=3.10",
     classifiers=[
         "Development Status :: 4 - Beta",
-        "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3.12",
@@ -34,9 +33,9 @@ setup(
     ],
     install_requires=[
         "mpi4py>=3.0.0",
-        "numpy>=1.22.0, <2",
+        "numpy>=1.23.5",
         "torch>=2.0.0, <2.6.1",
-        "scipy>=1.10.0",
+        "scipy>=1.14.0",
         "pillow>=6.0.0",
         "torchvision>=0.15.2, <0.21.1",
     ],
