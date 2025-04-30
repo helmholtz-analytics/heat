@@ -238,6 +238,7 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full", stride: int = 1) -> D
     a = pad(a, pad_size, "constant", 0)
 
     # compute halo size
+    # CF: halo computations need to consider stride, solution yet unknown
     halo_size = torch.max(v.lshape_map[:, -1]).item() // 2
 
     if a.is_distributed():
