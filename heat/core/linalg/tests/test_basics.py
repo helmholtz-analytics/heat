@@ -3,9 +3,59 @@ import torch
 import heat as ht
 
 from ...tests.test_suites.basic_test import TestCase
+from ..basics import _estimate_largest_singularvalue
 
 
 class TestLinalgBasics(TestCase):
+    def test_estimate_largest_singularvalue(self):
+        for param in [(0, ht.float32), (1, ht.float64)]:
+            with self.subTest(param=param):
+                x = ht.random.randn(100, 100, split=param[0], dtype=param[1])
+                est = _estimate_largest_singularvalue(x)
+                self.assertIsInstance(est, ht.DNDarray)
+                self.assertTrue(est >= 0)
+                self.assertEqual(est.dtype, param[1])
+                self.assertTrue(est.item() >= np.linalg.svd(x.numpy(), compute_uv=False).max())
+
+        # catch wrong inputs
+        with self.assertRaises(NotImplementedError):
+            est = _estimate_largest_singularvalue(x, algorithm="invalid")
+        with self.assertRaises(TypeError):
+            est = _estimate_largest_singularvalue(x, algorithm=1)
+
+    def test_condest(self):
+        # split = 0, tall-skinny type, float32 (actually split = 1, but due to transposition this yields split = 0 interally)
+        x = ht.random.randn(25, 25 * ht.MPI_WORLD.size, split=1, dtype=ht.float32)
+        est = ht.linalg.condest(x)
+        self.assertIsInstance(est, ht.DNDarray)
+        self.assertTrue(est >= 0)
+        self.assertTrue(est.dtype, ht.float32)
+        xnp = x.numpy()
+        xnpsvals = np.linalg.svd(xnp, compute_uv=False)
+        self.assertTrue(est.item() >= xnpsvals.max() / xnpsvals.min())
+
+        # split = 1, float64
+        x = ht.random.randn(
+            25 * ht.MPI_WORLD.size + 2, 25 * ht.MPI_WORLD.size + 1, split=1, dtype=ht.float64
+        )
+        est = ht.linalg.condest(x, algorithm="randomized", params={"nsamples": 15})
+        self.assertEqual(est.shape, ())
+        self.assertEqual(est.device, x.device)
+        self.assertTrue(est.dtype, ht.float64)
+        self.assertTrue(est.item() >= np.linalg.svd(x.numpy(), compute_uv=False).max())
+
+        # catch wrong inputs
+        with self.assertRaises(NotImplementedError):
+            est = ht.linalg.condest(x, algorithm="invalid")
+        with self.assertRaises(TypeError):
+            est = ht.linalg.condest(x, algorithm=3.14)
+        with self.assertRaises(ValueError):
+            est = ht.linalg.condest(x, algorithm="randomized", params={"nsamples": 0})
+        with self.assertRaises(TypeError):
+            est = ht.linalg.condest(x, algorithm="randomized", params=10)
+        with self.assertRaises(ValueError):
+            est = ht.linalg.condest(x, p=3)
+
     def test_cross(self):
         a = ht.eye(3)
         b = ht.array([[0, 1, 0], [0, 0, 1], [1, 0, 0]])
@@ -61,16 +111,26 @@ class TestLinalgBasics(TestCase):
         # test vector axes with 2 elements
         b_2d = ht.array(np_b[:-1, :, :], split=1)
         cross_3d_2d = ht.cross(a, b_2d, axisa=1, axisb=0)
-        np_cross_3d_2d = np.cross(np_a, np_b[:-1, :, :], axisa=1, axisb=0)
+        np_cross_3d_2d = np.cross(
+            np_a,
+            np.concatenate([np_b[:-1, :, :], np.zeros((1, 40, 50))], axis=0, dtype=np.float32),
+            axisa=1,
+            axisb=0,
+        )
         self.assert_array_equal(cross_3d_2d, np_cross_3d_2d)
 
         a_2d = ht.array(np_a[:, :-1, :], split=0)
         cross_2d_3d = ht.cross(a_2d, b, axisa=1, axisb=0)
-        np_cross_2d_3d = np.cross(np_a[:, :-1, :], np_b, axisa=1, axisb=0)
+        np_cross_2d_3d = np.cross(
+            np.concatenate([np_a[:, :-1, :], np.zeros((40, 1, 50))], axis=1, dtype=np.float32),
+            np_b,
+            axisa=1,
+            axisb=0,
+        )
         self.assert_array_equal(cross_2d_3d, np_cross_2d_3d)
 
         cross_z_comp = ht.cross(a_2d, b_2d, axisa=1, axisb=0)
-        np_cross_z_comp = np.cross(np_a[:, :-1, :], np_b[:-1, :, :], axisa=1, axisb=0)
+        np_cross_z_comp = np_a[:, 0, ...] * np_b[1, ...] - np_a[:, 1, ...] * np_b[0, ...]
         self.assert_array_equal(cross_z_comp, np_cross_z_comp)
 
         a_wrong_split = ht.array(np_a[:, :-1, :], split=2)
