@@ -30,7 +30,7 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full", stride: int = 1) -> D
         Can be 'full', 'valid', or 'same'. Default is 'full'.
         'full':
           Returns the convolution at
-          each point of overlap, with an output shape of (N+M-1,). At
+          each point of overlap, with a length of '(N+M-2)//stride+1'. At
           the end-points of the convolution, the signals do not overlap
           completely, and boundary effects may be seen.
         'same':
@@ -38,13 +38,13 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full", stride: int = 1) -> D
           effects are still visible. This mode is not supported for
           even-sized filter weights
         'valid':
-          Mode 'valid' returns output of length 'N-M+1'. The
+          Mode 'valid' returns output of length '(N-M)//stride+1'. The
           convolution product is only given for points where the signals
           overlap completely. Values outside the signal boundary have no
           effect.
     stride : int
         Stride of the convolution. Must be a positive integer. Default is 1.
-        Controls the shift of the Kernel during convolution and thereby change the output size depending on mode.
+        Stride must be 1 for mode 'same'.
 
     Examples
     --------
@@ -59,6 +59,10 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full", stride: int = 1) -> D
     DNDarray([1., 3., 3., 3., 3.])
     >>> ht.convolve(a, v, mode='valid')
     DNDarray([3., 3., 3.])
+    >>> ht.convolve(a, v, stride=2)
+    DNDarray([0., 3., 3., 3., 3., 3.])
+    >>> ht.convolve(a, v, mode='valid', stride=2)
+    DNDarray([3., 3., 3., 3.])
     >>> a = ht.ones(10, split = 0)
     >>> v = ht.arange(3, split = 0).astype(ht.float)
     >>> ht.convolve(a, v, mode='valid')
@@ -75,7 +79,6 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full", stride: int = 1) -> D
     [0/3] DNDarray([0., 1., 3., 3.])
     [1/3] DNDarray([3., 3., 3., 3.])
     [2/3] DNDarray([3., 3., 3., 2.])
-
     >>> a = ht.arange(50, dtype = ht.float64, split=0)
     >>> a = a.reshape(10, 5) # 10 signals of length 5
     >>> v = ht.arange(3)
