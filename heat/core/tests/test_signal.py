@@ -272,7 +272,13 @@ class TestSignal(TestCase):
         batch_signal.larray[:] = signal.larray
         kernel = ht.random.randn(19, dtype=float_dtype)
         batch_convolved = ht.convolve(batch_signal, kernel, mode="same")
+        batch_convolved_stride = ht.convolve(batch_signal, kernel, mode="valid", stride=10)
         self.assertTrue(ht.equal(ht.convolve(signal, kernel, mode="same"), batch_convolved[0]))
+        self.assertTrue(
+            ht.equal(
+                ht.convolve(signal, kernel, mode="valid", stride=10), batch_convolved_stride[0]
+            )
+        )
 
         # distributed kernel
         dis_kernel = ht.array(kernel, split=0)
@@ -281,14 +287,24 @@ class TestSignal(TestCase):
         batch_kernel = ht.empty((10, 19), dtype=float_dtype, split=1)
         batch_kernel.larray[:] = dis_kernel.larray
         batch_convolved = ht.convolve(batch_signal, batch_kernel, mode="full")
+        batch_convolved_stride = ht.convolve(batch_signal, kernel, mode="full", stride=2)
         self.assertTrue(ht.equal(ht.convolve(signal, kernel, mode="full"), batch_convolved[0]))
+        self.assertTrue(
+            ht.equal(ht.convolve(signal, kernel, mode="full", stride=2), batch_convolved_stride[0])
+        )
 
         # n-D batch convolution
         batch_signal = ht.empty((4, 3, 3, 1000), dtype=float_dtype, split=1)
         batch_signal.larray[:, :, :] = signal.larray
         batch_convolved = ht.convolve(batch_signal, kernel, mode="valid")
+        batch_convolved_stride = ht.convolve(batch_signal, kernel, mode="valid", stride=50)
         self.assertTrue(
             ht.equal(ht.convolve(signal, kernel, mode="valid"), batch_convolved[1, 2, 0])
+        )
+        self.assertTrue(
+            ht.equal(
+                ht.convolve(signal, kernel, mode="valid", stride=50), batch_convolved_stride[0]
+            )
         )
 
         # test batch-convolve exceptions
