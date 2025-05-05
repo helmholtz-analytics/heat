@@ -3,6 +3,7 @@ Function and classes useful for loading data into neural networks
 """
 
 from functools import reduce
+import itertools
 import random
 import warnings
 import mpi4py
@@ -418,10 +419,27 @@ class DistributedSampler(torch_data.Sampler):
         recv_counts = list(map(int, recv_counts))
         recv_displs = list(map(int, recv_displs))
 
+        recv_types: List[mpi4py.MPI.Datatype] = []
+        for i in range(world_size):
+            if recv_counts[i] == 0:
+                # Create a dummy datatype if no data is received from this rank
+                recv_type = mpi_type.Create_contiguous(0)
+            else:
+                recv_type = mpi_type.Create_struct(
+                    blocklengths=[recv_counts[i]],
+                    displacements=[recv_displs[i]],
+                    datatypes=[mpi_type]
+                )
+            recv_type.Commit()
+            recv_types.append(recv_type)
+
         mpi4py.MPI.COMM_WORLD.Alltoallw(
             (send_elems, send_elems_dtype),
-            (local_recv_buffer, recv_counts, recv_displs, [mpi_type] * world_size),
+            (local_recv_buffer, [1] * len(recv_counts), [0] * world_size, recv_types),
         )
+
+        for elem in itertools.chain(recv_types, send_elems_dtype):
+            elem.Free()
 
         # As MPI indirectly sorts the data according to the rank we need to change that.
         local_indices = indice_buffers[rank]
