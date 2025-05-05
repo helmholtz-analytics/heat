@@ -428,7 +428,7 @@ class DistributedSampler(torch_data.Sampler):
                 recv_type = mpi_type.Create_struct(
                     blocklengths=[recv_counts[i]],
                     displacements=[recv_displs[i]],
-                    datatypes=[mpi_type]
+                    datatypes=[mpi_type],
                 )
             recv_type.Commit()
             recv_types.append(recv_type)
