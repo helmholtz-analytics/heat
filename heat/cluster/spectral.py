@@ -200,6 +200,24 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
 
         return self
 
+    def fit_predict(self, x: DNDarray) -> DNDarray:
+        """
+        Fit the model to the data and return the labels.
+
+        Parameters
+        ----------
+        x : DNDarray
+            Training instances to cluster. Shape = (n_samples, n_features)
+
+        Returns
+        -------
+        DNDarray
+            Labels of each point.
+        """
+        self.fit(x)
+        return self.labels_
+        # return self._cluster.predict(components)
+
     def predict(self, x: DNDarray) -> DNDarray:
         """
         Return the label each sample in X belongs to.
