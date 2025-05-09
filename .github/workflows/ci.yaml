@@ -12,24 +12,23 @@ jobs:
       fail-fast: false
       matrix:
         py-version:
-          - 3.9
           - '3.10'
           - 3.11
           - 3.12
         mpi: [ 'openmpi' ]
         install-options: [ '.', '.[hdf5,netcdf,pandas,zarr]' ]
         pytorch-version:
-          - 'torch==2.1.2 torchvision==0.16.2 torchaudio==2.1.2'
-          - 'torch==2.2.2 torchvision==0.17.2 torchaudio==2.2.2'
+          - 'numpy==1.26 torch==2.1.2 torchvision==0.16.2 torchaudio==2.1.2'
+          - 'numpy==1.26 torch==2.2.2 torchvision==0.17.2 torchaudio==2.2.2'
           - 'torch==2.3.1 torchvision==0.18.1 torchaudio==2.3.1'
           - 'torch==2.4.1 torchvision==0.19.1 torchaudio==2.4.1'
           - 'torch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1'
           - 'torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0'
         exclude:
           - py-version: '3.12'
-            pytorch-version: 'torch==2.1.2 torchvision==0.16.2 torchaudio==2.1.2'
+            pytorch-version: 'numpy==1.26 torch==2.1.2 torchvision==0.16.2 torchaudio==2.1.2'
           - py-version: '3.12'
-            pytorch-version: 'torch==2.2.2 torchvision==0.17.2 torchaudio==2.2.2'
+            pytorch-version: 'numpy==1.26 torch==2.2.2 torchvision==0.17.2 torchaudio==2.2.2'
           - py-version: '3.9'
             install-options: '.[hdf5,netcdf,pandas,zarr]'
           - py-version: '3.10'
@@ -39,7 +38,7 @@ jobs:
     name: Python ${{ matrix.py-version }} with ${{ matrix.pytorch-version }}; options ${{ matrix.install-options }}
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@c6295a65d1254861815972266d5933fd6e532bdf # v2.11.1
+        uses: step-security/harden-runner@0634a2670c59f64b4a01f0f96f84700a4088b9f0 # v2.12.0
         with:
           egress-policy: audit
 
@@ -50,7 +49,7 @@ jobs:
         with:
           mpi: ${{ matrix.mpi }}
       - name: Use Python ${{ matrix.py-version }}
-        uses: actions/setup-python@8d9ed9ac5c53483de85588cdf95a591a75ab9f55 # v5.5.0
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: ${{ matrix.py-version }}
           architecture: x64
