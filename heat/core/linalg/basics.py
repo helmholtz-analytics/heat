@@ -24,8 +24,12 @@ from .. import sanitation
 from .. import statistics
 from .. import stride_tricks
 from .. import types
+from ..random import randn
+from .qr import qr
+from .solver import solve_triangular
 
 __all__ = [
+    "condest",
     "cross",
     "det",
     "dot",
@@ -43,6 +47,116 @@ __all__ = [
     "vecdot",
     "vector_norm",
 ]
+
+
+def _estimate_largest_singularvalue(A: DNDarray, algorithm: str = "fro") -> DNDarray:
+    """
+    Computes an upper estimate for the largest singular value of the input 2D DNDarray.
+
+    Parameters
+    ----------
+    A : DNDarray
+        The matrix, i.e., a 2D DNDarray, for which the largest singular value should be estimated.
+    algorithm : str
+        The algorithm to use for the estimation. Currently, only "fro" (default) is implemented.
+        If "fro" is chosen, the Frobenius norm of the matrix is used as an upper estimate.
+    """
+    if not isinstance(algorithm, str):
+        raise TypeError(
+            f"Parameter 'algorithm' needs to be a string, but is {algorithm} with data type {type(algorithm)}."
+        )
+    if algorithm == "fro":
+        return matrix_norm(A, ord="fro").squeeze()
+    else:
+        raise NotImplementedError("So far only algorithm='fro' implemented.")
+
+
+def condest(
+    A: DNDarray, p: Union[int, str] = None, algorithm: str = "randomized", params: list = None
+) -> DNDarray:
+    """
+    Computes a (possibly randomized) upper estimate of the l2-condition number of the input 2D DNDarray.
+
+    Parameters
+    ----------
+    A : DNDarray
+        The matrix, i.e., a 2D DNDarray, for which the condition number shall be estimated.
+    p : int or str (optional)
+        The norm to use for the condition number computation. If None, the l2-norm (default, p=2) is used.
+        So far, only p=2 is implemented.
+    algorithm : str
+        The algorithm to use for the estimation. Currently, only "randomized" (default) is implemented.
+    params : dict (optional)
+        A list of parameters required for the chosen algorithm; if not provided, default values for the respective algorithm are chosen.
+        If `algorithm="randomized"` the number of random samples to use can be specified under the key "nsamples"; default is 10.
+
+    Notes
+    ----------
+    The "randomized" algorithm follows the approach described in [1]; note that in the paper actually the condition number w.r.t. the Frobenius norm is estimated.
+    However, this yields an upper bound for the condition number w.r.t. the l2-norm as well.
+
+    References
+    ----------
+    [1] T. Gudmundsson, C. S. Kenney, and A. J. Laub. Small-Sample Statistical Estimates for Matrix Norms. SIAM Journal on Matrix Analysis and Applications 1995 16:3, 776-792.
+    """
+    if p is None:
+        p = 2
+    if p != 2:
+        raise ValueError(
+            f"Only the case p=2 (condition number w.r.t. the euclidean norm) is implemented so far, but input was p={p} (type: {type(p)})."
+        )
+    if not isinstance(algorithm, str):
+        raise TypeError(
+            f"Parameter 'algorithm' needs to be a string, but is {algorithm} with data type {type(algorithm)}."
+        )
+    if algorithm == "randomized":
+        if params is None:
+            nsamples = 10  # set default value
+        else:
+            if not isinstance(params, dict) or "nsamples" not in params:
+                raise TypeError(
+                    "If not None, 'params' needs to be a dictionary containing the number of samples under the key 'nsamples'."
+                )
+            if not isinstance(params["nsamples"], int) or params["nsamples"] <= 0:
+                raise ValueError(
+                    f"The number of samples needs to be a positive integer, but is {params['nsamples']} with data type {type(params['nsamples'])}."
+                )
+            nsamples = params["nsamples"]
+
+        m = A.shape[0]
+        n = A.shape[1]
+
+        if n > m:
+            # the algorithm only works for m >= n, but fortunately, the condition number (w.r.t. l2-norm) is invariant under transposition
+            return condest(A.T, p=p, algorithm=algorithm, params=params)
+
+        _, R = qr(A, mode="r")  # only R factor is computed in QR
+
+        # random samples from unit sphere
+        # regarding the split: if A.split == 1, then n is probably large and we should split along an axis of size n; otherwise, both n and nsamples should be small
+        Q, R_not_used = qr(
+            randn(
+                n,
+                nsamples,
+                dtype=A.dtype,
+                split=0 if A.split == 1 else None,
+                device=A.device,
+                comm=A.comm,
+            )
+        )
+        del R_not_used
+
+        est = (
+            matrix_norm(R @ Q)
+            * A.dtype((m / nsamples) ** 0.5, comm=A.comm)
+            * matrix_norm(solve_triangular(R, Q))
+        )
+
+        return est.squeeze()
+    else:
+        raise NotImplementedError(
+            "So far only algorithm='randomized' is implemented. Please open an issue on GitHub if you would like to suggest implementing another algorithm."
+        )
 
 
 def cross(
@@ -347,7 +461,13 @@ def inv(a: DNDarray) -> DNDarray:
 
     # no split in the square matrices
     if not a.is_distributed() or a.split < a.ndim - 2:
-        data = torch.inverse(a.larray)
+        try:
+            data = torch.inverse(a.larray)
+        except RuntimeError as e:
+            raise RuntimeError(e)
+        # torch.linalg.inv does not raise RuntimeError on MPS when inversion fails
+        if data.is_mps and torch.any(data.isnan()):
+            raise RuntimeError("linalg.inv: inversion could not be performed")
         return DNDarray(
             data,
             a.shape,
