@@ -3,9 +3,8 @@ Module implementing the Dynamic Mode Decomposition (DMD) algorithm.
 """
 
 import heat as ht
-from typing import Optional, Tuple, Union, List
+from typing import Optional, Union, List
 import torch
-import numpy as np
 
 try:
     from typing import Self

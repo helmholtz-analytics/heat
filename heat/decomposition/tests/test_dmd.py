@@ -15,7 +15,7 @@ is_mps = envar == "gpu" and platform.system() == "Darwin"
 @unittest.skipIf(is_mps, "MPS does not support non-float matrix multiplication")
 class TestDMD(TestCase):
     def test_dmd_setup_catch_wrong(self):
-        # catch wrong inputs
+        # catch wrong inputs during setup
         with self.assertRaises(TypeError):
             ht.decomposition.DMD(svd_solver=0)
         with self.assertRaises(ValueError):
@@ -310,7 +310,7 @@ class TestDMDc(TestCase):
         dmd = ht.decomposition.DMDc(svd_solver="randomized", svd_rank=4)
         C = ht.random.randn(10, 10 * ht.MPI_WORLD.size, split=None)
         dmd.fit(X, C)
-        Y = ht.random.randn(3, 10 * ht.MPI_WORLD.size, split=1)
+        Y = ht.random.randn(1000, 10 * ht.MPI_WORLD.size, split=1)
         # wrong dimensions of input for prediction
         with self.assertRaises(ValueError):
             dmd.predict(Y, ht.zeros((5, 5, 5), split=0))
