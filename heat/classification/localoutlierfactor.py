@@ -47,6 +47,9 @@ class LocalOutlierFactor:
         The local outlier factor for each sample in the data set.
     anomaly : DNDarray
         Array with binary outlier classification (1 -> outlier, -1 -> inlier).
+    chunks : int
+        Compute the distance matrix iteratively in chunks to reduce memory consumption (but with larger runtime).
+        For ``chunks``= 2: first compute one half of the distance matrix and then the second half.
 
     Raises
     ------
@@ -69,6 +72,7 @@ class LocalOutlierFactor:
         metric="euclidian",
         binary_decision="threshold",
         threshold=1.5,
+        chunks=1,
         top_n=None,
     ):
 
@@ -79,6 +83,7 @@ class LocalOutlierFactor:
         self.lof_scores = None
         self.anomaly = None
         self.metric = metric
+        self.chunks = chunks
 
         self._input_sanitation()
 
@@ -122,7 +127,7 @@ class LocalOutlierFactor:
         # (only these are needed for the LOF computation).
         # Note that cdist_small sorts from the lowest to the highest distance
         dist, idx = cdist_small(
-            X, X, metric=self.metric, n_smallest=self.n_neighbors + 1
+            X, X, metric=self.metric, n_smallest=self.n_neighbors + 1, chunks=self.chunks
         )  # cdist_small stores also the distance of each point to itself, therefore use n_neighbors+1
 
         # Compute the reachability distance matrix

@@ -262,7 +262,7 @@ def _chunk_wise_topk(
 
     # initialize empty tensors that will be filled with the iteratively with the respective chunks
     dist = torch.empty((0, k), dtype=torch.float32, device=device)
-    idx = torch.empty((0, k), dtype=torch.float32, device=device)
+    idx = torch.empty((0, k), dtype=torch.long, device=device)
 
     if chunks == 1:
         dist = metric(x_, y_)
