@@ -319,7 +319,7 @@ def cdist_small(
         new_dist = metric(x_, buffer)
         # take only the n_smallest distances
         new_dist, new_idx = torch.topk(new_dist, n_smallest, largest=False, sorted=True)
-        new_idx += ydispl[receiver]
+        new_idx += ydispl[sender]
 
         # merge the current distances with the new distances in one matrix (analogous for indices)
         merged_dist = torch.cat((current_dist, new_dist), dim=1)

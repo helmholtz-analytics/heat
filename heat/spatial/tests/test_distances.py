@@ -263,3 +263,48 @@ class TestDistances(TestCase):
             d = ht.spatial.cdist(B, quadratic_expansion=False)
             result = ht.array(res, dtype=ht.float64, split=0)
             self.assertTrue(ht.allclose(d, result, atol=1e-8))
+
+    def test_cdist_small(self):
+        ht.random.seed(10)
+        n_neighbors = 10
+        X = ht.random.rand(1000, 100, dtype=ht.float32, split=0)
+        Y = ht.random.rand(1500, 100, dtype=ht.float32, split=0)
+
+        # Test functionality
+        d = ht.spatial.cdist(X, Y, quadratic_expansion=False)
+        std_dist, std_idx = ht.topk(d, k=n_neighbors, dim=1, largest=False)
+        dist, idx = ht.spatial.cdist_small(X, Y, n_smallest=n_neighbors)
+        self.assertTrue(ht.allclose(std_dist, dist, atol=1e-8))
+        # Note: if some distances in the same row of the distance matrix are the same,
+        # the respective indices in this comarison may differ (randomly ordered)
+        self.assertTrue(ht.allclose(std_idx, idx, atol=1e-8))
+
+        # Splitting
+        X = ht.random.rand(1000, 100, dtype=ht.float32, split=None)
+        Y = ht.random.rand(1500, 100, dtype=ht.float32, split=0)
+        Z = ht.random.rand(2000, 100, dtype=ht.float32, split=1)
+        with self.assertRaises(NotImplementedError):
+            ht.spatial.cdist_small(X, Y)
+        with self.assertRaises(NotImplementedError):
+            ht.spatial.cdist_small(Y, X)
+        with self.assertRaises(NotImplementedError):
+            ht.spatial.cdist_small(X, Z)
+        with self.assertRaises(NotImplementedError):
+            ht.spatial.cdist_small(Z, X)
+        with self.assertRaises(NotImplementedError):
+            ht.spatial.cdist_small(Y, Z)
+        with self.assertRaises(NotImplementedError):
+            ht.spatial.cdist_small(Z, Y)
+
+        # Non-matching shape[1]
+        X = ht.random.rand(1000, 100, dtype=ht.float32, split=0)
+        Y = ht.random.rand(1500, 150, dtype=ht.float32, split=0)
+        with self.assertRaises(ValueError):
+            ht.spatial.cdist_small(X, Y)
+
+        # More neighbors than points
+        n_smallest = 2000
+        X = ht.random.rand(1000, 100, dtype=ht.float32, split=0)
+        Y = ht.random.rand(1500, 100, dtype=ht.float32, split=0)
+        with self.assertRaises(ValueError):
+            ht.spatial.cdist_small(X, Y, n_smallest=n_smallest)
