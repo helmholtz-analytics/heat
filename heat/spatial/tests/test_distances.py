@@ -279,6 +279,11 @@ class TestDistances(TestCase):
         # the respective indices in this comarison may differ (randomly ordered)
         self.assertTrue(ht.allclose(std_idx, idx, atol=1e-8))
 
+        # Test functionality with chunk-wise computation
+        dist_chunked, idx_chunked = ht.spatial.cdist_small(X, Y, chunks=1, n_smallest=n_neighbors)
+        self.assertTrue(ht.allclose(std_dist, dist_chunked, atol=1e-8))
+        self.assertTrue(ht.allclose(std_idx, idx_chunked, atol=1e-8))
+
         # Splitting
         X = ht.random.rand(1000, 100, dtype=ht.float32, split=None)
         Y = ht.random.rand(1500, 100, dtype=ht.float32, split=0)
