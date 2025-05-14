@@ -274,7 +274,7 @@ class DistributedDataset(torch_data.Dataset):
         self.dndarray = dndarray
 
     def __len__(self) -> int:
-        return len(self.dndarray)
+        return len(self.dndarray.larray)
 
     def __getitem__(self, index):
         return self.dndarray.larray[index]
@@ -393,12 +393,15 @@ class DistributedSampler(torch_data.Sampler):
                 ]
             else:
                 send_indice = indice_buffers[current_rank]
-            displacements = [disp * block_length - local_displacement for disp in send_indice]
-            send_elems_dtype.append(
-                mpi_type.Create_indexed_block(
-                    blocklength=block_length, displacements=displacements
-                ).Commit()
+            displacements = [mpi_type.Get_size() * (disp * block_length - local_displacement) for disp in send_indice]
+            block_lengths = [block_length] * len(displacements)
+            send_type = mpi_type.Create_struct(
+                blocklengths=block_lengths,
+                displacements=displacements,
+                datatypes=[mpi_type] * len(displacements),
             )
+            send_type.Commit()
+            send_elems_dtype.append(send_type)
 
         recv_counts = torch.zeros(world_size)
         for idx in indice_buffers[rank]:
