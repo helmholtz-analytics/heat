@@ -12,6 +12,7 @@ build:
     python: "3.11"
   apt_packages:
     - pandoc
+    - openmpi-bin
 
 # Build documentation in the docs/ directory with Sphinx
 sphinx:
