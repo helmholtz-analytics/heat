@@ -393,7 +393,10 @@ class DistributedSampler(torch_data.Sampler):
                 ]
             else:
                 send_indice = indice_buffers[current_rank]
-            displacements = [mpi_type.Get_size() * (disp * block_length - local_displacement) for disp in send_indice]
+            displacements = [
+                mpi_type.Get_size() * (disp * block_length - local_displacement)
+                for disp in send_indice
+            ]
             block_lengths = [block_length] * len(displacements)
             send_type = mpi_type.Create_struct(
                 blocklengths=block_lengths,
