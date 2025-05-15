@@ -66,27 +66,27 @@ def eigh_split1(A):
 
 @monitor()
 def svd_ts(a):
-    u, s, v = ht.linalg.svd(a)
+    svd = ht.linalg.svd(a)
 
 
 @monitor()
 def svd_zolo_split0(a):
-    u, s, v = ht.linalg.svd(a)
+    svd = ht.linalg.svd(a)
 
 
 @monitor()
 def svd_zolo_split1(a):
-    u, s, v = ht.linalg.svd(a)
+    svd = ht.linalg.svd(a)
 
 
 @monitor()
 def randomized_svd_split0(a, r):
-    u, s, v = ht.linalg.rsvd(a, r)
+    svd = ht.linalg.rsvd(a, r)
 
 
 @monitor()
 def randomized_svd_split1(a, r):
-    u, s, v = ht.linalg.rsvd(a, r)
+    svd = ht.linalg.rsvd(a, r)
 
 
 def run_linalg_benchmarks():
