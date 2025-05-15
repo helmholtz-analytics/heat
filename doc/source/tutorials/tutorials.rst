@@ -7,12 +7,14 @@ Heat Tutorials
     tutorial_30_minutes
     tutorial_parallel_computation
     tutorial_clustering
+    tutorial_notebook_gallery
+
 
 .. container:: tutorial
 
     .. container:: tutorial-image
 
-        .. image:: ../images/tutorial_logo.svg
+        .. image:: ../../images/tutorial_logo.svg
             :target: tutorial_30_minutes.html
 
     .. raw:: html
@@ -31,7 +33,7 @@ Heat Tutorials
 
     .. container:: tutorial-image
 
-        .. image:: ../images/tutorial_split_dndarray.svg
+        .. image:: ../../images/tutorial_split_dndarray.svg
             :target: tutorial_parallel_computation.html
 
     .. raw:: html
@@ -50,7 +52,7 @@ Heat Tutorials
 
     .. container:: tutorial-image
 
-        .. image:: ../images/tutorial_clustering.svg
+        .. image:: ../../images/tutorial_clustering.svg
             :target: tutorial_clustering.html
 
     .. raw:: html
@@ -61,5 +63,24 @@ Heat Tutorials
                 <p/>
                 <p>Automatically identify clusters in your data by employing unsupervised clustering methods.</p>
                 <em>For intermediate analysts.</em>
+            </div>
+        </a>
+
+
+.. container:: tutorial
+
+    .. container:: tutorial-image
+
+        .. image:: ../../images/jupyter.png
+            :target: tutorial_notebook_gallery.html
+
+    .. raw:: html
+
+        <a class="reference external" href="tutorial_notebook_gallery.html">
+            <div class="tutorial-text">
+                <strong>Example notebooks</strong>
+                <p/>
+                <p>Ideal for people that like using jupyter notebook or other interactive environments.</p>
+                <em>Excellent for beginners.</em>
             </div>
         </a>
