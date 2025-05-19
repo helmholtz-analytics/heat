@@ -292,7 +292,11 @@ class DistributedSampler(torch_data.Sampler):
     """
 
     def __init__(
-        self, dataset: DistributedDataset, shuffle: bool = False, seed: Optional[int] = None, shuffle_type: Literal["global"] | Literal["local"] = "global"
+        self,
+        dataset: DistributedDataset,
+        shuffle: bool = False,
+        seed: Optional[int] = None,
+        shuffle_type: Literal["global"] | Literal["local"] = "global",
     ) -> None:
         """
         Parameters
