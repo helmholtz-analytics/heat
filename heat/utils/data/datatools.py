@@ -10,7 +10,7 @@ import mpi4py
 import torch
 import torch.distributed
 from torch.utils import data as torch_data
-from typing import Callable, List, Iterator, Union, Optional, Sized
+from typing import Callable, List, Iterator, Literal, Union, Optional, Sized
 
 import torch.utils
 
@@ -292,7 +292,7 @@ class DistributedSampler(torch_data.Sampler):
     """
 
     def __init__(
-        self, dataset: DistributedDataset, shuffle: bool = False, seed: Optional[int] = None
+        self, dataset: DistributedDataset, shuffle: bool = False, seed: Optional[int] = None, shuffle_type: Literal["global"] | Literal["local"] = "global"
     ) -> None:
         """
         Parameters
@@ -314,6 +314,7 @@ class DistributedSampler(torch_data.Sampler):
         self.dataset = dataset
         self.dndarray = dataset.dndarray
         self.shuffle = shuffle
+        self.set_shuffle_type(shuffle_type)
         self.set_seed(seed)
 
         if self.dndarray.split != 0:
@@ -345,6 +346,15 @@ class DistributedSampler(torch_data.Sampler):
 
     def _shuffle(self) -> None:
         """Shuffles the given dndarray at creation across processes."""
+
+        if self.shuffle_type == "local":
+            perm = torch.randperm(len(self.dndarray.larray))
+            self.dndarray.larray = self.dndarray.larray[perm]
+            return
+
+        if self.shuffle_type != "global":
+            raise ValueError("Shuffle type is not 'local' nor 'global'")
+
         dtype = self.dndarray.dtype.torch_type()
         comm: MPICommunication = self.dndarray.comm
         rank: int = comm.rank
@@ -463,6 +473,14 @@ class DistributedSampler(torch_data.Sampler):
         if local_recv_buffer.device != self.dndarray.larray.device:
             local_recv_buffer = local_recv_buffer.to(device=self.dndarray.larray.device)
         self.dndarray.larray = local_recv_buffer
+
+    def set_shuffle_type(self, shuffle_type: Literal["global"] | Literal["local"]) -> None:
+        if not isinstance(shuffle_type, str):
+            raise TypeError("Shuffle type needs to be an string")
+        if not (shuffle_type == "global" or shuffle_type == "local"):
+            raise ValueError("only 'global' or 'local' allowed as shuffle type")
+
+        self.shuffle_type: Literal["global"] | Literal["local"] = shuffle_type
 
     def set_seed(self, value: int) -> None:
         """Sets the seed for the torch.randperm
