@@ -386,14 +386,10 @@ def cdist_small(
             device=X.device.torch_device,
         )
 
-        # send the individually stored parts of Y to the next process,
-        # avoid deadlocks by alternating the order of Send and Recv depending on whether the rank is even or odd
-        if rank % 2 == 0:
-            Y.comm.Send(y_, dest=receiver, tag=iter)
-            Y.comm.Recv(buffer, source=sender, tag=iter)
-        else:
-            Y.comm.Recv(buffer, source=sender, tag=iter)
-            Y.comm.Send(y_, dest=receiver, tag=iter)
+        # send the individually stored parts of Y to the next process, avoid deadlocks by using the Sendrecv function
+        Y.comm.Sendrecv(
+            sendbuf=y_, dest=receiver, sendtag=iter, recvbuf=buffer, source=sender, recvtag=iter
+        )
 
         # distance between the part of X stored in the current process and the newly received part of Y
         new_dist, new_idx = _chunk_wise_topk(
