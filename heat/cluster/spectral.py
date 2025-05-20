@@ -5,8 +5,9 @@ Module for Spectral Clustering, a graph-based machine learning algorithm
 import heat as ht
 import math
 import torch
-from typing import Tuple
+from typing import Tuple, Union
 from heat.core.dndarray import DNDarray
+from heat.core.linalg import eigh
 
 
 class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
@@ -18,7 +19,9 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
     n_clusters : int, default=8
         Number of clusters to fit
     eigen_solver : str, default='lanczos'
-        Eigenvalue decomposition strategy to use. Currently only 'lanczos' is supported
+        Eigenvalue decomposition strategy to use. Supported: 'lanczos', 'zolotarev'.
+    n_components : int, default=None
+        Number of components to use for the embedding. If None, n_clusters is used
     gamma : float, default=1.0
         Kernel coefficient sigma for 'rbf', ignored for affinity='euclidean'
     affinity : str, default='rbf'
@@ -113,7 +116,27 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
         """
         return self._labels
 
-    def spectral_embedding(self, x: DNDarray, eigen_solver: str) -> Tuple[DNDarray, DNDarray]:
+    def __set_diag(self, x: DNDarray, value: Union[int, float], norm_laplacian: bool) -> DNDarray:
+        """
+        Set the diagonal of the matrix to a specific value.
+        """
+        # TODO see scikit learn
+        n_nodes = x.shape[0]
+        # for now we assume that the matrix is dense
+        if norm_laplacian:
+            # set diagonal to `value`
+            # tensor.view(-1) == ndarray.flat
+            x.larray.view(-1)[:: n_nodes + 1] = value
+        return x
+
+    def spectral_embedding(
+        self,
+        x: DNDarray,
+        n_components: int = 8,
+        eigen_solver: str = "zolotarev",
+        norm_laplacian: bool = True,
+        drop_first: bool = True,
+    ) -> Tuple[DNDarray, DNDarray]:
         """
         Returns Tuple(Eigenvalues, Eigenvectors) of the graph's Laplacian matrix.
 
@@ -121,22 +144,61 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
         ----------
         x : DNDarray
             Sample Matrix for which the embedding should be calculated
+        n_components : int, default=8
+            Number of components to use for the embedding
         eigen_solver : str
-            Eigenvalue decomposition strategy to use. Currently only 'lanczos' is supported
+            Eigenvalue decomposition strategy to use. Default is 'zolotarev' #TODO expand
+        norm_laplacian : bool, default=True
+            Whether to use the normalized Laplacian
+        drop_first : bool, default=True
+            Whether to drop the first component (the smallest eigenvalue)
 
         See Also
         --------
         :func:`heat.linalg.lanczos`
+        :func:`heat.linalg.eigh`
+        :func:`heat.linalg.polar`
 
         Notes
         -----
         The imaginary part of the eigenvalues is discarded, as the Laplacian matrix is symmetric and the eigenvectors
-        are real.
+        are real. TODO: check if this is still correct
         """
         L = self._laplacian.construct(x)
         # 3. Eigenvalue and -vector calculation
-        # for now via Lanczos Algorithm only
-        if eigen_solver == "lanczos":
+        if eigen_solver == "zolotarev":
+            # TODO: adapt this to Heat
+            L = self.__set_diag(L, 1, norm_laplacian)  # TODO should it be a method?
+            # extract the diagonal
+            dd = L.diagonal()
+            #            try:
+            # we skip multiplying by -1 as we are not using ARPACK
+            # keeping comment below as historical record for now
+            ####
+            # # We are computing the opposite of the laplacian inplace so as
+            # # to spare a memory allocation of a possibly very large array
+            # L *= -1
+            ####
+            # compute the Zolo-PD eigenvalue decomposition
+            _, diffusion_map = eigh(L)
+            # ht.linalg.eigh returns the eigenvalues in descending order
+            # select the first n_components, no need to reverse order
+            diffusion_map = diffusion_map[:, :n_components]
+            embedding = diffusion_map.T
+            if norm_laplacian:
+                # REVERT FROM DIVISION TO MULTIPLICATION
+                # (user requirement, see https://codebase.helmholtz.cloud/helmholtz-analytics/SCIMES/-/blob/master/scimes/old_spectral_embedding.py?ref_type=heads#L62)
+                # TODO: generalize / adapt to current scikit-learn
+                embedding = embedding * dd
+            # except RuntimeError:
+            #     # When submatrices are exactly singular, an LU decomposition
+            #     # in arpack fails. We fallback to lobpcg
+            #     eigen_solver = "lobpcg"
+            #     # Revert the laplacian to its opposite to have lobpcg work
+            #     L *= -1
+
+        #  Lanczos Algorithm
+        elif eigen_solver == "lanczos":
             v0 = ht.full(
                 (L.shape[0],),
                 fill_value=1.0 / math.sqrt(L.shape[0]),
