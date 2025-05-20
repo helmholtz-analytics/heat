@@ -51,6 +51,7 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
         self,
         n_clusters: int = None,
         eigen_solver: str = "lanczos",
+        n_components: int = None,
         gamma: float = 1.0,
         affinity: str = "rbf",
         laplacian: str = "fully_connected",
@@ -62,6 +63,7 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
     ):
         self.n_clusters = n_clusters
         self.eigen_solver = eigen_solver
+        self.n_components = n_components
         self.gamma = gamma
         self.affinity = affinity
         self.laplacian = laplacian
@@ -167,7 +169,6 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
         L = self._laplacian.construct(x)
         # 3. Eigenvalue and -vector calculation
         if eigen_solver == "zolotarev":
-            # TODO: adapt this to Heat
             L = self.__set_diag(L, 1, norm_laplacian)  # TODO should it be a method?
             # extract the diagonal
             dd = L.diagonal()
@@ -215,7 +216,8 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
             eval, idx = torch.sort(eval.real, dim=0)
             eigenvalues = ht.array(eval)
             eigenvectors = ht.matmul(V, ht.array(evec))[:, idx]
-
+            # TODO: spectral_embedding should only return the embedding (eigenvectors)
+            # TODO: move components calculation from fit() to here and only return n_components eigenvalues as embedding
             return eigenvalues.real, eigenvectors.real
         else:
             raise NotImplementedError(
