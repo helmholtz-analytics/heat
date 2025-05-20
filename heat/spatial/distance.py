@@ -380,16 +380,19 @@ def cdist_small(
         sender = (rank - iter) % size
 
         # set a buffer to store the part of Y that is sent to the next process
+        recv_nrows, recv_ncols = Y.lshape_map[sender]
         buffer = torch.zeros(
-            (Y.lshape_map[sender, 0], Y.lshape_map[sender, 1]),
-            dtype=torch_type,
-            device=X.device.torch_device,
+            (recv_nrows, recv_ncols), dtype=torch_type, device=X.device.torch_device
         )
 
-        # send the individually stored parts of Y to the next process, avoid deadlocks by using the Sendrecv function
-        Y.comm.Sendrecv(
-            sendbuf=y_, dest=receiver, sendtag=iter, recvbuf=buffer, source=sender, recvtag=iter
-        )
+        # send the individually stored parts of Y to the next process, avoid deadlocks with non-blocking actions
+        # Non-blocking receive
+        req_recv = comm.Irecv(buffer, source=sender, tag=iter)
+        # Non-blocking send
+        req_send = comm.Isend(y_, dest=receiver, tag=iter)
+        # Wait to finish receiving and sending
+        req_recv.wait()
+        req_send.wait()
 
         # distance between the part of X stored in the current process and the newly received part of Y
         new_dist, new_idx = _chunk_wise_topk(
