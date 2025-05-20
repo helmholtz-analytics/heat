@@ -1209,9 +1209,9 @@ class DNDarray:
 
     def __repr__(self) -> str:
         """
-        Computes a printable representation of the passed DNDarray.
+        Returns a printable representation of the passed DNDarray, targeting developers.
         """
-        return printing.__str__(self)
+        return printing.__repr__(self)
 
     def ravel(self):
         """
