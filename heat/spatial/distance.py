@@ -264,13 +264,15 @@ def _chunk_wise_topk(
     dist = torch.empty((0, k), dtype=torch.float32, device=device)
     idx = torch.empty((0, k), dtype=torch.long, device=device)
 
+    block_size = (x_.shape[0] + chunks - 1) // chunks
+
     if chunks == 1:
         dist = metric(x_, y_)
         dist, idx = torch.topk(dist, k, largest=False, sorted=True)
     # compute the top k entries of the distance matrix iteratively in chunks and append results to dist and idx
     else:
-        for start in range(0, x_.shape[0], chunks):
-            end = min(start + chunks, x_.shape[0])
+        for start in range(0, x_.shape[0], block_size):
+            end = min(start + block_size, x_.shape[0])
             x_batch = x_[start:end]
             batched_dist = metric(x_batch, y_)
             batched_dist, batched_idx = torch.topk(batched_dist, k, largest=False, sorted=True)
