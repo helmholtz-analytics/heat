@@ -14,10 +14,9 @@ Heat is a distributed tensor framework for high performance data analytics.
    :caption: Table of Contents
    :maxdepth: 1
 
-   README
-   Changelog
-   tutorials
-   quick_start
+   introduction
+   getting_started
+   tutorials/tutorials
    case_studies
    for_contributors
 
