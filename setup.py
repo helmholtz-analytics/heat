@@ -40,13 +40,25 @@ setup(
         "torchvision>=0.15.2, <0.22.1",
     ],
     extras_require={
-        "docutils": ["docutils>=0.16"],
+        # Dev
+        "dev": ["pre-commit>=1.18.3"],
+        # CI/CB
+        "cb": ["perun>=0.8"],
+        # Examples/ Tutorial
+        "examples": ["scikit-learn>=0.24.0", "matplotlib>=3.1.0", "ipyparallel", "jupyter"],
+        # IO
+        "pandas": ["pandas>=1.4"],
         "hdf5": ["h5py>=2.8.0"],
         "netcdf": ["netCDF4>=1.5.6"],
-        "dev": ["pre-commit>=1.18.3"],
-        "examples": ["scikit-learn>=0.24.0", "matplotlib>=3.1.0"],
-        "cb": ["perun>=0.8"],
-        "pandas": ["pandas>=1.4"],
         "zarr": ["zarr"],
+        # Docs
+        "docs": [
+            "sphinx",
+            "sphinx_rtd_theme",
+            "sphinx-autoapi",
+            "nbsphinx",
+            "sphinx-autobuild",
+            "sphinx-copybutton",
+        ],
     },
 )
