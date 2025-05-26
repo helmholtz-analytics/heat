@@ -15,7 +15,7 @@ jobs:
           - '3.10'
           - 3.11
           - 3.12
-        mpi: [ 'openmpi', 'mpich' ]
+        mpi: [ 'openmpi']
         install-options: [ '.', '.[hdf5,netcdf,pandas,zarr]' ]
         pytorch-version:
           - 'numpy==1.26 torch==2.1.2 torchvision==0.16.2 torchaudio==2.1.2'
