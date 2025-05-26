@@ -28,7 +28,7 @@ jobs:
       - name: Setup MPI
         uses: mpi4py/setup-mpi@f5f8f979b2090d14bf810bf16836a85793b5d095 # v1.3.1
         with:
-          mpi: mpich
+          mpi: openmpi
         env:
           OMPI_MCA_pml: ob1
 
