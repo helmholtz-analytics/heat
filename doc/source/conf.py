@@ -36,7 +36,7 @@ sys.path.insert(0, os.path.abspath("../../heat"))
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-    # "autoapi.extension",
+    "autoapi.extension",
     "sphinx.ext.autodoc",
     "sphinx.ext.viewcode",
     "sphinx.ext.inheritance_diagram",
@@ -48,10 +48,10 @@ extensions = [
 ]
 
 # Document Python Code
-# autoapi_type = "python"
-# autoapi_dirs = ["../../heat/"]
-# autoapi_ignore = ["*/operations.py", "*/tests/*"]
-# autoapi_template_dir = "_templates/autoapi"
+autoapi_type = "python"
+autoapi_dirs = ["../../heat/"]
+autoapi_ignore = ["*/operations.py", "*/tests/*"]
+autoapi_template_dir = "_templates/autoapi"
 
 
 def skip_util_params(app, what, name, obj, skip, options):
@@ -78,8 +78,8 @@ def setup(sphinx):
     """
     Connect the skipping functions
     """
-    # sphinx.connect("autoapi-skip-member", skip_util_params)
-    # sphinx.connect("autoapi-skip-member", skip_util_functions)
+    sphinx.connect("autoapi-skip-member", skip_util_params)
+    sphinx.connect("autoapi-skip-member", skip_util_functions)
 
 
 # Add any paths that contain templates here, relative to this directory.
