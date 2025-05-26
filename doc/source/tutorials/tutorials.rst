@@ -14,7 +14,7 @@ Heat Tutorials
 
     .. container:: tutorial-image
 
-        .. image:: ../../images/tutorial_logo.svg
+        .. image:: ../_static/images/tutorial_logo.svg
             :target: tutorial_30_minutes.html
 
     .. raw:: html
@@ -33,7 +33,7 @@ Heat Tutorials
 
     .. container:: tutorial-image
 
-        .. image:: ../../images/tutorial_split_dndarray.svg
+        .. image:: ../_static/images/tutorial_split_dndarray.svg
             :target: tutorial_parallel_computation.html
 
     .. raw:: html
@@ -52,7 +52,7 @@ Heat Tutorials
 
     .. container:: tutorial-image
 
-        .. image:: ../../images/tutorial_clustering.svg
+        .. image:: ../_static/images/tutorial_clustering.svg
             :target: tutorial_clustering.html
 
     .. raw:: html
@@ -71,7 +71,7 @@ Heat Tutorials
 
     .. container:: tutorial-image
 
-        .. image:: ../../images/jupyter.png
+        .. image:: ../_static/images/jupyter.png
             :target: tutorial_notebook_gallery.html
 
     .. raw:: html
