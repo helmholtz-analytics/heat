@@ -21,10 +21,9 @@ setup(
     author_email="martin.siggel@dlr.de",
     url="https://github.com/helmholtz-analytics/heat",
     keywords=["data", "analytics", "tensors", "distributed", "gpu"],
-    python_requires=">=3.9",
+    python_requires=">=3.10",
     classifiers=[
         "Development Status :: 4 - Beta",
-        "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3.12",
@@ -34,20 +33,32 @@ setup(
     ],
     install_requires=[
         "mpi4py>=3.0.0",
-        "numpy>=1.22.0, <2",
+        "numpy>=1.23.5",
         "torch>=2.0.0, <2.6.1",
-        "scipy>=1.10.0",
+        "scipy>=1.14.0",
         "pillow>=6.0.0",
         "torchvision>=0.15.2, <0.21.1",
     ],
     extras_require={
-        "docutils": ["docutils>=0.16"],
+        # Dev
+        "dev": ["pre-commit>=1.18.3"],
+        # CI/CB
+        "cb": ["perun>=0.8"],
+        # Examples/ Tutorial
+        "examples": ["scikit-learn>=0.24.0", "matplotlib>=3.1.0", "ipyparallel", "jupyter"],
+        # IO
+        "pandas": ["pandas>=1.4"],
         "hdf5": ["h5py>=2.8.0"],
         "netcdf": ["netCDF4>=1.5.6"],
-        "dev": ["pre-commit>=1.18.3"],
-        "examples": ["scikit-learn>=0.24.0", "matplotlib>=3.1.0"],
-        "cb": ["perun>=0.8"],
-        "pandas": ["pandas>=1.4"],
         "zarr": ["zarr"],
+        # Docs
+        "docs": [
+            "sphinx",
+            "sphinx_rtd_theme",
+            "sphinx-autoapi",
+            "nbsphinx",
+            "sphinx-autobuild",
+            "sphinx-copybutton",
+        ],
     },
 )
