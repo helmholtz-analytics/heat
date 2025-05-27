@@ -7,7 +7,7 @@ from .communication import MPI
 from .dndarray import DNDarray
 from .types import promote_types, float32, float64
 from .manipulations import pad, flip
-from .factories import array, zeros
+from .factories import array, zeros, arange
 import torch.nn.functional as fc
 
 __all__ = ["convolve"]
@@ -184,7 +184,6 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full", stride: int = 1) -> D
         raise ValueError(f"Supported modes are 'full', 'valid', 'same', got {mode}")
 
     gshape = (a.shape[-1] + 2 * pad_size - v.shape[-1]) // stride + 1
-
     if batch_processing:
         # all operations are local torch operations, only the last dimension is convolved
         local_a = a.larray
@@ -241,6 +240,12 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full", stride: int = 1) -> D
     # CF: halo computations need to consider stride, solution yet unknown
     halo_size = torch.max(v.lshape_map[:, -1]).item() // 2
 
+    # compute halo such that kernel fits perfectly into first rank
+    # if stride > 1 and not v.is_distributed():
+    #     len_kernel = v.shape[-1]
+    #     len_first_rank_a = a.lshape_map[0][0].item()
+    #     halo_size = (((len_first_rank_a - len_kernel) // stride +1)*stride + len_kernel - len_first_rank_a)
+
     if a.is_distributed():
         if (v.lshape_map[:, 0] > a.lshape_map[:, 0]).any():
             raise ValueError(
@@ -250,6 +255,29 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full", stride: int = 1) -> D
         a.get_halo(halo_size)
         # apply halos to local array
         signal = a.array_with_halos
+        print(f"Local signal before, rank {a.comm.rank} ", signal)
+        # shift signal based on global kernel starts for any rank but first
+        if stride > 1 and not v.is_distributed():
+            if a.comm.rank == 0:
+                local_index = 0
+            else:
+                global_index = torch.arange(0, a.shape[-1], stride)
+                print(global_index)
+                local_index = (
+                    global_index - torch.sum(a.lshape_map[: a.comm.rank, 0]).item() + halo_size
+                )
+                local_start_index = torch.where(local_index >= 0)[0][0].item()
+
+                # even kernels can produces doubles
+                if v.shape[-1] % 2 == 0 and local_index[local_start_index] == 0:
+                    local_start_index += 1
+
+                local_index = local_index[local_start_index]
+            signal = signal[local_index:]
+
+            print(halo_size, (a.comm.rank, local_index))
+            print(f"Local signal, rank {a.comm.rank} ", signal)
+
     else:
         signal = a.larray
 
@@ -316,13 +344,18 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full", stride: int = 1) -> D
 
     else:
         # apply torch convolution operator
-        signal_filtered = fc.conv1d(signal, weight, stride=stride)
+        if signal.shape[-1] >= weight.shape[-1]:
+            signal_filtered = fc.conv1d(signal, weight, stride=stride)
 
-        # unpack 3D result into 1D
-        signal_filtered = signal_filtered[0, 0, :]
+            # unpack 3D result into 1D
+            signal_filtered = signal_filtered[0, 0, :]
+        else:
+            signal_filtered = torch.tensor([])
+
+        print(f"Local convolution, rank {a.comm.rank} ", signal_filtered)
 
         # if kernel shape along split axis is even we need to get rid of duplicated values
-        if a.comm.rank != 0 and v.shape[0] % 2 == 0:
+        if a.comm.rank != 0 and v.shape[0] % 2 == 0 and stride == 1:
             signal_filtered = signal_filtered[1:]
 
         return DNDarray(
