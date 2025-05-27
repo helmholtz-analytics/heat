@@ -184,6 +184,10 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full", stride: int = 1) -> D
         raise ValueError(f"Supported modes are 'full', 'valid', 'same', got {mode}")
 
     gshape = (a.shape[-1] + 2 * pad_size - v.shape[-1]) // stride + 1
+
+    if v.is_distributed() and stride > 1:
+        gshape_stride_1 = a.shape[-1] + 2 * pad_size - v.shape[-1] + 1
+
     if batch_processing:
         # all operations are local torch operations, only the last dimension is convolved
         local_a = a.larray
@@ -237,14 +241,7 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full", stride: int = 1) -> D
     a = pad(a, pad_size, "constant", 0)
 
     # compute halo size
-    # CF: halo computations need to consider stride, solution yet unknown
     halo_size = torch.max(v.lshape_map[:, -1]).item() // 2
-
-    # compute halo such that kernel fits perfectly into first rank
-    # if stride > 1 and not v.is_distributed():
-    #     len_kernel = v.shape[-1]
-    #     len_first_rank_a = a.lshape_map[0][0].item()
-    #     halo_size = (((len_first_rank_a - len_kernel) // stride +1)*stride + len_kernel - len_first_rank_a)
 
     if a.is_distributed():
         if (v.lshape_map[:, 0] > a.lshape_map[:, 0]).any():
@@ -255,27 +252,34 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full", stride: int = 1) -> D
         a.get_halo(halo_size)
         # apply halos to local array
         signal = a.array_with_halos
-        print(f"Local signal before, rank {a.comm.rank} ", signal)
+
         # shift signal based on global kernel starts for any rank but first
         if stride > 1 and not v.is_distributed():
+            print(f"Local signal before, rank {a.comm.rank} ", signal)
             if a.comm.rank == 0:
                 local_index = 0
             else:
-                global_index = torch.arange(0, a.shape[-1], stride)
-                print(global_index)
-                local_index = (
-                    global_index - torch.sum(a.lshape_map[: a.comm.rank, 0]).item() + halo_size
+                local_index = torch.sum(a.lshape_map[: a.comm.rank, 0]).item() - halo_size
+                print(
+                    "Components of local index: ",
+                    a.lshape_map,
+                    torch.sum(a.lshape_map[: a.comm.rank, 0]).item() + 1,
+                    halo_size,
+                    local_index,
                 )
-                local_start_index = torch.where(local_index >= 0)[0][0].item()
+
+                local_index = local_index % stride
+
+                if local_index != 0:
+                    local_index = stride - local_index
 
                 # even kernels can produces doubles
-                if v.shape[-1] % 2 == 0 and local_index[local_start_index] == 0:
-                    local_start_index += 1
+                if v.shape[-1] % 2 == 0 and local_index == 0:
+                    local_index = stride
 
-                local_index = local_index[local_start_index]
             signal = signal[local_index:]
 
-            print(halo_size, (a.comm.rank, local_index))
+            print("Final components: ", halo_size, (a.comm.rank, local_index))
             print(f"Local signal, rank {a.comm.rank} ", signal)
 
     else:
@@ -308,11 +312,15 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full", stride: int = 1) -> D
     if v.is_distributed():
         size = v.comm.size
 
+        # any stride is a subset of stride 1
+        if stride > 1:
+            gshape = gshape_stride_1
+
         for r in range(size):
             rec_v = t_v.clone()
             v.comm.Bcast(rec_v, root=r)
             t_v1 = rec_v.reshape(1, 1, rec_v.shape[0])
-            local_signal_filtered = fc.conv1d(signal, t_v1, stride=stride)
+            local_signal_filtered = fc.conv1d(signal, t_v1, stride=1)
             # unpack 3D result into 1D
             local_signal_filtered = local_signal_filtered[0, 0, :]
 
@@ -340,6 +348,11 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full", stride: int = 1) -> D
                 )
             if r != size - 1:
                 start_idx += v.lshape_map[r + 1][0].item()
+
+        # any stride is a subset of arrays of stride 1
+        if stride > 1:
+            signal_filtered = signal_filtered[::stride]
+
         return signal_filtered
 
     else:
