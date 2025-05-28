@@ -208,7 +208,7 @@ html_theme_options = {"logo_only": True, "style_nav_header_background": "white"}
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
 #
-html_logo = "../images/logo_emblem.png"
+html_logo = "_static/images/logo_emblem.png"
 
 # The name of an image file (relative to this directory) to use as a favicon of
 # the docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32
@@ -411,3 +411,14 @@ texinfo_documents = [
 
 # NBSPHINX
 nbsphinx_execute = "never"
+nbsphinx_thumbnails = {
+    "tutorials/notebooks/0_setup/0_setup_jsc": "_static/images/jsc_logo.png",
+    "tutorials/notebooks/0_setup/0_setup_local": "_static/images/local_laptop.png",
+    "tutorials/notebooks/0_setup/0_setup_haicore": "_static/images/nhr_verein_logo.jpg",
+    "tutorials/notebooks/1_basics": "_static/images/logo_emblem.png",
+    "tutorials/notebooks/2_internals": "_static/images/tutorial_split_dndarray.svg",
+    "tutorials/notebooks/3_loading_preprocessing": "_static/images/jupyter.png",
+    "tutorials/notebooks/4_matrix_factorizations": "_static/images/hSVD_bench_rank5.png",
+    # "tutorials/notebooks/5_clustering": "_static/images/tutorial_split_dndarray.svg",
+    "tutorials/notebooks/6_profiling": "_static/images/perun_logo.svg",
+}
