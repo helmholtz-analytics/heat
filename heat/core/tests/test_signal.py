@@ -194,6 +194,17 @@ class TestSignal(TestCase):
             with self.assertRaises(ValueError):
                 ht.convolve(batch_signal_wrong_split, kernel)
 
+    def test_only_balanced_kernel(self):
+        signal = ht.arange(0, 16, split=0).astype(ht.float32)
+        dis_kernel = ht.array([1, 1, 1], split=0).astype(ht.float32)
+
+        target_map = dis_kernel.lshape_map
+        target_map[0] = 2
+        target_map[-1] = 0
+        dis_kernel.redistribute_(dis_kernel.lshape_map, target_map)
+        with self.assertRaises(ValueError):
+            ht.convolve(signal, dis_kernel)
+
     def test_convolve_stride_errors(self):
         dis_signal = ht.arange(0, 16, split=0).astype(ht.int)
         kernel_odd = ht.ones(3).astype(ht.int)
