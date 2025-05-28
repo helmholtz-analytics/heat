@@ -372,7 +372,7 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full", stride: int = 1) -> D
             signal_filtered = signal_filtered[1:]
 
         return DNDarray(
-            signal_filtered.contiguous(),
+            signal_filtered,
             (gshape,),
             signal_filtered.dtype,
             a.split,
