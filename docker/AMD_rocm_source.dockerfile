@@ -1,9 +1,9 @@
-####################################################################################################
-# NVIDIA Docker Source File
-# Development Environment
-####################################################################################################
+########################################################################################
+# Development Environment WIP
+# Pulls Pytorch image and installs heat + dependencies
+########################################################################################
 
-ARG PYTORCH_IMG=25.03-py3
+ARG PYTORCH_IMG=24.10-py3
 ARG HEAT_BRANCH=main
 
 FROM nvcr.io/nvidia/pytorch:${PYTORCH_IMG} AS base
