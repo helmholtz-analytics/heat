@@ -21,8 +21,6 @@ documentation root, use os.path.abspath to make it absolute, like shown here.
 
 import os
 import sys
-import sphinx_rtd_theme
-from sphinx.ext.napoleon.docstring import NumpyDocstring, GoogleDocstring
 
 # sys.path.insert(0, os.path.abspath('.'))
 sys.path.insert(0, os.path.abspath("../../heat"))
@@ -46,6 +44,7 @@ extensions = [
     "sphinx.ext.napoleon",
     "sphinx.ext.mathjax",
     "sphinx_copybutton",
+    "nbsphinx",
 ]
 
 # Document Python Code
@@ -133,7 +132,7 @@ else:
 #
 # This is also used if you do content translation via gettext catalogs.
 # Usually you set "language" from the command line for these cases.
-language = None
+language = "en"
 
 # There are two options for replacing |today|: either, you set today to some
 # non-false value, then it is used:
@@ -209,7 +208,7 @@ html_theme_options = {"logo_only": True, "style_nav_header_background": "white"}
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
 #
-html_logo = "../images/logo_emblem.png"
+html_logo = "_static/images/logo_emblem.png"
 
 # The name of an image file (relative to this directory) to use as a favicon of
 # the docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32
@@ -409,3 +408,17 @@ texinfo_documents = [
 # If true, do not generate a @detailmenu in the "Top" node's menu.
 #
 # texinfo_no_detailmenu = False
+
+# NBSPHINX
+nbsphinx_execute = "never"
+nbsphinx_thumbnails = {
+    "tutorials/notebooks/0_setup/0_setup_jsc": "_static/images/jsc_logo.png",
+    "tutorials/notebooks/0_setup/0_setup_local": "_static/images/local_laptop.png",
+    "tutorials/notebooks/0_setup/0_setup_haicore": "_static/images/nhr_verein_logo.jpg",
+    "tutorials/notebooks/1_basics": "_static/images/logo_emblem.png",
+    "tutorials/notebooks/2_internals": "_static/images/tutorial_split_dndarray.svg",
+    "tutorials/notebooks/3_loading_preprocessing": "_static/images/jupyter.png",
+    "tutorials/notebooks/4_matrix_factorizations": "_static/images/hSVD_bench_rank5.png",
+    # "tutorials/notebooks/5_clustering": "_static/images/tutorial_split_dndarray.svg",
+    "tutorials/notebooks/6_profiling": "_static/images/perun_logo.svg",
+}
