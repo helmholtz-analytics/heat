@@ -63,7 +63,7 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
     ):
         self.n_clusters = n_clusters
         self.eigen_solver = eigen_solver
-        self.n_components = n_components
+        self.n_components = n_components if n_components is not None else n_clusters
         self.gamma = gamma
         self.affinity = affinity
         self.laplacian = laplacian
@@ -140,7 +140,7 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
         drop_first: bool = True,
     ) -> Tuple[DNDarray, DNDarray]:
         """
-        Returns Tuple(Eigenvalues, Eigenvectors) of the graph's Laplacian matrix.
+        Returns the embedding (eigenvectors) of the graph's Laplacian matrix.
 
         Parameters
         ----------
@@ -149,7 +149,8 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
         n_components : int, default=8
             Number of components to use for the embedding
         eigen_solver : str
-            Eigenvalue decomposition strategy to use. Default is 'zolotarev' #TODO expand
+            Eigenvalue decomposition strategy to use. Default is 'zolotarev' (see documentation in :func:`heat.linalg.polar`).
+            TODO: add 'lanczos' as an option, maybe a default torch option for smaller (non-distr) datasets?
         norm_laplacian : bool, default=True
             Whether to use the normalized Laplacian
         drop_first : bool, default=True
@@ -172,7 +173,6 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
             L = self.__set_diag(L, 1, norm_laplacian)  # TODO should it be a method?
             # extract the diagonal
             dd = L.diagonal()
-            #            try:
             # we skip multiplying by -1 as we are not using ARPACK
             # keeping comment below as historical record for now
             ####
@@ -184,19 +184,12 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
             _, diffusion_map = eigh(L)
             # ht.linalg.eigh returns the eigenvalues in descending order
             # select the first n_components, no need to reverse order
-            diffusion_map = diffusion_map[:, :n_components]
-            embedding = diffusion_map.T
+            embedding = diffusion_map.T[:n_components]
             if norm_laplacian:
                 # REVERT FROM DIVISION TO MULTIPLICATION
                 # (user requirement, see https://codebase.helmholtz.cloud/helmholtz-analytics/SCIMES/-/blob/master/scimes/old_spectral_embedding.py?ref_type=heads#L62)
                 # TODO: generalize / adapt to current scikit-learn
                 embedding = embedding * dd
-            # except RuntimeError:
-            #     # When submatrices are exactly singular, an LU decomposition
-            #     # in arpack fails. We fallback to lobpcg
-            #     eigen_solver = "lobpcg"
-            #     # Revert the laplacian to its opposite to have lobpcg work
-            #     L *= -1
 
         #  Lanczos Algorithm
         elif eigen_solver == "lanczos":
@@ -213,16 +206,28 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
             eval, evec = torch.linalg.eig(T.larray)
 
             # If x is an Eigenvector of T, then y = V@x is the corresponding Eigenvector of L
+            # sort local eval, and evec accordingly
             eval, idx = torch.sort(eval.real, dim=0)
-            eigenvalues = ht.array(eval)
-            eigenvectors = ht.matmul(V, ht.array(evec))[:, idx]
-            # TODO: spectral_embedding should only return the embedding (eigenvectors)
-            # TODO: move components calculation from fit() to here and only return n_components eigenvalues as embedding
-            return eigenvalues.real, eigenvectors.real
+            evec = evec[:, idx]
+            # Calculate global eigenvectors of L
+            eigenvectors = ht.matmul(V, ht.array(evec))
+            # transpose to have the eigenvectors as rows
+            eigenvectors = eigenvectors.T
+            embedding = eigenvectors[:n_components].real
+            # Set n_clusters to spectral gap, if it is not defined by the user
+            if self.n_clusters is None:
+                diff = eval[1:] - eval[:-1]
+                tmp = torch.argmax(diff).item()
+                self.n_clusters = tmp + 1
         else:
             raise NotImplementedError(
-                "Other Eigenvalue Decomposition methods are not yet supported"
+                f"Eigenvalue decomposition method {eigen_solver} is not supported. Supported methods are 'zolotarev' and 'lanczos'."
             )
+        # 5. Drop first component if requested
+        if drop_first:
+            embedding = embedding[1:]
+        # 6. Return the embedding transposed back to original shape
+        return embedding.T
 
     def fit(self, x: DNDarray):
         """
@@ -245,15 +250,9 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
         if x.split is not None and x.split != 0:
             raise NotImplementedError("Not implemented for other splitting-axes")
         # 2. Embed Dataset into lower-dimensional Eigenvector space
-        eigenvalues, eigenvectors = self.spectral_embedding(x, self.eigen_solver)
-
-        # 3. Find the spectral gap, if number of clusters is not defined from the outside
-        if self.n_clusters is None:
-            diff = eigenvalues[1:] - eigenvalues[:-1]
-            tmp = ht.argmax(diff).item()
-            self.n_clusters = tmp + 1
-
-        components = eigenvectors[:, : self.n_clusters].copy()
+        components = self.spectral_embedding(
+            x, n_components=self.n_components, eigen_solver=self.eigen_solver
+        )
 
         params = self._cluster.get_params()
         params["n_clusters"] = self.n_clusters
