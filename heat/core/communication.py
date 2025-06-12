@@ -7,23 +7,16 @@ from __future__ import annotations
 import numpy as np
 import os
 import subprocess
+import math
+import ctypes
 import torch
+import warnings
 from mpi4py import MPI
 
 from typing import Any, Callable, Optional, List, Tuple, Union
 from .stride_tricks import sanitize_axis
 
-CUDA_AWARE_MPI = False
-# check whether OpenMPI support CUDA-aware MPI
-if "openmpi" in os.environ.get("MPI_SUFFIX", "").lower():
-    buffer = subprocess.check_output(["ompi_info", "--parsable", "--all"])
-    CUDA_AWARE_MPI = b"mpi_built_with_cuda_support:value:true" in buffer
-# MVAPICH
-CUDA_AWARE_MPI = CUDA_AWARE_MPI or os.environ.get("MV2_USE_CUDA") == "1"
-# MPICH
-CUDA_AWARE_MPI = CUDA_AWARE_MPI or os.environ.get("MPIR_CVAR_ENABLE_HCOLL") == "1"
-# ParaStationMPI
-CUDA_AWARE_MPI = CUDA_AWARE_MPI or os.environ.get("PSP_CUDA") == "1"
+from ._config import CUDA_AWARE_MPI
 
 
 class MPIRequest:
