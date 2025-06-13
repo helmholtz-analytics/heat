@@ -388,7 +388,7 @@ class DMDc(ht.RegressionMixin, ht.BaseEstimator):
         The reduced order model eigenmodes ("DMD modes")
 
     Notes
-    ----------
+    -----
     We follow the approach described in [1], Sects. 3.3 and 3.4.
     In the case that svd_rank is prescribed, the rank of the SVD of the full system matrix is set to svd_rank + n_control_features; cf. https://github.com/dynamicslab/pykoopman
     for the same approach.

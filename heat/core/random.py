@@ -359,8 +359,8 @@ def permutation(x: Union[int, DNDarray], **kwargs) -> DNDarray:
         If ``x`` is an integer, call :func:`heat.random.randperm <heat.core.random.randperm>`. If ``x`` is an array,
         make a copy and shuffle the elements randomly.
 
-    device : str, optional
-        If ``x`` is an integer, define the device where the random permutation is generated. Can be 'cpu', 'gpu', 'mps' or None. Default is None (= cpu).
+    kwargs : dict, optional
+        Additional keyword arguments passed to :func:`heat.random.randperm <heat.core.random.randperm>` if ``x`` is an integer.
 
     See Also
     --------
