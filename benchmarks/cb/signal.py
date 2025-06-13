@@ -2,42 +2,42 @@ import heat as ht
 from perun import monitor
 
 
-@monitor
+@monitor()
 def convolution_array_distributed(signal, kernel):
     ht.convolve(signal, kernel, mode="full")
 
 
-@monitor
+@monitor()
 def convolution_kernel_distributed(signal, kernel):
     ht.convolve(signal, kernel, mode="full")
 
 
-@monitor
+@monitor()
 def convolution_distributed(signal, kernel):
     ht.convolve(signal, kernel, mode="full")
 
 
-@monitor
+@monitor()
 def convolution_batch_processing(signal, kernel):
     ht.convolve(signal, kernel, mode="full")
 
 
-@monitor
+@monitor()
 def convolution_array_distributed_stride(signal, kernel, stride):
     ht.convolve(signal, kernel, mode="full", stride=stride)
 
 
-@monitor
+@monitor()
 def convolution_kernel_distributed_stride(signal, kernel, stride):
     ht.convolve(signal, kernel, mode="full", stride=stride)
 
 
-@monitor
+@monitor()
 def convolution_distributed_stride(signal, kernel, stride):
     ht.convolve(signal, kernel, mode="full", stride=stride)
 
 
-@monitor
+@monitor()
 def convolution_batch_processing_stride(signal, kernel, stride):
     ht.convolve(signal, kernel, mode="full", stride=stride)
 
