@@ -91,7 +91,7 @@ def condest(
         If `algorithm="randomized"` the number of random samples to use can be specified under the key "nsamples"; default is 10.
 
     Notes
-    ----------
+    -----
     The "randomized" algorithm follows the approach described in [1]; note that in the paper actually the condition number w.r.t. the Frobenius norm is estimated.
     However, this yields an upper bound for the condition number w.r.t. the l2-norm as well.
 

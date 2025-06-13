@@ -34,7 +34,7 @@ class Device:
     device(cpu:0)
     >>> ht.Device("gpu", 0, "cuda:0")
     device(gpu:0)
-    >>> ht.Device("gpu", 0, "mps:0") # on Apple M1/M2
+    >>> ht.Device("gpu", 0, "mps:0")  # on Apple M1/M2
     device(gpu:0)
     """
 

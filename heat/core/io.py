@@ -1510,7 +1510,7 @@ else:
             - If it already exists and no overwrite is specified.
 
         Notes
-        ------
+        -----
         Zarr functions by chunking the data, were a chunk is a file inside the store.
         The problem ist that only one process writes to it at a time. Therefore when two
         processes try to write to the same chunk one will fail, unless the other finishes before
