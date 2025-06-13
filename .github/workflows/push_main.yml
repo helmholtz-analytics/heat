@@ -1,0 +1,15 @@
+name: On push to main
+on:
+  push:
+    branches:
+      - main
+jobs:
+  trigger-benchmarks:
+    name: Trigger Benchmarks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: ./.github/actions/trigger_codebase_benchmarks.yml
+        with:
+          branch: "main"
+          sha: ${{ github.sha}}
+          author: ${{ 'heat_team'}}
