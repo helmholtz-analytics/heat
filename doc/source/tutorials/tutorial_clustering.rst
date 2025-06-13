@@ -50,7 +50,7 @@ all processes) and transform it into a numpy array. Plotting can only be done on
 
 This will render something like
 
-.. image:: ../images/data.png
+.. image:: ../_static/images/data.png
 
 Now we perform the clustering analysis with kmeans. We chose 'kmeans++' as an intelligent way of sampling the
 initial centroids.
@@ -93,7 +93,7 @@ Let's plot the assigned clusters and the respective centroids:
         plt.plot(centroids[1,0],centroids[1,1], '^', markersize=10, markeredgecolor='black',color='#5a696e')
         plt.show()
 
-.. image:: ../images/clustering.png
+.. image:: ../_static/images/clustering.png
 
 We can also cluster the data with kmedians. The respective advanced initial centroid sampling is called 'kmedians++'.
 
@@ -127,7 +127,7 @@ Plotting the assigned clusters and the respective centroids:
         plt.plot(centroids[1,0],centroids[1,1], '^', markersize=10, markeredgecolor='black',color='#5a696e')
         plt.show()
 
-.. image:: ../images/clustering_kmeans.png
+.. image:: ../_static/images/clustering_kmeans.png
 
 The Iris Dataset
 ------------------------------
@@ -139,6 +139,8 @@ dataloader
 .. code:: python
 
     iris = ht.load("heat/datasets/iris.csv", sep=";", split=0)
+
+
 Fitting the dataset with kmeans:
 
 .. code:: python

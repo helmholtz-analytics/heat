@@ -9,6 +9,7 @@ Example notebooks explaining how to setup an MPI enabled notebook to work with h
 .. nbgallery::
     notebooks/0_setup/0_setup_local
     notebooks/0_setup/0_setup_jsc
+    notebooks/0_setup/0_setup_haicore
 
 Example notebooks
 ~~~~~~~~~~~~~~~~~
