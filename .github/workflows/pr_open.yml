@@ -1,10 +1,9 @@
-name: Release Drafter
-
+name: On PR Open
 on:
   pull_request:
     types: [opened, reopened]
 jobs:
-  update_release_draft:
+  update_release_drafter:
     permissions:
       contents: write  # for release-drafter/release-drafter to create a github release
       pull-requests: write  # for release-drafter/release-drafter to add label to PR
