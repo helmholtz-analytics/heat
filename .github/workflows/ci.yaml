@@ -15,9 +15,9 @@ jobs:
           - 3.12
           # - '3.10'
           # - 3.11
-        mpi: 
+        mpi:
           - 'mpich'
-          - 'openmpi' 
+          - 'openmpi'
           - 'intelmpi'
         install-options:
           - '.'
