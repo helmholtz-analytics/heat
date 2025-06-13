@@ -59,7 +59,7 @@ def qr(
     and extended to non tall-skinny matrices by applying a block-wise version of stabilized Gram-Schmidt orthogonalization.
 
     References
-    -----------
+    ----------
     Basic information about QR factorization/decomposition can be found at, e.g.:
 
         - https://en.wikipedia.org/wiki/QR_factorization,

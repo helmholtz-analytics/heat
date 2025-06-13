@@ -32,7 +32,7 @@ class KMedians(_KCluster):
         Determines random number generation for centroid initialization.
 
     References
-    -------------
+    ----------
     [1] Hakimi, S., and O. Kariv. "An algorithmic approach to network location problems II: The p-medians." SIAM Journal on Applied Mathematics 37.3 (1979): 539-560.
     """
 
