@@ -255,19 +255,10 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full", stride: int = 1) -> D
 
         # shift signal based on global kernel starts for any rank but first
         if stride > 1 and not v.is_distributed():
-            print(f"Local signal before, rank {a.comm.rank} ", signal)
             if a.comm.rank == 0:
                 local_index = 0
             else:
                 local_index = torch.sum(a.lshape_map[: a.comm.rank, 0]).item() - halo_size
-                print(
-                    "Components of local index: ",
-                    a.lshape_map,
-                    torch.sum(a.lshape_map[: a.comm.rank, 0]).item() + 1,
-                    halo_size,
-                    local_index,
-                )
-
                 local_index = local_index % stride
 
                 if local_index != 0:
@@ -278,10 +269,6 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full", stride: int = 1) -> D
                     local_index = stride
 
             signal = signal[local_index:]
-
-            print("Final components: ", halo_size, (a.comm.rank, local_index))
-            print(f"Local signal, rank {a.comm.rank} ", signal)
-
     else:
         signal = a.larray
 
@@ -364,8 +351,6 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full", stride: int = 1) -> D
             signal_filtered = signal_filtered[0, 0, :]
         else:
             signal_filtered = torch.tensor([])
-
-        print(f"Local convolution, rank {a.comm.rank} ", signal_filtered)
 
         # if kernel shape along split axis is even we need to get rid of duplicated values
         if a.comm.rank != 0 and v.shape[0] % 2 == 0 and stride == 1:
