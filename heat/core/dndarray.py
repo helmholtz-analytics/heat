@@ -208,13 +208,16 @@ class DNDarray:
         """
         Number of total elements of the ``DNDarray``
         """
-        return (
-            torch.prod(
+        if self.larray.is_mps:
+            # MPS does not support double precision
+            size = torch.prod(
+                torch.tensor(self.gshape, dtype=torch.float32, device=self.device.torch_device)
+            )
+        else:
+            size = torch.prod(
                 torch.tensor(self.gshape, dtype=torch.float64, device=self.device.torch_device)
             )
-            .long()
-            .item()
-        )
+        return size.long().item()
 
     @property
     def gnbytes(self) -> int:
@@ -382,9 +385,9 @@ class DNDarray:
         except IndexError:
             print("Indices out of bound")
 
-        return self.__array[ix].clone().contiguous()
+        return self.__array[ix].clone()
 
-    def get_halo(self, halo_size: int) -> torch.Tensor:
+    def get_halo(self, halo_size: int, prev: bool = True, next: bool = True) -> torch.Tensor:
         """
         Fetch halos of size ``halo_size`` from neighboring ranks and save them in ``self.halo_next/self.halo_prev``.
 
@@ -392,6 +395,10 @@ class DNDarray:
         ----------
         halo_size : int
             Size of the halo.
+        prev : bool, optional
+            If True, fetch the halo from the previous rank. Default: True.
+        next : bool, optional
+            If True, fetch the halo from the next rank. Default: True.
         """
         if not isinstance(halo_size, int):
             raise TypeError(
@@ -433,25 +440,29 @@ class DNDarray:
             req_list = []
 
             # exchange data with next populated process
-            if rank != last_rank:
-                self.comm.Isend(a_next, next_rank)
-                res_prev = torch.zeros(
-                    a_prev.size(), dtype=a_prev.dtype, device=self.device.torch_device
-                )
-                req_list.append(self.comm.Irecv(res_prev, source=next_rank))
+            if prev:
+                if rank != last_rank:
+                    self.comm.Isend(a_next, next_rank)
+                if rank != first_rank:
+                    res_prev = torch.zeros(
+                        a_prev.size(), dtype=a_prev.dtype, device=self.device.torch_device
+                    )
+                    req_list.append(self.comm.Irecv(res_prev, source=prev_rank))
 
-            if rank != first_rank:
-                self.comm.Isend(a_prev, prev_rank)
-                res_next = torch.zeros(
-                    a_next.size(), dtype=a_next.dtype, device=self.device.torch_device
-                )
-                req_list.append(self.comm.Irecv(res_next, source=prev_rank))
+            if next:
+                if rank != first_rank:
+                    req_list.append(self.comm.Isend(a_prev, prev_rank))
+                if rank != last_rank:
+                    res_next = torch.zeros(
+                        a_next.size(), dtype=a_next.dtype, device=self.device.torch_device
+                    )
+                    req_list.append(self.comm.Irecv(res_next, source=next_rank))
 
             for req in req_list:
                 req.Wait()
 
-            self.__halo_next = res_prev
-            self.__halo_prev = res_next
+            self.__halo_next = res_next
+            self.__halo_prev = res_prev
             self.__ishalo = True
 
     def __cat_halo(self) -> torch.Tensor:
@@ -487,6 +498,21 @@ class DNDarray:
 
         """
         dtype = canonical_heat_type(dtype)
+        if self.__array.is_mps:
+            if dtype == types.float64:
+                # print warning
+                warnings.warn(
+                    "MPS does not support float64. Casting to float32 instead.",
+                    ResourceWarning,
+                )
+                dtype = types.float32
+            elif dtype == types.complex128:
+                # print warning
+                warnings.warn(
+                    "MPS does not support complex128. Casting to complex64 instead.",
+                    ResourceWarning,
+                )
+                dtype = types.complex64
         casted_array = self.__array.type(dtype.torch_type())
         if copy:
             return DNDarray(
@@ -1181,11 +1207,20 @@ class DNDarray:
         dist = self.copy().resplit_(axis=None)
         return dist.larray.cpu().numpy()
 
+    def _repr_pretty_(self, p, cycle):
+        """
+        Pretty print for IPython.
+        """
+        if cycle:
+            p.text(printing.__str__(self))
+        else:
+            p.text(printing.__str__(self))
+
     def __repr__(self) -> str:
         """
-        Computes a printable representation of the passed DNDarray.
+        Returns a printable representation of the passed DNDarray, targeting developers.
         """
-        return printing.__str__(self)
+        return printing.__repr__(self)
 
     def ravel(self):
         """
@@ -1891,6 +1926,7 @@ from . import sanitation
 from . import statistics
 from . import stride_tricks
 from . import tiling
+from . import types
 
 from .devices import Device
 from .stride_tricks import sanitize_axis

@@ -1,10 +1,13 @@
+from typing import Iterable
 import numpy as np
 import os
 import torch
 import tempfile
-import random
 import time
+import random
+import shutil
 import fnmatch
+import unittest
 
 import heat as ht
 from .test_suites.basic_test import TestCase
@@ -33,6 +36,11 @@ class TestIO(TestCase):
             .to(cls.device.torch_device)
         )
 
+        cls.ZARR_SHAPE = (100, 100)
+        cls.ZARR_OUT_PATH = pwd + "/zarr_test_out.zarr"
+        cls.ZARR_IN_PATH = pwd + "/zarr_test_in.zarr"
+        cls.ZARR_TEMP_PATH = pwd + "/zarr_temp.zarr"
+
     def tearDown(self):
         # synchronize all nodes
         ht.MPI_WORLD.Barrier()
@@ -51,8 +59,37 @@ class TestIO(TestCase):
                 pass
         # if ht.MPI_WORLD.rank == 0:
 
+        if ht.io.supports_zarr():
+            for file in [self.ZARR_TEMP_PATH, self.ZARR_IN_PATH, self.ZARR_OUT_PATH]:
+                try:
+                    shutil.rmtree(file)
+                except FileNotFoundError:
+                    pass
+
         # synchronize all nodes
         ht.MPI_WORLD.Barrier()
+
+    def test_size_from_slice(self):
+        test_cases = [
+            (1000, slice(500)),
+            (10, slice(0, 10, 2)),
+            (100, slice(0, 100, 10)),
+            (1000, slice(0, 1000, 100)),
+            (0, slice(0)),
+        ]
+        for size, slice_obj in test_cases:
+            with self.subTest(size=size, slice=slice_obj):
+                expected_sequence = list(range(size))[slice_obj]
+                if len(expected_sequence) == 0:
+                    expected_offset = 0
+                else:
+                    expected_offset = expected_sequence[0]
+
+                expected_new_size = len(expected_sequence)
+
+                new_size, offset = ht.io.size_from_slice(size, slice_obj)
+                self.assertEqual(expected_new_size, new_size)
+                self.assertEqual(expected_offset, offset)
 
     # catch-all loading
     def test_load(self):
@@ -147,23 +184,38 @@ class TestIO(TestCase):
         with self.assertRaises(TypeError):
             ht.load_csv(self.CSV_PATH, header_lines="3", sep=";", split=0)
 
+    @unittest.skipIf(
+        len(TestCase.get_hostnames()) > 1 and not os.environ.get("TMPDIR"),
+        "Requires the environment variable 'TMPDIR' to point to a globally accessible path. Otherwise the test will be skiped on multi-node setups.",
+    )
     def test_save_csv(self):
-        for rnd_type in [
-            (ht.random.randint, ht.types.int32),
-            (ht.random.randint, ht.types.int64),
-            (ht.random.rand, ht.types.float32),
-            (ht.random.rand, ht.types.float64),
-        ]:
+        # Test for different random types
+        # include float64 only if device is not MPS
+        data = None
+        if self.is_mps:
+            rnd_types = [
+                (ht.random.randint, ht.types.int32),
+                (ht.random.randint, ht.types.int64),
+                (ht.random.rand, ht.types.float32),
+            ]
+        else:
+            rnd_types = [
+                (ht.random.randint, ht.types.int32),
+                (ht.random.randint, ht.types.int64),
+                (ht.random.rand, ht.types.float32),
+                (ht.random.rand, ht.types.float64),
+            ]
+        for rnd_type in rnd_types:
             for separator in [",", ";", "|"]:
                 for split in [None, 0, 1]:
                     for headers in [None, ["# This", "# is a", "# test."]]:
                         for shape in [(1, 1), (10, 10), (20, 1), (1, 20), (25, 4), (4, 25)]:
                             if rnd_type[0] == ht.random.randint:
-                                data = rnd_type[0](
+                                data: ht.DNDarray = rnd_type[0](
                                     -1000, 1000, size=shape, dtype=rnd_type[1], split=split
                                 )
                             else:
-                                data = rnd_type[0](
+                                data: ht.DNDarray = rnd_type[0](
                                     shape[0],
                                     shape[1],
                                     split=split,
@@ -535,10 +587,6 @@ class TestIO(TestCase):
         self.assertEqual(iris.larray.dtype, torch.float32)
         self.assertTrue((self.IRIS == iris.larray).all())
 
-        # cropped load
-        iris_cropped = ht.load_hdf5(self.HDF5_PATH, self.HDF5_DATASET, split=0, load_fraction=0.5)
-        self.assertEqual(iris_cropped.shape[0], iris.shape[0] // 2)
-
         # positive split axis
         iris = ht.load_hdf5(self.HDF5_PATH, self.HDF5_DATASET, split=0)
         self.assertIsInstance(iris, ht.DNDarray)
@@ -576,10 +624,6 @@ class TestIO(TestCase):
             ht.load_hdf5("iris.h5", 1)
         with self.assertRaises(TypeError):
             ht.load_hdf5("iris.h5", dataset="data", split=1.0)
-        with self.assertRaises(TypeError):
-            ht.load_hdf5(self.HDF5_PATH, self.HDF5_DATASET, load_fraction="a")
-        with self.assertRaises(ValueError):
-            ht.load_hdf5(self.HDF5_PATH, self.HDF5_DATASET, load_fraction=0.0, split=0)
 
         # file or dataset does not exist
         with self.assertRaises(IOError):
@@ -747,13 +791,12 @@ class TestIO(TestCase):
         # testing for int arrays
         if ht.MPI_WORLD.rank == 0:
             crea_array = []
-            for i in range(0, 20):
+            for i in range(0, ht.MPI_WORLD.size * 5):
                 x = np.random.randint(1000, size=(random.randint(0, 30), 6, 11))
                 np.save(os.path.join(os.getcwd(), "heat/datasets", "int_data") + str(i), x)
                 crea_array.append(x)
             int_array = np.concatenate(crea_array)
         ht.MPI_WORLD.Barrier()
-
         load_array = ht.load_npy_from_path(
             os.path.join(os.getcwd(), "heat/datasets"), dtype=ht.int32, split=0
         )
@@ -771,24 +814,26 @@ class TestIO(TestCase):
         # testing for float arrays and split dimension other than 0
         if ht.MPI_WORLD.rank == 0:
             crea_array = []
-            for i in range(0, 20):
+            for i in range(0, ht.MPI_WORLD.size * 5 + 1):
                 x = np.random.rand(2, random.randint(1, 10), 11)
                 np.save(os.path.join(os.getcwd(), "heat/datasets", "float_data") + str(i), x)
                 crea_array.append(x)
             float_array = np.concatenate(crea_array, 1)
         ht.MPI_WORLD.Barrier()
 
-        load_array = ht.load_npy_from_path(
-            os.path.join(os.getcwd(), "heat/datasets"), dtype=ht.float64, split=1
-        )
-        load_array_npy = load_array.numpy()
-        self.assertIsInstance(load_array, ht.DNDarray)
-        self.assertEqual(load_array.dtype, ht.float64)
-        if ht.MPI_WORLD.rank == 0:
-            self.assertTrue((load_array_npy == float_array).all)
-            for file in os.listdir(os.path.join(os.getcwd(), "heat/datasets")):
-                if fnmatch.fnmatch(file, "*.npy"):
-                    os.remove(os.path.join(os.getcwd(), "heat/datasets", file))
+        if not self.is_mps:
+            # float64 not supported in MPS
+            load_array = ht.load_npy_from_path(
+                os.path.join(os.getcwd(), "heat/datasets"), dtype=ht.float64, split=1
+            )
+            load_array_npy = load_array.numpy()
+            self.assertIsInstance(load_array, ht.DNDarray)
+            self.assertEqual(load_array.dtype, ht.float64)
+            if ht.MPI_WORLD.rank == 0:
+                self.assertTrue((load_array_npy == float_array).all)
+                for file in os.listdir(os.path.join(os.getcwd(), "heat/datasets")):
+                    if fnmatch.fnmatch(file, "*.npy"):
+                        os.remove(os.path.join(os.getcwd(), "heat/datasets", file))
 
     def test_load_npy_exception(self):
         with self.assertRaises(TypeError):
@@ -807,3 +852,315 @@ class TestIO(TestCase):
             ht.MPI_WORLD.Barrier()
             if ht.MPI_WORLD.rank == 0:
                 os.remove(os.path.join(os.getcwd(), "heat/datasets", "float_data.npy"))
+
+    def test_load_multiple_csv(self):
+        if not ht.io.supports_pandas():
+            self.skipTest("Requires pandas")
+
+        import pandas as pd
+
+        csv_path = os.path.join(os.getcwd(), "heat/datasets/csv_tests")
+        if ht.MPI_WORLD.rank == 0:
+            nplist = []
+            npdroplist = []
+            os.mkdir(csv_path)
+            for i in range(0, ht.MPI_WORLD.size * 5 + 1):
+                a = np.random.randint(100, size=(5))
+                b = np.random.randint(100, size=(5))
+                c = np.random.randint(100, size=(5))
+
+                data = {"A": a, "B": b, "C": c}
+                data2 = {"B": b, "C": c}
+                df = pd.DataFrame(data)  # noqa F821
+                df2 = pd.DataFrame(data2)  # noqa F821
+                nplist.append(df.to_numpy())
+                npdroplist.append(df2.to_numpy())
+                df.to_csv((os.path.join(csv_path, f"csv_test_{i}.csv")), index=False)
+
+            nparray = np.concatenate(nplist)
+            npdroparray = np.concatenate(npdroplist)
+        ht.MPI_WORLD.Barrier()
+
+        def delete_first_col(dataf):
+            dataf.drop(dataf.columns[0], axis=1, inplace=True)
+            return dataf
+
+        load_array = ht.load_csv_from_folder(csv_path, dtype=ht.int32, split=0)
+        load_func_array = ht.load_csv_from_folder(
+            csv_path, dtype=ht.int32, split=0, func=delete_first_col
+        )
+        load_array_float = ht.load_csv_from_folder(csv_path, dtype=ht.float32, split=0)
+
+        load_array_npy = load_array.numpy()
+        load_func_array_npy = load_func_array.numpy()
+
+        self.assertIsInstance(load_array, ht.DNDarray)
+        self.assertEqual(load_array.dtype, ht.int32)
+        self.assertEqual(load_array_float.dtype, ht.float32)
+
+        if ht.MPI_WORLD.rank == 0:
+            self.assertTrue((load_array_npy == nparray).all)
+            self.assertTrue((load_func_array_npy == npdroparray).all)
+            shutil.rmtree(csv_path)
+
+    def test_load_multiple_csv_exception(self):
+        if not ht.io.supports_pandas():
+            self.skipTest("Requires pandas")
+
+        import pandas as pd
+
+        with self.assertRaises(TypeError):
+            ht.load_csv_from_folder(path=1, split=0)
+        with self.assertRaises(TypeError):
+            ht.load_csv_from_folder("heat/datasets", split="ABC")
+        with self.assertRaises(TypeError):
+            ht.load_csv_from_folder(path="heat/datasets", func=1)
+        with self.assertRaises(ValueError):
+            ht.load_csv_from_folder(path="heat", dtype=ht.int64, split=0)
+        if ht.MPI_WORLD.size > 1:
+            if ht.MPI_WORLD.rank == 0:
+                os.mkdir(os.path.join(os.getcwd(), "heat/datasets/csv_tests"))
+                df = pd.DataFrame({"A": [0, 0, 0]})  # noqa F821
+                df.to_csv(
+                    (os.path.join(os.getcwd(), "heat/datasets/csv_tests", "fail.csv")),
+                    index=False,
+                )
+            ht.MPI_WORLD.Barrier()
+
+            with self.assertRaises(RuntimeError):
+                ht.load_csv_from_folder("heat/datasets/csv_tests", dtype=ht.int64, split=0)
+            ht.MPI_WORLD.Barrier()
+            if ht.MPI_WORLD.rank == 0:
+                shutil.rmtree(os.path.join(os.getcwd(), "heat/datasets/csv_tests"))
+
+    def test_load_zarr(self):
+        if not ht.io.supports_zarr():
+            self.skipTest("Requires zarr")
+
+        import zarr
+
+        test_data = np.arange(self.ZARR_SHAPE[0] * self.ZARR_SHAPE[1]).reshape(self.ZARR_SHAPE)
+
+        if ht.MPI_WORLD.rank == 0:
+            try:
+                arr = zarr.create_array(
+                    self.ZARR_TEMP_PATH, shape=self.ZARR_SHAPE, dtype=np.float64
+                )
+            except AttributeError:
+                arr = zarr.create(
+                    store=self.ZARR_TEMP_PATH, shape=self.ZARR_SHAPE, dtype=np.float64
+                )
+            arr[:] = test_data
+
+        ht.MPI_WORLD.handle.Barrier()
+
+        dndarray = ht.load_zarr(self.ZARR_TEMP_PATH)
+        dndnumpy = dndarray.numpy()
+
+        if ht.MPI_WORLD.rank == 0:
+            self.assertTrue((dndnumpy == test_data).all())
+
+        ht.MPI_WORLD.Barrier()
+
+    def test_load_zarr_slice(self):
+        if not ht.io.supports_zarr():
+            self.skipTest("Requires zarr")
+
+        import zarr
+
+        test_data = np.arange(25).reshape(5, 5)
+
+        if ht.MPI_WORLD.rank == 0:
+            try:
+                arr = zarr.create_array(
+                    self.ZARR_TEMP_PATH, shape=test_data.shape, dtype=test_data.dtype
+                )
+            except AttributeError:
+                arr = zarr.create(
+                    store=self.ZARR_TEMP_PATH, shape=test_data.shape, dtype=test_data.dtype
+                )
+            arr[:] = test_data
+
+        ht.MPI_WORLD.Barrier()
+
+        slices_to_test = [
+            None,
+            slice(None),
+            slice(1, -1),
+            [None],
+            [None, slice(None)],
+            [None, slice(1, -1)],
+            [slice(1, -1)],
+            [slice(1, -1), None],
+        ]
+
+        for slices in slices_to_test:
+            with self.subTest(silces=slices):
+                dndarray = ht.load_zarr(self.ZARR_TEMP_PATH, slices=slices)
+                dndnumpy = dndarray.numpy()
+
+                if not isinstance(slices, Iterable):
+                    slices = [slices]
+
+                slices = tuple(
+                    slice(elem) if not isinstance(elem, slice) else elem for elem in slices
+                )
+
+                if ht.MPI_WORLD.rank == 0:
+                    self.assertTrue((dndnumpy == test_data[slices]).all())
+
+                ht.MPI_WORLD.Barrier()
+
+    def test_save_zarr_2d_split0(self):
+        if not ht.io.supports_zarr():
+            self.skipTest("Requires zarr")
+
+        import zarr
+
+        for type in [ht.types.int32, ht.types.int64, ht.types.float32, ht.types.float64]:
+            for dims in [(i, self.ZARR_SHAPE[1]) for i in range(1, max(10, ht.MPI_WORLD.size + 1))]:
+                with self.subTest(type=type, dims=dims):
+                    n = dims[0] * dims[1]
+                    dndarray = ht.arange(0, n, dtype=type, split=0).reshape(dims)
+                    ht.save_zarr(dndarray, self.ZARR_OUT_PATH, overwrite=True)
+                    dndnumpy = dndarray.numpy()
+                    zarr_array = zarr.open_array(self.ZARR_OUT_PATH)
+
+                    if ht.MPI_WORLD.rank == 0:
+                        self.assertTrue((dndnumpy == zarr_array).all())
+
+                    ht.MPI_WORLD.handle.Barrier()
+
+    def test_save_zarr_2d_split1(self):
+        if not ht.io.supports_zarr():
+            self.skipTest("Requires zarr")
+
+        import zarr
+
+        for type in [ht.types.int32, ht.types.int64, ht.types.float32, ht.types.float64]:
+            for dims in [(self.ZARR_SHAPE[0], i) for i in range(1, max(10, ht.MPI_WORLD.size + 1))]:
+                with self.subTest(type=type, dims=dims):
+                    n = dims[0] * dims[1]
+                    dndarray = ht.arange(0, n, dtype=type).reshape(dims).resplit(axis=1)
+                    ht.save_zarr(dndarray, self.ZARR_OUT_PATH, overwrite=True)
+                    dndnumpy = dndarray.numpy()
+                    zarr_array = zarr.open_array(self.ZARR_OUT_PATH)
+
+                    if ht.MPI_WORLD.rank == 0:
+                        self.assertTrue((dndnumpy == zarr_array).all())
+
+                    ht.MPI_WORLD.handle.Barrier()
+
+    def test_save_zarr_split_none(self):
+        if not ht.io.supports_zarr():
+            self.skipTest("Requires zarr")
+
+        import zarr
+
+        for type in [ht.types.int32, ht.types.int64, ht.types.float32, ht.types.float64]:
+            for n in [10, 100, 1000]:
+                with self.subTest(type=type, n=n):
+                    dndarray = ht.arange(n, dtype=type, split=None)
+                    ht.save_zarr(dndarray, self.ZARR_OUT_PATH, overwrite=True)
+                    arr = zarr.open_array(self.ZARR_OUT_PATH)
+                    dndnumpy = dndarray.numpy()
+                    if ht.MPI_WORLD.rank == 0:
+                        self.assertTrue((dndnumpy == arr).all())
+
+                    ht.MPI_WORLD.handle.Barrier()
+
+    def test_save_zarr_1d_split_0(self):
+        if not ht.io.supports_zarr():
+            self.skipTest("Requires zarr")
+
+        import zarr
+
+        for type in [ht.types.int32, ht.types.int64, ht.types.float32, ht.types.float64]:
+            for n in [10, 100, 1000]:
+                with self.subTest(type=type, n=n):
+                    dndarray = ht.arange(n, dtype=type, split=0)
+                    ht.save_zarr(dndarray, self.ZARR_OUT_PATH, overwrite=True)
+                    arr = zarr.open_array(self.ZARR_OUT_PATH)
+                    dndnumpy = dndarray.numpy()
+                    if ht.MPI_WORLD.rank == 0:
+                        self.assertTrue((dndnumpy == arr).all())
+
+                    ht.MPI_WORLD.handle.Barrier()
+
+    def test_load_zarr_arguments(self):
+        if not ht.io.supports_zarr():
+            self.skipTest("Requires zarr")
+
+        with self.assertRaises(TypeError):
+            ht.load_zarr(None)
+        with self.assertRaises(ValueError):
+            ht.load_zarr("data.npy")
+        with self.assertRaises(TypeError):
+            ht.load_zarr("", "")
+        with self.assertRaises(TypeError):
+            ht.load_zarr("", device=1)
+        with self.assertRaises(TypeError):
+            ht.load_zarr("", slices=0)
+        with self.assertRaises(TypeError):
+            ht.load_zarr("", slices=[0])
+
+    def test_save_zarr_arguments(self):
+        if not ht.io.supports_zarr():
+            self.skipTest("Requires zarr")
+
+        import zarr
+
+        with self.assertRaises(TypeError):
+            ht.save_zarr(None, None)
+        with self.assertRaises(ValueError):
+            ht.save_zarr(None, "data.npy")
+
+        comm = ht.MPI_WORLD
+        if comm.rank == 0:
+            zarr.create(
+                store=self.ZARR_TEMP_PATH,
+                shape=(4, 4),
+                dtype=ht.types.int.char(),
+                overwrite=True,
+            )
+        comm.Barrier()
+
+        with self.assertRaises(RuntimeError):
+            ht.save_zarr(ht.arange(16).reshape((4, 4)), self.ZARR_TEMP_PATH)
+
+    @unittest.skipIf(not ht.io.supports_hdf5(), reason="Requires HDF5")
+    def test_load_partial_hdf5(self):
+        test_axis = [None, 0, 1]
+        test_slices = [
+            (slice(0, 50, None), slice(None, None, None)),
+            (slice(0, 50, None), slice(0, 2, None)),
+            (slice(50, 100, None), slice(None, None, None)),
+            (slice(None, None, None), slice(2, 4, None)),
+            (slice(50), None),
+            (None, slice(0, 3, 2)),
+            (slice(50),),
+            (slice(50, 100),),
+        ]
+        test_cases = [(a, s) for a in test_axis for s in test_slices]
+
+        for axis, slices in test_cases:
+            with self.subTest(axis=axis, slices=slices):
+                HDF5_PATH = os.path.join(os.getcwd(), "heat/datasets/iris.h5")
+                HDF5_DATASET = "data"
+                expect_error = False
+                for s in slices:
+                    if s and s.step not in [None, 1]:
+                        expect_error = True
+                        break
+
+                if expect_error:
+                    with self.assertRaises(ValueError):
+                        sliced_iris = ht.load_hdf5(
+                            HDF5_PATH, HDF5_DATASET, split=axis, slices=slices
+                        )
+                else:
+                    original_iris = ht.load_hdf5(HDF5_PATH, HDF5_DATASET, split=axis)
+                    tmp_slices = tuple(slice(None) if s is None else s for s in slices)
+                    expected_iris = original_iris[tmp_slices]
+                    sliced_iris = ht.load_hdf5(HDF5_PATH, HDF5_DATASET, split=axis, slices=slices)
+                    self.assertTrue(ht.equal(sliced_iris, expected_iris))

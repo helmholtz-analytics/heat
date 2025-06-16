@@ -16,9 +16,12 @@ Heat is a distributed tensor framework for high performance data analytics.
 
    introduction
    getting_started
-   tutorials
+   tutorials/tutorials
    case_studies
    documentation_howto
+
+Also visit us on `GitHub <https://github.com/helmholtz-analytics/heat>`_ for more examples, docs, code and contributions.
+
 
 Indices
 =======

@@ -6,6 +6,9 @@
 - Implementation:
     - [ ] unit tests: all split configurations tested
     - [ ] unit tests: multiple dtypes tested
+    - [ ] **NEW** unit tests: MPS tested (1 MPI process, 1 GPU)
+    - [ ] benchmarks: created for new functionality
+    - [ ] benchmarks: performance improved or maintained
     - [ ] documentation updated where needed
 
 ## Description

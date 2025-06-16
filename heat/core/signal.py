@@ -5,7 +5,7 @@ import numpy as np
 
 from .communication import MPI
 from .dndarray import DNDarray
-from .types import promote_types
+from .types import promote_types, float32, float64
 from .manipulations import pad, flip
 from .factories import array, zeros
 import torch.nn.functional as fc
@@ -233,6 +233,10 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
         except TypeError:
             raise TypeError(f"non-supported type for filter: {type(v)}")
     promoted_type = promote_types(a.dtype, v.dtype)
+    if a.larray.is_mps and promoted_type == float64:
+        # cannot cast to float64 on MPS
+        promoted_type = float32
+
     a = a.astype(promoted_type)
     v = v.astype(promoted_type)
 
@@ -425,7 +429,7 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
             signal_filtered = signal_filtered[1:]
 
         return DNDarray(
-            signal_filtered.contiguous(),
+            signal_filtered,
             (gshape,),
             signal_filtered.dtype,
             a.split,

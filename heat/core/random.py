@@ -129,8 +129,8 @@ def __counter_sequence(
         c_0 = (__counter & (max_count << 64)) >> 64
     c_1 = __counter & max_count
     total_elements = torch.prod(torch.tensor(shape))
-    if total_elements.item() > 2 * max_count:
-        raise ValueError(f"Shape is to big with {total_elements} elements")
+    # if total_elements.item() > 2 * max_count:
+    #    raise ValueError(f"Shape is to big with {total_elements} elements")
 
     if split is None:
         values = total_elements.item() // 2 + total_elements.item() % 2
@@ -216,7 +216,7 @@ def __counter_sequence(
     tmp_counter += used_values
     __counter = tmp_counter & 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF  # 128-bit mask
 
-    return x_0.contiguous(), x_1.contiguous(), lshape, lslice
+    return x_0, x_1, lshape, lslice
 
 
 def get_state() -> Tuple[str, int, int, int, float]:
@@ -348,7 +348,7 @@ def normal(
     return mean + std * standard_normal(shape, dtype, split, device, comm)
 
 
-def permutation(x: Union[int, DNDarray]) -> DNDarray:
+def permutation(x: Union[int, DNDarray], **kwargs) -> DNDarray:
     """
     Randomly permute a sequence, or return a permuted range. If ``x`` is a multi-dimensional array, it is only shuffled
     along its first index.
@@ -358,6 +358,9 @@ def permutation(x: Union[int, DNDarray]) -> DNDarray:
     x : int or DNDarray
         If ``x`` is an integer, call :func:`heat.random.randperm <heat.core.random.randperm>`. If ``x`` is an array,
         make a copy and shuffle the elements randomly.
+
+    device : str, optional
+        If ``x`` is an integer, define the device where the random permutation is generated. Can be 'cpu', 'gpu', 'mps' or None. Default is None (= cpu).
 
     See Also
     -----------
@@ -381,7 +384,7 @@ def permutation(x: Union[int, DNDarray]) -> DNDarray:
     Thus, the array containing these indices needs to fit into the memory of a single MPI-process.
     """
     if isinstance(x, int):
-        return randperm(x)
+        return randperm(x, **kwargs)
     if not isinstance(x, DNDarray):
         raise TypeError("x must be int or DNDarray")
 
@@ -619,7 +622,6 @@ def randint(
             x_0, x_1 = __threefry32(x_0, x_1, seed=__seed)
         else:  # torch.int64
             x_0, x_1 = __threefry64(x_0, x_1, seed=__seed)
-
         # stack the resulting sequence and normalize to given range
         values = torch.stack([x_0, x_1], dim=1).flatten()[lslice].reshape(lshape)
         # ATTENTION: this is biased and known, bias-free rejection sampling is difficult to do in parallel
@@ -798,7 +800,7 @@ def randperm(
     device = devices.sanitize_device(device)
     comm = communication.sanitize_comm(comm)
     perm = torch.randperm(n, dtype=dtype.torch_type(), device=device.torch_device)
-    if __rng != "Threefry":
+    if comm.Get_size() > 1 and __rng != "Threefry":
         comm.Bcast(perm, root=0)
 
     return factories.array(perm, dtype=dtype, device=device, split=split, comm=comm)

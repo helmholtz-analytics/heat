@@ -96,15 +96,19 @@ class TestFactories(TestCase):
         self.assertEqual(three_arg_arange_dtype_short.sum(axis=0, keepdims=True), 20)
 
         # testing setting dtype to float64
-        three_arg_arange_dtype_float64 = ht.arange(0, 10, 2, dtype=torch.float64)
-        self.assertIsInstance(three_arg_arange_dtype_float64, ht.DNDarray)
-        self.assertEqual(three_arg_arange_dtype_float64.shape, (5,))
-        self.assertLessEqual(three_arg_arange_dtype_float64.lshape[0], 5)
-        self.assertEqual(three_arg_arange_dtype_float64.dtype, ht.float64)
-        self.assertEqual(three_arg_arange_dtype_float64.larray.dtype, torch.float64)
-        self.assertEqual(three_arg_arange_dtype_float64.split, None)
-        # make an in direct check for the sequence, compare against the gaussian sum
-        self.assertEqual(three_arg_arange_dtype_float64.sum(axis=0, keepdims=True), 20.0)
+        if not self.is_mps:
+            three_arg_arange_dtype_float64 = ht.arange(0, 10, 2, dtype=torch.float64)
+            self.assertIsInstance(three_arg_arange_dtype_float64, ht.DNDarray)
+            self.assertEqual(three_arg_arange_dtype_float64.shape, (5,))
+            self.assertLessEqual(three_arg_arange_dtype_float64.lshape[0], 5)
+            self.assertEqual(three_arg_arange_dtype_float64.dtype, ht.float64)
+            self.assertEqual(three_arg_arange_dtype_float64.larray.dtype, torch.float64)
+            self.assertEqual(three_arg_arange_dtype_float64.split, None)
+            # make an in direct check for the sequence, compare against the gaussian sum
+            self.assertEqual(three_arg_arange_dtype_float64.sum(axis=0, keepdims=True), 20.0)
+
+            check_precision = ht.arange(16777217.0, 16777218, 1, dtype=ht.float64)
+            self.assertEqual(check_precision.sum(), 16777217)
 
         # exceptions
         with self.assertRaises(ValueError):
@@ -142,6 +146,9 @@ class TestFactories(TestCase):
                 == torch.tensor(tuple_data, dtype=torch.int8, device=self.device.torch_device)
             ).all()
         )
+        if not self.is_mps:
+            check_precision = ht.array(16777217.0, dtype=ht.float64)
+            self.assertEqual(check_precision.sum(), 16777217)
 
         # basic array function, unsplit data, no copy
         torch_tensor = torch.tensor([6, 5, 4, 3, 2, 1], device=self.device.torch_device)
@@ -185,10 +192,18 @@ class TestFactories(TestCase):
         )
 
         # distributed array, chunk local data (split), copy True
-        array_2d = np.array([[1.0, 2.0, 3.0], [1.0, 2.0, 3.0], [1.0, 2.0, 3.0]])
+        if self.is_mps:
+            np_dtype = np.float32
+            torch_dtype = torch.float32
+        else:
+            np_dtype = np.float64
+            torch_dtype = torch.float64
+        ht_dtype = ht.types.canonical_heat_type(torch_dtype)
+
+        array_2d = np.array([[1.0, 2.0, 3.0], [1.0, 2.0, 3.0], [1.0, 2.0, 3.0]], dtype=np_dtype)
         dndarray_2d = ht.array(array_2d, split=0, copy=True)
         self.assertIsInstance(dndarray_2d, ht.DNDarray)
-        self.assertEqual(dndarray_2d.dtype, ht.float64)
+        self.assertEqual(dndarray_2d.dtype, ht_dtype)
         self.assertEqual(dndarray_2d.gshape, (3, 3))
         self.assertEqual(len(dndarray_2d.lshape), 2)
         self.assertLessEqual(dndarray_2d.lshape[0], 3)
@@ -203,12 +218,12 @@ class TestFactories(TestCase):
         # distributed array, chunk local data (split), copy False, torch devices
         array_2d = torch.tensor(
             [[1.0, 2.0, 3.0], [1.0, 2.0, 3.0], [1.0, 2.0, 3.0]],
-            dtype=torch.double,
+            dtype=torch_dtype,
             device=self.device.torch_device,
         )
-        dndarray_2d = ht.array(array_2d, split=0, copy=False, dtype=ht.double)
+        dndarray_2d = ht.array(array_2d, split=0, copy=False, dtype=ht_dtype)
         self.assertIsInstance(dndarray_2d, ht.DNDarray)
-        self.assertEqual(dndarray_2d.dtype, ht.float64)
+        self.assertEqual(dndarray_2d.dtype, ht_dtype)
         self.assertEqual(dndarray_2d.gshape, (3, 3))
         self.assertEqual(len(dndarray_2d.lshape), 2)
         self.assertLessEqual(dndarray_2d.lshape[0], 3)
@@ -224,9 +239,9 @@ class TestFactories(TestCase):
             self.assertIs(dndarray_2d.larray, array_2d)
 
         # The array should not change as all properties match
-        dndarray_2d_new = ht.array(dndarray_2d, split=0, copy=False, dtype=ht.double)
+        dndarray_2d_new = ht.array(dndarray_2d, split=0, copy=False, dtype=ht_dtype)
         self.assertIsInstance(dndarray_2d_new, ht.DNDarray)
-        self.assertEqual(dndarray_2d_new.dtype, ht.float64)
+        self.assertEqual(dndarray_2d_new.dtype, ht_dtype)
         self.assertEqual(dndarray_2d_new.gshape, (3, 3))
         self.assertEqual(len(dndarray_2d_new.lshape), 2)
         self.assertLessEqual(dndarray_2d_new.lshape[0], 3)
@@ -240,14 +255,14 @@ class TestFactories(TestCase):
         # Reuse the same array
         self.assertIs(dndarray_2d_new.larray, dndarray_2d.larray)
 
-        # Should throw exeception because of resplit it causes a resplit
+        # Should throw exeception because it causes a resplit
         with self.assertRaises(ValueError):
             dndarray_2d_new = ht.array(dndarray_2d, split=1, copy=False, dtype=ht.double)
 
         # The array should not change as all properties match
-        dndarray_2d_new = ht.array(dndarray_2d, is_split=0, copy=False, dtype=ht.double)
+        dndarray_2d_new = ht.array(dndarray_2d, is_split=0, copy=False, dtype=ht_dtype)
         self.assertIsInstance(dndarray_2d_new, ht.DNDarray)
-        self.assertEqual(dndarray_2d_new.dtype, ht.float64)
+        self.assertEqual(dndarray_2d_new.dtype, ht_dtype)
         self.assertEqual(dndarray_2d_new.gshape, (3, 3))
         self.assertEqual(len(dndarray_2d_new.lshape), 2)
         self.assertLessEqual(dndarray_2d_new.lshape[0], 3)
@@ -569,65 +584,67 @@ class TestFactories(TestCase):
 
     def test_from_partitioned(self):
         a = ht.zeros((120, 120), split=0)
-        b = ht.from_partitioned(a, comm=a.comm)
-        a[2, :] = 128
-        self.assertTrue(ht.equal(a, b))
+        if not self.is_mps:
+            b = ht.from_partitioned(a, comm=a.comm)
+            a[2, :] = 128
+            self.assertTrue(ht.equal(a, b))
 
-        a.resplit_(None)
-        b = ht.from_partitioned(a, comm=a.comm)
-        self.assertTrue(ht.equal(a, b))
+            a.resplit_(None)
+            b = ht.from_partitioned(a, comm=a.comm)
+            self.assertTrue(ht.equal(a, b))
 
-        a.resplit_(1)
-        b = ht.from_partitioned(a, comm=a.comm)
-        b[50] = 94
-        self.assertTrue(ht.equal(a, b))
+            a.resplit_(1)
+            b = ht.from_partitioned(a, comm=a.comm)
+            b[50] = 94
+            self.assertTrue(ht.equal(a, b))
 
-        del b.__partitioned__["shape"]
-        with self.assertRaises(RuntimeError):
-            _ = ht.from_partitioned(b)
-        b.__partitions_dict__ = None
-        _ = b.__partitioned__
+            del b.__partitioned__["shape"]
+            with self.assertRaises(RuntimeError):
+                _ = ht.from_partitioned(b)
+            b.__partitions_dict__ = None
+            _ = b.__partitioned__
 
-        del b.__partitioned__["locals"]
-        with self.assertRaises(RuntimeError):
-            _ = ht.from_partitioned(b)
-        b.__partitions_dict__ = None
-        _ = b.__partitioned__
+            del b.__partitioned__["locals"]
+            with self.assertRaises(RuntimeError):
+                _ = ht.from_partitioned(b)
+            b.__partitions_dict__ = None
+            _ = b.__partitioned__
 
-        del b.__partitioned__["locals"]
-        with self.assertRaises(RuntimeError):
-            _ = ht.from_partitioned(b)
-        b.__partitions_dict__ = None
-        _ = b.__partitioned__
+            del b.__partitioned__["locals"]
+            with self.assertRaises(RuntimeError):
+                _ = ht.from_partitioned(b)
+            b.__partitions_dict__ = None
+            _ = b.__partitioned__
 
     def test_from_partition_dict(self):
         a = ht.zeros((120, 120), split=0)
-        b = ht.from_partition_dict(a.__partitioned__, comm=a.comm)
-        a[0, 0] = 100
-        self.assertTrue(ht.equal(a, b))
+        if not self.is_mps:
+            b = ht.from_partition_dict(a.__partitioned__, comm=a.comm)
+            a[0, 0] = 100
+            self.assertTrue(ht.equal(a, b))
 
-        a.resplit_(None)
-        a[0, 0] = 50
-        b = ht.from_partition_dict(a.__partitioned__, comm=a.comm)
-        self.assertTrue(ht.equal(a, b))
+            a.resplit_(None)
+            a[0, 0] = 50
+            b = ht.from_partition_dict(a.__partitioned__, comm=a.comm)
+            self.assertTrue(ht.equal(a, b))
 
-        del b.__partitioned__["shape"]
-        with self.assertRaises(RuntimeError):
-            _ = ht.from_partition_dict(b.__partitioned__)
-        b.__partitions_dict__ = None
-        _ = b.__partitioned__
+            del b.__partitioned__["shape"]
+            with self.assertRaises(RuntimeError):
+                _ = ht.from_partition_dict(b.__partitioned__)
+            b.__partitions_dict__ = None
+            _ = b.__partitioned__
 
-        del b.__partitioned__["locals"]
-        with self.assertRaises(RuntimeError):
-            _ = ht.from_partition_dict(b.__partitioned__)
-        b.__partitions_dict__ = None
-        _ = b.__partitioned__
+            del b.__partitioned__["locals"]
+            with self.assertRaises(RuntimeError):
+                _ = ht.from_partition_dict(b.__partitioned__)
+            b.__partitions_dict__ = None
+            _ = b.__partitioned__
 
-        del b.__partitioned__["locals"]
-        with self.assertRaises(RuntimeError):
-            _ = ht.from_partition_dict(b.__partitioned__)
-        b.__partitions_dict__ = None
-        _ = b.__partitioned__
+            del b.__partitioned__["locals"]
+            with self.assertRaises(RuntimeError):
+                _ = ht.from_partition_dict(b.__partitioned__)
+            b.__partitions_dict__ = None
+            _ = b.__partitioned__
 
     def test_full(self):
         # simple tensor
@@ -727,6 +744,9 @@ class TestFactories(TestCase):
 
         zero_samples = ht.linspace(-3, 5, num=0)
         self.assertEqual(zero_samples.size, 0)
+        if not self.is_mps:
+            check_precision = ht.linspace(0.0, 16777217.0, num=2, dtype=torch.float64)
+            self.assertEqual(check_precision.sum(), 16777217)
 
         # simple inverse linear space
         descending = ht.linspace(-5, 3, num=100)
