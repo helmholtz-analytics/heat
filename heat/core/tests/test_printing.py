@@ -435,7 +435,7 @@ class TestPrinting(TestCase):
         r = a.__repr__()
         self.assertEqual(
             r,
-            f"MPI-rank: {a.comm.rank}, Shape: {a.shape}, Split: {a.split}, Local Shape: {a.lshape}, Device: {a.device}, Dtype: {a.dtype.__name__}",
+            f"<DNDarray(MPI-rank: {a.comm.rank}, Shape: {a.shape}, Split: {a.split}, Local Shape: {a.lshape}, Device: {a.device}, Dtype: {a.dtype.__name__})>",
         )
 
 
