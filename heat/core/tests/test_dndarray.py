@@ -267,7 +267,7 @@ class TestDNDarray(TestCase):
         with self.assertRaises(TypeError):
             np.multiply.reduce(arr)
         with self.assertRaises(TypeError):
-            np.heaviside(a, 5)
+            np.heaviside(arr, 5)
 
     def test_array_function(self):
         arr = ht.array([1, 2, 3, 4])
@@ -275,7 +275,7 @@ class TestDNDarray(TestCase):
         self.assertIsInstance(np.sum(arr, axis=0), ht.DNDarray)
 
         with self.assertRaises(TypeError):
-            np.array_equiv(a, a)
+            np.array_equiv(arr, arr)
 
     def test_larray(self):
         # undistributed case
