@@ -1,7 +1,6 @@
 import numpy as np
 import torch
 import unittest
-import pytest
 import heat as ht
 from heat import manipulations
 
