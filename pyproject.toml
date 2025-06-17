@@ -67,7 +67,7 @@ dev = [
     # Benchmarking
     "perun",
 ]
-doc = [
+docs = [
     "sphinx",
     "sphinx_rtd_theme",
     "sphinx-autoapi",
