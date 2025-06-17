@@ -1,0 +1,47 @@
+name: Trigger Codebase Benchmarks
+description: "Trigger benchmarks on Codebase for performance testing and analysis."
+inputs:
+  branch:
+    description: "The branch to trigger benchmarks on. Defaults to 'main'."
+    required: false
+    default: "main"
+  sha:
+    description: "The commit SHA to trigger benchmarks on. Defaults to the current commit."
+    required: false
+    default: "${{ github.sha }}"
+  pr_number:
+    description: "The pull request number to trigger benchmarks on. Defaults to the current PR number."
+    required: false
+    default: ""
+  author:
+    description: "The author of the benchmarks. Defaults to the PR assignee or 'heat_team'."
+    required: false
+    default: "${{ github.event.pull_request.assignee.login || 'heat_team' }}"
+runs:
+  using: "composite"
+  steps:
+    - name: Harden Runner
+      uses: step-security/harden-runner@0634a2670c59f64b4a01f0f96f84700a4088b9f0 # v2.12.0
+      with:
+        egress-policy: audit
+    - name: Checkout
+      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+    - name: Trigger benchmarks
+      env:
+        AUTHOR: ${{ inputs.auth }}
+        BRANCH: ${{ inputs.branch }}
+        PIPE_TRIGGER_TOKEN: ${{ secrets.BENCH_PIPE_TRIGGER }}
+        SHA: ${{ inputs.sha }}
+        PR_NUMBER: ${{ inputs.pr_number }}
+      run: |
+        SHORT_SHA=$(git rev-parse --short $SHA)
+        curl -s -X POST \
+          --fail-with-body \
+          -F "token=$PIPE_TRIGGER_TOKEN" \
+          -F "ref=main" \
+          -F "variables[SHA]=$SHA" \
+          -F "variables[SHORT_SHA]=${SHORT_SHA}" \
+          -F "variables[BRANCH]=$BRANCH" \
+          -F "variables[PR]=$PR_NUMBER" \
+          -F "variables[AUTHOR]=${AUTHOR}" \
+          https://codebase.helmholtz.cloud/api/v4/projects/7930/trigger/pipeline
