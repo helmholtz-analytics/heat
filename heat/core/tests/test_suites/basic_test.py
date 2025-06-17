@@ -83,7 +83,7 @@ class TestCase(unittest.TestCase):
             cls._hostnames = list(set(cls.__comm.handle.allgather(host)))
         return cls._hostnames
 
-    def assert_array_equal(self, heat_array: ht.DNDarray, expected_array: Union[np.ndarray,torch.Tensor]) -> None:
+    def assert_array_equal(self, heat_array: ht.DNDarray, expected_array: Union[np.ndarray,torch.Tensor], rtol:float=1e-5, atol:float=1e-08) -> None:
         """
         Check if the heat_array is equivalent to the expected_array. Therefore first the split heat_array is compared to
         the corresponding expected_array slice locally and second the heat_array is combined and fully compared with the

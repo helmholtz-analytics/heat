@@ -866,7 +866,8 @@ class MPICommunication(Communication):
         sendbuf: Union[DNDarray, torch.Tensor, Any],
         recvbuf: Union[DNDarray, torch.Tensor, Any],
         op: MPI.Op,
-        **kwargs,
+        *args: Any,
+        **kwargs: Any,
     ) -> Tuple[Optional[DNDarray, torch.Tensor]]:
         """
         Generic function for reduction operations.
@@ -881,8 +882,10 @@ class MPICommunication(Communication):
             Buffer address where to store the result of the reduction
         op: MPI.Op
             Operation to apply during the reduction.
-        **kwargs,
-            Arguments to be passed to the function
+        *args: Any
+            Additional positional arguments to be passed to the function
+        **kwargs: Any
+            Additional keyword arguments to be passed to the function
 
         """
         sbuf = None
@@ -950,7 +953,7 @@ class MPICommunication(Communication):
             sendbuf = (self.as_mpi_memory(sbuf), recvbuf[1], recvbuf[2])
 
         # perform the actual reduction operation
-        return func(sendbuf, recvbuf, op, **kwargs), sbuf, rbuf, buf
+        return func(sendbuf, recvbuf, op, *args, **kwargs), sbuf, rbuf, buf
 
     def Allreduce(
         self,
