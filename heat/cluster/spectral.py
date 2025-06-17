@@ -18,7 +18,7 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
     ----------
     n_clusters : int, default=8
         Number of clusters to fit
-    eigen_solver : str, default='lanczos'
+    eigen_solver : str, default='zolotarev'
         Eigenvalue decomposition strategy to use. Supported: 'lanczos', 'zolotarev'.
     n_components : int, default=None
         Number of components to use for the embedding. If None, n_clusters is used
@@ -51,7 +51,7 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
     def __init__(
         self,
         n_clusters: int = None,
-        eigen_solver: str = "lanczos",
+        eigen_solver: str = "zolotarev",
         n_components: int = None,
         random_state: Union[int, None] = None,
         gamma: float = 1.0,
