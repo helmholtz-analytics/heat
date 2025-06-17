@@ -88,10 +88,13 @@ packages = ["heat"]
 datasets = ["*.csv", "*.h5", "*.nc"]
 heat = ["py.typed"]
 
+[tool.setuptools.dynamic]
+version = {attr = "heat.core.version.__version__"}
+
 # Mypy
 [tool.mypy]
 packages=["heat"]
-python_version="3.9"
+python_version="3.10"
 exclude=[
     'test_\w+\.py$',
     '^benchmarks/',
