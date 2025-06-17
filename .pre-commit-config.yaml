@@ -1,5 +1,8 @@
 # See https://pre-commit.com for more information
 # See https://pre-commit.com/hooks.html for more hooks
+ci:
+  skip:
+    - "mypy"  # Skip mypy in CI, as it is run manually
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
