@@ -20,9 +20,9 @@ class TestSpectral(TestCase):
         self.assertEqual(
             params,
             {
-                "n_clusters": None,
+                "n_clusters": 8,
                 "eigen_solver": "zolotarev",
-                "n_components": None,
+                "n_components": 8,
                 "random_state": None,
                 "gamma": 1.0,
                 "affinity": "rbf",

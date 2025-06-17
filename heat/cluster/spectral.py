@@ -50,7 +50,7 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
 
     def __init__(
         self,
-        n_clusters: int = None,
+        n_clusters: int = 8,
         eigen_solver: str = "zolotarev",
         n_components: int = None,
         random_state: Union[int, None] = None,
