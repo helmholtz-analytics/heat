@@ -14,7 +14,7 @@
 
 # 2. Create environment and install dependencies
 python -m venv heat-env
-source heat-env/bin/activate
+. heat-env/bin/activate || exit 1
 pip install heat xarray jupyter scikit-learn ipyparallel
 
 # 3. Setup jupyter kernel
