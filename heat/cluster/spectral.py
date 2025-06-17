@@ -288,7 +288,6 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
         """
         self.fit(x)
         return self.labels_
-        # return self._cluster.predict(components)
 
     def predict(self, x: DNDarray) -> DNDarray:
         """

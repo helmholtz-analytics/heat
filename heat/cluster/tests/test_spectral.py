@@ -45,12 +45,13 @@ class TestSpectral(TestCase):
             m = 10
             # fit the clusters
             spectral = ht.cluster.SpectralClustering(
-                n_clusters=3, gamma=1.0, affinity="rbf", laplacian="fully_connected", n_lanczos=m
+                n_clusters=3, random_state=0, gamma=1.0, affinity="rbf", laplacian="fully_connected"
             )
             spectral.fit(iris)
             self.assertIsInstance(spectral.labels_, ht.DNDarray)
 
             spectral = ht.cluster.SpectralClustering(
+                eigen_solver="lanczos",
                 affinity="euclidean",
                 laplacian="eNeighbour",
                 threshold=0.5,
@@ -80,7 +81,7 @@ class TestSpectral(TestCase):
 
             # Errors
             with self.assertRaises(NotImplementedError):
-                spectral = ht.cluster.SpectralClustering(affinity="ahalanobis", n_lanczos=m)
+                spectral = ht.cluster.SpectralClustering(affinity="mahalanobis", n_lanczos=m)
 
             iris_split = ht.load("heat/datasets/iris.csv", sep=";", split=1)
             spectral = ht.cluster.SpectralClustering(n_lanczos=20)
