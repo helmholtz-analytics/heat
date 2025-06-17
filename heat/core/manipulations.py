@@ -867,6 +867,10 @@ def diagonal(a: DNDarray, offset: int = 0, dim1: int = 0, dim2: int = 1) -> DNDa
     return factories.array(result, dtype=a.dtype, is_split=split, device=a.device, comm=a.comm)
 
 
+DNDarray.diagonal = lambda self, offset=0, dim1=0, dim2=1: diagonal(self, offset, dim1, dim2)
+DNDarray.diagonal.__doc__ = diagonal.__doc__
+
+
 def dsplit(x: Sequence[DNDarray, ...], indices_or_sections: Iterable) -> List[DNDarray, ...]:
     """
     Split array into multiple sub-DNDarrays along the 3rd axis (depth).
