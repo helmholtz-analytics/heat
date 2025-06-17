@@ -22,11 +22,12 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
         Eigenvalue decomposition strategy to use. Supported: 'lanczos', 'zolotarev'.
     n_components : int, default=None
         Number of components to use for the embedding. If None, n_clusters is used
+    random_state : int, default=None
+        Random seed for reproducibility. If None, no random seed is set.
     gamma : float, default=1.0
         Kernel coefficient sigma for 'rbf', ignored for affinity='euclidean'
     affinity : str, default='rbf'
         How to construct the similarity (affinity) matrix.
-
             - 'rbf' : construct the similarity matrix using a radial basis function (RBF) kernel.
             - 'euclidean' : construct the similarity matrix as only euclidean distance.
             - 'precomputed' : interpret ``X`` as precomputed affinity matrix.
@@ -38,9 +39,9 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
         Ignored for laplacian='fully_connected'
     boundary : str
         How to interpret threshold: 'upper', 'lower'
-        Ignorded for laplacian='fully_connected'
+        Ignored for laplacian='fully_connected'
     n_lanczos : int, default=300
-        number of Lanczos iterations for Eigenvalue decomposition
+        number of Lanczos iterations for Eigenvalue decomposition. Ignored if eigen_solver='zolotarev'.
     assign_labels: str, default='kmeans'
          The strategy to use to assign labels in the embedding space.
     **params: dict
@@ -52,6 +53,7 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
         n_clusters: int = None,
         eigen_solver: str = "lanczos",
         n_components: int = None,
+        random_state: Union[int, None] = None,
         gamma: float = 1.0,
         affinity: str = "rbf",
         laplacian: str = "fully_connected",
@@ -64,6 +66,9 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
         self.n_clusters = n_clusters
         self.eigen_solver = eigen_solver
         self.n_components = n_components if n_components is not None else n_clusters
+        self.random_state = random_state
+        if self.random_state is not None:
+            ht.random.seed(self.random_state)
         self.gamma = gamma
         self.affinity = affinity
         self.laplacian = laplacian
@@ -121,17 +126,18 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
     def __set_diag(self, x: DNDarray, value: Union[int, float], norm_laplacian: bool) -> DNDarray:
         """
         Set the diagonal of the matrix to a specific value.
+        Modified for dense PyTorch tensors from scikit-learn.manifold._spectral_embedding._set_diag
+        https://github.com/scikit-learn/scikit-learn/blob/031d2f83b7c9d1027d1477abb2bf34652621d603/sklearn/manifold/_spectral_embedding.py#L108
         """
-        # TODO see scikit learn
         n_nodes = x.shape[0]
-        # for now we assume that the matrix is dense
+        # we assume that the matrix is dense
         if norm_laplacian:
             # set diagonal to `value`
-            # tensor.view(-1) == ndarray.flat
+            # NB: tensor.view(-1) == ndarray.flat
             x.larray.view(-1)[:: n_nodes + 1] = value
         return x
 
-    def spectral_embedding(
+    def __spectral_embedding(
         self,
         x: DNDarray,
         n_components: int = 8,
@@ -232,25 +238,28 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
     def fit(self, x: DNDarray):
         """
         Clusters dataset X via spectral embedding.
-        Computes the low-dim representation by calculation of eigenspectrum (eigenvalues and eigenvectors) of the graph
-        laplacian from the similarity matrix and fits the eigenvectors that correspond to the k lowest eigenvalues with
-        a seperate clustering algorithm (currently only kmeans is supported). Similarity metrics for adjacency
-        calculations are supported via spatial.distance. The eigenvalues and eigenvectors are computed by reducing the
-        Laplacian via lanczos iterations and using the torch eigenvalue solver on this smaller matrix. If other
-        eigenvalue decompostion methods are supported, this will be expanded.
+        Computes the low-dim representation by calculation of the spectral embedding (eigenvectors corresponding to the lowest `n_clusters` eigenvalues) of the
+        graph laplacian computed from the similarity matrix. Similarity metrics for adjacency
+        calculations are supported via :func:`heat.spatial.distance`.
+
+        See :func:`__spectral_embedding` for more details on the decomposition of the graph laplacian.
 
         Parameters
         ----------
         x : DNDarray
             Training instances to cluster. Shape = (n_samples, n_features)
+
+        See Also
+        --------
+        :func:`__spectral_embedding`
         """
         # 1. input sanitation
         if not isinstance(x, DNDarray):
             raise ValueError(f"input needs to be a ht.DNDarray, but was {type(x)}")
-        if x.split is not None and x.split != 0:
-            raise NotImplementedError("Not implemented for other splitting-axes")
+        if x.is_distributed() and x.split != 0:
+            raise NotImplementedError(f"Distribution along axis {x.split} is not supported yet.")
         # 2. Embed Dataset into lower-dimensional Eigenvector space
-        components = self.spectral_embedding(
+        components = self.__spectral_embedding(
             x, n_components=self.n_components, eigen_solver=self.eigen_solver
         )
 
@@ -284,8 +293,8 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
     def predict(self, x: DNDarray) -> DNDarray:
         """
         Return the label each sample in X belongs to.
-        X is transformed to the low-dim representation by calculation of eigenspectrum (eigenvalues and eigenvectors) of
-        the graph laplacian from the similarity matrix. Inference of lables is done by extraction of the closest
+        X is transformed to the low-dim representation by calculation of the embedding (eigenvectors corresponding to the lowest `n_clusters` eigenvalues) of
+        the graph laplacian from the similarity matrix. Inference of labels is done by extraction of the closest
         centroid of the n_clusters eigenvectors from the previously fitted clustering algorithm (kmeans).
 
         Parameters
@@ -301,11 +310,10 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
         # input sanitation
         if not isinstance(x, DNDarray):
             raise ValueError(f"input needs to be a ht.DNDarray, but was {type(x)}")
-        if x.split is not None and x.split != 0:
-            raise NotImplementedError("Not implemented for other splitting-axes")
+        if x.is_distributed() and x.split != 0:
+            raise NotImplementedError(f"Distribution along axis {x.split} is not supported yet.")
 
-        _, eigenvectors = self.spectral_embedding(x, self.eigen_solver)
-
-        components = eigenvectors[:, : self.n_clusters].copy()
+        # TODO is copy necessary?
+        components = self.__spectral_embedding(x, self.eigen_solver).copy()
 
         return self._cluster.predict(components)
