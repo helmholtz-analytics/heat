@@ -33,24 +33,22 @@ def plaform_info():
     """
     Print the current software stack being used by heat, including available devices.
     """
-    print("    HeAT: Helmholtz Analytics Toolkit")
-    print(f"    Version: {ht_version}")
-    print(f"    Platform: {platform.platform()}")
+    print("HeAT: Helmholtz Analytics Toolkit")
+    print(f"  Version: {ht_version}")
+    print(f"  Platform: {platform.platform()}")
 
-    print(f"    mpi4py Version: {mpi4py.__version__}")
-    print(f"    MPI Library Version: {mpi4py.MPI.Get_library_version()}")
+    print(f"  mpi4py Version: {mpi4py.__version__}")
+    print(f"  MPI Library Version: {mpi4py.MPI.Get_library_version()}")
 
-    print(f"    Torch Version: {torch.__version__}")
-    print(f"    CUDA Available: {torch.cuda.is_available()}")
+    print(f"  Torch Version: {torch.__version__}")
+    print(f"  CUDA Available: {torch.cuda.is_available()}")
     if torch.cuda.is_available():
         torch.set_default_device("cuda")
-        print(f"        Device count: {torch.cuda.device_count()}")
-        print(f"        Default device: {torch.get_default_device()}")
-        print(f"        Device name: {torch.cuda.get_device_name(torch.get_default_device())}")
+        print(f"    Device count: {torch.cuda.device_count()}")
+        print(f"    Default device: {torch.get_default_device()}")
+        print(f"    Device name: {torch.cuda.get_device_name(torch.get_default_device())}")
+        print(f"    Device name: {torch.cuda.get_device_properties(torch.get_default_device())}")
         print(
-            f"        Device name: {torch.cuda.get_device_properties(torch.get_default_device())}"
+            f"   Device memory: {torch.cuda.get_device_properties(torch.get_default_device()).total_memory / 1024**3} GiB"
         )
-        print(
-            f"        Device memory: {torch.cuda.get_device_properties(torch.get_default_device()).total_memory / 1024**3} GiB"
-        )
-        print(f"        CUDA Aware MPI: {CUDA_AWARE_MPI}")
+        print(f"    CUDA Aware MPI: {CUDA_AWARE_MPI}")
