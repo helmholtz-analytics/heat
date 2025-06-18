@@ -188,7 +188,7 @@ class DNDarray:
     @property
     def __partitioned__(self) -> dict:
         """
-        This will return a dictionary containing information useful for working with the partitioned
+        Return a dictionary containing information useful for working with the partitioned
         data. These items include the shape of the data on each process, the starting index of the data
         that a process has, the datatype of the data, the local devices, as well as the global
         partitioning scheme.
@@ -834,7 +834,7 @@ class DNDarray:
         Float scalar casting.
 
         See Also
-        ---------
+        --------
         :func:`~heat.core.manipulations.flatten`
         """
         return self.__cast(float)
@@ -900,7 +900,7 @@ class DNDarray:
         >>> a[1:6]
         (1/2) >>> tensor([1, 2, 3, 4], dtype=torch.int32)
         (2/2) >>> tensor([5], dtype=torch.int32)
-        >>> a = ht.zeros((4,5), split=0)
+        >>> a = ht.zeros((4, 5), split=0)
         (1/2) >>> tensor([[0., 0., 0., 0., 0.],
                           [0., 0., 0., 0., 0.]])
         (2/2) >>> tensor([[0., 0., 0., 0., 0.],
@@ -1162,6 +1162,7 @@ class DNDarray:
         assessed via collective communication.
 
         Parameters
+        ----------
         force_check : bool, optional
             If True, the balanced status of the ``DNDarray`` will be assessed via
             collective communication in any case.
@@ -1202,7 +1203,7 @@ class DNDarray:
         raised (by pytorch)
 
         Examples
-        -------
+        --------
         >>> import heat as ht
         >>> x = ht.zeros((1))
         >>> x.item()
@@ -1260,9 +1261,9 @@ class DNDarray:
 
         Examples
         --------
-        >>> a = ht.ones((2,3), split=0)
+        >>> a = ht.ones((2, 3), split=0)
         >>> b = a.ravel()
-        >>> a[0,0] = 4
+        >>> a[0, 0] = 4
         >>> b
         DNDarray([4., 1., 1., 1., 1., 1.], dtype=ht.float32, device=cpu:0, split=0)
         """
@@ -1478,7 +1479,13 @@ class DNDarray:
 
         Examples
         --------
-        >>> a = ht.zeros((4, 5,), split=0)
+        >>> a = ht.zeros(
+        ...     (
+        ...         4,
+        ...         5,
+        ...     ),
+        ...     split=0,
+        ... )
         >>> a.lshape
         (0/2) (2, 5)
         (1/2) (2, 5)
@@ -1488,7 +1495,13 @@ class DNDarray:
         >>> a.lshape
         (0/2) (4, 5)
         (1/2) (4, 5)
-        >>> a = ht.zeros((4, 5,), split=0)
+        >>> a = ht.zeros(
+        ...     (
+        ...         4,
+        ...         5,
+        ...     ),
+        ...     split=0,
+        ... )
         >>> a.lshape
         (0/2) (2, 5)
         (1/2) (2, 5)
@@ -1577,7 +1590,7 @@ class DNDarray:
 
         Examples
         --------
-        >>> a = ht.zeros((4,5), split=0)
+        >>> a = ht.zeros((4, 5), split=0)
         (1/2) >>> tensor([[0., 0., 0., 0., 0.],
                           [0., 0., 0., 0., 0.]])
         (2/2) >>> tensor([[0., 0., 0., 0., 0.],
@@ -1853,7 +1866,7 @@ class DNDarray:
         Utility function for checking ``value`` and forwarding to :func:``__setitem__``
 
         Raises
-        -------------
+        ------
         NotImplementedError
             If the type of ``value`` ist not supported
         """
@@ -1889,15 +1902,15 @@ class DNDarray:
 
         Examples
         --------
-        >>> a = ht.array([[0,1],[2,3]])
+        >>> a = ht.array([[0, 1], [2, 3]])
         >>> a.tolist()
         [[0, 1], [2, 3]]
 
-        >>> a = ht.array([[0,1],[2,3]], split=0)
+        >>> a = ht.array([[0, 1], [2, 3]], split=0)
         >>> a.tolist()
         [[0, 1], [2, 3]]
 
-        >>> a = ht.array([[0,1],[2,3]], split=1)
+        >>> a = ht.array([[0, 1], [2, 3]], split=1)
         >>> a.tolist(keepsplit=True)
         (1/2) [[0], [2]]
         (2/2) [[1], [3]]

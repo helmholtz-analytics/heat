@@ -126,20 +126,20 @@ else:
             The device id on which to place the data, defaults to globally set default device.
 
         Raises
-        -------
+        ------
         TypeError
             If any of the input parameters are not of correct type.
 
         Examples
         --------
-        >>> a = ht.load_netcdf('data.nc', variable='DATA')
+        >>> a = ht.load_netcdf("data.nc", variable="DATA")
         >>> a.shape
         [0/2] (5,)
         [1/2] (5,)
         >>> a.lshape
         [0/2] (5,)
         [1/2] (5,)
-        >>> b = ht.load_netcdf('data.nc', variable='DATA', split=0)
+        >>> b = ht.load_netcdf("data.nc", variable="DATA", split=0)
         >>> b.shape
         [0/2] (5,)
         [1/2] (5,)
@@ -216,7 +216,7 @@ else:
             additional arguments passed to the created dataset.
 
         Raises
-        -------
+        ------
         TypeError
             If any of the input parameters are not of correct type.
         ValueError
@@ -226,7 +226,7 @@ else:
         Examples
         --------
         >>> x = ht.arange(100, split=0)
-        >>> ht.save_netcdf(x, 'data.nc', dataset='DATA')
+        >>> ht.save_netcdf(x, "data.nc", dataset="DATA")
         """
         if not isinstance(data, DNDarray):
             raise TypeError(f"data must be heat tensor, not {type(data)}")
@@ -278,7 +278,7 @@ else:
                 split-axis of dndarray.
 
             Raises
-            -------
+            ------
             ValueError
                 If resulting shapes do not match.
             """
@@ -322,7 +322,7 @@ else:
             data_slices: Optional[Tuple[int, slice]] = None,
         ) -> Tuple[Union[int, slice]]:
             """
-            This method allows replacing:
+            Allows replacing:
                 ``var[var_slices][data_slices] = data``
             (a `netcdf4.Variable.__getitem__` and a `numpy.ndarray.__setitem__` call)
 
@@ -542,20 +542,20 @@ else:
             The communication to use for the data distribution.
 
         Raises
-        -------
+        ------
         TypeError
             If any of the input parameters are not of correct type
 
         Examples
         --------
-        >>> a = ht.load_hdf5('data.h5', dataset='DATA')
+        >>> a = ht.load_hdf5("data.h5", dataset="DATA")
         >>> a.shape
         [0/2] (5,)
         [1/2] (5,)
         >>> a.lshape
         [0/2] (5,)
         [1/2] (5,)
-        >>> b = ht.load_hdf5('data.h5', dataset='DATA', split=0)
+        >>> b = ht.load_hdf5("data.h5", dataset="DATA", split=0)
         >>> b.shape
         [0/2] (5,)
         [1/2] (5,)
@@ -564,7 +564,7 @@ else:
         [1/2] (2,)
 
         Using the slicing argument:
-        >>> not_sliced = ht.load_hdf5('other_data.h5', dataset='DATA', split=0)
+        >>> not_sliced = ht.load_hdf5("other_data.h5", dataset="DATA", split=0)
         >>> not_sliced.shape
         [0/2] (10,2)
         [1/2] (10,2)
@@ -583,7 +583,7 @@ else:
                [16, 17],
                [18, 19]]
 
-        >>> sliced = ht.load_hdf5('other_data.h5', dataset='DATA', split=0, slices=slice(8))
+        >>> sliced = ht.load_hdf5("other_data.h5", dataset="DATA", split=0, slices=slice(8))
         >>> sliced.shape
         [0/2] (8,2)
         [1/2] (8,2)
@@ -637,7 +637,6 @@ else:
             offsets = [0] * len(gshape)
             if slices is not None:
                 for i in range(len(gshape)):
-
                     if i < len(slices) and slices[i]:
                         s = slices[i]
                         if s.step is not None and s.step != 1:
@@ -705,7 +704,7 @@ else:
             Additional arguments passed to the created dataset.
 
         Raises
-        -------
+        ------
         TypeError
             If any of the input parameters are not of correct type.
         ValueError
@@ -714,7 +713,7 @@ else:
         Examples
         --------
         >>> x = ht.arange(100, split=0)
-        >>> ht.save_hdf5(x, 'data.h5', dataset='DATA')
+        >>> ht.save_hdf5(x, "data.h5", dataset="DATA")
         """
         if not isinstance(data, DNDarray):
             raise TypeError(f"data must be heat tensor, not {type(data)}")
@@ -786,7 +785,7 @@ def load(
         Additional options passed to the particular functions.
 
     Raises
-    -------
+    ------
     ValueError
         If the file extension is not understood or known.
     RuntimeError
@@ -794,9 +793,9 @@ def load(
 
     Examples
     --------
-    >>> ht.load('data.h5', dataset='DATA')
+    >>> ht.load("data.h5", dataset="DATA")
     DNDarray([ 1.0000,  2.7183,  7.3891, 20.0855, 54.5981], dtype=ht.float32, device=cpu:0, split=None)
-    >>> ht.load('data.nc', variable='DATA')
+    >>> ht.load("data.nc", variable="DATA")
     DNDarray([ 1.0000,  2.7183,  7.3891, 20.0855, 54.5981], dtype=ht.float32, device=cpu:0, split=None)
 
     See Also
@@ -869,14 +868,14 @@ def load_csv(
         The communication to use for the data distribution, defaults to global default
 
     Raises
-    -------
+    ------
     TypeError
         If any of the input parameters are not of correct type.
 
     Examples
     --------
     >>> import heat as ht
-    >>> a = ht.load_csv('data.csv')
+    >>> a = ht.load_csv("data.csv")
     >>> a.shape
     [0/3] (150, 4)
     [1/3] (150, 4)
@@ -887,7 +886,7 @@ def load_csv(
     [1/3] (38, 4)
     [2/3] (37, 4)
     [3/3] (37, 4)
-    >>> b = ht.load_csv('data.csv', header_lines=10)
+    >>> b = ht.load_csv("data.csv", header_lines=10)
     >>> b.shape
     [0/3] (140, 4)
     [1/3] (140, 4)
@@ -940,12 +939,12 @@ def load_csv(
             f.seek(displs[rank], 0)
             line_starts = []
             r = f.read(counts[rank])
-            for pos, l in enumerate(r):
-                if chr(l) == "\n":
+            for pos, line in enumerate(r):
+                if chr(line) == "\n":
                     # Check if it is part of '\r\n'
                     if chr(r[pos - 1]) != "\r":
                         line_starts.append(pos + 1)
-                elif chr(l) == "\r":
+                elif chr(line) == "\r":
                     # check if file line is terminated by '\r\n'
                     if pos + 1 < len(r) and chr(r[pos + 1]) == "\n":
                         line_starts.append(pos + 2)
@@ -1214,7 +1213,7 @@ def save(
         Additional options passed to the particular functions.
 
     Raises
-    -------
+    ------
     ValueError
         If the file extension is not understood or known.
     RuntimeError
@@ -1223,7 +1222,7 @@ def save(
     Examples
     --------
     >>> x = ht.arange(100, split=0)
-    >>> ht.save(x, 'data.h5', 'DATA', mode='a')
+    >>> ht.save(x, "data.h5", "DATA", mode="a")
     """
     if not isinstance(path, str):
         raise TypeError(f"Expected path to be str, but was {type(path)}")
@@ -1511,7 +1510,7 @@ else:
             - If it already exists and no overwrite is specified.
 
         Notes
-        ------
+        -----
         Zarr functions by chunking the data, were a chunk is a file inside the store.
         The problem ist that only one process writes to it at a time. Therefore when two
         processes try to write to the same chunk one will fail, unless the other finishes before
