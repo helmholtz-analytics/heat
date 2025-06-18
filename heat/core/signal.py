@@ -192,6 +192,7 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full", stride: int = 1) -> D
         # all operations are local torch operations, only the last dimension is convolved
         local_a = a.larray
         local_v = v.larray
+
         # flip filter for convolution, as Pytorch conv1d computes correlations
         local_v = torch.flip(local_v, [-1])
         local_batch_dims = tuple(local_a.shape[:-1])
