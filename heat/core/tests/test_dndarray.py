@@ -258,6 +258,25 @@ class TestDNDarray(TestCase):
         self.assertEqual(x.__array__().dtype, x_np.dtype)
         self.assertEqual(x.__array__().shape, x.lshape)
 
+    def test_array_ufunc(self):
+        arr = ht.array([1, 2, 3, 4])
+        self.assertIsInstance(np.multiply(arr, 3), ht.DNDarray)
+        self.assertIsInstance(np.add(arr, 3), ht.DNDarray)
+        self.assertIsInstance(np.sin(arr), ht.DNDarray)
+
+        with self.assertRaises(TypeError):
+            np.multiply.reduce(arr)
+        with self.assertRaises(TypeError):
+            np.heaviside(arr, 5)
+
+    def test_array_function(self):
+        arr = ht.array([1, 2, 3, 4])
+        self.assertIsInstance(np.concatenate([arr, arr]), ht.DNDarray)
+        self.assertIsInstance(np.sum(arr, axis=0), ht.DNDarray)
+
+        with self.assertRaises(TypeError):
+            np.array_equiv(arr, arr)
+
     def test_larray(self):
         # undistributed case
         x = ht.arange(6 * 7 * 8).reshape((6, 7, 8))
