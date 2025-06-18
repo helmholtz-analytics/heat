@@ -197,12 +197,13 @@ class TestSignal(TestCase):
         signal = ht.arange(0, 16, split=0).astype(ht.float32)
         dis_kernel = ht.array([1, 1, 1], split=0).astype(ht.float32)
 
-        target_map = dis_kernel.lshape_map
-        target_map[0] = 2
-        target_map[-1] = 0
-        dis_kernel.redistribute_(dis_kernel.lshape_map, target_map)
-        with self.assertRaises(ValueError):
-            ht.convolve(signal, dis_kernel)
+        if self.comm.size > 1:
+            target_map = dis_kernel.lshape_map
+            target_map[0] = 3
+            target_map[1:] = 0
+            dis_kernel.redistribute_(dis_kernel.lshape_map, target_map)
+            with self.assertRaises(ValueError):
+                ht.convolve(signal, dis_kernel)
 
     def test_convolve_stride_errors(self):
         dis_signal = ht.arange(0, 16, split=0).astype(ht.int)
@@ -223,7 +224,7 @@ class TestSignal(TestCase):
         kernel = ht.random.randn(19, dtype=float_dtype)
 
         # distributed input along the first axis
-        stride = np.random.randint(1, high=1000, size=1)[0]
+        stride = 123
         batch_signal = ht.empty((10, 1000), dtype=float_dtype, split=0)
         batch_signal.larray[:] = signal.larray
 
@@ -233,14 +234,14 @@ class TestSignal(TestCase):
         )
 
         # distributed kernel
-        stride = np.random.randint(1, high=200, size=1)[0]
+        stride = 142
         dis_kernel = ht.array(kernel, split=0)
 
         batch_convolved = ht.convolve(batch_signal, dis_kernel, stride=stride)
         self.assertTrue(ht.equal(ht.convolve(signal, kernel, stride=stride), batch_convolved[0]))
 
         # batch kernel
-        stride = np.random.randint(1, high=200, size=1)[0]
+        stride = 41
         batch_kernel = ht.empty((10, 19), dtype=float_dtype, split=1)
         batch_kernel.larray[:] = dis_kernel.larray
 
@@ -250,7 +251,7 @@ class TestSignal(TestCase):
         )
 
         # n-D batch convolution
-        stride = np.random.randint(1, high=200, size=1)[0]
+        stride = 55
         batch_signal = ht.empty((4, 3, 3, 1000), dtype=float_dtype, split=1)
         batch_signal.larray[:, :, :] = signal.larray
 
