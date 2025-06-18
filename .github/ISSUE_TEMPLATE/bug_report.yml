@@ -46,7 +46,7 @@ body:
         - 3.13
         - 3.12
         - 3.11
-        - 3.10
+        - '3.10'
   - type: dropdown
     id: pytorch-version
     attributes:
