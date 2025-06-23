@@ -277,6 +277,7 @@ def qr(
                     if local_comm.rank == 0:
                         previous_shape = R_loc.shape
                         Q_buf, R_loc = single_proc_qr(gathered_R_loc, mode=mode)
+                        R_loc = R_loc.contiguous()
                     else:
                         Q_buf = torch.empty(0, device=R_loc.device, dtype=R_loc.dtype)
                     if mode == "reduced":
