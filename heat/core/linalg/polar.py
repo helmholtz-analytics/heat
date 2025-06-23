@@ -48,7 +48,7 @@ def _zolopd_n_iterations(r: int, kappa: float) -> int:
 
 def _compute_zolotarev_coefficients(
     r: int, ell: float, device: str, dtype: types.datatype = types.float64
-) -> Tuple[DNDarray, DNDarray, types.datatype]:
+) -> Tuple[DNDarray, DNDarray, DNDarray]:
     """
     Computes c=(c_i)_i defined in equation (3.4), as well as a=(a_j)_j and Mhat defined in formulas (4.2)/(4.3) of the paper Nakatsukasa, Y., & Freund, R. W. (2016). Computing the polar decomposition with applications. SIAM Review, 58(3), DOI: https://doi.org/10.1137/140990334.
     Evaluations of the respective complete elliptic integral of the first kind and the Jacobi elliptic functions are imported from SciPy.
