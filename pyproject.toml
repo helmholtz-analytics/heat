@@ -8,12 +8,27 @@ dynamic = ["version"]
 description="A framework for high-performance data analytics and machine learning."
 readme = "README.md"
 authors = [
-    { name = "Helmholtz Association", email = "martin.siggel@dlr.de"}
+    { name = "Markus Götz", email = "markus.goetz@kit.edu"},
+    { name = "Charlotte Debus", email = "charlotte.debus@kit.edu"},
+    { name = "Daniel Coquelin", email = "daniel.coquelin@kit.edu"},
+    { name = "Kai Krajsek", email = "k.krajsek@fz-juelich.de"},
+    { name = "Claudia Comito", email = "c.comito@fz-juelich.de"},
+    { name = "Philipp Knechtges", email = "philipp.knechtges@dlr.de"},
+    { name = "Björn Hagemeier", email = "b.hagemeier@fz-juelich.de"},
+    { name = "Martin Siggel", email = "martin.siggel@dlr.de"},
+    { name = "Achim Basermann", email = "achim.basermann@dlr.de"},
+    { name = "Achim Streit", email = "achim.streit@kit.de"},
 ]
 maintainers = [
-
+    { name = "Claudia Comito", email = "c.comito@fz-juelich.de"},
+    { name = "Michael Tarnawa", email = "m.tarnawa@fz-juelich.de"},
+    { name = "Fabian Hoppe", email = "f.hoppe@dlr.de"},
+    { name = "Juan Pedro Gutiérrez Hermosillo Muriedas", email = "juan.muriedas@kit.edu"},
+    { name = "Hakan Akdag", email = "hakan.akdag@dlr.de"},
+    { name = "Berkant Palazoglu", email = "b.palazoglu@fz-juelich.de"}
 ]
-license = { file = "LICENSE" }
+license = "MIT"
+license-files = ["LICENSE"]
 keywords=["data", "analytics", "tensors", "distributed", "gpu"]
 classifiers=[
     "Development Status :: 5 - Production/Stable",
@@ -24,7 +39,6 @@ classifiers=[
     "License :: OSI Approved :: MIT License",
     "Intended Audience :: Science/Research",
     "Topic :: Scientific/Engineering",
-    "Operating System :: Unix",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Topic :: Scientific/Engineering :: Information Analysis",
     "Topic :: Scientific/Engineering :: Mathematics",
@@ -35,7 +49,7 @@ requires-python = ">=3.10"
 
 dependencies = [
     "mpi4py>=3.0.0",
-    "torch>=2.0.0,<2.7.1",
+    "torch>=2.6.0,<2.7.1",
     "torchvision~=0.15",
     "scipy~=1.14",
 ]
