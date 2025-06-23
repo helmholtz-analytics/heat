@@ -146,7 +146,7 @@ def create_clusters(
         for k in range(n_clusters)
     ]
     local_data = torch.cat(local_data, dim=0)
-    rand_perm = torch.randperm(local_shape[0])
+    rand_perm = torch.randperm(local_shape[0], device=device.torch_device)
     local_data = local_data[rand_perm, :]
     data = ht.DNDarray(
         local_data,

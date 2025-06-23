@@ -775,10 +775,12 @@ def diag(a: DNDarray, offset: int = 0) -> DNDarray:
             (abs(offset),), dtype=a.dtype, split=None, device=a.device, comm=a.comm
         )
         a = concatenate((padding, a))
-        indices_x = torch.arange(max(0, min(abs(offset) - off, lshape[0])), lshape[0])
+        indices_x = torch.arange(
+            max(0, min(abs(offset) - off, lshape[0])), lshape[0], device=a.device.torch_device
+        )
     else:
         # Offset = 0 values on main diagonal
-        indices_x = torch.arange(0, lshape[0])
+        indices_x = torch.arange(0, lshape[0], device=a.device.torch_device)
 
     indices_y = indices_x + off + offset
     a.balance_()
