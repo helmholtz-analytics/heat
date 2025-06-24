@@ -1794,6 +1794,14 @@ class TestDNDarray(TestCase):
             )
         self.assertTrue(dndarray_proxy_nbytes == 1)
 
+    def test_torch_function(self):
+        arr = ht.array([1, 2, 3, 4])
+        self.assertIsInstance(torch.concatenate([arr, arr]), ht.DNDarray)
+        self.assertIsInstance(torch.sum(arr, axis=0), ht.DNDarray)
+
+        with self.assertRaises(TypeError):
+            torch.sigmoid(arr)
+
     def test_xor(self):
         int16_tensor = ht.array([[1, 1], [2, 2]], dtype=ht.int16)
         int16_vector = ht.array([[3, 4]], dtype=ht.int16)
