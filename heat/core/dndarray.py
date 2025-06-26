@@ -1811,11 +1811,20 @@ class DNDarray:
         dist = self.copy().resplit_(axis=None)
         return dist.larray.cpu().numpy()
 
+    def _repr_pretty_(self, p, cycle):
+        """
+        Pretty print for IPython.
+        """
+        if cycle:
+            p.text(printing.__str__(self))
+        else:
+            p.text(printing.__str__(self))
+
     def __repr__(self) -> str:
         """
-        Computes a printable representation of the passed DNDarray.
+        Returns a printable representation of the passed DNDarray, targeting developers.
         """
-        return printing.__str__(self)
+        return printing.__repr__(self)
 
     def ravel(self):
         """
