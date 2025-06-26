@@ -50,6 +50,10 @@ class LocalOutlierFactor:
     chunks : int
         Compute the distance matrix iteratively in chunks to reduce memory consumption (but with larger runtime).
         For ``chunks``= 2: first compute one half of the distance matrix and then the second half.
+    fully_distributed : bool
+        Decides whether to distribute auxiliary vectors during the computation among all MPI processes.
+        Only set to True for a very large number of data points that may already cause memory issues on their own.
+        True is more memory efficient, but much slower than False due to large communication overhead.
 
     Raises
     ------
@@ -74,6 +78,7 @@ class LocalOutlierFactor:
         threshold=1.5,
         chunks=1,
         top_n=None,
+        fully_distributed=False,
     ):
 
         self.n_neighbors = n_neighbors
@@ -84,6 +89,7 @@ class LocalOutlierFactor:
         self.anomaly = None
         self.metric = metric
         self.chunks = chunks
+        self.fully_distributed = fully_distributed
 
         self._input_sanitation()
 
@@ -130,19 +136,13 @@ class LocalOutlierFactor:
             X, X, metric=self.metric, n_smallest=self.n_neighbors + 1, chunks=self.chunks
         )  # cdist_small stores also the distance of each point to itself, therefore use n_neighbors+1
 
-        # Compute the reachability distance matrix
-        # reachability_dist = self._reach_dist(dist, idx)
-
+        # Extract the k-distance and the indices of the k-nearest neighbors
         k_dist = dist[:, -1]
         idx_neighbors = idx[:, 1 : self.n_neighbors + 1]
 
-        # TODO: currently, the required advanced indexing only works if k_dist=k_dist.resplit_(None).
-        # Once the advanced indexing is implemented for all split configurations, replace the following loop
-        # by k_dist_neighbors=k_dist[idx[:,1:self.n_neighbors+1]]
-        k_dist_neighbors = ht.zeros(idx_neighbors.shape, split=0)
-        for i in range(length):
-            k_dist_neighbors[i] = k_dist[idx_neighbors[i]]
+        k_dist_neighbors = self._advanced_indexing(k_dist, idx_neighbors)
 
+        # Compute the reachability distance for each point
         reachability_dist = ht.maximum(k_dist_neighbors, dist[:, 1 : self.n_neighbors + 1])
 
         # Compute the local reachability density (lrd) for each point
@@ -150,10 +150,8 @@ class LocalOutlierFactor:
             ht.mean(reachability_dist, axis=1) + 1e-10
         )  # add 1e-10 to avoid division by zero (important for many duplicates in data)
 
-        # TODO: Once the advanced indexing is implemented in Heat, replace this loop by lrd_neighbors = lrd[idx[:, 1:]]
-        lrd_neighbors = ht.zeros(idx_neighbors.shape, split=0)
-        for i in range(length):
-            lrd_neighbors[i] = lrd[idx_neighbors[i]]
+        # Calculate the local reachability distance for each point's neighbors
+        lrd_neighbors = self._advanced_indexing(lrd, idx[:, 1 : self.n_neighbors + 1])
 
         lof = ht.mean(lrd_neighbors, axis=1) / lrd
 
@@ -190,6 +188,50 @@ class LocalOutlierFactor:
 
         # Classify anomalies based on the threshold value
         self.anomaly = ht.where(self.lof_scores >= threshold_value, 1, -1)
+
+    def _advanced_indexing(self, A: DNDarray, idx: DNDarray) -> DNDarray:
+        """
+        Perform advanced indexing on a distributed DNDarray, allowing for optional runtime optimization.
+
+        This function handles advanced indexing for distributed DNDarrays. It supports two modes:
+        1. Fully distributed mode (`fully_distributed=True`): handles indexing in a completely distributed manner.
+           This mode is memory safe but rather slow.
+        2. Local mode (`fully_distributed=False`):uses local arrays (torch tensors) to perform indexing
+           efficiently, assuming that local arrays of dimension (A.shape[0], `n_neighbors`) fit into memory.
+
+        Parameters
+        ----------
+        A : DNDarray
+            The input DNDarray to be indexed.
+        idx : DNDarray
+            The indices used for advanced indexing.
+
+        Returns
+        -------
+        indexed_A : DNDarray
+            The result of advanced indexing on the input array.
+        """
+        # Using heat's advanced indexing for large data set
+        if self.fully_distributed is True:
+            # TODO: currently, the required advanced indexing only works if k_dist=k_dist.resplit_(None).
+            # Once the advanced indexing is implemented for all configurations, replace the following loop
+            # by indexed_A=A[idx]
+            indexed_A = ht.zeros(idx.shape, split=0)
+            for i in range(A.shape[0]):
+                indexed_A[i] = A[idx[i]]
+        # Use local arrays, i.e., torch.tensors, to reduce runtime while indexing
+        # (only possible if all local arrays defined below fit into memory)
+        else:
+            split = A.split
+            type = A.dtype
+            # Use none-split arrays to reduce communication overhead
+            A_ = A.resplit_(None).larray
+            idx_ = idx.resplit_(None).larray
+            # Apply standard advanced indexing
+            indexed_A_ = A_[idx_]
+            # Convert the result back to a distributed DNDarray
+            indexed_A = ht.array(indexed_A_, split=split, dtype=type)
+        return indexed_A
 
     def _map_idx_to_proc(self, idx, comm):
         """
