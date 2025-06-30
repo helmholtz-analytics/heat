@@ -512,7 +512,7 @@ class DistributedSampler(torch_data.Sampler):
         if self.linked_sampler is not None:
             self.linked_sampler.set_seed(value)
 
-    def link(self, sampler: 'DistributedSampler') -> None:
+    def link(self, sampler: "DistributedSampler") -> None:
         """
         Links another DistributedSampler to this one, to automatically sets the seed/shuffle_type of this and the linked one,
         rather than manually setting both seperately. Usefull when one Sampler contains training data and the
