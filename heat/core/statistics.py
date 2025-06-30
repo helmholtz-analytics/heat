@@ -61,6 +61,8 @@ def argmax(
         By default, the index is into the flattened array, otherwise along the specified axis.
     out : DNDarray, optional.
         If provided, the result will be inserted into this array. It should be of the appropriate shape and dtype.
+    **kwargs
+        Extra keyword arguments
 
     Examples
     --------
@@ -138,6 +140,8 @@ def argmin(
         By default, the index is into the flattened array, otherwise along the specified axis.
     out : DNDarray, optional
         Issue #100 If provided, the result will be inserted into this array. It should be of the appropriate shape and dtype.
+    **kwargs
+        Extra keyword arguments
 
     Examples
     --------
@@ -247,17 +251,17 @@ def average(
 
     Examples
     --------
-    >>> data = ht.arange(1,5, dtype=float)
+    >>> data = ht.arange(1, 5, dtype=float)
     >>> data
     DNDarray([1., 2., 3., 4.], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.average(data)
     DNDarray(2.5000, dtype=ht.float32, device=cpu:0, split=None)
-    >>> ht.average(ht.arange(1,11, dtype=float), weights=ht.arange(10,0,-1))
+    >>> ht.average(ht.arange(1, 11, dtype=float), weights=ht.arange(10, 0, -1))
     DNDarray([4.], dtype=ht.float64, device=cpu:0, split=None)
     >>> data = ht.array([[0, 1],
                          [2, 3],
                         [4, 5]], dtype=float, split=1)
-    >>> weights = ht.array([1./4, 3./4])
+    >>> weights = ht.array([1.0 / 4, 3.0 / 4])
     >>> ht.average(data, axis=1, weights=weights)
     DNDarray([0.7500, 2.7500, 4.7500], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.average(data, weights=weights)
@@ -593,11 +597,11 @@ def digitize(x: DNDarray, bins: Union[DNDarray, torch.Tensor], right: bool = Fal
 
     Examples
     --------
-    >>> x = ht.array([1.2, 10.0, 12.4, 15.5, 20.])
+    >>> x = ht.array([1.2, 10.0, 12.4, 15.5, 20.0])
     >>> bins = ht.array([0, 5, 10, 15, 20])
-    >>> ht.digitize(x,bins,right=True)
+    >>> ht.digitize(x, bins, right=True)
     DNDarray([1, 2, 3, 4, 4], dtype=ht.int64, device=cpu:0, split=None)
-    >>> ht.digitize(x,bins,right=False)
+    >>> ht.digitize(x, bins, right=False)
     DNDarray([1, 3, 3, 4, 5], dtype=ht.int64, device=cpu:0, split=None)
     """
     if isinstance(bins, DNDarray):
@@ -654,7 +658,7 @@ def histc(
 
     Examples
     --------
-    >>> ht.histc(ht.array([1., 2, 1]), bins=4, min=0, max=3)
+    >>> ht.histc(ht.array([1.0, 2, 1]), bins=4, min=0, max=3)
     DNDarray([0., 2., 1., 0.], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.histc(ht.arange(10, dtype=ht.float64, split=0), bins=10)
     DNDarray([1., 1., 1., 1., 1., 1., 1., 1., 1., 1.], dtype=ht.float64, device=cpu:0, split=None)
@@ -867,7 +871,7 @@ def maximum(x1: DNDarray, x2: DNDarray, out: Optional[DNDarray] = None) -> DNDar
     imaginary parts being ``NaN``. The net effect is that NaNs are propagated.
 
     Parameters
-    -----------
+    ----------
     x1 : DNDarray
             The first array containing the elements to be compared.
     x2 : DNDarray
@@ -877,7 +881,7 @@ def maximum(x1: DNDarray, x2: DNDarray, out: Optional[DNDarray] = None) -> DNDar
         If not provided or ``None``, a freshly-allocated array is returned.
 
     Examples
-    ---------
+    --------
     >>> import heat as ht
     >>> a = ht.random.randn(3, 4)
     >>> a
@@ -932,12 +936,12 @@ def mean(x: DNDarray, axis: Optional[Union[int, Tuple[int, ...]]] = None) -> DND
 
     Examples
     --------
-    >>> a = ht.random.randn(1,3)
+    >>> a = ht.random.randn(1, 3)
     >>> a
     DNDarray([[-0.1164,  1.0446, -0.4093]], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.mean(a)
     DNDarray(0.1730, dtype=ht.float32, device=cpu:0, split=None)
-    >>> a = ht.random.randn(4,4)
+    >>> a = ht.random.randn(4, 4)
     >>> a
     DNDarray([[-1.0585,  0.7541, -1.1011,  0.5009],
               [-1.3575,  0.3344,  0.4506,  0.7379],
@@ -947,13 +951,13 @@ def mean(x: DNDarray, axis: Optional[Union[int, Tuple[int, ...]]] = None) -> DND
     DNDarray([-0.2262,  0.0413, -0.8328, -0.2619], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.mean(a, 0)
     DNDarray([-0.5392, -0.1655, -0.7539,  0.1791], dtype=ht.float32, device=cpu:0, split=None)
-    >>> a = ht.random.randn(4,4)
+    >>> a = ht.random.randn(4, 4)
     >>> a
     DNDarray([[-0.1441,  0.5016,  0.8907,  0.6318],
               [-1.1690, -1.2657,  1.4840, -0.1014],
               [ 0.4133,  1.4168,  1.3499,  1.0340],
               [-0.9236, -0.7535, -0.2466, -0.9703]], dtype=ht.float32, device=cpu:0, split=None)
-    >>> ht.mean(a, (0,1))
+    >>> ht.mean(a, (0, 1))
     DNDarray(0.1342, dtype=ht.float32, device=cpu:0, split=None)
     """
 
@@ -1079,7 +1083,11 @@ def median(
 
 
 DNDarray.median: Callable[[DNDarray, int, bool, bool, float], DNDarray] = (
-    lambda x, axis=None, keepdims=False, sketched=False, sketch_size=1.0 / MPI.COMM_WORLD.size: median(
+    lambda x,
+    axis=None,
+    keepdims=False,
+    sketched=False,
+    sketch_size=1.0 / MPI.COMM_WORLD.size: median(
         x, axis, keepdims, sketched=sketched, sketch_size=sketch_size
     )
 )
@@ -1229,7 +1237,7 @@ def minimum(x1: DNDarray, x2: DNDarray, out: Optional[DNDarray] = None) -> DNDar
     imaginary parts being ``NaN``. The net effect is that NaNs are propagated.
 
     Parameters
-    -----------
+    ----------
     x1 : DNDarray
         The first array containing the elements to be compared.
     x2 : DNDarray
@@ -1239,31 +1247,31 @@ def minimum(x1: DNDarray, x2: DNDarray, out: Optional[DNDarray] = None) -> DNDar
         If not provided or ``None``, a freshly-allocated array is returned.
 
     Examples
-    ---------
+    --------
     >>> import heat as ht
-    >>> a = ht.random.randn(3,4)
+    >>> a = ht.random.randn(3, 4)
     >>> a
     DNDarray([[-0.5462,  0.0079,  1.2828,  1.4980],
               [ 0.6503, -1.1069,  1.2131,  1.4003],
               [-0.3203, -0.2318,  1.0388,  0.4439]], dtype=ht.float32, device=cpu:0, split=None)
-    >>> b = ht.random.randn(3,4)
+    >>> b = ht.random.randn(3, 4)
     >>> b
     DNDarray([[ 1.8505,  2.3055, -0.2825, -1.4718],
               [-0.3684,  1.6866, -0.8570, -0.4779],
               [ 1.0532,  0.3775, -0.8669, -1.7275]], dtype=ht.float32, device=cpu:0, split=None)
-    >>> ht.minimum(a,b)
+    >>> ht.minimum(a, b)
     DNDarray([[-0.5462,  0.0079, -0.2825, -1.4718],
               [-0.3684, -1.1069, -0.8570, -0.4779],
               [-0.3203, -0.2318, -0.8669, -1.7275]], dtype=ht.float32, device=cpu:0, split=None)
-    >>> c = ht.random.randn(1,4)
+    >>> c = ht.random.randn(1, 4)
     >>> c
     DNDarray([[-1.4358,  1.2914, -0.6042, -1.4009]], dtype=ht.float32, device=cpu:0, split=None)
-    >>> ht.minimum(a,c)
+    >>> ht.minimum(a, c)
     DNDarray([[-1.4358,  0.0079, -0.6042, -1.4009],
               [-1.4358, -1.1069, -0.6042, -1.4009],
               [-1.4358, -0.2318, -0.6042, -1.4009]], dtype=ht.float32, device=cpu:0, split=None)
-    >>> d = ht.random.randn(3,4,5)
-    >>> ht.minimum(a,d)
+    >>> d = ht.random.randn(3, 4, 5)
+    >>> ht.minimum(a, d)
     ValueError: operands could not be broadcast, input shapes (3, 4) (3, 4, 5)
     """
     return _operations.__binary_op(torch.min, x1, x2, out)
@@ -1794,6 +1802,8 @@ def std(
         Delta Degrees of Freedom: the denominator implicitely used in the calculation is N - ddof, where N
         represents the number of elements. If ``ddof=1``, the Bessel correction will be applied.
         Setting ``ddof>1`` raises a ``NotImplementedError``.
+    **kwargs
+        Extra keyword arguments
 
     Examples
     --------
@@ -1802,7 +1812,7 @@ def std(
     DNDarray([[ 0.5714,  0.0048, -0.2942]], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.std(a)
     DNDarray(0.3590, dtype=ht.float32, device=cpu:0, split=None)
-    >>> a = ht.random.randn(4,4)
+    >>> a = ht.random.randn(4, 4)
     >>> a
     DNDarray([[ 0.8488,  1.2225,  1.2498, -1.4592],
               [-0.5820, -0.3928,  0.1509, -0.0174],
@@ -1934,6 +1944,9 @@ def var(
         Delta Degrees of Freedom: the denominator implicitely used in the calculation is N - ddof, where N
         represents the number of elements. If ``ddof=1``, the Bessel correction will be applied.
         Setting ``ddof>1`` raises a ``NotImplementedError``.
+    **kwargs
+        Extra keyword arguments
+
 
     Notes
     -----
@@ -1953,14 +1966,14 @@ def var(
 
     Examples
     --------
-    >>> a = ht.random.randn(1,3)
+    >>> a = ht.random.randn(1, 3)
     >>> a
     DNDarray([[-2.3589, -0.2073,  0.8806]], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.var(a)
     DNDarray(1.8119, dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.var(a, ddof=1)
     DNDarray(2.7179, dtype=ht.float32, device=cpu:0, split=None)
-    >>> a = ht.random.randn(4,4)
+    >>> a = ht.random.randn(4, 4)
     >>> a
     DNDarray([[-0.8523, -1.4982, -0.5848, -0.2554],
               [ 0.8458, -0.3125, -0.2430,  1.9016],
