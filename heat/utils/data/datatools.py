@@ -358,7 +358,6 @@ class DistributedSampler(torch_data.Sampler):
 
     def _shuffle(self) -> None:
         """Shuffles the given dndarray at creation across processes."""
-
         if self.shuffle_type == "local":
             return
 
@@ -485,6 +484,21 @@ class DistributedSampler(torch_data.Sampler):
         self.dndarray.larray = local_recv_buffer
 
     def set_shuffle_type(self, shuffle_type: Literal["global"] | Literal["local"]) -> None:
+        """Sets the Shuffle type for the Sampler.
+
+        Parameters
+        ----------
+        shuffle_type : Literal[&quot;global&quot;] | Literal[&quot;local&quot;]
+            - Local Shuffle means the shuffle of the larray only.
+            - Global Shuffle means the shuffle across all processes
+
+        Raises
+        ------
+        TypeError
+            Shuffle type needs to be a string
+        ValueError
+            Only Global/Local shuffle types exist
+        """
         if not isinstance(shuffle_type, str):
             raise TypeError("Shuffle type needs to be an string")
         if not (shuffle_type == "global" or shuffle_type == "local"):
