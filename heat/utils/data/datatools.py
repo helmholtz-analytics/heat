@@ -13,6 +13,7 @@ from torch.utils import data as torch_data
 from typing import Callable, List, Iterator, Literal, Union, Optional, Sized
 
 import torch.utils
+import torchvision
 
 from ...core.dndarray import DNDarray
 from ...core.communication import CUDA_AWARE_MPI, MPI_WORLD, MPICommunication
@@ -265,21 +266,27 @@ class DistributedDataset(torch_data.Dataset):
     for the distribution and getting the items. Intented to be used with DistributedSampler.
     """
 
-    def __init__(self, dndarray: DNDarray):
+    def __init__(self, dndarray: DNDarray, transforms: torchvision.transforms.Compose = None):
         if not isinstance(dndarray, DNDarray):
             raise TypeError(f"Expected DNDarray but got {type(dndarray)}")
         if dndarray.split != 0:
             raise ValueError("DistributedDataset only works with a DNDarray split of 0")
 
         self.dndarray = dndarray
+        self.transforms = transforms
 
     def __len__(self) -> int:
         return len(self.dndarray.larray)
 
     def __getitem__(self, index):
-        return self.dndarray.larray[index]
+        item = self.dndarray.larray[index]
+        if self.transforms is not None:
+            return self.transforms(item)
+        return item
 
     def __getitems__(self, indices):
+        if self.transforms is not None:
+            return tuple(self.transforms(self.dndarray.larray[index]) for index in indices)
         return tuple(self.dndarray.larray[index] for index in indices)
 
 
@@ -318,6 +325,7 @@ class DistributedSampler(torch_data.Sampler):
         self.dataset = dataset
         self.dndarray = dataset.dndarray
         self.shuffle = shuffle
+        self.linked_sampler = None
         self.set_shuffle_type(shuffle_type)
         self.set_seed(seed)
 
@@ -352,8 +360,6 @@ class DistributedSampler(torch_data.Sampler):
         """Shuffles the given dndarray at creation across processes."""
 
         if self.shuffle_type == "local":
-            perm = torch.randperm(len(self.dndarray.larray))
-            self.dndarray.larray = self.dndarray.larray[perm]
             return
 
         if self.shuffle_type != "global":
@@ -486,6 +492,9 @@ class DistributedSampler(torch_data.Sampler):
 
         self.shuffle_type: Literal["global"] | Literal["local"] = shuffle_type
 
+        if self.linked_sampler is not None:
+            self.linked_sampler.set_shuffle_type(shuffle_type)
+
     def set_seed(self, value: int) -> None:
         """Sets the seed for the torch.randperm
 
@@ -500,8 +509,30 @@ class DistributedSampler(torch_data.Sampler):
         if self.shuffle:
             self._shuffle()
 
+        if self.linked_sampler is not None:
+            self.linked_sampler.set_seed(value)
+
+    def link(self, sampler: 'DistributedSampler') -> None:
+        """
+        Links another DistributedSampler to this one, to automatically sets the seed/shuffle_type of this and the linked one,
+        rather than manually setting both seperately. Usefull when one Sampler contains training data and the
+        linked one the label data.
+        """
+        if not isinstance(sampler, DistributedSampler):
+            raise TypeError(f"Sampler of type {type(sampler)} needs to be an DistributedSampler")
+        self.linked_sampler = sampler
+
+    def unlink(self) -> None:
+        """
+        Removes an established link. For more info view :link: function
+        """
+        self.linked_sampler = None
+
     def __iter__(self) -> Iterator[int]:
-        self.indices = list(range(len(self.dndarray.larray)))
+        if self.shuffle_type == "local":
+            self.indices = torch.randperm(len(self.dndarray.larray)).tolist()
+        else:
+            self.indices = list(range(len(self.dndarray.larray)))
         return iter(self.indices)
 
     def __len__(self) -> int:
