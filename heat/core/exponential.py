@@ -1,5 +1,5 @@
 """
-This module computes exponential and logarithmic operations.
+Exponential and logarithmic operations module.
 """
 
 import torch
@@ -63,7 +63,7 @@ def expm1(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
 
     Examples
     --------
-    >>> ht.expm1(ht.arange(5)) + 1.
+    >>> ht.expm1(ht.arange(5)) + 1.0
     DNDarray([ 1.0000,  2.7183,  7.3891, 20.0855, 54.5981], dtype=ht.float64, device=cpu:0, split=None)
     """
     return _operations.__local_op(torch.expm1, x, out)
@@ -303,7 +303,7 @@ def square(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
         or set to :keyword:`None`, a fresh array is allocated.
 
-    Examples:
+    Examples
     --------
     >>> a = ht.random.rand(4)
     >>> a

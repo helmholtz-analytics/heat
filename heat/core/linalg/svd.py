@@ -132,7 +132,6 @@ def svd(
                 )
                 return S
     if A.is_distributed() and A.split == 1:
-
         if A.lshape_map[:, 1].max().item() < A.shape[0]:
             raise ValueError(
                 "Input ``A`` is split along the columns and the local chunks of data are rectangular with more rows than columns. \n This case is not supported by the current implementation of SVD in Heat."
