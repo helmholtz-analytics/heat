@@ -577,12 +577,18 @@ def rsvd(
 
     # power iterations
     for _ in range(q):
+        if Q.split is not None and Q.shape[Q.split] < Q.comm.size:
+            Q.resplit_(None)
         Y = matmul(A.T, Q)
         Q, _ = qr(Y, procs_to_merge=qr_procs_to_merge)
+        if Q.split is not None and Q.shape[Q.split] < Q.comm.size:
+            Q.resplit_(None)
         Y = matmul(A, Q)
         Q, _ = qr(Y, procs_to_merge=qr_procs_to_merge)
 
     # compute the SVD of the projected matrix
+    if Q.split is not None and Q.shape[Q.split] < Q.comm.size:
+        Q.resplit_(None)
     B = matmul(Q.T, A)
     B.resplit_(
         None
