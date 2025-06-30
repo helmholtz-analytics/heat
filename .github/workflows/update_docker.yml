@@ -1,0 +1,73 @@
+name: Dockerfile Update
+
+on: 
+  release:
+    types: [published]
+
+# Allowing the workflow to write into the repository
+permissions:
+  contents: write
+
+# Separated into updating the docker file and writing into the repository
+jobs:
+  update-dockerfile:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Update Dockerfile
+        run: |
+          # Extract the current version from the Dockerfile
+          FILE_VERSION=$(grep -oP 'ARG PYTORCH_IMG=\K\d{2}\.\d{2}' docker/Dockerfile.release)
+          
+          # Construct the date for the new version
+          DATE=$(date '+%y.%m')
+          
+          # Separate into Year and Month 
+          YEAR=$(echo $DATE | cut -d'.' -f1)
+          MONTH=$(echo $DATE | cut -d'.' -f2)
+          
+          ## --- Handling of special cases ---
+          # Move to the previous year
+          if [ "$MONTH" == "01" ]; then
+          PREV_MONTH="12"
+          YEAR=$(($YEAR - 1))
+          # 09 and 08 will be interpreted in Octal, so they have to be handled differently 
+          elif [ "$MONTH" == "09" ]; then
+          PREV_MONTH="08"
+          elif [ "$MONTH" == "08" ]; then
+          PREV_MONTH="07"
+          else
+          PREV_MONTH=$(($MONTH - 1))
+          # Ensure the previous month is 2 digits
+          PREV_MONTH=$(printf "%02d" $PREV_MONTH)
+          fi
+          
+          # Construct the new version
+          NEW_VERSION="${YEAR}.${PREV_MONTH}"
+
+          # Replace 
+          sed -i "s/$FILE_VERSION/$NEW_VERSION/g" docker/Dockerfile.release
+
+          # Show diff
+          echo "Diff after update:"
+          git diff docker/Dockerfile.release || true
+
+      - name: Commit and push changes
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+
+          # Check for changes
+          if git diff --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+
+          # Extract the current version from the Dockerfile
+          UPDATED_VERSION=$(grep -oP 'ARG PYTORCH_IMG=\K\d{2}\.\d{2}' docker/Dockerfile.release)
+
+          git add docker/Dockerfile.release
+          git commit -m "Update pytorch image in Dockerfile.release to version $UPDATED_VERSION"
+          git push origin HEAD:main
