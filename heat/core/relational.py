@@ -145,7 +145,11 @@ def equal(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> boo
                     target_map[: x.comm.rank + 1, y.split].sum(),
                 )
                 x = factories.array(
-                    x.larray[tuple(idx)], is_split=y.split, copy=False, comm=x.comm, device=x.device
+                    x.larray[tuple(idx)],
+                    is_split=y.split,
+                    copy=False,
+                    comm=x.comm,
+                    device=x.device,
                 )
         elif x.split is not None and y.split is None:
             if x.is_balanced(force_check=False):
@@ -158,7 +162,11 @@ def equal(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> boo
                     target_map[: y.comm.rank + 1, x.split].sum(),
                 )
                 y = factories.array(
-                    y.larray[tuple(idx)], is_split=x.split, copy=False, comm=y.comm, device=y.device
+                    y.larray[tuple(idx)],
+                    is_split=x.split,
+                    copy=False,
+                    comm=y.comm,
+                    device=y.device,
                 )
         elif x.split != y.split:
             raise ValueError(
