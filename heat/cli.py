@@ -43,12 +43,12 @@ def plaform_info():
     print(f"  Torch Version: {torch.__version__}")
     print(f"  CUDA Available: {torch.cuda.is_available()}")
     if torch.cuda.is_available():
-        torch.set_default_device("cuda")
+        def_device = torch.get_default_device()
         print(f"    Device count: {torch.cuda.device_count()}")
-        print(f"    Default device: {torch.get_default_device()}")
-        print(f"    Device name: {torch.cuda.get_device_name(torch.get_default_device())}")
-        print(f"    Device name: {torch.cuda.get_device_properties(torch.get_default_device())}")
+        print(f"    Default device: {def_device}")
+        print(f"    Device name: {torch.cuda.get_device_name(def_device)}")
+        print(f"    Device name: {torch.cuda.get_device_properties(def_device)}")
         print(
-            f"   Device memory: {torch.cuda.get_device_properties(torch.get_default_device()).total_memory / 1024**3} GiB"
+            f"   Device memory: {torch.cuda.get_device_properties(def_device).total_memory / 1024**3} GiB"
         )
         print(f"    CUDA Aware MPI: {CUDA_AWARE_MPI}")
