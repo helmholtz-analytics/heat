@@ -14,9 +14,14 @@ repos:
     hooks:
     - id: black
   - repo: https://github.com/PyCQA/flake8
-    rev: 7.2.0
+    rev: 7.3.0
     hooks:
       - id: flake8
+  - repo: https://github.com/kynan/nbstripout
+    rev: 0.8.1
+    hooks:
+      - id: nbstripout
+        args: ['--keep-output', '--drop-empty-cells']
   - repo: https://github.com/pycqa/pydocstyle
     rev: 6.3.0 # pick a git hash / tag to point to
     hooks:
