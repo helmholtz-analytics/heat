@@ -1907,6 +1907,21 @@ class DNDarray:
 
         return self.__array.tolist()
 
+    @classmethod
+    def __torch_function__(cls, func, types, args=(), kwargs=None):
+        """
+        Supports PyTorch's dispatch mechanism.
+        """
+        import heat
+
+        if kwargs is None:
+            kwargs = {}
+        try:
+            ht_func = getattr(heat, func.__name__)
+        except AttributeError:
+            return NotImplemented
+        return ht_func(*args, **kwargs)
+
     def __torch_proxy__(self) -> torch.Tensor:
         """
         Return a 1-element `torch.Tensor` strided as the global `self` shape.
