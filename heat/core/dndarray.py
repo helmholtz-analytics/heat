@@ -482,6 +482,34 @@ class DNDarray:
         """
         return self.larray.cpu().__array__()
 
+    def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
+        """
+        Override NumPy's universal functions.
+        """
+        import heat
+
+        # TODO support ufunc method variants
+        if method == "__call__":
+            try:
+                func = getattr(heat, ufunc.__name__)
+            except AttributeError:
+                return NotImplemented
+            return func(*inputs, **kwargs)
+        else:
+            return NotImplemented
+
+    def __array_function__(self, func, types, args, kwargs):
+        """
+        Augments NumPy's functions.
+        """
+        import heat
+
+        try:
+            ht_func = getattr(heat, func.__name__)
+        except AttributeError:
+            return NotImplemented
+        return ht_func(*args, **kwargs)
+
     def astype(self, dtype, copy=True) -> DNDarray:
         """
         Returns a casted version of this array.
