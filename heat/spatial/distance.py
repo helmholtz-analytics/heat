@@ -2,16 +2,18 @@
 Module for (pairwise) distance functions
 """
 
+import heat as ht
 import torch
 import numpy as np
 from mpi4py import MPI
 from typing import Callable
 
+from ..core import tiling
 from ..core import factories
 from ..core import types
 from ..core.dndarray import DNDarray
 
-__all__ = ["cdist", "manhattan", "rbf"]
+__all__ = ["cdist", "cdist_small", "manhattan", "rbf"]
 
 
 def _euclidian(x: torch.tensor, y: torch.tensor) -> torch.tensor:
@@ -204,6 +206,216 @@ def manhattan(X: DNDarray, Y: DNDarray = None, expand: bool = False):
         return _dist(X, Y, lambda x, y: _manhattan_fast(x, y))
     else:
         return _dist(X, Y, lambda x, y: _manhattan(x, y))
+
+
+def _chunk_wise_topk(
+    x_: torch.tensor,
+    y_: torch.tensor,
+    k: int = 10,
+    metric: Callable = _euclidian,
+    chunks: int = 1,
+    device: torch.device = None,
+) -> DNDarray:
+    """
+    Helper function to calculate the topk pairwise distances between two torch.tensors in a chunk-wise fashion,
+    i.e., the top k distance matrix are calculated iteratively in chunks and then appended to the final matrix
+    in order to reduce memory consumption.
+
+    Parameters
+    ----------
+    x_ : torch.tensor
+        2D array of size :math: `m \\times f`
+    y_ : torch.tensor
+        2D array of size :math: `n \\times f`
+    k : int
+        Number of top k distances to be calculated
+    metric: Callable
+        The distance to be calculated between ``x_`` and ``y_``
+    chunks: int
+        Compute the distance matrix iteratively in chunks to reduce memory consumption.
+        For ``chunks``= 2: first compute one half of the distance matrix and then the second half.
+    device: torch.device
+        The device on which the computation is performed. If None, the default device of the input tensors is used.
+
+    Returns
+    -------
+    dist: torch.tensor
+        Distance matrix storing the top k distances between the elements of ``x_`` and ``y_``
+    idx: torch.tensor
+        Indices of the top k distances between the elements of ``x_`` and ``y_``
+
+    Raises
+    ------
+    ValueError
+        If ``n_smallest`` or ``chunks`` is larger than the number of elements in ``y_`` on each process
+
+    Returns
+    -------
+    dist: torch.tensor, shape (m, n)
+        Distance matrix storing the distances between the elements of ``x_`` and ``y_``
+    """
+    # input sanitation
+    if chunks > x_.shape[0]:
+        raise ValueError(
+            "The parameter chunks must be smaller than the number of elements of x_ in each process."
+        )
+
+    # initialize empty tensors that will be filled iteratively with the respective chunks
+    dist = torch.empty((0, k), dtype=torch.float32, device=device)
+    idx = torch.empty((0, k), dtype=torch.long, device=device)
+
+    block_size = (x_.shape[0] + chunks - 1) // chunks
+
+    if chunks == 1:
+        dist = metric(x_, y_)
+        dist, idx = torch.topk(dist, k, largest=False, sorted=True)
+    # compute the top k entries of the distance matrix iteratively in chunks and append results to dist and idx
+    else:
+        for start in range(0, x_.shape[0], block_size):
+            end = min(start + block_size, x_.shape[0])
+            x_batch = x_[start:end]
+            batched_dist = metric(x_batch, y_)
+            batched_dist, batched_idx = torch.topk(batched_dist, k, largest=False, sorted=True)
+            dist = torch.cat((dist, batched_dist), dim=0)
+            idx = torch.cat((idx, batched_idx), dim=0)
+    return dist, idx
+
+
+def cdist_small(
+    X: DNDarray,
+    Y: DNDarray,
+    n_smallest: int = 10,
+    metric: Callable = _euclidian,
+    chunks: int = 1,
+) -> DNDarray:
+    """
+    Calculate the pairwise distances between two DNDarrays (values sorted from smallest to largest), which has
+    on optimized memory consumption if only the ``n_smallest`` smallest distances are needed. Note that the
+    matrix will is not symmetric as in the usual function cdist. To reduce the number of required processes,
+    the parameter ``chunks`` enables a chunk-wise calculation of the distance matrix in an iterative fashion.
+    This allows to choose a trade-off between total memory consumption and computation time.
+
+    Parameters
+    ----------
+    X : DNDarray
+        2D array of size :math: `m \\times f`
+    Y : DNDarray
+        2D array of size :math: `n \\times f`
+    metric: Callable
+        The distance to be calculated between ``X`` and ``Y``
+    n_smallest : int
+        Number of smallest distances to be calculated
+    chunks : int
+        Define if the distances on each process are calculated iteratively. For example, if ``chunks=2``, the
+        each processes will first compute one half of the distance matrix and then the second half.
+
+    Returns
+    -------
+    dist_small: DNDarray, shape (m, n_smallest)
+        Distance matrix storing the n_smallest smallest distances between the elements of ``X`` and ``Y``,
+        sorted from smallest to largest
+
+    Raises
+    ------
+    ValueError
+        If ``n_smallest`` or ``chunks`` is larger than the number of elements in ``Y`` on each process
+    NotImplementedError
+        If split axes of ``X`` and ``Y`` are not 0
+    """
+    # input sanitation
+    if not isinstance(X, DNDarray) or not isinstance(Y, DNDarray):
+        raise ValueError(f"Inputs must be DNDarrays, but got X = {type(X)} and Y = {type(Y)}")
+    if X.split != 0 or Y.split != 0:
+        raise NotImplementedError(
+            "Currently, only split axis 0 is supported, "
+            f"but got X.split = {X.split} and Y.split = {Y.split}"
+        )
+    if X.shape[1] != Y.shape[1]:
+        raise ValueError(
+            f"Inputs must have same shape[1], but have X.shape[1]={X.shape[1]} and Y.shape[1]={Y.shape[1]}"
+        )
+    valid_metrics = ["_euclidian", "_gaussian", "_manhattan"]
+    if metric.__name__ not in valid_metrics:
+        raise ValueError(f"Invalid metric '{metric.__name__}'. Must be one of {valid_metrics}.")
+    if n_smallest > Y.larray.shape[0]:
+        raise ValueError(
+            "The parameter n_smallest must be smaller than the number of elements of Y in each process."
+            "In this case, use the function cdist instead."
+        )
+
+    # type promotion
+    promoted_type = types.promote_types(X.dtype, Y.dtype)
+    promoted_type = types.promote_types(promoted_type, types.float32)
+    X = X.astype(promoted_type)
+    Y = Y.astype(promoted_type)
+    if promoted_type == types.float32:
+        torch_type = torch.float32
+    elif promoted_type == types.float64:
+        torch_type = torch.float64
+    else:
+        raise NotImplementedError(f"Datatype {X.dtype} currently not supported as input")
+
+    # setup for MPI communication
+    comm = X.comm
+    rank = comm.Get_rank()
+    size = comm.Get_size()
+    _, ydispl, _ = Y.comm.counts_displs_shape(Y.shape, Y.split)
+    x_ = X.larray
+    y_ = Y.larray
+
+    # distance betweeen X and Y that are currently assigned to the same process and take only the n_smallest distances
+    current_dist, current_idx = _chunk_wise_topk(
+        x_, y_, n_smallest, metric=metric, chunks=chunks, device=X.device.torch_device
+    )
+    current_idx += ydispl[rank]
+
+    # Communicate the parts of Y between the processes in a circular fashion and keep parts of X fixed.
+    # Reduce memory consumption of the distance matrix with the following strategy (during each communication step):
+    #   1.  Caluclate the distances between the parts of X in each process with the part of Y that is received
+    #       by the respective process. Result is stored in the local matrix `new_dist`
+    #   2.  Merge `new_dist` and `current_dist` to one matrix and take only the n_smallest distances. Result is stored in `current_dist`
+    #   3.  Constantly keep track of indices of the n_smallest distances.
+
+    # circular communication of the parts of Y between the processes
+    for iter in range(1, size):
+        receiver = (rank + iter) % size
+        sender = (rank - iter) % size
+
+        # set a buffer to store the part of Y that is sent to the next process
+        recv_nrows, recv_ncols = Y.lshape_map[sender]
+        buffer = torch.zeros(
+            (recv_nrows, recv_ncols), dtype=torch_type, device=X.device.torch_device
+        )
+
+        # send the individually stored parts of Y to the next process, avoid deadlocks with non-blocking actions
+        # Non-blocking receive
+        req_recv = comm.Irecv(buffer, source=sender, tag=iter)
+        # Non-blocking send
+        req_send = comm.Isend(y_, dest=receiver, tag=iter)
+        # Wait to finish receiving and sending
+        req_recv.wait()
+        req_send.wait()
+
+        # distance between the part of X stored in the current process and the newly received part of Y
+        new_dist, new_idx = _chunk_wise_topk(
+            x_, buffer, n_smallest, metric=metric, chunks=chunks, device=X.device.torch_device
+        )
+        new_idx += ydispl[sender]
+
+        # merge the current distances with the new distances in one matrix (analogous for indices)
+        merged_dist = torch.cat((current_dist, new_dist), dim=1)
+        merged_idx = torch.cat((current_idx, new_idx), dim=1)
+
+        # take only the n_smallest distances
+        current_dist, topk_indices = torch.topk(merged_dist, n_smallest, largest=False, sorted=True)
+        # extract the corresponding indices
+        current_idx = torch.gather(merged_idx, 1, topk_indices)
+
+    # assign the local results on each process (torch.tensor) to the distributed distance and index matrix (ht.DNDarray)
+    dist_small = ht.array(current_dist, is_split=0)
+    indices = ht.array(current_idx, is_split=0)
+
+    return dist_small, indices
 
 
 def _dist(X: DNDarray, Y: DNDarray = None, metric: Callable = _euclidian) -> DNDarray:

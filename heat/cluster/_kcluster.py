@@ -3,6 +3,8 @@ Base-module for k-clustering algorithms
 """
 
 import heat as ht
+import torch
+from heat.cluster.batchparallelclustering import _kmex
 from typing import Optional, Union, Callable
 from heat.core.dndarray import DNDarray
 
@@ -94,7 +96,9 @@ class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
         """
         return self._functional_value
 
-    def _initialize_cluster_centers(self, x: DNDarray):
+    def _initialize_cluster_centers(
+        self, x: DNDarray, oversampling: float = 100, iter_multiplier: float = 20
+    ):
         """
         Initializes the K-Means centroids.
 
@@ -102,6 +106,12 @@ class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
         ----------
         x : DNDarray
             The data to initialize the clusters for. Shape = (n_samples, n_features)
+
+        oversampling : float
+            oversampling factor used in the k-means|| initializiation of centroids
+
+        iter_multiplier : float
+            factor that increases the number of iterations used in the initialization of centroids
         """
         # always initialize the random state
         if self.random_state is not None:
@@ -123,53 +133,106 @@ class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
                 raise ValueError("passed centroids do not match cluster count or data shape")
             self._cluster_centers = self.init.resplit(None)
 
-        # Smart centroid guessing, random sampling with probability weight proportional to distance to existing centroids
+        # Parallelized centroid guessing using the k-means|| algorithm
         elif self.init == "probability_based":
+            # First, check along which axis the data is sliced
             if x.split is None or x.split == 0:
-                centroids = ht.zeros(
-                    (self.n_clusters, x.shape[1]), split=None, device=x.device, comm=x.comm
-                )
-                sample = ht.random.randint(0, x.shape[0] - 1).item()
-                _, displ, _ = x.comm.counts_displs_shape(shape=x.shape, axis=0)
-                proc = 0
-                for p in range(x.comm.size):
-                    if displ[p] > sample:
-                        break
-                    proc = p
-                x0 = ht.zeros(x.shape[1], dtype=x.dtype, device=x.device, comm=x.comm)
-                if x.comm.rank == proc:
-                    idx = sample - displ[proc]
-                    x0 = ht.array(x.lloc[idx, :], device=x.device, comm=x.comm)
-                x0.comm.Bcast(x0, root=proc)
-                centroids[0, :] = x0
-                for i in range(1, self.n_clusters):
-                    distances = ht.spatial.distance.cdist(x, centroids, quadratic_expansion=True)
-                    D2 = distances.min(axis=1)
-                    D2.resplit_(axis=None)
-                    prob = D2 / D2.sum()
-                    random_position = ht.random.rand()
-                    sample = 0
-                    sum = 0
-                    for j in range(len(prob)):
-                        if sum > random_position:
-                            break
-                        sum += prob[j].item()
-                        sample = j
-                    proc = 0
-                    for p in range(x.comm.size):
-                        if displ[p] > sample:
-                            break
-                        proc = p
-                    xi = ht.zeros(x.shape[1], dtype=x.dtype)
-                    if x.comm.rank == proc:
-                        idx = sample - displ[proc]
-                        xi = ht.array(x.lloc[idx, :], device=x.device, comm=x.comm)
-                    xi.comm.Bcast(xi, root=proc)
-                    centroids[i, :] = xi
-
+                # Define a list of random, uniformly distributed probabilities,
+                # which is later used to sample the centroids
+                sample = ht.random.rand(x.shape[0], split=x.split)
+                # Define a random integer serving as a label to pick the first centroid randomly
+                init_idx = ht.random.randint(0, x.shape[0] - 1).item()
+                # Randomly select first centroid and organize it as a tensor, in order to use the function cdist later.
+                # This tensor will be filled continously in the proceeding of this function
+                # We assume that the centroids fit into the memory of a single GPU
+                centroids = ht.expand_dims(x[init_idx, :].resplit_(None), axis=0)
+                # Calculate the initial cost of the clustering after the first centroid selection
+                # and use it as an indicator for the order of magnitude for the number of necessary iterations
+                init_distance = ht.spatial.distance.cdist(x, centroids, quadratic_expansion=True)
+                # --> init_distance calculates the Euclidean distance between data points x and initial centroids
+                # output format: tensor
+                init_min_distance = init_distance.min(axis=1)
+                # --> Pick the minimal distance of the data points to each centroid
+                # output format: vector
+                init_cost = init_min_distance.sum()
+                # --> Now calculate the cost
+                # output format: scalar
+                #
+                # Iteratively fill the tensor storing the centroids
+                for _ in ht.arange(0, iter_multiplier * ht.log(init_cost)):
+                    # Calculate the distance between data points and the current set of centroids
+                    distance = ht.spatial.distance.cdist(x, centroids, quadratic_expansion=True)
+                    min_distance = distance.min(axis=1)
+                    # Sample each point in the data to a new set of centroids
+                    prob = oversampling * min_distance / min_distance.sum()
+                    # -->   probability distribution with oversampling factor
+                    #       output format: vector
+                    idx = ht.where(sample <= prob)
+                    # -->   choose indices to sample the data according to prob
+                    #       output format: vector
+                    local_data = x[idx].resplit_(centroids.split)
+                    # -->   pick the data points that are identified as possible centroids and make sure
+                    #       that data points and centroids are split in the same way
+                    #       output format: vector
+                    centroids = ht.row_stack((centroids, local_data))
+                    # -->   stack the data points with these indices to the DNDarray of centroids
+                    #       output format: tensor
+                # Evaluate distance between final centroids and data points
+                if centroids.shape[0] <= self.n_clusters:
+                    raise ValueError(
+                        "The oversampling factor and/or the number of iterations are chosen"
+                        "too small for the initialization of cluster centers."
+                    )
+                # Evaluate the distance between data and the final set of centroids for the initialization
+                final_distance = ht.spatial.distance.cdist(x, centroids, quadratic_expansion=True)
+                # For each data point in x, find the index of the centroid that is closest
+                final_idx = ht.argmin(final_distance, axis=1)
+                # Introduce weights, i.e., the number of data points closest to each centroid
+                # (count how often the same index in final_idx occurs)
+                weights = ht.zeros(centroids.shape[0], split=centroids.split)
+                for i in range(centroids.shape[0]):
+                    weights[i] = ht.sum(final_idx == i)
+                # Recluster the oversampled centroids using standard k-means ++ (here we use the
+                # already implemented version in torch)
+                centroids = centroids.resplit_(None)
+                centroids = centroids.larray
+                weights = weights.resplit_(None)
+                weights = weights.larray
+                # --> first transform relevant arrays into torch tensors
+                if ht.MPI_WORLD.rank == 0:
+                    batch_kmeans = _kmex(
+                        centroids,
+                        p=2,
+                        n_clusters=self.n_clusters,
+                        init="++",
+                        max_iter=self.max_iter,
+                        tol=self.tol,
+                        random_state=None,
+                        weights=weights,
+                    )
+                    # --> apply standard k-means ++
+                    #     Note: as we only recluster the centroids for initialization with standard k-means ++,
+                    #     this list of centroids can also be used to initialize k-medians and k-medoids
+                    reclustered_centroids = batch_kmeans[0]
+                    # --> access the reclustered centroids
+                else:
+                    # ensure that all processes have the same data
+                    reclustered_centroids = torch.zeros(
+                        (self.n_clusters, centroids.shape[1]),
+                        dtype=x.dtype.torch_type(),
+                        device=centroids.device,
+                    )
+                    # -->  tensor with zeros that has the same size as reclustered centroids, in order to to
+                    #      allocate memory with the correct type in all processes(necessary for broadcast)
+                ht.MPI_WORLD.Bcast(
+                    reclustered_centroids, root=0
+                )  # by default it is broadcasted from process 0
+                reclustered_centroids = ht.array(reclustered_centroids, split=x.split)
+                # --> transform back to DNDarray
+                self._cluster_centers = reclustered_centroids
+                # --> final result for initialized cluster centers
             else:
                 raise NotImplementedError("Not implemented for other splitting-axes")
-            self._cluster_centers = centroids
 
         elif self.init == "batchparallel":
             if x.split == 0:
