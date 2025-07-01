@@ -260,7 +260,7 @@ def _chunk_wise_topk(
             "The parameter chunks must be smaller than the number of elements of x_ in each process."
         )
 
-    # initialize empty tensors that will be filled with the iteratively with the respective chunks
+    # initialize empty tensors that will be filled iteratively with the respective chunks
     dist = torch.empty((0, k), dtype=torch.float32, device=device)
     idx = torch.empty((0, k), dtype=torch.long, device=device)
 
