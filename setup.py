@@ -50,7 +50,7 @@ setup(
         "pandas": ["pandas>=1.4"],
         "hdf5": ["h5py>=2.8.0"],
         "netcdf": ["netCDF4>=1.5.6"],
-        "zarr": ["zarr<3"],
+        "zarr": ["zarr<3.0.9"],
         # Docs
         "docs": [
             "sphinx",
