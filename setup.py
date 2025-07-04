@@ -37,7 +37,7 @@ setup(
         "torch>=2.0.0, <2.7.2",
         "scipy>=1.14.0",
         "pillow>=6.0.0",
-        "torchvision>=0.15.2, <0.22.1",
+        "torchvision>=0.15.2, <0.22.2",
     ],
     extras_require={
         # Dev
