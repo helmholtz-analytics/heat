@@ -183,7 +183,6 @@ Heat is distributed under the MIT license, see our
 # Citing Heat
 
 <!-- If you find Heat helpful for your research, please mention it in your publications. You can cite: -->
-```suggestion
 
 If Heat contributed to a publication, please cite our main paper.
 
