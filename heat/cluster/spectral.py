@@ -137,7 +137,7 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
             x.larray.view(-1)[:: n_nodes + 1] = value
         return x
 
-    def __spectral_embedding(
+    def spectral_embedding(
         self,
         x: DNDarray,
         n_components: int = 8,
@@ -242,7 +242,7 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
         graph laplacian computed from the similarity matrix. Similarity metrics for adjacency
         calculations are supported via :func:`heat.spatial.distance`.
 
-        See :func:`__spectral_embedding` for more details on the decomposition of the graph laplacian.
+        See :func:`spectral_embedding` for more details on the decomposition of the graph laplacian.
 
         Parameters
         ----------
@@ -251,7 +251,7 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
 
         See Also
         --------
-        :func:`__spectral_embedding`
+        :func:`spectral_embedding`
         """
         # 1. input sanitation
         if not isinstance(x, DNDarray):
@@ -259,7 +259,7 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
         if x.is_distributed() and x.split != 0:
             raise NotImplementedError(f"Distribution along axis {x.split} is not supported yet.")
         # 2. Embed Dataset into lower-dimensional Eigenvector space
-        components = self.__spectral_embedding(
+        components = self.spectral_embedding(
             x, n_components=self.n_components, eigen_solver=self.eigen_solver
         )
 
@@ -313,6 +313,6 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
             raise NotImplementedError(f"Distribution along axis {x.split} is not supported yet.")
 
         # TODO is copy necessary?
-        components = self.__spectral_embedding(x, self.eigen_solver).copy()
+        components = self.spectral_embedding(x, self.eigen_solver).copy()
 
         return self._cluster.predict(components)
