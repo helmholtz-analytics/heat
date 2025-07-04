@@ -23,7 +23,7 @@ jobs:
           - 'torch==2.3.1 torchvision==0.18.1 torchaudio==2.3.1'
           - 'torch==2.4.1 torchvision==0.19.1 torchaudio==2.4.1'
           - 'torch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1'
-          - 'torch==2.6.1 torchvision==0.21.1 torchaudio==2.6.1'
+          - 'torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0'
           - 'torch==2.7.1 torchvision==0.22.1 torchaudio==2.7.1'
         exclude:
           - py-version: '3.12'
