@@ -36,9 +36,10 @@ class TestSignal(TestCase):
             ht.convolve(dis_signal, filter_wrong_type, mode="full")
         with self.assertRaises(ValueError):
             ht.convolve(dis_signal, kernel_odd, mode="invalid")
-        with self.assertRaises(ValueError):
-            s = dis_signal.reshape((2, -1))
-            ht.convolve(s, kernel_odd)
+        if dis_signal.comm.size > 1:
+            with self.assertRaises(ValueError):
+                s = dis_signal.reshape((2, -1)).resplit(axis=1)
+                ht.convolve(s, kernel_odd)
         with self.assertRaises(ValueError):
             k = ht.eye(3)
             ht.convolve(dis_signal, k)
@@ -58,17 +59,19 @@ class TestSignal(TestCase):
             modes = ["full", "same", "valid"]
             for i, mode in enumerate(modes):
                 # odd kernel size
-                conv = ht.convolve(dis_signal, kernel_odd, mode=mode)
-                gathered = manipulations.resplit(conv, axis=None)
-                self.assertTrue(ht.equal(full_odd[i : len(full_odd) - i], gathered))
+                if not self.is_mps:
+                    # torch convolution does not support int on MPS
+                    conv = ht.convolve(dis_signal, kernel_odd, mode=mode)
+                    gathered = manipulations.resplit(conv, axis=None)
+                    self.assertTrue(ht.equal(full_odd[i : len(full_odd) - i], gathered))
 
-                conv = ht.convolve(dis_signal, dis_kernel_odd, mode=mode)
-                gathered = manipulations.resplit(conv, axis=None)
-                self.assertTrue(ht.equal(full_odd[i : len(full_odd) - i], gathered))
+                    conv = ht.convolve(dis_signal, dis_kernel_odd, mode=mode)
+                    gathered = manipulations.resplit(conv, axis=None)
+                    self.assertTrue(ht.equal(full_odd[i : len(full_odd) - i], gathered))
 
-                conv = ht.convolve(signal, dis_kernel_odd, mode=mode)
-                gathered = manipulations.resplit(conv, axis=None)
-                self.assertTrue(ht.equal(full_odd[i : len(full_odd) - i], gathered))
+                    conv = ht.convolve(signal, dis_kernel_odd, mode=mode)
+                    gathered = manipulations.resplit(conv, axis=None)
+                    self.assertTrue(ht.equal(full_odd[i : len(full_odd) - i], gathered))
 
                 # different data types
                 conv = ht.convolve(dis_signal.astype(ht.float), kernel_odd)
@@ -86,17 +89,36 @@ class TestSignal(TestCase):
                 # even kernel size
                 # skip mode 'same' for even kernels
                 if mode != "same":
-                    conv = ht.convolve(dis_signal, kernel_even, mode=mode)
-                    dis_conv = ht.convolve(dis_signal, dis_kernel_even, mode=mode)
-                    gathered = manipulations.resplit(conv, axis=None)
-                    dis_gathered = manipulations.resplit(dis_conv, axis=None)
+                    # int tests not on MPS
+                    if not self.is_mps:
+                        conv = ht.convolve(dis_signal, kernel_even, mode=mode)
+                        dis_conv = ht.convolve(dis_signal, dis_kernel_even, mode=mode)
+                        gathered = manipulations.resplit(conv, axis=None)
+                        dis_gathered = manipulations.resplit(dis_conv, axis=None)
 
-                    if mode == "full":
-                        self.assertTrue(ht.equal(full_even, gathered))
-                        self.assertTrue(ht.equal(full_even, dis_gathered))
+                        if mode == "full":
+                            self.assertTrue(ht.equal(full_even, gathered))
+                            self.assertTrue(ht.equal(full_even, dis_gathered))
+                        else:
+                            self.assertTrue(ht.equal(full_even[3:-3], gathered))
+                            self.assertTrue(ht.equal(full_even[3:-3], dis_gathered))
                     else:
-                        self.assertTrue(ht.equal(full_even[3:-3], gathered))
-                        self.assertTrue(ht.equal(full_even[3:-3], dis_gathered))
+                        # float tests
+                        conv = ht.convolve(dis_signal.astype(ht.float), kernel_even, mode=mode)
+                        dis_conv = ht.convolve(
+                            dis_signal.astype(ht.float), dis_kernel_even.astype(ht.float), mode=mode
+                        )
+                        gathered = manipulations.resplit(conv, axis=None)
+                        dis_gathered = manipulations.resplit(dis_conv, axis=None)
+
+                        if mode == "full":
+                            self.assertTrue(ht.equal(full_even.astype(ht.float), gathered))
+                            self.assertTrue(ht.equal(full_even.astype(ht.float), dis_gathered))
+                        else:
+                            self.assertTrue(ht.equal(full_even[3:-3].astype(ht.float), gathered))
+                            self.assertTrue(
+                                ht.equal(full_even[3:-3].astype(ht.float), dis_gathered)
+                            )
 
                 # distributed large signal and kernel
                 np.random.seed(12)
@@ -104,18 +126,69 @@ class TestSignal(TestCase):
                 np_b = np.random.randint(1000, size=1543)
                 np_conv = np.convolve(np_a, np_b, mode=mode)
 
-                a = ht.array(np_a, split=0, dtype=ht.int32)
-                b = ht.array(np_b, split=0, dtype=ht.int32)
-                conv = ht.convolve(a, b, mode=mode)
-                self.assert_array_equal(conv, np_conv)
+                if self.is_mps:
+                    # torch convolution only supports float on MPS
+                    a = ht.array(np_a, split=0, dtype=ht.float32)
+                    b = ht.array(np_b, split=0, dtype=ht.float32)
+                    conv = ht.convolve(a, b, mode=mode)
+                    self.assert_array_equal(conv, np_conv.astype(np.float32))
+                else:
+                    a = ht.array(np_a, split=0, dtype=ht.int32)
+                    b = ht.array(np_b, split=0, dtype=ht.int32)
+                    conv = ht.convolve(a, b, mode=mode)
+                    self.assert_array_equal(conv, np_conv)
 
         # test edge cases
         # non-distributed signal, size-1 kernel
-        signal = ht.arange(0, 16).astype(ht.int)
-        alt_signal = (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15)
-        kernel = ht.ones(1).astype(ht.int)
-        conv = ht.convolve(alt_signal, kernel)
+        if self.is_mps:
+            # torch convolution only supports float on MPS
+            signal = ht.arange(0, 16, dtype=ht.float32)
+            alt_signal = (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15)
+            kernel = ht.ones(1, dtype=ht.float32)
+            conv = ht.convolve(alt_signal, kernel)
+        else:
+            signal = ht.arange(0, 16).astype(ht.int)
+            alt_signal = (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15)
+            kernel = ht.ones(1).astype(ht.int)
+            conv = ht.convolve(alt_signal, kernel)
         self.assertTrue(ht.equal(signal, conv))
 
-        conv = ht.convolve(1, 5)
-        self.assertTrue(ht.equal(ht.array([5]), conv))
+        if not self.is_mps:
+            conv = ht.convolve(1, 5)
+            self.assertTrue(ht.equal(ht.array([5]), conv))
+
+        # test batched convolutions
+        float_dtype = ht.float32 if self.is_mps else ht.float64
+        # distributed along the first axis
+        signal = ht.random.randn(1000, dtype=float_dtype)
+        batch_signal = ht.empty((10, 1000), dtype=float_dtype, split=0)
+        batch_signal.larray[:] = signal.larray
+        kernel = ht.random.randn(19, dtype=float_dtype)
+        batch_convolved = ht.convolve(batch_signal, kernel, mode="same")
+        self.assertTrue(ht.equal(ht.convolve(signal, kernel, mode="same"), batch_convolved[0]))
+
+        # distributed kernel
+        dis_kernel = ht.array(kernel, split=0)
+        batch_convolved = ht.convolve(batch_signal, dis_kernel)
+        self.assertTrue(ht.equal(ht.convolve(signal, kernel), batch_convolved[0]))
+        batch_kernel = ht.empty((10, 19), dtype=float_dtype, split=1)
+        batch_kernel.larray[:] = dis_kernel.larray
+        batch_convolved = ht.convolve(batch_signal, batch_kernel, mode="full")
+        self.assertTrue(ht.equal(ht.convolve(signal, kernel, mode="full"), batch_convolved[0]))
+
+        # n-D batch convolution
+        batch_signal = ht.empty((4, 3, 3, 1000), dtype=float_dtype, split=1)
+        batch_signal.larray[:, :, :] = signal.larray
+        batch_convolved = ht.convolve(batch_signal, kernel, mode="valid")
+        self.assertTrue(
+            ht.equal(ht.convolve(signal, kernel, mode="valid"), batch_convolved[1, 2, 0])
+        )
+
+        # test batch-convolve exceptions
+        batch_kernel_wrong_shape = ht.random.randn(3, 19, dtype=float_dtype)
+        with self.assertRaises(ValueError):
+            ht.convolve(batch_signal, batch_kernel_wrong_shape)
+        if kernel.comm.size > 1:
+            batch_signal_wrong_split = batch_signal.resplit(-1)
+            with self.assertRaises(ValueError):
+                ht.convolve(batch_signal_wrong_split, kernel)

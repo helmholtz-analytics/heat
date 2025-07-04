@@ -205,6 +205,14 @@ def __str__(dndarray) -> str:
     )
 
 
+def __repr__(dndarray) -> str:
+    """
+    Returns a printable representation of the passed DNDarray.
+    Unlike the __str__ method, which prints a representation targeted at users, this method targets developers by showing key internal parameters of the DNDarray.
+    """
+    return f"<DNDarray(MPI-rank: {dndarray.comm.rank}, Shape: {dndarray.shape}, Split: {dndarray.split}, Local Shape: {dndarray.lshape}, Device: {dndarray.device}, Dtype: {dndarray.dtype.__name__})>"
+
+
 def _torch_data(dndarray, summarize) -> DNDarray:
     """
     Extracts the data to be printed from the DNDarray in form of a torch tensor and returns it.
@@ -303,6 +311,9 @@ def _tensor_str(dndarray, indent: int) -> str:
     # to do so, we slice up the torch data and forward it to torch internal printing mechanism
     summarize = elements > get_printoptions()["threshold"]
     torch_data = _torch_data(dndarray, summarize)
+    if not dndarray.is_distributed():
+        # let torch handle formatting on non-distributed data
+        # formatter gets too slow for even moderately large tensors
+        return torch._tensor_str._tensor_str(torch_data, indent)
     formatter = torch._tensor_str._Formatter(torch_data)
-
     return torch._tensor_str._tensor_str_with_formatter(torch_data, indent, summarize, formatter)

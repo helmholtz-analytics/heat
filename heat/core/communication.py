@@ -5,25 +5,16 @@ Module implementing the communication layer of HeAT
 from __future__ import annotations
 
 import numpy as np
-import os
-import subprocess
+import math
+import ctypes
 import torch
+import warnings
 from mpi4py import MPI
 
 from typing import Any, Callable, Optional, List, Tuple, Union
 from .stride_tricks import sanitize_axis
 
-CUDA_AWARE_MPI = False
-# check whether OpenMPI support CUDA-aware MPI
-if "openmpi" in os.environ.get("MPI_SUFFIX", "").lower():
-    buffer = subprocess.check_output(["ompi_info", "--parsable", "--all"])
-    CUDA_AWARE_MPI = b"mpi_built_with_cuda_support:value:true" in buffer
-# MVAPICH
-CUDA_AWARE_MPI = CUDA_AWARE_MPI or os.environ.get("MV2_USE_CUDA") == "1"
-# MPICH
-CUDA_AWARE_MPI = CUDA_AWARE_MPI or os.environ.get("MPIR_CVAR_ENABLE_HCOLL") == "1"
-# ParaStationMPI
-CUDA_AWARE_MPI = CUDA_AWARE_MPI or os.environ.get("PSP_CUDA") == "1"
+from ._config import CUDA_AWARE_MPI
 
 
 class MPIRequest:
@@ -122,6 +113,8 @@ class MPICommunication(Communication):
     handle: MPI.Communicator
         Handle for the mpi4py Communicator
     """
+
+    COUNT_LIMIT = torch.iinfo(torch.int32).max
 
     __mpi_type_mappings = {
         torch.bool: MPI.BOOL,
@@ -244,10 +237,21 @@ class MPICommunication(Communication):
         return tuple(counts.tolist()), tuple(displs.tolist()), tuple(output_shape)
 
     @classmethod
+    def mpi_type_of(cls, dtype: torch.dtype) -> MPI.Datatype:
+        """Determines the MPI Datatype from the torch dtype.
+
+        Parameters
+        ----------
+        dtype : torch.dtype
+            PyTorch data type
+        """
+        return cls.__mpi_type_mappings[dtype]
+
+    @classmethod
     def mpi_type_and_elements_of(
         cls,
         obj: Union[DNDarray, torch.Tensor],
-        counts: Tuple[int],
+        counts: Optional[Tuple[int]],
         displs: Tuple[int],
         is_contiguous: Optional[bool],
     ) -> Tuple[MPI.Datatype, Tuple[int, ...]]:
@@ -277,8 +281,34 @@ class MPICommunication(Communication):
 
         if is_contiguous:
             if counts is None:
-                return mpi_type, elements
-            factor = np.prod(obj.shape[1:])
+                if elements > cls.COUNT_LIMIT:
+                    # Uses vector type to get around the MAX_INT limit on certain MPI implementations
+                    # This is at the moment only applied when sending contiguous data, as the construction of data types to get around non-contiguous data naturally aliviates the problem to a certain extent.
+                    # Thanks to: J. R. Hammond, A. Schäfer and R. Latham, "To INT_MAX... and Beyond! Exploring Large-Count Support in MPI," 2014 Workshop on Exascale MPI at Supercomputing Conference, New Orleans, LA, USA, 2014, pp. 1-8, doi: 10.1109/ExaMPI.2014.5. keywords: {Vectors;Standards;Libraries;Optimization;Context;Memory management;Open area test sites},
+
+                    new_count = elements // cls.COUNT_LIMIT
+                    left_over = elements % cls.COUNT_LIMIT
+
+                    if new_count > cls.COUNT_LIMIT:
+                        raise ValueError("Tensor is too large")
+                    vector_type = mpi_type.Create_vector(
+                        new_count, cls.COUNT_LIMIT, cls.COUNT_LIMIT
+                    )
+                    if left_over > 0:
+                        left_over_mpi_type = mpi_type.Create_contiguous(left_over).Commit()
+                        _, old_type_extent = mpi_type.Get_extent()
+                        disp = cls.COUNT_LIMIT * new_count * old_type_extent
+                        struct_type = mpi_type.Create_struct(
+                            [1, 1], [0, disp], [vector_type, left_over_mpi_type]
+                        ).Commit()
+                        vector_type.Free()
+                        left_over_mpi_type.Free()
+                        return struct_type, 1
+                    else:
+                        return vector_type, 1
+                else:
+                    return mpi_type, elements
+            factor = np.prod(obj.shape[1:], dtype=np.int32)
             return (
                 mpi_type,
                 (
@@ -306,7 +336,7 @@ class MPICommunication(Communication):
         return mpi_type, elements
 
     @classmethod
-    def as_mpi_memory(cls, obj) -> MPI.memory:
+    def as_mpi_memory(cls, obj: torch.Tensor) -> MPI.memory:
         """
         Converts the passed ``torch.Tensor`` into an MPI compatible memory view.
 
@@ -315,14 +345,16 @@ class MPICommunication(Communication):
         obj : torch.Tensor
             The tensor to be converted into a MPI memory view.
         """
-        return MPI.memory.fromaddress(obj.data_ptr(), 0)
+        # TODO: MPI.memory might be depraecated in future versions of mpi4py. The following code might need to be adapted and use MPI.buffer instead.
+        nbytes = obj.dtype.itemsize * obj.numel()
+        return MPI.memory.fromaddress(obj.data_ptr(), nbytes)
 
     @classmethod
     def as_buffer(
         cls,
         obj: torch.Tensor,
-        counts: Tuple[int] = None,
-        displs: Tuple[int] = None,
+        counts: Optional[Tuple[int]] = None,
+        displs: Optional[Tuple[int]] = None,
         is_contiguous: Optional[bool] = None,
     ) -> List[Union[MPI.memory, Tuple[int, int], MPI.Datatype]]:
         """
@@ -345,6 +377,10 @@ class MPICommunication(Communication):
             obj.unsqueeze_(-1)
             squ = True
 
+        if counts is not None:
+            counts = tuple(int(c) for c in counts)
+        if displs is not None:
+            displs = tuple(int(d) for d in displs)
         mpi_type, elements = cls.mpi_type_and_elements_of(obj, counts, displs, is_contiguous)
         mpi_mem = cls.as_mpi_memory(obj)
         if squ:
@@ -766,11 +802,71 @@ class MPICommunication(Communication):
 
     Ibcast.__doc__ = MPI.Comm.Ibcast.__doc__
 
+    def __derived_op(
+        self, tensor: torch.Tensor, datatype: MPI.Datatype, operation: MPI.Op
+    ) -> Callable[[MPI.memory, MPI.memory, MPI.Datatype], None]:
+
+        # Based from this conversation on the internet: https://groups.google.com/g/mpi4py/c/UkDT_9pp4V4?pli=1
+        shape = tensor.shape
+        dtype = tensor.dtype
+        stride = tensor.stride()
+        offset = tensor.storage_offset()
+        count = tensor.numel()
+
+        mpiOp2torch = {
+            MPI.SUM.handle: torch.add,
+            MPI.PROD.handle: torch.mul,
+            MPI.MIN.handle: torch.min,
+            MPI.MAX.handle: torch.max,
+            MPI.LAND.handle: torch.logical_and,
+            MPI.LOR.handle: torch.logical_or,
+            MPI.LXOR.handle: torch.logical_xor,
+            MPI.BAND.handle: torch.bitwise_and,
+            MPI.BOR.handle: torch.bitwise_or,
+            MPI.BXOR.handle: torch.bitwise_xor,
+            # MPI.MINLOC.handle: torch.argmin, Not supported, seems to be an invalid inplace operation
+            # MPI.MAXLOC.handle: torch.argmax
+        }
+        mpiDtype2Ctype = {
+            torch.bool: ctypes.c_bool,
+            torch.uint8: ctypes.c_uint8,
+            torch.uint16: ctypes.c_uint16,
+            torch.uint32: ctypes.c_uint32,
+            torch.uint64: ctypes.c_uint64,
+            torch.int8: ctypes.c_int8,
+            torch.int16: ctypes.c_int16,
+            torch.int32: ctypes.c_int32,
+            torch.int64: ctypes.c_int64,
+            torch.float32: ctypes.c_float,
+            torch.float64: ctypes.c_double,
+            torch.complex64: ctypes.c_double,
+            torch.complex128: ctypes.c_longdouble,
+        }
+        ctype_size = mpiDtype2Ctype[dtype]
+        torch_op = mpiOp2torch[operation.handle]
+
+        def op(sendbuf: MPI.memory, recvbuf: MPI.memory, datatype):
+            send_arr = (ctype_size * (count + offset)).from_address(sendbuf.address)
+            recv_arr = (ctype_size * (count + offset)).from_address(recvbuf.address)
+
+            send_tensor = torch.as_strided(
+                torch.frombuffer(send_arr, dtype=dtype, count=count, offset=offset), shape, stride
+            )
+            recv_tensor = torch.as_strided(
+                torch.frombuffer(recv_arr, dtype=dtype, count=count, offset=offset), shape, stride
+            )
+            torch_op(send_tensor, recv_tensor, out=recv_tensor)
+
+        op = MPI.Op.Create(op)
+
+        return op
+
     def __reduce_like(
         self,
         func: Callable,
         sendbuf: Union[DNDarray, torch.Tensor, Any],
         recvbuf: Union[DNDarray, torch.Tensor, Any],
+        op: MPI.Op,
         *args,
         **kwargs,
     ) -> Tuple[Optional[DNDarray, torch.Tensor]]:
@@ -785,6 +881,8 @@ class MPICommunication(Communication):
             Buffer address of the send message
         recvbuf: Union[DNDarray, torch.Tensor, Any]
             Buffer address where to store the result of the reduction
+        op: MPI.Op
+            Operation to apply during the reduction.
         """
         sbuf = None
         rbuf = None
@@ -799,56 +897,59 @@ class MPICommunication(Communication):
         # harmonize the input and output buffers
         # MPI requires send and receive buffers to be of same type and length. If the torch tensors are either not both
         # contiguous or differently strided, they have to be made matching (if possible) first.
-        if isinstance(sendbuf, torch.Tensor):
-            # convert the send buffer to a pointer, number of elements and type are identical to the receive buffer
-            dummy = (
-                sendbuf.contiguous()
-            )  # make a contiguous copy and reassign the storage, old will be collected
-            # In PyTorch Version >= 2.0.0 we can use untyped_storage() instead of storage
-            # to keep backward compatibility with earlier PyTorch versions (where no untyped_storage() exists) we use a try/except
-            # (this applies to all places of Heat where untyped_storage() is used without further comment)
-            try:
-                sendbuf.set_(
-                    dummy.untyped_storage(),
-                    dummy.storage_offset(),
-                    size=dummy.shape,
-                    stride=dummy.stride(),
-                )
-            except AttributeError:
-                sendbuf.set_(
-                    dummy.storage(),
-                    dummy.storage_offset(),
-                    size=dummy.shape,
-                    stride=dummy.stride(),
-                )
-            sbuf = sendbuf if CUDA_AWARE_MPI else sendbuf.cpu()
-            sendbuf = self.as_buffer(sbuf)
+        if sendbuf is not MPI.IN_PLACE:
+            # Send and recv buffer need the same number of elements.
+            if sendbuf.numel() != recvbuf.numel():
+                raise ValueError("Send and recv buffers need the same number of elements.")
+
+            # Stride and offset should be the same to create the same datatype and operation. If they differ, they should be made contiguous (at the expense of memory)
+            if (
+                sendbuf.stride() != recvbuf.stride()
+                or sendbuf.storage_offset() != recvbuf.storage_offset()
+            ):
+                if not sendbuf.is_contiguous():
+                    tmp = sendbuf.contiguous()
+                    try:
+                        sendbuf.set_(
+                            tmp.untyped_storage(),
+                            tmp.storage_offset(),
+                            size=tmp.shape,
+                            stride=tmp.stride(),
+                        )
+                    except AttributeError:
+                        sendbuf.set_(
+                            tmp.storage(), tmp.storage_offset(), size=tmp.shape, stride=tmp.stride()
+                        )
+                if not recvbuf.is_contiguous():
+                    tmp = recvbuf.contiguous()
+                    try:
+                        recvbuf.set_(
+                            tmp.untyped_storage(),
+                            tmp.storage_offset(),
+                            size=tmp.shape,
+                            stride=tmp.stride(),
+                        )
+                    except AttributeError:
+                        recvbuf.set_(
+                            tmp.storage(), tmp.storage_offset(), size=tmp.shape, stride=tmp.stride()
+                        )
+
         if isinstance(recvbuf, torch.Tensor):
+            # Datatype and count shall be derived from the recv buffer, and applied to both, as they should match after the last code block
             buf = recvbuf
-            # nothing matches, the buffers have to be made contiguous
-            dummy = recvbuf.contiguous()
-            try:
-                recvbuf.set_(
-                    dummy.untyped_storage(),
-                    dummy.storage_offset(),
-                    size=dummy.shape,
-                    stride=dummy.stride(),
-                )
-            except AttributeError:
-                recvbuf.set_(
-                    dummy.storage(),
-                    dummy.storage_offset(),
-                    size=dummy.shape,
-                    stride=dummy.stride(),
-                )
             rbuf = recvbuf if CUDA_AWARE_MPI else recvbuf.cpu()
-            if sendbuf is MPI.IN_PLACE:
-                recvbuf = self.as_buffer(rbuf)
-            else:
-                recvbuf = (self.as_mpi_memory(rbuf), sendbuf[1], sendbuf[2])
+            recvbuf: Tuple[MPI.memory, int, MPI.Datatype] = self.as_buffer(rbuf, is_contiguous=True)
+            if not recvbuf[2].is_predefined:
+                # If using a derived datatype, we need to define the reduce operation to be able to handle the it.
+                derived_op = self.__derived_op(rbuf, recvbuf[2], op)
+                op = derived_op
+
+        if isinstance(sendbuf, torch.Tensor):
+            sbuf = sendbuf if CUDA_AWARE_MPI else sendbuf.cpu()
+            sendbuf = (self.as_mpi_memory(sbuf), recvbuf[1], recvbuf[2])
 
         # perform the actual reduction operation
-        return func(sendbuf, recvbuf, *args, **kwargs), sbuf, rbuf, buf
+        return func(sendbuf, recvbuf, op, **kwargs), sbuf, rbuf, buf
 
     def Allreduce(
         self,
@@ -1442,6 +1543,181 @@ class MPICommunication(Communication):
         return ret
 
     Alltoallv.__doc__ = MPI.Comm.Alltoallv.__doc__
+
+    def Alltoallw(
+        self,
+        sendbuf: Union[DNDarray, torch.Tensor, Any],
+        recvbuf: Union[DNDarray, torch.Tensor, Any],
+    ):
+        """
+        Generalized All-to-All communication allowing different counts, displacements and datatypes for each partner. See MPI standard for more information.
+
+        Parameters
+        ----------
+        sendbuf: Union[DNDarray, torch.Tensor, Any]
+            Buffer address of the send message. The buffer is expected to be a tuple of the form (buffer, (counts, displacements), subarray_params_list), where subarray_params_list is a list of tuples of the form (lshape, subsizes, substarts).
+        recvbuf: Union[DNDarray, torch.Tensor, Any]
+            Buffer address where to store the result. The buffer is expected to be a tuple of the form (buffer, (counts, displacements), subarray_params_list), where subarray_params_list is a list of tuples of the form (lshape, subsizes, substarts).
+
+        """
+        # Unpack sendbuffer information
+        sendbuf_tensor, (send_counts, send_displs), subarray_params_list = sendbuf
+        sendbuf = sendbuf_tensor if CUDA_AWARE_MPI else sendbuf_tensor.cpu()
+
+        is_contiguous = sendbuf.is_contiguous()
+        stride = sendbuf.stride()
+
+        send_datatype = self.mpi_type_of(sendbuf.dtype)
+        sendbuf_ptr = self.as_mpi_memory(sendbuf)
+
+        source_subarray_types = []
+
+        for idx, subarray_params in enumerate(subarray_params_list):
+            lshape, subsizes, substarts = subarray_params
+
+            if np.all(np.array(subsizes) > 0):
+
+                if is_contiguous:
+                    # Commit the source subarray datatypes
+                    # Subarray parameters are calculated based on the work by Dalcin et al. (https://arxiv.org/abs/1804.09536)
+                    subarray_type = send_datatype.Create_subarray(
+                        lshape, subsizes, substarts, order=MPI.ORDER_C
+                    ).Commit()
+                    source_subarray_types.append(subarray_type)
+                else:
+                    # Create recursive vector datatype
+                    source_subarray_types.append(
+                        self._create_recursive_vectortype(
+                            send_datatype, stride, subsizes, substarts
+                        )
+                    )
+                    send_counts[idx] = subsizes[0]
+            else:
+                send_counts[idx] = 0
+                source_subarray_types.append(MPI.INT)
+
+        # Unpack recvbuf information
+        recvbuf_tensor, (recv_counts, recv_displs), subarray_params_list = recvbuf
+        recvbuf = recvbuf_tensor if CUDA_AWARE_MPI else recvbuf_tensor.cpu()
+        recvbuf_ptr, _, recv_datatype = self.as_buffer(recvbuf)
+
+        # Commit the receive subarray datatypes
+        target_subarray_types = []
+        for idx, subarray_params in enumerate(subarray_params_list):
+            lshape, subsizes, substarts = subarray_params
+
+            if np.all(np.array(subsizes) > 0):
+                target_subarray_types.append(
+                    recv_datatype.Create_subarray(
+                        lshape, subsizes, substarts, order=MPI.ORDER_C
+                    ).Commit()
+                )
+            else:
+                recv_counts[idx] = 0
+                target_subarray_types.append(MPI.INT)
+
+        # Perform the Alltoallw operation
+        self.handle.Alltoallw(
+            [sendbuf_ptr, (send_counts, send_displs), source_subarray_types],
+            [recvbuf_ptr, (recv_counts, recv_displs), target_subarray_types],
+        )
+
+        # In case of NON Cuda-Aware MPI, copy the result back to the original buffer
+        if (
+            isinstance(recvbuf_tensor, torch.Tensor)
+            and recvbuf_tensor.is_cuda
+            and not CUDA_AWARE_MPI
+        ):
+            recvbuf_tensor.copy_(recvbuf)
+        else:
+            if sendbuf_tensor.is_conj():
+                recvbuf_tensor.conj_physical_()
+
+        # Free the subarray datatypes
+        for p in range(len(source_subarray_types)):
+            if source_subarray_types[p] != MPI.INT:
+                source_subarray_types[p].Free()
+            if target_subarray_types[p] != MPI.INT:
+                target_subarray_types[p].Free()
+
+    Alltoallw.__doc__ = MPI.Comm.Alltoallw.__doc__
+
+    def _create_recursive_vectortype(
+        self,
+        datatype: MPI.Datatype,
+        tensor_stride: Tuple[int],
+        subarray_sizes: List[int],
+        start: List[int],
+    ):
+        """
+        Create a recursive vector to handle non-contiguous tensor data. The created datatype will be a recursively defined vector datatype that will enable the collection of  non-contiguous tensor data in the specified subarray sizes.
+
+        Parameters
+        ----------
+        datatype : MPI.Datatype
+            The base datatype to create the recursive vector datatype from.
+        tensor_stride : Tuple[int]
+            A list of tensor strides for each dimension.
+        subarray_sizes : List[int]
+            A list of subarray sizes for each dimension.
+        start: List[int]
+            Index of the first element of the subarray in the original array.
+
+        Notes
+        -----
+        This function creates a recursive vector datatype by defining vectors out of the previous datatype with specified strides and sizes. The extent (size of the data type in bytes) of the new datatype is set to the extent of the basic datatype to allow interweaving of data.
+
+        Examples
+        --------
+        >>> datatype = MPI.INT
+        >>> tensor_stride = [1, 2, 3]
+        >>> subarray_sizes = [4, 5, 6]
+        >>> recursive_vectortype = create_recursive_vectortype(datatype, tensor_stride, subarray_sizes)
+        """
+        datatype_history = []
+        current_datatype = datatype
+
+        i = len(tensor_stride) - 1
+        while i > 0:
+            current_stride = tensor_stride[i]
+            current_size = subarray_sizes[i]
+            # Define vector out of previous datatype with stride equals to current stride
+            if i == len(tensor_stride) - 1 and current_stride == 1:
+                i -= 1
+                # Define vector out of previous datatype with stride equals to current stride
+                current_stride = tensor_stride[i]
+                next_size = subarray_sizes[i]
+                new_vector_datatype = current_datatype.Create_vector(
+                    next_size, current_size, current_stride
+                ).Commit()
+
+            else:
+                if i == len(tensor_stride) - 1:
+                    new_vector_datatype = current_datatype.Create_vector(
+                        current_size, 1, current_stride
+                    ).Commit()
+                else:
+                    new_vector_datatype = current_datatype.Create_vector(
+                        current_size, 1, 1
+                    ).Commit()
+
+            datatype_history.append(new_vector_datatype)
+            # Set extent of the new datatype to the extent of the basic datatype to allow interweaving of data
+            next_stride = tensor_stride[i - 1]
+            new_resized_vector_datatype = new_vector_datatype.Create_resized(
+                0, datatype.Get_extent()[1] * next_stride
+            ).Commit()
+            datatype_history.append(new_resized_vector_datatype)
+            current_datatype = new_resized_vector_datatype
+
+            i -= 1
+
+        displacement = sum([x * y for x, y in zip(tensor_stride, start)]) * datatype.Get_extent()[1]
+        current_datatype = current_datatype.Create_hindexed_block(1, [displacement]).Commit()
+
+        for dt in datatype_history[:-1]:
+            dt.Free()
+        return current_datatype
 
     def Ialltoall(
         self,
