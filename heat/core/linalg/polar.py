@@ -29,7 +29,7 @@ __all__ = ["polar"]
 def _zolopd_n_iterations(r: int, kappa: float) -> int:
     """
     Returns the number of iterations required in the Zolotarev-PD algorithm.
-    See the Table 3.1 in: Nakatsukasa, Y., & Freund, R. W. (2016). Computing the polar decomposition with applications. SIAM Review, 58(3), DOI: https://doi.org/10.1137/140990334
+    See the Table 3.1 in: Nakatsukasa, Y., & Freund, R. W. (2016). Computing Fundamental Matrix Decompositions Accurately via the Matrix Sign Function in Two Iterations: The Power of Zolotarev's Functions. SIAM Review, 58(3), DOI: https://doi.org/10.1137/140990334
 
     Inputs are `r` and `kappa` (named as in the paper), and the output is the number of iterations.
     """
@@ -165,7 +165,7 @@ def polar(
 
     References
     ----------
-    [1] Nakatsukasa, Y., & Freund, R. W. (2016). Computing the polar decomposition with applications. SIAM Review, 58(3), DOI: https://doi.org/10.1137/140990334.
+    [1] Nakatsukasa, Y., & Freund, R. W. (2016). Computing Fundamental Matrix Decompositions Accurately via the Matrix Sign Function in Two Iterations: The Power of Zolotarev's Functions. SIAM Review, 58(3), DOI: https://doi.org/10.1137/140990334.
     """
     # check whether input is DNDarray of correct shape
     if not isinstance(A, DNDarray):

@@ -109,7 +109,7 @@ def qr(
         Q, R = single_proc_qr(A.larray, mode=mode)
         R = factories.array(R, is_split=A.split)
         if mode == "reduced":
-            Q = factories.array(Q, is_split=A.split)
+            Q = factories.array(Q, is_split=A.split, device=A.device)
         else:
             Q = None
         return QR(Q, R)
