@@ -12,11 +12,17 @@ jobs:
       fail-fast: false
       matrix:
         py-version:
-          - '3.10'
-          - 3.11
+          - 3.13
           - 3.12
-        mpi: [ 'openmpi' ]
-        install-options: [ '.', '.[hdf5,netcdf,pandas,zarr]' ]
+          - 3.11
+          - '3.10'
+        mpi:
+          - 'mpich'
+          - 'openmpi'
+          - 'intelmpi'
+        install-options:
+          - '.'
+          # - '.[hdf5,netcdf,pandas,zarr]'
         pytorch-version:
           - 'numpy==1.26 torch==2.1.2 torchvision==0.16.2 torchaudio==2.1.2'
           - 'numpy==1.26 torch==2.2.2 torchvision==0.17.2 torchaudio==2.2.2'
@@ -34,8 +40,6 @@ jobs:
             install-options: '.[hdf5,netcdf,pandas,zarr]'
           - py-version: '3.10'
             install-options: '.[hdf5,netcdf,pandas,zarr]'
-
-
     name: Python ${{ matrix.py-version }} with ${{ matrix.pytorch-version }}; options ${{ matrix.install-options }}
     steps:
       - name: Harden Runner
@@ -46,7 +50,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4.2.2
       - name: Setup MPI
-        uses: mpi4py/setup-mpi@v1.2.0
+        uses: mpi4py/setup-mpi@v1.3.2
         with:
           mpi: ${{ matrix.mpi }}
       - name: Use Python ${{ matrix.py-version }}
@@ -59,5 +63,7 @@ jobs:
           pip install pytest
           pip install ${{ matrix.pytorch-version }} --extra-index-url https://download.pytorch.org/whl/cpu
           pip install ${{ matrix.install-options }}
+          mpirun -n 1 pytest heat/
+          mpirun -n 2 pytest heat/
           mpirun -n 3 pytest heat/
           mpirun -n 4 pytest heat/
