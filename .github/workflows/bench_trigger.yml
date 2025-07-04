@@ -6,6 +6,9 @@ on:
   pull_request:
     types: [synchronize]
 
+permissions:
+  contents: read
+
 jobs:
   trigger-benchmark:
     name: Trigger Benchmarks
