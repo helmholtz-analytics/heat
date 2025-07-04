@@ -34,10 +34,10 @@ setup(
     install_requires=[
         "mpi4py>=3.0.0",
         "numpy>=1.23.5",
-        "torch>=2.0.0, <2.7.1",
+        "torch>=2.0.0, <2.7.2",
         "scipy>=1.14.0",
         "pillow>=6.0.0",
-        "torchvision>=0.15.2, <0.22.1",
+        "torchvision>=0.15.2, <0.22.2",
     ],
     extras_require={
         # Dev
@@ -50,7 +50,7 @@ setup(
         "pandas": ["pandas>=1.4"],
         "hdf5": ["h5py>=2.8.0"],
         "netcdf": ["netCDF4>=1.5.6"],
-        "zarr": ["zarr"],
+        "zarr": ["zarr<3.0.9"],
         # Docs
         "docs": [
             "sphinx",
