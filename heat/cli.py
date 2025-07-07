@@ -43,7 +43,7 @@ def plaform_info():
     print(f"  Torch Version: {torch.__version__}")
     print(f"  CUDA Available: {torch.cuda.is_available()}")
     if torch.cuda.is_available():
-        def_device = torch.get_default_device()
+        def_device = torch.cuda.current_device()
         print(f"    Device count: {torch.cuda.device_count()}")
         print(f"    Default device: {def_device}")
         print(f"    Device name: {torch.cuda.get_device_name(def_device)}")

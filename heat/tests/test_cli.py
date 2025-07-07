@@ -18,7 +18,7 @@ class TestCLI:
     @patch("mpi4py.MPI.Get_library_version")
     @patch("torch.cuda.is_available")
     @patch("torch.cuda.device_count")
-    @patch("torch.get_default_device")
+    @patch("torch.cuda.current_device")
     @patch("torch.cuda.get_device_name")
     @patch("torch.cuda.get_device_properties")
     def test_platform_info(
@@ -27,13 +27,13 @@ class TestCLI:
         mock_get_device_name,
         mock_get_default_device,
         mock_device_count,
-        mock_is_available,
+        mock_cuda_current_device,
         mock_mpi_lib_version,
         mock_platform,
     ):
         mock_platform.return_value = "Test Platform"
         mock_mpi_lib_version.return_value = "Test MPI Library"
-        mock_is_available.return_value = True
+        mock_cuda_current_device.return_value = True
         mock_device_count.return_value = 1
         mock_get_default_device.return_value = "cuda:0"
         mock_get_device_name.return_value = "Test Device"
