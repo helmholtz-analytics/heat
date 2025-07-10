@@ -110,7 +110,7 @@ computational and memory needs of your laptop and desktop.
 ## Requirements
 
 ### Basics
-- python >= 3.9
+- python >= 3.10
 - MPI (OpenMPI, MPICH, Intel MPI, etc.)
 - mpi4py >= 3.0.0
 - pytorch >= 2.0.0
