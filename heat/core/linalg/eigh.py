@@ -296,7 +296,7 @@ def eigh(
     sanitize_in_nd_realfloating(A, "A", [2])
     if A.shape[0] != A.shape[1]:
         raise ValueError(
-            f"Input matrix must be symmetric and, consquently, square, but input shape was {A.shape[0]} x {A.shape[1]}."
+            f"Input matrix must be symmetric and, consequently, square, but input shape was {A.shape[0]} x {A.shape[1]}."
         )
     if not isinstance(r_max_zolopd, int) or r_max_zolopd < 1 or r_max_zolopd > 8:
         raise ValueError(
