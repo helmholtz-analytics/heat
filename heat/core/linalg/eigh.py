@@ -64,7 +64,7 @@ def _subspaceiteration(
     Anorm = matrix_norm(A, ord="fro")
 
     # this initialization is proposed in Ref. 1, Sect. 5.1
-    k = int(np.round(matrix_norm(C, ord="fro").item() ** 2))
+    k = int(round(matrix_norm(C, ord="fro").item() ** 2))
     columnnorms = vector_norm(C, axis=0)
     idx = where(
         columnnorms
@@ -133,8 +133,8 @@ def _eigh(
         `depth`:  an internal variable that is used to track the recursion depth,
         `orig_lsize` an internal variable that is used to propagate the local shapes of the original input matrix
             through the recursions in order to determine when the direct solution of the reduced problems is possible),
-        `r`: a hyperparameter for the computation of the polar decomposition via `heat.linalg.polar` which is
-            applied multiple times in this function. See the documentation of `heat.linalg.polar` for more details.
+        `r`: a hyperparameter for the computation of the polar decomposition via :func:`heat.linalg.polar` which is
+            applied multiple times in this function. See the documentation of :func:`heat.linalg.polar` for more details.
             In the actual implementation, this parameter is set to `None` for simplicity.
     """
     n = A.shape[0]
@@ -275,15 +275,15 @@ def eigh(
     A : DNDarray
         The input matrix. Must be symmetric.
     r_max_zolopd : int, optional
-        This is a hyperparameter for the computation of the polar decomposition via `heat.linalg.polar` which is
-        applied multiple times in this function. See the documentation of `heat.linalg.polar` for more details on its
+        This is a hyperparameter for the computation of the polar decomposition via :func:`heat.linalg.polar` which is
+        applied multiple times in this function. See the documentation of :func:`heat.linalg.polar` for more details on its
         meaning and the respective default value.
     silent : bool, optional
         If True (default), suppresses output messages; otherwise, some information on the recursion is printed to the console.
 
     Notes
     -----
-    Unlike the `torch.linalg.eigh` function, the eigenvalues are returned in descending order.
+    Unlike the :func:`torch.linalg.eigh` function, the eigenvalues are returned in descending order.
     Note that no check of symmetry is performed on the input matrix A; thus, applying this function to a non-symmetric matrix may
     result in unpredictable behaviour without a specific error message pointing to this issue.
 
@@ -292,6 +292,10 @@ def eigh(
 
         Nakatsukasa, Y., & Freund, R. W. (2016). Computing fundamental matrix decompositions accurately via the
         matrix sign function in two iterations: The power of Zolotarev's functions. SIAM Review, 58(3).
+
+    See Also
+    -----------
+    :func:`heat.linalg.polar`
     """
     sanitize_in_nd_realfloating(A, "A", [2])
     if A.shape[0] != A.shape[1]:
@@ -302,11 +306,4 @@ def eigh(
         raise ValueError(
             f"If provided, parameter r_max_zolopd must be a positive integer, but was {r_max_zolopd} of type {type(r_max_zolopd)}."
         )
-    return _eigh(
-        A,
-        None,
-        silent,
-        r_max_zolopd,
-        0,
-        0,
-    )
+    return _eigh(A, None, silent, r_max_zolopd, 0, 0)
