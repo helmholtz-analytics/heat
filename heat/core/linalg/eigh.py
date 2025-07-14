@@ -33,7 +33,7 @@ def _subspaceiteration(
     depth: int = 0,
 ) -> DNDarray:
     """
-    This auxiliary function implements the subspace iteration as required for symmetric eigenvalue decomposition
+    Auxiliary function that implements the subspace iteration as required for symmetric eigenvalue decomposition
     via polar decomposition; cf. Ref. 2 below. The algorithm for subspace iteration itself is taken from Ref. 1,
     Algorithm 3 in Sect. 5.1.
 
@@ -43,7 +43,7 @@ def _subspaceiteration(
     returned as well.
 
     References
-    ------------
+    ----------
     1.  Nakatsukasa, Y., & Higham, N. J. (2013). Stable and efficient spectral divide and conquer algorithms for
         Hermitian eigenproblems. SIAM Journal on Scientific Computing, 35(3).
     2.  Nakatsukasa, Y., & Freund, R. W. (2016). Computing fundamental matrix decompositions accurately via the
@@ -114,7 +114,7 @@ def _subspaceiteration(
             "\t" * depth
             + f"            Subspace iteration did not converge in {maxit} iterations. \n"
             + "\t" * depth
-            + f"            It holds ||E||_F/||A||_F = {Enorm/Anorm}, which might impair the accuracy of the result."  # noqa E226
+            + f"            It holds ||E||_F/||A||_F = {Enorm / Anorm}, which might impair the accuracy of the result."  # noqa E226
         )
     return Q, k
 
@@ -294,7 +294,7 @@ def eigh(
         matrix sign function in two iterations: The power of Zolotarev's functions. SIAM Review, 58(3).
 
     See Also
-    -----------
+    --------
     :func:`heat.linalg.polar`
     """
     sanitize_in_nd_realfloating(A, "A", [2])
