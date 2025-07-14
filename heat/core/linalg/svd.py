@@ -50,7 +50,7 @@ def svd(
         See the documentation of :func:``heat.linalg.polar`` as well as of :func:``heat.linalg.eigh`` for more details.
 
     Notes
-    ------
+    -----
     Unlike in NumPy, we currently do not support the option ``full_matrices=True``, since this can result in heavy memory consumption (in particular for tall skinny
     and short fat matrices) that should be avoided in the context Heat is designed for. If you nevertheless require this feature, please open an issue on GitHub.
 
