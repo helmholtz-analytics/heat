@@ -59,7 +59,7 @@ def qr(
     and extended to non tall-skinny matrices by applying a block-wise version of stabilized Gram-Schmidt orthogonalization.
 
     References
-    -----------
+    ----------
     Basic information about QR factorization/decomposition can be found at, e.g.:
 
         - https://en.wikipedia.org/wiki/QR_factorization,
@@ -109,7 +109,7 @@ def qr(
         Q, R = single_proc_qr(A.larray, mode=mode)
         R = factories.array(R, is_split=A.split)
         if mode == "reduced":
-            Q = factories.array(Q, is_split=A.split)
+            Q = factories.array(Q, is_split=A.split, device=A.device)
         else:
             Q = None
         return QR(Q, R)
@@ -167,7 +167,7 @@ def qr(
                 # orthogonalize the current block of columns by utilizing PyTorch QR
                 Q_curr, R_loc = single_proc_qr(A_columns, mode="reduced")
                 if i < nprocs - 1:
-                    Q_buf = Q_curr
+                    Q_buf = Q_curr.contiguous()
                 if mode == "reduced":
                     Q.larray = Q_curr
                 r_size = R.larray[..., R_shapes[i] : R_shapes[i + 1], :].shape[-2]
@@ -251,6 +251,7 @@ def qr(
             current_comm = A.comm
             local_comm = current_comm.Split(current_comm.rank // procs_to_merge, A.comm.rank)
             Q_loc, R_loc = single_proc_qr(A.larray, mode=mode)
+            R_loc = R_loc.contiguous()
             if mode == "reduced":
                 leave_comm = current_comm.Split(current_comm.rank, A.comm.rank)
 
@@ -279,9 +280,12 @@ def qr(
                     if local_comm.rank == 0:
                         previous_shape = R_loc.shape
                         Q_buf, R_loc = single_proc_qr(gathered_R_loc, mode=mode)
+                        R_loc = R_loc.contiguous()
                     else:
                         Q_buf = torch.empty(0, device=R_loc.device, dtype=R_loc.dtype)
                     if mode == "reduced":
+                        if local_comm.rank == 0:
+                            Q_buf = Q_buf.contiguous()
                         scattered_Q_buf = torch.empty(
                             R_loc.shape if local_comm.rank != 0 else previous_shape,
                             device=R_loc.device,
