@@ -40,10 +40,8 @@ def _initialize_plus_plus(
     idxs = torch.zeros(n_clusters, dtype=torch.long, device=X.device)
     idxs[0] = torch.randint(0, X.shape[0], (1,))
     for i in range(1, n_clusters):
-        # calculate distances and use type promotion to handle numerical instabilities (restore original dtype afterwards)
-        dist = torch.cdist(X.to(torch.float64), X[idxs[:i]].to(torch.float64), p=p).to(X.dtype)
+        dist = torch.cdist(X, X[idxs[:i]], p=p)
         dist = torch.min(dist, dim=1)[0]
-        print(weights * dist)
         idxs[i] = torch.multinomial(weights * dist, 1)
     return X[idxs]
 

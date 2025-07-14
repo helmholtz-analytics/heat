@@ -136,7 +136,7 @@ class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
         if self.init == "random":
             idx = ht.random.randint(0, x.shape[0] - 1, size=(self.n_clusters,), split=None)
             centroids = x[idx, :]
-            self._cluster_centers = centroids if x.split == 1 else centroids.resplit_(None)
+            self._cluster_centers = centroids if x.split == 1 else centroids.resplit(None)
 
         # directly passed centroids
         elif isinstance(self.init, DNDarray):
@@ -152,15 +152,12 @@ class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
         elif self.init == "probability_based":
             # First, check along which axis the data is sliced
             if x.split is None or x.split == 0:
-                # Define a list of random, uniformly distributed probabilities,
-                # which is later used to sample the centroids
-                sample = ht.random.rand(x.shape[0], split=x.split)
                 # Define a random integer serving as a label to pick the first centroid randomly
                 init_idx = ht.random.randint(0, x.shape[0] - 1).item()
                 # Randomly select first centroid and organize it as a tensor, in order to use the function cdist later.
                 # This tensor will be filled continously in the proceeding of this function
                 # We assume that the centroids fit into the memory of a single GPU
-                centroids = ht.expand_dims(x[init_idx, :].resplit_(None), axis=0)
+                centroids = ht.expand_dims(x[init_idx, :].resplit(None), axis=0)
                 # Calculate the initial cost of the clustering after the first centroid selection
                 # and use it as an indicator for the order of magnitude for the number of necessary iterations
                 init_distance = ht.spatial.distance.cdist(x, centroids, quadratic_expansion=True)
@@ -182,17 +179,34 @@ class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
                     prob = oversampling * min_distance / min_distance.sum()
                     # -->   probability distribution with oversampling factor
                     #       output format: vector
+                    # Define a list of random, uniformly distributed probabilities
+                    sample = ht.random.rand(x.shape[0], split=x.split)
                     idx = ht.where(sample <= prob)
                     # -->   choose indices to sample the data according to prob
                     #       output format: vector
-                    local_data = x[idx].resplit_(centroids.split)
-                    # -->   pick the data points that are identified as possible centroids and make sure
-                    #       that data points and centroids are split in the same way
+
+                    # Extract the local candidate centroids on each process
+                    local_candidates = x[idx]
+
+                    # Gather local candidates on CPU and concatenate them in one tensor
+                    # Note: need high-level allgather to handle different sizes of the tensors on each rank
+                    local_candidates = local_candidates.larray.cpu()
+                    new_candidates = ht.MPI_WORLD.allgather(local_candidates)
+                    merged = torch.cat(new_candidates, dim=0)
+
+                    # Ignore sampling results if no candidates were selected
+                    if merged.numel() == 0:
+                        continue
+
+                    # Convert the merged list of centroid candidates back to a DNDarray on the correct device
+                    new_candidates = ht.array(merged, split=None, device=x.device)
+                    # -->   pick the data points that are identified as possible centroids
                     #       output format: vector
-                    centroids = ht.row_stack((centroids, local_data))
+
+                    centroids = ht.row_stack((centroids, new_candidates))
                     # -->   stack the data points with these indices to the DNDarray of centroids
                     #       output format: tensor
-                # Evaluate distance between final centroids and data points
+
                 if centroids.shape[0] <= self.n_clusters:
                     raise ValueError(
                         f"The parameter oversampling={oversampling} and/or iter_multiplier={iter_multiplier} "
@@ -209,9 +223,9 @@ class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
                     weights[i] = ht.sum(final_idx == i)
                 # Recluster the oversampled centroids using standard k-means ++ (here we use the
                 # already implemented version in torch)
-                centroids = centroids.resplit_(None)
+                centroids = centroids.resplit(None)
                 centroids = centroids.larray
-                weights = weights.resplit_(None)
+                weights = weights.resplit(None)
                 weights = weights.larray
                 # --> first transform relevant arrays into torch tensors
                 if ht.MPI_WORLD.rank == 0:
