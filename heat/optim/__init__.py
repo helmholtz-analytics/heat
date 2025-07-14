@@ -1,5 +1,5 @@
 """
-This is the heat.optimizer submodule.
+Optimizer module.
 
 It contains data parallel specific optimizers and learning rate schedulers. It also includes all of the
 optimizers and learning rate schedulers in the torch namespace

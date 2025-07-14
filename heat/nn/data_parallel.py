@@ -1,5 +1,5 @@
 """
-This file is for the general data parallel neural network classes.
+General data parallel neural network classes.
 """
 
 import warnings
@@ -312,7 +312,7 @@ class DataParallel(tnn.Module):
 
 class DataParallelMultiGPU(tnn.Module):
     """
-    This creates data parallel networks local to each node using PyTorch's distributed class. This does NOT
+    Creates data parallel networks local to each node using PyTorch's distributed class. This does NOT
     do any global synchronizations. To make optimal use of this structure, use :func:`ht.optim.DASO <heat.optim.dp_optimizer.DASO>`.
 
     Notes
