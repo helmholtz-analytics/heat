@@ -59,7 +59,7 @@ def qr(
     and extended to non tall-skinny matrices by applying a block-wise version of stabilized Gram-Schmidt orthogonalization.
 
     References
-    -----------
+    ----------
     Basic information about QR factorization/decomposition can be found at, e.g.:
 
         - https://en.wikipedia.org/wiki/QR_factorization,
@@ -109,7 +109,7 @@ def qr(
         Q, R = single_proc_qr(A.larray, mode=mode)
         R = factories.array(R, is_split=A.split)
         if mode == "reduced":
-            Q = factories.array(Q, is_split=A.split)
+            Q = factories.array(Q, is_split=A.split, device=A.device)
         else:
             Q = None
         return QR(Q, R)

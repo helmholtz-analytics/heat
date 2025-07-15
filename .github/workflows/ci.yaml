@@ -15,6 +15,7 @@ jobs:
           - '3.10'
           - 3.11
           - 3.12
+          - 3.13
         mpi: [ 'openmpi' ]
         install-options: [ '.', '.[hdf5,netcdf,pandas,zarr]' ]
         pytorch-version:
@@ -26,12 +27,20 @@ jobs:
           - 'torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0'
           - 'torch==2.7.1 torchvision==0.22.1 torchaudio==2.7.1'
         exclude:
+          - py-version: '3.13'
+            pytorch-version: 'numpy==1.26 torch==2.1.2 torchvision==0.16.2 torchaudio==2.1.2'
+          - py-version: '3.13'
+            pytorch-version: 'numpy==1.26 torch==2.2.2 torchvision==0.17.2 torchaudio==2.2.2'
+          - py-version: '3.13'
+            pytorch-version: 'torch==2.3.1 torchvision==0.18.1 torchaudio==2.3.1'
+          - py-version: '3.13'
+            pytorch-version: 'torch==2.4.1 torchvision==0.19.1 torchaudio==2.4.1'
+          - py-version: '3.13'
+            pytorch-version: 'torch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1'
           - py-version: '3.12'
             pytorch-version: 'numpy==1.26 torch==2.1.2 torchvision==0.16.2 torchaudio==2.1.2'
           - py-version: '3.12'
             pytorch-version: 'numpy==1.26 torch==2.2.2 torchvision==0.17.2 torchaudio==2.2.2'
-          - py-version: '3.9'
-            install-options: '.[hdf5,netcdf,pandas,zarr]'
           - py-version: '3.10'
             install-options: '.[hdf5,netcdf,pandas,zarr]'
 
@@ -39,7 +48,7 @@ jobs:
     name: Python ${{ matrix.py-version }} with ${{ matrix.pytorch-version }}; options ${{ matrix.install-options }}
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@002fdce3c6a235733a90a27c80493a3241e56863 # v2.12.1
+        uses: step-security/harden-runner@6c439dc8bdf85cadbbce9ed30d1c7b959517bc49 # v2.12.2
         with:
           egress-policy: audit
 

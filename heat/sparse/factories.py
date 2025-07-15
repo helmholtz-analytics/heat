@@ -141,7 +141,7 @@ def sparse_csc_matrix(
     Create a :class:`~heat.sparse.DCSC_matrix` from :class:`torch.Tensor` (layout ==> torch.sparse_csc)
     >>> indptr = torch.tensor([0, 2, 3, 6])
     >>> indices = torch.tensor([0, 2, 2, 0, 1, 2])
-    >>> data = torch.tensor([1., 4., 5., 2., 3., 6.], dtype=torch.float)
+    >>> data = torch.tensor([1.0, 4.0, 5.0, 2.0, 3.0, 6.0], dtype=torch.float)
     >>> torch_sparse_csc = torch.sparse_csc_tensor(indptr, indices, data)
     >>> heat_sparse_csc = ht.sparse.sparse_csc_matrix(torch_sparse_csc, split=1)
     >>> heat_sparse_csc
