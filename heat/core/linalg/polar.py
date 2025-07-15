@@ -92,10 +92,6 @@ def _in_place_qr_with_q_only(A: DNDarray, procs_to_merge: int = 2) -> None:
         # unlike in heat.linalg.qr, we know by assumption of Zolo-PD that A has at least as many rows as columns
 
         nprocs = A.comm.size
-        # def my_op(a,q):
-        #     a -= q @ (torch.transpose(q, -2, -1) @ a)
-        # my_op = torch.compile(my_op, mode="reduce-overhead")
-
         with torch.no_grad():
             for i in range(nprocs):
                 # this loop goes through all the column-blocks (i.e. local arrays) of the matrix
@@ -128,7 +124,6 @@ def _in_place_qr_with_q_only(A: DNDarray, procs_to_merge: int = 2) -> None:
                     R_loc = torch.transpose(Q_buf, -2, -1) @ A.larray
                     A.larray -= Q_buf @ R_loc
                     del R_loc, Q_buf
-                    # my_op(A.larray, Q_buf)
 
     else:
         A, r = qr(A)
@@ -331,8 +326,8 @@ def polar(
             ellold = ell
             ell = 1
             for j in range(r):
-                ell *= (ellold**2 + c[2 * j + 1]) / (ellold**2 + c[2 * j])
-            ell *= Mhat * ellold
+                ell *= (ellold**2 + c[2 * j + 1].item()) / (ellold**2 + c[2 * j].item())
+            ell *= Mhat.item() * ellold
             if ell >= 1.0:
                 ell = 1.0 - tol
             c, a, Mhat = _compute_zolotarev_coefficients(r, ell, A.device, dtype=A.dtype)

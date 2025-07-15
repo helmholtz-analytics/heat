@@ -43,14 +43,14 @@ def svd(
         If ``False``, only the vector ``S`` containing the singular values is returned.
     qr_procs_to_merge : int, optional
         the number of processes to merge in the tall skinny QR decomposition that is applied if the input array is tall skinny (``M > N``) or short fat (``M < N``).
-        See the corresponding remarks for ``heat.linalg.qr`` for more details.
+        See the corresponding remarks for :func:``heat.linalg.qr`` for more details.
     r_max_zolopd : int, optional
-        an internal parameter only relevant for the case that the input matrix is neither tall skinny nor short fat.
+        an internal parameter only relevant for the case that the input matrix is neither tall-skinny nor short-fat.
         This parameter is passed to the Zolotarev-Polar Decomposition and the symmetric eigenvalue decomposition that is applied in this case.
-        See the documentation of ``heat.linalg.polar`` as well as of ``heat.linalg.eigh`` for more details.
+        See the documentation of :func:``heat.linalg.polar`` as well as of :func:``heat.linalg.eigh`` for more details.
 
-    Remarks
-    ----------
+    Notes
+    -----
     Unlike in NumPy, we currently do not support the option ``full_matrices=True``, since this can result in heavy memory consumption (in particular for tall skinny
     and short fat matrices) that should be avoided in the context Heat is designed for. If you nevertheless require this feature, please open an issue on GitHub.
 
@@ -60,6 +60,12 @@ def svd(
 
         Nakatsukasa, Y., & Freund, R. W. (2016). Computing fundamental matrix decompositions accurately via the
         matrix sign function in two iterations: The power of Zolotarev's functions. SIAM Review, 58(3).
+
+    See Also
+    --------
+    :func:`heat.linalg.qr`
+    :func:`heat.linalg.polar`
+    :func:`heat.linalg.eigh`
     """
     if full_matrices:
         raise NotImplementedError(

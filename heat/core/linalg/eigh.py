@@ -33,7 +33,7 @@ def _subspaceiteration(
     depth: int = 0,
 ) -> DNDarray:
     """
-    This auxiliary function implements the subspace iteration as required for symmetric eigenvalue decomposition
+    Auxiliary function that implements the subspace iteration as required for symmetric eigenvalue decomposition
     via polar decomposition; cf. Ref. 2 below. The algorithm for subspace iteration itself is taken from Ref. 1,
     Algorithm 3 in Sect. 5.1.
 
@@ -43,7 +43,7 @@ def _subspaceiteration(
     returned as well.
 
     References
-    ------------
+    ----------
     1.  Nakatsukasa, Y., & Higham, N. J. (2013). Stable and efficient spectral divide and conquer algorithms for
         Hermitian eigenproblems. SIAM Journal on Scientific Computing, 35(3).
     2.  Nakatsukasa, Y., & Freund, R. W. (2016). Computing fundamental matrix decompositions accurately via the
@@ -64,7 +64,7 @@ def _subspaceiteration(
     Anorm = matrix_norm(A, ord="fro")
 
     # this initialization is proposed in Ref. 1, Sect. 5.1
-    k = int(np.round(matrix_norm(C, ord="fro").item() ** 2))
+    k = int(round(matrix_norm(C, ord="fro").item() ** 2))
     columnnorms = vector_norm(C, axis=0)
     idx = where(
         columnnorms
@@ -114,7 +114,7 @@ def _subspaceiteration(
             "\t" * depth
             + f"            Subspace iteration did not converge in {maxit} iterations. \n"
             + "\t" * depth
-            + f"            It holds ||E||_F/||A||_F = {Enorm/Anorm}, which might impair the accuracy of the result."  # noqa E226
+            + f"            It holds ||E||_F/||A||_F = {Enorm / Anorm}, which might impair the accuracy of the result."  # noqa E226
         )
     return Q, k
 
@@ -133,8 +133,8 @@ def _eigh(
         `depth`:  an internal variable that is used to track the recursion depth,
         `orig_lsize` an internal variable that is used to propagate the local shapes of the original input matrix
             through the recursions in order to determine when the direct solution of the reduced problems is possible),
-        `r`: a hyperparameter for the computation of the polar decomposition via `heat.linalg.polar` which is
-            applied multiple times in this function. See the documentation of `heat.linalg.polar` for more details.
+        `r`: a hyperparameter for the computation of the polar decomposition via :func:`heat.linalg.polar` which is
+            applied multiple times in this function. See the documentation of :func:`heat.linalg.polar` for more details.
             In the actual implementation, this parameter is set to `None` for simplicity.
     """
     n = A.shape[0]
@@ -275,15 +275,15 @@ def eigh(
     A : DNDarray
         The input matrix. Must be symmetric.
     r_max_zolopd : int, optional
-        This is a hyperparameter for the computation of the polar decomposition via `heat.linalg.polar` which is
-        applied multiple times in this function. See the documentation of `heat.linalg.polar` for more details on its
+        This is a hyperparameter for the computation of the polar decomposition via :func:`heat.linalg.polar` which is
+        applied multiple times in this function. See the documentation of :func:`heat.linalg.polar` for more details on its
         meaning and the respective default value.
     silent : bool, optional
         If True (default), suppresses output messages; otherwise, some information on the recursion is printed to the console.
 
     Notes
     -----
-    Unlike the `torch.linalg.eigh` function, the eigenvalues are returned in descending order.
+    Unlike the :func:`torch.linalg.eigh` function, the eigenvalues are returned in descending order.
     Note that no check of symmetry is performed on the input matrix A; thus, applying this function to a non-symmetric matrix may
     result in unpredictable behaviour without a specific error message pointing to this issue.
 
@@ -292,21 +292,18 @@ def eigh(
 
         Nakatsukasa, Y., & Freund, R. W. (2016). Computing fundamental matrix decompositions accurately via the
         matrix sign function in two iterations: The power of Zolotarev's functions. SIAM Review, 58(3).
+
+    See Also
+    --------
+    :func:`heat.linalg.polar`
     """
     sanitize_in_nd_realfloating(A, "A", [2])
     if A.shape[0] != A.shape[1]:
         raise ValueError(
-            f"Input matrix must be symmetric and, consquently, square, but input shape was {A.shape[0]} x {A.shape[1]}."
+            f"Input matrix must be symmetric and, consequently, square, but input shape was {A.shape[0]} x {A.shape[1]}."
         )
     if not isinstance(r_max_zolopd, int) or r_max_zolopd < 1 or r_max_zolopd > 8:
         raise ValueError(
             f"If provided, parameter r_max_zolopd must be a positive integer, but was {r_max_zolopd} of type {type(r_max_zolopd)}."
         )
-    return _eigh(
-        A,
-        None,
-        silent,
-        r_max_zolopd,
-        0,
-        0,
-    )
+    return _eigh(A, None, silent, r_max_zolopd, 0, 0)
