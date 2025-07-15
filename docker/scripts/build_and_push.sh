@@ -8,39 +8,35 @@ while [[ $# -gt 0 ]]; do
   case $1 in
     --heat-version)
       HEAT_VERSION="$2"
-      shift # past argument
-      shift # past value
+      shift 2 # Use 'shift 2' as a concise way to skip past the argument and its value
       ;;
     --pytorch-img)
       PYTORCH_IMG="$2"
-      shift # past argument
-      shift # past value
+      shift 2
       ;;
     --torch-version)
       TORCH_VERSION="$2"
-      shift # past argument
-      shift # past value
+      shift 2
       ;;
     --cuda-version)
       CUDA_VERSION="$2"
-      shift # past argument
-      shift # past value
+      shift 2
       ;;
     --python-version)
       PYTHON_VERSION="$2"
-      shift # past argument
-      shift # past value
+      shift 2
       ;;
     --upload)
       GHCR_UPLOAD=true
-      shift
-      shift
+      shift # FIX 1: This is a flag, not an option with a value, so only shift once.
       ;;
-    -*|--*)
+    -*) # FIX 2: Simplified from '-*|--*'. This correctly catches all unknown options.
       echo "Unknown option $1"
       exit 1
       ;;
-    *)
+    *) # FIX 3: Added a 'shift' to handle positional arguments and prevent an infinite loop.
+      shift
+      ;;
   esac
 done
 
