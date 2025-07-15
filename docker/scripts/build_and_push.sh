@@ -52,9 +52,9 @@ ghcr_tag="ghcr.io/helmholtz-analytics/heat:${HEAT_VERSION}_torch${TORCH_VERSION}
 echo "Building image $ghcr_tag"
 
 docker build --file ../Dockerfile.release \
-              --build-arg HEAT_VERSION=$HEAT_VERSION \
-              --build-arg PYTORCH_IMG=$PYTORCH_IMG \
-              --tag $ghcr_tag \
+              --build-arg HEAT_VERSION="$HEAT_VERSION" \
+              --build-arg PYTORCH_IMG="$PYTORCH_IMG" \
+              --tag "$ghcr_tag" \
               .
 
 if [ $GHCR_UPLOAD = true ]; then
