@@ -225,8 +225,8 @@ class LocalOutlierFactor:
             split = A.split
             type = A.dtype
             # Use none-split arrays to reduce communication overhead
-            A_ = A.resplit_(None).larray
-            idx_ = idx.resplit_(None).larray
+            A_ = A.resplit_(None).larray.contiguous()
+            idx_ = idx.resplit_(None).larray.contiguous()
             # Apply standard advanced indexing
             indexed_A_ = A_[idx_]
             # Convert the result back to a distributed DNDarray
