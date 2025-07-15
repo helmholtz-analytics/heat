@@ -87,10 +87,6 @@ class TestLOF(TestCase):
         X_inliers = ht.concatenate((X_inliers + 2, X_inliers - 2), axis=0)
         X = ht.concatenate((X_inliers, X_outliers), axis=0)
 
-        lof = LocalOutlierFactor(n_neighbors=n_neighbors, fully_distributed=False)
-        lof.fit(X)
-        lof_scores = lof.lof_scores
-
         # Following sklearn results can be reproduced using
         #   >>> X= X.resplit_(None).larray
         #   >>> skLOF = sklearn.neighbors.LocalOutlierFactor(n_neighbors, metric='euclidean', algorithm='brute')
@@ -149,5 +145,16 @@ class TestLOF(TestCase):
         )
         sklearn_result = ht.array(sklearn_result, split=0)
 
+        # test with run-time-efficient implementation
+        lof = LocalOutlierFactor(n_neighbors=n_neighbors, fully_distributed=False)
+        lof.fit(X)
+        lof_scores = lof.lof_scores
+        condition = ht.allclose(lof_scores, sklearn_result, atol=1e-2)
+        self.assertTrue(condition)
+
+        # test with memory-efficient implementation
+        lof = LocalOutlierFactor(n_neighbors=n_neighbors, fully_distributed=True)
+        lof.fit(X)
+        lof_scores = lof.lof_scores
         condition = ht.allclose(lof_scores, sklearn_result, atol=1e-2)
         self.assertTrue(condition)
