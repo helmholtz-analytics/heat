@@ -14,6 +14,7 @@
 
 # 2. Create environment and install dependencies
 python -m venv heat-env
+# shellcheck disable=SC1091
 . heat-env/bin/activate || exit 1
 pip install heat xarray jupyter scikit-learn ipyparallel
 
