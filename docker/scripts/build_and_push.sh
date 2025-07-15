@@ -60,5 +60,5 @@ docker build --file ../Dockerfile.release \
 if [ $GHCR_UPLOAD = true ]; then
   echo "Push image"
   echo "You might need to log in into ghcr.io (https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry#authenticating-to-the-container-registry)"
-  docker push $ghcr_tag
+  docker push "$ghcr_tag"
 fi
