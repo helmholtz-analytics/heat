@@ -3,6 +3,9 @@ name: Release Drafter
 on:
   pull_request:
     types: [opened, reopened]
+permissions:
+  contents: read
+
 jobs:
   update_release_draft:
     permissions:
@@ -11,11 +14,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@002fdce3c6a235733a90a27c80493a3241e56863 # v2.12.1
+        uses: step-security/harden-runner@6c439dc8bdf85cadbbce9ed30d1c7b959517bc49 # v2.12.2
         with:
           egress-policy: audit
 
-      - uses: release-drafter/release-drafter@v6 # v6.0.0
+      - uses: release-drafter/release-drafter@b1476f6e6eb133afa41ed8589daba6dc69b4d3f5 # v6.1.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
