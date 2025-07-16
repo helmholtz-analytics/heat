@@ -54,6 +54,8 @@ class LocalOutlierFactor:
         Decides whether to distribute auxiliary vectors during the computation among all MPI processes.
         Only set to True for a very large number of data points that may already cause memory issues on their own.
         True is more memory efficient, but much slower than False due to large communication overhead.
+    idx_n_neighbors : DNDarray
+        Indices of nearest neighbors for each sample in the data set.
 
     Raises
     ------
@@ -90,6 +92,7 @@ class LocalOutlierFactor:
         self.metric = metric
         self.chunks = chunks
         self.fully_distributed = fully_distributed
+        self.idx_n_neighbors = None
 
         self._input_sanitation()
 
@@ -139,6 +142,8 @@ class LocalOutlierFactor:
         # Extract the k-distance and the indices of the k-nearest neighbors
         k_dist = dist[:, -1]
         idx_neighbors = idx[:, 1 : self.n_neighbors + 1]
+        # Make the indices of the n-nearest neighbors available for a use outside this function
+        self.idx_n_neighbors = idx_neighbors
 
         k_dist_neighbors = self._advanced_indexing(k_dist, idx_neighbors)
 
