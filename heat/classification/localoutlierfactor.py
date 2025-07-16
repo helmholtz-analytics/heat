@@ -82,7 +82,6 @@ class LocalOutlierFactor:
         top_n=None,
         fully_distributed=False,
     ):
-
         self.n_neighbors = n_neighbors
         self.binary_decision = binary_decision
         self.threshold = threshold
