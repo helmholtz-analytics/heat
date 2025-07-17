@@ -1,0 +1,151 @@
+name: Prep Heat Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_version:
+        description: "The version to release"
+        required: true
+        default: "0.0.0"
+      base_branch:
+        description: "The base branch to create the release branch from"
+        required: true
+        default: "main"
+      title:
+        description: "Release title"
+        required: False
+        default: "Heat"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release:
+    # environment: release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@6c439dc8bdf85cadbbce9ed30d1c7b959517bc49 # v2.12.2
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event.inputs.base_branch }}
+      - uses: release-drafter/release-drafter@b1476f6e6eb133afa41ed8589daba6dc69b4d3f5 # v6.1.0
+        id: release_drafter
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          commitish: 'stable'
+          name: ${{ github.event.inputs.title }}
+          config-name: rd-release-config.yml
+      - name: Bump version.py and create PR
+        env:
+          PR_BRANCH: pre-release/${{ inputs.release_version }}
+          VERSION: ${{ inputs.release_version }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Create branch
+          git checkout -b pre-release/${VERSION}
+
+          # Split version number into major, minor, and micro
+          MAJOR=$(echo $VERSION | cut -d. -f1)
+          MINOR=$(echo $VERSION | cut -d. -f2)
+          MICRO=$(echo $VERSION | cut -d. -f3)
+
+          ## ----- START Update Dockerfiles -------
+          # Extract the current version from the Dockerfile
+          FILE_VERSION=$(grep -oP 'ARG PYTORCH_IMG=\K\d{2}\.\d{2}' docker/Dockerfile.release)
+          FILE_VERSION_SOURCE=$(grep -oP 'ARG PYTORCH_IMG=\K\d{2}\.\d{2}' docker/Dockerfile.source)
+
+          # Construct the date for the new version
+          DATE=$(date '+%y.%m')
+
+          # Separate new
+          YEAR=$(echo $DATE | cut -d'.' -f1)
+          MONTH=$(echo $DATE | cut -d'.' -f2)
+
+          ## --- Handling of special cases ---
+          # Move to the previous year
+          if [ "$MONTH" == "01" ]; then
+          PREV_MONTH="12"
+          YEAR=$(($YEAR - 1))
+          # 09 and 08 will be interpreted in Octal, so they have to be handled differently
+          elif [ "$MONTH" == "09" ]; then
+          PREV_MONTH="08"
+          elif [ "$MONTH" == "08" ]; then
+          PREV_MONTH="07"
+          else
+          PREV_MONTH=$(($MONTH - 1))
+          # Ensure the previous month is 2 digits
+          PREV_MONTH=$(printf "%02d" $PREV_MONTH)
+          fi
+
+          # Construct the new version
+          NEW_VERSION="${YEAR}.${PREV_MONTH}"
+
+          sed -i "s/$FILE_VERSION/$NEW_VERSION/g" docker/Dockerfile.release
+          sed -i "s/$FILE_VERSION_SOURCE/$NEW_VERSION/g" docker/Dockerfile.source
+
+          ## ----- END Workflow to update Dockerfile Images -------
+
+          # Write on to the version.py file
+          sed -i "s/major: int = \([0-9]\+\)/major: int = $MAJOR/g" heat/core/version.py
+          sed -i "s/minor: int = \([0-9]\+\)/minor: int = $MINOR/g" heat/core/version.py
+          sed -i "s/micro: int = \([0-9]\+\)/micro: int = $MICRO/g" heat/core/version.py
+          sed -i "s/extension: str = .*/extension: str = None/g" heat/core/version.py
+
+          { echo -e "# v${MAJOR}.${MINOR}.${MICRO} - ${{github.event.inputs.title}}\n${{ steps.release_drafter.outputs.body}}\n"; cat CHANGELOG.md; } > tmp.md
+          mv tmp.md CHANGELOG.md
+
+          # Git configuration with anonymous user and email
+          git config --global user.email ""
+          git config --global user.name "Heat Release Bot"
+
+          # Commit the changes
+          git add heat/core/version.py CHANGELOG.md
+          git commit -m "Bump version to $VERSION"
+
+          # Commit Dockerfile changes
+          git add docker/Dockerfile.release
+          git add docker/Dockerfile.source
+          git commit -m "Update pytorch image in Dockerfile.release and Dockerfile.source to version $UPDATED_VERSION"
+
+          # Push the changes
+          git push --set-upstream origin pre-release/${VERSION}
+
+          # Create PR for release
+          gh pr create \
+          --base stable \
+          --head ${{ env.PR_BRANCH }} \
+          --title "Heat ${{ env.VERSION }} - Release" \
+          --body "Pre-release branch for Heat ${{ env.VERSION }}.
+          Any release work should be done on this branch, and then merged into `stable` and `main`, following git-flow guidelines.
+
+          TODO:
+          - [x] Update version.py
+          - [ ] Ensure Citation file `CITATION.cff` is up to date.
+          - [ ] Ensure the Changelog is up to date.
+
+          DO NOT DELETE BRANCH AFTER MERGING!" \
+          --label "pre-release"
+
+          # Create PR for main
+          gh pr create --base main \
+          --head ${{ env.PR_BRANCH }} \
+          --title "Heat ${{ env.VERSION }} - Main" \
+          --draft \
+          --body "Copy of latest pre-release PR targeting release.
+          DO NOT CHANGE ANYTHING UNTIL `Heat ${{ env.VERSION }} - Release` HAS BEEN MERGED.
+
+          TODO:
+          - [ ] Make sure version.py is updated to reflect the dev version.
+          - [ ] Ensure Citation file is up to date.
+          - [ ] Ensure the Changelog is up to date.
+          - [ ] Test and merge conda-forge build (PR is usually created within a few hours of PyPi release)
+          - [ ] Update docker image and related documentation (see #1716 )
+          - [ ] Update spack recipe
+          - [ ] Update easybuild recipe" \
+          --label "post-release"

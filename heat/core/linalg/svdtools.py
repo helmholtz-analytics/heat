@@ -14,32 +14,18 @@ from .. import types
 from ..linalg import matmul, vector_norm, qr, svd
 from ..indexing import where
 from ..random import randn
-
+from ..sanitation import sanitize_in_nd_realfloating
 from ..manipulations import vstack, hstack, diag, balance
 
 from .. import statistics
 from math import log, ceil, floor, sqrt
 
 
-__all__ = ["hsvd_rank", "hsvd_rtol", "hsvd", "rsvd"]
-
-
-def _check_SVD_input(A):
-    if not isinstance(A, DNDarray):
-        raise TypeError(f"Argument needs to be a DNDarray but is {type(A)}.")
-    if not A.ndim == 2:
-        raise ValueError("A needs to be a 2D matrix")
-    if not types.heat_type_is_realfloating(A.dtype):
-        raise TypeError(
-            "Argument needs to be a DNDarray with datatype float32 or float64, but data type is {}.".format(
-                A.dtype
-            )
-        )
-    return None
+__all__ = ["hsvd_rank", "hsvd_rtol", "hsvd", "rsvd", "isvd"]
 
 
 #######################################################################################
-# user-friendly versions of hSVD
+# hierachical SVD "hSVD"
 #######################################################################################
 
 
@@ -54,52 +40,53 @@ def hsvd_rank(
     Tuple[DNDarray, DNDarray, DNDarray, float], Tuple[DNDarray, DNDarray, DNDarray], DNDarray
 ]:
     """
-        Hierarchical SVD (hSVD) with prescribed truncation rank `maxrank`.
-        If A = U diag(sigma) V^T is the true SVD of A, this routine computes an approximation for U[:,:maxrank] (and sigma[:maxrank], V[:,:maxrank]).
+    Hierarchical SVD (hSVD) with prescribed truncation rank `maxrank`.
+    If A = U diag(sigma) V^T is the true SVD of A, this routine computes an approximation for U[:,:maxrank] (and sigma[:maxrank], V[:,:maxrank]).
 
-        The accuracy of this approximation depends on the structure of A ("low-rank" is best) and appropriate choice of parameters.
+    The accuracy of this approximation depends on the structure of A ("low-rank" is best) and appropriate choice of parameters.
 
-        One can expect a similar outcome from this routine as for sci-kit learn's TruncatedSVD (with `algorithm='randomized'`) although a different, determinstic algorithm is applied here. Hereby, the parameters `n_components`
-        and `n_oversamples` (sci-kit learn) roughly correspond to `maxrank` and `safetyshift` (see below).
+    One can expect a similar outcome from this routine as for sci-kit learn's TruncatedSVD (with `algorithm='randomized'`) although a different, determinstic algorithm is applied here. Hereby, the parameters `n_components`
+    and `n_oversamples` (sci-kit learn) roughly correspond to `maxrank` and `safetyshift` (see below).
 
-        Parameters
-        ----------
-        A : DNDarray
-            2D-array (float32/64) of which the hSVD has to be computed.
-        maxrank : int
-            truncation rank. (This parameter corresponds to `n_components` in sci-kit learn's TruncatedSVD.)
-        compute_sv : bool, optional
-            compute_sv=True implies that also Sigma and V are computed and returned. The default is False.
-        maxmergedim : int, optional
-            maximal size of the concatenation matrices during the merging procedure. The default is None and results in an appropriate choice depending on the size of the local slices of A and maxrank.
-            Too small choices for this parameter will result in failure if the maximal size of the concatenation matrices does not allow to merge at least two matrices. Too large choices for this parameter can cause memory errors if the resulting merging problem becomes too large.
-        safetyshift : int, optional
-            Increases the actual truncation rank within the computations by a safety shift. The default is 5. (There is some similarity to `n_oversamples` in sci-kit learn's TruncatedSVD.)
-        silent : bool, optional
-            silent=False implies that some information on the computations are printed. The default is True.
+    Parameters
+    ----------
+    A : DNDarray
+        2D-array (float32/64) of which the hSVD has to be computed.
+    maxrank : int
+        truncation rank. (This parameter corresponds to `n_components` in sci-kit learn's TruncatedSVD.)
+    compute_sv : bool, optional
+        compute_sv=True implies that also Sigma and V are computed and returned. The default is False.
+    maxmergedim : int, optional
+        maximal size of the concatenation matrices during the merging procedure. The default is None and results in an appropriate choice depending on the size of the local slices of A and maxrank.
+        Too small choices for this parameter will result in failure if the maximal size of the concatenation matrices does not allow to merge at least two matrices. Too large choices for this parameter can cause memory errors if the resulting merging problem becomes too large.
+    safetyshift : int, optional
+        Increases the actual truncation rank within the computations by a safety shift. The default is 5. (There is some similarity to `n_oversamples` in sci-kit learn's TruncatedSVD.)
+    silent : bool, optional
+        silent=False implies that some information on the computations are printed. The default is True.
 
-        Returns
-        -------
-        (Union[    Tuple[DNDarray, DNDarray, DNDarray, float], Tuple[DNDarray, DNDarray, DNDarray], DNDarray])
-            if compute_sv=True: U, Sigma, V, a-posteriori error estimate for the reconstruction error ||A-U Sigma V^T ||_F / ||A||_F (computed according to [2] along the "true" merging tree).
-            if compute_sv=False: U, a-posteriori error estimate
+    Returns
+    -------
+    (Union[    Tuple[DNDarray, DNDarray, DNDarray, float], Tuple[DNDarray, DNDarray, DNDarray], DNDarray])
+        if compute_sv=True: U, Sigma, V, a-posteriori error estimate for the reconstruction error ||A-U Sigma V^T ||_F / ||A||_F (computed according to [2] along the "true" merging tree).
+        if compute_sv=False: U, a-posteriori error estimate
 
-        Notes
-        -------
-        The size of the process local SVDs to be computed during merging is proportional to the non-split size of the input A and (maxrank + safetyshift). Therefore, conservative choice of maxrank and safetyshift is advised to avoid memory issues.
-        Note that, as sci-kit learn's randomized SVD, this routine is different from `numpy.linalg.svd` because not all singular values and vectors are computed
-        and even those computed may be inaccurate if the input matrix exhibts a unfavorable structure.
+    Notes
+    -----
+    The size of the process local SVDs to be computed during merging is proportional to the non-split size of the input A and (maxrank + safetyshift). Therefore, conservative choice of maxrank and safetyshift is advised to avoid memory issues.
+    Note that, as sci-kit learn's randomized SVD, this routine is different from `numpy.linalg.svd` because not all singular values and vectors are computed
+    and even those computed may be inaccurate if the input matrix exhibts a unfavorable structure.
 
     See Also
-    ---------
+    --------
     :func:`hsvd`
     :func:`hsvd_rtol`
-        References
-        -------
-        [1] Iwen, Ong. A distributed and incremental SVD algorithm for agglomerative data analysis on large networks. SIAM J. Matrix Anal. Appl., 37(4), 2016.
-        [2] Himpe, Leibner, Rave. Hierarchical approximate proper orthogonal decomposition. SIAM J. Sci. Comput., 40 (5), 2018.
+
+    References
+    ----------
+    [1] Iwen, Ong. A distributed and incremental SVD algorithm for agglomerative data analysis on large networks. SIAM J. Matrix Anal. Appl., 37(4), 2016.
+    [2] Himpe, Leibner, Rave. Hierarchical approximate proper orthogonal decomposition. SIAM J. Sci. Comput., 40 (5), 2018.
     """
-    _check_SVD_input(A)  # check if A is suitable input
+    sanitize_in_nd_realfloating(A, "A", [2])
     A_local_size = max(A.lshape_map[:, 1])
 
     if maxmergedim is not None and maxmergedim < 2 * (maxrank + safetyshift) + 1:
@@ -140,52 +127,52 @@ def hsvd_rtol(
     Tuple[DNDarray, DNDarray, DNDarray, float], Tuple[DNDarray, DNDarray, DNDarray], DNDarray
 ]:
     """
-        Hierchical SVD (hSVD) with prescribed upper bound on the relative reconstruction error.
-        If A = U diag(sigma) V^T is the true SVD of A, this routine computes an approximation for U[:,:r] (and sigma[:r], V[:,:r])
-        such that the rel. reconstruction error ||A-U[:,:r] diag(sigma[:r]) V[:,:r]^T ||_F / ||A||_F does not exceed rtol.
+    Hierchical SVD (hSVD) with prescribed upper bound on the relative reconstruction error.
+    If A = U diag(sigma) V^T is the true SVD of A, this routine computes an approximation for U[:,:r] (and sigma[:r], V[:,:r])
+    such that the rel. reconstruction error ||A-U[:,:r] diag(sigma[:r]) V[:,:r]^T ||_F / ||A||_F does not exceed rtol.
 
-        The accuracy of this approximation depends on the structure of A ("low-rank" is best) and appropriate choice of parameters. This routine is similar to `hsvd_rank` with the difference that
-        truncation is not performed after a fixed number (namly `maxrank` many) singular values but after such a number of singular values that suffice to capture a prescribed fraction of the amount of information
-        contained in the input data (`rtol`).
+    The accuracy of this approximation depends on the structure of A ("low-rank" is best) and appropriate choice of parameters. This routine is similar to `hsvd_rank` with the difference that
+    truncation is not performed after a fixed number (namly `maxrank` many) singular values but after such a number of singular values that suffice to capture a prescribed fraction of the amount of information
+    contained in the input data (`rtol`).
 
-        Parameters
-        ----------
-        A : DNDarray
-            2D-array (float32/64) of which the hSVD has to be computed.
-        rtol : float
-            desired upper bound on the relative reconstruction error ||A-U Sigma V^T ||_F / ||A||_F. This upper bound is processed into 'local'
-            tolerances during the actual computations assuming the worst case scenario of a binary "merging tree"; therefore, the a-posteriori
-            error for the relative error using the true "merging tree" (see output) may be significantly smaller than rtol.
-            Prescription of maxrank or maxmergedim (disabled in default) can result in loss of desired precision, but can help to avoid memory issues.
-        compute_sv : bool, optional
-            compute_sv=True implies that also Sigma and V are computed and returned. The default is False.
-        no_of_merges : int, optional
-            Maximum number of processes to be merged at each step. If no further arguments are provided (see below),
-            this completely determines the "merging tree" and may cause memory issues. The default is None and results in a binary merging tree.
-            Note that no_of_merges dominates maxrank and maxmergedim in the sense that at most no_of_merges processes are merged
-            even if maxrank and maxmergedim would allow merging more processes.
-        maxrank : int, optional
-            maximal truncation rank. The default is None.
-            Setting at least one of maxrank and maxmergedim is recommended to avoid memory issues, but can result in loss of desired precision.
-            Setting only maxrank (and not maxmergedim) results in an appropriate default choice for maxmergedim depending on the size of the local slices of A and the value of maxrank.
-        maxmergedim : int, optional
-            maximal size of the concatenation matrices during the merging procedure. The default is None and results in an appropriate choice depending on the size of the local slices of A and maxrank. The default is None.
-            Too small choices for this parameter will result in failure if the maximal size of the concatenation matrices does not allow to merge at least two matrices. Too large choices for this parameter can cause memory errors if the resulting merging problem becomes too large.
-            Setting at least one of maxrank and maxmergedim is recommended to avoid memory issues, but can result in loss of desired precision.
-            Setting only maxmergedim (and not maxrank) results in an appropriate default choice for maxrank.
-        safetyshift : int, optional
-            Increases the actual truncation rank within the computations by a safety shift. The default is 5.
-        silent : bool, optional
-            silent=False implies that some information on the computations are printed. The default is True.
+    Parameters
+    ----------
+    A : DNDarray
+        2D-array (float32/64) of which the hSVD has to be computed.
+    rtol : float
+        desired upper bound on the relative reconstruction error ||A-U Sigma V^T ||_F / ||A||_F. This upper bound is processed into 'local'
+        tolerances during the actual computations assuming the worst case scenario of a binary "merging tree"; therefore, the a-posteriori
+        error for the relative error using the true "merging tree" (see output) may be significantly smaller than rtol.
+        Prescription of maxrank or maxmergedim (disabled in default) can result in loss of desired precision, but can help to avoid memory issues.
+    compute_sv : bool, optional
+        compute_sv=True implies that also Sigma and V are computed and returned. The default is False.
+    no_of_merges : int, optional
+        Maximum number of processes to be merged at each step. If no further arguments are provided (see below),
+        this completely determines the "merging tree" and may cause memory issues. The default is None and results in a binary merging tree.
+        Note that no_of_merges dominates maxrank and maxmergedim in the sense that at most no_of_merges processes are merged
+        even if maxrank and maxmergedim would allow merging more processes.
+    maxrank : int, optional
+        maximal truncation rank. The default is None.
+        Setting at least one of maxrank and maxmergedim is recommended to avoid memory issues, but can result in loss of desired precision.
+        Setting only maxrank (and not maxmergedim) results in an appropriate default choice for maxmergedim depending on the size of the local slices of A and the value of maxrank.
+    maxmergedim : int, optional
+        maximal size of the concatenation matrices during the merging procedure. The default is None and results in an appropriate choice depending on the size of the local slices of A and maxrank. The default is None.
+        Too small choices for this parameter will result in failure if the maximal size of the concatenation matrices does not allow to merge at least two matrices. Too large choices for this parameter can cause memory errors if the resulting merging problem becomes too large.
+        Setting at least one of maxrank and maxmergedim is recommended to avoid memory issues, but can result in loss of desired precision.
+        Setting only maxmergedim (and not maxrank) results in an appropriate default choice for maxrank.
+    safetyshift : int, optional
+        Increases the actual truncation rank within the computations by a safety shift. The default is 5.
+    silent : bool, optional
+        silent=False implies that some information on the computations are printed. The default is True.
 
-        Returns
-        -------
-        (Union[    Tuple[DNDarray, DNDarray, DNDarray, float], Tuple[DNDarray, DNDarray, DNDarray], DNDarray])
-            if compute_sv=True: U, Sigma, V, a-posteriori error estimate for the reconstruction error ||A-U Sigma V^T ||_F / ||A||_F (computed according to [2] along the "true" merging tree used in the computations).
-            if compute_sv=False: U, a-posteriori error estimate
+    Returns
+    -------
+    (Union[    Tuple[DNDarray, DNDarray, DNDarray, float], Tuple[DNDarray, DNDarray, DNDarray], DNDarray])
+        if compute_sv=True: U, Sigma, V, a-posteriori error estimate for the reconstruction error ||A-U Sigma V^T ||_F / ||A||_F (computed according to [2] along the "true" merging tree used in the computations).
+        if compute_sv=False: U, a-posteriori error estimate
 
-        Notes
-        -------
+    Notes
+    -----
         The maximum size of the process local SVDs to be computed during merging is proportional to the non-split size of the input A and (maxrank + safetyshift). Therefore, conservative choice of maxrank and safetyshift is advised to avoid memory issues.
         For similar reasons, prescribing only rtol and the number of processes to be merged in each step (without specifying maxrank or maxmergedim) may result in memory issues.
         Although prescribing maxrank is therefore strongly recommended to avoid memory issues, but may result in loss of desired precision (rtol). If this occures, a separate warning will be raised.
@@ -193,16 +180,18 @@ def hsvd_rtol(
         Note that this routine is different from `numpy.linalg.svd` because not all singular values and vectors are computed and even those computed may be inaccurate if the input matrix exhibts a unfavorable structure.
 
         To avoid confusion, note that `rtol` in this routine does not have any similarity to `tol` in scikit learn's TruncatedSVD.
+
     See Also
-    ---------
+    --------
     :func:`hsvd`
     :func:`hsvd_rank`
-        References
-        -------
+
+    References
+    ----------
         [1] Iwen, Ong. A distributed and incremental SVD algorithm for agglomerative data analysis on large networks. SIAM J. Matrix Anal. Appl., 37(4), 2016.
         [2] Himpe, Leibner, Rave. Hierarchical approximate proper orthogonal decomposition. SIAM J. Sci. Comput., 40 (5), 2018.
     """
-    _check_SVD_input(A)  # check if A is suitable input
+    sanitize_in_nd_realfloating(A, "A", [2])
     A_local_size = max(A.lshape_map[:, 1])
 
     if maxmergedim is not None and maxrank is None:
@@ -248,11 +237,6 @@ def hsvd_rtol(
     )
 
 
-################################################################################################
-# hSVD - "full" routine for the experts
-################################################################################################
-
-
 def hsvd(
     A: DNDarray,
     maxrank: Optional[int] = None,
@@ -267,7 +251,7 @@ def hsvd(
     Tuple[DNDarray, DNDarray, DNDarray, float], Tuple[DNDarray, DNDarray, DNDarray], DNDarray
 ]:
     """
-    This function computes an approximate truncated SVD of A utilizing a distributed hiearchical algorithm; see the references.
+    Computes an approximate truncated SVD of A utilizing a distributed hiearchical algorithm; see the references.
     The present function `hsvd` is a low-level routine, provides many options/parameters, but no default values, and is not recommended for usage by non-experts since conflicts
     arising from inappropriate parameter choice will not be catched. We strongly recommend to use the corresponding high-level functions `hsvd_rank` and `hsvd_rtol` instead.
 
@@ -299,12 +283,12 @@ def hsvd(
         if compute_sv=False: U, a-posteriori error estimate
 
     References
-    -------
+    ----------
     [1] Iwen, Ong. A distributed and incremental SVD algorithm for agglomerative data analysis on large networks. SIAM J. Matrix Anal. Appl., 37(4), 2016.
     [2] Himpe, Leibner, Rave. Hierarchical approximate proper orthogonal decomposition. SIAM J. Sci. Comput., 40 (5), 2018.
 
     See Also
-    ---------
+    --------
     :func:`hsvd_rank`
     :func:`hsvd_rtol`
     """
@@ -334,7 +318,7 @@ def hsvd(
             "\t\t".join(["%d" % an for an in active_nodes]),
         )
 
-    U_loc, sigma_loc, err_squared_loc = compute_local_truncated_svd(
+    U_loc, sigma_loc, err_squared_loc = _compute_local_truncated_svd(
         level, A.comm.rank, A.larray, maxrank, loc_atol, safetyshift
     )
     U_loc = torch.matmul(U_loc, torch.diag(sigma_loc))
@@ -412,7 +396,7 @@ def hsvd(
 
             if len(future_nodes) == 1:
                 safetyshift = 0
-            U_loc, sigma_loc, err_squared_loc_new = compute_local_truncated_svd(
+            U_loc, sigma_loc, err_squared_loc_new = _compute_local_truncated_svd(
                 level, A.comm.rank, U_loc, maxrank, loc_atol, safetyshift
             )
 
@@ -466,12 +450,7 @@ def hsvd(
     return U, rel_error_estimate
 
 
-##############################################################################################
-# AUXILIARY ROUTINES
-##############################################################################################
-
-
-def compute_local_truncated_svd(
+def _compute_local_truncated_svd(
     level: int,
     proc_id: int,
     U_loc: torch.Tensor,
@@ -528,7 +507,7 @@ def compute_local_truncated_svd(
 
 
 ##############################################################################################
-# Randomized SVD
+# Randomized SVD "rSVD"
 ##############################################################################################
 
 
@@ -559,16 +538,17 @@ def rsvd(
     qr_procs_to_merge : int, optional
         number of processes to merge at each step of QR decomposition in the power iteration (if power_iter > 0). The default is 2. See the corresponding remarks for :func:`heat.linalg.qr() <heat.core.linalg.qr.qr()>` for more details.
 
+
     Notes
-    ------
+    -----
     Memory requirements: the SVD computation of a matrix of size (rank + n_oversamples) x (rank + n_oversamples) must fit into the memory of a single process.
     The implementation follows Algorithm 4.4 (randomized range finder) and Algorithm 5.1 (direct SVD) in [1].
 
     References
-    -----------
+    ----------
     [1] Halko, N., Martinsson, P. G., & Tropp, J. A. (2011). Finding structure with randomness: Probabilistic algorithms for constructing approximate matrix decompositions. SIAM review, 53(2), 217-288.
     """
-    _check_SVD_input(A)  # check if A is suitable input
+    sanitize_in_nd_realfloating(A, "A", [2])
     if not isinstance(rank, int):
         raise TypeError(f"rank must be an integer, but is {type(rank)}.")
     if rank < 1:
@@ -597,12 +577,18 @@ def rsvd(
 
     # power iterations
     for _ in range(q):
+        if Q.split is not None and Q.shape[Q.split] < Q.comm.size:
+            Q.resplit_(None)
         Y = matmul(A.T, Q)
         Q, _ = qr(Y, procs_to_merge=qr_procs_to_merge)
+        if Q.split is not None and Q.shape[Q.split] < Q.comm.size:
+            Q.resplit_(None)
         Y = matmul(A, Q)
         Q, _ = qr(Y, procs_to_merge=qr_procs_to_merge)
 
     # compute the SVD of the projected matrix
+    if Q.split is not None and Q.shape[Q.split] < Q.comm.size:
+        Q.resplit_(None)
     B = matmul(Q.T, A)
     B.resplit_(
         None
@@ -614,3 +600,199 @@ def rsvd(
     V = V[:, :rank]
     V.balance_()
     return U, S, V
+
+
+##############################################################################################
+# Incremental SVD "iSVD"
+##############################################################################################
+
+
+def _isvd(
+    new_data: DNDarray,
+    U_old: DNDarray,
+    S_old: DNDarray,
+    V_old: Optional[DNDarray] = None,
+    maxrank: Optional[int] = None,
+    old_matrix_size: Optional[int] = None,
+    old_rowwise_mean: Optional[DNDarray] = None,
+) -> Union[Tuple[DNDarray, DNDarray, DNDarray], Tuple[DNDarray, DNDarray, DNDarray, DNDarray]]:
+    """
+    Helper function for iSVD and iPCA; follows roughly the "incremental PCA with mean update", Fig.1 in:
+    David A. Ross, Jongwoo Lim, Ruei-Sung Lin, Ming-Hsuan Yang. Incremental Learning for Robust Visual Tracking. IJCV, 2008.
+
+    Either incremental SVD / PCA or incremental SVD / PCA  with mean subtraction is performed.
+
+    Parameters
+    ----------
+    new_data: DNDarray
+        new data as DNDarray
+    U_old, S_old, V_old: DNDarrays
+        "old" SVD-factors
+        if no V_old is provided, only U and S are computed (PCA)
+    maxrank: int, optional
+        rank to which new SVD should be truncated
+    old_matrix_size: int, optional
+        size of the old matrix; this does not need to be identical to V_old.shape[0] as "old" SVD might have been truncated
+    old_rowwise_mean: int, optional
+        row-wise mean of the old matrix; if not provided, no mean subtraction is performed
+    """
+    # old SVD is SVD of a matrix of dimension m x n as has rank r
+    # new data have shape m x d
+    d = new_data.shape[1]
+    n = V_old.shape[0] if V_old is not None else old_matrix_size
+    r = S_old.shape[0]
+    if maxrank is None:
+        maxrank = min(n + d, U_old.shape[0])
+    else:
+        maxrank = min(maxrank, min(n + d, U_old.shape[0]))
+
+    if old_rowwise_mean is not None:
+        new_data_rowwise_mean = statistics.mean(new_data, axis=1)
+        new_rowwise_mean = (old_matrix_size * old_rowwise_mean + d * new_data_rowwise_mean) / (
+            old_matrix_size + d
+        )
+        new_data -= new_data_rowwise_mean.reshape(-1, 1)
+        new_data = hstack(
+            [
+                new_data,
+                (new_data_rowwise_mean - old_rowwise_mean)
+                * (d * old_matrix_size / (d + old_matrix_size)) ** 0.5,
+            ]
+        )
+        d += 1
+
+    # orthogonalize and decompose new_data
+    UtC = U_old.T @ new_data
+    if U_old.split is not None:
+        new_data = new_data.resplit_(U_old.split) - U_old @ UtC
+    else:
+        new_data = new_data - (U_old @ UtC).resplit_(new_data.split)
+    P, Rc = qr(new_data)
+
+    # prepare one component of "new" V-factor
+    if V_old is not None:
+        V_new = vstack(
+            [
+                V_old,
+                factories.zeros(
+                    (d, r),
+                    device=V_old.device,
+                    dtype=V_old.dtype,
+                    split=V_old.split,
+                    comm=V_old.comm,
+                ),
+            ]
+        )
+        helper = vstack(
+            [
+                factories.zeros(
+                    (n, d),
+                    device=V_old.device,
+                    dtype=V_old.dtype,
+                    split=V_old.split,
+                    comm=V_old.comm,
+                ),
+                factories.eye(
+                    d, device=V_old.device, dtype=V_old.dtype, split=V_old.split, comm=V_old.comm
+                ),
+            ]
+        )
+        V_new = hstack([V_new, helper])
+        del helper
+
+    # prepare one component of "new" U-factor
+    U_new = hstack([U_old, P])
+
+    # prepare "inner" matrix that needs to be decomposed, decompose it
+    helper1 = vstack(
+        [
+            diag(S_old),
+            factories.zeros(
+                (Rc.shape[0] + UtC.shape[0] - r, r),
+                device=S_old.device,
+                dtype=S_old.dtype,
+                split=S_old.split,
+                comm=S_old.comm,
+            ),
+        ]
+    )
+    if r > d:
+        Rc = Rc.resplit_(UtC.split)
+    else:
+        UtC = UtC.resplit_(Rc.split)
+    helper2 = vstack([UtC, Rc])
+    innermat = hstack([helper1, helper2])
+    del (helper1, helper2)
+    # as innermat is small enough to fit into memory of a single process, we can use torch svd
+    u, s, v = svd.svd(innermat.resplit_(None))
+    del innermat
+
+    # truncate if desired
+    if maxrank < s.shape[0]:
+        u = u[:, :maxrank]
+        s = s[:maxrank]
+        v = v[:, :maxrank]
+
+    U_new = U_new @ u
+    if V_old is not None:
+        V_new = V_new @ v
+
+    if V_old is not None:  # use-case: SVD
+        return U_new, s, V_new
+    if old_rowwise_mean is not None:  # use-case PCA
+        return U_new, s, new_rowwise_mean
+
+
+def isvd(
+    new_data: DNDarray,
+    U_old: DNDarray,
+    S_old: DNDarray,
+    V_old: DNDarray,
+    maxrank: Optional[int] = None,
+) -> Tuple[DNDarray, DNDarray, DNDarray]:
+    r"""Incremental SVD (iSVD) for the addition of new data to an existing SVD.
+    Given the the SVD of an "old" matrix, :math:`X_\textnormal{old} = `U_\textnormal{old} \cdot S_\textnormal{old} \cdot V_\textnormal{old}^T`, and additional columns :math:`N` (\"`new_data`\"), this routine computes
+    (a possibly approximate) SVD of the extended matrix :math:`X_\textnormal{new} = [ X_\textnormal{old} | N]`.
+
+    Parameters
+    ----------
+    new_data : DNDarray
+        2D-array (float32/64) of columns that are added to the "old" SVD. It must hold `new_data.split != 1` if `U_old.split = 0`.
+    U_old : DNDarray
+        U-factor of the SVD of the "old" matrix, 2D-array (float32/64). It must hold `U_old.split != 0` if `new_data.split = 1`.
+    S_old : DNDarray
+        Sigma-factor of the SVD of the "old" matrix, 1D-array (float32/64)
+    V_old : DNDarray
+        V-factor of the SVD of the "old" matrix, 2D-array (float32/64)
+    maxrank : int, optional
+        truncation rank of the SVD of the extended matrix. The default is None, i.e., no bound on the maximal rank is imposed.
+
+    Notes
+    -----
+    Inexactness may arise due to truncation to maximal rank `maxrank` if rank of the data to be processed exceeds this rank.
+    If you set `maxrank` to a high number (or None) in order to avoid inexactness, you may encounter memory issues.
+    The implementation follows the approach described in Ref. [1], Sect. 2.
+
+    References
+    ----------
+    [1] Brand, M. (2006). Fast low-rank modifications of the thin singular value decomposition. Linear algebra and its applications, 415(1), 20-30.
+    """
+    # check if new_data, U_old, V_old are 2D DNDarrays and float32/64
+    sanitize_in_nd_realfloating(new_data, "new_data", [2])
+    sanitize_in_nd_realfloating(U_old, "U_old", [2])
+    sanitize_in_nd_realfloating(S_old, "S_old", [1])
+    sanitize_in_nd_realfloating(V_old, "V_old", [2])
+    # check if number of columns of U_old and V_old match the number of elements in S_old
+    if U_old.shape[1] != S_old.shape[0]:
+        raise ValueError(
+            "The number of columns of U_old must match the number of elements in S_old."
+        )
+    if V_old.shape[1] != S_old.shape[0]:
+        raise ValueError(
+            "The number of columns of V_old must match the number of elements in S_old."
+        )
+    # check if the number of columns of new_data matches the number of rows of U_old and V_old
+    if new_data.shape[0] != U_old.shape[0]:
+        raise ValueError("The number of rows of new_data must match the number of rows of U_old.")
+
+    return _isvd(new_data, U_old, S_old, V_old, maxrank)

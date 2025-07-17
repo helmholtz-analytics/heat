@@ -129,8 +129,8 @@ def __counter_sequence(
         c_0 = (__counter & (max_count << 64)) >> 64
     c_1 = __counter & max_count
     total_elements = torch.prod(torch.tensor(shape))
-    if total_elements.item() > 2 * max_count:
-        raise ValueError(f"Shape is to big with {total_elements} elements")
+    # if total_elements.item() > 2 * max_count:
+    #    raise ValueError(f"Shape is to big with {total_elements} elements")
 
     if split is None:
         values = total_elements.item() // 2 + total_elements.item() % 2
@@ -216,7 +216,7 @@ def __counter_sequence(
     tmp_counter += used_values
     __counter = tmp_counter & 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF  # 128-bit mask
 
-    return x_0.contiguous(), x_1.contiguous(), lshape, lslice
+    return x_0, x_1, lshape, lslice
 
 
 def get_state() -> Tuple[str, int, int, int, float]:
@@ -332,7 +332,7 @@ def normal(
 
     Examples
     --------
-    >>> ht.random.normal(ht.array([-1,2]), ht.array([0.5, 2]), (2,))
+    >>> ht.random.normal(ht.array([-1, 2]), ht.array([0.5, 2]), (2,))
     DNDarray([-1.4669,  1.6596], dtype=ht.float64, device=cpu:0, split=None)
     """
     if not (isinstance(mean, (float, int))) and not isinstance(mean, DNDarray):
@@ -348,23 +348,26 @@ def normal(
     return mean + std * standard_normal(shape, dtype, split, device, comm)
 
 
-def permutation(x: Union[int, DNDarray]) -> DNDarray:
+def permutation(x: Union[int, DNDarray], **kwargs) -> DNDarray:
     """
     Randomly permute a sequence, or return a permuted range. If ``x`` is a multi-dimensional array, it is only shuffled
     along its first index.
 
     Parameters
-    -----------
+    ----------
     x : int or DNDarray
         If ``x`` is an integer, call :func:`heat.random.randperm <heat.core.random.randperm>`. If ``x`` is an array,
         make a copy and shuffle the elements randomly.
 
+    kwargs : dict, optional
+        Additional keyword arguments passed to :func:`heat.random.randperm <heat.core.random.randperm>` if ``x`` is an integer.
+
     See Also
-    -----------
+    --------
     :func:`heat.random.randperm <heat.core.random.randperm>` for randomly permuted ranges.
 
     Examples
-    ----------
+    --------
     >>> ht.random.permutation(10)
     DNDarray([9, 1, 5, 4, 8, 2, 7, 6, 3, 0], dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.random.permutation(ht.array([1, 4, 9, 12, 15]))
@@ -381,7 +384,7 @@ def permutation(x: Union[int, DNDarray]) -> DNDarray:
     Thus, the array containing these indices needs to fit into the memory of a single MPI-process.
     """
     if isinstance(x, int):
-        return randperm(x)
+        return randperm(x, **kwargs)
     if not isinstance(x, DNDarray):
         raise TypeError("x must be int or DNDarray")
 
@@ -434,7 +437,7 @@ def permutation(x: Union[int, DNDarray]) -> DNDarray:
 
 
 def rand(
-    *args: List[int],
+    *d: int,
     dtype: Type[datatype] = types.float32,
     split: Optional[int] = None,
     device: Optional[Device] = None,
@@ -446,7 +449,7 @@ def rand(
 
     Parameters
     ----------
-    d1,d2,…,dn : List[int,...]
+    *d : int, optional
         The dimensions of the returned array, should all be positive. If no argument is given a single random samples is
         generated.
     dtype : Type[datatype], optional
@@ -472,11 +475,11 @@ def rand(
     DNDarray([0.1921, 0.9635, 0.5047], dtype=ht.float32, device=cpu:0, split=None)
     """
     # if args are not set, generate a single sample
-    if not args:
+    if not d:
         shape = (1,)
     else:
         # ensure that the passed dimensions are positive integer-likes
-        shape = tuple(int(ele) for ele in args)
+        shape = tuple(int(ele) for ele in d)
     if any(ele <= 0 for ele in shape):
         raise ValueError("negative dimensions are not allowed")
 
@@ -523,7 +526,7 @@ def rand(
         )
         if split is None:
             x = x.resplit_(None)
-        if not args or shape == ():
+        if not d or shape == ():
             x = x.item()
         return x
 
@@ -563,7 +566,7 @@ def randint(
         Handle to the nodes holding distributed parts or copies of this array.
 
     Raises
-    -------
+    ------
     TypeError
         If one of low or high is not an int.
     ValueError
@@ -664,7 +667,7 @@ def random_integer(
 
 
 def randn(
-    *args: List[int],
+    *d: int,
     dtype: Type[datatype] = types.float32,
     split: Optional[int] = None,
     device: Optional[str] = None,
@@ -675,7 +678,7 @@ def randn(
 
     Parameters
     ----------
-    d1,d2,…,dn : List[int,...]
+    *d : int, optional
         The dimensions of the returned array, should be all positive.
     dtype : Type[datatype], optional
         The datatype of the returned values. Has to be one of :class:`~heat.core.types.float32` or
@@ -696,7 +699,7 @@ def randn(
         Accepts arguments for mean and standard deviation.
 
     Raises
-    -------
+    ------
     TypeError
         If one of ``d1`` to ``dn`` is not an integer.
     ValueError
@@ -715,7 +718,7 @@ def randn(
     if __rng == "Threefry":
         # use threefry RNG and the Kundu transform to generate normally distributed random numbers
         # generate uniformly distributed random numbers first
-        normal_tensor = rand(*args, dtype=dtype, split=split, device=device, comm=comm)
+        normal_tensor = rand(*d, dtype=dtype, split=split, device=device, comm=comm)
         # convert the the values to a normal distribution using the Kundu transform
         normal_tensor.larray = __kundu_transform(normal_tensor.larray)
 
@@ -723,11 +726,11 @@ def randn(
     else:
         # use batchparallel RNG and torch's generation of normally distributed random numbers
         # if args are not set, generate a single sample
-        if not args:
+        if not d:
             shape = (1,)
         else:
             # ensure that the passed dimensions are positive integer-likes
-            shape = tuple(int(ele) for ele in args)
+            shape = tuple(int(ele) for ele in d)
         if any(ele <= 0 for ele in shape):
             raise ValueError("negative dimensions are not allowed")
 
@@ -748,7 +751,7 @@ def randn(
         )
         if split is None:
             x = x.resplit_(None)
-        if not args or shape == ():
+        if not d or shape == ():
             x = x.item()
         return x
 
@@ -778,7 +781,7 @@ def randperm(
         Handle to the nodes holding distributed parts or copies of this array.
 
     Raises
-    -------
+    ------
     TypeError
         If ``n`` is not an integer.
 
@@ -797,7 +800,7 @@ def randperm(
     device = devices.sanitize_device(device)
     comm = communication.sanitize_comm(comm)
     perm = torch.randperm(n, dtype=dtype.torch_type(), device=device.torch_device)
-    if __rng != "Threefry":
+    if comm.Get_size() > 1 and __rng != "Threefry":
         comm.Bcast(perm, root=0)
 
     return factories.array(perm, dtype=dtype, device=device, split=split, comm=comm)

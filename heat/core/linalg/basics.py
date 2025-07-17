@@ -24,8 +24,12 @@ from .. import sanitation
 from .. import statistics
 from .. import stride_tricks
 from .. import types
+from ..random import randn
+from .qr import qr
+from .solver import solve_triangular
 
 __all__ = [
+    "condest",
     "cross",
     "det",
     "dot",
@@ -43,6 +47,116 @@ __all__ = [
     "vecdot",
     "vector_norm",
 ]
+
+
+def _estimate_largest_singularvalue(A: DNDarray, algorithm: str = "fro") -> DNDarray:
+    """
+    Computes an upper estimate for the largest singular value of the input 2D DNDarray.
+
+    Parameters
+    ----------
+    A : DNDarray
+        The matrix, i.e., a 2D DNDarray, for which the largest singular value should be estimated.
+    algorithm : str
+        The algorithm to use for the estimation. Currently, only "fro" (default) is implemented.
+        If "fro" is chosen, the Frobenius norm of the matrix is used as an upper estimate.
+    """
+    if not isinstance(algorithm, str):
+        raise TypeError(
+            f"Parameter 'algorithm' needs to be a string, but is {algorithm} with data type {type(algorithm)}."
+        )
+    if algorithm == "fro":
+        return matrix_norm(A, ord="fro").squeeze()
+    else:
+        raise NotImplementedError("So far only algorithm='fro' implemented.")
+
+
+def condest(
+    A: DNDarray, p: Union[int, str] = None, algorithm: str = "randomized", params: list = None
+) -> DNDarray:
+    """
+    Computes a (possibly randomized) upper estimate of the l2-condition number of the input 2D DNDarray.
+
+    Parameters
+    ----------
+    A : DNDarray
+        The matrix, i.e., a 2D DNDarray, for which the condition number shall be estimated.
+    p : int or str (optional)
+        The norm to use for the condition number computation. If None, the l2-norm (default, p=2) is used.
+        So far, only p=2 is implemented.
+    algorithm : str
+        The algorithm to use for the estimation. Currently, only "randomized" (default) is implemented.
+    params : dict (optional)
+        A list of parameters required for the chosen algorithm; if not provided, default values for the respective algorithm are chosen.
+        If `algorithm="randomized"` the number of random samples to use can be specified under the key "nsamples"; default is 10.
+
+    Notes
+    -----
+    The "randomized" algorithm follows the approach described in [1]; note that in the paper actually the condition number w.r.t. the Frobenius norm is estimated.
+    However, this yields an upper bound for the condition number w.r.t. the l2-norm as well.
+
+    References
+    ----------
+    [1] T. Gudmundsson, C. S. Kenney, and A. J. Laub. Small-Sample Statistical Estimates for Matrix Norms. SIAM Journal on Matrix Analysis and Applications 1995 16:3, 776-792.
+    """
+    if p is None:
+        p = 2
+    if p != 2:
+        raise ValueError(
+            f"Only the case p=2 (condition number w.r.t. the euclidean norm) is implemented so far, but input was p={p} (type: {type(p)})."
+        )
+    if not isinstance(algorithm, str):
+        raise TypeError(
+            f"Parameter 'algorithm' needs to be a string, but is {algorithm} with data type {type(algorithm)}."
+        )
+    if algorithm == "randomized":
+        if params is None:
+            nsamples = 10  # set default value
+        else:
+            if not isinstance(params, dict) or "nsamples" not in params:
+                raise TypeError(
+                    "If not None, 'params' needs to be a dictionary containing the number of samples under the key 'nsamples'."
+                )
+            if not isinstance(params["nsamples"], int) or params["nsamples"] <= 0:
+                raise ValueError(
+                    f"The number of samples needs to be a positive integer, but is {params['nsamples']} with data type {type(params['nsamples'])}."
+                )
+            nsamples = params["nsamples"]
+
+        m = A.shape[0]
+        n = A.shape[1]
+
+        if n > m:
+            # the algorithm only works for m >= n, but fortunately, the condition number (w.r.t. l2-norm) is invariant under transposition
+            return condest(A.T, p=p, algorithm=algorithm, params=params)
+
+        _, R = qr(A, mode="r")  # only R factor is computed in QR
+
+        # random samples from unit sphere
+        # regarding the split: if A.split == 1, then n is probably large and we should split along an axis of size n; otherwise, both n and nsamples should be small
+        Q, R_not_used = qr(
+            randn(
+                n,
+                nsamples,
+                dtype=A.dtype,
+                split=0 if A.split == 1 else None,
+                device=A.device,
+                comm=A.comm,
+            )
+        )
+        del R_not_used
+
+        est = (
+            matrix_norm(R @ Q)
+            * A.dtype((m / nsamples) ** 0.5, comm=A.comm)
+            * matrix_norm(solve_triangular(R, Q))
+        )
+
+        return est.squeeze()
+    else:
+        raise NotImplementedError(
+            "So far only algorithm='randomized' is implemented. Please open an issue on GitHub if you would like to suggest implementing another algorithm."
+        )
 
 
 def cross(
@@ -174,7 +288,7 @@ def det(a: DNDarray) -> DNDarray:
 
     Examples
     --------
-    >>> a = ht.array([[-2,-1,2],[2,1,4],[-3,3,-1]])
+    >>> a = ht.array([[-2, -1, 2], [2, 1, 4], [-3, 3, -1]])
     >>> ht.linalg.det(a)
     DNDarray(54., dtype=ht.float64, device=cpu:0, split=None)
     """
@@ -328,7 +442,7 @@ def inv(a: DNDarray) -> DNDarray:
 
     Examples
     --------
-    >>> a = ht.array([[1., 2], [2, 3]])
+    >>> a = ht.array([[1.0, 2], [2, 3]])
     >>> ht.linalg.inv(a)
     DNDarray([[-3.,  2.],
               [ 2., -1.]], dtype=ht.float32, device=cpu:0, split=None)
@@ -347,7 +461,13 @@ def inv(a: DNDarray) -> DNDarray:
 
     # no split in the square matrices
     if not a.is_distributed() or a.split < a.ndim - 2:
-        data = torch.inverse(a.larray)
+        try:
+            data = torch.inverse(a.larray)
+        except RuntimeError as e:
+            raise RuntimeError(e)
+        # torch.linalg.inv does not raise RuntimeError on MPS when inversion fails
+        if data.is_mps and torch.any(data.isnan()):
+            raise RuntimeError("linalg.inv: inversion could not be performed")
         return DNDarray(
             data,
             a.shape,
@@ -428,7 +548,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
     Batched inputs (with batch dimensions being leading dimensions) are allowed; see also the Notes below.
 
     Parameters
-    -----------
+    ----------
     a : DNDarray
         matrix :math:`L \\times P` or vector :math:`P` or batch of matrices: :math:`B_1 \\times ... \\times B_k \\times L \\times P`
     b : DNDarray
@@ -438,13 +558,13 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
         Default is ``False``. If ``True``, if both are not split then ``a`` will be distributed in-place along axis 0.
 
     Notes
-    -----------
+    -----
     - For batched inputs, batch dimensions must coincide and if one matrix is split along a batch axis the other must be split along the same axis.
     - If ``a`` or ``b`` is a vector the result will also be a vector.
     - We recommend to avoid the particular split combinations ``1``-``0``, ``None``-``0``, and ``1``-``None`` (for ``a.split``-``b.split``) due to their comparably high memory consumption, if possible. Applying ``DNDarray.resplit_`` or ``heat.resplit`` on one of the two factors before calling ``matmul`` in these situations might improve performance of your code / might avoid memory bottlenecks.
 
     References
-    -----------
+    ----------
     [1] R. Gu, et al., "Improving Execution Concurrency of Large-scale Matrix Multiplication on
     Distributed Data-parallel Platforms," IEEE Transactions on Parallel and Distributed Systems,
     vol 28, no. 9. 2017. \n
@@ -453,7 +573,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
     Workshops (IPDPSW), Vancouver, BC, 2018, pp. 877-882.
 
     Examples
-    -----------
+    --------
     >>> a = ht.ones((n, m), split=1)
     >>> a[0] = ht.arange(1, m + 1)
     >>> a[:, -1] = ht.arange(1, n + 1).larray
@@ -699,11 +819,11 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
                 kB, a.gshape[-1]
             )  # shouldnt this always be kB and be the same as for split 11?
 
-        if a.lshape[-1] % kB != 0 or (
-            kB == 1 and a.lshape[-1] != 1
-        ):  # does kb == 1 imply a.lshape[-1] > 1?
+        if (kB == 1 and a.lshape[-1] != 1) or a.lshape[
+            -1
+        ] % kB != 0:  # does kb == 1 imply a.lshape[-1] > 1?
             rem_a = 1
-        if b.lshape[-2] % kB != 0 or (kB == 1 and b.lshape[-2] != 1):
+        if (kB == 1 and b.lshape[-2] != 1) or b.lshape[-2] % kB != 0:
             rem_b = 1
 
         # get the lshape map to determine what needs to be sent where as well as M and N
@@ -1240,9 +1360,9 @@ def matrix_norm(
 
     Examples
     --------
-    >>> ht.matrix_norm(ht.array([[1,2],[3,4]]))
+    >>> ht.matrix_norm(ht.array([[1, 2], [3, 4]]))
     DNDarray([[5.4772]], dtype=ht.float64, device=cpu:0, split=None)
-    >>> ht.matrix_norm(ht.array([[1,2],[3,4]]), keepdims=True, ord=-1)
+    >>> ht.matrix_norm(ht.array([[1, 2], [3, 4]]), keepdims=True, ord=-1)
     DNDarray([[4.]], dtype=ht.float64, device=cpu:0, split=None)
     """
     sanitation.sanitize_in(x)
@@ -1260,6 +1380,8 @@ def matrix_norm(
         raise TypeError("'axis' must be a 2-tuple.")
 
     row_axis, col_axis = axis
+
+    # dtype = types.promote_types(x.dtype, types.float32)
 
     if ord == 1:
         if col_axis > row_axis and not keepdims:
@@ -1384,9 +1506,9 @@ def norm(
     DNDarray(7.7460, dtype=ht.float32, device=cpu:0, split=None)
     >>> LA.norm(b)
     DNDarray(7.7460, dtype=ht.float32, device=cpu:0, split=None)
-    >>> LA.norm(b, ord='fro')
+    >>> LA.norm(b, ord="fro")
     DNDarray(7.7460, dtype=ht.float32, device=cpu:0, split=None)
-    >>> LA.norm(a, float('inf'))
+    >>> LA.norm(a, float("inf"))
     DNDarray([4.], dtype=ht.float32, device=cpu:0, split=None)
     >>> LA.norm(b, ht.inf)
     DNDarray([9.], dtype=ht.float32, device=cpu:0, split=None)
@@ -1418,8 +1540,8 @@ def norm(
     DNDarray([3.7417, 4.2426], dtype=ht.float64, device=cpu:0, split=None)
     >>> LA.norm(c, axis=1, ord=1)
     DNDarray([6., 6.], dtype=ht.float64, device=cpu:0, split=None)
-    >>> m = ht.arange(8).reshape(2,2,2)
-    >>> LA.norm(m, axis=(1,2))
+    >>> m = ht.arange(8).reshape(2, 2, 2)
+    >>> LA.norm(m, axis=(1, 2))
     DNDarray([ 3.7417, 11.2250], dtype=ht.float32, device=cpu:0, split=None)
     >>> LA.norm(m[0, :, :]), LA.norm(m[1, :, :])
     (DNDarray(3.7417, dtype=ht.float32, device=cpu:0, split=None), DNDarray(11.2250, dtype=ht.float32, device=cpu:0, split=None))
@@ -2331,11 +2453,11 @@ def vdot(x1: DNDarray, x2: DNDarray) -> DNDarray:
 
     Examples
     --------
-    >>> a = ht.array([1+1j, 2+2j])
-    >>> b = ht.array([1+2j, 3+4j])
-    >>> ht.vdot(a,b)
+    >>> a = ht.array([1 + 1j, 2 + 2j])
+    >>> b = ht.array([1 + 2j, 3 + 4j])
+    >>> ht.vdot(a, b)
     DNDarray([(17+3j)], dtype=ht.complex64, device=cpu:0, split=None)
-    >>> ht.vdot(b,a)
+    >>> ht.vdot(b, a)
     DNDarray([(17-3j)], dtype=ht.complex64, device=cpu:0, split=None)
     """
     x1 = manipulations.flatten(x1)
@@ -2368,7 +2490,7 @@ def vecdot(
 
     Examples
     --------
-    >>> ht.vecdot(ht.full((3,3,3),3), ht.ones((3,3)), axis=0)
+    >>> ht.vecdot(ht.full((3, 3, 3), 3), ht.ones((3, 3)), axis=0)
     DNDarray([[9., 9., 9.],
               [9., 9., 9.],
               [9., 9., 9.]], dtype=ht.float32, device=cpu:0, split=None)
@@ -2435,9 +2557,9 @@ def vector_norm(
 
     Examples
     --------
-    >>> ht.vector_norm(ht.array([1,2,3,4]))
+    >>> ht.vector_norm(ht.array([1, 2, 3, 4]))
     DNDarray([5.4772], dtype=ht.float64, device=cpu:0, split=None)
-    >>> ht.vector_norm(ht.array([[1,2],[3,4]]), axis=0, ord=1)
+    >>> ht.vector_norm(ht.array([[1, 2], [3, 4]]), axis=0, ord=1)
     DNDarray([[4., 6.]], dtype=ht.float64, device=cpu:0, split=None)
     """
     sanitation.sanitize_in(x)

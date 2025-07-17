@@ -11,11 +11,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@91182cccc01eb5e619899d80e4e971d6181294a7 # v2.10.1
+        uses: step-security/harden-runner@6c439dc8bdf85cadbbce9ed30d1c7b959517bc49 # v2.12.2
         with:
           egress-policy: audit
 
       - name: Create Issue Branch
-        uses: robvanderleek/create-issue-branch@b82c47ed14db0b7ee2f6a501bf566813440592a7 # main
+        uses: robvanderleek/create-issue-branch@dfe19372d9a9198999c0fd8a81f0dbe00951afd9 # main
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -16,6 +16,7 @@ from . import dndarray
 from . import types
 from . import sanitation
 from . import factories
+from . import devices
 
 __all__ = [
     "eq",
@@ -33,11 +34,12 @@ __all__ = [
 ]
 
 
-def eq(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> DNDarray:
+def eq(x, y) -> DNDarray:
     """
     Returns a :class:`~heat.core.dndarray.DNDarray` containing the results of element-wise comparision.
     Takes the first and second operand (scalar or :class:`~heat.core.dndarray.DNDarray`) whose elements are to be
     compared as argument.
+    Returns False if the operands are not scalars or :class:`~heat.core.dndarray.DNDarray`
 
     Parameters
     ----------
@@ -47,9 +49,9 @@ def eq(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> DNDarr
         The second operand involved in the comparison
 
     Examples
-    ---------
+    --------
     >>> import heat as ht
-    >>> x = ht.float32([[1, 2],[3, 4]])
+    >>> x = ht.float32([[1, 2], [3, 4]])
     >>> ht.eq(x, 3.0)
     DNDarray([[False, False],
               [ True, False]], dtype=ht.bool, device=cpu:0, split=None)
@@ -57,21 +59,26 @@ def eq(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> DNDarr
     >>> ht.eq(x, y)
     DNDarray([[False,  True],
               [False, False]], dtype=ht.bool, device=cpu:0, split=None)
+    >>> ht.eq(x, slice(None))
+    False
     """
-    res = _operations.__binary_op(torch.eq, x, y)
+    try:
+        res = _operations.__binary_op(torch.eq, x, y)
 
-    if res.dtype != types.bool:
-        res = dndarray.DNDarray(
-            res.larray.type(torch.bool),
-            res.gshape,
-            types.bool,
-            res.split,
-            res.device,
-            res.comm,
-            res.balanced,
-        )
+        if res.dtype != types.bool:
+            res = dndarray.DNDarray(
+                res.larray.type(torch.bool),
+                res.gshape,
+                types.bool,
+                res.split,
+                res.device,
+                res.comm,
+                res.balanced,
+            )
 
-    return res
+        return res
+    except (TypeError, ValueError):
+        return False
 
 
 DNDarray.__eq__ = lambda self, other: eq(self, other)
@@ -91,10 +98,10 @@ def equal(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> boo
         The second operand involved in the comparison
 
     Examples
-    ---------
+    --------
     >>> import heat as ht
-    >>> x = ht.float32([[1, 2],[3, 4]])
-    >>> ht.equal(x, ht.float32([[1, 2],[3, 4]]))
+    >>> x = ht.float32([[1, 2], [3, 4]])
+    >>> ht.equal(x, ht.float32([[1, 2], [3, 4]]))
     True
     >>> y = ht.float32([[2, 2], [2, 2]])
     >>> ht.equal(x, y)
@@ -165,6 +172,9 @@ def equal(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> boo
                 y = y.balance()
 
     result_type = types.result_type(x, y)
+    is_mps = x.larray.is_mps or y.larray.is_mps
+    if is_mps and result_type is types.float64:
+        result_type = types.float32
     x = x.astype(result_type)
     y = y.astype(result_type)
 
@@ -190,9 +200,9 @@ def ge(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> DNDarr
        The second operand to be compared less than or equal to first operand
 
     Examples
-    -------
+    --------
     >>> import heat as ht
-    >>> x = ht.float32([[1, 2],[3, 4]])
+    >>> x = ht.float32([[1, 2], [3, 4]])
     >>> ht.ge(x, 3.0)
     DNDarray([[False, False],
               [ True,  True]], dtype=ht.bool, device=cpu:0, split=None)
@@ -239,9 +249,9 @@ def gt(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> DNDarr
        The second operand to be compared less than first operand
 
     Examples
-    -------
+    --------
     >>> import heat as ht
-    >>> x = ht.float32([[1, 2],[3, 4]])
+    >>> x = ht.float32([[1, 2], [3, 4]])
     >>> ht.gt(x, 3.0)
     DNDarray([[False, False],
               [False,  True]], dtype=ht.bool, device=cpu:0, split=None)
@@ -288,9 +298,9 @@ def le(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> DNDarr
        The second operand to be compared greater than or equal to first operand
 
     Examples
-    -------
+    --------
     >>> import heat as ht
-    >>> x = ht.float32([[1, 2],[3, 4]])
+    >>> x = ht.float32([[1, 2], [3, 4]])
     >>> ht.le(x, 3.0)
     DNDarray([[ True,  True],
               [ True, False]], dtype=ht.bool, device=cpu:0, split=None)
@@ -337,9 +347,9 @@ def lt(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> DNDarr
         The second operand to be compared greater than first operand
 
     Examples
-    -------
+    --------
     >>> import heat as ht
-    >>> x = ht.float32([[1, 2],[3, 4]])
+    >>> x = ht.float32([[1, 2], [3, 4]])
     >>> ht.lt(x, 3.0)
     DNDarray([[ True,  True],
               [False, False]], dtype=ht.bool, device=cpu:0, split=None)
@@ -372,11 +382,12 @@ less = lt
 less.__doc__ = lt.__doc__
 
 
-def ne(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> DNDarray:
+def ne(x, y) -> DNDarray:
     """
     Returns a :class:`~heat.core.dndarray.DNDarray` containing the results of element-wise rich comparison of non-equality between values from two operands, commutative.
     Takes the first and second operand (scalar or :class:`~heat.core.dndarray.DNDarray`) whose elements are to be
     compared as argument.
+    Returns True if the operands are not scalars or :class:`~heat.core.dndarray.DNDarray`
 
     Parameters
     ----------
@@ -386,9 +397,9 @@ def ne(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> DNDarr
         The second operand involved in the comparison
 
     Examples
-    ---------
+    --------
     >>> import heat as ht
-    >>> x = ht.float32([[1, 2],[3, 4]])
+    >>> x = ht.float32([[1, 2], [3, 4]])
     >>> ht.ne(x, 3.0)
     DNDarray([[ True,  True],
               [False,  True]], dtype=ht.bool, device=cpu:0, split=None)
@@ -396,21 +407,26 @@ def ne(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> DNDarr
     >>> ht.ne(x, y)
     DNDarray([[ True, False],
               [ True,  True]], dtype=ht.bool, device=cpu:0, split=None)
+    >>> ht.ne(x, slice(None))
+    True
     """
-    res = _operations.__binary_op(torch.ne, x, y)
+    try:
+        res = _operations.__binary_op(torch.ne, x, y)
 
-    if res.dtype != types.bool:
-        res = dndarray.DNDarray(
-            res.larray.type(torch.bool),
-            res.gshape,
-            types.bool,
-            res.split,
-            res.device,
-            res.comm,
-            res.balanced,
-        )
+        if res.dtype != types.bool:
+            res = dndarray.DNDarray(
+                res.larray.type(torch.bool),
+                res.gshape,
+                types.bool,
+                res.split,
+                res.device,
+                res.comm,
+                res.balanced,
+            )
 
-    return res
+        return res
+    except (TypeError, ValueError):
+        return True
 
 
 DNDarray.__ne__ = lambda self, other: ne(self, other)

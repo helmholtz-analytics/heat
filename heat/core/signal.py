@@ -5,7 +5,7 @@ import numpy as np
 
 from .communication import MPI
 from .dndarray import DNDarray
-from .types import promote_types
+from .types import promote_types, float32, float64
 from .manipulations import pad, flip
 from .factories import array, zeros
 import torch.nn.functional as fc
@@ -50,22 +50,22 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
 
     >>> a = ht.ones(10)
     >>> v = ht.arange(3).astype(ht.float)
-    >>> ht.convolve(a, v, mode='full')
+    >>> ht.convolve(a, v, mode="full")
     DNDarray([0., 1., 3., 3., 3., 3., 2.])
-    >>> ht.convolve(a, v, mode='same')
+    >>> ht.convolve(a, v, mode="same")
     DNDarray([1., 3., 3., 3., 3.])
-    >>> ht.convolve(a, v, mode='valid')
+    >>> ht.convolve(a, v, mode="valid")
     DNDarray([3., 3., 3.])
-    >>> a = ht.ones(10, split = 0)
-    >>> v = ht.arange(3, split = 0).astype(ht.float)
-    >>> ht.convolve(a, v, mode='valid')
+    >>> a = ht.ones(10, split=0)
+    >>> v = ht.arange(3, split=0).astype(ht.float)
+    >>> ht.convolve(a, v, mode="valid")
     DNDarray([3., 3., 3., 3., 3., 3., 3., 3.])
 
     [0/3] DNDarray([3., 3., 3.])
     [1/3] DNDarray([3., 3., 3.])
     [2/3] DNDarray([3., 3.])
-    >>> a = ht.ones(10, split = 0)
-    >>> v = ht.arange(3, split = 0)
+    >>> a = ht.ones(10, split=0)
+    >>> v = ht.arange(3, split=0)
     >>> ht.convolve(a, v)
     DNDarray([0., 1., 3., 3., 3., 3., 3., 3., 3., 3., 3., 2.], dtype=ht.float32, device=cpu:0, split=0)
 
@@ -73,10 +73,10 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
     [1/3] DNDarray([3., 3., 3., 3.])
     [2/3] DNDarray([3., 3., 3., 2.])
 
-    >>> a = ht.arange(50, dtype = ht.float64, split=0)
-    >>> a = a.reshape(10, 5) # 10 signals of length 5
+    >>> a = ht.arange(50, dtype=ht.float64, split=0)
+    >>> a = a.reshape(10, 5)  # 10 signals of length 5
     >>> v = ht.arange(3)
-    >>> ht.convolve(a, v) # batch processing: 10 signals convolved with filter v
+    >>> ht.convolve(a, v)  # batch processing: 10 signals convolved with filter v
     DNDarray([[  0.,   0.,   1.,   4.,   7.,  10.,   8.],
           [  0.,   5.,  16.,  19.,  22.,  25.,  18.],
           [  0.,  10.,  31.,  34.,  37.,  40.,  28.],
@@ -88,8 +88,8 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
           [  0.,  40., 121., 124., 127., 130.,  88.],
           [  0.,  45., 136., 139., 142., 145.,  98.]], dtype=ht.float64, device=cpu:0, split=0)
 
-    >>> v = ht.random.randint(0, 3, (10, 3), split=0) # 10 filters of length 3
-    >>> ht.convolve(a, v) # batch processing: 10 signals convolved with 10 filters
+    >>> v = ht.random.randint(0, 3, (10, 3), split=0)  # 10 filters of length 3
+    >>> ht.convolve(a, v)  # batch processing: 10 signals convolved with 10 filters
     DNDarray([[  0.,   0.,   2.,   4.,   6.,   8.,   0.],
             [  5.,   6.,   7.,   8.,   9.,   0.,   0.],
             [ 20.,  42.,  56.,  61.,  66.,  41.,  14.],
@@ -116,6 +116,10 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
         except TypeError:
             raise TypeError(f"non-supported type for filter: {type(v)}")
     promoted_type = promote_types(a.dtype, v.dtype)
+    if a.larray.is_mps and promoted_type == float64:
+        # cannot cast to float64 on MPS
+        promoted_type = float32
+
     a = a.astype(promoted_type)
     v = v.astype(promoted_type)
 
@@ -308,7 +312,7 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
             signal_filtered = signal_filtered[1:]
 
         return DNDarray(
-            signal_filtered.contiguous(),
+            signal_filtered,
             (gshape,),
             signal_filtered.dtype,
             a.split,
