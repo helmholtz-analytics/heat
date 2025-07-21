@@ -372,10 +372,11 @@ class DistributedSampler(torch_data.Sampler):
         mpi_type: mpi4py.MPI.Datatype = comm._MPICommunication__mpi_type_mappings[dtype]
 
         if rank == 0:
-            indices = torch.randperm(N, dtype=torch.int32)
+            indices = torch.randperm(N, dtype=torch.int64)
         else:
-            indices = torch.empty(N, dtype=torch.int32)
+            indices = torch.empty(N, dtype=torch.int64)
         mpi4py.MPI.COMM_WORLD.Bcast(indices, root=0)
+
 
         indice_buffers: List[List[int]] = [list() for _ in range(world_size)]
         rank_slices: List[slice] = [
@@ -402,6 +403,7 @@ class DistributedSampler(torch_data.Sampler):
             elif data_send_rank == rank:
                 indice_buffers[data_recv_rank].append(idx)
 
+        # print("RECV BUFFER creating...", flush=True)
         send_elems_dtype: List[mpi4py.MPI.Datatype] = list()
         local_recv_buffer: torch.Tensor = torch.empty(self.dndarray.larray.shape, dtype=dtype)
 
@@ -425,63 +427,73 @@ class DistributedSampler(torch_data.Sampler):
             send_type.Commit()
             send_elems_dtype.append(send_type)
 
-        recv_counts = torch.zeros(world_size)
+        recv_counts = torch.zeros(world_size, dtype=torch.int64)
         for idx in indice_buffers[rank]:
             for i, tslice in enumerate(rank_slices):
                 if not self._in_slice(idx, tslice):
                     continue
                 recv_counts[i] += 1
                 break
-        recv_counts *= block_length
 
-        recv_displs = torch.zeros(world_size)
-        recv_displs[1:] = torch.cumsum(recv_counts[:-1], dim=0)
         send_elems = self.dndarray.larray
         send_elems = send_elems if CUDA_AWARE_MPI else send_elems.cpu()
 
-        recv_displs *= send_elems.element_size()
-
-        recv_counts = list(map(int, recv_counts))
-        recv_displs = list(map(int, recv_displs))
-
         recv_types: List[mpi4py.MPI.Datatype] = []
+
+        total_displ = 0
+
         for i in range(world_size):
             if recv_counts[i] == 0:
-                # Create a dummy datatype if no data is received from this rank
                 recv_type = mpi_type.Create_contiguous(0)
             else:
+                types = [mpi_type.Create_contiguous(block_length) for _ in range(recv_counts[i])]
+
+                displ = torch.zeros(len(types))
+                displ[1:] = torch.cumsum(torch.tensor([t.Get_size() for t in types])[:-1], 0)
+                displ += total_displ
+
                 recv_type = mpi_type.Create_struct(
-                    blocklengths=[recv_counts[i]],
-                    displacements=[recv_displs[i]],
-                    datatypes=[mpi_type],
+                    blocklengths=[1] * len(types),
+                    displacements=displ,
+                    datatypes=types
                 )
+                total_displ += sum([t.Get_size() for t in types])
+
             recv_type.Commit()
             recv_types.append(recv_type)
 
         mpi4py.MPI.COMM_WORLD.Alltoallw(
             (send_elems, send_elems_dtype),
-            (local_recv_buffer, [1] * len(recv_counts), [0] * world_size, recv_types),
+            (local_recv_buffer, recv_types),
         )
 
         for elem in itertools.chain(recv_types, send_elems_dtype):
             elem.Free()
 
-        # As MPI indirectly sorts the data according to the rank we need to change that.
-        local_indices = indice_buffers[rank]
-        local_recv_indices = torch.arange(0, len(local_indices))
-        idx_to_rank = torch.empty(len(local_indices), dtype=int)
-        for i, indice in enumerate(local_indices):
-            for rrank, sslice in enumerate(rank_slices):
-                if not self._in_slice(indice, sslice):
+        # As MPI indirectly sorts the data according to the rank we need 
+        # to change that to represent the permutation
+
+        def get_from_rank(idx):
+            for i, rslice in enumerate(rank_slices):
+                if self._in_slice(idx, rslice):
+                    return i
+            raise RuntimeError("IDX not found in slices")
+
+        idx_to_rank_map = [get_from_rank(idx) for idx in indices[local_slice]]
+
+        sort_idx = torch.argsort(torch.tensor(idx_to_rank_map), stable=True)
+        local_slices_sorted = indices[local_slice][sort_idx]
+
+        idxmap = dict()
+        for i, idx in enumerate(local_slices_sorted):
+            for k, indice in enumerate(indices[local_slice]):
+                if indice != idx:
                     continue
-                idx_to_rank[i] = rrank
+                idxmap[i] = k
+                break
 
-        sort_idx = torch.argsort(idx_to_rank, stable=True)
-        local_recv_buffer[local_recv_indices] = local_recv_buffer[local_recv_indices[sort_idx]]
-
-        if local_recv_buffer.device != self.dndarray.larray.device:
-            local_recv_buffer = local_recv_buffer.to(device=self.dndarray.larray.device)
-        self.dndarray.larray = local_recv_buffer
+        for i, dest in idxmap.items():
+            self.dndarray.larray[dest] = local_recv_buffer[i]
 
     def set_shuffle_type(self, shuffle_type: Literal["global"] | Literal["local"]) -> None:
         """Sets the Shuffle type for the Sampler.
