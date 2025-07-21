@@ -377,7 +377,6 @@ class DistributedSampler(torch_data.Sampler):
             indices = torch.empty(N, dtype=torch.int64)
         mpi4py.MPI.COMM_WORLD.Bcast(indices, root=0)
 
-
         indice_buffers: List[List[int]] = [list() for _ in range(world_size)]
         rank_slices: List[slice] = [
             comm.chunk((N,), split=0, rank=i)[-1][0] for i in range(world_size)
@@ -453,9 +452,7 @@ class DistributedSampler(torch_data.Sampler):
                 displ += total_displ
 
                 recv_type = mpi_type.Create_struct(
-                    blocklengths=[1] * len(types),
-                    displacements=displ,
-                    datatypes=types
+                    blocklengths=[1] * len(types), displacements=displ, datatypes=types
                 )
                 total_displ += sum([t.Get_size() for t in types])
 
@@ -470,7 +467,7 @@ class DistributedSampler(torch_data.Sampler):
         for elem in itertools.chain(recv_types, send_elems_dtype):
             elem.Free()
 
-        # As MPI indirectly sorts the data according to the rank we need 
+        # As MPI indirectly sorts the data according to the rank we need
         # to change that to represent the permutation
 
         def get_from_rank(idx):
