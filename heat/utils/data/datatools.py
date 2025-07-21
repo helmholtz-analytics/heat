@@ -304,7 +304,7 @@ class DistributedSampler(torch_data.Sampler):
         shuffle: bool = False,
         seed: Optional[int] = None,
         shuffle_type: Literal["global"] | Literal["local"] = "global",
-        correction: bool = False
+        correction: bool = False,
     ) -> None:
         """
         Parameters
@@ -480,6 +480,7 @@ class DistributedSampler(torch_data.Sampler):
         # As MPI indirectly sorts the data according to the rank we need
         # to change that to represent the permutation
         if self.correction:
+
             def get_from_rank(idx):
                 for i, rslice in enumerate(rank_slices):
                     if self._in_slice(idx, rslice):
