@@ -496,7 +496,9 @@ class DistributedSampler(torch_data.Sampler):
             idxmap = {i: reverse_index[idx.item()] for i, idx in enumerate(local_slices_sorted)}
 
             for i, dest in idxmap.items():
-                self.dndarray.larray[dest] = local_recv_buffer[i]
+                self.dndarray.larray[dest] = local_recv_buffer[i].to(self.dndarray.larray.device)
+        else:
+            self.dndarray.larray = local_recv_buffer.to(self.dndarray.larray.device)
 
     def set_shuffle_type(self, shuffle_type: Literal["global"] | Literal["local"]) -> None:
         """Sets the Shuffle type for the Sampler.
@@ -558,7 +560,7 @@ class DistributedSampler(torch_data.Sampler):
         self.linked_sampler = None
 
     def __iter__(self) -> Iterator[int]:
-        if self.shuffle_type == "local" or self.correction:
+        if self.shuffle_type == "local":
             self.indices = torch.randperm(len(self.dndarray.larray)).tolist()
         else:
             self.indices = list(range(len(self.dndarray.larray)))
