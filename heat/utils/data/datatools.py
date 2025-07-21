@@ -304,6 +304,7 @@ class DistributedSampler(torch_data.Sampler):
         shuffle: bool = False,
         seed: Optional[int] = None,
         shuffle_type: Literal["global"] | Literal["local"] = "global",
+        correction: bool = False
     ) -> None:
         """
         Parameters
@@ -314,6 +315,10 @@ class DistributedSampler(torch_data.Sampler):
             If the underlying DNDarray should be shuffled, by default False
         seed : int, optional
             seed for shuffling, by default None
+        shuffle_type : Literal[&quot;global&quot;] | Literal[&quot;local&quot;], optional
+            Wether to shuffle process local or get new data using by shuffling globally across all processes, by default "global"
+        correction : bool, optional
+            If index correction is wanted after an global shuffle, by default False
         """
         if not isinstance(dataset, DistributedDataset):
             raise TypeError(f"Expected DistributedDataset for dataset not {type(dataset)}")
@@ -321,11 +326,16 @@ class DistributedSampler(torch_data.Sampler):
             raise TypeError(f"Expected bool for shuffle not {type(shuffle)}")
         if not isinstance(seed, int) and seed is not None:
             raise TypeError(f"Expected int or None for seed not {type(shuffle)}")
+        if not isinstance(shuffle_type, str):
+            raise TypeError("Shuffle Type needs to be an string")
+        if not isinstance(correction, bool):
+            raise TypeError("Correction Parameter needs to be an bool")
 
         self.dataset = dataset
         self.dndarray = dataset.dndarray
         self.shuffle = shuffle
         self.linked_sampler = None
+        self.correction = correction
         self.set_shuffle_type(shuffle_type)
         self.set_seed(seed)
 
@@ -472,28 +482,23 @@ class DistributedSampler(torch_data.Sampler):
 
         # As MPI indirectly sorts the data according to the rank we need 
         # to change that to represent the permutation
+        if self.correction:
+            def get_from_rank(idx):
+                for i, rslice in enumerate(rank_slices):
+                    if self._in_slice(idx, rslice):
+                        return i
+                raise RuntimeError("IDX not found in slices")
 
-        def get_from_rank(idx):
-            for i, rslice in enumerate(rank_slices):
-                if self._in_slice(idx, rslice):
-                    return i
-            raise RuntimeError("IDX not found in slices")
+            idx_to_rank_map = [get_from_rank(idx) for idx in indices[local_slice]]
 
-        idx_to_rank_map = [get_from_rank(idx) for idx in indices[local_slice]]
+            sort_idx = torch.argsort(torch.tensor(idx_to_rank_map), stable=True)
+            local_slices_sorted = indices[local_slice][sort_idx]
 
-        sort_idx = torch.argsort(torch.tensor(idx_to_rank_map), stable=True)
-        local_slices_sorted = indices[local_slice][sort_idx]
+            reverse_index = {idx.item(): i for i, idx in enumerate(indices[local_slice])}
+            idxmap = {i: reverse_index[idx.item()] for i, idx in enumerate(local_slices_sorted)}
 
-        idxmap = dict()
-        for i, idx in enumerate(local_slices_sorted):
-            for k, indice in enumerate(indices[local_slice]):
-                if indice != idx:
-                    continue
-                idxmap[i] = k
-                break
-
-        for i, dest in idxmap.items():
-            self.dndarray.larray[dest] = local_recv_buffer[i]
+            for i, dest in idxmap.items():
+                self.dndarray.larray[dest] = local_recv_buffer[i]
 
     def set_shuffle_type(self, shuffle_type: Literal["global"] | Literal["local"]) -> None:
         """Sets the Shuffle type for the Sampler.
@@ -521,7 +526,7 @@ class DistributedSampler(torch_data.Sampler):
         if self.linked_sampler is not None:
             self.linked_sampler.set_shuffle_type(shuffle_type)
 
-    def set_seed(self, value: int) -> None:
+    def set_seed(self, value: int | None) -> None:
         """Sets the seed for the torch.randperm
 
         Parameters
@@ -555,7 +560,7 @@ class DistributedSampler(torch_data.Sampler):
         self.linked_sampler = None
 
     def __iter__(self) -> Iterator[int]:
-        if self.shuffle_type == "local":
+        if self.shuffle_type == "local" or self.correction:
             self.indices = torch.randperm(len(self.dndarray.larray)).tolist()
         else:
             self.indices = list(range(len(self.dndarray.larray)))
