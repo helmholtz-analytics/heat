@@ -41,7 +41,7 @@ __all__ = [
     "supports_netcdf",
     "load_npy_from_path",
     "supports_zarr",
-    "load_multiple_hdf5"
+    "load_multiple_hdf5",
 ]
 
 
@@ -768,7 +768,12 @@ else:
     )
     DNDarray.save_hdf5.__doc__ = save_hdf5.__doc__
 
-    def load_multiple_hdf5(folder: str | Path, dataset: str, dtype=None, sorting_func: Callable[[list[Path]], list[Path]] | None = None) -> DNDarray:
+    def load_multiple_hdf5(
+        folder: str | Path,
+        dataset: str,
+        dtype=None,
+        sorting_func: Callable[[list[Path]], list[Path]] | None = None,
+    ) -> DNDarray:
         """Loads all .hdf5 or .h5 files inside the given folder
 
         Parameters
@@ -796,7 +801,9 @@ else:
         if not Path(folder).is_dir():
             raise ValueError("Path must be a Folder")
 
-        files: list[Path] = list(filter(lambda x: x.suffix == ".h5" or x.suffix == ".hdf5", Path(folder).iterdir()))
+        files: list[Path] = list(
+            filter(lambda x: x.suffix == ".h5" or x.suffix == ".hdf5", Path(folder).iterdir())
+        )
         files: list[Path] = sorted(files) if sorting_func is None else sorting_func(files)
 
         if len(files) == 0:
@@ -817,9 +824,9 @@ else:
         shapes_arr = np.array(shapes, dtype=int)
         gshape = np.zeros(shapes_arr.shape[1], dtype=int)
 
-        for i in range(1, len(gshape)): # rows can be diffrent
+        for i in range(1, len(gshape)):  # rows can be diffrent
             if len(set(shapes_arr[:, i])) != 1:
-                raise ValueError(f"Dimension missmatch on ndim {i+1}")
+                raise ValueError(f"Dimension missmatch on ndim {i + 1}")
             gshape[i] = shapes_arr[0][i]
         gshape[0] = shapes_arr[:, 0].sum()
         gshape = tuple(gshape.astype(int))
@@ -829,7 +836,7 @@ else:
         n = 0
         for i, shape in enumerate(shapes):
             rows = shape[0]
-            ranges.append((n, n+rows))
+            ranges.append((n, n + rows))
             n += rows
 
         def find_file(idx: int) -> h5py.File | None:
@@ -858,7 +865,7 @@ else:
         data: DNDarray = factories.empty(gshape, dtype=dtype, split=0)
 
         n = 0
-        start_h5_index = local_slice.start - shapes_arr[:local_h5_file_ids[0], 0].sum()
+        start_h5_index = local_slice.start - shapes_arr[: local_h5_file_ids[0], 0].sum()
         max_n: int = data.larray.shape[0]
         for i, idx in enumerate(local_h5_file_ids):
             if i == 0:
@@ -870,7 +877,9 @@ else:
 
             diff = n + rows - min(n + rows, max_n)  # amount of overshoot
 
-            data.larray[n:(n+rows-diff)] = torch.from_numpy(h5_file[dataset][start_index:(start_index+rows-diff)])
+            data.larray[n : (n + rows - diff)] = torch.from_numpy(
+                h5_file[dataset][start_index : (start_index + rows - diff)]
+            )
             n += rows - diff
         return data
 
