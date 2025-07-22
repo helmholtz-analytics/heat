@@ -67,6 +67,7 @@ examples = [
     "ipyparallel",
     "pillow"
 ]
+
 dev = [
     # QA
     "pre-commit",
@@ -80,6 +81,7 @@ dev = [
     # Benchmarking
     "perun",
 ]
+
 docs = [
     "sphinx",
     "sphinx_rtd_theme",
@@ -99,8 +101,11 @@ Repository = "https://github.com/helmholtz-analytics/heat"
 Issues = "https://github.com/helmholtz-analytics/heat/issues"
 Changelog = "https://github.com/helmholtz-analytics/heat/blob/main/CHANGELOG.md"
 
-[tool.setuptools]
-packages = ["heat"]
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["heat", "heat.*"]
+exclude = ["*tests*", "*benchmarks*"]
+
 
 [tool.setuptools.package-data]
 datasets = ["*.csv", "*.h5", "*.nc"]
@@ -140,7 +145,7 @@ ignore_errors=false
 
 # Ruff
 [tool.ruff]
-target-version = "py39"
+target-version = "py310"
 exclude = ["tutorials", "examples", "benchmarks", "scripts", "**/tests/", "doc", "docker"]
 line-length = 100
 
