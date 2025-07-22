@@ -1585,14 +1585,19 @@ else:
                         )
 
             dtype = dndarray.dtype.char()
-            zarr_array = zarr.create(
-                store=path,
-                shape=dndarray.gshape,
-                dtype=dtype,
-                overwrite=overwrite,
-                chunks=chunks,
+
+            zarr_create_kwargs = {
+                "store": path,
+                "shape": dndarray.gshape,
+                "dtype": dtype,
+                "overwrite": overwrite,
                 **kwargs,
-            )
+            }
+
+            if chunks is not None:
+                zarr_create_kwargs["chunks"] = chunks.tolist()
+
+            zarr_array = zarr.create(**zarr_create_kwargs)
 
         # Wait for the file creation to finish
         MPI_WORLD.Barrier()
