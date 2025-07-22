@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Iterable
 import numpy as np
 import os
@@ -41,6 +42,11 @@ class TestIO(TestCase):
         cls.ZARR_IN_PATH = pwd + "/zarr_test_in.zarr"
         cls.ZARR_TEMP_PATH = pwd + "/zarr_temp.zarr"
 
+        cls.HDF5_MULTIPLE_FOLDER = pwd + "/hdf5_data"
+        cls.HDF5_MULTIPLE_FILE_PREFIX = "data_"
+        cls.HDF5_MULTIPLE_FILE_ENDING = ".h5"
+        cls.HDF5_MULTIPLE_DATASET = "data"
+
     def tearDown(self):
         # synchronize all nodes
         ht.MPI_WORLD.Barrier()
@@ -49,6 +55,11 @@ class TestIO(TestCase):
         if ht.io.supports_hdf5():
             try:
                 os.remove(self.HDF5_OUT_PATH)
+            except FileNotFoundError:
+                pass
+
+            try:
+                shutil.rmtree(self.HDF5_MULTIPLE_FOLDER)
             except FileNotFoundError:
                 pass
 
@@ -1164,3 +1175,68 @@ class TestIO(TestCase):
                     expected_iris = original_iris[tmp_slices]
                     sliced_iris = ht.load_hdf5(HDF5_PATH, HDF5_DATASET, split=axis, slices=slices)
                     self.assertTrue(ht.equal(sliced_iris, expected_iris))
+
+    def test_load_multiple_hdf5_even(self):
+        if not ht.io.supports_hdf5():
+            self.skipTest("Requires HDF5")
+
+        import h5py
+
+        N_FILES = 5
+        N_ROWS = 4
+        N_COLUMNS = 5
+        G_SHAPE = (N_FILES * N_ROWS, N_COLUMNS)
+        ELEMS = G_SHAPE[0] * G_SHAPE[1]
+        comm = ht.MPI_WORLD
+
+        original_data = torch.arange(0, ELEMS, dtype=torch.int64).view(G_SHAPE)
+
+        rank_slices = [comm.chunk(G_SHAPE, split=0, rank=i)[-1][0] for i in range(N_FILES)]  # all row slices
+        local_slice = rank_slices[comm.rank]
+
+        Path(self.HDF5_MULTIPLE_FOLDER).mkdir(exist_ok=True)
+
+        if comm.rank == 0:
+            for n in range(N_FILES):
+                file_path = Path(self.HDF5_MULTIPLE_FOLDER, self.HDF5_MULTIPLE_FILE_PREFIX+str(n)+self.HDF5_MULTIPLE_FILE_ENDING)
+                with h5py.File(str(file_path), "w") as file:
+                    file[self.HDF5_MULTIPLE_DATASET] = original_data[rank_slices[n]].numpy()
+
+        comm.Barrier()
+
+        dndarray = ht.io.load_multiple_hdf5(self.HDF5_MULTIPLE_FOLDER, self.HDF5_MULTIPLE_DATASET, dtype=torch.int64)
+
+        assert torch.all(original_data[local_slice] == dndarray.larray)
+
+    def test_load_multiple_hdf5_uneven(self):
+        if not ht.io.supports_hdf5():
+            self.skipTest("Requires HDF5")
+
+        import h5py
+
+        N_FILES = 5
+        N_ROWS = [2, 3, 1, 4, 6]
+        TOTAL_ROWS = sum(N_ROWS)
+        N_COLUMNS = 5
+        G_SHAPE = (TOTAL_ROWS, N_COLUMNS)
+        ELEMS = G_SHAPE[0] * G_SHAPE[1]
+        comm = ht.MPI_WORLD
+
+        original_data = torch.arange(0, ELEMS, dtype=torch.int64).view(G_SHAPE)
+
+        Path(self.HDF5_MULTIPLE_FOLDER).mkdir(exist_ok=True)
+
+        if comm.rank == 0:
+            for n in range(N_FILES):
+                file_path = Path(self.HDF5_MULTIPLE_FOLDER, self.HDF5_MULTIPLE_FILE_PREFIX+str(n)+self.HDF5_MULTIPLE_FILE_ENDING)
+                written_rows = sum(N_ROWS[:n])
+                to_write = N_ROWS[n]
+                with h5py.File(str(file_path), "w") as file:
+                    file[self.HDF5_MULTIPLE_DATASET] = original_data[written_rows:written_rows+to_write].numpy()
+
+        comm.Barrier()
+
+        dndarray = ht.io.load_multiple_hdf5(self.HDF5_MULTIPLE_FOLDER, self.HDF5_MULTIPLE_DATASET, dtype=torch.int64)
+        print(dndarray)
+
+        assert ht.MPI.COMM_WORLD.allreduce(dndarray.larray.sum()) == torch.sum(original_data)
