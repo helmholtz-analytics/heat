@@ -2,7 +2,6 @@
 Function and classes useful for loading data into neural networks
 """
 
-from functools import reduce
 import itertools
 import random
 import warnings
@@ -11,6 +10,8 @@ import torch
 import torch.distributed
 from torch.utils import data as torch_data
 from typing import Callable, List, Iterator, Literal, Union, Optional, Sized
+from mpi4py import MPI
+from functools import reduce
 
 import torch.utils
 import torchvision
@@ -26,6 +27,7 @@ __all__ = [
     "dataset_ishuffle",
     "DistributedDataset",
     "DistributedSampler",
+    "create_train_val_split",
 ]
 
 
@@ -457,12 +459,12 @@ class DistributedSampler(torch_data.Sampler):
             else:
                 types = [mpi_type.Create_contiguous(block_length) for _ in range(recv_counts[i])]
 
-                displ = torch.zeros(len(types))
+                displ = torch.zeros(len(types), dtype=torch.int64)
                 displ[1:] = torch.cumsum(torch.tensor([t.Get_size() for t in types])[:-1], 0)
                 displ += total_displ
 
                 recv_type = mpi_type.Create_struct(
-                    blocklengths=[1] * len(types), displacements=displ, datatypes=types
+                    blocklengths=[1] * len(types), displacements=displ.tolist(), datatypes=types
                 )
                 total_displ += sum([t.Get_size() for t in types])
 
@@ -569,6 +571,62 @@ class DistributedSampler(torch_data.Sampler):
     def __len__(self) -> int:
         return len(self.dndarray.larray)
 
+def create_train_val_split(X: DNDarray, y: DNDarray, p: float = 0.95, seed: int | None = None) -> tuple[DNDarray, DNDarray, DNDarray, DNDarray]:
+    """Shuffles the data and then creates the train val split.
+
+    Parameters
+    ----------
+    X : DNDarray
+        Training Data
+    y : DNDarray
+        Training Labels
+    p : float, optional
+        How much the training should contain, by default 0.95
+    seed : int | None, optional
+        Random Seed to be used, by default None
+
+    Returns
+    -------
+    tuple[DNDarray, DNDarray, DNDarray, DNDarray]
+        returns tuple of (train_arr, train_labels_arr, val_arr, val_labels_arr)
+    """
+    if seed is None:
+        seed = random.randint(-0x8000_0000_0000_0000, 0xffff_ffff_ffff_ffff)
+
+    for arr in [X, y]:
+        dset = DistributedDataset(arr)
+        sampler = DistributedSampler(dset, shuffle=True, seed=seed)
+
+    train_rows = int(X.lshape[0] * p)
+    val_rows = X.lshape[0] - train_rows
+
+    perm = torch.randperm(X.lshape[0])
+
+    train_idx = perm[:train_rows]
+    val_idx = perm[-val_rows:]
+
+    assert len(train_idx) + len(val_idx) == X.lshape[0]
+
+    comm = MPI.COMM_WORLD
+    world_size = comm.size
+    rank = comm.rank
+
+    total_train_rows = comm.allreduce(train_rows, MPI.SUM)
+    total_val_rows = comm.allreduce(val_rows, MPI.SUM)
+
+    train_gshape = tuple([total_train_rows, *X.gshape[1:]])
+    val_gshape = tuple([total_val_rows, *X.gshape[1:]])
+
+    train_arr = DNDarray(X.larray[train_idx], train_gshape, X.dtype, split=0, device=X.device, comm=X.comm, balanced=True)
+    val_arr = DNDarray(X.larray[val_idx], val_gshape, X.dtype, split=0, device=X.device, comm=X.comm, balanced=True)
+
+    train_labels_gshape = tuple([total_train_rows, *y.gshape[1:]])
+    val_labels_gshape = tuple([total_val_rows, *y.gshape[1:]])
+
+    train_labels_arr = DNDarray(y.larray[train_idx], train_labels_gshape, y.dtype, split=0, device=y.device, comm=y.comm, balanced=True)
+    val_labels_arr = DNDarray(y.larray[val_idx], val_labels_gshape, y.dtype, split=0, device=y.device, comm=y.comm, balanced=True)
+
+    return train_arr, train_labels_arr, val_arr, val_labels_arr
 
 def dataset_shuffle(dataset: Union[Dataset, torch_data.Dataset], attrs: List[list]):
     """
