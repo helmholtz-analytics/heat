@@ -598,7 +598,7 @@ def create_train_val_split(
 
     for arr in [X, y]:
         dset = DistributedDataset(arr)
-        sampler = DistributedSampler(dset, shuffle=True, seed=seed)
+        _ = DistributedSampler(dset, shuffle=True, seed=seed)
 
     train_rows = int(X.lshape[0] * p)
     val_rows = X.lshape[0] - train_rows
@@ -611,8 +611,6 @@ def create_train_val_split(
     assert len(train_idx) + len(val_idx) == X.lshape[0]
 
     comm = MPI.COMM_WORLD
-    world_size = comm.size
-    rank = comm.rank
 
     total_train_rows = comm.allreduce(train_rows, MPI.SUM)
     total_val_rows = comm.allreduce(val_rows, MPI.SUM)
