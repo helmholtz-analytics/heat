@@ -1206,7 +1206,7 @@ class TestIO(TestCase):
 
         dndarray = ht.io.load_multiple_hdf5(self.HDF5_MULTIPLE_FOLDER, self.HDF5_MULTIPLE_DATASET, dtype=torch.int64)
 
-        assert torch.all(original_data[local_slice] == dndarray.larray)
+        assert torch.all(original_data[local_slice].cpu() == dndarray.larray.cpu())
 
     def test_load_multiple_hdf5_uneven(self):
         if not ht.io.supports_hdf5():
