@@ -571,7 +571,10 @@ class DistributedSampler(torch_data.Sampler):
     def __len__(self) -> int:
         return len(self.dndarray.larray)
 
-def create_train_val_split(X: DNDarray, y: DNDarray, p: float = 0.95, seed: int | None = None) -> tuple[DNDarray, DNDarray, DNDarray, DNDarray]:
+
+def create_train_val_split(
+    X: DNDarray, y: DNDarray, p: float = 0.95, seed: int | None = None
+) -> tuple[DNDarray, DNDarray, DNDarray, DNDarray]:
     """Shuffles the data and then creates the train val split.
 
     Parameters
@@ -591,7 +594,7 @@ def create_train_val_split(X: DNDarray, y: DNDarray, p: float = 0.95, seed: int 
         returns tuple of (train_arr, train_labels_arr, val_arr, val_labels_arr)
     """
     if seed is None:
-        seed = random.randint(-0x8000_0000_0000_0000, 0xffff_ffff_ffff_ffff)
+        seed = random.randint(-0x8000_0000_0000_0000, 0xFFFF_FFFF_FFFF_FFFF)
 
     for arr in [X, y]:
         dset = DistributedDataset(arr)
@@ -617,16 +620,43 @@ def create_train_val_split(X: DNDarray, y: DNDarray, p: float = 0.95, seed: int 
     train_gshape = tuple([total_train_rows, *X.gshape[1:]])
     val_gshape = tuple([total_val_rows, *X.gshape[1:]])
 
-    train_arr = DNDarray(X.larray[train_idx], train_gshape, X.dtype, split=0, device=X.device, comm=X.comm, balanced=True)
-    val_arr = DNDarray(X.larray[val_idx], val_gshape, X.dtype, split=0, device=X.device, comm=X.comm, balanced=True)
+    train_arr = DNDarray(
+        X.larray[train_idx],
+        train_gshape,
+        X.dtype,
+        split=0,
+        device=X.device,
+        comm=X.comm,
+        balanced=True,
+    )
+    val_arr = DNDarray(
+        X.larray[val_idx], val_gshape, X.dtype, split=0, device=X.device, comm=X.comm, balanced=True
+    )
 
     train_labels_gshape = tuple([total_train_rows, *y.gshape[1:]])
     val_labels_gshape = tuple([total_val_rows, *y.gshape[1:]])
 
-    train_labels_arr = DNDarray(y.larray[train_idx], train_labels_gshape, y.dtype, split=0, device=y.device, comm=y.comm, balanced=True)
-    val_labels_arr = DNDarray(y.larray[val_idx], val_labels_gshape, y.dtype, split=0, device=y.device, comm=y.comm, balanced=True)
+    train_labels_arr = DNDarray(
+        y.larray[train_idx],
+        train_labels_gshape,
+        y.dtype,
+        split=0,
+        device=y.device,
+        comm=y.comm,
+        balanced=True,
+    )
+    val_labels_arr = DNDarray(
+        y.larray[val_idx],
+        val_labels_gshape,
+        y.dtype,
+        split=0,
+        device=y.device,
+        comm=y.comm,
+        balanced=True,
+    )
 
     return train_arr, train_labels_arr, val_arr, val_labels_arr
+
 
 def dataset_shuffle(dataset: Union[Dataset, torch_data.Dataset], attrs: List[list]):
     """
