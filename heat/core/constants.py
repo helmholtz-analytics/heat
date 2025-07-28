@@ -1,5 +1,5 @@
 """
-This module defines constants used in HeAT.
+Constants module.
 """
 
 import torch

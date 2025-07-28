@@ -26,14 +26,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@002fdce3c6a235733a90a27c80493a3241e56863 # v2.12.1
+        uses: step-security/harden-runner@ec9f2d5744a09debf3a187a3f4f675c53b671911 # v2.13.0
         with:
           egress-policy: audit
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           ref: ${{ github.event.inputs.base_branch }}
-      - uses: release-drafter/release-drafter@v6 # v6.0.0
+      - uses: release-drafter/release-drafter@b1476f6e6eb133afa41ed8589daba6dc69b4d3f5 # v6.1.0
         id: release_drafter
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -55,6 +55,42 @@ jobs:
           MINOR=$(echo $VERSION | cut -d. -f2)
           MICRO=$(echo $VERSION | cut -d. -f3)
 
+          ## ----- START Update Dockerfiles -------
+          # Extract the current version from the Dockerfile
+          FILE_VERSION=$(grep -oP 'ARG PYTORCH_IMG=\K\d{2}\.\d{2}' docker/Dockerfile.release)
+          FILE_VERSION_SOURCE=$(grep -oP 'ARG PYTORCH_IMG=\K\d{2}\.\d{2}' docker/Dockerfile.source)
+
+          # Construct the date for the new version
+          DATE=$(date '+%y.%m')
+
+          # Separate new
+          YEAR=$(echo $DATE | cut -d'.' -f1)
+          MONTH=$(echo $DATE | cut -d'.' -f2)
+
+          ## --- Handling of special cases ---
+          # Move to the previous year
+          if [ "$MONTH" == "01" ]; then
+          PREV_MONTH="12"
+          YEAR=$(($YEAR - 1))
+          # 09 and 08 will be interpreted in Octal, so they have to be handled differently
+          elif [ "$MONTH" == "09" ]; then
+          PREV_MONTH="08"
+          elif [ "$MONTH" == "08" ]; then
+          PREV_MONTH="07"
+          else
+          PREV_MONTH=$(($MONTH - 1))
+          # Ensure the previous month is 2 digits
+          PREV_MONTH=$(printf "%02d" $PREV_MONTH)
+          fi
+
+          # Construct the new version
+          NEW_VERSION="${YEAR}.${PREV_MONTH}"
+
+          sed -i "s/$FILE_VERSION/$NEW_VERSION/g" docker/Dockerfile.release
+          sed -i "s/$FILE_VERSION_SOURCE/$NEW_VERSION/g" docker/Dockerfile.source
+
+          ## ----- END Workflow to update Dockerfile Images -------
+
           # Write on to the version.py file
           sed -i "s/major: int = \([0-9]\+\)/major: int = $MAJOR/g" heat/core/version.py
           sed -i "s/minor: int = \([0-9]\+\)/minor: int = $MINOR/g" heat/core/version.py
@@ -71,6 +107,11 @@ jobs:
           # Commit the changes
           git add heat/core/version.py CHANGELOG.md
           git commit -m "Bump version to $VERSION"
+
+          # Commit Dockerfile changes
+          git add docker/Dockerfile.release
+          git add docker/Dockerfile.source
+          git commit -m "Update pytorch image in Dockerfile.release and Dockerfile.source to version $UPDATED_VERSION"
 
           # Push the changes
           git push --set-upstream origin pre-release/${VERSION}

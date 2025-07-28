@@ -862,9 +862,7 @@ class DataParallelOptimizer:
         use blocking communications or not. will typically be overwritten by :func:`nn.DataParallel <heat.nn.data_parallel.DataParallel>`
     """
 
-    def __init__(
-        self, torch_optimizer: torch.optim.Optimizer, blocking: bool = False
-    ):  # noqa: D107
+    def __init__(self, torch_optimizer: torch.optim.Optimizer, blocking: bool = False):  # noqa: D107
         self.torch_optimizer = torch_optimizer
         if not isinstance(blocking, bool):
             raise TypeError(f"blocking parameter must be a boolean, currently {type(blocking)}")
