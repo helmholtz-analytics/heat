@@ -61,9 +61,9 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full", stride: int = 1) -> D
     DNDarray([3., 3., 3.])
     >>> ht.convolve(a, v, stride=2)
     DNDarray([0., 3., 3., 2.])
-    >>> ht.convolve(a, v, mode='valid', stride=2)
+    >>> ht.convolve(a, v, mode="valid", stride=2)
     DNDarray([3., 3.])
-    
+
     >>> a = ht.ones(10, split=0)
     >>> v = ht.arange(3, split=0).astype(ht.float)
     >>> ht.convolve(a, v, mode="valid")
@@ -72,7 +72,7 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full", stride: int = 1) -> D
     [0/3] DNDarray([3., 3., 3.])
     [1/3] DNDarray([3., 3., 3.])
     [2/3] DNDarray([3., 3.])
-    
+
     >>> a = ht.ones(10, split=0)
     >>> v = ht.arange(3, split=0)
     >>> ht.convolve(a, v)
@@ -81,7 +81,7 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full", stride: int = 1) -> D
     [0/3] DNDarray([0., 1., 3., 3.])
     [1/3] DNDarray([3., 3., 3., 3.])
     [2/3] DNDarray([3., 3., 3., 2.])
-    
+
     >>> a = ht.arange(50, dtype=ht.float64, split=0)
     >>> a = a.reshape(10, 5)  # 10 signals of length 5
     >>> v = ht.arange(3)
