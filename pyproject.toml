@@ -2,5 +2,178 @@
 requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
-[tool.black]
+[project]
+name="heat"
+dynamic = ["version"]
+description="A framework for high-performance data analytics and machine learning."
+readme = "README.md"
+authors = [
+    { name = "Markus Götz", email = "markus.goetz@kit.edu"},
+    { name = "Charlotte Debus", email = "charlotte.debus@kit.edu"},
+    { name = "Daniel Coquelin", email = "daniel.coquelin@kit.edu"},
+    { name = "Kai Krajsek", email = "k.krajsek@fz-juelich.de"},
+    { name = "Claudia Comito", email = "c.comito@fz-juelich.de"},
+    { name = "Philipp Knechtges", email = "philipp.knechtges@dlr.de"},
+    { name = "Björn Hagemeier", email = "b.hagemeier@fz-juelich.de"},
+    { name = "Martin Siggel", email = "martin.siggel@dlr.de"},
+    { name = "Achim Basermann", email = "achim.basermann@dlr.de"},
+    { name = "Achim Streit", email = "achim.streit@kit.de"},
+]
+maintainers = [
+    { name = "Claudia Comito", email = "c.comito@fz-juelich.de"},
+    { name = "Michael Tarnawa", email = "m.tarnawa@fz-juelich.de"},
+    { name = "Fabian Hoppe", email = "f.hoppe@dlr.de"},
+    { name = "Juan Pedro Gutiérrez Hermosillo Muriedas", email = "juan.muriedas@kit.edu"},
+    { name = "Hakan Akdag", email = "hakan.akdag@dlr.de"},
+    { name = "Berkant Palazoglu", email = "b.palazoglu@fz-juelich.de"}
+]
+license = "MIT"
+license-files = ["LICENSE"]
+keywords=["data", "analytics", "tensors", "distributed", "gpu"]
+classifiers=[
+    "Development Status :: 5 - Production/Stable",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+    "Topic :: Scientific/Engineering :: Mathematics",
+    "Typing :: Typed"
+]
+
+requires-python = ">=3.10"
+
+dependencies = [
+    "mpi4py>=3.0.0",
+    "torch~=2.0,<2.8.0",
+    "torchvision~=0.15",
+    "scipy~=1.14",
+]
+
+[project.optional-dependencies]
+## IO Modules
+hdf5 = ["h5py>=2.8.0"]
+netcdf = ["netCDF4>=1.5.6"]
+zarr = ["zarr<3.0.9"]
+
+## Examples and tutorial
+examples = [
+    "scikit-learn~=0.24",
+    "matplotlib~=3.1",
+    "jupyter",
+    "ipyparallel",
+    "pillow"
+]
+
+dev = [
+    # QA
+    "pre-commit",
+    "ruff",
+    "mypy",
+
+    # Testing
+    "pytest",
+    "coverage",
+
+    # Benchmarking
+    "perun",
+]
+
+docs = [
+    "sphinx",
+    "sphinx_rtd_theme",
+    "sphinx-autoapi",
+    "nbsphinx",
+    "sphinx-autobuild",
+    "sphinx-copybutton",
+]
+
+[project.scripts]
+heat = "heat.cli:cli"
+
+[project.urls]
+Homepage = "https://github.com/helmholtz-analytics/heat"
+Documentation = "https://heat.readthedocs.io/"
+Repository = "https://github.com/helmholtz-analytics/heat"
+Issues = "https://github.com/helmholtz-analytics/heat/issues"
+Changelog = "https://github.com/helmholtz-analytics/heat/blob/main/CHANGELOG.md"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["heat", "heat.*"]
+exclude = ["*tests*", "*benchmarks*"]
+
+
+[tool.setuptools.package-data]
+datasets = ["*.csv", "*.h5", "*.nc"]
+heat = ["py.typed"]
+
+[tool.setuptools.dynamic]
+version = {attr = "heat.core.version.__version__"}
+
+# Mypy
+[tool.mypy]
+packages=["heat"]
+python_version="3.10"
+exclude=[
+    'test_\w+\.py$',
+    '^benchmarks/',
+    '^examples/'
+]
+
+# Strict configuration from https://careers.wolt.com/en/blog/tech/professional-grade-mypy-configuration
+disallow_untyped_defs = true
+disallow_any_unimported = true
+no_implicit_optional = true
+check_untyped_defs=true
+warn_return_any=true
+show_error_codes =true
+warn_unused_ignores=true
+follow_imports = "normal"
+follow_untyped_imports = true
+
+# Ignore most the errors now, focus only ont eh core module
+ignore_errors=true
+
+[[tool.mypy.overrides]]
+module = "heat.core.*"
+ignore_errors=false
+
+
+# Ruff
+[tool.ruff]
+target-version = "py310"
+exclude = ["tutorials", "examples", "benchmarks", "scripts", "**/tests/", "doc", "docker"]
 line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "D", "W", "D417"]
+
+ignore = [
+    "E203",
+    "E402",
+    "E501",
+    "F401",
+    "F403",
+    "D105",
+    "D107",
+    "D200",
+    "D203",
+    "D205",
+    "D212",
+    "D301",
+    "D400",
+    "D401",
+    "D402",
+    "D410",
+    "D415",
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
+
+[tool.ruff.format]
+docstring-code-format = true

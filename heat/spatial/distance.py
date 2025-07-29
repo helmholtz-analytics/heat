@@ -439,7 +439,7 @@ def _dist(X: DNDarray, Y: DNDarray = None, metric: Callable = _euclidian) -> DND
         If metric requires additional arguments, it must be handed over as a lambda function: ``lambda x, y: metric(x, y, **args)``
 
     Notes
-    -------
+    -----
     If ``X.split=None`` and ``Y.split=0``, result will be ``split=1``
 
     """

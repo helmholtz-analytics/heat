@@ -29,7 +29,7 @@ __all__ = ["polar"]
 def _zolopd_n_iterations(r: int, kappa: float) -> int:
     """
     Returns the number of iterations required in the Zolotarev-PD algorithm.
-    See the Table 3.1 in: Nakatsukasa, Y., & Freund, R. W. (2016). Computing the polar decomposition with applications. SIAM Review, 58(3), DOI: https://doi.org/10.1137/140990334
+    See the Table 3.1 in: Nakatsukasa, Y., & Freund, R. W. (2016). Computing Fundamental Matrix Decompositions Accurately via the Matrix Sign Function in Two Iterations: The Power of Zolotarev's Functions. SIAM Review, 58(3), DOI: https://doi.org/10.1137/140990334
 
     Inputs are `r` and `kappa` (named as in the paper), and the output is the number of iterations.
     """
@@ -48,7 +48,7 @@ def _zolopd_n_iterations(r: int, kappa: float) -> int:
 
 def _compute_zolotarev_coefficients(
     r: int, ell: float, device: str, dtype: types.datatype = types.float64
-) -> Tuple[DNDarray, DNDarray, types.datatype]:
+) -> Tuple[DNDarray, DNDarray, DNDarray]:
     """
     Computes c=(c_i)_i defined in equation (3.4), as well as a=(a_j)_j and Mhat defined in formulas (4.2)/(4.3) of the paper Nakatsukasa, Y., & Freund, R. W. (2016). Computing the polar decomposition with applications. SIAM Review, 58(3), DOI: https://doi.org/10.1137/140990334.
     Evaluations of the respective complete elliptic integral of the first kind and the Jacobi elliptic functions are imported from SciPy.
@@ -165,7 +165,7 @@ def polar(
 
     References
     ----------
-    [1] Nakatsukasa, Y., & Freund, R. W. (2016). Computing the polar decomposition with applications. SIAM Review, 58(3), DOI: https://doi.org/10.1137/140990334.
+    [1] Nakatsukasa, Y., & Freund, R. W. (2016). Computing Fundamental Matrix Decompositions Accurately via the Matrix Sign Function in Two Iterations: The Power of Zolotarev's Functions. SIAM Review, 58(3), DOI: https://doi.org/10.1137/140990334.
     """
     # check whether input is DNDarray of correct shape
     if not isinstance(A, DNDarray):
@@ -317,8 +317,8 @@ def polar(
             ellold = ell
             ell = 1
             for j in range(r):
-                ell *= (ellold**2 + c[2 * j + 1]) / (ellold**2 + c[2 * j])
-            ell *= Mhat * ellold
+                ell *= (ellold**2 + c[2 * j + 1].item()) / (ellold**2 + c[2 * j].item())
+            ell *= Mhat.item() * ellold
             c, a, Mhat = _compute_zolotarev_coefficients(r, ell, A.device, dtype=A.dtype)
         else:
             if not silent:
