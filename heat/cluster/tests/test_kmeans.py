@@ -83,8 +83,10 @@ class TestKMeans(TestCase):
         data = create_spherical_dataset(
             num_samples_cluster=n, radius=1.0, offset=4.0, dtype=ht.float32, random_state=seed
         )
+
         kmeans = ht.cluster.KMeans(n_clusters=4, init="kmeans++")
         kmeans.fit(data)
+
         self.assertIsInstance(kmeans.cluster_centers_, ht.DNDarray)
         self.assertEqual(kmeans.cluster_centers_.shape, (4, 3))
         # More Samples

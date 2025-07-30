@@ -186,20 +186,26 @@ class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
                     #       output format: vector
 
                     # Extract the local candidate centroids on each process
-                    local_candidates = x[idx]
+                    # local_candidates = x[idx]
+                    local_t = x[idx].larray  # torch.Tensor, device z.B. 'cuda:0'
+                    local_t = local_t.reshape(-1, x.shape[1])
+                    n_local = local_t.shape[0]
 
-                    # Gather local candidates on CPU and concatenate them in one tensor
-                    # Note: need high-level allgather to handle different sizes of the tensors on each rank
-                    local_candidates = local_candidates.larray.cpu()
-                    new_candidates = ht.MPI_WORLD.allgather(local_candidates)
-                    merged = torch.cat(new_candidates, dim=0)
+                    counts = ht.MPI_WORLD.allgather(n_local)  # List[int]
+                    displs = [0]
+                    for c in counts[:-1]:
+                        displs.append(displs[-1] + c)
+                    total = displs[-1] + counts[-1]
+                    n_feat = local_t.shape[-1]
 
-                    # Ignore sampling results if no candidates were selected
-                    if merged.numel() == 0:
-                        continue
+                    # 3) Flat-Puffer auf exakt dieselber GPU anlegen
+                    recv = torch.empty((total, n_feat), dtype=local_t.dtype, device=local_t.device)
+                    # 4) In-place Allgatherv auf GPU
+                    #    Heat macht intern MPI_Allgatherv mit den richtigen Counts/Displs
 
+                    ht.MPI_WORLD.Allgatherv(local_t, (recv, counts, displs), recv_axis=0)
                     # Convert the merged list of centroid candidates back to a DNDarray on the correct device
-                    new_candidates = ht.array(merged, split=None, device=x.device)
+                    new_candidates = ht.array(recv, split=None, device=x.device)
                     # -->   pick the data points that are identified as possible centroids
                     #       output format: vector
 
@@ -228,6 +234,7 @@ class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
                 weights = weights.resplit(None)
                 weights = weights.larray
                 # --> first transform relevant arrays into torch tensors
+
                 if ht.MPI_WORLD.rank == 0:
                     batch_kmeans = _kmex(
                         centroids,
@@ -253,6 +260,7 @@ class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
                     )
                     # -->  tensor with zeros that has the same size as reclustered centroids, in order to to
                     #      allocate memory with the correct type in all processes(necessary for broadcast)
+
                 ht.MPI_WORLD.Bcast(
                     reclustered_centroids, root=0
                 )  # by default it is broadcasted from process 0
@@ -260,6 +268,7 @@ class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
                 # --> transform back to DNDarray
                 self._cluster_centers = reclustered_centroids
                 # --> final result for initialized cluster centers
+
             else:
                 raise NotImplementedError("Not implemented for other splitting-axes")
 
