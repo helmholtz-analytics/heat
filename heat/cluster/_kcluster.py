@@ -169,7 +169,14 @@ class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
                 init_cost = init_min_distance.sum()
                 # --> Now calculate the cost
                 # output format: scalar
-                #
+
+                # Pre-allocate receive buffer for later communication
+                world_size = ht.MPI_WORLD.size
+                max_total = world_size * x.shape[0]  # im Worst-Case sendet jeder Rank alle Punkte
+                recv_buf = torch.empty(
+                    (max_total, x.shape[1]), dtype=x.larray.dtype, device=x.larray.device
+                )
+
                 # Iteratively fill the tensor storing the centroids
                 for _ in range(0, int(iter_multiplier * ht.log(init_cost))):
                     # Calculate the distance between data points and the current set of centroids
@@ -186,26 +193,27 @@ class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
                     #       output format: vector
 
                     # Extract the local candidate centroids on each process
-                    # local_candidates = x[idx]
-                    local_t = x[idx].larray  # torch.Tensor, device z.B. 'cuda:0'
-                    local_t = local_t.reshape(-1, x.shape[1])
-                    n_local = local_t.shape[0]
+                    local_candidates = x[idx].larray
+                    # ensure correct shape of no candidate is found (required for communication)
+                    local_candidates = local_candidates.reshape(-1, x.shape[1])
+                    # number of candidates
+                    n_local = local_candidates.shape[0]
 
-                    counts = ht.MPI_WORLD.allgather(n_local)  # List[int]
+                    # Gather the number of local candidates from each MPI rank into a list
+                    counts = ht.MPI_WORLD.allgather(n_local)
+
+                    # Build a list of starting offsets so each rank’s block lands in the correct slice of the buffer
                     displs = [0]
                     for c in counts[:-1]:
                         displs.append(displs[-1] + c)
+                    # Compute the total number of candidates across all ranks
                     total = displs[-1] + counts[-1]
-                    n_feat = local_t.shape[-1]
+                    # Take only the first 'total' rows from the preallocated receive buffer
+                    buffer = recv_buf[:total]
+                    # Gather all local candidates into the receive buffer
+                    ht.MPI_WORLD.Allgatherv(local_candidates, (buffer, counts, displs), recv_axis=0)
 
-                    # 3) Flat-Puffer auf exakt dieselber GPU anlegen
-                    recv = torch.empty((total, n_feat), dtype=local_t.dtype, device=local_t.device)
-                    # 4) In-place Allgatherv auf GPU
-                    #    Heat macht intern MPI_Allgatherv mit den richtigen Counts/Displs
-
-                    ht.MPI_WORLD.Allgatherv(local_t, (recv, counts, displs), recv_axis=0)
-                    # Convert the merged list of centroid candidates back to a DNDarray on the correct device
-                    new_candidates = ht.array(recv, split=None, device=x.device)
+                    new_candidates = ht.array(buffer, split=None, device=x.device)
                     # -->   pick the data points that are identified as possible centroids
                     #       output format: vector
 
