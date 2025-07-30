@@ -408,21 +408,15 @@ class TestSignal(TestCase):
             np_b = np.random.randint(1000, size=154)
             # torch convolution does not support int on MPS
             ht_dtype = ht.float32 if self.is_mps else ht.int32
+            np_type = np.float32 if self.is_mps else np.int32
             stride = np.random.randint(1, high=len(np_a), size=1)[0]
-            # generate solution
-            t_a = torch.asarray(np_a, dtype=torch.float32).reshape([1, 1, len(np_a)])
-            t_b = torch.asarray(np_b, dtype=torch.float32).reshape([1, 1, len(np_b)])
-            t_b = torch.flip(t_b, [2])
-            for mode in ["full", "valid"]:
-                if mode == "full":
-                    solution = torch.conv1d(t_a, t_b, stride=stride, padding=len(np_b) - 1)
-                else:
-                    solution = torch.conv1d(t_a, t_b, stride=stride, padding=0)
 
-                solution = torch.squeeze(solution).numpy()
-                if solution.shape == ():
-                    solution = solution.reshape((1,))
-                    # test
+            for mode in ["full", "valid"]:
+                # solution
+                np_conv = np.convolve(np_a, np_b, mode=mode)
+                solution = np_conv[::stride].astype(np_type)
+
+                # test
                 a = ht.array(np_a, split=0, dtype=ht_dtype)
                 b = ht.array(np_b, split=None, dtype=ht_dtype)
                 conv = ht.convolve(a, b, mode=mode, stride=stride)
