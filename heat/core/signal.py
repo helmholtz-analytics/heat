@@ -354,7 +354,7 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full", stride: int = 1) -> D
             # unpack 3D result into 1D
             signal_filtered = signal_filtered[0, 0, :]
         else:
-            signal_filtered = torch.tensor([], device=a.device)
+            signal_filtered = torch.tensor([], device=signal.torch_device)
 
         # if kernel shape along split axis is even we need to get rid of duplicated values
         if a.comm.rank != 0 and v.shape[0] % 2 == 0 and stride == 1:
