@@ -9,6 +9,7 @@ import subprocess
 import os
 import warnings
 import re
+import dataclasses
 from enum import Enum
 
 
@@ -21,20 +22,26 @@ class MPILibrary(Enum):
     ParastationMPI = "psmpi"
 
 
-def _get_mpi_library() -> MPILibrary:
-    library = mpi4py.MPI.Get_library_version()
-    match library.split():
+@dataclasses.dataclass
+class MPILibraryInfo:
+    name: MPILibrary
+    version: str
+
+
+def _get_mpi_library() -> MPILibraryInfo:
+    library = mpi4py.MPI.Get_library_version().split()
+    match library:
         case ["Open", "MPI", *_]:
-            return MPILibrary.OpenMPI
+            return MPILibraryInfo(MPILibrary.OpenMPI, library[2])
         case ["Intel(R)", "MPI", *_]:
-            return MPILibrary.IntelMPI
+            return MPILibraryInfo(MPILibrary.IntelMPI, library[3])
         ### Missing libraries
         case _:
             print("Did not find a matching library")
 
 
-def _check_gpu_aware_mpi(library: MPILibrary) -> tuple[bool, bool]:
-    match library:
+def _check_gpu_aware_mpi(library: MPILibraryInfo) -> tuple[bool, bool]:
+    match library.name:
         case MPILibrary.OpenMPI:
             try:
                 parsable_ompi_info = subprocess.check_output(
@@ -49,7 +56,10 @@ def _check_gpu_aware_mpi(library: MPILibrary) -> tuple[bool, bool]:
                 match = re.search(r"MPI extensions: (.*)", ompi_info)
                 extensions = [ext.strip() for ext in match.group(0).split(":")[1].split(",")]
                 cuda = cuda_support_flag and "cuda" in extensions
-                rocm = "rocm" in extensions
+                if library.version.startswith("v4."):
+                    rocm = cuda
+                elif library.version.startswith("v5."):
+                    rocm = "rocm" in extensions or "hip" in extensions
                 return cuda, rocm
             except Exception as e:  # noqa E722
                 return False, False
@@ -82,6 +92,7 @@ CUDA_IS_ACTUALLY_ROCM = "rocm" in TORCH_VERSION
 
 mpi_library = _get_mpi_library()
 CUDA_AWARE_MPI, ROCM_AWARE_MPI = _check_gpu_aware_mpi(mpi_library)
+GPU_AWARE_MPI = False
 
 # warn the user if CUDA/ROCm-aware MPI is not available, but PyTorch can use GPUs with CUDA/ROCm
 if TORCH_CUDA_IS_AVAILABLE:
@@ -90,11 +101,11 @@ if TORCH_CUDA_IS_AVAILABLE:
             f"Heat has CUDA GPU-support (PyTorch version {TORCH_VERSION} and `torch.cuda.is_available() = True`), but CUDA-awareness of MPI could not be detected. This may lead to performance degradation as direct MPI-communication between GPUs is not possible.",
             UserWarning,
         )
+
     elif CUDA_IS_ACTUALLY_ROCM and not ROCM_AWARE_MPI:
         warnings.warn(
             f"Heat has ROCm GPU-support (PyTorch version {TORCH_VERSION} and `torch.cuda.is_available() = True`), but ROCm-awareness of MPI could not be detected. This may lead to performance degradation as direct MPI-communication between GPUs is not possible.",
             UserWarning,
         )
-    GPU_AWARE_MPI = True
-else:
-    GPU_AWARE_MPI = False
+    else:
+        GPU_AWARE_MPI = True
