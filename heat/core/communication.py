@@ -765,7 +765,10 @@ class MPICommunication(Communication):
         if not isinstance(buf, torch.Tensor):
             return func(buf, root), None, None, None
 
-        srbuf = buf if GPU_AWARE_MPI else buf.cpu()
+        if buf.is_cuda and "Ibcast" in str(func) and GPU_AWARE_MPI:
+            srbuf = buf.cpu()
+        else:
+            srbuf = buf
 
         return func(self.as_buffer(srbuf), root), srbuf, srbuf, buf
 
@@ -941,7 +944,11 @@ class MPICommunication(Communication):
         if isinstance(recvbuf, torch.Tensor):
             # Datatype and count shall be derived from the recv buffer, and applied to both, as they should match after the last code block
             buf = recvbuf
-            rbuf = recvbuf if GPU_AWARE_MPI else recvbuf.cpu()
+            if recvbuf.is_cuda and GPU_AWARE_MPI:
+                torch.cuda.synchronize(recvbuf.device)
+                rbuf = recvbuf
+            else:
+                rbuf = recvbuf.cpu()
             recvbuf: Tuple[MPI.memory, int, MPI.Datatype] = self.as_buffer(rbuf, is_contiguous=True)
             if not recvbuf[2].is_predefined:
                 # If using a derived datatype, we need to define the reduce operation to be able to handle the it.
@@ -949,7 +956,11 @@ class MPICommunication(Communication):
                 op = derived_op
 
         if isinstance(sendbuf, torch.Tensor):
-            sbuf = sendbuf if GPU_AWARE_MPI else sendbuf.cpu()
+            if sendbuf.is_cuda and GPU_AWARE_MPI:
+                sbuf = sendbuf
+            else:
+                sbuf = sendbuf.cpu()
+
             sendbuf = (self.as_mpi_memory(sbuf), recvbuf[1], recvbuf[2])
 
         # perform the actual reduction operation
@@ -1853,8 +1864,23 @@ class MPICommunication(Communication):
             recvbuf = recvbuf.permute(*recv_axis_permutation)
 
         # prepare buffer objects
-        sbuf = sendbuf if GPU_AWARE_MPI or not isinstance(sendbuf, torch.Tensor) else sendbuf.cpu()
-        rbuf = recvbuf if GPU_AWARE_MPI or not isinstance(recvbuf, torch.Tensor) else recvbuf.cpu()
+        use_gpu_buffers = recvbuf.is_cuda and GPU_AWARE_MPI and "Gatherv" not in str(func)
+        if isinstance(sendbuf, torch.Tensor):
+            if use_gpu_buffers:
+                sbuf = sendbuf
+            else:
+                sbuf = sendbuf.cpu()
+        else:
+            sbuf = sendbuf
+
+        if isinstance(recvbuf, torch.Tensor):
+            if use_gpu_buffers:
+                torch.cuda.synchronize(recvbuf.device)
+                rbuf = recvbuf
+            else:
+                rbuf = recvbuf.cpu()
+        else:
+            rbuf = recvbuf
 
         if sendbuf is not MPI.IN_PLACE:
             mpi_sendbuf = self.as_buffer(sbuf, send_counts, send_displs)
@@ -1862,10 +1888,10 @@ class MPICommunication(Communication):
                 mpi_sendbuf[1] //= send_factor
         else:
             mpi_sendbuf = sbuf
-        if recvbuf is not MPI.IN_PLACE:
-            mpi_recvbuf = self.as_buffer(rbuf, recv_counts, recv_displs)
-            if recv_counts is None:
-                mpi_recvbuf[1] //= recv_factor
+
+        mpi_recvbuf = self.as_buffer(rbuf, recv_counts, recv_displs)
+        if recv_counts is None:
+            mpi_recvbuf[1] //= recv_factor
         else:
             mpi_recvbuf = rbuf
 
@@ -2097,8 +2123,23 @@ class MPICommunication(Communication):
         recvbuf = recvbuf.permute(*recv_axis_permutation)
 
         # prepare buffer objects
-        sbuf = sendbuf if GPU_AWARE_MPI or not isinstance(sendbuf, torch.Tensor) else sendbuf.cpu()
-        rbuf = recvbuf if GPU_AWARE_MPI or not isinstance(recvbuf, torch.Tensor) else recvbuf.cpu()
+        use_gpu_buffers = recvbuf.is_cuda and GPU_AWARE_MPI and "Scatterv" not in str(func)
+        if isinstance(sendbuf, torch.Tensor):
+            if use_gpu_buffers:
+                sbuf = sendbuf
+            else:
+                sbuf = sendbuf.cpu()
+        else:
+            sbuf = sendbuf
+
+        if isinstance(recvbuf, torch.Tensor):
+            if use_gpu_buffers:
+                torch.cuda.synchronize(recvbuf.device)
+                rbuf = recvbuf
+            else:
+                rbuf = recvbuf.cpu()
+        else:
+            rbuf = recvbuf
 
         if sendbuf is not MPI.IN_PLACE:
             mpi_sendbuf = self.as_buffer(sbuf, send_counts, send_displs)
