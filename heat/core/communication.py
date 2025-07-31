@@ -12,6 +12,7 @@ import warnings
 from mpi4py import MPI
 
 from typing import Any, Callable, Optional, List, Tuple, Union
+
 from .stride_tricks import sanitize_axis
 
 from ._config import GPU_AWARE_MPI
@@ -534,7 +535,7 @@ class MPICommunication(Communication):
         if not isinstance(buf, torch.Tensor):
             return MPIRequest(self.handle.Irecv(buf, source, tag))
 
-        rbuf = buf if GPU_AWARE_MPI else buf.cpu()
+        rbuf = buf.cpu()
         return MPIRequest(self.handle.Irecv(self.as_buffer(rbuf), source, tag), None, rbuf, buf)
 
     Irecv.__doc__ = MPI.Comm.Irecv.__doc__
@@ -597,7 +598,12 @@ class MPICommunication(Communication):
             return func(buf, dest, tag), None
 
         # in case of GPUs, the memory has to be copied to host memory if CUDA-aware MPI is not supported
-        sbuf = buf if GPU_AWARE_MPI else buf.cpu()
+        if buf.is_cuda and GPU_AWARE_MPI and "Isend" not in str(func):
+            sbuf = buf
+            torch.cuda.synchronize()
+        else:
+            sbuf = buf.cpu()
+
         return func(self.as_buffer(sbuf), dest, tag), sbuf
 
     def Bsend(self, buf: Union[DNDarray, torch.Tensor, Any], dest: int, tag: int = 0):
@@ -765,8 +771,12 @@ class MPICommunication(Communication):
         if not isinstance(buf, torch.Tensor):
             return func(buf, root), None, None, None
 
-        if buf.is_cuda and "Ibcast" in str(func) and GPU_AWARE_MPI:
-            srbuf = buf.cpu()
+        if buf.is_cuda:
+            # if GPU_AWARE_MPI and "Ibcast" not in str(func):
+            if False:
+                srbuf = buf
+            else:
+                srbuf = buf.cpu()
         else:
             srbuf = buf
 
@@ -1224,23 +1234,31 @@ class MPICommunication(Communication):
         else:
             recv_axis_permutation = None
 
-        sbuf = sendbuf if GPU_AWARE_MPI or not isinstance(sendbuf, torch.Tensor) else sendbuf.cpu()
-        rbuf = recvbuf if GPU_AWARE_MPI or not isinstance(recvbuf, torch.Tensor) else recvbuf.cpu()
-
-        # prepare buffer objects
-        if sendbuf is MPI.IN_PLACE or not isinstance(sendbuf, torch.Tensor):
-            mpi_sendbuf = sbuf
-        else:
+        if isinstance(sendbuf, torch.Tensor):
+            if sendbuf.is_cuda and GPU_AWARE_MPI and "Allgatherv" not in str(func):
+                torch.cuda.synchronize(sendbuf.device)
+                sbuf = sendbuf
+            else:
+                sbuf = sendbuf.cpu()
             mpi_sendbuf = self.as_buffer(sbuf, send_counts, send_displs, sbuf_is_contiguous)
             if send_counts is not None:
                 mpi_sendbuf[1] = mpi_sendbuf[1][0][self.rank]
-
-        if recvbuf is MPI.IN_PLACE or not isinstance(recvbuf, torch.Tensor):
-            mpi_recvbuf = rbuf
         else:
+            mpi_sendbuf = sendbuf
+
+        if isinstance(recvbuf, torch.Tensor):
+            if recvbuf.is_cuda and GPU_AWARE_MPI and "Allgatherv" not in str(func):
+                torch.cuda.synchronize(recvbuf.device)
+                rbuf = recvbuf
+            else:
+                rbuf = recvbuf.cpu()
+
             mpi_recvbuf = self.as_buffer(rbuf, recv_counts, recv_displs, rbuf_is_contiguous)
             if recv_counts is None:
                 mpi_recvbuf[1] //= self.size
+        else:
+            mpi_recvbuf = recvbuf
+
         # perform the scatter operation
         exit_code = func(mpi_sendbuf, mpi_recvbuf, **kwargs)
         return exit_code, sbuf, rbuf, original_recvbuf, recv_axis_permutation
