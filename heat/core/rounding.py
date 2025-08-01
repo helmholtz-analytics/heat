@@ -154,7 +154,13 @@ def clip(x: DNDarray, min, max, out: Optional[DNDarray] = None) -> DNDarray:
 
     if out is None:
         return dndarray.DNDarray(
-            x.larray.clamp(min, max), x.shape, x.dtype, x.split, x.device, x.comm, x.balanced
+            x.larray.clamp(min, max),
+            x.shape,
+            x.dtype,
+            x.split,
+            x.device,
+            x.comm,
+            x.balanced,
         )
 
     sanitation.sanitize_out(out, x.gshape, x.split, x.device)
