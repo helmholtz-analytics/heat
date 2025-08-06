@@ -35,6 +35,8 @@ def _get_mpi_library() -> MPILibraryInfo:
             return MPILibraryInfo(MPILibrary.OpenMPI, library[2])
         case ["Intel(R)", "MPI", *_]:
             return MPILibraryInfo(MPILibrary.IntelMPI, library[3])
+        case ["MPICH", "Version:", *_]:
+            return MPILibraryInfo(MPILibrary.MPICH, library[2])
         ### Missing libraries
         case _:
             print("Did not find a matching library")

@@ -390,6 +390,17 @@ class MPICommunication(Communication):
             obj.squeeze_(-1)
         return [mpi_mem, elements, mpi_type]
 
+    def _moveToCompDevice(self, x: torch.Tensor, func: Callable | None) -> torch.Tensor:
+        """Moves the torch tensor to the relevant device, in case the function is not compatible with the MPI+GPU library."""
+        if x.is_cuda:
+            if GPU_AWARE_MPI:
+                torch.cuda.synchronize(x.device)
+                return x
+            else:
+                return x.cpu()
+        else:
+            return x
+
     def alltoall_sendbuffer(
         self, obj: torch.Tensor
     ) -> List[Union[MPI.memory, Tuple[int, int], MPI.Datatype]]:
@@ -535,7 +546,7 @@ class MPICommunication(Communication):
         if not isinstance(buf, torch.Tensor):
             return MPIRequest(self.handle.Irecv(buf, source, tag))
 
-        rbuf = buf.cpu()
+        rbuf = self._moveToCompDevice(buf, self.handle.Irecv)
         return MPIRequest(self.handle.Irecv(self.as_buffer(rbuf), source, tag), None, rbuf, buf)
 
     Irecv.__doc__ = MPI.Comm.Irecv.__doc__
@@ -566,7 +577,7 @@ class MPICommunication(Communication):
         if not isinstance(buf, torch.Tensor):
             return self.handle.Recv(buf, source, tag, status)
 
-        rbuf = buf if GPU_AWARE_MPI else buf.cpu()
+        rbuf = self._moveToCompDevice(buf, self.handle.Recv)
         ret = self.handle.Recv(self.as_buffer(rbuf), source, tag, status)
 
         if isinstance(buf, torch.Tensor) and buf.is_cuda and not GPU_AWARE_MPI:
@@ -598,11 +609,7 @@ class MPICommunication(Communication):
             return func(buf, dest, tag), None
 
         # in case of GPUs, the memory has to be copied to host memory if CUDA-aware MPI is not supported
-        if buf.is_cuda and GPU_AWARE_MPI and "Isend" not in str(func):
-            sbuf = buf
-            torch.cuda.synchronize()
-        else:
-            sbuf = buf.cpu()
+        sbuf = self._moveToCompDevice(buf, func)
 
         return func(self.as_buffer(sbuf), dest, tag), sbuf
 
@@ -771,14 +778,7 @@ class MPICommunication(Communication):
         if not isinstance(buf, torch.Tensor):
             return func(buf, root), None, None, None
 
-        if buf.is_cuda:
-            # if GPU_AWARE_MPI and "Ibcast" not in str(func):
-            if False:
-                srbuf = buf
-            else:
-                srbuf = buf.cpu()
-        else:
-            srbuf = buf
+        srbuf = self._moveToCompDevice(buf, func)
 
         return func(self.as_buffer(srbuf), root), srbuf, srbuf, buf
 
@@ -954,11 +954,7 @@ class MPICommunication(Communication):
         if isinstance(recvbuf, torch.Tensor):
             # Datatype and count shall be derived from the recv buffer, and applied to both, as they should match after the last code block
             buf = recvbuf
-            if recvbuf.is_cuda and GPU_AWARE_MPI:
-                torch.cuda.synchronize(recvbuf.device)
-                rbuf = recvbuf
-            else:
-                rbuf = recvbuf.cpu()
+            rbuf = self._moveToCompDevice(buf, func)
             recvbuf: Tuple[MPI.memory, int, MPI.Datatype] = self.as_buffer(rbuf, is_contiguous=True)
             if not recvbuf[2].is_predefined:
                 # If using a derived datatype, we need to define the reduce operation to be able to handle the it.
@@ -966,11 +962,7 @@ class MPICommunication(Communication):
                 op = derived_op
 
         if isinstance(sendbuf, torch.Tensor):
-            if sendbuf.is_cuda and GPU_AWARE_MPI:
-                sbuf = sendbuf
-            else:
-                sbuf = sendbuf.cpu()
-
+            sbuf = self._moveToCompDevice(sendbuf, func)
             sendbuf = (self.as_mpi_memory(sbuf), recvbuf[1], recvbuf[2])
 
         # perform the actual reduction operation
@@ -1235,28 +1227,21 @@ class MPICommunication(Communication):
             recv_axis_permutation = None
 
         if isinstance(sendbuf, torch.Tensor):
-            if sendbuf.is_cuda and GPU_AWARE_MPI and "Allgatherv" not in str(func):
-                torch.cuda.synchronize(sendbuf.device)
-                sbuf = sendbuf
-            else:
-                sbuf = sendbuf.cpu()
+            sbuf = self._moveToCompDevice(sendbuf, func)
             mpi_sendbuf = self.as_buffer(sbuf, send_counts, send_displs, sbuf_is_contiguous)
             if send_counts is not None:
                 mpi_sendbuf[1] = mpi_sendbuf[1][0][self.rank]
         else:
+            sbuf = sendbuf
             mpi_sendbuf = sendbuf
 
         if isinstance(recvbuf, torch.Tensor):
-            if recvbuf.is_cuda and GPU_AWARE_MPI and "Allgatherv" not in str(func):
-                torch.cuda.synchronize(recvbuf.device)
-                rbuf = recvbuf
-            else:
-                rbuf = recvbuf.cpu()
-
+            rbuf = self._moveToCompDevice(recvbuf, func)
             mpi_recvbuf = self.as_buffer(rbuf, recv_counts, recv_displs, rbuf_is_contiguous)
             if recv_counts is None:
                 mpi_recvbuf[1] //= self.size
         else:
+            rbuf = recvbuf
             mpi_recvbuf = recvbuf
 
         # perform the scatter operation
@@ -1446,16 +1431,12 @@ class MPICommunication(Communication):
             recvbuf = recvbuf.permute(*recv_axis_permutation)
 
             # prepare buffer objects
-            sbuf = (
-                sendbuf if GPU_AWARE_MPI or not isinstance(sendbuf, torch.Tensor) else sendbuf.cpu()
-            )
+            sbuf = self._moveToCompDevice(sendbuf, func)
             mpi_sendbuf = self.as_buffer(sbuf, send_counts, send_displs)
             if send_counts is None:
                 mpi_sendbuf[1] //= self.size
 
-            rbuf = (
-                recvbuf if GPU_AWARE_MPI or not isinstance(recvbuf, torch.Tensor) else recvbuf.cpu()
-            )
+            rbuf = self._moveToCompDevice(recvbuf, func)
             mpi_recvbuf = self.as_buffer(rbuf, recv_counts, recv_displs)
             if recv_counts is None:
                 mpi_recvbuf[1] //= self.size
@@ -1486,12 +1467,8 @@ class MPICommunication(Communication):
             recvbuf = recvbuf.permute(*axis_permutation)
 
             # prepare buffer objects
-            sbuf = (
-                sendbuf if GPU_AWARE_MPI or not isinstance(sendbuf, torch.Tensor) else sendbuf.cpu()
-            )
-            rbuf = (
-                recvbuf if GPU_AWARE_MPI or not isinstance(recvbuf, torch.Tensor) else recvbuf.cpu()
-            )
+            sbuf = self._moveToCompDevice(sendbuf, func)
+            rbuf = self._moveToCompDevice(recvbuf, func)
             mpi_sendbuf = self.alltoall_sendbuffer(sbuf)
             mpi_recvbuf = self.alltoall_recvbuffer(rbuf)
 
@@ -1591,7 +1568,7 @@ class MPICommunication(Communication):
         """
         # Unpack sendbuffer information
         sendbuf_tensor, (send_counts, send_displs), subarray_params_list = sendbuf
-        sendbuf = sendbuf_tensor if GPU_AWARE_MPI else sendbuf_tensor.cpu()
+        sendbuf = self._moveToCompDevice(sendbuf_tensor, self.handle.Alltoallw)
 
         is_contiguous = sendbuf.is_contiguous()
         stride = sendbuf.stride()
@@ -1626,7 +1603,7 @@ class MPICommunication(Communication):
 
         # Unpack recvbuf information
         recvbuf_tensor, (recv_counts, recv_displs), subarray_params_list = recvbuf
-        recvbuf = recvbuf_tensor if GPU_AWARE_MPI else recvbuf_tensor.cpu()
+        recvbuf = self._moveToCompDevice(recvbuf_tensor, self.handle.Alltoallw)
         recvbuf_ptr, _, recv_datatype = self.as_buffer(recvbuf)
 
         # Commit the receive subarray datatypes
@@ -1881,24 +1858,12 @@ class MPICommunication(Communication):
             recv_axis_permutation[0], recv_axis_permutation[recv_axis] = recv_axis, 0
             recvbuf = recvbuf.permute(*recv_axis_permutation)
 
-        # prepare buffer objects
-        use_gpu_buffers = recvbuf.is_cuda and GPU_AWARE_MPI and "Gatherv" not in str(func)
-        if isinstance(sendbuf, torch.Tensor):
-            if use_gpu_buffers:
-                sbuf = sendbuf
-            else:
-                sbuf = sendbuf.cpu()
-        else:
-            sbuf = sendbuf
-
-        if isinstance(recvbuf, torch.Tensor):
-            if use_gpu_buffers:
-                torch.cuda.synchronize(recvbuf.device)
-                rbuf = recvbuf
-            else:
-                rbuf = recvbuf.cpu()
-        else:
-            rbuf = recvbuf
+        sbuf = (
+            self._moveToCompDevice(sendbuf, func) if isinstance(sendbuf, torch.Tensor) else sendbuf
+        )
+        rbuf = (
+            self._moveToCompDevice(recvbuf, func) if isinstance(recvbuf, torch.Tensor) else recvbuf
+        )
 
         if sendbuf is not MPI.IN_PLACE:
             mpi_sendbuf = self.as_buffer(sbuf, send_counts, send_displs)
@@ -1907,9 +1872,10 @@ class MPICommunication(Communication):
         else:
             mpi_sendbuf = sbuf
 
-        mpi_recvbuf = self.as_buffer(rbuf, recv_counts, recv_displs)
-        if recv_counts is None:
-            mpi_recvbuf[1] //= recv_factor
+        if recvbuf is not MPI.IN_PLACE:
+            mpi_recvbuf = self.as_buffer(rbuf, recv_counts, recv_displs)
+            if recv_counts is None:
+                mpi_recvbuf[1] //= recv_factor
         else:
             mpi_recvbuf = rbuf
 
@@ -2141,21 +2107,13 @@ class MPICommunication(Communication):
         recvbuf = recvbuf.permute(*recv_axis_permutation)
 
         # prepare buffer objects
-        use_gpu_buffers = recvbuf.is_cuda and GPU_AWARE_MPI and "Scatterv" not in str(func)
         if isinstance(sendbuf, torch.Tensor):
-            if use_gpu_buffers:
-                sbuf = sendbuf
-            else:
-                sbuf = sendbuf.cpu()
+            sbuf = self._moveToCompDevice(sendbuf, func)
         else:
             sbuf = sendbuf
 
         if isinstance(recvbuf, torch.Tensor):
-            if use_gpu_buffers:
-                torch.cuda.synchronize(recvbuf.device)
-                rbuf = recvbuf
-            else:
-                rbuf = recvbuf.cpu()
+            rbuf = self._moveToCompDevice(recvbuf, func)
         else:
             rbuf = recvbuf
 
