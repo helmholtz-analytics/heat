@@ -12,6 +12,8 @@ class TestSignal(TestCase):
     def setUpClass(cls):
         super(TestSignal, cls).setUpClass()
 
+    def test_input_check(self):
+
     def test_convolve(self):
         full_odd = ht.array(
             [0, 1, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 42, 29, 15]
@@ -194,16 +196,24 @@ class TestSignal(TestCase):
                 ht.convolve(batch_signal_wrong_split, kernel)
 
     def test_only_balanced_kernel(self):
-        signal = ht.arange(0, 16, split=0).astype(ht.float32)
-        dis_kernel = ht.array([1, 1, 1], split=0).astype(ht.float32)
 
-        if self.comm.size > 1:
-            target_map = dis_kernel.lshape_map
-            target_map[0] = 3
-            target_map[1:] = 0
-            dis_kernel.redistribute_(dis_kernel.lshape_map, target_map)
-            with self.assertRaises(ValueError):
-                ht.convolve(signal, dis_kernel)
+        for conv_dim in (1,2):
+            if conv_dim == 1:
+                signal = ht.array([0,1,3,4,5,6,7,8,9,10], split=0).astype(ht.float32)
+                dis_kernel = ht.array([1, 1, 1], split=0).astype(ht.float32)
+                test_target = ht.convolve
+            else:
+                signal = ht.array([[0, 1, 3, 4, 5],[6, 7, 8, 9, 10]], split=0).astype(ht.float32)
+                dis_kernel = ht.array([[1, 1],[1, 1],[1,1]], split=0).astype(ht.float32)
+                test_target = ht.convolve2d
+
+            if self.comm.size > 1:
+                target_map = dis_kernel.lshape_map
+                target_map[0] = 3
+                target_map[1:] = 0
+                dis_kernel.redistribute_(dis_kernel.lshape_map, target_map)
+                with self.assertRaises(ValueError):
+                    test_target(signal, dis_kernel)
 
     def test_convolve_stride_errors(self):
         dis_signal = ht.arange(0, 16, split=0).astype(ht.int)

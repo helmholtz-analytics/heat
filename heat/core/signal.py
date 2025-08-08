@@ -10,7 +10,216 @@ from .manipulations import pad, flip
 from .factories import array, zeros, arange
 import torch.nn.functional as fc
 
-__all__ = ["convolve"]
+__all__ = ["convolve", "convolve2d"]
+
+
+def convgenpad(a, convolution_dim, signal, pad, boundary, fillvalue):
+    """
+    Adds padding to local PyTorch tensors considering the distributed scheme of the overlying DNDarray.
+
+    Parameters
+    ----------
+    a : DNDarray
+        Overlying N-dimensional `DNDarray` signal
+    signal : torch.Tensor
+        Local Pytorch tensors to be padded
+    convolution_dim : int
+        Number of dimension along which convolution will be applied
+    pad: list
+        list containing paddings per dimensions
+    boundary: str{‘constant’, ‘circular’, ‘reflect’}, optional
+        A flag indicating how to handle boundaries:
+        'constant':
+         pad input arrays with fillvalue. (default)
+        'circular':
+         periodic boundary conditions.
+        'reflect':
+         reflect along border to pad area
+         'replicate':
+         copy border into pad area
+    fillvalue: scalar, optional
+         Value to fill pad input arrays with. Default is 0.
+    """
+    # check if more than one rank is involved
+    if a.is_distributed() and a.comm.size > 1:
+        dim_split = a.split - a.ndim
+        # check if split along a convolution dimension
+        if dim_split >= -1 * convolution_dim:
+            if boundary == "circular":
+                raise ValueError(
+                    "Circular boundary for distributed signals is currently not supported."
+                )
+            # set the padding of the first rank
+            if a.comm.rank == 0:
+                pad[2 * dim_split + 1] = 0
+            # set the padding of the last rank
+            elif a.comm.rank == a.comm.size - 1:
+                pad[2 * dim_split] = 0
+            else:
+                pad[2 * dim_split + 1] = 0
+                pad[2 * dim_split] = 0
+
+    if boundary == "constant":
+        signal = fc.pad(signal, pad, mode=boundary, value=fillvalue)
+    elif boundary in ("circular", "reflect", "replicate"):
+        signal = fc.pad(signal, pad, mode=boundary)
+    else:
+        raise ValueError(
+            f"Supported boundaries are 'constant', 'circular', 'reflect' and 'replicate', got {boundary}"
+        )
+
+    return signal
+
+
+def input_check(a, v, stride, mode, convolution_dim=1):
+    """
+    Check and preprocess input data.
+
+    Parameters
+    ----------
+    a : scalar, array_like, DNDarray
+        Input signal data.
+    v : scalar, array_like, DNDarray
+        Input filter mask.
+    stride : scalar, tuple
+        Stride along each axis convolution is applied.
+    mode : str
+        Convolution mode "full", "same" or "valid"
+    convolution_dim : int, optional
+        Number of dimension along which convolution will be applied, affects what input_check looks for. Default 1
+
+    Returns
+    -------
+    tuple
+        A tuple containing the processed input signal 'a' and filter mask 'v'.
+
+    Raises
+    ------
+    TypeError
+        If 'a' or 'v' have unsupported data types.
+
+    Description
+    -----------
+    This function takes two inputs, 'a' (signal data) and 'v' (filter mask), and performs the following checks and
+    preprocessing steps:
+
+    1. Check if 'a' and 'v' are scalars. If they are, convert them into DNDarray arrays.
+
+    2. Check if 'a' and 'v' are instances of the 'DNDarray' class. If not, attempt to convert them into DNDarray arrays.
+       If conversion is not possible, raise a TypeError.
+
+    3. Determine the promoted data type for 'a' and 'v' based on their existing data types. Convert 'a' and 'v' to this
+       promoted data type to ensure consistent data types.
+
+    4. Check if filter is smaller or equal signal, flip if necessary
+
+    5. Check mode and check mode "same" against even sized kernels
+
+    6. Check stride for negative entries and against mode
+
+    7. Return a tuple containing the processed 'a' and 'v'.
+    """
+    # Check if 'a' is a scalar and convert to a DNDarray if necessary
+    if np.isscalar(a):
+        a = array([[a]])
+        while a.ndim > convolution_dim:
+            a = v.squeeze(-1)
+
+    # Check if 'v' is a scalar and convert to a DNDarray if necessary
+    if np.isscalar(v):
+        v = array([[v]])
+        while v.ndim > convolution_dim:
+            v = v.squeeze(-1)
+
+    # Check if 'a' is not an instance of DNDarray and try to convert it to a DNDarray array
+    if not isinstance(a, DNDarray):
+        try:
+            a = array(a)
+        except TypeError:
+            raise TypeError(f"non-supported type for signal: {type(a)}")
+
+    # Check if 'v' is not an instance of DNDarray and try to convert it to a NumPy array
+    if not isinstance(v, DNDarray):
+        try:
+            v = array(v)
+        except TypeError:
+            raise TypeError(f"non-supported type for filter: {type(v)}")
+
+    # Check if sufficient number of dimensions available
+    if a.ndim < convolution_dim or v.ndim < convolution_dim:
+        raise ValueError(
+            f"{convolution_dim}D-convolution requires at least {convolution_dim}-dimensional input. Signal: {a.shape}, Filter: {v.shape}"
+        )
+
+    # Determine the promoted data type for 'a' and 'v' and convert them to this data type
+    promoted_type = promote_types(a.dtype, v.dtype)
+    if a.larray.is_mps and promoted_type == float64:
+        # cannot cast to float64 on MPS
+        promoted_type = float32
+
+    a = a.astype(promoted_type)
+    v = v.astype(promoted_type)
+
+    # check if the filter is longer than the signal and swap them if necessary
+    v_shape = v.shape[-convolution_dim:]
+    a_shape = a.shape[-convolution_dim:]
+
+    if all(v_s >= a_s for v_s, a_s in zip(v_shape, a_shape)):
+        if not all(v_s == a_s for v_s, a_s in zip(v_shape, a_shape)):
+            a, v = v, a
+            v_shape = v.shape[-convolution_dim:]
+            a_shape = a.shape[-convolution_dim:]
+
+    if any(v_s > a_s for v_s, a_s in zip(v_shape, a_shape)):
+        raise ValueError(
+            f"Filter size must not be larger in one convolved dimension and smaller in the other. Signal: {a.shape}, Filter: {v.shape}"
+        )
+
+    # check mode against even kernel
+    if mode not in ("full", "valid", "same"):
+        raise ValueError(f"Only 'full', 'valid' or 'same' as mode are allowed, got {mode}.")
+    if mode == "same" and any(v_s % 2 == 0 for v_s in v_shape):
+        raise ValueError("Mode 'same' cannot be used with even-sized kernel.")
+
+    # check mode and stride for value errors
+    if convolution_dim == 1:
+        if stride < 1:
+            raise ValueError("Stride must be positive")
+        if stride > 1 and mode == "same":
+            raise ValueError("Stride must be 1 for mode 'same'")
+        if mode == "same" and v.shape[-1] % 2 == 0:
+            raise ValueError("Mode 'same' cannot be used with even-sized kernel")
+    else:
+        if any(s < 1 for s in stride):
+            raise ValueError("Stride must be positive for all convolution dimensions")
+        if any(s > 1 for s in stride) and mode == "same":
+            raise ValueError(f"Stride must be {tuple([1] * convolution_dim)} for mode 'same'")
+
+    # Return the processed 'a' and 'v' as a tuple
+    return a, v
+
+
+def batchprocessing_check(a, v, convolution_dim):
+    # assess whether to perform batch processing, default is False (no batch processing)
+    batch_processing = False
+    if a.ndim > convolution_dim:
+        # batch processing requires 1D filter OR matching batch dimensions for signal and filter
+        batch_dims = a.shape[:-convolution_dim]
+        # verify that the filter shape is consistent with the signal
+        if v.ndim > convolution_dim:
+            if v.shape[:-convolution_dim] != batch_dims:
+                raise ValueError(
+                    f"Batch dimensions of signal and filter must match. Signal: {a.shape}, Filter: {v.shape}"
+                )
+        if a.is_distributed():
+            for forbidden in range(1, convolution_dim + 1):
+                if a.split == a.ndim - forbidden:
+                    raise ValueError(
+                        "Please distribute the signal along the batch dimension, not the signal dimension. For in-place redistribution use the `DNDarray.resplit_()` method with `axis=0`"
+                    )
+        batch_processing = True
+
+    return batch_processing
 
 
 def convolve(a: DNDarray, v: DNDarray, mode: str = "full", stride: int = 1) -> DNDarray:
@@ -110,70 +319,23 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full", stride: int = 1) -> D
             [  0.,  40.,  81.,  83.,  85.,  87.,  44.],
             [  0.,   0.,  45.,  46.,  47.,  48.,  49.]], dtype=ht.float64, device=cpu:0, split=0)
     """
-    if np.isscalar(a):
-        a = array([a])
-    if np.isscalar(v):
-        v = array([v])
-    if not isinstance(a, DNDarray):
-        try:
-            a = array(a)
-        except TypeError:
-            raise TypeError(f"non-supported type for signal: {type(a)}")
-    if not isinstance(v, DNDarray):
-        try:
-            v = array(v)
-        except TypeError:
-            raise TypeError(f"non-supported type for filter: {type(v)}")
-    promoted_type = promote_types(a.dtype, v.dtype)
-    if a.larray.is_mps and promoted_type == float64:
-        # cannot cast to float64 on MPS
-        promoted_type = float32
-
-    a = a.astype(promoted_type)
-    v = v.astype(promoted_type)
-
-    # check if the filter is longer than the signal and swap them if necessary
-    if v.shape[-1] > a.shape[-1]:
-        a, v = v, a
+    a, v = input_check(a, v, stride, 1)
 
     # assess whether to perform batch processing, default is False (no batch processing)
-    batch_processing = False
-    if a.ndim > 1:
-        # batch processing requires 1D filter OR matching batch dimensions for signal and filter
-        batch_dims = a.shape[:-1]
-        # verify that the filter shape is consistent with the signal
-        if v.ndim > 1:
-            if v.shape[:-1] != batch_dims:
-                raise ValueError(
-                    f"Batch dimensions of signal and filter must match. Signal: {a.shape}, Filter: {v.shape}"
-                )
-        if a.is_distributed():
-            if a.split == a.ndim - 1:
-                raise ValueError(
-                    "Please distribute the signal along the batch dimension, not the signal dimension. For in-place redistribution use the `DNDarray.resplit_()` method with `axis=0`"
-                )
-            if v.is_distributed():
-                if v.ndim == 1:
-                    # gather filter to all ranks
-                    v.resplit_(axis=None)
-                else:
-                    v.resplit_(axis=a.split)
-        batch_processing = True
-
+    batch_processing = batchprocessing_check(a, v, 1)
     if not batch_processing and v.ndim > 1:
         raise ValueError(
             f"1-D convolution only supported for 1-dimensional signal and kernel. Signal: {a.shape}, Filter: {v.shape}"
         )
+    if batch_processing and a.is_distributed and v.is_distributed():
+        if v.ndim == 1:
+            # gather filter to all ranks
+            v.resplit_(axis=None)
+        else:
+            v.resplit_(axis=a.split)
 
-    # check mode and stride for value errors
-    if stride < 1:
-        raise ValueError("Stride must be at positive integer")
-    if stride > 1 and mode == "same":
-        raise ValueError("Stride must be 1 for mode 'same'")
-
-    if mode == "same" and v.shape[-1] % 2 == 0:
-        raise ValueError("Mode 'same' cannot be used with even-sized kernel")
-    if not v.is_balanced():
+    # ensure balanced kernel
+    if not (v.is_balanced()):
         raise ValueError("Only balanced kernel weights are allowed")
 
     # calculate pad size according to mode
@@ -183,8 +345,6 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full", stride: int = 1) -> D
         pad_size = v.shape[-1] // 2
     elif mode == "valid":
         pad_size = 0
-    else:
-        raise ValueError(f"Supported modes are 'full', 'valid', 'same', got {mode}")
 
     gshape = (a.shape[-1] + 2 * pad_size - v.shape[-1]) // stride + 1
 
@@ -248,7 +408,7 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full", stride: int = 1) -> D
     halo_size = torch.max(v.lshape_map[:, -1]).item() // 2
 
     if a.is_distributed():
-        if (v.lshape_map[:, 0] > a.lshape_map[:, 0]).any():
+        if (v.lshape_map[:, a.split] > a.lshape_map[:, a.split]).any():
             raise ValueError(
                 "Local chunk of filter weight is larger than the local chunks of signal"
             )
@@ -369,3 +529,278 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full", stride: int = 1) -> D
             a.comm,
             balanced=False,
         ).astype(a.dtype.torch_type())
+
+
+def convolve2d(
+    a: DNDarray,
+    v: DNDarray,
+    mode: str = "full",
+    stride: tuple[int, int] = (1, 1),
+    boundary: str = "fill",
+    fillvalue: int = 0,
+):
+    """
+    Returns the discrete, linear convolution of two two-dimensional HeAT tensors.
+
+    Missing: Add batch option, change two last two dimensions are convolved
+
+    Parameters
+    ----------
+    a : scalar, array_like, DNDarray
+        Two-dimensional signal
+    v : scalar, array_like, DNDarray
+        Two-dimensional filter mask.
+    mode : {'full', 'valid', 'same'}, optional
+        'full':
+          By default, mode is 'full'. This returns the convolution at
+          each point of overlap, with an output shape of (N+M-1,). At
+          the end-points of the convolution, the signals do not overlap
+          completely, and boundary effects may be seen.
+        'same':
+          Mode 'same' returns output  of length 'N'. Boundary
+          effects are still visible. This mode is not supported for
+          even sized filter weights
+        'valid':
+          Mode 'valid' returns output of length 'N-M+1'. The
+          convolution product is only given for points where the signals
+          overlap completely. Values outside the signal boundary have no
+          effect.
+    stride: Tuple(int,int), optional
+        Stride of the convolution in (x,y) direction. Default is (1,1).
+    boundary: str{‘constant’, ‘circular’, ‘reflect’}, optional
+        A flag indicating how to handle boundaries:
+        'constant':
+         pad input arrays with constant fillvalue. Default 0
+        'circular':
+         periodic boundary conditions.
+        'reflect':
+         reflect along border to pad area
+         'replicate':
+         copy border into pad area
+    fillvalue: scalar, optional
+         Value to fill pad input arrays with. Default is 0.
+
+    Returns
+    -------
+    out : ht.tensor
+        Discrete, linear convolution of 'a' and 'v',  balanced
+
+    Note : If the filter weight is larger
+        than fitting into memory, using the FFT for convolution is recommended.
+
+    Example
+    --------
+    >>> a = ht.ones((5, 5))
+    >>> v = ht.ones((3, 3))
+    >>> ht.convolve2d(a, v, mode="valid")
+    DNDarray([[9., 9., 9.],
+              [9., 9., 9.],
+              [9., 9., 9.]], dtype=ht.float32, device=cpu:0, split=None)
+
+    >>> a = ht.ones((5, 5), split=1)
+    >>> v = ht.ones((3, 3), split=1)
+    >>> ht.convolve2d(a, v)
+    DNDarray([[1., 2., 3., 3., 3., 2., 1.],
+              [2., 4., 6., 6., 6., 4., 2.],
+              [3., 6., 9., 9., 9., 6., 3.],
+              [3., 6., 9., 9., 9., 6., 3.],
+              [3., 6., 9., 9., 9., 6., 3.],
+              [2., 4., 6., 6., 6., 4., 2.],
+              [1., 2., 3., 3., 3., 2., 1.]], dtype=ht.float32, device=cpu:0, split=1)
+    """
+    # check type and size of input
+    a, v = input_check(a, v)
+
+    # assess whether to perform batch processing, default is False (no batch processing)
+    batch_processing = batchprocessing_check(a, v, 2)
+    if not batch_processing and v.ndim > 2:
+        raise ValueError(
+            f"2-D convolution only supported for 2-dimensional signal and kernel. Signal: {a.shape}, Filter: {v.shape}"
+        )
+    if a.is_distributed and v.is_distributed():
+        v.resplit_(axis=a.split)
+
+    # ensure balanced kernel
+    if not (v.is_balanced()):
+        raise ValueError("Only balanced kernel weights are allowed")
+
+    # Change: Handle padding size and gshape here
+    # calculate pad size according to mode
+    # Check: Orientation right or should be inversed (-1, -2) for (left-right, up-down) or (-2,-1) for (left-right, up_down)
+    if mode == "full":
+        pad_size = [v.shape[i] - 1 for i in range(-2, 0)]
+    elif mode == "same":
+        pad_size = [v.shape[i] // 2 for i in range(-2, 0)]
+    elif mode == "valid":
+        pad_size = [0, 0]
+
+    gshape = tuple(
+        [(a.shape[i] + 2 * pad_size[i] - v.shape[i]) // stride[i] + 1 for i in range(-2, 0)]
+    )
+
+    if v.is_distributed() and stride > 1:
+        gshape_stride_1 = tuple(
+            [(a.shape[i] + 2 * pad_size[i] - v.shape[i]) + 1 for i in range(-2, 0)]
+        )
+
+    # Missing: Handle batch processing
+    if batch_processing:
+        raise NotImplementedError("Batch processing not yet implemented")
+
+    # Missing: Change all checks to "last two dimensions" utilizing -1, -2
+    # Missing: Stride implementation
+    # compute halo size
+    halo_size = int(v.lshape_map[0][a.split]) // 2
+    if a.is_distributed():
+        # check if a local chunk is smaller than the filter size
+        if (v.lshape_map[:, a.split] > a.lshape_map[:, a.split]).any():
+            raise ValueError(
+                "Local chunk of filter weight is larger than the local chunks of signal"
+            )
+        # fetch halos and store them in a.halo_next/a.halo_prev
+        a.get_halo(halo_size)
+        # apply halos to local array
+        signal = a.array_with_halos
+    else:
+        # get local array in case of non-distributed a
+        signal = a.larray
+
+    # flip filter for convolution as PyTorch conv2d computes correlation
+    v = flip(v, [-2, -1])
+
+    # compute weight size
+    if v.larray.shape != v.lshape_map[0]:
+        # pads weights if input kernel is uneven
+        target = torch.zeros(v.lshape_map[0][v.split], dtype=v.larray.dtype, device=v.larray.device)
+        v_pad_size = v.lshape_map[0][v.split] - v.larray.shape[v.split]
+        target[v_pad_size:] = v.larray
+        weight = target
+    else:
+        weight = v.larray
+
+    t_v = weight.clone()  # stores temporary weight
+
+    # make signal and filter weight 4D for Pytorch conv2d function
+    signal = signal.reshape(1, 1, signal.shape[-2], signal.shape[-1])
+    weight = weight.reshape(1, 1, weight.shape[0], weight.shape[1])
+
+    # add padding to the borders according to mode
+    pad_array = [pad_size[1], pad_size[1], pad_size[0], pad_size[0]]
+    signal = convgenpad(a, 2, signal, pad_array, boundary, fillvalue)
+
+    if v.is_distributed():
+        size = v.comm.size
+        rank = v.comm.rank
+        split_axis = v.split
+        for r in range(size):
+            # any stride is a subset of stride 1
+            if stride > 1:
+                gshape = gshape_stride_1
+
+            rec_v = v.comm.bcast(t_v, root=r)
+            if rank != r:
+                t_v1 = rec_v.reshape(1, 1, rec_v.shape[0], rec_v.shape[1])
+            else:
+                t_v1 = t_v.reshape(1, 1, t_v.shape[0], t_v.shape[1])
+            # apply torch convolution operator
+            print("DEVICES: signal, t_v1", signal.device, t_v1.device)
+            print("RANK = ", rank)
+            local_signal_filtered = fc.conv2d(signal, t_v1)
+            # unpack 3D result into 1D
+            local_signal_filtered = local_signal_filtered[0, 0, :]
+
+            # if kernel shape along split axis is even we need to get rid of duplicated values
+            if a.comm.rank != 0 and v.shape[-2] % 2 == 0 and a.split == 0:
+                local_signal_filtered = local_signal_filtered[1:, :]
+            if a.comm.rank != 0 and v.shape[-1] == 0 and a.split == 1:
+                local_signal_filtered = local_signal_filtered[:, 1:]
+
+            # accumulate filtered signal on the fly
+            global_signal_filtered = array(
+                local_signal_filtered, is_split=split_axis, device=a.device, comm=a.comm
+            )
+            if r == 0:
+                # initialize signal_filtered, starting point of slice
+                signal_filtered = zeros(
+                    gshape, dtype=a.dtype, split=a.split, device=a.device, comm=a.comm
+                )
+                start_idx = 0
+
+            # accumulate relevant slice of filtered signal
+            # note, this is a binary operation between unevenly distributed dndarrays and will require communication, check out _operations.__binary_op()
+            # print(
+            #     "DEVICES: signal_filtered, global_signal_filtered, start_idx, gshape",
+            #     signal_filtered.device,
+            #     global_signal_filtered.device,
+            #     start_idx,
+            #     gshape,
+            # )
+            print(
+                "DEBUGGING: signal_filtered.split, global_signal_filtered.split, gshapes, lshapes",
+                signal_filtered.split,
+                global_signal_filtered.split,
+                signal_filtered.gshape,
+                global_signal_filtered.gshape,
+                signal_filtered.lshape,
+                global_signal_filtered.lshape,
+            )
+            if split_axis == 0:
+                signal_filtered += global_signal_filtered[start_idx : start_idx + gshape[0]]
+            else:
+                signal_filtered += global_signal_filtered[:, start_idx : start_idx + gshape[1]]
+            if r != size - 1:
+                start_idx += v.lshape_map[r + 1][split_axis]
+
+        # any stride is a subset of arrays of stride 1
+        if stride > 1:
+            signal_filtered = signal_filtered[::stride]
+
+        signal_filtered.balance()
+        return signal_filtered
+
+    else:
+        # shift signal based on global kernel starts for any rank but first if stride > 1
+        if a.is_distributed() and stride > 1:
+            if a.comm.rank == 0:
+                local_index = [0, 0]
+            else:
+                local_index = [
+                    (torch.sum(a.lshape_map[: a.comm.rank, i]).item() - halo_size) % stride[i]
+                    for i in range(2)
+                ]
+                local_index = [stride[i] - local_index[i] for i in range(2) if local_index[i] != 0]
+
+                # even kernels can produces doubles
+                if v.shape[-1] % 2 == 0:
+                    local_index = [stride for i in range(2) if local_index[i] == 0]
+
+            signal = signal[:, :, local_index[0] :, local_index[1] :]
+
+        if signal.shape[-2:] >= weight.shape[-2:]:
+            # apply torch convolution operator
+            signal_filtered = fc.conv2d(signal, weight)
+
+            # unpack 3D result into 2D
+            signal_filtered = signal_filtered[0, 0, :, :]
+        else:
+            signal_filtered = torch.tensor([[]], device=str(signal.device))
+
+        # if kernel shape along split axis is even we need to get rid of duplicated values
+        if a.comm.rank != 0 and a.split == 0 and v.lshape_map[0][0] % 2 == 0:
+            signal_filtered = signal_filtered[1:, :]
+        elif a.comm.rank != 0 and a.split == 1 and v.lshape_map[0][1] % 2 == 0:
+            signal_filtered = signal_filtered[:, 1:]
+
+        result = DNDarray(
+            signal_filtered.contiguous(),
+            gshape,
+            signal_filtered.dtype,
+            a.split,
+            a.device,
+            a.comm,
+            balanced=False,
+        ).astype(a.dtype.torch_type())
+
+        result.balance()
+
+        return result
