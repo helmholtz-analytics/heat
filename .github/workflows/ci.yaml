@@ -55,7 +55,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: Setup MPI
-        uses: mpi4py/setup-mpi@3969f247e8fceef153418744f9d9ee6fdaeda29f # v1.2.0
+        uses: mpi4py/setup-mpi@3eef4c7b925e108e534a3856830963dedefac76f # v1.3.3
         with:
           mpi: ${{ matrix.mpi }}
       - name: Use Python ${{ matrix.py-version }}
