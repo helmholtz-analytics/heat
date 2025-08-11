@@ -71,7 +71,7 @@ def convgenpad(a, convolution_dim, signal, pad, boundary, fillvalue):
     return signal
 
 
-def input_check(a, v, stride, mode, convolution_dim=1):
+def conv_input_check(a, v, stride, mode, convolution_dim=1):
     """
     Check and preprocess input data.
 
@@ -123,7 +123,7 @@ def input_check(a, v, stride, mode, convolution_dim=1):
     if np.isscalar(a):
         a = array([[a]])
         while a.ndim > convolution_dim:
-            a = v.squeeze(-1)
+            a = a.squeeze(-1)
 
     # Check if 'v' is a scalar and convert to a DNDarray if necessary
     if np.isscalar(v):
@@ -187,8 +187,6 @@ def input_check(a, v, stride, mode, convolution_dim=1):
             raise ValueError("Stride must be positive")
         if stride > 1 and mode == "same":
             raise ValueError("Stride must be 1 for mode 'same'")
-        if mode == "same" and v.shape[-1] % 2 == 0:
-            raise ValueError("Mode 'same' cannot be used with even-sized kernel")
     else:
         if any(s < 1 for s in stride):
             raise ValueError("Stride must be positive for all convolution dimensions")
@@ -199,7 +197,7 @@ def input_check(a, v, stride, mode, convolution_dim=1):
     return a, v
 
 
-def batchprocessing_check(a, v, convolution_dim):
+def conv_batchprocessing_check(a, v, convolution_dim):
     # assess whether to perform batch processing, default is False (no batch processing)
     batch_processing = False
     if a.ndim > convolution_dim:
@@ -218,6 +216,11 @@ def batchprocessing_check(a, v, convolution_dim):
                         "Please distribute the signal along the batch dimension, not the signal dimension. For in-place redistribution use the `DNDarray.resplit_()` method with `axis=0`"
                     )
         batch_processing = True
+
+    if (not batch_processing) and (v.ndim > convolution_dim):
+        raise ValueError(
+            f"{convolution_dim}-D convolution without batch processing only supported for {convolution_dim}-dimensional signal and kernel. Signal: {a.shape}, Filter: {v.shape}"
+        )
 
     return batch_processing
 
@@ -319,14 +322,11 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full", stride: int = 1) -> D
             [  0.,  40.,  81.,  83.,  85.,  87.,  44.],
             [  0.,   0.,  45.,  46.,  47.,  48.,  49.]], dtype=ht.float64, device=cpu:0, split=0)
     """
-    a, v = input_check(a, v, stride, 1)
+    a, v = conv_input_check(a, v, stride, mode, 1)
 
     # assess whether to perform batch processing, default is False (no batch processing)
-    batch_processing = batchprocessing_check(a, v, 1)
-    if not batch_processing and v.ndim > 1:
-        raise ValueError(
-            f"1-D convolution only supported for 1-dimensional signal and kernel. Signal: {a.shape}, Filter: {v.shape}"
-        )
+    batch_processing = conv_batchprocessing_check(a, v, 1)
+
     if batch_processing and a.is_distributed and v.is_distributed():
         if v.ndim == 1:
             # gather filter to all ranks
@@ -609,14 +609,11 @@ def convolve2d(
               [1., 2., 3., 3., 3., 2., 1.]], dtype=ht.float32, device=cpu:0, split=1)
     """
     # check type and size of input
-    a, v = input_check(a, v)
+    a, v = conv_input_check(a, v, stride, mode, 2)
 
     # assess whether to perform batch processing, default is False (no batch processing)
-    batch_processing = batchprocessing_check(a, v, 2)
-    if not batch_processing and v.ndim > 2:
-        raise ValueError(
-            f"2-D convolution only supported for 2-dimensional signal and kernel. Signal: {a.shape}, Filter: {v.shape}"
-        )
+    batch_processing = conv_batchprocessing_check(a, v, 2)
+
     if a.is_distributed and v.is_distributed():
         v.resplit_(axis=a.split)
 
