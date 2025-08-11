@@ -205,16 +205,16 @@ def conv_batchprocessing_check(a, v, convolution_dim):
         batch_dims = a.shape[:-convolution_dim]
         # verify that the filter shape is consistent with the signal
         if v.ndim > convolution_dim:
-            if v.shape[:-convolution_dim] != batch_dims:
+            v_batch = v.shape[:-convolution_dim]
+            if any(v_s != b_s for v_s, b_s in zip(batch_dims, v_batch)):
                 raise ValueError(
                     f"Batch dimensions of signal and filter must match. Signal: {a.shape}, Filter: {v.shape}"
                 )
         if a.is_distributed():
-            for forbidden in range(1, convolution_dim + 1):
-                if a.split == a.ndim - forbidden:
-                    raise ValueError(
-                        "Please distribute the signal along the batch dimension, not the signal dimension. For in-place redistribution use the `DNDarray.resplit_()` method with `axis=0`"
-                    )
+            if any(a.split == a.ndim - forbidden for forbidden in range(1, convolution_dim + 1)):
+                raise ValueError(
+                    "Please distribute the signal along the batch dimension, not the signal dimension. For in-place redistribution use the `DNDarray.resplit_()` method with `axis=0`"
+                )
         batch_processing = True
 
     if (not batch_processing) and (v.ndim > convolution_dim):
@@ -614,7 +614,14 @@ def convolve2d(
     # assess whether to perform batch processing, default is False (no batch processing)
     batch_processing = conv_batchprocessing_check(a, v, 2)
 
-    if a.is_distributed and v.is_distributed():
+    if batch_processing and a.is_distributed and v.is_distributed():
+        if v.ndim == 2:
+            # gather filter to all ranks
+            v.resplit(axis=None)
+        else:
+            v.resplit_(axis=a.split)
+    elif a.is_distributed and v.is_distributed():
+        # ensure same split axis even without batch_processing
         v.resplit_(axis=a.split)
 
     # ensure balanced kernel
