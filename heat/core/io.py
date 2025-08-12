@@ -1655,6 +1655,10 @@ else:
 
         Another Problem is the split=None scenario. In this case every processs has the same data, so only one needs to write
         so we ignore chunking and let zarr decide the chunk size and let only one process, aka rank=0 write.
+
+        To avoid errors when using NumPy arrays as chunk shape, the chunks argument is only passed to zarr.create if it is
+        not None. This prevents issues with ambiguous truth values or attribute errors on None.
+
         """
         if not isinstance(path, str):
             raise TypeError(f"path must be str, not {type(path)}")
@@ -1702,14 +1706,19 @@ else:
                         )
 
             dtype = dndarray.dtype.char()
-            zarr_array = zarr.create(
-                store=path,
-                shape=dndarray.gshape,
-                dtype=dtype,
-                overwrite=overwrite,
-                chunks=chunks,
+
+            zarr_create_kwargs = {
+                "store": path,
+                "shape": dndarray.gshape,
+                "dtype": dtype,
+                "overwrite": overwrite,
                 **kwargs,
-            )
+            }
+
+            if chunks is not None:
+                zarr_create_kwargs["chunks"] = chunks.tolist()
+
+            zarr_array = zarr.create(**zarr_create_kwargs)
 
         # Wait for the file creation to finish
         MPI_WORLD.Barrier()
