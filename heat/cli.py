@@ -8,7 +8,7 @@ import mpi4py
 import argparse
 
 from heat.core.version import __version__ as ht_version
-from heat.core.communication import CUDA_AWARE_MPI
+from heat.core._config import CUDA_AWARE_MPI, ROCM_AWARE_MPI, GPU_AWARE_MPI
 
 
 def cli() -> None:
@@ -49,6 +49,8 @@ def plaform_info():
         print(f"    Device name: {torch.cuda.get_device_name(def_device)}")
         print(f"    Device name: {torch.cuda.get_device_properties(def_device)}")
         print(
-            f"   Device memory: {torch.cuda.get_device_properties(def_device).total_memory / 1024**3} GiB"
+            f"    Device memory: {torch.cuda.get_device_properties(def_device).total_memory / 1024**3} GiB"
         )
         print(f"    CUDA Aware MPI: {CUDA_AWARE_MPI}")
+        print(f"    ROCM Aware MPI: {ROCM_AWARE_MPI}")
+        print(f"    GPU Aware MPI: {GPU_AWARE_MPI}")
