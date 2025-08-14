@@ -43,7 +43,11 @@ def __to_sparse(array: DNDarray, orientation="row") -> __DCSX_matrix:
     array.balance_()
     method = sparse_csr_matrix if orientation == "row" else sparse_csc_matrix
     result = method(
-        array.larray, dtype=array.dtype, is_split=array.split, device=array.device, comm=array.comm
+        array.larray,
+        dtype=array.dtype,
+        is_split=array.split,
+        device=array.device,
+        comm=array.comm,
     )
     return result
 
