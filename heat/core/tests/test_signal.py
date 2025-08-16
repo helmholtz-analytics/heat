@@ -1,11 +1,12 @@
 import numpy as np
+import torch
 import heat as ht
 from heat import manipulations
 import scipy.signal as sig
 from .test_suites.basic_test import TestCase
 import os
 
-from ..signal import conv_input_check, conv_batchprocessing_check
+from ..signal import conv_input_check, conv_batchprocessing_check, conv_pad
 
 
 class TestSignal(TestCase):
@@ -196,14 +197,14 @@ class TestSignal(TestCase):
         batch_signal = ht.empty((10, 1000), dtype=ht.float32, split=0)
         batch_signal.larray[:] = signal.larray
         kernel = ht.random.randn(19, dtype=ht.float32)
-        assert conv_batchprocessing_check(batch_signal, kernel, 1)
+        self.assertTrue(conv_batchprocessing_check(batch_signal, kernel, 1))
 
         dis_kernel = ht.array(kernel, dtype=ht.float32, split=0)
-        assert conv_batchprocessing_check(batch_signal, dis_kernel, 1)
+        self.assertTrue(conv_batchprocessing_check(batch_signal, dis_kernel, 1))
 
         batch_kernel = ht.empty((10, 19), dtype=ht.float32, split=1)
         batch_kernel.larray[:] = dis_kernel.larray
-        assert conv_batchprocessing_check(batch_signal, batch_kernel, 1)
+        self.assertTrue(conv_batchprocessing_check(batch_signal, batch_kernel, 1))
 
     def test_conv_batchprocessing_check_2d_error(self):
         dis_signal = ht.arange(0, 16, split=0).reshape((2, 8)).astype(ht.int)
@@ -237,14 +238,335 @@ class TestSignal(TestCase):
         batch_signal = ht.empty((10, 10, 100), dtype=ht.float32, split=0)
         batch_signal.larray[:] = signal.larray
         kernel = ht.random.randn(3, 19, dtype=ht.float32)
-        assert conv_batchprocessing_check(batch_signal, kernel, 2)
+        self.assertTrue(conv_batchprocessing_check(batch_signal, kernel, 2))
 
         dis_kernel = ht.random.randn(3, 19, dtype=ht.float32, split=0)
-        assert conv_batchprocessing_check(batch_signal, dis_kernel, 2)
+        self.assertTrue(conv_batchprocessing_check(batch_signal, dis_kernel, 2))
 
         batch_kernel = ht.empty((10, 3, 19), dtype=ht.float32, split=1)
         batch_kernel.larray[:] = dis_kernel.larray
-        assert conv_batchprocessing_check(batch_signal, batch_kernel, 2)
+        self.assertTrue(conv_batchprocessing_check(batch_signal, batch_kernel, 2))
+
+    def test_conv_pad_boundary_error(self):
+
+        signal1d = ht.arange(16, dtype=ht.float32).reshape(1, 1, 16)
+        signal2d = ht.zeros((1, 1, 10, 16), dtype=ht.float32)
+        signal2d[:] = ht.arange(16, dtype=ht.float32)
+        padding = [2, 2, 1, 1]
+        boundary = "bla"
+        fillvalue = 100
+
+        for i, signal in enumerate([signal1d, signal2d]):
+            with self.assertRaises(ValueError):
+                local_signal = signal.larray
+                conv_pad(signal, i + 1, local_signal, padding, boundary, fillvalue)
+
+    def test_conv_pad_circular_error(self):
+        dis_signal1d = ht.ones(20, dtype=ht.float32, split=0)
+        dis_signal2d = ht.ones((20, 30), dtype=ht.float32, split=0)
+        padding2d = [2,2,4,4]
+        boundary = "circular"
+        if self.comm.size > 1:
+            local_signal = dis_signal1d.larray
+            local_signal = local_signal.reshape(1,1,local_signal.shape[0])
+            with self.assertRaises(ValueError):
+                conv_pad(dis_signal1d, 1, local_signal, padding[0:2], boundary, 0)
+
+            local_signal = dis_signal2d.larray
+            local_signal = local_signal.reshape(1,1, local_signal.shape[0], local_signal.shape[1])
+            with self.assertRaises(ValueError):
+                conv_pad(dis_signal2d, 2, local_signal, padding, boundary, 0)
+
+            dis_signal2d.resplit_(1)
+            local_signal = dis_signal2d.larray
+            local_signal = local_signal.reshape(1, 1, local_signal.shape[0], local_signal.shape[1])
+            with self.assertRaises(ValueError):
+                conv_pad(dis_signal2d, 2, local_signal, padding, boundary, 0)
+
+    def test_conv_pad_reflect_error(self):
+        dis_signal1d = ht.ones((1,1,20), dtype=ht.float32, split=2)
+        dis_signal2d = ht.ones((1,1,20, 30), dtype=ht.float32, split=2)
+        padding = [10,10,15,15]
+        boundary = "reflect"
+
+        if self.comm.size > 1:
+            local_signal = dis_signal1d.larray
+            with self.assertRaises(ValueError):
+                conv_pad(dis_signal1d, 1, local_signal, padding[0:2], boundary, 0)
+
+            local_signal = dis_signal2d.larray
+            with self.assertRaises(ValueError):
+                conv_pad(dis_signal2d, 2, local_signal, padding, boundary, 0)
+
+            dis_signal2d.resplit_(1)
+            local_signal = dis_signal2d.larray
+            with self.assertRaises(ValueError):
+                conv_pad(dis_signal2d, 2, local_signal, padding, boundary, 0)
+
+    def test_conv_pad_circular(self):
+        signal1d = ht.arange(16, dtype=ht.float32).reshape(1,1,16)
+        signal2d = ht.zeros((1,1,10,16), dtype=ht.float32)
+        signal2d[:] = ht.arange(16, dtype=ht.float32)
+        padding = [2,2,1,1]
+        boundary = "circular"
+
+        local_signal = signal1d.larray
+        padded_signal = ht.array(conv_pad(signal1d, 1, local_signal, padding[0:2], boundary, 0))
+        self.assertTrue(ht.equal(padded_signal.squeeze()[:2], ht.array([14,15])))
+        self.assertTrue(ht.equal(padded_signal.squeeze()[-2:], ht.array([0,1])))
+
+        local_signal = signal2d.larray
+        padded_signal = ht.array(conv_pad(signal2d, 2, local_signal, padding, boundary, 0))
+        self.assertTrue(ht.equal(padded_signal.squeeze()[:1,:2], signal2d.squeeze()[-1:,-2:]))
+        self.assertTrue(ht.equal(padded_signal.squeeze()[-1:,-2:], signal2d.squeeze()[:1,:2]))
+
+        # split axis not along convolution dimension
+        signal1d.resplit_(1)
+        signal2d.resplit_(1)
+
+        local_signal = signal1d.larray
+        padded_signal = ht.array(conv_pad(signal1d, 1, local_signal, padding[0:2],
+                                          boundary, 0))
+        self.assertTrue(
+            ht.equal(padded_signal.squeeze()[:2], ht.array([14, 15])))
+        self.assertTrue(
+            ht.equal(padded_signal.squeeze()[-2:], ht.array([0, 1])))
+
+        local_signal = signal2d.larray
+        padded_signal = ht.array(conv_pad(signal2d, 2, local_signal, padding, boundary,
+                                          0))
+        self.assertTrue(ht.equal(padded_signal.squeeze()[:1,:2], signal2d.squeeze()[-1:,-2:]))
+        self.assertTrue(ht.equal(padded_signal.squeeze()[-1:,-2:], signal2d.squeeze()[:1,:2]))
+
+        # split axis along convolution dimension but comm size == 1
+        if self.comm.size == 1:
+            signal1d.resplit_(2)
+            signal2d.resplit_(2)
+
+            local_signal = signal1d.larray
+            padded_signal = ht.array(
+                conv_pad(signal1d, 1, local_signal, padding[0:2],
+                         boundary, 0))
+            self.assertTrue(
+                ht.equal(padded_signal.squeeze()[:2], ht.array([14, 15])))
+            self.assertTrue(
+                ht.equal(padded_signal.squeeze()[-2:], ht.array([0, 1])))
+
+            local_signal = signal2d.larray
+            padded_signal = ht.array(
+                conv_pad(signal2d, 2, local_signal, padding, boundary,
+                         0))
+            self.assertTrue(ht.equal(padded_signal.squeeze()[:1, :2],
+                                     signal2d.squeeze()[-1:, -2:]))
+            self.assertTrue(ht.equal(padded_signal.squeeze()[-1:, -2:],
+                                     signal2d.squeeze()[:1, :2]))
+
+    def test_conv_pad_reflect(self):
+        signal1d = ht.arange(16, dtype=ht.float32).reshape(1, 1, 16)
+        signal2d = ht.zeros((1, 1, 10, 16), dtype=ht.float32)
+        signal2d[:] = ht.arange(16, dtype=ht.float32)
+        padding = [2, 2, 1, 1]
+        boundary = "reflect"
+
+        local_signal = signal1d.larray
+        padded_signal = ht.array(
+            conv_pad(signal1d, 1, local_signal, padding[0:2], boundary, 0))
+        self.assertTrue(ht.equal(padded_signal.squeeze()[:2], ht.array([2,1])))
+        self.assertTrue(ht.equal(padded_signal.squeeze()[-2:], ht.array([14,13])))
+
+        local_signal = signal2d.larray
+        padded_signal = ht.array(
+            conv_pad(signal2d, 2, local_signal, padding, boundary, 0))
+        self.assertTrue(
+            ht.equal(padded_signal.squeeze()[:1, :2],
+                     manipulations.flip(signal2d.squeeze()[1:2, 1:3], [0, 1])))
+        self.assertTrue(
+            ht.equal(padded_signal.squeeze()[-1:, -2:],
+                     manipulations.flip(signal2d.squeeze()[-2:-1, -3:-1], [0, 1])))
+
+        # split axis not along convolution dimension
+        signal1d.resplit_(1)
+        signal2d.resplit_(1)
+
+        local_signal = signal1d.larray
+        padded_signal = ht.array(
+            conv_pad(signal1d, 1, local_signal, padding[0:2], boundary, 0))
+        self.assertTrue(ht.equal(padded_signal.squeeze()[:2], ht.array([2, 1])))
+        self.assertTrue(
+            ht.equal(padded_signal.squeeze()[-2:], ht.array([14, 13])))
+
+        local_signal = signal2d.larray
+        padded_signal = ht.array(
+            conv_pad(signal2d, 2, local_signal, padding, boundary, 0))
+        self.assertTrue(
+            ht.equal(padded_signal.squeeze()[:1, :2],
+                     manipulations.flip(signal2d.squeeze()[1:2, 1:3], [0, 1])))
+        self.assertTrue(
+            ht.equal(padded_signal.squeeze()[-1:, -2:],
+                     manipulations.flip(signal2d.squeeze()[-2:-1, -3:-1], [0, 1])))
+
+        # split axis along convolution dimension but comm size == 1
+        if self.comm.size == 1:
+            signal1d.resplit_(2)
+            signal2d.resplit_(2)
+
+            local_signal = signal1d.larray
+            padded_signal = ht.array(
+                conv_pad(signal1d, 1, local_signal, padding[0:2], boundary,
+                         0))
+            self.assertTrue(
+                ht.equal(padded_signal.squeeze()[:2], ht.array([2, 1])))
+            self.assertTrue(
+                ht.equal(padded_signal.squeeze()[-2:], ht.array([14, 13])))
+
+            local_signal = signal2d.larray
+            padded_signal = ht.array(
+                conv_pad(signal2d, 2, local_signal, padding, boundary, 0))
+            self.assertTrue(
+                ht.equal(padded_signal.squeeze()[:1, :2],
+                         manipulations.flip(signal2d.squeeze()[1:2, 1:3],[0, 1])))
+            self.assertTrue(
+                ht.equal(padded_signal.squeeze()[-1:, -2:],
+                         manipulations.flip(signal2d.squeeze()[-2:-1, -3:-1], [0, 1])))
+
+    def test_conv_pad_replicate(self):
+        signal1d = ht.arange(16, dtype=ht.float32).reshape(1, 1, 16)
+        signal2d = ht.zeros((1, 1, 10, 16), dtype=ht.float32)
+        signal2d[:] = ht.arange(16, dtype=ht.float32)
+        padding = [2, 2, 1, 1]
+        boundary = "replicate"
+
+        local_signal = signal1d.larray
+        padded_signal = ht.array(
+            conv_pad(signal1d, 1, local_signal, padding[0:2], boundary, 0))
+        self.assertTrue(
+            ht.equal(padded_signal.squeeze()[:2], ht.array([0,0])))
+        self.assertTrue(
+            ht.equal(padded_signal.squeeze()[-2:], ht.array([15,15])))
+
+        local_signal = signal2d.larray
+        padded_signal = ht.array(
+            conv_pad(signal2d, 2, local_signal, padding, boundary, 0))
+        self.assertTrue(ht.equal(padded_signal.squeeze()[0, 2:-2],
+                                 ht.arange(16, dtype=ht.float32)))
+        self.assertTrue(ht.equal(padded_signal.squeeze()[-1, :4],
+                                 ht.array([0,0,0,1])))
+        self.assertTrue(ht.equal(padded_signal.squeeze()[-1, -4:], ht.array([14,15,15,15])))
+
+        # split axis not along convolution dimension
+        signal1d.resplit_(1)
+        signal2d.resplit_(1)
+
+        local_signal = signal1d.larray
+        padded_signal = ht.array(
+            conv_pad(signal1d, 1, local_signal, padding[0:2], boundary, 0))
+        local_signal = signal1d.larray
+        padded_signal = ht.array(
+            conv_pad(signal1d, 1, local_signal, padding[0:2], boundary, 0))
+        self.assertTrue(
+            ht.equal(padded_signal.squeeze()[:2], ht.array([0,0])))
+        self.assertTrue(
+            ht.equal(padded_signal.squeeze()[-2:], ht.array([15,15])))
+
+        local_signal = signal2d.larray
+        padded_signal = ht.array(
+            conv_pad(signal2d, 2, local_signal, padding, boundary, 0))
+        self.assertTrue(ht.equal(padded_signal.squeeze()[0, 2:-2],
+                                 ht.arange(16, dtype=ht.float32)))
+        self.assertTrue(ht.equal(padded_signal.squeeze()[-1, :4],
+                                 ht.array([0,0,0,1])))
+        self.assertTrue(ht.equal(padded_signal.squeeze()[-1, -4:], ht.array([14,15,15,15])))
+
+        # split axis along convolution dimension but comm size == 1
+        if self.comm.size == 1:
+            signal1d.resplit_(2)
+            signal2d.resplit_(2)
+
+            local_signal = signal1d.larray
+            padded_signal = ht.array(
+                conv_pad(signal1d, 1, local_signal, padding[0:2], boundary,
+                         0))
+            self.assertTrue(
+                ht.equal(padded_signal.squeeze()[:2], ht.array([0, 0])))
+            self.assertTrue(
+                ht.equal(padded_signal.squeeze()[-2:], ht.array([15, 15])))
+
+            local_signal = signal2d.larray
+            padded_signal = ht.array(
+                conv_pad(signal2d, 2, local_signal, padding, boundary, 0))
+            self.assertTrue(ht.equal(padded_signal.squeeze()[0, 2:-2],
+                                     ht.arange(16, dtype=ht.float32)))
+            self.assertTrue(ht.equal(padded_signal.squeeze()[-1, :4],
+                                     ht.array([0, 0, 0, 1])))
+            self.assertTrue(ht.equal(padded_signal.squeeze()[-1, -4:], ht.array([14,15,15,15])))
+
+    def test_conv_pad_constant(self):
+        signal1d = ht.arange(16, dtype=ht.float32).reshape(1, 1, 16)
+        signal2d = ht.zeros((1, 1, 10, 16), dtype=ht.float32)
+        signal2d[:] = ht.arange(16, dtype=ht.float32)
+        padding = [2, 2, 1, 1]
+        boundary = "constant"
+        fillvalue = 100
+
+        local_signal = signal1d.larray
+        padded_signal = ht.array(
+            conv_pad(signal1d, 1, local_signal, padding[0:2], boundary, fillvalue)).squeeze()
+        self.assertTrue(padded_signal.shape[0] == 20)
+        self.assertTrue(ht.all(padded_signal[:2] == fillvalue))
+        self.assertTrue(ht.equal(padded_signal[-3:], ht.array([15, fillvalue, fillvalue])))
+
+        local_signal = signal2d.larray
+        padded_signal = ht.array(
+            conv_pad(signal2d, 2, local_signal, padding, boundary, fillvalue)).squeeze()
+        self.assertTrue(padded_signal.shape[0] == 12 and padded_signal.shape[1] == 20)
+        self.assertTrue(ht.all(padded_signal[0,:] == fillvalue))
+        self.assertTrue(ht.all(padded_signal[:,-2:] == fillvalue))
+        self.assertTrue(ht.equal(padded_signal[-2, -3:], ht.array([15, fillvalue, fillvalue])))
+
+        # split axis not along convolution dimension
+        signal1d.resplit_(1)
+        signal2d.resplit_(1)
+
+        local_signal = signal1d.larray
+        padded_signal = ht.array(
+            conv_pad(signal1d, 1, local_signal, padding[0:2], boundary, fillvalue)).squeeze()
+        self.assertTrue(padded_signal.shape[0] == 20)
+        self.assertTrue(ht.all(padded_signal[:2] == fillvalue))
+        self.assertTrue(ht.equal(padded_signal[-3:], ht.array([15, fillvalue, fillvalue])))
+
+        local_signal = signal2d.larray
+        padded_signal = ht.array(
+            conv_pad(signal2d, 2, local_signal, padding, boundary, fillvalue)).squeeze()
+        self.assertTrue(padded_signal.shape[0] == 12 and padded_signal.shape[1] == 20)
+        self.assertTrue(ht.all(padded_signal.squeeze()[0,:] == fillvalue))
+        self.assertTrue(ht.all(padded_signal.squeeze()[:,-2:] == fillvalue))
+        self.assertTrue(ht.equal(padded_signal.squeeze()[-2, -3:], ht.array([15, fillvalue, fillvalue])))
+
+        # split axis along convolution dimension but comm size == 1
+        if self.comm.size == 1:
+            signal1d.resplit_(2)
+            signal2d.resplit_(2)
+
+            local_signal = signal1d.larray
+            padded_signal = ht.array(
+                conv_pad(signal1d, 1, local_signal, padding[0:2], boundary,
+                         fillvalue)).squeeze()
+            self.assertTrue(padded_signal.shape[0] == 20)
+            self.assertTrue(ht.all(padded_signal[:2] == fillvalue))
+            self.assertTrue(ht.equal(padded_signal[-3:],
+                                     ht.array([15, fillvalue, fillvalue])))
+
+            local_signal = signal2d.larray
+            padded_signal = ht.array(
+                conv_pad(signal2d, 2, local_signal, padding, boundary,
+                         fillvalue)).squeeze()
+            self.assertTrue(
+                padded_signal.shape[0] == 12 and padded_signal.shape[1] == 20)
+            self.assertTrue(ht.all(padded_signal.squeeze()[0, :] == fillvalue))
+            self.assertTrue(
+                ht.all(padded_signal.squeeze()[:, -2:] == fillvalue))
+            self.assertTrue(ht.equal(padded_signal.squeeze()[-2, -3:],
+                                     ht.array([15, fillvalue, fillvalue])))
 
     def test_only_balanced_kernel(self):
         for conv_dim in (1, 2):
@@ -418,6 +740,60 @@ class TestSignal(TestCase):
         signal = ht.arange(0, 16).astype(ht_dtype)
         kernel_odd = ht.ones(3).astype(ht.int)
         dis_kernel_odd = ht.ones(3, split=0).astype(ht.int)
+
+        # avoid kernel larger than signal chunk
+        if self.comm.size <= 3:
+            modes = ["full", "same", "valid"]
+            for i, mode in enumerate(modes):
+                # odd kernel size
+                if not self.is_mps:
+                    # torch convolution does not support int on MPS
+                    conv = ht.convolve(dis_signal, kernel_odd, mode=mode)
+                    gathered = manipulations.resplit(conv, axis=None)
+                    self.assertTrue(ht.equal(full_odd[i : len(full_odd) - i], gathered))
+
+                    conv = ht.convolve(dis_signal, dis_kernel_odd, mode=mode)
+                    gathered = manipulations.resplit(conv, axis=None)
+                    self.assertTrue(ht.equal(full_odd[i : len(full_odd) - i], gathered))
+
+                    conv = ht.convolve(signal, dis_kernel_odd, mode=mode)
+                    gathered = manipulations.resplit(conv, axis=None)
+                    self.assertTrue(ht.equal(full_odd[i : len(full_odd) - i], gathered))
+
+                # different data types
+                conv = ht.convolve(dis_signal.astype(ht.float), kernel_odd)
+                gathered = manipulations.resplit(conv, axis=None)
+                self.assertTrue(ht.equal(full_odd.astype(ht.float), gathered))
+
+                conv = ht.convolve(dis_signal.astype(ht.float), dis_kernel_odd)
+                gathered = manipulations.resplit(conv, axis=None)
+                self.assertTrue(ht.equal(full_odd.astype(ht.float), gathered))
+
+                conv = ht.convolve(signal.astype(ht.float), dis_kernel_odd)
+                gathered = manipulations.resplit(conv, axis=None)
+                self.assertTrue(ht.equal(full_odd.astype(ht.float), gathered))
+
+    def test_convolve2d_kernel_odd_modes(self):
+        if self.is_mps:
+            ht_dtype = ht.float32
+        else:
+            ht_dtype = ht.int
+            ht_ftype = ht.float
+        dis_signal = ht.arange(256, split=0).reshape((16, 16)).astype(dtype)
+        signal = ht.arange(256).reshape((16, 16)).astype(dtype)
+
+        kernel_odd = ht.arange(9).reshape((3, 3)).astype(dtype)
+        kernel_even = ht.arange(16).reshape((4, 4)).astype(dtype)
+
+        np_sig = np.arange(256).reshape((16, 16))
+        np_k_odd = np.arange(9).reshape((3, 3))
+        np_k_even = np.arange(16).reshape((4, 4))
+
+        full_odd = ht.array(sig.convolve2d(np_sig, np_k_odd))
+        full_even = ht.array(sig.convolve2d(np_sig, np_k_even))
+
+        dis_kernel_odd = ht.arange(9, split=0).reshape((3, 3)).astype(dtype)
+        dis_kernel_even = ht.arange(16, split=0).reshape((4, 4)).astype(dtype)
 
         # avoid kernel larger than signal chunk
         if self.comm.size <= 3:

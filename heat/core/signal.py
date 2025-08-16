@@ -13,7 +13,7 @@ import torch.nn.functional as fc
 __all__ = ["convolve", "convolve2d"]
 
 
-def convgenpad(a, convolution_dim, signal, pad, boundary, fillvalue):
+def conv_pad(a, convolution_dim, signal, pad, boundary, fillvalue):
     """
     Adds padding to local PyTorch tensors considering the distributed scheme of the overlying DNDarray.
 
@@ -43,11 +43,21 @@ def convgenpad(a, convolution_dim, signal, pad, boundary, fillvalue):
     # check if more than one rank is involved
     if a.is_distributed() and a.comm.size > 1:
         dim_split = a.split - a.ndim
+
+        if boundary == "reflect":
+            if (a.comm.rank == 0 and pad[2 * dim_split] >= a.lshape_map[0, a.split]) or (
+                a.comm.rank == a.comm.size - 1
+                and pad[2 * dim_split + 1] >= a.lshape_map[-1, a.split]
+            ):
+                raise ValueError(
+                    "Local chunk needs to be larger than padding for boundary mode reflect"
+                )
+
         # check if split along a convolution dimension
-        if dim_split >= -1 * convolution_dim:
+        if dim_split <= -1 * convolution_dim:
             if boundary == "circular":
                 raise ValueError(
-                    "Circular boundary for distributed signals is currently not supported."
+                    "Circular boundary for distributed signals in padding dimensions is currently not supported."
                 )
             # set the padding of the first rank
             if a.comm.rank == 0:
@@ -614,15 +624,12 @@ def convolve2d(
     # assess whether to perform batch processing, default is False (no batch processing)
     batch_processing = conv_batchprocessing_check(a, v, 2)
 
-    if batch_processing and a.is_distributed and v.is_distributed():
-        if v.ndim == 2:
+    if a.is_distributed and v.is_distributed():
+        if batch_processing and v.ndim == 2:
             # gather filter to all ranks
             v.resplit(axis=None)
         else:
             v.resplit_(axis=a.split)
-    elif a.is_distributed and v.is_distributed():
-        # ensure same split axis even without batch_processing
-        v.resplit_(axis=a.split)
 
     # ensure balanced kernel
     if not (v.is_balanced()):
@@ -690,7 +697,7 @@ def convolve2d(
 
     # add padding to the borders according to mode
     pad_array = [pad_size[1], pad_size[1], pad_size[0], pad_size[0]]
-    signal = convgenpad(a, 2, signal, pad_array, boundary, fillvalue)
+    signal = conv_pad(a, 2, signal, pad_array, boundary, fillvalue)
 
     if v.is_distributed():
         size = v.comm.size
