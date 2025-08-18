@@ -216,8 +216,8 @@ class DMD(ht.RegressionMixin, ht.BaseEstimator):
         self.rom_transfer_matrix_.resplit_(None)
         # third step of DMD: compute the reduced order model eigenvalues and eigenmodes
         eigvals_loc, eigvec_loc = torch.linalg.eig(self.rom_transfer_matrix_.larray)
-        self.rom_eigenvalues_ = ht.array(eigvals_loc, split=None)
-        self.rom_eigenmodes_ = ht.array(eigvec_loc, split=None)
+        self.rom_eigenvalues_ = ht.array(eigvals_loc, split=None, device=X.device)
+        self.rom_eigenmodes_ = ht.array(eigvec_loc, split=None, device=X.device)
         self.dmdmodes_ = self.rom_basis_ @ self.rom_eigenmodes_
 
     def predict_next(self, X: ht.DNDarray, n_steps: int = 1) -> ht.DNDarray:
@@ -616,8 +616,8 @@ class DMDc(ht.RegressionMixin, ht.BaseEstimator):
 
         # third step of DMD: compute the reduced order model eigenvalues and eigenmodes
         eigvals_loc, eigvec_loc = torch.linalg.eig(self.rom_transfer_matrix_.larray)
-        self.rom_eigenvalues_ = ht.array(eigvals_loc, split=None)
-        self.rom_eigenmodes_ = ht.array(eigvec_loc, split=None)
+        self.rom_eigenvalues_ = ht.array(eigvals_loc, split=None, device=X.device)
+        self.rom_eigenmodes_ = ht.array(eigvec_loc, split=None, device=X.device)
         self.dmdmodes_ = (
             Xplus @ (Vtilde / Stilde) @ Utilde1.T @ self.rom_basis_ @ self.rom_eigenmodes_
         )
