@@ -635,9 +635,7 @@ def convolve2d(
     if not (v.is_balanced()):
         raise ValueError("Only balanced kernel weights are allowed")
 
-    # Change: Handle padding size and gshape here
     # calculate pad size according to mode
-    # Check: Orientation right or should be inversed (-1, -2) for (left-right, up-down) or (-2,-1) for (left-right, up_down)
     if mode == "full":
         pad_size = [v.shape[i] - 1 for i in range(-2, 0)]
     elif mode == "same":
@@ -658,8 +656,6 @@ def convolve2d(
     if batch_processing:
         raise NotImplementedError("Batch processing not yet implemented")
 
-    # Missing: Change all checks to "last two dimensions" utilizing -1, -2
-    # Missing: Stride implementation
     if a.is_distributed():
         # compute halo size
         halo_size = int(v.lshape_map[0][a.split]) // 2
@@ -715,8 +711,6 @@ def convolve2d(
             else:
                 t_v1 = t_v.reshape(1, 1, t_v.shape[0], t_v.shape[1])
             # apply torch convolution operator
-            print("DEVICES: signal, t_v1", signal.device, t_v1.device)
-            print("RANK = ", rank)
             local_signal_filtered = fc.conv2d(signal, t_v1)
             # unpack 3D result into 1D
             local_signal_filtered = local_signal_filtered[0, 0, :]
@@ -738,24 +732,6 @@ def convolve2d(
                 )
                 start_idx = 0
 
-            # accumulate relevant slice of filtered signal
-            # note, this is a binary operation between unevenly distributed dndarrays and will require communication, check out _operations.__binary_op()
-            # print(
-            #     "DEVICES: signal_filtered, global_signal_filtered, start_idx, gshape",
-            #     signal_filtered.device,
-            #     global_signal_filtered.device,
-            #     start_idx,
-            #     gshape,
-            # )
-            print(
-                "DEBUGGING: signal_filtered.split, global_signal_filtered.split, gshapes, lshapes",
-                signal_filtered.split,
-                global_signal_filtered.split,
-                signal_filtered.gshape,
-                global_signal_filtered.gshape,
-                signal_filtered.lshape,
-                global_signal_filtered.lshape,
-            )
             if split_axis == 0:
                 signal_filtered += global_signal_filtered[start_idx : start_idx + gshape[0]]
             else:
