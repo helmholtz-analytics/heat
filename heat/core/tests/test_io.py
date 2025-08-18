@@ -1182,7 +1182,7 @@ class TestIO(TestCase):
 
         import h5py
 
-        N_FILES = 5
+        N_FILES = 11
         N_ROWS = 4
         N_COLUMNS = 5
         G_SHAPE = (N_FILES * N_ROWS, N_COLUMNS)
@@ -1205,8 +1205,10 @@ class TestIO(TestCase):
         comm.Barrier()
 
         dndarray = ht.io.load_multiple_hdf5(self.HDF5_MULTIPLE_FOLDER, self.HDF5_MULTIPLE_DATASET, dtype=torch.int64)
+        dndarray_np = dndarray.numpy()
+        original_data_np = original_data.numpy()
+        self.assertTrue((dndarray_np == original_data_np).all())
 
-        assert torch.all(original_data[local_slice].cpu() == dndarray.larray.cpu())
 
     def test_load_multiple_hdf5_uneven(self):
         if not ht.io.supports_hdf5():
@@ -1214,10 +1216,10 @@ class TestIO(TestCase):
 
         import h5py
 
-        N_FILES = 5
-        N_ROWS = [2, 3, 1, 4, 6]
+        N_FILES = 9
+        N_ROWS = [2, 3, 1, 4, 6, 2, 1, 9, 2]
         TOTAL_ROWS = sum(N_ROWS)
-        N_COLUMNS = 5
+        N_COLUMNS = 2
         G_SHAPE = (TOTAL_ROWS, N_COLUMNS)
         ELEMS = G_SHAPE[0] * G_SHAPE[1]
         comm = ht.MPI_WORLD
@@ -1237,6 +1239,6 @@ class TestIO(TestCase):
         comm.Barrier()
 
         dndarray = ht.io.load_multiple_hdf5(self.HDF5_MULTIPLE_FOLDER, self.HDF5_MULTIPLE_DATASET, dtype=torch.int64)
-        print(dndarray)
-
-        assert ht.MPI.COMM_WORLD.allreduce(dndarray.larray.sum()) == torch.sum(original_data)
+        dndarray_np = dndarray.numpy()
+        original_data_np = original_data.numpy()
+        self.assertTrue((dndarray_np == original_data_np).all())

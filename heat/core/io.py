@@ -774,7 +774,9 @@ else:
         dtype=None,
         sorting_func: Callable[[list[Path]], list[Path]] | None = None,
     ) -> DNDarray:
-        """Loads all .hdf5 or .h5 files inside the given folder
+        """Loads all .hdf5 or .h5 files inside the given folder into a single DNDarray that is split along axis 0; the arrays
+        from the different files are concatenated along axis 0.
+        The files are sorted by the sorting_func, if given, or by the default sorted function.
 
         Parameters
         ----------
@@ -786,11 +788,6 @@ else:
             dtype to create array with, by default None
         sorting_func : Callable[[list[Path]], list[Path]] | None, optional
             how to sort the files, by default None, ie the sorted function
-
-        Returns
-        -------
-        DNDarray
-            DNDarray with split=0
         """
         if not isinstance(folder, (str, Path)):
             raise TypeError(f"path must be an String or Path, not {type(folder)}")
