@@ -8,7 +8,7 @@ from typing import Optional, Callable, Any, Union
 
 import heat as ht
 from heat.core import MPI, MPICommunication, dndarray, factories, types, Device
-
+from heat.core.random import seed
 
 # TODO adapt for GPU once this is working properly
 class TestCase(unittest.TestCase):
@@ -61,6 +61,7 @@ class TestCase(unittest.TestCase):
             )
 
         cls.device, cls.other_device, cls.envar, cls.is_mps = ht_device, other_device, envar, is_mps
+        seed(42)
 
     @property
     def comm(self) -> MPICommunication:
