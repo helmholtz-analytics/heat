@@ -546,7 +546,7 @@ def convolve2d(
     v: DNDarray,
     mode: str = "full",
     stride: tuple[int, int] = (1, 1),
-    boundary: str = "fill",
+    boundary: str = "constant",
     fillvalue: int = 0,
 ):
     """
@@ -577,7 +577,7 @@ def convolve2d(
           effect.
     stride: Tuple(int,int), optional
         Stride of the convolution in (x,y) direction. Default is (1,1).
-    boundary: str{‘constant’, ‘circular’, ‘reflect’}, optional
+    boundary: str{‘constant’, ‘circular’, ‘reflect’}, optional, Default 'constant'
         A flag indicating how to handle boundaries:
         'constant':
          pad input arrays with constant fillvalue. Default 0
@@ -660,9 +660,10 @@ def convolve2d(
 
     # Missing: Change all checks to "last two dimensions" utilizing -1, -2
     # Missing: Stride implementation
-    # compute halo size
-    halo_size = int(v.lshape_map[0][a.split]) // 2
     if a.is_distributed():
+        # compute halo size
+        halo_size = int(v.lshape_map[0][a.split]) // 2
+
         # check if a local chunk is smaller than the filter size
         if (v.lshape_map[:, a.split] > a.lshape_map[:, a.split]).any():
             raise ValueError(
@@ -680,9 +681,9 @@ def convolve2d(
     v = flip(v, [-2, -1])
 
     # compute weight size
-    if v.larray.shape != v.lshape_map[0]:
+    if any(x != y for x, y in zip(v.larray.shape, v.lshape_map[0])):
         # pads weights if input kernel is uneven
-        target = torch.zeros(v.lshape_map[0][v.split], dtype=v.larray.dtype, device=v.larray.device)
+        target = torch.zeros(tuple(v.lshape_map[0]), dtype=v.larray.dtype, device=v.larray.device)
         v_pad_size = v.lshape_map[0][v.split] - v.larray.shape[v.split]
         target[v_pad_size:] = v.larray
         weight = target
@@ -789,7 +790,7 @@ def convolve2d(
 
         if signal.shape[-2:] >= weight.shape[-2:]:
             # apply torch convolution operator
-            signal_filtered = fc.conv2d(signal, weight)
+            signal_filtered = fc.conv2d(signal, weight, stride=stride)
 
             # unpack 3D result into 2D
             signal_filtered = signal_filtered[0, 0, :, :]
