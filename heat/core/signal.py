@@ -43,8 +43,7 @@ def conv_pad(a, convolution_dim, signal, pad, boundary, fillvalue):
     # check if more than one rank is involved
     if a.is_distributed() and a.comm.size > 1:
         dim_split = a.split - a.ndim
-
-        if boundary == "reflect":
+        if boundary == "reflect" and dim_split >= -1 * convolution_dim:
             if (a.comm.rank == 0 and pad[2 * dim_split] >= a.lshape_map[0, a.split]) or (
                 a.comm.rank == a.comm.size - 1
                 and pad[2 * dim_split + 1] >= a.lshape_map[-1, a.split]
@@ -54,7 +53,7 @@ def conv_pad(a, convolution_dim, signal, pad, boundary, fillvalue):
                 )
 
         # check if split along a convolution dimension
-        if dim_split <= -1 * convolution_dim:
+        if dim_split >= -1 * convolution_dim:
             if boundary == "circular":
                 raise ValueError(
                     "Circular boundary for distributed signals in padding dimensions is currently not supported."
@@ -759,7 +758,7 @@ def convolve2d(
         split_axis = v.split
         for r in range(size):
             # any stride is a subset of stride 1
-            if stride > 1:
+            if any(s > 1 for s in stride):
                 gshape = gshape_stride_1
 
             rec_v = v.comm.bcast(t_v, root=r)
@@ -790,22 +789,22 @@ def convolve2d(
                 start_idx = 0
 
             if split_axis == 0:
-                signal_filtered += global_signal_filtered[start_idx : start_idx + gshape[0]]
+                signal_filtered += global_signal_filtered[start_idx : start_idx + gshape[0], :]
             else:
                 signal_filtered += global_signal_filtered[:, start_idx : start_idx + gshape[1]]
             if r != size - 1:
                 start_idx += v.lshape_map[r + 1][split_axis]
 
         # any stride is a subset of arrays of stride 1
-        if stride > 1:
-            signal_filtered = signal_filtered[::stride]
+        if any(s > 1 for s in stride):
+            signal_filtered = signal_filtered[:: stride[0], :: stride[1]]
 
         signal_filtered.balance()
         return signal_filtered
 
     else:
         # shift signal based on global kernel starts for any rank but first if stride > 1
-        if a.is_distributed() and stride > 1:
+        if a.is_distributed() and stride[a.split] > 1:
             if a.comm.rank == 0:
                 local_index = [0, 0]
             else:

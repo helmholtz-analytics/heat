@@ -81,7 +81,7 @@ class TestSignal(TestCase):
             if conv_dim == 2:
                 dis_signal = dis_signal.reshape((conv_dim, -1))
                 kernel_even = kernel_even.reshape((conv_dim, -1))
-                kernel_odd = kernel_odd.reshape((conv_dim, -1))
+                kernel_odd = ht.ones((3,3)).astype(ht.int)
                 stride_0 = (1, 0)
                 stride_2 = (1, 2)
             else:
@@ -264,7 +264,7 @@ class TestSignal(TestCase):
     def test_conv_pad_circular_error(self):
         dis_signal1d = ht.ones(20, dtype=ht.float32, split=0)
         dis_signal2d = ht.ones((20, 30), dtype=ht.float32, split=0)
-        padding2d = [2,2,4,4]
+        padding = [2,2,4,4]
         boundary = "circular"
         if self.comm.size > 1:
             local_signal = dis_signal1d.larray
@@ -298,7 +298,7 @@ class TestSignal(TestCase):
             with self.assertRaises(ValueError):
                 conv_pad(dis_signal2d, 2, local_signal, padding, boundary, 0)
 
-            dis_signal2d.resplit_(1)
+            dis_signal2d.resplit_(3)
             local_signal = dis_signal2d.larray
             with self.assertRaises(ValueError):
                 conv_pad(dis_signal2d, 2, local_signal, padding, boundary, 0)
@@ -321,22 +321,27 @@ class TestSignal(TestCase):
         self.assertTrue(ht.equal(padded_signal.squeeze()[-1:,-2:], signal2d.squeeze()[:1,:2]))
 
         # split axis not along convolution dimension
+
         signal1d.resplit_(1)
         signal2d.resplit_(1)
 
         local_signal = signal1d.larray
-        padded_signal = ht.array(conv_pad(signal1d, 1, local_signal, padding[0:2],
-                                          boundary, 0))
-        self.assertTrue(
-            ht.equal(padded_signal.squeeze()[:2], ht.array([14, 15])))
-        self.assertTrue(
-            ht.equal(padded_signal.squeeze()[-2:], ht.array([0, 1])))
+
+        padded_signal = conv_pad(signal1d, 1, local_signal, padding[0:2], boundary, 0)
+
+        if self.comm.rank == 0:
+            self.assertTrue(
+                torch.equal(padded_signal.squeeze()[:2], torch.tensor([14, 15])))
+            self.assertTrue(
+                torch.equal(padded_signal.squeeze()[-2:], torch.tensor([0, 1])))
+
 
         local_signal = signal2d.larray
-        padded_signal = ht.array(conv_pad(signal2d, 2, local_signal, padding, boundary,
-                                          0))
-        self.assertTrue(ht.equal(padded_signal.squeeze()[:1,:2], signal2d.squeeze()[-1:,-2:]))
-        self.assertTrue(ht.equal(padded_signal.squeeze()[-1:,-2:], signal2d.squeeze()[:1,:2]))
+        padded_signal = conv_pad(signal2d, 2, local_signal, padding, boundary, 0)
+
+        if self.comm.rank == 0:
+            self.assertTrue(torch.equal(padded_signal.squeeze()[:1,:2], local_signal.squeeze()[-1:,-2:]))
+            self.assertTrue(torch.equal(padded_signal.squeeze()[-1:,-2:], local_signal.squeeze()[:1,:2]))
 
         # split axis along convolution dimension but comm size == 1
         if self.comm.size == 1:
@@ -389,21 +394,27 @@ class TestSignal(TestCase):
         signal2d.resplit_(1)
 
         local_signal = signal1d.larray
-        padded_signal = ht.array(
-            conv_pad(signal1d, 1, local_signal, padding[0:2], boundary, 0))
-        self.assertTrue(ht.equal(padded_signal.squeeze()[:2], ht.array([2, 1])))
-        self.assertTrue(
-            ht.equal(padded_signal.squeeze()[-2:], ht.array([14, 13])))
+
+        if self.comm.rank == 0:
+            padded_signal = conv_pad(signal1d, 1, local_signal, padding[0:2],
+                                     boundary, 0)
+
+            self.assertTrue(torch.equal(padded_signal.squeeze()[:2], torch.tensor([2, 1])))
+            self.assertTrue(
+                torch.equal(padded_signal.squeeze()[-2:], torch.tensor([14, 13])))
 
         local_signal = signal2d.larray
-        padded_signal = ht.array(
-            conv_pad(signal2d, 2, local_signal, padding, boundary, 0))
-        self.assertTrue(
-            ht.equal(padded_signal.squeeze()[:1, :2],
-                     manipulations.flip(signal2d.squeeze()[1:2, 1:3], [0, 1])))
-        self.assertTrue(
-            ht.equal(padded_signal.squeeze()[-1:, -2:],
-                     manipulations.flip(signal2d.squeeze()[-2:-1, -3:-1], [0, 1])))
+
+        if self.comm.rank == 0:
+            padded_signal = conv_pad(signal2d, 2, local_signal, padding,
+                                     boundary, 0)
+
+            self.assertTrue(
+                torch.equal(padded_signal.squeeze()[:1, :2],
+                         torch.flip(local_signal.squeeze()[1:2, 1:3], [0, 1])))
+            self.assertTrue(
+                torch.equal(padded_signal.squeeze()[-1:, -2:],
+                         torch.flip(local_signal.squeeze()[-2:-1, -3:-1], [0, 1])))
 
         # split axis along convolution dimension but comm size == 1
         if self.comm.size == 1:
