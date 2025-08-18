@@ -682,7 +682,7 @@ class TestSignal(TestCase):
         batch_kernel = ht.empty((10, 19), dtype=float_dtype, split=1)
         batch_kernel.larray[:] = dis_kernel.larray
 
-        batch_convolved = ht.convolve(batch_signal, kernel, mode="full", stride=stride)
+        batch_convolved = ht.convolve(batch_signal, batch_kernel, mode="full", stride=stride)
         self.assertTrue(
             ht.equal(
                 ht.convolve(signal, kernel, mode="full", stride=stride),
@@ -706,28 +706,102 @@ class TestSignal(TestCase):
         float_dtype = ht.float32 if self.is_mps else ht.float64
 
         # distributed input along the first axis
-
         signal = ht.random.randn(10, 100, dtype=float_dtype)
         batch_signal = ht.empty((10, 10, 100), dtype=float_dtype, split=0)
         batch_signal.larray[:] = signal.larray
 
         # kernel without batch dimensions
         kernel = ht.random.randn(3, 19, dtype=float_dtype)
-        with self.assertRaises(NotImplementedError):
-            ht.convolve2d(batch_signal, kernel)
+        batch_convolved = ht.convolve2d(batch_signal, kernel, mode="valid", boundary="circular")
+        self.assertTrue(
+            ht.equal(
+                ht.convolve2d(signal, kernel, mode="valid", boundary="circular"),
+                batch_convolved[0],
+            )
+        )
+
+        # distributed kernel including gathering to all ranks
+        dis_kernel = ht.array(kernel, split=0)
+        batch_convolved = ht.convolve2d(batch_signal, dis_kernel)
+        self.assertTrue(
+            ht.equal(ht.convolve2d(signal, kernel),
+                     batch_convolved[5])
+        )
+
+        # batch kernel including resplit to signal axis
+        batch_kernel = ht.empty((10, 3, 19), dtype=float_dtype, split=1)
+        batch_kernel.larray[:] = kernel.larray
+        batch_convolved = ht.convolve2d(batch_signal, batch_kernel, mode="same",boundary="reflect")
+        self.assertTrue(
+            ht.equal(
+                ht.convolve2d(signal, kernel, mode="same", boundary="reflect"),
+                batch_convolved[-1],
+            )
+        )
+
+        # n-D batch convolution
+        batch_signal = ht.empty((4, 3, 3, 10, 100), dtype=float_dtype, split=1)
+        batch_signal.larray[:, :, :] = signal.larray
+        batch_convolved = ht.convolve2d(batch_signal, kernel, mode="valid", boundary="replicate")
+        self.assertTrue(
+            ht.equal(
+                ht.convolve2d(signal, kernel, mode="valid", boundary="replicate"),
+                batch_convolved[1, 2, 0]
+            )
+        )
 
     def test_convolve2d_stride_batch_convolutions(self):
         float_dtype = ht.float32 if self.is_mps else ht.float64
+
         # distributed input along the first axis
         signal = ht.random.randn(10, 100, dtype=float_dtype)
         batch_signal = ht.empty((10, 10, 100), dtype=float_dtype, split=0)
         batch_signal.larray[:] = signal.larray
 
         # kernel without batch dimensions
-        stride = (123, 5)
+        stride = (3,15)
         kernel = ht.random.randn(3, 19, dtype=float_dtype)
-        with self.assertRaises(NotImplementedError):
-            ht.convolve2d(batch_signal, kernel, stride=stride)
+        batch_convolved = ht.convolve2d(batch_signal, kernel, mode="valid", stride=stride)
+        self.assertTrue(
+            ht.equal(
+                ht.convolve2d(signal, kernel, mode="valid", stride=stride),
+                batch_convolved[0],
+            )
+        )
+
+        # distributed kernel including gathering to all ranks
+        stride = (2,4)
+        dis_kernel = ht.array(kernel, split=0)
+        batch_convolved = ht.convolve2d(batch_signal, dis_kernel, stride=stride, boundary="circular")
+        self.assertTrue(
+            ht.equal(ht.convolve2d(signal, kernel, stride=stride, boundary="circular"),
+                     batch_convolved[5])
+        )
+
+        # batch kernel including resplit to signal axis
+        stride = (3,4)
+        batch_kernel = ht.empty((10, 3, 19), dtype=float_dtype, split=1)
+        batch_kernel.larray[:] = kernel.larray
+        batch_convolved = ht.convolve2d(batch_signal, batch_kernel, mode="full",
+                                      stride=stride, boundary="reflect")
+        self.assertTrue(
+            ht.equal(
+                ht.convolve2d(signal, kernel, mode="full", stride=stride, boundary="reflect"),
+                batch_convolved[-1],
+            )
+        )
+
+        # n-D batch convolution
+        stride = (4,3)
+        batch_signal = ht.empty((4, 3, 3, 10, 100), dtype=float_dtype, split=1)
+        batch_signal.larray[:, :, :] = signal.larray
+        batch_convolved = ht.convolve2d(batch_signal, kernel, mode="valid", stride=stride, boundary="replicate")
+        self.assertTrue(
+            ht.equal(
+                ht.convolve2d(signal, kernel, mode="valid", stride=stride, boundary="replicate"),
+                batch_convolved[1, 2, 0]
+            )
+        )
 
     def test_convolve_kernel_odd_modes(self):
         ht_dtype = ht.int

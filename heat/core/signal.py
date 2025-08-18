@@ -647,15 +647,72 @@ def convolve2d(
         [(a.shape[i] + 2 * pad_size[i] - v.shape[i]) // stride[i] + 1 for i in range(-2, 0)]
     )
 
-    if v.is_distributed() and stride > 1:
+    if v.is_distributed() and any(s > 1 for s in stride):
         gshape_stride_1 = tuple(
             [(a.shape[i] + 2 * pad_size[i] - v.shape[i]) + 1 for i in range(-2, 0)]
         )
 
-    # Missing: Handle batch processing
     if batch_processing:
-        raise NotImplementedError("Batch processing not yet implemented")
+        # all operations are local torch operations, only the last dimension is convolved
+        local_a = a.larray
+        local_v = v.larray
 
+        # flip filter for convolution, as Pytorch conv1d computes correlations
+        local_v = torch.flip(local_v, [-2, -1])
+        local_batch_dims = tuple(local_a.shape[:-2])
+
+        # reshape signal and filter to 3D for Pytorch conv1d function
+        # see https://pytorch.org/docs/stable/generated/torch.nn.functional.conv1d.html
+        local_a = local_a.reshape(
+            torch.prod(torch.tensor(local_batch_dims, device=local_a.device), dim=0).item(),
+            local_a.shape[-2],
+            local_a.shape[-1],
+        )
+        channels = local_a.shape[0]
+
+        if v.ndim > 2:
+            local_v = local_v.reshape(
+                torch.prod(torch.tensor(local_batch_dims, device=local_v.device), dim=0).item(),
+                local_v.shape[-2],
+                local_v.shape[-1],
+            )
+            local_v = local_v.unsqueeze(1)
+        else:
+            local_v = (
+                local_v.unsqueeze(0)
+                .unsqueeze(0)
+                .expand(local_a.shape[0], 1, local_v.shape[-2], local_v.shape[-1])
+            )
+
+        # add batch dimension to signal
+        local_a = local_a.unsqueeze(0)
+
+        # add padding
+        pad_array = [pad_size[1], pad_size[1], pad_size[0], pad_size[0]]
+        local_a = conv_pad(a, 2, local_a, pad_array, boundary, fillvalue)
+
+        # cast to single-precision float if on GPU
+        if local_a.is_cuda:
+            float_type = torch.promote_types(local_a.dtype, torch.float32)
+            local_a = local_a.to(float_type)
+            local_v = local_v.to(float_type)
+
+        # apply torch convolution operator if local signal isn't empty
+        if torch.prod(torch.tensor(local_a.shape, device=local_a.device)) > 0:
+            local_convolved = fc.conv2d(local_a, local_v, groups=channels, stride=stride)
+        else:
+            empty_shape = tuple(local_a.shape[:-1] + (gshape[-2],) + (gshape[-1],))
+            local_convolved = torch.empty(empty_shape, dtype=local_a.dtype, device=local_a.device)
+
+        # unpack 3D result into original shape
+        local_convolved = local_convolved.squeeze(0)
+        local_convolved = local_convolved.reshape(local_batch_dims + (gshape[-2],) + (gshape[-1],))
+
+        # wrap result in DNDarray
+        convolved = array(local_convolved, is_split=a.split, device=a.device, comm=a.comm)
+        return convolved
+
+    # no batch processing
     if a.is_distributed():
         # compute halo size
         halo_size = int(v.lshape_map[0][a.split]) // 2
