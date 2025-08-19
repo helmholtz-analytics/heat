@@ -626,7 +626,7 @@ def convolve2d(
     if a.is_distributed and v.is_distributed():
         if batch_processing and v.ndim == 2:
             # gather filter to all ranks
-            v.resplit(axis=None)
+            v.resplit_(axis=None)
         else:
             v.resplit_(axis=a.split)
 

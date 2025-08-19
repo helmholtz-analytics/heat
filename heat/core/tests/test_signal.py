@@ -326,7 +326,6 @@ class TestSignal(TestCase):
         signal2d.resplit_(1)
 
         local_signal = signal1d.larray
-
         padded_signal = conv_pad(signal1d, 1, local_signal, padding[0:2], boundary, 0)
 
         if self.comm.rank == 0:
@@ -456,37 +455,30 @@ class TestSignal(TestCase):
             ht.equal(padded_signal.squeeze()[-2:], ht.array([15,15])))
 
         local_signal = signal2d.larray
-        padded_signal = ht.array(
-            conv_pad(signal2d, 2, local_signal, padding, boundary, 0))
-        self.assertTrue(ht.equal(padded_signal.squeeze()[0, 2:-2],
-                                 ht.arange(16, dtype=ht.float32)))
-        self.assertTrue(ht.equal(padded_signal.squeeze()[-1, :4],
-                                 ht.array([0,0,0,1])))
+        padded_signal = ht.array(conv_pad(signal2d, 2, local_signal, padding, boundary, 0))
+        self.assertTrue(ht.equal(padded_signal.squeeze()[0, 2:-2], ht.arange(16, dtype=ht.float32)))
+        self.assertTrue(ht.equal(padded_signal.squeeze()[-1, :4], ht.array([0,0,0,1])))
         self.assertTrue(ht.equal(padded_signal.squeeze()[-1, -4:], ht.array([14,15,15,15])))
 
         # split axis not along convolution dimension
-        signal1d.resplit_(1)
-        signal2d.resplit_(1)
+        signal1d.resplit_(0)
+        signal2d.resplit_(0)
 
         local_signal = signal1d.larray
-        padded_signal = ht.array(
-            conv_pad(signal1d, 1, local_signal, padding[0:2], boundary, 0))
-        local_signal = signal1d.larray
-        padded_signal = ht.array(
-            conv_pad(signal1d, 1, local_signal, padding[0:2], boundary, 0))
-        self.assertTrue(
-            ht.equal(padded_signal.squeeze()[:2], ht.array([0,0])))
-        self.assertTrue(
-            ht.equal(padded_signal.squeeze()[-2:], ht.array([15,15])))
+        padded_signal = conv_pad(signal1d, 1, local_signal, padding[0:2], boundary, 0)
+
+        if self.comm.rank == 0:
+            self.assertTrue(torch.equal(padded_signal.squeeze()[:2],  torch.tensor([0, 0])))
+            self.assertTrue(torch.equal(padded_signal.squeeze()[-2:], torch.tensor([15, 15])))
 
         local_signal = signal2d.larray
-        padded_signal = ht.array(
-            conv_pad(signal2d, 2, local_signal, padding, boundary, 0))
-        self.assertTrue(ht.equal(padded_signal.squeeze()[0, 2:-2],
-                                 ht.arange(16, dtype=ht.float32)))
-        self.assertTrue(ht.equal(padded_signal.squeeze()[-1, :4],
-                                 ht.array([0,0,0,1])))
-        self.assertTrue(ht.equal(padded_signal.squeeze()[-1, -4:], ht.array([14,15,15,15])))
+        padded_signal = conv_pad(signal2d, 2, local_signal, padding, boundary,0)
+
+        if self.comm.rank == 0:
+            self.assertTrue(torch.equal(padded_signal.squeeze()[0, 2:-2], torch.arange(16, dtype=torch.float32)))
+            self.assertTrue(torch.equal(padded_signal.squeeze()[-1, :4], torch.tensor([0, 0, 0, 1])))
+            self.assertTrue(torch.equal(padded_signal.squeeze()[-1, -4:], torch.tensor([14, 15, 15, 15])))
+
 
         # split axis along convolution dimension but comm size == 1
         if self.comm.size == 1:
@@ -539,19 +531,19 @@ class TestSignal(TestCase):
         signal2d.resplit_(1)
 
         local_signal = signal1d.larray
-        padded_signal = ht.array(
-            conv_pad(signal1d, 1, local_signal, padding[0:2], boundary, fillvalue)).squeeze()
-        self.assertTrue(padded_signal.shape[0] == 20)
-        self.assertTrue(ht.all(padded_signal[:2] == fillvalue))
-        self.assertTrue(ht.equal(padded_signal[-3:], ht.array([15, fillvalue, fillvalue])))
+        padded_signal = conv_pad(signal1d, 1, local_signal, padding[0:2], boundary, fillvalue).squeeze()
+        if self.comm.rank == 0:
+            self.assertTrue(padded_signal.shape[0] == 20)
+            self.assertTrue((padded_signal[:2] == fillvalue).all())
+            self.assertTrue(torch.equal(padded_signal[-3:], torch.tensor([15, fillvalue, fillvalue])))
 
         local_signal = signal2d.larray
-        padded_signal = ht.array(
-            conv_pad(signal2d, 2, local_signal, padding, boundary, fillvalue)).squeeze()
-        self.assertTrue(padded_signal.shape[0] == 12 and padded_signal.shape[1] == 20)
-        self.assertTrue(ht.all(padded_signal.squeeze()[0,:] == fillvalue))
-        self.assertTrue(ht.all(padded_signal.squeeze()[:,-2:] == fillvalue))
-        self.assertTrue(ht.equal(padded_signal.squeeze()[-2, -3:], ht.array([15, fillvalue, fillvalue])))
+        padded_signal = conv_pad(signal2d, 2, local_signal, padding, boundary, fillvalue).squeeze()
+        if self.comm.rank == 0:
+            self.assertTrue(padded_signal.shape[0] == 12 and padded_signal.shape[1] == 20)
+            self.assertTrue((padded_signal.squeeze()[0,:] == fillvalue).all())
+            self.assertTrue((padded_signal.squeeze()[:,-2:] == fillvalue).all())
+            self.assertTrue(torch.equal(padded_signal.squeeze()[-2, -3:], torch.tensor([15, fillvalue, fillvalue])))
 
         # split axis along convolution dimension but comm size == 1
         if self.comm.size == 1:
@@ -617,7 +609,19 @@ class TestSignal(TestCase):
                 ht.convolve(dis_signal, kernel_even)
 
     def test_convolve2d_local_chunks_error(self):
-        assert False
+        full_ones = ht.ones((7,3), split=1).astype(ht.int)
+        kernel_even = [[1, 1], [1, 1]]
+        dis_signal = ht.arange(0, 9, split=0).astype(ht.int).reshape(3,3)
+        kernel_odd = [[1], [1]]
+        if self.comm.size > 1:
+            with self.assertRaises(ValueError):
+                ht.convolve2d(full_ones, kernel_even, mode="valid")
+            with self.assertRaises(ValueError):
+                ht.convolve2d(kernel_even, full_ones, mode="valid")
+
+        if self.comm.size > 3:
+            with self.assertRaises(ValueError):
+                ht.convolve(dis_signal, kernel_odd)
 
     def assert_convolution_stride(self, signal, kernel, mode, stride, solution):
         conv = ht.convolve(signal, kernel, mode=mode, stride=stride)
@@ -722,7 +726,7 @@ class TestSignal(TestCase):
         batch_signal.larray[:] = signal.larray
 
         # kernel without batch dimensions
-        kernel = ht.random.randn(3, 19, dtype=float_dtype)
+        kernel = ht.random.randn(5, 19, dtype=float_dtype)
         batch_convolved = ht.convolve2d(batch_signal, kernel, mode="valid", boundary="circular")
         self.assertTrue(
             ht.equal(
@@ -740,8 +744,8 @@ class TestSignal(TestCase):
         )
 
         # batch kernel including resplit to signal axis
-        batch_kernel = ht.empty((10, 3, 19), dtype=float_dtype, split=1)
-        batch_kernel.larray[:] = kernel.larray
+        batch_kernel = ht.empty((10, 5, 19), dtype=float_dtype, split=1)
+        batch_kernel.larray[:] = dis_kernel.larray
         batch_convolved = ht.convolve2d(batch_signal, batch_kernel, mode="same",boundary="reflect")
         self.assertTrue(
             ht.equal(
@@ -751,7 +755,7 @@ class TestSignal(TestCase):
         )
 
         # n-D batch convolution
-        batch_signal = ht.empty((4, 3, 3, 10, 100), dtype=float_dtype, split=1)
+        batch_signal = ht.empty((4, 5, 3, 10, 100), dtype=float_dtype, split=1)
         batch_signal.larray[:, :, :] = signal.larray
         batch_convolved = ht.convolve2d(batch_signal, kernel, mode="valid", boundary="replicate")
         self.assertTrue(
