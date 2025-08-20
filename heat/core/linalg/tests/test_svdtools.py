@@ -277,7 +277,6 @@ class TestRSVD(TestCase):
 
 class TestISVD(TestCase):
     def test_isvd(self):
-        ht.random.seed(27183)
         if self.is_mps:
             dtypes = [ht.float32]
         else:
