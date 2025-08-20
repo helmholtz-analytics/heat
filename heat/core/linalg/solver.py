@@ -274,9 +274,10 @@ def lanczos(
 
 def solve_triangular(A: DNDarray, b: DNDarray) -> DNDarray:
     """
-    This function provides a solver for (possibly batched) upper triangular systems of linear equations: it returns `x` in `Ax = b`, where `A` is a (possibly batched) upper triangular matrix and
+    Solver for (possibly batched) upper triangular systems of linear equations: it returns `x` in `Ax = b`, where `A` is a (possibly batched) upper triangular matrix and
     `b` a (possibly batched) vector or matrix of suitable shape, both provided as input to the function.
     The implementation builts on the corresponding solver in PyTorch and implements an memory-distributed, MPI-parallel block-wise version thereof.
+
     Parameters
     ----------
     A : DNDarray

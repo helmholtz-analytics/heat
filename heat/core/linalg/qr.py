@@ -59,7 +59,7 @@ def qr(
     and extended to non tall-skinny matrices by applying a block-wise version of stabilized Gram-Schmidt orthogonalization.
 
     References
-    -----------
+    ----------
     Basic information about QR factorization/decomposition can be found at, e.g.:
 
         - https://en.wikipedia.org/wiki/QR_factorization,
@@ -109,7 +109,7 @@ def qr(
         Q, R = single_proc_qr(A.larray, mode=mode)
         R = factories.array(R, is_split=A.split)
         if mode == "reduced":
-            Q = factories.array(Q, is_split=A.split)
+            Q = factories.array(Q, is_split=A.split, device=A.device)
         else:
             Q = None
         return QR(Q, R)
@@ -158,7 +158,9 @@ def qr(
             if i < nprocs - 1:
                 k_loc_i = min(A.shape[-2], A.lshape_map[i, -1])
                 Q_buf = torch.zeros(
-                    (*A.shape[:-1], k_loc_i), dtype=A.larray.dtype, device=A.device.torch_device
+                    (*A.shape[:-1], k_loc_i),
+                    dtype=A.larray.dtype,
+                    device=A.device.torch_device,
                 )
 
             if A.comm.rank == i:
@@ -249,7 +251,7 @@ def qr(
             current_comm = A.comm
             local_comm = current_comm.Split(current_comm.rank // procs_to_merge, A.comm.rank)
             Q_loc, R_loc = single_proc_qr(A.larray, mode=mode)
-            R_loc = R_loc.contiguous()  # required for all the communication ops lateron
+            R_loc = R_loc.contiguous()
             if mode == "reduced":
                 leave_comm = current_comm.Split(current_comm.rank, A.comm.rank)
 

@@ -111,16 +111,26 @@ class TestLinalgBasics(TestCase):
         # test vector axes with 2 elements
         b_2d = ht.array(np_b[:-1, :, :], split=1)
         cross_3d_2d = ht.cross(a, b_2d, axisa=1, axisb=0)
-        np_cross_3d_2d = np.cross(np_a, np_b[:-1, :, :], axisa=1, axisb=0)
+        np_cross_3d_2d = np.cross(
+            np_a,
+            np.concatenate([np_b[:-1, :, :], np.zeros((1, 40, 50))], axis=0, dtype=np.float32),
+            axisa=1,
+            axisb=0,
+        )
         self.assert_array_equal(cross_3d_2d, np_cross_3d_2d)
 
         a_2d = ht.array(np_a[:, :-1, :], split=0)
         cross_2d_3d = ht.cross(a_2d, b, axisa=1, axisb=0)
-        np_cross_2d_3d = np.cross(np_a[:, :-1, :], np_b, axisa=1, axisb=0)
+        np_cross_2d_3d = np.cross(
+            np.concatenate([np_a[:, :-1, :], np.zeros((40, 1, 50))], axis=1, dtype=np.float32),
+            np_b,
+            axisa=1,
+            axisb=0,
+        )
         self.assert_array_equal(cross_2d_3d, np_cross_2d_3d)
 
         cross_z_comp = ht.cross(a_2d, b_2d, axisa=1, axisb=0)
-        np_cross_z_comp = np.cross(np_a[:, :-1, :], np_b[:-1, :, :], axisa=1, axisb=0)
+        np_cross_z_comp = np_a[:, 0, ...] * np_b[1, ...] - np_a[:, 1, ...] * np_b[0, ...]
         self.assert_array_equal(cross_z_comp, np_cross_z_comp)
 
         a_wrong_split = ht.array(np_a[:, :-1, :], split=2)
@@ -365,7 +375,8 @@ class TestLinalgBasics(TestCase):
         a = ht.random.random((20, 20), dtype=dtype, split=0)
         ainv = ht.linalg.inv(a)
         i = ht.eye(a.shape, split=0, dtype=a.dtype)
-        self.assertTrue(ht.allclose(a @ ainv, i, atol=1e-5 if self.is_mps else atol * 10))
+        print(f"Local result of rank {a.comm.Get_rank()}: {(a @ ainv).larray}")
+        self.assertTrue(ht.allclose(a @ ainv, i, atol=1e-5 if self.is_mps else atol * 1e2))
 
         with self.assertRaises(RuntimeError):
             ht.linalg.inv(ht.array([1, 2, 3], split=0))

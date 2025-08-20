@@ -10,9 +10,9 @@ from typing import Optional, Union, TypeVar
 
 class KMedoids(_KCluster):
     """
-    This is not the original implementation of k-medoids using PAM as originally proposed by in [1].
-    This is kmedoids with the Manhattan distance as fixed metric, calculating the median of the assigned cluster points as new cluster center
+    Kmedoids with the Manhattan distance as fixed metric, calculating the median of the assigned cluster points as new cluster center
     and snapping the centroid to the the nearest datapoint afterwards.
+    This is not the original implementation of k-medoids using PAM as originally proposed by in [1].
 
     Parameters
     ----------
@@ -30,7 +30,7 @@ class KMedoids(_KCluster):
         Determines random number generation for centroid initialization.
 
     References
-    -----------
+    ----------
     [1] Kaufman, L. and Rousseeuw, P.J. (1987), Clustering by means of Medoids, in Statistical Data Analysis Based on the L1 Norm and Related Methods, edited by Y. Dodge, North-Holland, 405416.
 
     """

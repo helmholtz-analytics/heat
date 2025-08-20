@@ -188,7 +188,7 @@ class DNDarray:
     @property
     def __partitioned__(self) -> dict:
         """
-        This will return a dictionary containing information useful for working with the partitioned
+        Return a dictionary containing information useful for working with the partitioned
         data. These items include the shape of the data on each process, the starting index of the data
         that a process has, the datatype of the data, the local devices, as well as the global
         partitioning scheme.
@@ -385,7 +385,7 @@ class DNDarray:
         except IndexError:
             print("Indices out of bound")
 
-        return self.__array[ix].clone().contiguous()
+        return self.__array[ix].clone()
 
     def get_halo(self, halo_size: int, prev: bool = True, next: bool = True) -> torch.Tensor:
         """
@@ -481,6 +481,34 @@ class DNDarray:
         Returns a view of the process-local slice of the :class:`DNDarray` as a numpy ndarray, if the ``DNDarray`` resides on CPU. Otherwise, it returns a copy, on CPU, of the process-local slice of ``DNDarray`` as numpy ndarray.
         """
         return self.larray.cpu().__array__()
+
+    def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
+        """
+        Override NumPy's universal functions.
+        """
+        import heat
+
+        # TODO support ufunc method variants
+        if method == "__call__":
+            try:
+                func = getattr(heat, ufunc.__name__)
+            except AttributeError:
+                return NotImplemented
+            return func(*inputs, **kwargs)
+        else:
+            return NotImplemented
+
+    def __array_function__(self, func, types, args, kwargs):
+        """
+        Augments NumPy's functions.
+        """
+        import heat
+
+        try:
+            ht_func = getattr(heat, func.__name__)
+        except AttributeError:
+            return NotImplemented
+        return ht_func(*args, **kwargs)
 
     def astype(self, dtype, copy=True) -> DNDarray:
         """
@@ -806,7 +834,7 @@ class DNDarray:
         Float scalar casting.
 
         See Also
-        ---------
+        --------
         :func:`~heat.core.manipulations.flatten`
         """
         return self.__cast(float)
@@ -872,7 +900,7 @@ class DNDarray:
         >>> a[1:6]
         (1/2) >>> tensor([1, 2, 3, 4], dtype=torch.int32)
         (2/2) >>> tensor([5], dtype=torch.int32)
-        >>> a = ht.zeros((4,5), split=0)
+        >>> a = ht.zeros((4, 5), split=0)
         (1/2) >>> tensor([[0., 0., 0., 0., 0.],
                           [0., 0., 0., 0., 0.]])
         (2/2) >>> tensor([[0., 0., 0., 0., 0.],
@@ -1134,6 +1162,7 @@ class DNDarray:
         assessed via collective communication.
 
         Parameters
+        ----------
         force_check : bool, optional
             If True, the balanced status of the ``DNDarray`` will be assessed via
             collective communication in any case.
@@ -1174,7 +1203,7 @@ class DNDarray:
         raised (by pytorch)
 
         Examples
-        -------
+        --------
         >>> import heat as ht
         >>> x = ht.zeros((1))
         >>> x.item()
@@ -1207,11 +1236,20 @@ class DNDarray:
         dist = self.copy().resplit_(axis=None)
         return dist.larray.cpu().numpy()
 
+    def _repr_pretty_(self, p, cycle):
+        """
+        Pretty print for IPython.
+        """
+        if cycle:
+            p.text(printing.__str__(self))
+        else:
+            p.text(printing.__str__(self))
+
     def __repr__(self) -> str:
         """
-        Computes a printable representation of the passed DNDarray.
+        Returns a printable representation of the passed DNDarray, targeting developers.
         """
-        return printing.__str__(self)
+        return printing.__repr__(self)
 
     def ravel(self):
         """
@@ -1223,9 +1261,9 @@ class DNDarray:
 
         Examples
         --------
-        >>> a = ht.ones((2,3), split=0)
+        >>> a = ht.ones((2, 3), split=0)
         >>> b = a.ravel()
-        >>> a[0,0] = 4
+        >>> a[0, 0] = 4
         >>> b
         DNDarray([4., 1., 1., 1., 1., 1.], dtype=ht.float32, device=cpu:0, split=0)
         """
@@ -1441,7 +1479,13 @@ class DNDarray:
 
         Examples
         --------
-        >>> a = ht.zeros((4, 5,), split=0)
+        >>> a = ht.zeros(
+        ...     (
+        ...         4,
+        ...         5,
+        ...     ),
+        ...     split=0,
+        ... )
         >>> a.lshape
         (0/2) (2, 5)
         (1/2) (2, 5)
@@ -1451,7 +1495,13 @@ class DNDarray:
         >>> a.lshape
         (0/2) (4, 5)
         (1/2) (4, 5)
-        >>> a = ht.zeros((4, 5,), split=0)
+        >>> a = ht.zeros(
+        ...     (
+        ...         4,
+        ...         5,
+        ...     ),
+        ...     split=0,
+        ... )
         >>> a.lshape
         (0/2) (2, 5)
         (1/2) (2, 5)
@@ -1540,7 +1590,7 @@ class DNDarray:
 
         Examples
         --------
-        >>> a = ht.zeros((4,5), split=0)
+        >>> a = ht.zeros((4, 5), split=0)
         (1/2) >>> tensor([[0., 0., 0., 0., 0.],
                           [0., 0., 0., 0., 0.]])
         (2/2) >>> tensor([[0., 0., 0., 0., 0.],
@@ -1816,7 +1866,7 @@ class DNDarray:
         Utility function for checking ``value`` and forwarding to :func:``__setitem__``
 
         Raises
-        -------------
+        ------
         NotImplementedError
             If the type of ``value`` ist not supported
         """
@@ -1852,15 +1902,15 @@ class DNDarray:
 
         Examples
         --------
-        >>> a = ht.array([[0,1],[2,3]])
+        >>> a = ht.array([[0, 1], [2, 3]])
         >>> a.tolist()
         [[0, 1], [2, 3]]
 
-        >>> a = ht.array([[0,1],[2,3]], split=0)
+        >>> a = ht.array([[0, 1], [2, 3]], split=0)
         >>> a.tolist()
         [[0, 1], [2, 3]]
 
-        >>> a = ht.array([[0,1],[2,3]], split=1)
+        >>> a = ht.array([[0, 1], [2, 3]], split=1)
         >>> a.tolist(keepsplit=True)
         (1/2) [[0], [2]]
         (2/2) [[1], [3]]
@@ -1869,6 +1919,21 @@ class DNDarray:
             return self.resplit(axis=None).__array.tolist()
 
         return self.__array.tolist()
+
+    @classmethod
+    def __torch_function__(cls, func, types, args=(), kwargs=None):
+        """
+        Supports PyTorch's dispatch mechanism.
+        """
+        import heat
+
+        if kwargs is None:
+            kwargs = {}
+        try:
+            ht_func = getattr(heat, func.__name__)
+        except AttributeError:
+            return NotImplemented
+        return ht_func(*args, **kwargs)
 
     def __torch_proxy__(self) -> torch.Tensor:
         """

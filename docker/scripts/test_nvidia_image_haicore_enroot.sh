@@ -12,7 +12,7 @@ SBATCH_PARAMS=(
 	--gres		   gpu:1
 	--container-image  ~/containers/nvidia+pytorch+23.05-py3.sqsh
 	--container-writable
-	--container-mounts /etc/slurm/task_prolog.hk:/etc/slurm/task_prolog.hk,/scratch:/scratch
+	--container-mounts "/etc/slurm/task_prolog.hk:/etc/slurm/task_prolog.hk,/scratch:/scratch"
 	--container-mount-home
 )
 
