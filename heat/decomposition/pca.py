@@ -5,6 +5,8 @@ Module implementing decomposition techniques, such as PCA.
 import heat as ht
 from typing import Optional, Tuple, Union
 from ..core.linalg.svdtools import _isvd
+import h5py
+import zarr
 
 try:
     from typing import Self
@@ -346,14 +348,71 @@ class IncrementalPCA(ht.TransformMixin, ht.BaseEstimator):
         self.batch_size_ = None
         self.n_samples_seen_ = 0
 
-    def fit(self, X, y=None) -> Self:
+    def fit(self, path: str, chunk_size: int, dataset: str = "DATA") -> Self:
         """
-        Not yet implemented; please use `.partial_fit` instead.
-        Please open an issue on GitHub if you would like to see this method implemented and make a suggestion on how you would like to see it implemented.
+        Fit the IncrementalPCA model using data loaded in chunks from a file.
+
+        This method processes data incrementally, loading chunks of data from a file and updating the PCA model iteratively.
+        It is particularly useful for large datasets that cannot fit into memory.
+
+        Parameters
+        ----------
+        path : str
+            Path to the file containing the dataset. The file must be in either HDF5 or Zarr format.
+        chunk_size : int
+            Number of rows to load and process in each chunk. Must be smaller than or equal to the total number of rows in the dataset.
+        dataset : str, default="DATA"
+            Name of the dataset within the file to load.
+
+        Returns
+        -------
+        Self
+            The fitted IncrementalPCA instance.
+
+        Raises
+        ------
+        ValueError
+            If the file format is not HDF5 or Zarr.
+            If `chunk_size` is larger than the number of rows in the dataset.
+            If the number of columns is smaller than the number of processes.
         """
-        raise NotImplementedError(
-            f"You have called IncrementalPCA's `.fit`-method with an argument of type {type(X)}. \n So far, we have only implemented the method `.partial_fit` which performs a single-step update of incremental PCA. \n Please consider using `.partial_fit` for the moment, and open an issue on GitHub in which we can discuss what you would like to see implemented for the `.fit`-method."
-        )
+        if path.endswith(".h5"):
+            with h5py.File(path, "r") as f:
+                shape = f[dataset].shape
+            load_data_from_file = ht.load_hdf5
+        elif path.endswith(".zarr"):
+            z = zarr.open(path, mode="r")
+            shape = z[dataset].shape
+            load_data_from_file = ht.load_zarr
+        else:
+            raise ValueError("`path` must direct to a hdf5 or zarr file.")
+
+        # Check if the number of columns is at least equal to the number of processes
+        if shape[1] < ht.MPI_WORLD.size:
+            raise ValueError(
+                f"The number of columns ({shape[1]}) must be at least equal to the number of processes ({ht.MPI_WORLD.size})."
+            )
+
+        if chunk_size > shape[0]:
+            raise ValueError(
+                "The `chunk_size` cannot be bigger than the number of rows of the chosen file."
+            )
+
+        start = 0
+        end = chunk_size
+
+        while start < shape[0]:
+            if end <= shape[0]:
+                X = load_data_from_file(
+                    path, dataset=dataset, split=0, slices=[slice(start, end), None]
+                )
+            else:
+                X = load_data_from_file(
+                    path, dataset=dataset, split=0, slices=[slice(start, shape[0]), None]
+                )
+            self.partial_fit(X)
+            start += chunk_size
+            end += chunk_size
 
     def partial_fit(self, X: ht.DNDarray, y=None):
         """
