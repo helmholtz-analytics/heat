@@ -102,7 +102,7 @@ class KMeans(_KCluster):
 
         return new_cluster_centers
 
-    def fit(self, x: DNDarray, oversampling: float = 100, iter_multiplier: float = 20) -> self:
+    def fit(self, x: DNDarray, oversampling: float = 2, iter_multiplier: float = 1) -> self:
         """
         Computes the centroid of a k-means clustering. Reduce the values of the parameters 'oversampling'
         and 'iter_multiplier' to speed up the computation, if necessary. However, for too low values the
