@@ -1630,7 +1630,7 @@ def gcd_(t1: DNDarray, t2: DNDarray) -> DNDarray:
         if t1.split != t2.split:
             # if the split axes are different, we cannot do the operation in-place
             raise ValueError(
-                f"In-place operation not allowed: operands are distributed along different axes. \n Operand 1 with shape {t1.shape} is split along axis {t1.split}. \n Operand 2 with shape {t2.shape} is split along axis {t2.split}."
+                f"In-place operation not allowed: operands  are distributed along different axes. \n Operand 1 with shape {t1.shape} is split along axis {t1.split}. \n Operand 2 with shape {t2.shape} is split along axis {t2.split}."
             )
         # as of PyTorch 2.8.0, gcd_ returns NotImplementedError for non-integer input as well
         if not (heat_type_is_exact(t1.dtype) and heat_type_is_exact(t2.dtype)):
