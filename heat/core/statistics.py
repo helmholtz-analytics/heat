@@ -40,6 +40,7 @@ __all__ = [
     "min",
     "minimum",
     "percentile",
+    "ptp",
     "skew",
     "std",
     "var",
@@ -1737,6 +1738,58 @@ def percentile(
         del sorted_x
 
     return percentile
+
+
+def ptp(
+    x: DNDarray,
+    axis: Optional[Union[int, Tuple[int, ...]]] = None,
+    out: Optional[DNDarray] = None,
+    keepdims: bool = False,
+) -> DNDarray:
+    """
+    Range of values (maximum - minimum) along a given axis.
+
+    Parameters
+    ----------
+    x : ht.DNDarray
+        Input array.
+    axis : None or int or Tuple[int,...], optional
+        Axis or axes along which to operate. By default, flattened input is used.
+        If this is a tuple of ints, the ptp is selected over multiple axes,
+        instead of a single axis or all the axes as before.
+    out : DNDarray, optional
+        Output array to place the result.
+    keepdims : bool, optional
+        If this is set to ``True``, the axes which are reduced are left in the result as dimensions with size one.
+
+    Returns
+    -------
+    ptp : ht.DNDarray
+        An array with the same shape as `x`, with the specified axis removed. If `keepdims` is True, the reduced axes are left in the result as dimensions with size one.
+
+    Examples
+    --------
+    >>> a = ht.array([[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]], dtype=ht.float32)
+    >>> ht.ptp(a)
+    DNDarray([11.], dtype=ht.float32, device=cpu:0, split=None)
+    >>> ht.ptp(a, axis=0)
+    DNDarray([9., 9., 9.], dtype=ht.float32, device=cpu:0, split=None)
+    >>> ht.ptp(a, axis=1)
+    DNDarray([2., 2., 2., 2.], dtype=ht.float32, device=cpu:0, split=None)
+    """
+    xmax = max(x, axis=axis, keepdims=keepdims)
+    xmin = min(x, axis=axis, keepdims=keepdims)
+
+    if out is not None:
+        arithmetics.subtract(xmax, xmin, out=out)
+        return out
+    return arithmetics.subtract(xmax, xmin)
+
+
+DNDarray.ptp: Callable[[DNDarray, Union[int, Tuple[int, ...]], DNDarray, bool], DNDarray] = (
+    lambda x, axis=None, out=None, keepdims=False: ptp(x, axis, out, keepdims)
+)
+DNDarray.ptp.__doc__ = ptp.__doc__
 
 
 def skew(x: DNDarray, axis: int = None, unbiased: bool = True) -> DNDarray:
