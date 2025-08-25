@@ -28,6 +28,7 @@ class TestKMeans(TestCase):
         self.assertEqual(10, kmeans.n_clusters)
 
     def test_fit_iris_unsplit(self):
+        oversampling=100
         for split in [None, 0]:
             # get some test data
             iris = ht.load("heat/datasets/iris.csv", sep=";", split=split)
@@ -35,7 +36,7 @@ class TestKMeans(TestCase):
             # fit the clusters
             k = 3
             kmeans = ht.cluster.KMeans(n_clusters=k)
-            kmeans.fit(iris)
+            kmeans.fit(iris, oversampling=oversampling)
 
             # check whether the results are correct
             self.assertIsInstance(kmeans.cluster_centers_, ht.DNDarray)
@@ -43,7 +44,7 @@ class TestKMeans(TestCase):
 
             # same test with init=kmeans++
             kmeans = ht.cluster.KMeans(n_clusters=k, init="kmeans++")
-            kmeans.fit(iris)
+            kmeans.fit(iris, oversampling=oversampling)
 
             # check whether the results are correct
             self.assertIsInstance(kmeans.cluster_centers_, ht.DNDarray)
@@ -52,7 +53,7 @@ class TestKMeans(TestCase):
         iris = ht.load("heat/datasets/iris.csv", sep=";", split=0)
         # same test with init=batchparallel
         kmeans = ht.cluster.KMeans(n_clusters=k, init="batchparallel")
-        kmeans.fit(iris)
+        kmeans.fit(iris, oversampling=oversampling)
 
         # check whether the results are correct
         self.assertIsInstance(kmeans.cluster_centers_, ht.DNDarray)
