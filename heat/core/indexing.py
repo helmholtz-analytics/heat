@@ -115,14 +115,14 @@ def where(
         if only x or y is given or both are not DNDarrays or numerical scalars
 
     Notes
-    -------
+    -----
     When only condition is provided, this function is a shorthand for :func:`nonzero`.
 
     Examples
     --------
     >>> import heat as ht
     >>> x = ht.arange(10, split=0)
-    >>> ht.where(x < 5, x, 10*x)
+    >>> ht.where(x < 5, x, 10 * x)
     DNDarray([ 0,  1,  2,  3,  4, 50, 60, 70, 80, 90], dtype=ht.int64, device=cpu:0, split=0)
     >>> y = ht.array([[0, 1, 2], [0, 2, 4], [0, 3, 6]])
     >>> ht.where(y < 4, y, -1)

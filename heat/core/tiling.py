@@ -39,7 +39,13 @@ class SplitTiles:
 
     Examples
     --------
-    >>> a = ht.zeros((10, 11,), split=None)
+    >>> a = ht.zeros(
+    ...     (
+    ...         10,
+    ...         11,
+    ...     ),
+    ...     split=None,
+    ... )
     >>> a.create_split_tiles()
     >>> print(a.tiles.tile_ends_g)
     [0/2] tensor([[ 4,  7, 10],
@@ -190,7 +196,9 @@ class SplitTiles:
 
         Examples
         --------
-        >>> test = torch.arange(np.prod([i + 6 for i in range(2)])).reshape([i + 6 for i in range(2)])
+        >>> test = torch.arange(np.prod([i + 6 for i in range(2)])).reshape(
+        ...     [i + 6 for i in range(2)]
+        ... )
         >>> a = ht.array(test, split=0).larray
         [0/2] tensor([[ 0.,  1.,  2.,  3.,  4.,  5.,  6.],
         [0/2]         [ 7.,  8.,  9., 10., 11., 12., 13.]])
@@ -387,7 +395,7 @@ class SquareDiagTiles:
         Default: 2
 
     Attributes
-    -----------
+    ----------
     __col_per_proc_list : List
         List is length of the number of processes, each element has the number of tile
         columns on the process whos rank equals the index
@@ -408,7 +416,7 @@ class SquareDiagTiles:
     The generation of these tiles may unbalance the original ``DNDarray``!
 
     Notes
-    -----------
+    -----
     This tiling scheme is intended for use with the :func:`~heat.core.linalg.qr.qr` function.
     """
 
@@ -1011,7 +1019,9 @@ class SquareDiagTiles:
         >>> a = ht.zeros((11, 10), split=0)
         >>> a_tiles = tiling.SquareDiagTiles(a, tiles_per_proc=2)  # type: tiling.SquareDiagTiles
         >>> local = a_tiles.local_get(key=slice(None))
-        >>> a_tiles.local_set(key=slice(None), value=torch.arange(local.numel()).reshape(local.shape))
+        >>> a_tiles.local_set(
+        ...     key=slice(None), value=torch.arange(local.numel()).reshape(local.shape)
+        ... )
         >>> print(a.larray)
         [0/1] tensor([[ 0.,  1.,  2.,  3.,  4.,  5.,  6.,  7.,  8.,  9.],
         [0/1]         [10., 11., 12., 13., 14., 15., 16., 17., 18., 19.],

@@ -64,7 +64,7 @@ class DMD(ht.RegressionMixin, ht.BaseEstimator):
         The reduced order model eigenmodes ("DMD modes")
 
     Notes
-    ----------
+    -----
     We follow the "exact DMD" method as described in [1], Sect. 2.2.
 
     References
@@ -216,8 +216,8 @@ class DMD(ht.RegressionMixin, ht.BaseEstimator):
         self.rom_transfer_matrix_.resplit_(None)
         # third step of DMD: compute the reduced order model eigenvalues and eigenmodes
         eigvals_loc, eigvec_loc = torch.linalg.eig(self.rom_transfer_matrix_.larray)
-        self.rom_eigenvalues_ = ht.array(eigvals_loc, split=None)
-        self.rom_eigenmodes_ = ht.array(eigvec_loc, split=None)
+        self.rom_eigenvalues_ = ht.array(eigvals_loc, split=None, device=X.device)
+        self.rom_eigenmodes_ = ht.array(eigvec_loc, split=None, device=X.device)
         self.dmdmodes_ = self.rom_basis_ @ self.rom_eigenmodes_
 
     def predict_next(self, X: ht.DNDarray, n_steps: int = 1) -> ht.DNDarray:
@@ -388,7 +388,7 @@ class DMDc(ht.RegressionMixin, ht.BaseEstimator):
         The reduced order model eigenmodes ("DMD modes")
 
     Notes
-    ----------
+    -----
     We follow the approach described in [1], Sects. 3.3 and 3.4.
     In the case that svd_rank is prescribed, the rank of the SVD of the full system matrix is set to svd_rank + n_control_features; cf. https://github.com/dynamicslab/pykoopman
     for the same approach.
@@ -616,8 +616,8 @@ class DMDc(ht.RegressionMixin, ht.BaseEstimator):
 
         # third step of DMD: compute the reduced order model eigenvalues and eigenmodes
         eigvals_loc, eigvec_loc = torch.linalg.eig(self.rom_transfer_matrix_.larray)
-        self.rom_eigenvalues_ = ht.array(eigvals_loc, split=None)
-        self.rom_eigenmodes_ = ht.array(eigvec_loc, split=None)
+        self.rom_eigenvalues_ = ht.array(eigvals_loc, split=None, device=X.device)
+        self.rom_eigenmodes_ = ht.array(eigvec_loc, split=None, device=X.device)
         self.dmdmodes_ = (
             Xplus @ (Vtilde / Stilde) @ Utilde1.T @ self.rom_basis_ @ self.rom_eigenmodes_
         )

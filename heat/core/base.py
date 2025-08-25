@@ -173,10 +173,10 @@ class TransformMixin:
         """
         Transforms the input data.
 
-         Parameters
-         ----------
-         x : DNDarray
-             Values to transform. Shape = (n_samples, n_features)
+        Parameters
+        ----------
+        x : DNDarray
+            Values to transform. Shape = (n_samples, n_features)
         """
         raise NotImplementedError()
 
