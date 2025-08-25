@@ -28,7 +28,7 @@ class TestKMeans(TestCase):
         self.assertEqual(10, kmeans.n_clusters)
 
     def test_fit_iris_unsplit(self):
-        oversampling=100
+        oversampling=10
         for split in [None, 0]:
             # get some test data
             iris = ht.load("heat/datasets/iris.csv", sep=";", split=split)
