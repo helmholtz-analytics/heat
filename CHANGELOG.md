@@ -1,3 +1,14 @@
+# v1.6.0 - Heat 1.6.0
+## Changes
+
+- #1876 [Backport]  #1793 to stable (by @JuanPedroGHM)
+- #1847 [Backport stable] [pre-commit.ci] pre-commit autoupdate (by @[github-actions[bot]](https://github.com/apps/github-actions))
+
+## Contributors
+
+@JuanPedroGHM, @mrfh92, @pre-commit-ci[bot] and [github-actions[bot]](https://github.com/apps/github-actions)
+
+
 # v1.5.1
 ## Changes
 
