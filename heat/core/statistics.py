@@ -1786,9 +1786,9 @@ def ptp(
     return arithmetics.subtract(xmax, xmin)
 
 
-DNDarray.ptp: Callable[[DNDarray, Union[int, Tuple[int, ...]], DNDarray, bool], DNDarray] = (
-    lambda x, axis=None, out=None, keepdims=False: ptp(x, axis, out, keepdims)
-)
+DNDarray.ptp: Callable[
+    [DNDarray, Optional[Union[int, Tuple[int, ...]]], Optional[DNDarray], bool], DNDarray
+] = (lambda x, axis=None, out=None, keepdims=False: ptp(x, axis, out, keepdims))
 DNDarray.ptp.__doc__ = ptp.__doc__
 
 
