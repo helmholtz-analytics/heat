@@ -77,6 +77,22 @@ class TestKMeans(TestCase):
         with self.assertRaises(NotImplementedError):
             kmeans = ht.cluster.KMeans(n_clusters=k, init="batchparallel")
             kmeans.fit(iris_split)
+        with self.assertRaises(ValueError):
+            kmeans = ht.cluster.KMeans(n_clusters=k, init=np.array([1, 2, 3]))
+            kmeans.fit(iris_split)
+        with self.assertRaises(ValueError):
+            kmeans = ht.cluster.KMeans(n_clusters=k, oversampling=-1)
+            kmeans.fit(iris_split)
+        with self.assertRaises(ValueError):
+            kmeans = ht.cluster.KMeans(n_clusters=k, iter_multiplier=-1)
+            kmeans.fit(iris_split)
+        with self.assertRaises(ValueError):
+            kmeans = ht.cluster.KMeans(n_clusters=k, init=ht.array([1, 2]))
+            kmeans.fit(iris_split)
+        with self.assertRaises(NotImplementedError):
+            kmeans = ht.cluster.KMeans(n_clusters=k, init="kmeans++")
+            kmeans.fit(iris_split)
+
 
     def test_spherical_clusters(self):
         seed = 1
