@@ -140,7 +140,7 @@ class Array:
         >>> import heat as ht
         >>> a = ht.array([1.0], dtype=ht.float32)
         >>> b = ht.array(1.0, dtype=ht.float64)
-        >>> ht.add(a, b) # The spec says this should be float64
+        >>> ht.add(a, b)  # The spec says this should be float64
         DNDarray([2.], dtype=ht.float32, device=cpu:0, split=None)
         To fix this, we add a dimension to the 0-dimension array before passing it
         through. This works because a dimension would be added anyway from
