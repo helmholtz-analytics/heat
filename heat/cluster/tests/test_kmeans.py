@@ -81,11 +81,11 @@ class TestKMeans(TestCase):
             kmeans = ht.cluster.KMeans(n_clusters=k, init=np.array([1, 2, 3]))
             kmeans.fit(iris_split)
         with self.assertRaises(ValueError):
-            kmeans = ht.cluster.KMeans(n_clusters=k, oversampling=-1)
-            kmeans.fit(iris_split)
+            kmeans = ht.cluster.KMeans(n_clusters=k)
+            kmeans.fit(iris_split, oversampling=-1)
         with self.assertRaises(ValueError):
-            kmeans = ht.cluster.KMeans(n_clusters=k, iter_multiplier=-1)
-            kmeans.fit(iris_split)
+            kmeans = ht.cluster.KMeans(n_clusters=k)
+            kmeans.fit(iris_split, iter_multiplier=-1)
         with self.assertRaises(ValueError):
             kmeans = ht.cluster.KMeans(n_clusters=k, init=ht.array([1, 2]))
             kmeans.fit(iris_split)
