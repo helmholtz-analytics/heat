@@ -111,13 +111,6 @@ class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
 
         iter_multiplier : float
             factor that increases the number of iterations used in the initialization of centroids
-
-        Raises
-        ------
-        TypeError
-            If the input is not a DNDarray
-        ValueError
-            If the oversampling factor or the iteration multiplier is too small
         """
         # input sanitation
         if not isinstance(x, DNDarray):
@@ -158,10 +151,12 @@ class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
                 # Randomly select first centroid and organize it as a tensor, in order to use the function cdist later.
                 # This tensor will be filled continously in the proceeding of this function
                 # We assume that the centroids fit into the memory of a single GPU
-                centroids = ht.expand_dims(x[init_idx, :].resplit(None), axis=0)
+                init_centroids = ht.expand_dims(x[init_idx, :].resplit(None), axis=0)
                 # Calculate the initial cost of the clustering after the first centroid selection
                 # and use it as an indicator for the order of magnitude for the number of necessary iterations
-                init_distance = ht.spatial.distance.cdist(x, centroids, quadratic_expansion=True)
+                init_distance = ht.spatial.distance.cdist(
+                    x, init_centroids, quadratic_expansion=True
+                )
                 # --> init_distance calculates the Euclidean distance between data points x and initial centroids
                 # output format: tensor
                 init_min_distance = init_distance.min(axis=1)
@@ -175,17 +170,20 @@ class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
                 num_iters = max(
                     1, int(iter_multiplier * ht.log(init_cost))
                 )  # ensure at least one iteration
-                centroids = self._centroid_sampling_helper(x, centroids, oversampling, num_iters)
+                centroids = self._centroid_sampling_helper(
+                    x, init_centroids, oversampling, num_iters
+                )
 
                 # Check if enough centroids were found; increase oversampling factor automatically if neccessary
                 if centroids.shape[0] <= self.n_clusters:
                     warnings.warn(
-                        f"Oversampling={oversampling} is too low for data set. Increasing it by factor 10 automatically. And restarting centroid initialization.",
+                        f"Oversampling={oversampling} is too low for data set."
+                        "Increasing it by factor 10 automatically. And restarting centroid initialization.",
                         UserWarning,
                     )
                     oversampling = 10 * oversampling
                     centroids = self._centroid_sampling_helper(
-                        x, centroids, oversampling, num_iters
+                        x, init_centroids, oversampling, num_iters
                     )
                 # Raise ValueError if still not enough centroids are found
                 if centroids.shape[0] <= self.n_clusters:

@@ -43,7 +43,7 @@ class TestKMeans(TestCase):
             self.assertEqual(kmeans.cluster_centers_.shape, (k, iris.shape[1]))
 
             # same test with init=kmeans++
-            kmeans = ht.cluster.KMeans(n_clusters=k, init="kmeans++")
+            kmeans = ht.cluster.KMeans(n_clusters=k, init="probability_based")
             kmeans.fit(iris, oversampling=oversampling)
 
             # check whether the results are correct
@@ -90,7 +90,7 @@ class TestKMeans(TestCase):
             kmeans = ht.cluster.KMeans(n_clusters=k, init=ht.array([1, 2]))
             kmeans.fit(iris_split)
         with self.assertRaises(NotImplementedError):
-            kmeans = ht.cluster.KMeans(n_clusters=k, init="kmeans++")
+            kmeans = ht.cluster.KMeans(n_clusters=k, init="probability_based")
             kmeans.fit(iris_split)
 
 
