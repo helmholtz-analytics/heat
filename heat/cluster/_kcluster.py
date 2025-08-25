@@ -7,6 +7,7 @@ import torch
 from heat.cluster.batchparallelclustering import _kmex
 from typing import Optional, Union, Callable
 from heat.core.dndarray import DNDarray
+import warnings
 
 
 class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
@@ -170,62 +171,29 @@ class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
                 # --> Now calculate the cost
                 # output format: scalar
 
-                # Pre-allocate receive buffer for later communication
-                world_size = ht.MPI_WORLD.size
-                max_total = world_size * x.shape[0]  # im Worst-Case sendet jeder Rank alle Punkte
-                recv_buf = torch.empty(
-                    (max_total, x.shape[1]), dtype=x.larray.dtype, device=x.larray.device
-                )
-
                 # Iteratively fill the tensor storing the centroids
-                for _ in range(0, int(iter_multiplier * ht.log(init_cost))):
-                    # Calculate the distance between data points and the current set of centroids
-                    distance = ht.spatial.distance.cdist(x, centroids, quadratic_expansion=True)
-                    min_distance = distance.min(axis=1)
-                    # Sample each point in the data to a new set of centroids
-                    prob = oversampling * min_distance / min_distance.sum()
-                    # -->   probability distribution with oversampling factor
-                    #       output format: vector
-                    # Define a list of random, uniformly distributed probabilities
-                    sample = ht.random.rand(x.shape[0], split=x.split)
-                    idx = ht.where(sample <= prob)
-                    # -->   choose indices to sample the data according to prob
-                    #       output format: vector
+                num_iters = max(
+                    1, int(iter_multiplier * ht.log(init_cost))
+                )  # ensure at least one iteration
+                centroids = self._centroid_sampling_helper(x, centroids, oversampling, num_iters)
 
-                    # Extract the local candidate centroids on each process
-                    local_candidates = x[idx].larray
-                    # ensure correct shape of no candidate is found (required for communication)
-                    local_candidates = local_candidates.reshape(-1, x.shape[1])
-                    # number of candidates
-                    n_local = local_candidates.shape[0]
-
-                    # Gather the number of local candidates from each MPI rank into a list
-                    counts = ht.MPI_WORLD.allgather(n_local)
-
-                    # Build a list of starting offsets so each rank’s block lands in the correct slice of the buffer
-                    displs = [0]
-                    for c in counts[:-1]:
-                        displs.append(displs[-1] + c)
-                    # Compute the total number of candidates across all ranks
-                    total = displs[-1] + counts[-1]
-                    # Take only the first 'total' rows from the preallocated receive buffer
-                    buffer = recv_buf[:total]
-                    # Gather all local candidates into the receive buffer
-                    ht.MPI_WORLD.Allgatherv(local_candidates, (buffer, counts, displs), recv_axis=0)
-
-                    new_candidates = ht.array(buffer, split=None, device=x.device)
-                    # -->   pick the data points that are identified as possible centroids
-                    #       output format: vector
-
-                    centroids = ht.row_stack((centroids, new_candidates))
-                    # -->   stack the data points with these indices to the DNDarray of centroids
-                    #       output format: tensor
-
+                # Check if enough centroids were found; increase oversampling factor automatically if neccessary
+                if centroids.shape[0] <= self.n_clusters:
+                    warnings.warn(
+                        f"Oversampling={oversampling} is too low for data set. Increasing it by factor 10 automatically. And restarting centroid initialization.",
+                        UserWarning,
+                    )
+                    oversampling = 10 * oversampling
+                    centroids = self._centroid_sampling_helper(
+                        x, centroids, oversampling, num_iters
+                    )
+                # Raise ValueError if still not enough centroids are found
                 if centroids.shape[0] <= self.n_clusters:
                     raise ValueError(
                         f"The parameter oversampling={oversampling} and/or iter_multiplier={iter_multiplier} "
                         "are chosen too small for the initialization of cluster centers."
                     )
+
                 # Evaluate the distance between data and the final set of centroids for the initialization
                 final_distance = ht.spatial.distance.cdist(x, centroids, quadratic_expansion=True)
                 # For each data point in x, find the index of the centroid that is closest
@@ -313,6 +281,61 @@ class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
                     self.init
                 )
             )
+
+    def _centroid_sampling_helper(
+        self, x: DNDarray, centroids: DNDarray, oversampling: float, num_iters: int
+    ):
+        """
+        Helper function for the k-means|| initialization of centroids. Samples new centroids based on a probability
+        distribution derived from the distance of data points to the current set of centroids.
+        """
+        # Pre-allocate receive buffer for later communication
+        world_size = ht.MPI_WORLD.size
+        max_total = world_size * x.shape[0]
+        recv_buf = torch.empty(
+            (max_total, x.shape[1]), dtype=x.larray.dtype, device=x.larray.device
+        )
+        for _ in range(num_iters):
+            # Calculate the distance between data points and the current set of centroids
+            distance = ht.spatial.distance.cdist(x, centroids, quadratic_expansion=True)
+            min_distance = distance.min(axis=1)
+            # Increase numerical stability for many duplicate data points
+            eps = ht.array(1e-12, split=None, device=x.device)
+            min_dist_sum = ht.maximum(min_distance.sum(), eps)
+            # Sample each point in the data to a new set of centroids
+            prob = oversampling * min_distance / min_dist_sum
+            # -->   probability distribution with oversampling factor
+            #       output format: vector
+            # Define a list of random, uniformly distributed probabilities
+            sample = ht.random.rand(x.shape[0], split=x.split)
+            idx = ht.where(sample <= prob)
+            # -->   choose indices to sample the data according to prob
+            #       output format: vector
+            # Extract the local candidate centroids on each process
+            local_candidates = x[idx].larray
+            # ensure correct shape of no candidate is found (required for communication)
+            local_candidates = local_candidates.reshape(-1, x.shape[1])
+            # number of candidates
+            n_local = local_candidates.shape[0]
+            # Gather the number of local candidates from each MPI rank into a list
+            counts = ht.MPI_WORLD.allgather(n_local)
+            # Build a list of starting offsets so each rank’s block lands in the correct slice of the buffer
+            displs = [0]
+            for c in counts[:-1]:
+                displs.append(displs[-1] + c)
+            # Compute the total number of candidates across all ranks
+            total = displs[-1] + counts[-1]
+            # Take only the first 'total' rows from the preallocated receive buffer
+            buffer = recv_buf[:total]
+            # Gather all local candidates into the receive buffer
+            ht.MPI_WORLD.Allgatherv(local_candidates, (buffer, counts, displs), recv_axis=0)
+            new_candidates = ht.array(buffer, split=None, device=x.device)
+            # -->   pick the data points that are identified as possible centroids
+            #       output format: vector
+            centroids = ht.row_stack((centroids, new_candidates))
+            # -->   stack the data points with these indices to the DNDarray of centroids
+            #       output format: tensor
+        return centroids
 
     def _assign_to_cluster(self, x: DNDarray, eval_functional_value: bool = False):
         """
