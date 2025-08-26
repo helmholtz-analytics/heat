@@ -1,0 +1,89 @@
+name: "🔀 PR Merge Decision"
+description: Decide which PRs should be merged for the upcoming release
+title: "[Release Prep]: PR Merge Decisions for v{version}"
+labels: ["release-prep", "pr-review", "code-freeze"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This issue tracks decisions about which pull requests should be merged for the upcoming Heat release.
+        Review open PRs and decide which ones are ready and appropriate for the release.
+        
+  - type: checkboxes
+    id: pr-review-tasks
+    attributes:
+      label: PR Review Tasks
+      description: Complete these tasks for PR merge decisions
+      options:
+        - label: List all open PRs targeting main branch
+          required: false
+        - label: Review PR readiness (tests passing, reviews complete)
+          required: false
+        - label: Categorize PRs by type (features, bug fixes, etc.)
+          required: false
+        - label: Identify PRs that must be included in release
+          required: false
+        - label: Identify PRs that should be deferred to next release
+          required: false
+        - label: Communicate decisions to PR authors
+          required: false
+        - label: Set appropriate labels on PRs
+          required: false
+        - label: Merge approved PRs before code freeze
+          required: false
+        
+  - type: textarea
+    id: prs-to-merge
+    attributes:
+      label: PRs Approved for Merge
+      description: List PRs that should be merged for this release
+      placeholder: |
+        Format:
+        - #123 - Feature: New distributed algorithm
+        - #124 - Fix: Memory leak in operation X
+        - #125 - Docs: Update tutorial for feature Y
+        
+  - type: textarea
+    id: prs-to-defer
+    attributes:
+      label: PRs Deferred to Next Release
+      description: List PRs that should be deferred to the next release
+      placeholder: |
+        Format:
+        - #126 - Feature: Complex new feature (needs more testing)
+        - #127 - Breaking change: API redesign (schedule for major release)
+        
+  - type: textarea
+    id: critical-prs
+    attributes:
+      label: Critical PRs
+      description: PRs that are critical for this release (blocking issues)
+      placeholder: |
+        Format:
+        - #128 - Critical: Fix for data corruption bug
+        - #129 - Critical: Security vulnerability fix
+        
+  - type: textarea
+    id: merge-notes
+    attributes:
+      label: Merge Decision Notes
+      description: Additional notes about merge decisions
+      placeholder: |
+        Example:
+        - PR #130 needs final review from maintainer X
+        - PR #131 is waiting for contributor to address feedback
+        - PR #132 conflicts with PR #133, need to resolve
+        
+  - type: dropdown
+    id: code-freeze-status
+    attributes:
+      label: Code Freeze Status
+      description: Current status of code freeze for release
+      options:
+        - "Pre-freeze (accepting new features)"
+        - "Soft freeze (bug fixes only)"
+        - "Hard freeze (critical fixes only)"
+        - "Release ready"
+    validations:
+      required: false

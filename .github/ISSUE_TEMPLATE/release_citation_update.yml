@@ -1,0 +1,79 @@
+name: "📝 CITATION.cff Update"
+description: Update CITATION.cff file for the upcoming release
+title: "[Release Prep]: Update CITATION.cff for v{version}"
+labels: ["release-prep", "citation", "documentation"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This issue tracks updating the CITATION.cff file for the upcoming Heat release.
+        This includes adding new contributors and updating release information.
+        
+  - type: checkboxes
+    id: citation-tasks
+    attributes:
+      label: CITATION.cff Update Tasks
+      description: Complete these tasks to update the citation file
+      options:
+        - label: Review all contributors since last release
+          required: false
+        - label: Identify non-core contributors to add to authors list
+          required: false
+        - label: Update author names and affiliations if needed
+          required: false
+        - label: Verify current core team member list
+          required: false
+        - label: Update version information in preferred-citation
+          required: false
+        - label: Check repository and documentation URLs are current
+          required: false
+        - label: Validate CITATION.cff syntax
+          required: false
+        - label: Test citation file with cffconvert tool
+          required: false
+        
+  - type: textarea
+    id: new-contributors
+    attributes:
+      label: New Contributors to Add
+      description: List new contributors to add to the authors section
+      placeholder: |
+        Format (one per line):
+        - family-names: LastName
+          given-names: FirstName
+        - family-names: Smith  
+          given-names: John
+        
+  - type: textarea
+    id: core-team-updates
+    attributes:
+      label: Core Team Updates
+      description: Any updates needed to core team member information
+      placeholder: |
+        Example:
+        - Remove: Former member who left
+        - Update: Changed affiliation for existing member
+        - Add: New core team member
+        
+  - type: textarea
+    id: contributor-notes
+    attributes:
+      label: Contributor Notes
+      description: Notes about specific contributors or contributions
+      placeholder: |
+        Example:
+        - John Smith: Major contribution to FFT module
+        - Jane Doe: Fixed critical bug in distributed operations
+        
+  - type: dropdown
+    id: validation-status
+    attributes:
+      label: Validation Status
+      description: Has the CITATION.cff file been validated?
+      options:
+        - "Not validated"
+        - "Validated with warnings"
+        - "Fully validated"
+    validations:
+      required: false

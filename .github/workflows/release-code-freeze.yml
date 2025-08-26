@@ -1,0 +1,157 @@
+name: Release Code Freeze
+
+on:
+  schedule:
+    # 2 weeks before Easter (approximately March 15th)
+    - cron: '0 9 15 3 *'
+    # 2 weeks before Christmas (approximately December 15th)
+    - cron: '0 9 15 12 *'
+  workflow_dispatch:
+    inputs:
+      release_version:
+        description: 'Target release version (e.g., 1.6.0)'
+        required: true
+        default: 'x.y.z'
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  code-freeze:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@ec9f2d5744a09debf3a187a3f4f675c53b671911 # v2.13.0
+        with:
+          egress-policy: audit
+
+      - name: Determine release version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" == "schedule" ]; then
+            MONTH=$(date +%m)
+            YEAR=$(date +%Y)
+            if [ "$MONTH" == "03" ]; then
+              echo "version=${YEAR}.1.0" >> $GITHUB_OUTPUT
+              echo "season=Spring" >> $GITHUB_OUTPUT
+            elif [ "$MONTH" == "12" ]; then
+              echo "version=${YEAR}.2.0" >> $GITHUB_OUTPUT
+              echo "season=Winter" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "version=${{ github.event.inputs.release_version }}" >> $GITHUB_OUTPUT
+            echo "season=Manual" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Code Freeze Issue
+        uses: actions/github-script@9afe6b66b5f8f48e7651c78b94cbf5e3a8ba2833 # v7.1.0
+        with:
+          script: |
+            const version = '${{ steps.version.outputs.version }}';
+            const season = '${{ steps.version.outputs.season }}';
+            
+            const targetDate = season === 'Spring' ? 'End of March' : 'End of December';
+            
+            const body = `## 🚨 Code Freeze for Heat v${version} 🚨
+
+            This issue was automatically created as part of the ${season} release preparation process.
+
+            **Code freeze is now in effect for the v${version} release.**
+
+            ### Code Freeze Rules
+
+            #### ✅ **ALLOWED during code freeze:**
+            - Critical bug fixes
+            - Documentation improvements  
+            - Test fixes and improvements
+            - Release preparation tasks
+            - Security fixes
+            - Build/CI fixes
+
+            #### ❌ **NOT ALLOWED during code freeze:**
+            - New features
+            - API changes or additions
+            - Non-critical refactoring
+            - Dependency updates (unless critical)
+            - Performance optimizations (unless critical)
+            - Code style changes
+
+            ### Release Preparation Tasks
+            - [ ] Run release preparation workflow
+            - [ ] Update version numbers
+            - [ ] Generate changelog
+            - [ ] Test installation from source
+            - [ ] Test wheel/conda packages
+            - [ ] Review documentation
+            - [ ] Prepare release notes
+            - [ ] Test backwards compatibility
+
+            ### Timeline
+            - **Now:** Code freeze begins
+            - **1 week:** Release notes finalization
+            - **Target release date:** ${targetDate}
+
+            ### Communication
+            All maintainers and regular contributors have been notified of this code freeze.
+
+            **Duration:** Until v${version} is released
+            **Contact:** @helmholtz-analytics/heat-maintainers for questions`;
+            
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `[Release Prep]: Code Freeze for v${version}`,
+              body: body,
+              labels: ['release-prep', 'code-freeze', 'high-priority']
+            });
+
+      - name: Add Code Freeze Labels to Open PRs
+        uses: actions/github-script@9afe6b66b5f8f48e7651c78b94cbf5e3a8ba2833 # v7.1.0
+        with:
+          script: |
+            // Get all open PRs
+            const { data: prs } = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open'
+            });
+
+            for (const pr of prs) {
+              // Add code-freeze label to all open PRs
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pr.number,
+                labels: ['code-freeze-review']
+              });
+
+              // Add comment explaining code freeze
+              const version = '${{ steps.version.outputs.version }}';
+              
+              const commentBody = [
+                '🚨 **Code Freeze Notice**',
+                '',
+                `This PR has been marked for code freeze review. The Heat project is currently in code freeze for the upcoming v${version} release.`,
+                '',
+                '**During code freeze, only the following types of changes are accepted:**',
+                '- Critical bug fixes',
+                '- Documentation improvements',
+                '- Test fixes',
+                '- Release preparation tasks',
+                '- Security fixes',
+                '',
+                'If this PR contains new features or non-critical changes, it may be deferred to the next release. Please ensure your PR is properly labeled and reviewed by maintainers.',
+                '',
+                'For questions, please contact the maintainers or comment on the [code freeze issue](../issues).'
+              ].join('\n');
+              
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pr.number,
+                body: commentBody
+              });
+            }
+
+            console.log(`Processed ${prs.length} open PRs for code freeze`);

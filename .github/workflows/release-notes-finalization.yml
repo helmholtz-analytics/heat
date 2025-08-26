@@ -1,0 +1,163 @@
+name: Release Notes Finalization
+
+on:
+  schedule:
+    # 1 week before Easter (approximately March 22nd)
+    - cron: '0 9 22 3 *'
+    # 1 week before Christmas (approximately December 22nd)
+    - cron: '0 9 22 12 *'
+  workflow_dispatch:
+    inputs:
+      release_version:
+        description: 'Target release version (e.g., 1.6.0)'
+        required: true
+        default: 'x.y.z'
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  release-notes-finalization:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@ec9f2d5744a09debf3a187a3f4f675c53b671911 # v2.13.0
+        with:
+          egress-policy: audit
+
+      - name: Determine release version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" == "schedule" ]; then
+            MONTH=$(date +%m)
+            YEAR=$(date +%Y)
+            if [ "$MONTH" == "03" ]; then
+              echo "version=${YEAR}.1.0" >> $GITHUB_OUTPUT
+              echo "season=Spring" >> $GITHUB_OUTPUT
+              echo "target_date=End of March" >> $GITHUB_OUTPUT
+            elif [ "$MONTH" == "12" ]; then
+              echo "version=${YEAR}.2.0" >> $GITHUB_OUTPUT
+              echo "season=Winter" >> $GITHUB_OUTPUT
+              echo "target_date=End of December" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "version=${{ github.event.inputs.release_version }}" >> $GITHUB_OUTPUT
+            echo "season=Manual" >> $GITHUB_OUTPUT
+            echo "target_date=User specified" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Release Notes Finalization Issue
+        uses: actions/github-script@9afe6b66b5f8f48e7651c78b94cbf5e3a8ba2833 # v7.1.0
+        with:
+          script: |
+            const version = '${{ steps.version.outputs.version }}';
+            const season = '${{ steps.version.outputs.season }}';
+            const targetDate = '${{ steps.version.outputs.target_date }}';
+            
+            const body = `## 🏁 Final Week: Release Notes for Heat v${version}
+
+            This issue was automatically created as part of the ${season} release preparation process.
+
+            **We are in the final week before release!** Time to finalize all release materials.
+
+            ### 🎯 Priority Tasks (Complete by end of week)
+            - [ ] **Finalize CHANGELOG.md** - Ensure all changes since last release are documented
+            - [ ] **Review release notes draft** - Check accuracy and completeness
+            - [ ] **Complete blog post review** - Final edits and approval
+            - [ ] **Test release process** - Dry run of release workflow
+            - [ ] **Prepare release announcement** - Draft community announcement
+            - [ ] **Schedule exact release date/time** - Coordinate team availability
+
+            ### 📋 Release Materials Checklist
+            - [ ] **CHANGELOG.md** - Updated with all changes
+            - [ ] **Release notes** - Draft reviewed and approved
+            - [ ] **Blog post** - Written, reviewed, and approved
+            - [ ] **CITATION.cff** - Updated with new contributors
+            - [ ] **Documentation** - All features documented
+            - [ ] **Version files** - Ready for version bump
+            - [ ] **Package metadata** - pyproject.toml, setup files updated
+
+            ### 🧪 Testing & Validation
+            - [ ] **Installation testing** - pip, conda, from source
+            - [ ] **Distribution packages** - wheel and tarball creation
+            - [ ] **Documentation build** - readthedocs deployment test
+            - [ ] **Backwards compatibility** - Test with previous version APIs
+            - [ ] **Example notebooks** - Verify all examples work
+            - [ ] **Performance benchmarks** - Run key benchmarks if changed
+
+            ### 📢 Communication Plan
+            - [ ] **Internal notification** - Alert core team of release timeline
+            - [ ] **Community announcement** - Draft ready for mailing list/forum
+            - [ ] **Social media posts** - Twitter/LinkedIn posts prepared
+            - [ ] **Documentation deployment** - Plan for doc updates
+
+            ### 📅 Timeline
+            - **Today:** Begin final review process
+            - **2 days before release:** All materials must be complete
+            - **1 day before release:** Final testing and preparation
+            - **Target release:** ${targetDate}
+
+            ### 🚨 Blockers & Issues
+            Use this section to track any blocking issues:
+            - [ ] No blockers identified
+            - [ ] Document any issues that could delay release
+
+            ### 👥 Assignees
+            - **Release Manager:** TBD
+            - **Documentation Review:** TBD  
+            - **Testing Coordination:** TBD
+            - **Communication:** TBD
+
+            **Priority:** 🔴 **CRITICAL** - Release depends on completion of these tasks`;
+            
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `[Release Prep]: Finalize Release Notes for v${version}`,
+              body: body,
+              labels: ['release-prep', 'release-notes', 'final-review', 'critical']
+            });
+
+      - name: Create Blog Post Review Issue
+        uses: actions/github-script@9afe6b66b5f8f48e7651c78b94cbf5e3a8ba2833 # v7.1.0
+        with:
+          script: |
+            const version = '${{ steps.version.outputs.version }}';
+            const season = '${{ steps.version.outputs.season }}';
+            
+            const body = `## 📝 Blog Post Review for Heat v${version}
+
+            This issue tracks the final review and approval of the blog post for the ${season} release.
+
+            ### Review Tasks
+            - [ ] **Content review** - Accuracy of technical details
+            - [ ] **Editorial review** - Grammar, style, clarity
+            - [ ] **Link verification** - All links work and are current
+            - [ ] **Code examples** - Test all code snippets
+            - [ ] **Image/screenshot review** - Current and properly formatted
+            - [ ] **SEO optimization** - Title, description, keywords
+            - [ ] **Legal review** - Copyright, attribution, licensing
+            - [ ] **Final approval** - Sign-off from team leads
+
+            ### Publication Planning
+            - [ ] **Publication date** - Schedule with release timeline
+            - [ ] **Distribution channels** - Where will it be published?
+            - [ ] **Cross-posting** - Other blogs, social media
+            - [ ] **Community notification** - How to announce to users
+
+            ### Review Timeline
+            - **Draft complete:** Should be done by now
+            - **Review period:** Next 3 days
+            - **Final approval:** 2 days before release
+            - **Publication:** Day of release
+
+            **Priority:** High - Needed for release announcement`;
+            
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `[Release Prep]: Blog Post Review for v${version}`,
+              body: body,
+              labels: ['release-prep', 'blog-post', 'review', 'high-priority']
+            });

@@ -1,0 +1,107 @@
+name: "📝 Blog Post Draft"
+description: Draft blog post for the upcoming release
+title: "[Release Prep]: Draft Blog Post for v{version}"
+labels: ["release-prep", "blog-post", "documentation", "outreach"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This issue tracks the creation of a blog post draft for the upcoming Heat release.
+        The blog post should highlight key features, improvements, and community updates.
+        
+  - type: checkboxes
+    id: blog-tasks
+    attributes:
+      label: Blog Post Tasks
+      description: Complete these tasks for the blog post
+      options:
+        - label: Draft outline with key sections
+          required: false
+        - label: Write introduction highlighting major themes
+          required: false
+        - label: Detail major new features with examples
+          required: false
+        - label: Highlight performance improvements with benchmarks
+          required: false
+        - label: Acknowledge contributors and community
+          required: false
+        - label: Include installation and getting started info
+          required: false
+        - label: Add relevant code examples or screenshots
+          required: false
+        - label: Review and edit for clarity and accuracy
+          required: false
+        - label: Get team review and approval
+          required: false
+        - label: Schedule publication timing
+          required: false
+        
+  - type: textarea
+    id: blog-outline
+    attributes:
+      label: Blog Post Outline
+      description: High-level outline of the blog post structure
+      placeholder: |
+        Example outline:
+        1. Introduction - What's new in Heat v{version}
+        2. Major Features
+           - Feature A: Description and impact
+           - Feature B: Performance improvements
+        3. Community Highlights
+           - New contributors
+           - Community events/presentations
+        4. Breaking Changes & Migration Guide
+        5. Installation & Getting Started
+        6. What's Next - Roadmap preview
+        7. Acknowledgments
+        
+  - type: textarea
+    id: key-messages
+    attributes:
+      label: Key Messages
+      description: Main messages to convey in the blog post
+      placeholder: |
+        Example:
+        - Heat continues to push boundaries in distributed computing
+        - Major performance improvements benefit all users
+        - Growing community of contributors and users
+        - Improved ease of use and documentation
+        
+  - type: textarea
+    id: target-audience
+    attributes:
+      label: Target Audience
+      description: Who is the primary audience for this blog post?
+      placeholder: |
+        Example:
+        - Existing Heat users interested in new features
+        - Scientific Python community members
+        - HPC and distributed computing researchers
+        - Data scientists working with large datasets
+        
+  - type: textarea
+    id: publication-plan
+    attributes:
+      label: Publication Plan
+      description: Where and when will the blog post be published?
+      placeholder: |
+        Example:
+        - Helmholtz Analytics blog
+        - Python Software Foundation blog
+        - LinkedIn/Twitter social media
+        - Scientific Python newsletter
+        
+  - type: dropdown
+    id: draft-status
+    attributes:
+      label: Draft Status
+      description: Current status of the blog post draft
+      options:
+        - "Planning/Outline"
+        - "First draft in progress"
+        - "Draft complete, needs review"
+        - "Reviewed and approved"
+        - "Ready for publication"
+    validations:
+      required: false

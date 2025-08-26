@@ -1,11 +1,53 @@
 # Releasing a new Heat version
 
-These are basic instructions for internal use. Will be expanded as the need arises.
+These are instructions for Heat release management, including both automated and manual processes.
 
 ### Table of Contents
+- [Automated Release Schedule](#automated-release-schedule)
 - [Major or minor release](#major-or-minor-release)
 - [Patch release](#patch-release)
 - [conda-forge build](#conda-forge-build)
+
+## Automated Release Schedule
+
+Heat follows a bi-annual release schedule with automated preparation workflows:
+
+- **Spring Release**: Target around Easter (end of March)
+- **Winter Release**: Target around Christmas (end of December)
+
+### Automated Timeline
+
+The release process is largely automated with the following schedule:
+
+#### 4 Weeks Before Release (March 1st / December 1st)
+**Automated workflows create issues for:**
+- NEP 29 compliance check and bug report template update
+- Release highlights selection
+- CITATION.cff update
+- PR merge decisions
+- Blog post drafting
+- All open PRs are labeled with `pr-talk` for discussion
+
+#### 2 Weeks Before Release (March 15th / December 15th)  
+**Code freeze begins:**
+- Automated code freeze issue is created
+- Only critical bug fixes accepted
+- Release preparation workflow should be triggered
+- All open PRs are labeled and notified of code freeze
+
+#### 1 Week Before Release (March 22nd / December 22nd)
+**Final preparations:**
+- Release notes finalization issue created
+- Blog post review issue created
+- All release materials should be complete
+
+### Manual Override
+
+You can manually trigger these workflows at any time using the workflow dispatch feature in GitHub Actions:
+
+- [Release Schedule Workflow](https://github.com/helmholtz-analytics/heat/actions/workflows/release-schedule.yml)
+- [Code Freeze Workflow](https://github.com/helmholtz-analytics/heat/actions/workflows/release-code-freeze.yml)
+- [Release Notes Finalization](https://github.com/helmholtz-analytics/heat/actions/workflows/release-notes-finalization.yml)
 
 ### Major or minor release
 
@@ -17,6 +59,7 @@ In the following, we assume we are about to release Heat v1.5.0.
 
 - You need [PyPi](https://pypi.org/), [Test.PyPi](https://test.pypi.org/) account
 - All intended PRs are merged, all tests have passed, and the `main` branch is ready for release.
+- **If following automated schedule**: All automated issues have been addressed (NEP 29 compliance, highlights selected, CITATION updated, etc.)
 
 **Create Pre-release Branch**
 
