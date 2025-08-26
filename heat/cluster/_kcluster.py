@@ -286,6 +286,20 @@ class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
         """
         Helper function for the k-means|| initialization of centroids. Samples new centroids based on a probability
         distribution derived from the distance of data points to the current set of centroids.
+
+        Parameters
+        ----------
+        x : DNDarray
+            The data to initialize the clusters for. Shape = (n_samples, n_features)
+
+        centroids : DNDarray
+            The initial set of centroids
+
+        oversampling : float
+            oversampling factor used in the k-means|| initializiation of centroids
+
+        num_iters : float
+            number of iterations used in the initialization of centroids
         """
         # Pre-allocate receive buffer for later communication
         world_size = ht.MPI_WORLD.size
