@@ -49,6 +49,20 @@ You can manually trigger these workflows at any time using the workflow dispatch
 - [Code Freeze Workflow](https://github.com/helmholtz-analytics/heat/actions/workflows/release-code-freeze.yml)
 - [Release Notes Finalization](https://github.com/helmholtz-analytics/heat/actions/workflows/release-notes-finalization.yml)
 
+### Labels and Organization
+
+The automated workflow uses several labels to organize release preparation:
+
+- `release-prep` - All automated release preparation issues
+- `pr-talk` - PRs that need discussion for release inclusion
+- `code-freeze-review` - PRs under code freeze review  
+- `compliance`, `highlights`, `citation`, `blog-post` - Specific task types
+- `high-priority`, `critical` - Priority levels
+
+### Integration with Manual Process
+
+The automated workflow handles the **preparation phase** of releases. The actual release creation, testing, and publication remain manual processes that require human oversight and follow the existing procedures below.
+
 ### Major or minor release
 
 (e.g. 1.4 --> 1.5, or 1.5 --> 2.0)
