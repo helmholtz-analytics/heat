@@ -1,0 +1,78 @@
+site_name: "Heat"
+
+repo_name: helmholtz-analytics/heat
+repo_url: https://github.com/helmholtz-analytics/heat
+
+theme:
+  name: "material"
+  palette:
+    primary: deep orange
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.footer
+    - navigation.top
+
+plugins:
+- search
+- autorefs
+- glightbox
+- mkdocs-jupyter
+- gen-files:
+    scripts:
+    - scripts/gen_ref_pages.py  # (2)!
+- literate-nav:
+    nav_file: SUMMARY.md
+- section-index
+- mkdocstrings:
+    handlers:
+      python:
+        options:
+          docstring_style: numpy
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.blocks.caption
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+
+extra_javascript:
+  - javascripts/mathjax.js
+  - https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js
+
+nav:
+- Home: index.md
+- Introduction: introduction.md
+- Getting Started: getting_started.md
+- Case Studies: case_studies.md
+- Documentation: documentation_howto.md
+- Code Reference: reference/
+- Tutorials:
+  - tutorials/tutorials.md
+  - 30 Minutes Welcome: tutorials/tutorial_30_minutes.md
+  - Parallel Computing: tutorials/tutorial_parallel_computation.md
+  - Clustering: tutorials/tutorial_clustering.md
+  - Notebooks:
+    - tutorials/tutorial_notebook_gallery.md
+    - Setup:
+      - Haicore: tutorials/notebooks/0_setup/0_setup_haicore.ipynb
+      - JSC: tutorials/notebooks/0_setup/0_setup_jsc.ipynb
+      - Local: tutorials/notebooks/0_setup/0_setup_local.ipynb
+      - pip: tutorials/notebooks/0_setup/0_setup_pip.md
+      - conda: tutorials/notebooks/0_setup/0_setup_conda.md
+    - Basics: tutorials/notebooks/1_basics.ipynb
+    - Internals: tutorials/notebooks/2_internals.ipynb
+    - Loading Preprocessing: tutorials/notebooks/3_loading_preprocessing.ipynb
+    - Matrix Factorizations: tutorials/notebooks/4_matrix_factorizations.ipynb
+    - Clustering: tutorials/notebooks/5_clustering.ipynb
+    - Profiling: tutorials/notebooks/6_profiling.ipynb
