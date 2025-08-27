@@ -13,6 +13,8 @@ The following tables show the NumPy functions supported by Heat.
 8. [NumPy Sorting Operations](#numpy-sorting-operations)
 9. [NumPy Statistical Operations](#numpy-statistical-operations)
 10. [NumPy Random Operations](#numpy-random-operations)
+11. [NumPy FFT Operations](#numpy-fft-operations)
+12. [NumPy Masked Array Operations](#numpy-masked-array-operations)
 
 ## NumPy  Mathematical Functions
 [Back to Table of Contents](#table-of-contents)
@@ -405,3 +407,42 @@ The following tables show the NumPy functions supported by Heat.
 | random.seed | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+random.seed) |
 | random.get_state | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+random.get_state) |
 | random.set_state | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+random.set_state) |
+## NumPy FFT Operations
+[Back to Table of Contents](#table-of-contents)
+
+| NumPy FFT Operations | Heat | Issues |
+|---|---|---|
+| fft.fft | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+fft.fft) |
+| fft.ifft | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+fft.ifft) |
+| fft.fft2 | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+fft.fft2) |
+| fft.ifft2 | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+fft.ifft2) |
+| fft.fftn | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+fft.fftn) |
+| fft.ifftn | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+fft.ifftn) |
+| fft.rfft | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+fft.rfft) |
+| fft.irfft | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+fft.irfft) |
+| fft.fftshift | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+fft.fftshift) |
+| fft.ifftshift | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+fft.ifftshift) |
+## NumPy Masked Array Operations
+[Back to Table of Contents](#table-of-contents)
+
+| NumPy Masked Array Operations | Heat | Issues |
+|---|---|---|
+| ma.masked_array | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+ma.masked_array) |
+| ma.masked_where | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+ma.masked_where) |
+| ma.fix_invalid | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+ma.fix_invalid) |
+| ma.is_masked | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+ma.is_masked) |
+| ma.mean | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+ma.mean) |
+| ma.median | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+ma.median) |
+| ma.std | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+ma.std) |
+| ma.var | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+ma.var) |
+| ma.sum | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+ma.sum) |
+| ma.min | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+ma.min) |
+| ma.max | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+ma.max) |
+| ma.ptp | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+ma.ptp) |
+| ma.count | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+ma.count) |
+| ma.any | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+ma.any) |
+| ma.all | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+ma.all) |
+| ma.masked_equal | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+ma.masked_equal) |
+| ma.masked_greater | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+ma.masked_greater) |
+| ma.masked_less | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+ma.masked_less) |
+| ma.notmasked_contiguous | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+ma.notmasked_contiguous) |
