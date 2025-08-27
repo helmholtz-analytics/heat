@@ -24,7 +24,7 @@ class KNeighborsClassifier(ht.BaseEstimator, ht.ClassificationMixin):
         The distance function used to identify the nearest neighbors, defaults to the Euclidean distance.
 
     References
-    --------
+    ----------
     [1] T. Cover and P. Hart, "Nearest Neighbor Pattern Classification," in IEEE Transactions on Information Theory,
     vol. 13, no. 1, pp. 21-27, January 1967, doi: 10.1109/TIT.1967.1053964.
     """
@@ -122,7 +122,6 @@ class KNeighborsClassifier(ht.BaseEstimator, ht.ClassificationMixin):
         """
         distances = self.effective_metric_(x, self.x)
         _, indices = ht.topk(distances, self.n_neighbors, largest=False)
-
         predictions = self.y[indices.flatten()]
         predictions.balance_()
         predictions = ht.reshape(predictions, (indices.gshape + (self.y.gshape[1],)))

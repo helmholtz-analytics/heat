@@ -5,15 +5,15 @@ import numpy as np
 
 from .communication import MPI
 from .dndarray import DNDarray
-from .types import promote_types
+from .types import promote_types, float32, float64
 from .manipulations import pad, flip
-from .factories import array, zeros
+from .factories import array, zeros, arange
 import torch.nn.functional as fc
 
 __all__ = ["convolve"]
 
 
-def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
+def convolve(a: DNDarray, v: DNDarray, mode: str = "full", stride: int = 1) -> DNDarray:
     """
     Returns the discrete, linear convolution of two one-dimensional `DNDarray`s or scalars.
     Unlike `numpy.signal.convolve`, if ``a`` and/or ``v`` have more than one dimension, batch-convolution along the last dimension will be attempted. See `Examples` below.
@@ -30,7 +30,7 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
         Can be 'full', 'valid', or 'same'. Default is 'full'.
         'full':
           Returns the convolution at
-          each point of overlap, with an output shape of (N+M-1,). At
+          each point of overlap, with a length of '(N+M-2)//stride+1'. At
           the end-points of the convolution, the signals do not overlap
           completely, and boundary effects may be seen.
         'same':
@@ -38,34 +38,43 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
           effects are still visible. This mode is not supported for
           even-sized filter weights
         'valid':
-          Mode 'valid' returns output of length 'N-M+1'. The
+          Mode 'valid' returns output of length '(N-M)//stride+1'. The
           convolution product is only given for points where the signals
           overlap completely. Values outside the signal boundary have no
           effect.
+    stride : int
+        Stride of the convolution. Must be a positive integer. Default is 1.
+        Stride must be 1 for mode 'same'.
 
     Examples
     --------
     Note how the convolution operator flips the second array
     before "sliding" the two across one another:
 
-    >>> a = ht.ones(10)
+    >>> a = ht.ones(5)
     >>> v = ht.arange(3).astype(ht.float)
-    >>> ht.convolve(a, v, mode='full')
+    >>> ht.convolve(a, v, mode="full")
     DNDarray([0., 1., 3., 3., 3., 3., 2.])
-    >>> ht.convolve(a, v, mode='same')
+    >>> ht.convolve(a, v, mode="same")
     DNDarray([1., 3., 3., 3., 3.])
-    >>> ht.convolve(a, v, mode='valid')
+    >>> ht.convolve(a, v, mode="valid")
     DNDarray([3., 3., 3.])
-    >>> a = ht.ones(10, split = 0)
-    >>> v = ht.arange(3, split = 0).astype(ht.float)
-    >>> ht.convolve(a, v, mode='valid')
+    >>> ht.convolve(a, v, stride=2)
+    DNDarray([0., 3., 3., 2.])
+    >>> ht.convolve(a, v, mode="valid", stride=2)
+    DNDarray([3., 3.])
+
+    >>> a = ht.ones(10, split=0)
+    >>> v = ht.arange(3, split=0).astype(ht.float)
+    >>> ht.convolve(a, v, mode="valid")
     DNDarray([3., 3., 3., 3., 3., 3., 3., 3.])
 
     [0/3] DNDarray([3., 3., 3.])
     [1/3] DNDarray([3., 3., 3.])
     [2/3] DNDarray([3., 3.])
-    >>> a = ht.ones(10, split = 0)
-    >>> v = ht.arange(3, split = 0)
+
+    >>> a = ht.ones(10, split=0)
+    >>> v = ht.arange(3, split=0)
     >>> ht.convolve(a, v)
     DNDarray([0., 1., 3., 3., 3., 3., 3., 3., 3., 3., 3., 2.], dtype=ht.float32, device=cpu:0, split=0)
 
@@ -73,10 +82,10 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
     [1/3] DNDarray([3., 3., 3., 3.])
     [2/3] DNDarray([3., 3., 3., 2.])
 
-    >>> a = ht.arange(50, dtype = ht.float64, split=0)
-    >>> a = a.reshape(10, 5) # 10 signals of length 5
+    >>> a = ht.arange(50, dtype=ht.float64, split=0)
+    >>> a = a.reshape(10, 5)  # 10 signals of length 5
     >>> v = ht.arange(3)
-    >>> ht.convolve(a, v) # batch processing: 10 signals convolved with filter v
+    >>> ht.convolve(a, v)  # batch processing: 10 signals convolved with filter v
     DNDarray([[  0.,   0.,   1.,   4.,   7.,  10.,   8.],
           [  0.,   5.,  16.,  19.,  22.,  25.,  18.],
           [  0.,  10.,  31.,  34.,  37.,  40.,  28.],
@@ -88,8 +97,8 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
           [  0.,  40., 121., 124., 127., 130.,  88.],
           [  0.,  45., 136., 139., 142., 145.,  98.]], dtype=ht.float64, device=cpu:0, split=0)
 
-    >>> v = ht.random.randint(0, 3, (10, 3), split=0) # 10 filters of length 3
-    >>> ht.convolve(a, v) # batch processing: 10 signals convolved with 10 filters
+    >>> v = ht.random.randint(0, 3, (10, 3), split=0)  # 10 filters of length 3
+    >>> ht.convolve(a, v)  # batch processing: 10 signals convolved with 10 filters
     DNDarray([[  0.,   0.,   2.,   4.,   6.,   8.,   0.],
             [  5.,   6.,   7.,   8.,   9.,   0.,   0.],
             [ 20.,  42.,  56.,  61.,  66.,  41.,  14.],
@@ -116,6 +125,10 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
         except TypeError:
             raise TypeError(f"non-supported type for filter: {type(v)}")
     promoted_type = promote_types(a.dtype, v.dtype)
+    if a.larray.is_mps and promoted_type == float64:
+        # cannot cast to float64 on MPS
+        promoted_type = float32
+
     a = a.astype(promoted_type)
     v = v.astype(promoted_type)
 
@@ -152,6 +165,12 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
             f"1-D convolution only supported for 1-dimensional signal and kernel. Signal: {a.shape}, Filter: {v.shape}"
         )
 
+    # check mode and stride for value errors
+    if stride < 1:
+        raise ValueError("Stride must be at positive integer")
+    if stride > 1 and mode == "same":
+        raise ValueError("Stride must be 1 for mode 'same'")
+
     if mode == "same" and v.shape[-1] % 2 == 0:
         raise ValueError("Mode 'same' cannot be used with even-sized kernel")
     if not v.is_balanced():
@@ -160,20 +179,23 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
     # calculate pad size according to mode
     if mode == "full":
         pad_size = v.shape[-1] - 1
-        gshape = v.shape[-1] + a.shape[-1] - 1
     elif mode == "same":
         pad_size = v.shape[-1] // 2
-        gshape = a.shape[-1]
     elif mode == "valid":
         pad_size = 0
-        gshape = a.shape[-1] - v.shape[-1] + 1
     else:
         raise ValueError(f"Supported modes are 'full', 'valid', 'same', got {mode}")
+
+    gshape = (a.shape[-1] + 2 * pad_size - v.shape[-1]) // stride + 1
+
+    if v.is_distributed() and stride > 1:
+        gshape_stride_1 = a.shape[-1] + 2 * pad_size - v.shape[-1] + 1
 
     if batch_processing:
         # all operations are local torch operations, only the last dimension is convolved
         local_a = a.larray
         local_v = v.larray
+
         # flip filter for convolution, as Pytorch conv1d computes correlations
         local_v = torch.flip(local_v, [-1])
         local_batch_dims = tuple(local_a.shape[:-1])
@@ -204,7 +226,9 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
 
         # apply torch convolution operator if local signal isn't empty
         if torch.prod(torch.tensor(local_a.shape, device=local_a.device)) > 0:
-            local_convolved = fc.conv1d(local_a, local_v, padding=pad_size, groups=channels)
+            local_convolved = fc.conv1d(
+                local_a, local_v, padding=pad_size, groups=channels, stride=stride
+            )
         else:
             empty_shape = tuple(local_a.shape[:-1] + (gshape,))
             local_convolved = torch.empty(empty_shape, dtype=local_a.dtype, device=local_a.device)
@@ -232,6 +256,23 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
         a.get_halo(halo_size)
         # apply halos to local array
         signal = a.array_with_halos
+
+        # shift signal based on global kernel starts for any rank but first
+        if stride > 1 and not v.is_distributed():
+            if a.comm.rank == 0:
+                local_index = 0
+            else:
+                local_index = torch.sum(a.lshape_map[: a.comm.rank, 0]).item() - halo_size
+                local_index = local_index % stride
+
+                if local_index != 0:
+                    local_index = stride - local_index
+
+                # even kernels can produces doubles
+                if v.shape[-1] % 2 == 0 and local_index == 0:
+                    local_index = stride
+
+            signal = signal[local_index:]
     else:
         signal = a.larray
 
@@ -262,11 +303,15 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
     if v.is_distributed():
         size = v.comm.size
 
+        # any stride is a subset of stride 1
+        if stride > 1:
+            gshape = gshape_stride_1
+
         for r in range(size):
             rec_v = t_v.clone()
             v.comm.Bcast(rec_v, root=r)
             t_v1 = rec_v.reshape(1, 1, rec_v.shape[0])
-            local_signal_filtered = fc.conv1d(signal, t_v1)
+            local_signal_filtered = fc.conv1d(signal, t_v1, stride=1)
             # unpack 3D result into 1D
             local_signal_filtered = local_signal_filtered[0, 0, :]
 
@@ -294,21 +339,29 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
                 )
             if r != size - 1:
                 start_idx += v.lshape_map[r + 1][0].item()
+
+        # any stride is a subset of arrays of stride 1
+        if stride > 1:
+            signal_filtered = signal_filtered[::stride]
+
         return signal_filtered
 
     else:
         # apply torch convolution operator
-        signal_filtered = fc.conv1d(signal, weight)
+        if signal.shape[-1] >= weight.shape[-1]:
+            signal_filtered = fc.conv1d(signal, weight, stride=stride)
 
-        # unpack 3D result into 1D
-        signal_filtered = signal_filtered[0, 0, :]
+            # unpack 3D result into 1D
+            signal_filtered = signal_filtered[0, 0, :]
+        else:
+            signal_filtered = torch.tensor([], device=str(signal.device))
 
         # if kernel shape along split axis is even we need to get rid of duplicated values
-        if a.comm.rank != 0 and v.shape[0] % 2 == 0:
+        if a.comm.rank != 0 and v.shape[0] % 2 == 0 and stride == 1:
             signal_filtered = signal_filtered[1:]
 
         return DNDarray(
-            signal_filtered.contiguous(),
+            signal_filtered,
             (gshape,),
             signal_filtered.dtype,
             a.split,

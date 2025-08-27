@@ -182,7 +182,9 @@ class TestLogical(TestCase):
         c = ht.zeros((4, 6), split=0)
         d = ht.zeros((4, 6), split=1)
         e = ht.zeros((4, 6))
-        f = ht.float64([[2.000005, 2.000005], [2.000005, 2.000005]])
+
+        if not self.is_mps:
+            f = ht.float64([[2.000005, 2.000005], [2.000005, 2.000005]])
 
         self.assertFalse(ht.allclose(a, b))
         self.assertTrue(ht.allclose(a, b, atol=1e-04))
@@ -190,7 +192,8 @@ class TestLogical(TestCase):
         self.assertTrue(ht.allclose(a, 2))
         self.assertTrue(ht.allclose(a, 2.0))
         self.assertTrue(ht.allclose(2, a))
-        self.assertTrue(ht.allclose(f, a))
+        if not self.is_mps:
+            self.assertTrue(ht.allclose(f, a))
         self.assertTrue(ht.allclose(c, d))
         self.assertTrue(ht.allclose(c, e))
         self.assertTrue(e.allclose(c))
@@ -223,13 +226,14 @@ class TestLogical(TestCase):
         self.assertTrue(ht.equal(any_tensor, res))
 
         # float values, no axis
-        x = ht.float64([[0, 0, 0], [0, 0, 0]])
-        res = ht.zeros(1, dtype=ht.uint8)
-        any_tensor = ht.any(x)
-        self.assertIsInstance(any_tensor, ht.DNDarray)
-        self.assertEqual(any_tensor.shape, ())
-        self.assertEqual(any_tensor.dtype, ht.bool)
-        self.assertTrue(ht.equal(any_tensor, res))
+        if not self.is_mps:
+            x = ht.float64([[0, 0, 0], [0, 0, 0]])
+            res = ht.zeros(1, dtype=ht.uint8)
+            any_tensor = ht.any(x)
+            self.assertIsInstance(any_tensor, ht.DNDarray)
+            self.assertEqual(any_tensor.shape, ())
+            self.assertEqual(any_tensor.dtype, ht.bool)
+            self.assertTrue(ht.equal(any_tensor, res))
 
         # split tensor, along axis
         x = ht.arange(10, split=0)

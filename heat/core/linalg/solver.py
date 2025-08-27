@@ -274,9 +274,10 @@ def lanczos(
 
 def solve_triangular(A: DNDarray, b: DNDarray) -> DNDarray:
     """
-    This function provides a solver for (possibly batched) upper triangular systems of linear equations: it returns `x` in `Ax = b`, where `A` is a (possibly batched) upper triangular matrix and
+    Solver for (possibly batched) upper triangular systems of linear equations: it returns `x` in `Ax = b`, where `A` is a (possibly batched) upper triangular matrix and
     `b` a (possibly batched) vector or matrix of suitable shape, both provided as input to the function.
     The implementation builts on the corresponding solver in PyTorch and implements an memory-distributed, MPI-parallel block-wise version thereof.
+
     Parameters
     ----------
     A : DNDarray
@@ -339,7 +340,7 @@ def solve_triangular(A: DNDarray, b: DNDarray) -> DNDarray:
         else:  # A not split, b.split == -2
             b_lshapes_cum = torch.hstack(
                 [
-                    torch.zeros(1, dtype=torch.int32, device=tdev),
+                    torch.zeros(1, dtype=torch.int64, device=tdev),
                     torch.cumsum(b.lshape_map[:, -2], 0),
                 ]
             )
@@ -387,7 +388,7 @@ def solve_triangular(A: DNDarray, b: DNDarray) -> DNDarray:
     if A.split >= batch_dim:  # both splits in la dims
         A_lshapes_cum = torch.hstack(
             [
-                torch.zeros(1, dtype=torch.int32, device=tdev),
+                torch.zeros(1, dtype=torch.int64, device=tdev),
                 torch.cumsum(A.lshape_map[:, A.split], 0),
             ]
         )
@@ -411,7 +412,11 @@ def solve_triangular(A: DNDarray, b: DNDarray) -> DNDarray:
                 displ[i:] = 0
 
                 res_send = torch.empty(0)
-                res_recv = torch.zeros((*batch_shape, count[comm.rank], b.shape[-1]), device=tdev)
+                res_recv = torch.zeros(
+                    (*batch_shape, count[comm.rank], b.shape[-1]),
+                    device=tdev,
+                    dtype=b.dtype.torch_type(),
+                )
 
                 if comm.rank == i:
                     x.larray = torch.linalg.solve_triangular(

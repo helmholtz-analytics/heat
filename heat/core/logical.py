@@ -48,7 +48,7 @@ def all(
     reference to ``out`` is returned.
 
     Parameters
-    -----------
+    ----------
     x : DNDarray
         Input array or object that can be converted to an array.
     axis : None or int or Tuple[int,...], optional
@@ -63,7 +63,7 @@ def all(
         With this option, the result will broadcast correctly against the original array.
 
     Examples
-    ---------
+    --------
     >>> x = ht.random.randn(4, 5)
     >>> x
     DNDarray([[ 0.7199,  1.3718,  1.5008,  0.3435,  1.2884],
@@ -114,7 +114,7 @@ def allclose(
     for all elements of ``x`` and ``y``, ``False`` otherwise
 
     Parameters
-    -----------
+    ----------
     x : DNDarray
         First array to compare
     y : DNDarray
@@ -128,7 +128,7 @@ def allclose(
         the output array.
 
     Examples
-    ---------
+    --------
     >>> x = ht.float32([[2, 2], [2, 2]])
     >>> ht.allclose(x, x)
     True
@@ -179,7 +179,7 @@ def any(
     The returning array is one dimensional unless axis is not ``None``.
 
     Parameters
-    -----------
+    ----------
     x : DNDarray
         Input tensor
     axis : int, optional
@@ -193,7 +193,7 @@ def any(
         With this option, the result will broadcast correctly against the original array.
 
     Examples
-    ---------
+    --------
     >>> x = ht.float32([[0.3, 0, 0.5]])
     >>> x.any()
     DNDarray([True], dtype=ht.bool, device=cpu:0, split=None)
@@ -234,7 +234,7 @@ def isclose(
     within the given tolerance. If both ``x`` and ``y`` are scalars, returns a single boolean value.
 
     Parameters
-    -----------
+    ----------
     x : DNDarray
         Input array to compare.
     y : DNDarray
@@ -390,14 +390,14 @@ def logical_and(x: DNDarray, y: DNDarray) -> DNDarray:
     Compute the truth value of ``x`` AND ``y`` element-wise. Returns a boolean :class:`~heat.core.dndarray.DNDarray` containing the truth value of ``x`` AND ``y`` element-wise.
 
     Parameters
-    -----------
+    ----------
     x : DNDarray
         Input array of same shape
     y : DNDarray
         Input array of same shape
 
     Examples
-    ---------
+    --------
     >>> ht.logical_and(ht.array([True, False]), ht.array([False, False]))
     DNDarray([False, False], dtype=ht.bool, device=cpu:0, split=None)
     """
@@ -411,7 +411,7 @@ def logical_not(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     Computes the element-wise logical NOT of the given input :class:`~heat.core.dndarray.DNDarray`.
 
     Parameters
-    -----------
+    ----------
     x : DNDarray
         Input array
     out : DNDarray, optional
@@ -419,7 +419,7 @@ def logical_not(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
         The output is a :class:`~heat.core.dndarray.DNDarray` with ``datatype=bool``.
 
     Examples
-    ---------
+    --------
     >>> ht.logical_not(ht.array([True, False]))
     DNDarray([False,  True], dtype=ht.bool, device=cpu:0, split=None)
     """
@@ -432,14 +432,14 @@ def logical_or(x: DNDarray, y: DNDarray) -> DNDarray:
     input :class:`~heat.core.dndarray.DNDarray`.
 
     Parameters
-    -----------
+    ----------
     x : DNDarray
         Input array of same shape
     y : DNDarray
         Input array of same shape
 
     Examples
-    ---------
+    --------
     >>> ht.logical_or(ht.array([True, False]), ht.array([False, False]))
     DNDarray([ True, False], dtype=ht.bool, device=cpu:0, split=None)
     """
@@ -453,14 +453,14 @@ def logical_xor(x: DNDarray, y: DNDarray) -> DNDarray:
     Computes the element-wise logical XOR of the given input :class:`~heat.core.dndarray.DNDarray`.
 
     Parameters
-    -----------
+    ----------
     x : DNDarray
         Input array of same shape
     y : DNDarray
         Input array of same shape
 
     Examples
-    ---------
+    --------
     >>> ht.logical_xor(ht.array([True, False, True]), ht.array([True, False, False]))
     DNDarray([False, False,  True], dtype=ht.bool, device=cpu:0, split=None)
     """
@@ -473,7 +473,7 @@ def __sanitize_close_input(x: DNDarray, y: DNDarray) -> Tuple[DNDarray, DNDarray
     Provides copies of ``x`` and ``y`` distributed along the same split axis (if original split axes do not match).
 
     Parameters
-    -----------
+    ----------
     x : DNDarray
         The left-hand side operand.
     y : DNDarray
@@ -493,7 +493,7 @@ def __sanitize_close_input(x: DNDarray, y: DNDarray) -> Tuple[DNDarray, DNDarray
         In the former case, the scalar is wrapped in a :class:`~heat.core.dndarray.DNDarray`.
 
         Parameters
-        -----------
+        ----------
         x : Union[int, float, DNDarray]
             The left-hand side operand.
         y : Union[int, float, DNDarray]

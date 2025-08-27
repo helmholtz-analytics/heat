@@ -46,6 +46,8 @@ __all__ = [
     "canonical_heat_type",
     "heat_type_is_exact",
     "heat_type_is_inexact",
+    "heat_type_is_realfloating",
+    "heat_type_is_complexfloating",
     "iscomplex",
     "isreal",
     "issubdtype",
@@ -502,7 +504,7 @@ def canonical_heat_type(a_type: Union[str, Type[datatype], Any]) -> Type[datatyp
         In the three former cases the according mapped type is looked up, in the latter the type is simply returned.
 
     Raises
-    -------
+    ------
     TypeError
         If the type cannot be converted.
     """
@@ -547,9 +549,26 @@ def heat_type_is_inexact(ht_dtype: Type[datatype]) -> bool:
     return ht_dtype in _inexact
 
 
+def heat_type_is_realfloating(ht_dtype: Type[datatype]) -> bool:
+    """
+    Check if Heat type is a real floating point number, i.e float32 or float64
+
+    Parameters
+    ----------
+    ht_dtype: Type[datatype]
+        Heat type to check
+
+    Returns
+    -------
+    out: bool
+        True if ht_dtype is a real float, False otherwise
+    """
+    return ht_dtype in (float32, float64)
+
+
 def heat_type_is_complexfloating(ht_dtype: Type[datatype]) -> bool:
     """
-    Check if HeAT type is a complex floating point number, i.e complex64
+    Check if Heat type is a complex floating point number, i.e complex64
 
     Parameters
     ----------
@@ -580,7 +599,7 @@ def heat_type_of(
         The object for which to infer the type.
 
     Raises
-    -------
+    ------
     TypeError
         If the object's type cannot be inferred.
     """
@@ -696,7 +715,7 @@ def can_cast(
 
 
     Raises
-    -------
+    ------
     TypeError
         If the types are not understood or casting is not a string
     ValueError
@@ -714,7 +733,7 @@ def can_cast(
     True
     >>> ht.can_cast(2.0e200, "u1")
     False
-    >>> ht.can_cast('i8', 'i4', 'no')
+    >>> ht.can_cast("i8", "i4", "no")
     False
     >>> ht.can_cast("i8", "i4", "safe")
     False
@@ -774,7 +793,7 @@ def iscomplex(x: dndarray.DNDarray) -> dndarray.DNDarray:
 
     Examples
     --------
-    >>> ht.iscomplex(ht.array([1+1j, 1]))
+    >>> ht.iscomplex(ht.array([1 + 1j, 1]))
     DNDarray([ True, False], dtype=ht.bool, device=cpu:0, split=None)
     """
     sanitation.sanitize_in(x)
@@ -796,7 +815,7 @@ def isreal(x: dndarray.DNDarray) -> dndarray.DNDarray:
 
     Examples
     --------
-    >>> ht.iscomplex(ht.array([1+1j, 1]))
+    >>> ht.iscomplex(ht.array([1 + 1j, 1]))
     DNDarray([ True, False], dtype=ht.bool, device=cpu:0, split=None)
     """
     return _operations.__local_op(torch.isreal, x, None, no_cast=True)
@@ -825,7 +844,7 @@ def issubdtype(
     False
     >>> ht.issubdtype(ht.float64, ht.float32)
     False
-    >>> ht.issubdtype('i', ht.integer)
+    >>> ht.issubdtype("i", ht.integer)
     True
     """
     # Assure that each argument is a ht.dtype
@@ -868,7 +887,7 @@ def promote_types(
 
 
 def result_type(
-    *arrays_and_types: Tuple[Union[dndarray.DNDarray, Type[datatype], Any]]
+    *arrays_and_types: Tuple[Union[dndarray.DNDarray, Type[datatype], Any]],
 ) -> Type[datatype]:
     """
     Returns the data type that results from type promotions rules performed in an arithmetic operation.
@@ -975,7 +994,7 @@ class finfo:
         Kind of floating point data-type about which to get information.
 
     Examples
-    ---------
+    --------
     >>> import heat as ht
     >>> info = ht.types.finfo(ht.float32)
     >>> info.bits
@@ -1023,7 +1042,7 @@ class iinfo:
         Kind of floating point data-type about which to get information.
 
     Examples
-    ---------
+    --------
     >>> import heat as ht
     >>> info = ht.types.iinfo(ht.int32)
     >>> info.bits

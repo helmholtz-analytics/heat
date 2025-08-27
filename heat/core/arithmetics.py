@@ -231,11 +231,11 @@ def bitwise_and(
     DNDarray(1, dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.bitwise_and(14, 13)
     DNDarray(12, dtype=ht.int64, device=cpu:0, split=None)
-    >>> ht.bitwise_and(ht.array([14,3]), 13)
+    >>> ht.bitwise_and(ht.array([14, 3]), 13)
     DNDarray([12,  1], dtype=ht.int64, device=cpu:0, split=None)
-    >>> ht.bitwise_and(ht.array([11,7]), ht.array([4,25]))
+    >>> ht.bitwise_and(ht.array([11, 7]), ht.array([4, 25]))
     DNDarray([0, 1], dtype=ht.int64, device=cpu:0, split=None)
-    >>> ht.bitwise_and(ht.array([2,5,255]), ht.array([3,14,16]))
+    >>> ht.bitwise_and(ht.array([2, 5, 255]), ht.array([3, 14, 16]))
     DNDarray([ 2,  4, 16], dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.bitwise_and(ht.array([True, True]), ht.array([False, True]))
     DNDarray([False,  True], dtype=ht.bool, device=cpu:0, split=None)
@@ -304,15 +304,15 @@ def bitwise_and_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     DNDarray(16, dtype=ht.int64, device=cpu:0, split=None)
     >>> T2
     DNDarray(16, dtype=ht.int64, device=cpu:0, split=None)
-    >>> T4 = ht.array([14,3])
+    >>> T4 = ht.array([14, 3])
     >>> s = 29
     >>> T4 &= s
     >>> T4
     DNDarray([12,  1], dtype=ht.int64, device=cpu:0, split=None)
     >>> s
     29
-    >>> T5 = ht.array([2,5,255])
-    >>> T6 = ht.array([3,14,16])
+    >>> T5 = ht.array([2, 5, 255])
+    >>> T6 = ht.array([3, 14, 16])
     >>> T5 &= T6
     >>> T5
     DNDarray([ 2,  4, 16], dtype=ht.int64, device=cpu:0, split=None)
@@ -457,7 +457,7 @@ def bitwise_or_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     DNDarray([33,  5], dtype=ht.int64, device=cpu:0, split=None)
     >>> s
     1
-    >>> T4 = ht.array([2,5,255])
+    >>> T4 = ht.array([2, 5, 255])
     >>> T5 = ht.array([4, 4, 4])
     >>> T4 |= T5
     >>> T4
@@ -524,9 +524,9 @@ def bitwise_xor(
     DNDarray(28, dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.bitwise_xor(31, 5)
     DNDarray(26, dtype=ht.int64, device=cpu:0, split=None)
-    >>> ht.bitwise_xor(ht.array([31,3]), 5)
+    >>> ht.bitwise_xor(ht.array([31, 3]), 5)
     DNDarray([26,  6], dtype=ht.int64, device=cpu:0, split=None)
-    >>> ht.bitwise_xor(ht.array([31,3]), ht.array([5,6]))
+    >>> ht.bitwise_xor(ht.array([31, 3]), ht.array([5, 6]))
     DNDarray([26,  5], dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.bitwise_xor(ht.array([True, True]), ht.array([False, True]))
     DNDarray([ True, False], dtype=ht.bool, device=cpu:0, split=None)
@@ -598,7 +598,7 @@ def bitwise_xor_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     DNDarray([26,  6], dtype=ht.int64, device=cpu:0, split=None)
     >>> s
     5
-    >>> T4 = ht.array([31,3,255])
+    >>> T4 = ht.array([31, 3, 255])
     >>> T5 = ht.array([5, 6, 4])
     >>> T4 ^= T5
     >>> T4
@@ -661,7 +661,7 @@ def copysign(
     --------
     >>> ht.copysign(ht.array([3, 2, -8, -2, 4]), 1)
     DNDarray([3, 2, 8, 2, 4], dtype=ht.int64, device=cpu:0, split=None)
-    >>> ht.copysign(ht.array([3., 2., -8., -2., 4.]), ht.array([1., -1., 1., -1., 1.]))
+    >>> ht.copysign(ht.array([3.0, 2.0, -8.0, -2.0, 4.0]), ht.array([1.0, -1.0, 1.0, -1.0, 1.0]))
     DNDarray([ 3., -2.,  8., -2.,  4.], dtype=ht.float32, device=cpu:0, split=None)
     """
     try:
@@ -702,7 +702,7 @@ def copysign_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     Examples
     --------
     >>> import heat as ht
-    >>> T1 = ht.array([3., 2., -8., -2., 4.])
+    >>> T1 = ht.array([3.0, 2.0, -8.0, -2.0, 4.0])
     >>> s = 2.0
     >>> T1.copysign_(s)
     DNDarray([3., 2., 8., 2., 4.], dtype=ht.float32, device=cpu:0, split=None)
@@ -710,8 +710,8 @@ def copysign_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     DNDarray([3., 2., 8., 2., 4.], dtype=ht.float32, device=cpu:0, split=None)
     >>> s
     2.0
-    >>> T2 = ht.array([[1., -1.],[1., -1.]])
-    >>> T3 = ht.array([-5., 2.])
+    >>> T2 = ht.array([[1.0, -1.0], [1.0, -1.0]])
+    >>> T3 = ht.array([-5.0, 2.0])
     >>> T2.copysign_(T3)
     DNDarray([[-1.,  1.],
               [-1.,  1.]], dtype=ht.float32, device=cpu:0, split=None)
@@ -767,7 +767,7 @@ def cumprod(a: DNDarray, axis: int, dtype: datatype = None, out=None) -> DNDarra
 
     Examples
     --------
-    >>> a = ht.full((3,3), 2)
+    >>> a = ht.full((3, 3), 2)
     >>> ht.cumprod(a, 0)
     DNDarray([[2., 2., 2.],
             [4., 4., 4.],
@@ -796,7 +796,7 @@ def cumprod_(t: DNDarray, axis: int) -> DNDarray:
     Examples
     --------
     >>> import heat as ht
-    >>> T = ht.full((3,3), 2)
+    >>> T = ht.full((3, 3), 2)
     >>> T.cumprod_(0)
     DNDarray([[2., 2., 2.],
               [4., 4., 4.],
@@ -820,6 +820,14 @@ def cumprod_(t: DNDarray, axis: int) -> DNDarray:
 
     def wrap_mul_(a: torch.Tensor, b: torch.Tensor, out=None) -> torch.Tensor:
         return a.mul_(b)
+
+    axis = stride_tricks.sanitize_axis(t.shape, axis)
+    if axis is None:
+        raise NotImplementedError("cumprod_ is not implemented for axis=None")
+
+    if not t.is_distributed():
+        t.larray.cumprod_(dim=axis)
+        return t
 
     return _operations.__cum_op(t, wrap_cumprod_, MPI.PROD, wrap_mul_, 1, axis, dtype=None, out=t)
 
@@ -850,7 +858,7 @@ def cumsum(a: DNDarray, axis: int, dtype: datatype = None, out=None) -> DNDarray
 
     Examples
     --------
-    >>> a = ht.ones((3,3))
+    >>> a = ht.ones((3, 3))
     >>> ht.cumsum(a, 0)
     DNDarray([[1., 1., 1.],
               [2., 2., 2.],
@@ -874,7 +882,7 @@ def cumsum_(t: DNDarray, axis: int) -> DNDarray:
     Examples
     --------
     >>> import heat as ht
-    >>> T = ht.ones((3,3))
+    >>> T = ht.ones((3, 3))
     >>> T.cumsum_(0)
     DNDarray([[1., 1., 1.],
               [2., 2., 2.],
@@ -890,6 +898,14 @@ def cumsum_(t: DNDarray, axis: int) -> DNDarray:
 
     def wrap_add_(a: torch.Tensor, b: torch.Tensor, out=None) -> torch.Tensor:
         return a.add_(b)
+
+    axis = stride_tricks.sanitize_axis(t.shape, axis)
+    if axis is None:
+        raise NotImplementedError("cumsum_ is not implemented for axis=None")
+
+    if not t.is_distributed():
+        t.larray.cumsum_(dim=axis)
+        return t
 
     return _operations.__cum_op(t, wrap_cumsum_, MPI.SUM, wrap_add_, 0, axis, dtype=None, out=t)
 
@@ -913,7 +929,7 @@ def diff(
     output array is balanced.
 
     Parameters
-    -------
+    ----------
     a : DNDarray
         Input array
     n : int, optional
@@ -1622,8 +1638,8 @@ DNDarray.gcd_ = gcd_
 
 
 def hypot(
-    a: DNDarray,
-    b: DNDarray,
+    t1: DNDarray,
+    t2: DNDarray,
     /,
     out: Optional[DNDarray] = None,
     *,
@@ -1635,9 +1651,9 @@ def hypot(
 
     Parameters
     ----------
-    a:   DNDarray
+    t1:   DNDarray
          The first input array
-    b:   DNDarray
+    t2:   DNDarray
          the second input array
     out: DNDarray, optional
         The output array. It must have a shape that the inputs broadcast to and matching split axis.
@@ -1651,17 +1667,27 @@ def hypot(
 
     Examples
     --------
-    >>> a = ht.array([2.])
-    >>> b = ht.array([1.,3.,3.])
-    >>> ht.hypot(a,b)
+    >>> a = ht.array([2.0])
+    >>> b = ht.array([1.0, 3.0, 3.0])
+    >>> ht.hypot(a, b)
     DNDarray([2.2361, 3.6056, 3.6056], dtype=ht.float32, device=cpu:0, split=None)
     """
+    # catch int64 operation crash on MPS. TODO: issue still persists in 2.3.0, check 2.4, report to PyTorch
+    t1_ismps = getattr(getattr(t1, "device", "cpu"), "torch_device", "cpu").startswith("mps")
+    t2_ismps = getattr(getattr(t2, "device", "cpu"), "torch_device", "cpu").startswith("mps")
+    if t1_ismps or t2_ismps:
+        t1_isint64 = getattr(t1, "dtype", None) == types.int64
+        t2_isint64 = getattr(t2, "dtype", None) == types.int64
+        if t1_isint64 or t2_isint64:
+            raise TypeError(
+                f"hypot on MPS does not support int64 dtype, got {t1.dtype}, {t2.dtype}"
+            )
+
     try:
-        res = _operations.__binary_op(torch.hypot, a, b, out, where)
+        res = _operations.__binary_op(torch.hypot, t1, t2, out, where)
     except RuntimeError:
         # every other possibility is caught by __binary_op
-        raise TypeError(f"Not implemented for array dtype, got {a.dtype}, {b.dtype}")
-
+        raise TypeError(f"hypot on CPU does not support Int dtype, got {t1.dtype}, {t2.dtype}")
     return res
 
 
@@ -1691,8 +1717,8 @@ def hypot_(t1: DNDarray, t2: DNDarray) -> DNDarray:
     Examples
     --------
     >>> import heat as ht
-    >>> T1 = ht.array([1.,3.,3.])
-    >>> T2 = ht.array(2.)
+    >>> T1 = ht.array([1.0, 3.0, 3.0])
+    >>> T2 = ht.array(2.0)
     >>> T1.hypot_(T2)
     DNDarray([2.2361, 3.6056, 3.6056], dtype=ht.float32, device=cpu:0, split=None)
     >>> T1
@@ -1704,6 +1730,17 @@ def hypot_(t1: DNDarray, t2: DNDarray) -> DNDarray:
     def wrap_hypot_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
         return a.hypot_(b)
 
+    # catch int64 operation crash on MPS
+    t1_ismps = getattr(getattr(t1, "device", "cpu"), "torch_device", "cpu").startswith("mps")
+    t2_ismps = getattr(getattr(t2, "device", "cpu"), "torch_device", "cpu").startswith("mps")
+    if t1_ismps or t2_ismps:
+        t1_isint64 = getattr(t1, "dtype", None) == types.int64
+        t2_isint64 = getattr(t2, "dtype", None) == types.int64
+        if t1_isint64 or t2_isint64:
+            raise TypeError(
+                f"hypot_ on MPS does not support int64 dtype, got {t1.dtype}, {t2.dtype}"
+            )
+
     try:
         return _operations.__binary_op(wrap_hypot_, t1, t2, out=t1)
     except NotImplementedError:
@@ -1711,7 +1748,7 @@ def hypot_(t1: DNDarray, t2: DNDarray) -> DNDarray:
             f"In-place operation not allowed: operands are distributed along different axes. \n Operand 1 with shape {t1.shape} is split along axis {t1.split}. \n Operand 2 with shape {t2.shape} is split along axis {t2.split}."
         )
     except RuntimeError:
-        raise TypeError(f"Not implemented for array dtype, got {t1.dtype}, {t2.dtype}")
+        raise TypeError(f"hypot on CPU does not support Int dtype, got {t1.dtype}, {t2.dtype}")
 
 
 DNDarray.hypot_ = hypot_
@@ -1724,7 +1761,7 @@ def invert(a: DNDarray, /, out: Optional[DNDarray] = None) -> DNDarray:
     Bitwise_not is an alias for invert.
 
     Parameters
-    ---------
+    ----------
     a: DNDarray
         The input array to invert. Must be of integral or Boolean types
     out : DNDarray, optional
@@ -1834,12 +1871,12 @@ def lcm(
     --------
     >>> a = ht.array([6, 12, 15])
     >>> b = ht.array([3, 4, 5])
-    >>> ht.lcm(a,b)
+    >>> ht.lcm(a, b)
     DNDarray([ 6, 12, 15], dtype=ht.int64, device=cpu:0, split=None)
     >>> s = 2
-    >>> ht.lcm(s,a)
+    >>> ht.lcm(s, a)
     DNDarray([ 6, 12, 30], dtype=ht.int64, device=cpu:0, split=None)
-    >>> ht.lcm(b,s)
+    >>> ht.lcm(b, s)
     DNDarray([ 6,  4, 10], dtype=ht.int64, device=cpu:0, split=None)
     """
     try:
@@ -1943,7 +1980,7 @@ def left_shift(
 
     Examples
     --------
-    >>> ht.left_shift(ht.array([1,2,3]), 1)
+    >>> ht.left_shift(ht.array([1, 2, 3]), 1)
     DNDarray([2, 4, 6], dtype=ht.int64, device=cpu:0, split=None)
     """
     dtypes = (heat_type_of(t1), heat_type_of(t2))
@@ -2000,7 +2037,7 @@ def left_shift_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     Examples
     --------
     >>> import heat as ht
-    >>> T1 = ht.array([1,2,3])
+    >>> T1 = ht.array([1, 2, 3])
     >>> s = 1
     >>> T1.left_shift_(s)
     DNDarray([2, 4, 6], dtype=ht.int64, device=cpu:0, split=None)
@@ -2208,7 +2245,7 @@ def nan_to_num(
 
     Examples
     --------
-    >>> x = ht.array([float('nan'), float('inf'), -float('inf')])
+    >>> x = ht.array([float("nan"), float("inf"), -float("inf")])
     >>> ht.nan_to_num(x)
     DNDarray([ 0.0000e+00,  3.4028e+38, -3.4028e+38], dtype=ht.float32, device=cpu:0, split=None)
     """
@@ -2245,7 +2282,7 @@ def nan_to_num_(
     Examples
     --------
     >>> import heat as ht
-    >>> T1 = ht.array([float('nan'), float('inf'), -float('inf')])
+    >>> T1 = ht.array([float("nan"), float("inf"), -float("inf")])
     >>> T1.nan_to_num_()
     DNDarray([ 0.0000e+00,  3.4028e+38, -3.4028e+38], dtype=ht.float32, device=cpu:0, split=None)
     >>> T1
@@ -2298,7 +2335,7 @@ def nanprod(
 
     Examples
     --------
-    >>> ht.nanprod(ht.array([4.,ht.nan]))
+    >>> ht.nanprod(ht.array([4.0, ht.nan]))
     DNDarray(4., dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.nanprod(ht.array([
         [1.,ht.nan],
@@ -2349,11 +2386,11 @@ def nansum(
     --------
     >>> ht.sum(ht.ones(2))
     DNDarray(2., dtype=ht.float32, device=cpu:0, split=None)
-    >>> ht.sum(ht.ones((3,3)))
+    >>> ht.sum(ht.ones((3, 3)))
     DNDarray(9., dtype=ht.float32, device=cpu:0, split=None)
-    >>> ht.sum(ht.ones((3,3)).astype(ht.int))
+    >>> ht.sum(ht.ones((3, 3)).astype(ht.int))
     DNDarray(9, dtype=ht.int64, device=cpu:0, split=None)
-    >>> ht.sum(ht.ones((3,2,1)), axis=-3)
+    >>> ht.sum(ht.ones((3, 2, 1)), axis=-3)
     DNDarray([[3.],
               [3.]], dtype=ht.float32, device=cpu:0, split=None)
     """
@@ -2377,7 +2414,7 @@ def neg(a: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     --------
     >>> ht.neg(ht.array([-1, 1]))
     DNDarray([ 1, -1], dtype=ht.int64, device=cpu:0, split=None)
-    >>> -ht.array([-1., 1.])
+    >>> -ht.array([-1.0, 1.0])
     DNDarray([ 1., -1.], dtype=ht.float32, device=cpu:0, split=None)
     """
     sanitation.sanitize_in(a)
@@ -2411,7 +2448,7 @@ def neg_(t: DNDarray) -> DNDarray:
     DNDarray([ 1, -1], dtype=ht.int64, device=cpu:0, split=None)
     >>> T1
     DNDarray([ 1, -1], dtype=ht.int64, device=cpu:0, split=None)
-    >>> T2 = ht.array([[-1., 2.5], [4. , 0.]])
+    >>> T2 = ht.array([[-1.0, 2.5], [4.0, 0.0]])
     >>> T2.neg_()
     DNDarray([[ 1.0000, -2.5000],
               [-4.0000, -0.0000]], dtype=ht.float32, device=cpu:0, split=None)
@@ -2449,7 +2486,7 @@ def pos(a: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     --------
     >>> ht.pos(ht.array([-1, 1]))
     DNDarray([-1,  1], dtype=ht.int64, device=cpu:0, split=None)
-    >>> +ht.array([-1., 1.])
+    >>> +ht.array([-1.0, 1.0])
     DNDarray([-1.,  1.], dtype=ht.float32, device=cpu:0, split=None)
     """
     sanitation.sanitize_in(a)
@@ -2502,7 +2539,7 @@ def pow(
 
     Examples
     --------
-    >>> ht.pow (3.0, 2.0)
+    >>> ht.pow(3.0, 2.0)
     DNDarray(9., dtype=ht.float32, device=cpu:0, split=None)
     >>> T1 = ht.float32([[1, 2], [3, 4]])
     >>> T2 = ht.float32([[3, 3], [2, 2]])
@@ -2671,7 +2708,7 @@ def prod(
 
     Examples
     --------
-    >>> ht.prod(ht.array([1.,2.]))
+    >>> ht.prod(ht.array([1.0, 2.0]))
     DNDarray(2., dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.prod(ht.array([
         [1.,2.],
@@ -2857,7 +2894,7 @@ def right_shift(
 
     Examples
     --------
-    >>> ht.right_shift(ht.array([1,2,3]), 1)
+    >>> ht.right_shift(ht.array([1, 2, 3]), 1)
     DNDarray([0, 1, 1], dtype=ht.int64, device=cpu:0, split=None)
     """
     dtypes = (heat_type_of(t1), heat_type_of(t2))
@@ -2914,7 +2951,7 @@ def right_shift_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     Examples
     --------
     >>> import heat as ht
-    >>> T1 = ht.array([1,2,32])
+    >>> T1 = ht.array([1, 2, 32])
     >>> s = 1
     >>> T1.right_shift_(s)
     DNDarray([ 0,  1, 16], dtype=ht.int64, device=cpu:0, split=None)
@@ -3124,11 +3161,11 @@ def sum(
     --------
     >>> ht.sum(ht.ones(2))
     DNDarray(2., dtype=ht.float32, device=cpu:0, split=None)
-    >>> ht.sum(ht.ones((3,3)))
+    >>> ht.sum(ht.ones((3, 3)))
     DNDarray(9., dtype=ht.float32, device=cpu:0, split=None)
-    >>> ht.sum(ht.ones((3,3)).astype(ht.int))
+    >>> ht.sum(ht.ones((3, 3)).astype(ht.int))
     DNDarray(9, dtype=ht.int64, device=cpu:0, split=None)
-    >>> ht.sum(ht.ones((3,2,1)), axis=-3)
+    >>> ht.sum(ht.ones((3, 2, 1)), axis=-3)
     DNDarray([[3.],
               [3.]], dtype=ht.float32, device=cpu:0, split=None)
     """

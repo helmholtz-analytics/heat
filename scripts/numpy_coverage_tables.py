@@ -534,6 +534,47 @@ numpy_random_operations = [
 numpy_functions.append(numpy_random_operations)
 headers[str(len(headers))] = "NumPy Random Operations"
 
+# numpy fft operations
+numpy_fft_operations = [
+    "fft.fft",
+    "fft.ifft",
+    "fft.fft2",
+    "fft.ifft2",
+    "fft.fftn",
+    "fft.ifftn",
+    "fft.rfft",
+    "fft.irfft",
+    "fft.fftshift",
+    "fft.ifftshift",
+]
+numpy_functions.append(numpy_fft_operations)
+headers[str(len(headers))] = "NumPy FFT Operations"
+
+# numpy masked array operations
+numpy_masked_array_operations = [
+    "ma.masked_array",
+    "ma.masked_where",
+    "ma.fix_invalid",
+    "ma.is_masked",
+    "ma.mean",
+    "ma.median",
+    "ma.std",
+    "ma.var",
+    "ma.sum",
+    "ma.min",
+    "ma.max",
+    "ma.ptp",
+    "ma.count",
+    "ma.any",
+    "ma.all",
+    "ma.masked_equal",
+    "ma.masked_greater",
+    "ma.masked_less",
+    "ma.notmasked_contiguous",
+]
+numpy_functions.append(numpy_masked_array_operations)
+headers[str(len(headers))] = "NumPy Masked Array Operations"
+
 # initialize markdown file
 # open the file in write mode
 f = open("coverage_tables.md", "w")
@@ -558,20 +599,23 @@ for i, function_list in enumerate(numpy_functions):
 
     # Check if functions exist in the heat library and create table rows
     for func_name in function_list:
-        if (
-            hasattr(heat, func_name)
+        if (hasattr(heat, func_name)
             or hasattr(heat.linalg, func_name.replace("linalg.", ""))
             or hasattr(heat.random, func_name.replace("random.", ""))
+            or (hasattr(heat, "fft") and hasattr(heat.fft, func_name.replace("fft.", "")))
+            or (hasattr(heat, "ma") and hasattr(heat.ma, func_name.replace("ma.", "")))
         ):
             support_status = "✅"  # Green checkmark for supported functions
         else:
             support_status = "❌"  # Red cross for unsupported functions
 
-        table_row = f"| {func_name} | {support_status} |"
+        # **CHANGE 2: Create the issue URL and add it to the row**
+        issue_url = f"https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+{func_name}"
+        table_row = f"| {func_name} | {support_status} | [Search]({issue_url}) |"
         table_rows.append(table_row)
 
-    # Create the Markdown table header
-    table_header = f"| {headers[str(i)]} | Heat |\n|---|---|\n"
+    # **CHANGE 1: Add the "Issues" column to the table header**
+    table_header = f"| {headers[str(i)]} | Heat | Issues |\n|---|---|---|\n"
 
     # Combine the header and table rows
     markdown_table = table_header + "\n".join(table_rows)
@@ -581,3 +625,35 @@ for i, function_list in enumerate(numpy_functions):
     # Print the Markdown table
     f.write(markdown_table)
     f.write("\n")
+
+
+# for i, function_list in enumerate(numpy_functions):
+#     f.write(f"## {headers[str(i)]}\n")
+#     # Initialize a list to store the rows of the Markdown table
+#     table_rows = []
+
+#     # Check if functions exist in the heat library and create table rows
+#     for func_name in function_list:
+#         if (
+#             hasattr(heat, func_name)
+#             or hasattr(heat.linalg, func_name.replace("linalg.", ""))
+#             or hasattr(heat.random, func_name.replace("random.", ""))
+#         ):
+#             support_status = "✅"  # Green checkmark for supported functions
+#         else:
+#             support_status = "❌"  # Red cross for unsupported functions
+
+#         table_row = f"| {func_name} | {support_status} |"
+#         table_rows.append(table_row)
+
+#     # Create the Markdown table header
+#     table_header = f"| {headers[str(i)]} | Heat |\n|---|---|\n"
+
+#     # Combine the header and table rows
+#     markdown_table = table_header + "\n".join(table_rows)
+
+#     # write link to table of contents
+#     f.write("[Back to Table of Contents](#table-of-contents)\n\n")
+#     # Print the Markdown table
+#     f.write(markdown_table)
+#     f.write("\n")

@@ -214,7 +214,7 @@ class Dataset(torch_data.Dataset):
 
     def __getitem__(self, index: Union[int, slice, tuple, list, torch.Tensor]) -> torch.Tensor:
         """
-        This is the most basic form of getitem. As the dataset is often very specific to the dataset,
+        Basic form of __getitem__. As the dataset is often very specific to the dataset,
         this should be overwritten by the user. In this form it only gets the raw items from the data.
         """
         if self.transforms:
