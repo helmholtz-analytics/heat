@@ -32,8 +32,8 @@ class TestQR(TestCase):
                             if not allclose:
                                 diff = qr.Q @ qr.R - mat
                                 max_diff = ht.max(diff)
-                                print(f"diff: {diff}")
-                                print(f"max_diff: {max_diff}m")
+                                #print(f"diff: {diff}")
+                                #print(f"max_diff: {max_diff}m")
 
                             self.assertTrue(
                                 ht.allclose(qr.Q @ qr.R, mat, atol=dtypetol, rtol=dtypetol)
