@@ -1461,7 +1461,7 @@ def mpi_argmin(a: str, b: str, _: Any) -> torch.Tensor:
 MPI_ARGMIN = MPI.Op.Create(mpi_argmin, commute=True)
 
 
-def mpi_minmax(a: str, b: str, _: Any) -> None:
+def mpi_minmax(a: memoryview | Any, b: memoryview | Any, _: Any) -> None:
     """
     Callback for MPI.Op.Create that merges two buffers containing mins and maxs.
 
@@ -1475,7 +1475,15 @@ def mpi_minmax(a: str, b: str, _: Any) -> None:
         placeholder
     """
     # Candidate dtypes to try
-    candidates = (np.float64, np.float32, np.int64, np.int32)
+    candidates = (
+        np.float64,
+        np.float32,
+        np.float16,
+        np.int64,
+        np.int32,
+        np.int16,
+        np.uint8,
+    )
 
     chosen = None
     lhs_np = None
@@ -1486,7 +1494,7 @@ def mpi_minmax(a: str, b: str, _: Any) -> None:
         try:
             lhs_data = np.frombuffer(a, dtype=dt)
             rhs_data = np.frombuffer(b, dtype=dt)
-        except Exception:
+        except (ValueError, TypeError):
             continue
         # We expect same element count on both sides and an even number (mins+maxs)
         if lhs_data.size == rhs_data.size and lhs_data.size > 0 and (lhs_data.size % 2 == 0):
@@ -1940,9 +1948,18 @@ def ptp(
     )
 
 
+def _ptp(
+    x: DNDarray,
+    axis: Optional[Union[int, Tuple[int, ...]]] = None,
+    out: Optional[DNDarray] = None,
+    keepdims: bool = False,
+) -> DNDarray:
+    return ptp(x, axis, out, keepdims)
+
+
 DNDarray.ptp: Callable[
     [DNDarray, Optional[Union[int, Tuple[int, ...]]], Optional[DNDarray], bool], DNDarray
-] = lambda x, axis=None, out=None, keepdims=False: ptp(x, axis, out, keepdims)
+] = _ptp
 DNDarray.ptp.__doc__ = ptp.__doc__
 
 
