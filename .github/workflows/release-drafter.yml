@@ -22,6 +22,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          commitish: 'stable'
+          commitish: 'main'
           name: ${{ github.ref_name }} - Draft release
           config-name: rd-release-config.yml
