@@ -9,9 +9,14 @@ jobs:
   starter:
     runs-on: ubuntu-latest
     steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@ec9f2d5744a09debf3a187a3f4f675c53b671911 # v2.13.0
+        with:
+          egress-policy: audit
+
       - name: Get branch names
         id: branch-names
-        uses: tj-actions/branch-names@v8
+        uses: tj-actions/branch-names@5250492686b253f06fa55861556d1027b067aeb5 # v9.0.2
       - name: 'start test'
         run: |
          curl -s -X POST \

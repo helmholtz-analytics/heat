@@ -20,6 +20,11 @@ def qr_split_0(a):
 
 
 @monitor()
+def qr_split_0_square(a):
+    qr = ht.linalg.qr(a)
+
+
+@monitor()
 def qr_split_1(a):
     qr = ht.linalg.qr(a)
 
@@ -37,6 +42,51 @@ def hierachical_svd_tol(data, tol):
 @monitor()
 def lanczos(B):
     V, T = ht.lanczos(B, m=B.shape[0])
+
+
+@monitor()
+def zolopd_split0(A):
+    U, H = ht.linalg.polar(A)
+
+
+@monitor()
+def zolopd_split1(A):
+    U, H = ht.linalg.polar(A)
+
+
+@monitor()
+def eigh_split0(A):
+    H, Lambda = ht.linalg.eigh(A)
+
+
+@monitor()
+def eigh_split1(A):
+    H, Lambda = ht.linalg.eigh(A)
+
+
+@monitor()
+def svd_ts(a):
+    svd = ht.linalg.svd(a)
+
+
+@monitor()
+def svd_zolo_split0(a):
+    svd = ht.linalg.svd(a)
+
+
+@monitor()
+def svd_zolo_split1(a):
+    svd = ht.linalg.svd(a)
+
+
+@monitor()
+def randomized_svd_split0(a, r):
+    svd = ht.linalg.rsvd(a, r)
+
+
+@monitor()
+def randomized_svd_split1(a, r):
+    svd = ht.linalg.rsvd(a, r)
 
 
 def run_linalg_benchmarks():
@@ -58,6 +108,11 @@ def run_linalg_benchmarks():
     del a_0
 
     n = 2000
+    a_0 = ht.random.random((n, n), split=0)
+    qr_split_0_square(a_0)
+    del a_0
+
+    n = 2000
     a_1 = ht.random.random((n, n), split=1)
     qr_split_1(a_1)
     del a_1
@@ -74,3 +129,46 @@ def run_linalg_benchmarks():
     hierachical_svd_rank(data, 10)
     hierachical_svd_tol(data, 1e-2)
     del data
+
+    n = 1000
+    A = ht.random.random((n, n), split=0)
+    zolopd_split0(A)
+    del A
+
+    A = ht.random.random((n, n), split=1)
+    zolopd_split1(A)
+    del A
+
+    n = 1000
+    A = ht.random.random((n, n), split=0)
+    A += A.T.resplit_(0)
+    eigh_split0(A)
+    del A
+
+    A = ht.random.random((n, n), split=1)
+    A += A.T.resplit_(1)
+    eigh_split1(A)
+    del A
+
+    n = int((4000000 // MPI.COMM_WORLD.size) ** 0.5)
+    m = MPI.COMM_WORLD.size * n
+    a_0 = ht.random.random((m, n), split=0)
+    svd_ts(a_0)
+    del a_0
+
+    n = 1000
+    A = ht.random.random((n, n), split=0)
+    svd_zolo_split0(A)
+    del A
+
+    A = ht.random.random((n, n), split=1)
+    svd_zolo_split1(A)
+    del A
+
+    A = ht.random.random((500 * MPI.COMM_WORLD.Get_size(), 1000), split=0)
+    randomized_svd_split0(A, 10)
+    del A
+
+    A = ht.random.random((1000, 500 * MPI.COMM_WORLD.Get_size()), split=1)
+    randomized_svd_split1(A, 10)
+    del A

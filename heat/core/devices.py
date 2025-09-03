@@ -16,13 +16,13 @@ __all__ = ["Device", "cpu", "get_device", "sanitize_device", "use_device"]
 
 class Device:
     """
-    Implements a compute device. HeAT can run computations on different compute devices or backends.
+    Implements a compute device. Heat can run computations on different compute devices or backends.
     A device describes the device type and id on which said computation should be carried out.
 
     Parameters
     ----------
     device_type : str
-        Represents HeAT's device name
+        Represents Heat's device name
     device_id : int
         The device id
     torch_device : str
@@ -33,6 +33,8 @@ class Device:
     >>> ht.Device("cpu", 0, "cpu:0")
     device(cpu:0)
     >>> ht.Device("gpu", 0, "cuda:0")
+    device(gpu:0)
+    >>> ht.Device("gpu", 0, "mps:0")  # on Apple M1/M2
     device(gpu:0)
     """
 
@@ -133,6 +135,28 @@ if torch.cuda.device_count() > 0:
     # the GPU device should be exported as global symbol
     __all__.append("gpu")
 
+elif torch.backends.mps.is_built() and torch.backends.mps.is_available():
+    # Apple MPS available
+    gpu_id = 0
+    # create a new GPU device
+    gpu = Device("gpu", gpu_id, "mps:{}".format(gpu_id))
+    """
+    The standard GPU Device on Apple M1/M2
+
+    Examples
+    --------
+    >>> ht.cpu
+    device(cpu:0)
+    >>> ht.ones((2, 3), device=ht.gpu)
+    DNDarray([[1., 1., 1.],
+          [1., 1., 1.]], dtype=ht.float32, device=mps:0, split=None)
+    """
+    # add a GPU device string
+    __device_mapping[gpu.device_type] = gpu
+    __device_mapping["mps"] = gpu
+    # the GPU device should be exported as global symbol
+    __all__.append("gpu")
+
 
 def get_device() -> Device:
     """
@@ -165,7 +189,7 @@ def sanitize_device(device: Optional[Union[str, Device]] = None) -> Device:
     try:
         return __device_mapping[device.strip().lower()]
     except (AttributeError, KeyError, TypeError):
-        raise ValueError(f'Unknown device, must be one of {", ".join(__device_mapping.keys())}')
+        raise ValueError(f"Unknown device, must be one of {', '.join(__device_mapping.keys())}")
 
 
 def use_device(device: Optional[Union[str, Device]] = None) -> None:
