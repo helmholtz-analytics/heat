@@ -1,6 +1,15 @@
 # v1.6.0
 ## Highlights
 
+1) Linear algebra: Eigenvalue and polar Decompositition
+2) MPI Layer: Support for communicating buffers larger than 2^31-1
+3) Dynamic Mode Decomposition with control
+4) IO: Zarr format support
+5) Signal Processing: Strided 1D convolution
+6) Expanded QR decomposition
+7) Apple MPS Support
+8) Tutorial overhaul
+
 ## Changes
 
 ### Features
@@ -67,6 +76,7 @@
 * Features/1845 Update citations  by @mrfh92 in https://github.com/helmholtz-analytics/heat/pull/1846
 * Updated release_prep.yml to incorporate up-to-date Dockerfile Pytorch versions by @jolemse in https://github.com/helmholtz-analytics/heat/pull/1903
 * Update CODE_OF_CONDUCT.md by @mrfh92 in https://github.com/helmholtz-analytics/heat/pull/1939
+
 
 # v1.5.1
 ## Changes
