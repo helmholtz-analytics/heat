@@ -1,7 +1,7 @@
 # v1.6.0
 ## Highlights
 
-1) Linear algebra: Singular Value Decomposition, Symmetric Eigenvalue Decomposition and Polar Decompositition via the "Zolotarev approach" 
+1) Linear algebra: Singular Value Decomposition, Symmetric Eigenvalue Decomposition and Polar Decompositition via the "Zolotarev approach"
 2) MPI Layer: Support for communicating buffers larger than 2^31-1
 3) Dynamic Mode Decomposition (with and without control)
 4) IO: Zarr format support
@@ -10,7 +10,7 @@
 7) Apple MPS Support
 8) Tutorial overhaul
 
-*SVD, PCA, and DMD have been implemented within the project ESAPCA funded by the European Space Agency (ESA). This support is gratefully acknowledged.* 
+*SVD, PCA, and DMD have been implemented within the project ESAPCA funded by the European Space Agency (ESA). This support is gratefully acknowledged.*
 
 ## Changes
 
