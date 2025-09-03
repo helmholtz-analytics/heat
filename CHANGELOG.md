@@ -1,14 +1,16 @@
 # v1.6.0
 ## Highlights
 
-1) Linear algebra: Eigenvalue and polar Decompositition
+1) Linear algebra: Singular Value Decomposition, Symmetric Eigenvalue Decomposition and Polar Decompositition via the "Zolotarev approach" 
 2) MPI Layer: Support for communicating buffers larger than 2^31-1
-3) Dynamic Mode Decomposition with control
+3) Dynamic Mode Decomposition (with and without control)
 4) IO: Zarr format support
 5) Signal Processing: Strided 1D convolution
 6) Expanded QR decomposition
 7) Apple MPS Support
 8) Tutorial overhaul
+
+*SVD, PCA, and DMD have been implemented within the project ESAPCA funded by the European Space Agency (ESA). This support is gratefully acknowledged.* 
 
 ## Changes
 
@@ -77,6 +79,9 @@
 * Updated release_prep.yml to incorporate up-to-date Dockerfile Pytorch versions by @jolemse in https://github.com/helmholtz-analytics/heat/pull/1903
 * Update CODE_OF_CONDUCT.md by @mrfh92 in https://github.com/helmholtz-analytics/heat/pull/1939
 
+
+#### Acknowledgement and Disclaimer
+*This work is partially carried out under a [programme](https://activities.esa.int/index.php/4000144045) of, and funded by, the European Space Agency. Any view expressed in this repository or related publications can in no way be taken to reflect the official opinion of the European Space Agency.*
 
 # v1.5.1
 ## Changes
