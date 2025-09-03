@@ -486,4 +486,3 @@ for i, function_list in enumerate(numpy_functions):
     # Print the Markdown table
     f.write(markdown_table)
     f.write("\n")
-    
