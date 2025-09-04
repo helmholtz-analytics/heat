@@ -40,6 +40,7 @@ __all__ = [
     "min",
     "minimum",
     "percentile",
+    "ptp",
     "skew",
     "std",
     "var",
@@ -1460,6 +1461,86 @@ def mpi_argmin(a: str, b: str, _: Any) -> torch.Tensor:
 MPI_ARGMIN = MPI.Op.Create(mpi_argmin, commute=True)
 
 
+def mpi_minmax(a: memoryview | Any, b: memoryview | Any, _: Any) -> None:
+    """
+    Callback for MPI.Op.Create that merges two buffers containing mins and maxs.
+
+    Parameters
+    ----------
+    a : str
+        left hand side
+    b : str
+        right hand side
+    _ : Any
+        placeholder
+    """
+    # Candidate dtypes to try
+    candidates = (
+        np.float64,
+        np.float32,
+        np.float16,
+        np.int64,
+        np.int32,
+        np.int16,
+        np.uint8,
+    )
+
+    chosen = None
+    lhs_np = None
+    rhs_np = None
+
+    # Try to interpret raw bytes with different dtypes until we find a match
+    for dt in candidates:
+        try:
+            lhs_data = np.frombuffer(a, dtype=dt)
+            rhs_data = np.frombuffer(b, dtype=dt)
+        except (ValueError, TypeError):
+            continue
+        # We expect same element count on both sides and an even number (mins+maxs)
+        if lhs_data.size == rhs_data.size and lhs_data.size > 0 and (lhs_data.size % 2 == 0):
+            chosen = dt
+            lhs_np = lhs_data
+            rhs_np = rhs_data
+            break
+
+    if chosen is None:
+        raise RuntimeError(
+            "mpi_minmax: could not autodetect buffer dtype/size. "
+            f"bytes-left={len(a)}, bytes-right={len(b)}. "
+            "Ensure local_minmax returns same dtype/layout on all ranks."
+        )
+
+    # Convert numpy views to contiguous torch tensors
+    lhs = torch.from_numpy(lhs_np).contiguous()
+    rhs = torch.from_numpy(rhs_np).contiguous()
+
+    # reshape to (2, N)
+    lhs = lhs.view(2, -1)
+    rhs = rhs.view(2, -1)
+
+    mins_l, maxs_l = lhs[0], lhs[1]
+    mins_r, maxs_r = rhs[0], rhs[1]
+
+    mins = torch.minimum(mins_l, mins_r).unsqueeze(0)
+    maxs = torch.maximum(maxs_l, maxs_r).unsqueeze(0)
+    result = torch.cat((mins, maxs), dim=0)
+
+    # Ensure same dtype as rhs (in-place assignment will expect same dtype)
+    if result.dtype != rhs.dtype:
+        result = result.to(rhs.dtype)
+
+    # Safety check: the flattened element counts must match
+    if result.numel() != rhs.numel():
+        raise RuntimeError(
+            f"mpi_minmax: result.numel() ({result.numel()}) != rhs.numel() ({rhs.numel()})"
+        )
+
+    rhs.copy_(result)
+
+
+MPI_MINMAX = MPI.Op.Create(mpi_minmax, commute=True)
+
+
 def percentile(
     x: DNDarray,
     q: Union[DNDarray, int, float, Tuple, List],
@@ -1737,6 +1818,149 @@ def percentile(
         del sorted_x
 
     return percentile
+
+
+def ptp(
+    x: DNDarray,
+    axis: Optional[Union[int, Tuple[int, ...]]] = None,
+    out: Optional[DNDarray] = None,
+    keepdims: bool = False,
+) -> DNDarray:
+    """
+    Range of values (maximum - minimum) along a given axis.
+
+    Parameters
+    ----------
+    x : ht.DNDarray
+        Input array.
+    axis : None or int or Tuple[int,...], optional
+        Axis or axes along which to operate. By default, flattened input is used.
+        If this is a tuple of ints, the ptp is selected over multiple axes,
+        instead of a single axis or all the axes as before.
+    out : DNDarray, optional
+        Output array to place the result.
+    keepdims : bool, optional
+        If this is set to ``True``, the axes which are reduced are left in the result as dimensions with size one.
+
+    Returns
+    -------
+    ptp : ht.DNDarray
+        An array with the same shape as `x`, with the specified axis removed. If `keepdims` is True, the reduced axes are left in the result as dimensions with size one.
+
+    Examples
+    --------
+    >>> a = ht.array([[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]], dtype=ht.float32)
+    >>> ht.ptp(a)
+    DNDarray([11.], dtype=ht.float32, device=cpu:0, split=None)
+    >>> ht.ptp(a, axis=0)
+    DNDarray([9., 9., 9.], dtype=ht.float32, device=cpu:0, split=None)
+    >>> ht.ptp(a, axis=1)
+    DNDarray([2., 2., 2., 2.], dtype=ht.float32, device=cpu:0, split=None)
+    """
+
+    def local_minmax(t, dim=None, **kwargs):
+        mins = torch.amin(t, dim=dim, **kwargs)
+        maxs = torch.amax(t, dim=dim, **kwargs)
+
+        # If scalar (0-D), make it 1-D so torch.cat works
+        if mins.ndim == 0:
+            mins = mins.reshape(1)
+            maxs = maxs.reshape(1)
+
+        # Normalize dtype across ranks:
+        # - floats -> double unless MPS device, where we keep float
+        # - ints -> int64
+        if mins.is_floating_point():
+            # keep MPS behavior consistent with other functions
+            if mins.is_mps:
+                mins = mins.float()
+                maxs = maxs.float()
+            else:
+                mins = mins.double()
+                maxs = maxs.double()
+        else:
+            mins = mins.to(torch.int64)
+            maxs = maxs.to(torch.int64)
+
+        return torch.cat((mins, maxs), dim=0)
+
+    packed = _operations.__reduce_op(x, local_minmax, MPI_MINMAX, axis=axis, keepdims=True)
+
+    # Unpack global mins and maxs
+    mins_t, maxs_t = packed.larray.chunk(2, dim=0)
+    y = maxs_t - mins_t
+
+    # Compute correct split for the result (based on original x.split and axis)
+    if axis is None or isinstance(axis, tuple):
+        split = None
+    else:
+        if x.split is not None:
+            if axis < x.split:
+                split = x.split - 1
+            elif axis > x.split:
+                split = x.split
+            else:
+                split = None
+        else:
+            split = None
+
+    # Handle keepdims: remove reduced dims when requested
+    if not keepdims:
+        if axis is None:
+            y = y.reshape(())
+            split = None
+        else:
+            axes = axis if isinstance(axis, tuple) else (axis,)
+            for ax in sorted(axes, reverse=True):
+                y = y.squeeze(ax)
+
+    # Compute global output shape (gshape) from x.gshape, axis and keepdims
+    def _compute_gshape(gshape_in, axis, keepdims):
+        if axis is None:
+            return tuple(1 for _ in gshape_in) if keepdims else ()
+        axes = axis if isinstance(axis, tuple) else (axis,)
+        axes = tuple(a if a >= 0 else a + len(gshape_in) for a in axes)
+        if keepdims:
+            gs = list(gshape_in)
+            for a in axes:
+                gs[a] = 1
+            return tuple(gs)
+        else:
+            return tuple(gshape_in[i] for i in range(len(gshape_in)) if i not in axes)
+
+    gshape = _compute_gshape(x.gshape, axis, keepdims)
+
+    # If user provided an out buffer, write into it (sanitization does shape/split checks)
+    if out is not None:
+        sanitation.sanitize_out(out, gshape, split, x.device)
+        out._DNDarray__array = y
+        return out
+
+    # Return new DNDarray: use gshape (global shape), not local y.shape
+    return DNDarray(
+        y,
+        gshape,
+        packed.dtype,
+        split=split,
+        device=packed.device,
+        comm=packed.comm,
+        balanced=packed.balanced,
+    )
+
+
+def _ptp(
+    x: DNDarray,
+    axis: Optional[Union[int, Tuple[int, ...]]] = None,
+    out: Optional[DNDarray] = None,
+    keepdims: bool = False,
+) -> DNDarray:
+    return ptp(x, axis, out, keepdims)
+
+
+DNDarray.ptp: Callable[
+    [DNDarray, Optional[Union[int, Tuple[int, ...]]], Optional[DNDarray], bool], DNDarray
+] = _ptp
+DNDarray.ptp.__doc__ = ptp.__doc__
 
 
 def skew(x: DNDarray, axis: int = None, unbiased: bool = True) -> DNDarray:
