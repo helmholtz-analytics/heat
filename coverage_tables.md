@@ -13,395 +13,436 @@ The following tables show the NumPy functions supported by Heat.
 8. [NumPy Sorting Operations](#numpy-sorting-operations)
 9. [NumPy Statistical Operations](#numpy-statistical-operations)
 10. [NumPy Random Operations](#numpy-random-operations)
+11. [NumPy FFT Operations](#numpy-fft-operations)
+12. [NumPy Masked Array Operations](#numpy-masked-array-operations)
 
 ## NumPy  Mathematical Functions
 [Back to Table of Contents](#table-of-contents)
 
-| NumPy  Mathematical Functions | Heat |
-|---|---|
-| sin | ✅ |
-| cos | ✅ |
-| tan | ✅ |
-| arcsin | ✅ |
-| arccos | ✅ |
-| arctan | ✅ |
-| hypot | ✅ |
-| arctan2 | ✅ |
-| degrees | ✅ |
-| radians | ✅ |
-| unwrap | ❌ |
-| deg2rad | ✅ |
-| rad2deg | ✅ |
-| sinh | ✅ |
-| cosh | ✅ |
-| tanh | ✅ |
-| arcsinh | ✅ |
-| arccosh | ✅ |
-| arctanh | ✅ |
-| round | ✅ |
-| around | ❌ |
-| rint | ❌ |
-| fix | ❌ |
-| floor | ✅ |
-| ceil | ✅ |
-| trunc | ✅ |
-| prod | ✅ |
-| sum | ✅ |
-| nanprod | ✅ |
-| nansum | ✅ |
-| cumprod | ✅ |
-| cumsum | ✅ |
-| nancumprod | ❌ |
-| nancumsum | ❌ |
-| diff | ✅ |
-| ediff1d | ❌ |
-| gradient | ❌ |
-| cross | ✅ |
-| trapz | ❌ |
-| exp | ✅ |
-| expm1 | ✅ |
-| exp2 | ✅ |
-| log | ✅ |
-| log10 | ✅ |
-| log2 | ✅ |
-| log1p | ✅ |
-| logaddexp | ✅ |
-| logaddexp2 | ✅ |
-| i0 | ❌ |
-| sinc | ❌ |
-| signbit | ✅ |
-| copysign | ✅ |
-| frexp | ❌ |
-| ldexp | ❌ |
-| nextafter | ❌ |
-| spacing | ❌ |
-| lcm | ✅ |
-| gcd | ✅ |
-| add | ✅ |
-| reciprocal | ❌ |
-| positive | ✅ |
-| negative | ✅ |
-| multiply | ✅ |
-| divide | ✅ |
-| power | ✅ |
-| subtract | ✅ |
-| true_divide | ❌ |
-| floor_divide | ✅ |
-| float_power | ❌ |
-| fmod | ✅ |
-| mod | ✅ |
-| modf | ✅ |
-| remainder | ✅ |
-| divmod | ❌ |
-| angle | ✅ |
-| real | ✅ |
-| imag | ✅ |
-| conj | ✅ |
-| conjugate | ✅ |
-| maximum | ✅ |
-| max | ✅ |
-| amax | ❌ |
-| fmax | ❌ |
-| nanmax | ❌ |
-| minimum | ✅ |
-| min | ✅ |
-| amin | ❌ |
-| fmin | ❌ |
-| nanmin | ❌ |
-| convolve | ✅ |
-| clip | ✅ |
-| sqrt | ✅ |
-| cbrt | ❌ |
-| square | ✅ |
-| absolute | ✅ |
-| fabs | ✅ |
-| sign | ✅ |
-| heaviside | ❌ |
-| nan_to_num | ✅ |
-| real_if_close | ❌ |
-| interp | ❌ |
+| NumPy  Mathematical Functions | Heat | Issues |
+|---|---|---|
+| sin | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+sin) |
+| cos | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+cos) |
+| tan | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+tan) |
+| arcsin | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+arcsin) |
+| arccos | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+arccos) |
+| arctan | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+arctan) |
+| hypot | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+hypot) |
+| arctan2 | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+arctan2) |
+| degrees | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+degrees) |
+| radians | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+radians) |
+| unwrap | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+unwrap) |
+| deg2rad | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+deg2rad) |
+| rad2deg | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+rad2deg) |
+| sinh | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+sinh) |
+| cosh | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+cosh) |
+| tanh | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+tanh) |
+| arcsinh | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+arcsinh) |
+| arccosh | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+arccosh) |
+| arctanh | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+arctanh) |
+| round | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+round) |
+| around | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+around) |
+| rint | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+rint) |
+| fix | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+fix) |
+| floor | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+floor) |
+| ceil | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+ceil) |
+| trunc | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+trunc) |
+| prod | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+prod) |
+| sum | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+sum) |
+| nanprod | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+nanprod) |
+| nansum | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+nansum) |
+| cumprod | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+cumprod) |
+| cumsum | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+cumsum) |
+| nancumprod | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+nancumprod) |
+| nancumsum | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+nancumsum) |
+| diff | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+diff) |
+| ediff1d | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+ediff1d) |
+| gradient | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+gradient) |
+| cross | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+cross) |
+| trapz | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+trapz) |
+| exp | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+exp) |
+| expm1 | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+expm1) |
+| exp2 | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+exp2) |
+| log | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+log) |
+| log10 | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+log10) |
+| log2 | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+log2) |
+| log1p | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+log1p) |
+| logaddexp | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+logaddexp) |
+| logaddexp2 | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+logaddexp2) |
+| i0 | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+i0) |
+| sinc | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+sinc) |
+| signbit | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+signbit) |
+| copysign | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+copysign) |
+| frexp | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+frexp) |
+| ldexp | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+ldexp) |
+| nextafter | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+nextafter) |
+| spacing | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+spacing) |
+| lcm | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+lcm) |
+| gcd | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+gcd) |
+| add | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+add) |
+| reciprocal | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+reciprocal) |
+| positive | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+positive) |
+| negative | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+negative) |
+| multiply | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+multiply) |
+| divide | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+divide) |
+| power | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+power) |
+| subtract | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+subtract) |
+| true_divide | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+true_divide) |
+| floor_divide | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+floor_divide) |
+| float_power | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+float_power) |
+| fmod | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+fmod) |
+| mod | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+mod) |
+| modf | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+modf) |
+| remainder | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+remainder) |
+| divmod | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+divmod) |
+| angle | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+angle) |
+| real | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+real) |
+| imag | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+imag) |
+| conj | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+conj) |
+| conjugate | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+conjugate) |
+| maximum | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+maximum) |
+| max | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+max) |
+| amax | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+amax) |
+| fmax | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+fmax) |
+| nanmax | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+nanmax) |
+| minimum | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+minimum) |
+| min | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+min) |
+| amin | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+amin) |
+| fmin | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+fmin) |
+| nanmin | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+nanmin) |
+| convolve | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+convolve) |
+| clip | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+clip) |
+| sqrt | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+sqrt) |
+| cbrt | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+cbrt) |
+| square | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+square) |
+| absolute | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+absolute) |
+| fabs | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+fabs) |
+| sign | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+sign) |
+| heaviside | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+heaviside) |
+| nan_to_num | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+nan_to_num) |
+| real_if_close | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+real_if_close) |
+| interp | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+interp) |
 ## NumPy Array Creation
 [Back to Table of Contents](#table-of-contents)
 
-| NumPy Array Creation | Heat |
-|---|---|
-| empty | ✅ |
-| empty_like | ✅ |
-| eye | ✅ |
-| identity | ❌ |
-| ones | ✅ |
-| ones_like | ✅ |
-| zeros | ✅ |
-| zeros_like | ✅ |
-| full | ✅ |
-| full_like | ✅ |
-| array | ✅ |
-| asarray | ✅ |
-| asanyarray | ❌ |
-| ascontiguousarray | ❌ |
-| asmatrix | ❌ |
-| copy | ✅ |
-| frombuffer | ❌ |
-| from_dlpack | ❌ |
-| fromfile | ❌ |
-| fromfunction | ❌ |
-| fromiter | ❌ |
-| fromstring | ❌ |
-| loadtxt | ❌ |
-| arange | ✅ |
-| linspace | ✅ |
-| logspace | ✅ |
-| geomspace | ❌ |
-| meshgrid | ✅ |
-| mgrid | ❌ |
-| ogrid | ❌ |
-| diag | ✅ |
-| diagflat | ❌ |
-| tri | ❌ |
-| tril | ✅ |
-| triu | ✅ |
-| vander | ❌ |
-| mat | ❌ |
-| bmat | ❌ |
+| NumPy Array Creation | Heat | Issues |
+|---|---|---|
+| empty | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+empty) |
+| empty_like | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+empty_like) |
+| eye | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+eye) |
+| identity | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+identity) |
+| ones | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+ones) |
+| ones_like | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+ones_like) |
+| zeros | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+zeros) |
+| zeros_like | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+zeros_like) |
+| full | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+full) |
+| full_like | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+full_like) |
+| array | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+array) |
+| asarray | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+asarray) |
+| asanyarray | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+asanyarray) |
+| ascontiguousarray | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+ascontiguousarray) |
+| asmatrix | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+asmatrix) |
+| copy | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+copy) |
+| frombuffer | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+frombuffer) |
+| from_dlpack | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+from_dlpack) |
+| fromfile | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+fromfile) |
+| fromfunction | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+fromfunction) |
+| fromiter | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+fromiter) |
+| fromstring | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+fromstring) |
+| loadtxt | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+loadtxt) |
+| arange | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+arange) |
+| linspace | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+linspace) |
+| logspace | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+logspace) |
+| geomspace | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+geomspace) |
+| meshgrid | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+meshgrid) |
+| mgrid | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+mgrid) |
+| ogrid | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+ogrid) |
+| diag | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+diag) |
+| diagflat | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+diagflat) |
+| tri | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+tri) |
+| tril | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+tril) |
+| triu | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+triu) |
+| vander | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+vander) |
+| mat | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+mat) |
+| bmat | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+bmat) |
 ## NumPy Array Manipulation
 [Back to Table of Contents](#table-of-contents)
 
-| NumPy Array Manipulation | Heat |
-|---|---|
-| copyto | ❌ |
-| shape | ✅ |
-| reshape | ✅ |
-| ravel | ✅ |
-| flat | ❌ |
-| flatten | ✅ |
-| moveaxis | ✅ |
-| rollaxis | ❌ |
-| swapaxes | ✅ |
-| T | ❌ |
-| transpose | ✅ |
-| atleast_1d | ❌ |
-| atleast_2d | ❌ |
-| atleast_3d | ❌ |
-| broadcast | ❌ |
-| broadcast_to | ✅ |
-| broadcast_arrays | ✅ |
-| expand_dims | ✅ |
-| squeeze | ✅ |
-| asarray | ✅ |
-| asanyarray | ❌ |
-| asmatrix | ❌ |
-| asfarray | ❌ |
-| asfortranarray | ❌ |
-| ascontiguousarray | ❌ |
-| asarray_chkfinite | ❌ |
-| require | ❌ |
-| concatenate | ✅ |
-| stack | ✅ |
-| block | ❌ |
-| vstack | ✅ |
-| hstack | ✅ |
-| dstack | ❌ |
-| column_stack | ✅ |
-| row_stack | ✅ |
-| split | ✅ |
-| array_split | ❌ |
-| dsplit | ✅ |
-| hsplit | ✅ |
-| vsplit | ✅ |
-| tile | ✅ |
-| repeat | ✅ |
-| delete | ❌ |
-| insert | ❌ |
-| append | ❌ |
-| resize | ❌ |
-| trim_zeros | ❌ |
-| unique | ✅ |
-| flip | ✅ |
-| fliplr | ✅ |
-| flipud | ✅ |
-| reshape | ✅ |
-| roll | ✅ |
-| rot90 | ✅ |
+| NumPy Array Manipulation | Heat | Issues |
+|---|---|---|
+| copyto | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+copyto) |
+| shape | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+shape) |
+| reshape | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+reshape) |
+| ravel | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+ravel) |
+| flat | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+flat) |
+| flatten | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+flatten) |
+| moveaxis | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+moveaxis) |
+| rollaxis | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+rollaxis) |
+| swapaxes | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+swapaxes) |
+| T | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+T) |
+| transpose | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+transpose) |
+| atleast_1d | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+atleast_1d) |
+| atleast_2d | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+atleast_2d) |
+| atleast_3d | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+atleast_3d) |
+| broadcast | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+broadcast) |
+| broadcast_to | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+broadcast_to) |
+| broadcast_arrays | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+broadcast_arrays) |
+| expand_dims | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+expand_dims) |
+| squeeze | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+squeeze) |
+| asarray | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+asarray) |
+| asanyarray | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+asanyarray) |
+| asmatrix | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+asmatrix) |
+| asfarray | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+asfarray) |
+| asfortranarray | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+asfortranarray) |
+| ascontiguousarray | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+ascontiguousarray) |
+| asarray_chkfinite | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+asarray_chkfinite) |
+| require | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+require) |
+| concatenate | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+concatenate) |
+| stack | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+stack) |
+| block | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+block) |
+| vstack | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+vstack) |
+| hstack | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+hstack) |
+| dstack | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+dstack) |
+| column_stack | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+column_stack) |
+| row_stack | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+row_stack) |
+| split | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+split) |
+| array_split | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+array_split) |
+| dsplit | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+dsplit) |
+| hsplit | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+hsplit) |
+| vsplit | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+vsplit) |
+| tile | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+tile) |
+| repeat | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+repeat) |
+| delete | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+delete) |
+| insert | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+insert) |
+| append | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+append) |
+| resize | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+resize) |
+| trim_zeros | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+trim_zeros) |
+| unique | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+unique) |
+| flip | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+flip) |
+| fliplr | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+fliplr) |
+| flipud | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+flipud) |
+| reshape | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+reshape) |
+| roll | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+roll) |
+| rot90 | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+rot90) |
 ## NumPy Binary Operations
 [Back to Table of Contents](#table-of-contents)
 
-| NumPy Binary Operations | Heat |
-|---|---|
-| bitwise_and | ✅ |
-| bitwise_or | ✅ |
-| bitwise_xor | ✅ |
-| invert | ✅ |
-| left_shift | ✅ |
-| right_shift | ✅ |
-| packbits | ❌ |
-| unpackbits | ❌ |
-| binary_repr | ❌ |
+| NumPy Binary Operations | Heat | Issues |
+|---|---|---|
+| bitwise_and | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+bitwise_and) |
+| bitwise_or | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+bitwise_or) |
+| bitwise_xor | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+bitwise_xor) |
+| invert | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+invert) |
+| left_shift | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+left_shift) |
+| right_shift | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+right_shift) |
+| packbits | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+packbits) |
+| unpackbits | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+unpackbits) |
+| binary_repr | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+binary_repr) |
 ## NumPy IO Operations
 [Back to Table of Contents](#table-of-contents)
 
-| NumPy IO Operations | Heat |
-|---|---|
-| load | ✅ |
-| save | ✅ |
-| savez | ❌ |
-| savez_compressed | ❌ |
-| loadtxt | ❌ |
-| savetxt | ❌ |
-| genfromtxt | ❌ |
-| fromregex | ❌ |
-| fromstring | ❌ |
-| tofile | ❌ |
-| tolist | ❌ |
-| array2string | ❌ |
-| array_repr | ❌ |
-| array_str | ❌ |
-| format_float_positional | ❌ |
-| format_float_scientific | ❌ |
-| memmap | ❌ |
-| open_memmap | ❌ |
-| set_printoptions | ✅ |
-| get_printoptions | ✅ |
-| set_string_function | ❌ |
-| printoptions | ❌ |
-| binary_repr | ❌ |
-| base_repr | ❌ |
-| DataSource | ❌ |
-| format | ❌ |
+| NumPy IO Operations | Heat | Issues |
+|---|---|---|
+| load | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+load) |
+| save | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+save) |
+| savez | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+savez) |
+| savez_compressed | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+savez_compressed) |
+| loadtxt | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+loadtxt) |
+| savetxt | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+savetxt) |
+| genfromtxt | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+genfromtxt) |
+| fromregex | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+fromregex) |
+| fromstring | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+fromstring) |
+| tofile | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+tofile) |
+| tolist | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+tolist) |
+| array2string | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+array2string) |
+| array_repr | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+array_repr) |
+| array_str | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+array_str) |
+| format_float_positional | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+format_float_positional) |
+| format_float_scientific | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+format_float_scientific) |
+| memmap | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+memmap) |
+| open_memmap | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+open_memmap) |
+| set_printoptions | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+set_printoptions) |
+| get_printoptions | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+get_printoptions) |
+| set_string_function | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+set_string_function) |
+| printoptions | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+printoptions) |
+| binary_repr | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+binary_repr) |
+| base_repr | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+base_repr) |
+| DataSource | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+DataSource) |
+| format | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+format) |
 ## NumPy LinAlg Operations
 [Back to Table of Contents](#table-of-contents)
 
-| NumPy LinAlg Operations | Heat |
-|---|---|
-| dot | ✅ |
-| linalg.multi_dot | ❌ |
-| vdot | ✅ |
-| inner | ❌ |
-| outer | ✅ |
-| matmul | ✅ |
-| tensordot | ❌ |
-| einsum | ❌ |
-| einsum_path | ❌ |
-| linalg.matrix_power | ❌ |
-| kron | ❌ |
-| linalg.cholesky | ❌ |
-| linalg.qr | ✅ |
-| linalg.svd | ❌ |
-| linalg.eig | ❌ |
-| linalg.eigh | ❌ |
-| linalg.eigvals | ❌ |
-| linalg.eigvalsh | ❌ |
-| linalg.norm | ✅ |
-| linalg.cond | ❌ |
-| linalg.det | ✅ |
-| linalg.matrix_rank | ❌ |
-| linalg.slogdet | ❌ |
-| trace | ✅ |
-| linalg.solve | ❌ |
-| linalg.tensorsolve | ❌ |
-| linalg.lstsq | ❌ |
-| linalg.inv | ✅ |
-| linalg.pinv | ❌ |
-| linalg.tensorinv | ❌ |
+| NumPy LinAlg Operations | Heat | Issues |
+|---|---|---|
+| dot | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+dot) |
+| linalg.multi_dot | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+linalg.multi_dot) |
+| vdot | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+vdot) |
+| inner | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+inner) |
+| outer | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+outer) |
+| matmul | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+matmul) |
+| tensordot | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+tensordot) |
+| einsum | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+einsum) |
+| einsum_path | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+einsum_path) |
+| linalg.matrix_power | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+linalg.matrix_power) |
+| kron | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+kron) |
+| linalg.cholesky | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+linalg.cholesky) |
+| linalg.qr | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+linalg.qr) |
+| linalg.svd | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+linalg.svd) |
+| linalg.eig | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+linalg.eig) |
+| linalg.eigh | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+linalg.eigh) |
+| linalg.eigvals | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+linalg.eigvals) |
+| linalg.eigvalsh | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+linalg.eigvalsh) |
+| linalg.norm | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+linalg.norm) |
+| linalg.cond | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+linalg.cond) |
+| linalg.det | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+linalg.det) |
+| linalg.matrix_rank | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+linalg.matrix_rank) |
+| linalg.slogdet | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+linalg.slogdet) |
+| trace | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+trace) |
+| linalg.solve | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+linalg.solve) |
+| linalg.tensorsolve | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+linalg.tensorsolve) |
+| linalg.lstsq | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+linalg.lstsq) |
+| linalg.inv | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+linalg.inv) |
+| linalg.pinv | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+linalg.pinv) |
+| linalg.tensorinv | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+linalg.tensorinv) |
 ## NumPy Logic Functions
 [Back to Table of Contents](#table-of-contents)
 
-| NumPy Logic Functions | Heat |
-|---|---|
-| all | ✅ |
-| any | ✅ |
-| isfinite | ✅ |
-| isinf | ✅ |
-| isnan | ✅ |
-| isnat | ❌ |
-| isneginf | ✅ |
-| isposinf | ✅ |
-| iscomplex | ✅ |
-| iscomplexobj | ❌ |
-| isfortran | ❌ |
-| isreal | ✅ |
-| isrealobj | ❌ |
-| isscalar | ❌ |
-| logical_and | ✅ |
-| logical_or | ✅ |
-| logical_not | ✅ |
-| logical_xor | ✅ |
-| allclose | ✅ |
-| isclose | ✅ |
-| array_equal | ❌ |
-| array_equiv | ❌ |
-| greater | ✅ |
-| greater_equal | ✅ |
-| less | ✅ |
-| less_equal | ✅ |
-| equal | ✅ |
-| not_equal | ✅ |
+| NumPy Logic Functions | Heat | Issues |
+|---|---|---|
+| all | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+all) |
+| any | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+any) |
+| isfinite | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+isfinite) |
+| isinf | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+isinf) |
+| isnan | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+isnan) |
+| isnat | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+isnat) |
+| isneginf | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+isneginf) |
+| isposinf | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+isposinf) |
+| iscomplex | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+iscomplex) |
+| iscomplexobj | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+iscomplexobj) |
+| isfortran | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+isfortran) |
+| isreal | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+isreal) |
+| isrealobj | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+isrealobj) |
+| isscalar | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+isscalar) |
+| logical_and | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+logical_and) |
+| logical_or | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+logical_or) |
+| logical_not | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+logical_not) |
+| logical_xor | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+logical_xor) |
+| allclose | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+allclose) |
+| isclose | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+isclose) |
+| array_equal | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+array_equal) |
+| array_equiv | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+array_equiv) |
+| greater | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+greater) |
+| greater_equal | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+greater_equal) |
+| less | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+less) |
+| less_equal | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+less_equal) |
+| equal | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+equal) |
+| not_equal | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+not_equal) |
 ## NumPy Sorting Operations
 [Back to Table of Contents](#table-of-contents)
 
-| NumPy Sorting Operations | Heat |
-|---|---|
-| sort | ✅ |
-| lexsort | ❌ |
-| argsort | ❌ |
-| sort | ✅ |
-| sort_complex | ❌ |
-| partition | ❌ |
-| argpartition | ❌ |
-| argmax | ✅ |
-| nanargmax | ❌ |
-| argmin | ✅ |
-| nanargmin | ❌ |
-| argwhere | ❌ |
-| nonzero | ✅ |
-| flatnonzero | ❌ |
-| where | ✅ |
-| searchsorted | ❌ |
-| extract | ❌ |
-| count_nonzero | ❌ |
+| NumPy Sorting Operations | Heat | Issues |
+|---|---|---|
+| sort | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+sort) |
+| lexsort | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+lexsort) |
+| argsort | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+argsort) |
+| sort | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+sort) |
+| sort_complex | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+sort_complex) |
+| partition | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+partition) |
+| argpartition | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+argpartition) |
+| argmax | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+argmax) |
+| nanargmax | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+nanargmax) |
+| argmin | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+argmin) |
+| nanargmin | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+nanargmin) |
+| argwhere | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+argwhere) |
+| nonzero | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+nonzero) |
+| flatnonzero | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+flatnonzero) |
+| where | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+where) |
+| searchsorted | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+searchsorted) |
+| extract | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+extract) |
+| count_nonzero | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+count_nonzero) |
 ## NumPy Statistical Operations
 [Back to Table of Contents](#table-of-contents)
 
-| NumPy Statistical Operations | Heat |
-|---|---|
-| ptp | ❌ |
-| percentile | ✅ |
-| nanpercentile | ❌ |
-| quantile | ❌ |
-| nanquantile | ❌ |
-| median | ✅ |
-| average | ✅ |
-| mean | ✅ |
-| std | ✅ |
-| var | ✅ |
-| nanmedian | ❌ |
-| nanmean | ❌ |
-| nanstd | ❌ |
-| nanvar | ❌ |
-| corrcoef | ❌ |
-| correlate | ❌ |
-| cov | ✅ |
-| histogram | ✅ |
-| histogram2d | ❌ |
-| histogramdd | ❌ |
-| bincount | ✅ |
-| histogram_bin_edges | ❌ |
-| digitize | ✅ |
+| NumPy Statistical Operations | Heat | Issues |
+|---|---|---|
+| ptp | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+ptp) |
+| percentile | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+percentile) |
+| nanpercentile | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+nanpercentile) |
+| quantile | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+quantile) |
+| nanquantile | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+nanquantile) |
+| median | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+median) |
+| average | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+average) |
+| mean | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+mean) |
+| std | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+std) |
+| var | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+var) |
+| nanmedian | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+nanmedian) |
+| nanmean | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+nanmean) |
+| nanstd | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+nanstd) |
+| nanvar | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+nanvar) |
+| corrcoef | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+corrcoef) |
+| correlate | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+correlate) |
+| cov | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+cov) |
+| histogram | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+histogram) |
+| histogram2d | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+histogram2d) |
+| histogramdd | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+histogramdd) |
+| bincount | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+bincount) |
+| histogram_bin_edges | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+histogram_bin_edges) |
+| digitize | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+digitize) |
 ## NumPy Random Operations
 [Back to Table of Contents](#table-of-contents)
 
-| NumPy Random Operations | Heat |
-|---|---|
-| random.rand | ✅ |
-| random.randn | ✅ |
-| random.randint | ✅ |
-| random.random_integers | ❌ |
-| random.random_sample | ✅ |
-| random.ranf | ✅ |
-| random.sample | ✅ |
-| random.choice | ❌ |
-| random.bytes | ❌ |
-| random.shuffle | ❌ |
-| random.permutation | ✅ |
-| random.seed | ✅ |
-| random.get_state | ✅ |
-| random.set_state | ✅ |
+| NumPy Random Operations | Heat | Issues |
+|---|---|---|
+| random.rand | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+random.rand) |
+| random.randn | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+random.randn) |
+| random.randint | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+random.randint) |
+| random.random_integers | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+random.random_integers) |
+| random.random_sample | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+random.random_sample) |
+| random.ranf | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+random.ranf) |
+| random.sample | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+random.sample) |
+| random.choice | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+random.choice) |
+| random.bytes | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+random.bytes) |
+| random.shuffle | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+random.shuffle) |
+| random.permutation | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+random.permutation) |
+| random.seed | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+random.seed) |
+| random.get_state | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+random.get_state) |
+| random.set_state | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+random.set_state) |
+## NumPy FFT Operations
+[Back to Table of Contents](#table-of-contents)
+
+| NumPy FFT Operations | Heat | Issues |
+|---|---|---|
+| fft.fft | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+fft.fft) |
+| fft.ifft | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+fft.ifft) |
+| fft.fft2 | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+fft.fft2) |
+| fft.ifft2 | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+fft.ifft2) |
+| fft.fftn | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+fft.fftn) |
+| fft.ifftn | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+fft.ifftn) |
+| fft.rfft | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+fft.rfft) |
+| fft.irfft | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+fft.irfft) |
+| fft.fftshift | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+fft.fftshift) |
+| fft.ifftshift | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+fft.ifftshift) |
+## NumPy Masked Array Operations
+[Back to Table of Contents](#table-of-contents)
+
+| NumPy Masked Array Operations | Heat | Issues |
+|---|---|---|
+| ma.masked_array | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+ma.masked_array) |
+| ma.masked_where | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+ma.masked_where) |
+| ma.fix_invalid | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+ma.fix_invalid) |
+| ma.is_masked | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+ma.is_masked) |
+| ma.mean | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+ma.mean) |
+| ma.median | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+ma.median) |
+| ma.std | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+ma.std) |
+| ma.var | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+ma.var) |
+| ma.sum | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+ma.sum) |
+| ma.min | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+ma.min) |
+| ma.max | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+ma.max) |
+| ma.ptp | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+ma.ptp) |
+| ma.count | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+ma.count) |
+| ma.any | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+ma.any) |
+| ma.all | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+ma.all) |
+| ma.masked_equal | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+ma.masked_equal) |
+| ma.masked_greater | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+ma.masked_greater) |
+| ma.masked_less | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+ma.masked_less) |
+| ma.notmasked_contiguous | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+ma.notmasked_contiguous) |

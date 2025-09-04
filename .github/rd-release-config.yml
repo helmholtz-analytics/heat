@@ -213,7 +213,7 @@ autolabeler:
   - label: 'rounding'
     files:
       - 'heat/core/rounding.py'
-  - label: 'santiation'
+  - label: 'sanitation'
     files:
       - 'heat/core/sanitation.py'
   - label: 'signal'
