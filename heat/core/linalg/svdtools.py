@@ -2,26 +2,20 @@
 distributed hierarchical SVD
 """
 
-import numpy as np
-import collections
 import torch
-from typing import Type, Callable, Dict, Any, TypeVar, Union, Tuple, Optional
+from typing import Union, Tuple, Optional
 
-from ..communication import MPICommunication
 from ..dndarray import DNDarray
 from .. import factories
-from .. import types
 from ..linalg import matmul, vector_norm, qr, svd
-from ..indexing import where
-from ..random import randn
 from ..sanitation import sanitize_in_nd_realfloating
-from ..manipulations import vstack, hstack, diag, balance
+from ..manipulations import vstack, hstack, diag
 
 from .. import statistics
-from math import log, ceil, floor, sqrt
+from math import floor, sqrt
 
 
-__all__ = ["hsvd_rank", "hsvd_rtol", "hsvd", "rsvd", "isvd"]
+__all__ = ["hsvd_rank", "hsvd_rtol", "hsvd", "isvd"]
 
 
 #######################################################################################
@@ -504,102 +498,6 @@ def _compute_local_truncated_svd(
         sigma_loc = torch.zeros(1, dtype=U_loc.dtype, device=U_loc.device)
         U_loc = torch.zeros(U_loc.shape[0], 1, dtype=U_loc.dtype, device=U_loc.device)
         return U_loc, sigma_loc, err_squared_loc
-
-
-##############################################################################################
-# Randomized SVD "rSVD"
-##############################################################################################
-
-
-def rsvd(
-    A: DNDarray,
-    rank: int,
-    n_oversamples: int = 10,
-    power_iter: int = 0,
-    qr_procs_to_merge: int = 2,
-) -> Union[Tuple[DNDarray, DNDarray, DNDarray], Tuple[DNDarray, DNDarray]]:
-    r"""
-    Randomized SVD (rSVD) with prescribed truncation rank `rank`.
-    If :math:`A = U \operatorname{diag}(S) V^T` is the true SVD of A, this routine computes an approximation for U[:,:rank] (and S[:rank], V[:,:rank]).
-
-    The accuracy of this approximation depends on the structure of A ("low-rank" is best) and appropriate choice of parameters.
-
-    Parameters
-    ----------
-    A : DNDarray
-        2D-array (float32/64) of which the rSVD has to be computed.
-    rank : int
-        truncation rank. (This parameter corresponds to `n_components` in scikit-learn's TruncatedSVD.)
-    n_oversamples : int, optional
-        number of oversamples. The default is 10.
-    power_iter : int, optional
-        number of power iterations. The default is 0.
-        Choosing `power_iter > 0` can improve the accuracy of the SVD approximation in the case of slowly decaying singular values, but increases the computational cost.
-    qr_procs_to_merge : int, optional
-        number of processes to merge at each step of QR decomposition in the power iteration (if power_iter > 0). The default is 2. See the corresponding remarks for :func:`heat.linalg.qr() <heat.core.linalg.qr.qr()>` for more details.
-
-
-    Notes
-    -----
-    Memory requirements: the SVD computation of a matrix of size (rank + n_oversamples) x (rank + n_oversamples) must fit into the memory of a single process.
-    The implementation follows Algorithm 4.4 (randomized range finder) and Algorithm 5.1 (direct SVD) in [1].
-
-    References
-    ----------
-    [1] Halko, N., Martinsson, P. G., & Tropp, J. A. (2011). Finding structure with randomness: Probabilistic algorithms for constructing approximate matrix decompositions. SIAM review, 53(2), 217-288.
-    """
-    sanitize_in_nd_realfloating(A, "A", [2])
-    if not isinstance(rank, int):
-        raise TypeError(f"rank must be an integer, but is {type(rank)}.")
-    if rank < 1:
-        raise ValueError(f"rank must be positive, but is {rank}.")
-    if not isinstance(n_oversamples, int):
-        raise TypeError(
-            f"if provided, n_oversamples must be an integer, but is {type(n_oversamples)}."
-        )
-    if n_oversamples < 0:
-        raise ValueError(f"n_oversamples must be non-negative, but is {n_oversamples}.")
-    if not isinstance(power_iter, int):
-        raise TypeError(f"if provided, power_iter must be an integer, but is {type(power_iter)}.")
-    if power_iter < 0:
-        raise ValueError(f"power_iter must be non-negative, but is {power_iter}.")
-
-    ell = rank + n_oversamples
-    q = power_iter
-
-    # random matrix
-    splitOmega = 1 if A.split == 0 else 0
-    Omega = randn(A.shape[1], ell, dtype=A.dtype, device=A.device, split=splitOmega)
-
-    # compute the range of A
-    Y = matmul(A, Omega)
-    Q, _ = qr(Y, procs_to_merge=qr_procs_to_merge)
-
-    # power iterations
-    for _ in range(q):
-        if Q.split is not None and Q.shape[Q.split] < Q.comm.size:
-            Q.resplit_(None)
-        Y = matmul(A.T, Q)
-        Q, _ = qr(Y, procs_to_merge=qr_procs_to_merge)
-        if Q.split is not None and Q.shape[Q.split] < Q.comm.size:
-            Q.resplit_(None)
-        Y = matmul(A, Q)
-        Q, _ = qr(Y, procs_to_merge=qr_procs_to_merge)
-
-    # compute the SVD of the projected matrix
-    if Q.split is not None and Q.shape[Q.split] < Q.comm.size:
-        Q.resplit_(None)
-    B = matmul(Q.T, A)
-    B.resplit_(
-        None
-    )  # B will be of size ell x ell and thus small enough to fit into memory of a single process
-    U, sigma, V = svd.svd(B)  # actually just torch svd as input is not split anymore
-    U = matmul(Q, U)[:, :rank]
-    U.balance_()
-    S = sigma[:rank]
-    V = V[:, :rank]
-    V.balance_()
-    return U, S, V
 
 
 ##############################################################################################
