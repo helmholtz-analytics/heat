@@ -4,7 +4,8 @@ Module implementing some clustering algorithms that work in parallel on batches 
 
 import heat as ht
 import torch
-from heat.cluster._kcluster import _KCluster
+
+# from heat.cluster._kcluster import _KCluster
 from heat.core.dndarray import DNDarray
 from warnings import warn
 from math import log
@@ -19,10 +20,14 @@ Auxiliary single-process functions and base class for batch-parallel k-clusterin
 """
 
 
-def _initialize_plus_plus(X, n_clusters, p, random_state=None, max_samples=2**24 - 1):
+def _initialize_plus_plus(
+    X, n_clusters, p, random_state=None, weights: torch.tensor = 1, max_samples=2**24 - 1
+):
     """
     Auxiliary function: single-process k-means++/k-medians++ initialization in pytorch
     p is the norm used for computing distances
+    weights allows to add weights to the distribution function, so that the data points with higher weights are preferred;
+    note that weights must have the same dimension as X[0]
     The value max_samples=2**24 - 1 is necessary as PyTorchs multinomial currently only
     supports this number of different categories.
     """
@@ -37,11 +42,11 @@ def _initialize_plus_plus(X, n_clusters, p, random_state=None, max_samples=2**24
     for i in range(1, n_clusters):
         dist = torch.cdist(X, X[idxs[:i]], p=p)
         dist = torch.min(dist, dim=1)[0]
-        idxs[i] = torch.multinomial(dist, 1)
+        idxs[i] = torch.multinomial(weights * dist, 1)
     return X[idxs]
 
 
-def _kmex(X, p, n_clusters, init, max_iter, tol, random_state=None):
+def _kmex(X, p, n_clusters, init, max_iter, tol, random_state=None, weights: torch.tensor = 1.0):
     """
     Auxiliary function: single-process k-means and k-medians in pytorch
     p is the norm used for computing distances: p=2 implies k-means, p=1 implies k-medians.
@@ -55,7 +60,7 @@ def _kmex(X, p, n_clusters, init, max_iter, tol, random_state=None):
             raise ValueError("if a torch tensor, init must have shape (n_clusters, n_features).")
         centers = init
     elif init == "++":
-        centers = _initialize_plus_plus(X, n_clusters, p, random_state)
+        centers = _initialize_plus_plus(X, n_clusters, p, random_state, weights)
     elif init == "random":
         idxs = torch.randint(0, X.shape[0], (n_clusters,))
         centers = X[idxs]
@@ -178,6 +183,8 @@ class _BatchParallelKCluster(ht.ClusteringMixin, ht.BaseEstimator):
         x : DNDarray
             Training instances to cluster. Shape = (n_samples, n_features). It must hold x.split=0.
 
+        weights: torch.tensor
+            Add weights to the distribution function used in the clustering algorithm in kmex
         """
         if not isinstance(x, DNDarray):
             raise TypeError(f"input needs to be a ht.DNDarray, but was {type(x)}")
