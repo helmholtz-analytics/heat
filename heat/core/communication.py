@@ -248,6 +248,33 @@ class MPICommunication(Communication):
         return cls.__mpi_type_mappings[dtype]
 
     @classmethod
+    def _handle_large_count(cls, mpi_type: MPI.Datatype, elements: int):
+        # Uses vector type to get around the MAX_INT limit on certain MPI implementations
+        # This is at the moment only applied when sending contiguous data, as the construction of data types to get around non-contiguous data naturally aliviates the problem to a certain extent.
+        # Thanks to: J. R. Hammond, A. Schäfer and R. Latham, "To INT_MAX... and Beyond! Exploring Large-Count Support in MPI," 2014 Workshop on Exascale MPI at Supercomputing Conference, New Orleans, LA, USA, 2014, pp. 1-8, doi: 10.1109/ExaMPI.2014.5. keywords: {Vectors;Standards;Libraries;Optimization;Context;Memory management;Open area test sites},
+        new_count = elements // cls.COUNT_LIMIT
+        left_over = elements % cls.COUNT_LIMIT
+
+        if new_count > cls.COUNT_LIMIT:
+            raise ValueError("Tensor is too large")
+        vector_type = mpi_type.Create_vector(
+            new_count, cls.COUNT_LIMIT, cls.COUNT_LIMIT
+        )
+        if left_over > 0:
+            left_over_mpi_type = mpi_type.Create_contiguous(left_over).Commit()
+            _, old_type_extent = mpi_type.Get_extent()
+            disp = cls.COUNT_LIMIT * new_count * old_type_extent
+            struct_type = mpi_type.Create_struct(
+                [1, 1], [0, disp], [vector_type, left_over_mpi_type]
+            ).Commit()
+            vector_type.Free()
+            left_over_mpi_type.Free()
+            return struct_type, 1
+        else:
+            return vector_type, 1
+
+
+    @classmethod
     def mpi_type_and_elements_of(
         cls,
         obj: Union[DNDarray, torch.Tensor],
@@ -282,30 +309,8 @@ class MPICommunication(Communication):
         if is_contiguous:
             if counts is None:
                 if elements > cls.COUNT_LIMIT:
-                    # Uses vector type to get around the MAX_INT limit on certain MPI implementations
-                    # This is at the moment only applied when sending contiguous data, as the construction of data types to get around non-contiguous data naturally aliviates the problem to a certain extent.
-                    # Thanks to: J. R. Hammond, A. Schäfer and R. Latham, "To INT_MAX... and Beyond! Exploring Large-Count Support in MPI," 2014 Workshop on Exascale MPI at Supercomputing Conference, New Orleans, LA, USA, 2014, pp. 1-8, doi: 10.1109/ExaMPI.2014.5. keywords: {Vectors;Standards;Libraries;Optimization;Context;Memory management;Open area test sites},
+                    return cls._handle_large_count(mpi_type, elements)
 
-                    new_count = elements // cls.COUNT_LIMIT
-                    left_over = elements % cls.COUNT_LIMIT
-
-                    if new_count > cls.COUNT_LIMIT:
-                        raise ValueError("Tensor is too large")
-                    vector_type = mpi_type.Create_vector(
-                        new_count, cls.COUNT_LIMIT, cls.COUNT_LIMIT
-                    )
-                    if left_over > 0:
-                        left_over_mpi_type = mpi_type.Create_contiguous(left_over).Commit()
-                        _, old_type_extent = mpi_type.Get_extent()
-                        disp = cls.COUNT_LIMIT * new_count * old_type_extent
-                        struct_type = mpi_type.Create_struct(
-                            [1, 1], [0, disp], [vector_type, left_over_mpi_type]
-                        ).Commit()
-                        vector_type.Free()
-                        left_over_mpi_type.Free()
-                        return struct_type, 1
-                    else:
-                        return vector_type, 1
                 else:
                     return mpi_type, elements
             factor = np.prod(obj.shape[1:], dtype=np.int32)
@@ -938,6 +943,7 @@ class MPICommunication(Communication):
                             tmp.storage(), tmp.storage_offset(), size=tmp.shape, stride=tmp.stride()
                         )
 
+        derived_op_flag = False
         if isinstance(recvbuf, torch.Tensor):
             # Datatype and count shall be derived from the recv buffer, and applied to both, as they should match after the last code block
             buf = recvbuf
@@ -947,13 +953,17 @@ class MPICommunication(Communication):
                 # If using a derived datatype, we need to define the reduce operation to be able to handle the it.
                 derived_op = self.__derived_op(rbuf, recvbuf[2], op)
                 op = derived_op
+                derived_op_flag = True
 
         if isinstance(sendbuf, torch.Tensor):
             sbuf = sendbuf if CUDA_AWARE_MPI else sendbuf.cpu()
             sendbuf = (self.as_mpi_memory(sbuf), recvbuf[1], recvbuf[2])
 
         # perform the actual reduction operation
-        return func(sendbuf, recvbuf, op, *args, **kwargs), sbuf, rbuf, buf
+        result = func(sendbuf, recvbuf, op, *args, **kwargs)
+        if derived_op_flag:
+            op.Free()
+        return result, sbuf, rbuf, buf
 
     def Allreduce(
         self,
@@ -1584,21 +1594,18 @@ class MPICommunication(Communication):
             lshape, subsizes, substarts = subarray_params
 
             if np.all(np.array(subsizes) > 0):
-                if is_contiguous:
+                if is_contiguous and np.all(np.array(lshape) < 2**31) and np.all(np.array(subsizes) < 2**31) and np.all(np.array(substarts) < 2**31):
                     # Commit the source subarray datatypes
                     # Subarray parameters are calculated based on the work by Dalcin et al. (https://arxiv.org/abs/1804.09536)
+                    print(f"R{self.rank}: Source - Creating subarray for a tensor with order: {sendbuf.stride()}")
                     subarray_type = send_datatype.Create_subarray(
                         lshape, subsizes, substarts, order=MPI.ORDER_C
                     ).Commit()
                     source_subarray_types.append(subarray_type)
                 else:
-                    # Create recursive vector datatype
-                    source_subarray_types.append(
-                        self._create_recursive_vectortype(
-                            send_datatype, stride, subsizes, substarts
-                        )
-                    )
-                    send_counts[idx] = subsizes[0]
+                    custom_datatype = self._create_recursive_vectortype(send_datatype, stride, subsizes, substarts)
+                    source_subarray_types.append(custom_datatype)
+                    send_counts[idx] = 1 if len(subsizes) == 2 and stride[-1] == 1 else subsizes[0]
             else:
                 send_counts[idx] = 0
                 source_subarray_types.append(MPI.INT)
@@ -1606,7 +1613,8 @@ class MPICommunication(Communication):
         # Unpack recvbuf information
         recvbuf_tensor, (recv_counts, recv_displs), subarray_params_list = recvbuf
         recvbuf = recvbuf_tensor if CUDA_AWARE_MPI else recvbuf_tensor.cpu()
-        recvbuf_ptr, _, recv_datatype = self.as_buffer(recvbuf)
+        recvbuf_ptr = self.as_mpi_memory(recvbuf)
+        recv_datatype = self.mpi_type_of(recvbuf.dtype)
 
         # Commit the receive subarray datatypes
         target_subarray_types = []
@@ -1614,16 +1622,23 @@ class MPICommunication(Communication):
             lshape, subsizes, substarts = subarray_params
 
             if np.all(np.array(subsizes) > 0):
-                target_subarray_types.append(
-                    recv_datatype.Create_subarray(
-                        lshape, subsizes, substarts, order=MPI.ORDER_C
-                    ).Commit()
-                )
+                if np.all(np.array(lshape) <= 2**31 - 1) and np.all(np.array(subsizes) <= 2**31 - 1) and np.all(np.array(substarts) <= 2**31 - 1):
+                    target_subarray_types.append(
+                        recv_datatype.Create_subarray(
+                            lshape, subsizes, substarts, order=MPI.ORDER_C
+                        ).Commit()
+                    )
+                else:
+                    custom_datatype = self._create_recursive_vectortype(recv_datatype, recvbuf.stride(), subsizes, substarts)
+                    target_subarray_types.append(custom_datatype)
+                    recv_counts[idx] = 1 if len(subsizes) == 2 and recvbuf.stride()[-1] == 1 else subsizes[0]
             else:
                 recv_counts[idx] = 0
                 target_subarray_types.append(MPI.INT)
 
         # Perform the Alltoallw operation
+        # print(f"R{self.rank} send_counts: {send_counts}, send_displs: {send_displs}")
+        # print(f"R{self.rank} recv_counts: {recv_counts}, recv_displs: {recv_displs}")
         self.handle.Alltoallw(
             [sendbuf_ptr, (send_counts, send_displs), source_subarray_types],
             [recvbuf_ptr, (recv_counts, recv_displs), target_subarray_types],
@@ -1655,7 +1670,7 @@ class MPICommunication(Communication):
         tensor_stride: Tuple[int],
         subarray_sizes: List[int],
         start: List[int],
-    ):
+    ) -> MPI.Datatype:
         """
         Create a recursive vector to handle non-contiguous tensor data. The created datatype will be a recursively defined vector datatype that will enable the collection of  non-contiguous tensor data in the specified subarray sizes.
 
@@ -1690,6 +1705,8 @@ class MPICommunication(Communication):
         while i > 0:
             current_stride = tensor_stride[i]
             current_size = subarray_sizes[i]
+            # print(f"i: {i}, current_stride: {current_stride}, current_size: {current_size}")
+
             # Define vector out of previous datatype with stride equals to current stride
             if i == len(tensor_stride) - 1 and current_stride == 1:
                 i -= 1

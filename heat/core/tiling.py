@@ -360,8 +360,8 @@ class SplitTiles:
         subsizes = from_shape
         substarts = [0] * len(from_shape)
 
-        tile_dimensions = self.tile_dimensions[to_axis].to(torch.int32).tolist()
-        tile_starts = [0] + self.tile_ends_g[to_axis][:-1].to(torch.int32).tolist()
+        tile_dimensions = self.tile_dimensions[to_axis].to(torch.int64).tolist()
+        tile_starts = [0] + self.tile_ends_g[to_axis][:-1].to(torch.int64).tolist()
 
         subarray_param_list = []
         lshape = from_shape.copy()
@@ -371,6 +371,8 @@ class SplitTiles:
 
             subsizes[to_axis] = chunk_size
             substarts[to_axis] = chunk_start
+            # print(f"Rank {arr.comm.rank} - tile_dims: {tile_dimensions}")
+            # print(f"Rank {arr.comm.rank} - subarray params: {lshape}, {subsizes}, {substarts}")
             subarray_param_list.append((lshape, subsizes.copy(), substarts.copy()))
 
         return subarray_param_list
