@@ -131,6 +131,22 @@ class MPICommunication(Communication):
         torch.complex128: MPI.DOUBLE_COMPLEX,
     }
 
+    __mpi_dtype2ctype = {
+        torch.bool: ctypes.c_bool,
+        torch.uint8: ctypes.c_uint8,
+        torch.uint16: ctypes.c_uint16,
+        torch.uint32: ctypes.c_uint32,
+        torch.uint64: ctypes.c_uint64,
+        torch.int8: ctypes.c_int8,
+        torch.int16: ctypes.c_int16,
+        torch.int32: ctypes.c_int32,
+        torch.int64: ctypes.c_int64,
+        torch.float32: ctypes.c_float,
+        torch.float64: ctypes.c_double,
+        torch.complex64: ctypes.c_double,
+        torch.complex128: ctypes.c_longdouble,
+    }
+
     def __init__(self, handle=MPI.COMM_WORLD):
         self.handle = handle
         try:
@@ -826,22 +842,7 @@ class MPICommunication(Communication):
             # MPI.MINLOC.handle: torch.argmin, Not supported, seems to be an invalid inplace operation
             # MPI.MAXLOC.handle: torch.argmax
         }
-        mpiDtype2Ctype = {
-            torch.bool: ctypes.c_bool,
-            torch.uint8: ctypes.c_uint8,
-            torch.uint16: ctypes.c_uint16,
-            torch.uint32: ctypes.c_uint32,
-            torch.uint64: ctypes.c_uint64,
-            torch.int8: ctypes.c_int8,
-            torch.int16: ctypes.c_int16,
-            torch.int32: ctypes.c_int32,
-            torch.int64: ctypes.c_int64,
-            torch.float32: ctypes.c_float,
-            torch.float64: ctypes.c_double,
-            torch.complex64: ctypes.c_double,
-            torch.complex128: ctypes.c_longdouble,
-        }
-        ctype_size = mpiDtype2Ctype[dtype]
+        ctype_size = self.__mpi_dtype2ctype[dtype]
         torch_op = mpiOp2torch[operation.handle]
 
         def op(sendbuf: MPI.memory, recvbuf: MPI.memory, datatype):
@@ -859,6 +860,46 @@ class MPICommunication(Communication):
         op = MPI.Op.Create(op)
 
         return op
+
+    def _minmax_op(
+        self, dtype: torch.dtype, total_count: int, offset: int = 0
+    ) -> Callable[[MPI.memory, MPI.memory, MPI.Datatype], None]:
+        """
+        Create an MPI.Op for elementwise min/max combine of a packed buffer [mins; maxs].
+
+        Parameters
+        ----------
+        dtype: torch.dtype
+            torch.dtype of underlying elements
+        total_count: int
+            number of elements per mins OR per max (so recv buffer has 2*total_count elements)
+        offset: int, optional
+            storage offset (if needed), default 0
+        """
+        ctype = self.__mpi_dtype2ctype[dtype]
+
+        def op(sendbuf: MPI.memory, recvbuf: MPI.memory, datatype):
+            # build C arrays directly at the addresses (no try/except here)
+            send_arr = (ctype * (2 * total_count + offset)).from_address(sendbuf.address)
+            recv_arr = (ctype * (2 * total_count + offset)).from_address(recvbuf.address)
+
+            # create torch views (count=2*total_count, offset=offset)
+            send_tensor = torch.frombuffer(
+                send_arr, dtype=dtype, count=2 * total_count, offset=offset
+            )
+            recv_tensor = torch.frombuffer(
+                recv_arr, dtype=dtype, count=2 * total_count, offset=offset
+            )
+
+            # reshape to (2, total_count)
+            send_tensor = send_tensor.view(2, total_count)
+            recv_tensor = recv_tensor.view(2, total_count)
+
+            # combine: mins = min(row0s), maxs = max(row1s)
+            torch.minimum(send_tensor[0], recv_tensor[0], out=recv_tensor[0])
+            torch.maximum(send_tensor[1], recv_tensor[1], out=recv_tensor[1])
+
+        return MPI.Op.Create(op, commute=True)
 
     def __reduce_like(
         self,

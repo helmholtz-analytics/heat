@@ -1461,86 +1461,6 @@ def mpi_argmin(a: str, b: str, _: Any) -> torch.Tensor:
 MPI_ARGMIN = MPI.Op.Create(mpi_argmin, commute=True)
 
 
-def mpi_minmax(a: memoryview | Any, b: memoryview | Any, _: Any) -> None:
-    """
-    Callback for MPI.Op.Create that merges two buffers containing mins and maxs.
-
-    Parameters
-    ----------
-    a : str
-        left hand side
-    b : str
-        right hand side
-    _ : Any
-        placeholder
-    """
-    # Candidate dtypes to try
-    candidates = (
-        np.float64,
-        np.float32,
-        np.float16,
-        np.int64,
-        np.int32,
-        np.int16,
-        np.uint8,
-    )
-
-    chosen = None
-    lhs_np = None
-    rhs_np = None
-
-    # Try to interpret raw bytes with different dtypes until we find a match
-    for dt in candidates:
-        try:
-            lhs_data = np.frombuffer(a, dtype=dt)
-            rhs_data = np.frombuffer(b, dtype=dt)
-        except (ValueError, TypeError):
-            continue
-        # We expect same element count on both sides and an even number (mins+maxs)
-        if lhs_data.size == rhs_data.size and lhs_data.size > 0 and (lhs_data.size % 2 == 0):
-            chosen = dt
-            lhs_np = lhs_data
-            rhs_np = rhs_data
-            break
-
-    if chosen is None:
-        raise RuntimeError(
-            "mpi_minmax: could not autodetect buffer dtype/size. "
-            f"bytes-left={len(a)}, bytes-right={len(b)}. "
-            "Ensure local_minmax returns same dtype/layout on all ranks."
-        )
-
-    # Convert numpy views to contiguous torch tensors
-    lhs = torch.from_numpy(lhs_np).contiguous()
-    rhs = torch.from_numpy(rhs_np).contiguous()
-
-    # reshape to (2, N)
-    lhs = lhs.view(2, -1)
-    rhs = rhs.view(2, -1)
-
-    mins_l, maxs_l = lhs[0], lhs[1]
-    mins_r, maxs_r = rhs[0], rhs[1]
-
-    mins = torch.minimum(mins_l, mins_r).unsqueeze(0)
-    maxs = torch.maximum(maxs_l, maxs_r).unsqueeze(0)
-    result = torch.cat((mins, maxs), dim=0)
-
-    # Ensure same dtype as rhs (in-place assignment will expect same dtype)
-    if result.dtype != rhs.dtype:
-        result = result.to(rhs.dtype)
-
-    # Safety check: the flattened element counts must match
-    if result.numel() != rhs.numel():
-        raise RuntimeError(
-            f"mpi_minmax: result.numel() ({result.numel()}) != rhs.numel() ({rhs.numel()})"
-        )
-
-    rhs.copy_(result)
-
-
-MPI_MINMAX = MPI.Op.Create(mpi_minmax, commute=True)
-
-
 def percentile(
     x: DNDarray,
     q: Union[DNDarray, int, float, Tuple, List],
@@ -1884,7 +1804,45 @@ def ptp(
 
         return torch.cat((mins, maxs), dim=0)
 
-    packed = _operations.__reduce_op(x, local_minmax, MPI_MINMAX, axis=axis, keepdims=True)
+    axis_sanitized = stride_tricks.sanitize_axis(x.shape, axis)
+
+    # Build a local "preview" of the packed buffer returned by the partial operation
+    if axis_sanitized is None:
+        # Partial op applied to whole local array
+        preview = local_minmax(x.larray, dim=None, keepdim=True)
+    else:
+        if isinstance(axis_sanitized, int):
+            axes_iter = (axis_sanitized,)
+        else:
+            axes_iter = tuple(axis_sanitized)
+        partial = x.larray
+        for dim in axes_iter:
+            # Replicate __reduce_op behaviour: apply partial_op with keepdim=True
+            partial = local_minmax(partial, dim=dim, keepdim=True)
+        preview = partial
+
+    preview_dtype = preview.dtype
+    if preview.numel() == 0 or (preview.numel() % 2 != 0):
+        raise RuntimeError(
+            f"ptp: unexpected preview buffer size: preview.numel()={preview.numel()} "
+            "(must be non-zero and even)"
+        )
+    total_count = preview.numel() // 2
+
+    comm = x.comm
+
+    # Create a dtype/size-specific MPI.Op via the communicator's factory
+    # The communicator must provide `_minmax_op(dtype, total_count, offset=0)`
+    op = comm._minmax_op(preview_dtype, total_count, offset=0)
+
+    # Run the global reduction with the freshly created op and always free it afterwards
+    try:
+        packed = _operations.__reduce_op(x, local_minmax, op, axis=axis, keepdims=True)
+    finally:
+        try:
+            op.Free()
+        except Exception:
+            pass
 
     # Unpack global mins and maxs
     mins_t, maxs_t = packed.larray.chunk(2, dim=0)
