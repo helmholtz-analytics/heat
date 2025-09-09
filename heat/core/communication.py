@@ -257,9 +257,7 @@ class MPICommunication(Communication):
 
         if new_count > cls.COUNT_LIMIT:
             raise ValueError("Tensor is too large")
-        vector_type = mpi_type.Create_vector(
-            new_count, cls.COUNT_LIMIT, cls.COUNT_LIMIT
-        )
+        vector_type = mpi_type.Create_vector(new_count, cls.COUNT_LIMIT, cls.COUNT_LIMIT)
         if left_over > 0:
             left_over_mpi_type = mpi_type.Create_contiguous(left_over).Commit()
             _, old_type_extent = mpi_type.Get_extent()
@@ -272,7 +270,6 @@ class MPICommunication(Communication):
             return struct_type, 1
         else:
             return vector_type, 1
-
 
     @classmethod
     def mpi_type_and_elements_of(
@@ -1594,16 +1591,25 @@ class MPICommunication(Communication):
             lshape, subsizes, substarts = subarray_params
 
             if np.all(np.array(subsizes) > 0):
-                if is_contiguous and np.all(np.array(lshape) < 2**31) and np.all(np.array(subsizes) < 2**31) and np.all(np.array(substarts) < 2**31):
+                if (
+                    is_contiguous
+                    and np.all(np.array(lshape) < 2**31)
+                    and np.all(np.array(subsizes) < 2**31)
+                    and np.all(np.array(substarts) < 2**31)
+                ):
                     # Commit the source subarray datatypes
                     # Subarray parameters are calculated based on the work by Dalcin et al. (https://arxiv.org/abs/1804.09536)
-                    print(f"R{self.rank}: Source - Creating subarray for a tensor with order: {sendbuf.stride()}")
+                    print(
+                        f"R{self.rank}: Source - Creating subarray for a tensor with order: {sendbuf.stride()}"
+                    )
                     subarray_type = send_datatype.Create_subarray(
                         lshape, subsizes, substarts, order=MPI.ORDER_C
                     ).Commit()
                     source_subarray_types.append(subarray_type)
                 else:
-                    custom_datatype = self._create_recursive_vectortype(send_datatype, stride, subsizes, substarts)
+                    custom_datatype = self._create_recursive_vectortype(
+                        send_datatype, stride, subsizes, substarts
+                    )
                     source_subarray_types.append(custom_datatype)
                     send_counts[idx] = 1 if len(subsizes) == 2 and stride[-1] == 1 else subsizes[0]
             else:
@@ -1622,16 +1628,24 @@ class MPICommunication(Communication):
             lshape, subsizes, substarts = subarray_params
 
             if np.all(np.array(subsizes) > 0):
-                if np.all(np.array(lshape) <= 2**31 - 1) and np.all(np.array(subsizes) <= 2**31 - 1) and np.all(np.array(substarts) <= 2**31 - 1):
+                if (
+                    np.all(np.array(lshape) <= 2**31 - 1)
+                    and np.all(np.array(subsizes) <= 2**31 - 1)
+                    and np.all(np.array(substarts) <= 2**31 - 1)
+                ):
                     target_subarray_types.append(
                         recv_datatype.Create_subarray(
                             lshape, subsizes, substarts, order=MPI.ORDER_C
                         ).Commit()
                     )
                 else:
-                    custom_datatype = self._create_recursive_vectortype(recv_datatype, recvbuf.stride(), subsizes, substarts)
+                    custom_datatype = self._create_recursive_vectortype(
+                        recv_datatype, recvbuf.stride(), subsizes, substarts
+                    )
                     target_subarray_types.append(custom_datatype)
-                    recv_counts[idx] = 1 if len(subsizes) == 2 and recvbuf.stride()[-1] == 1 else subsizes[0]
+                    recv_counts[idx] = (
+                        1 if len(subsizes) == 2 and recvbuf.stride()[-1] == 1 else subsizes[0]
+                    )
             else:
                 recv_counts[idx] = 0
                 target_subarray_types.append(MPI.INT)
