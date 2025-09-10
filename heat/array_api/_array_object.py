@@ -43,7 +43,7 @@ class Array:
     @classmethod
     def _new(cls, x, /):
         """
-        This is a private method for initializing the array API Array
+        Initializes the array API Array
         object.
         Functions outside of the array_api submodule should not use this
         method. Use one of the creation functions instead, such as
