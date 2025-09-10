@@ -1599,12 +1599,6 @@ class MPICommunication(Communication):
                 ):
                     # Commit the source subarray datatypes
                     # Subarray parameters are calculated based on the work by Dalcin et al. (https://arxiv.org/abs/1804.09536)
-<<<<<<< HEAD
-                    print(
-                        f"R{self.rank}: Source - Creating subarray for a tensor with order: {sendbuf.stride()}"
-                    )
-=======
->>>>>>> 87b1f3f9b (fix: removed some print statements)
                     subarray_type = send_datatype.Create_subarray(
                         lshape, subsizes, substarts, order=MPI.ORDER_C
                     ).Commit()
