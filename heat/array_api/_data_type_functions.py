@@ -64,7 +64,7 @@ def broadcast_to(x: Array, /, shape: Tuple[int, ...]) -> Array:
     return Array._new(ht.broadcast_to(x._array, shape))
 
 
-def can_cast(from: Union[Dtype, Array], to: Dtype, /) -> bool:
+def can_cast(from_: Union[Dtype, Array], to: Dtype, /) -> bool:
     """
     Determines if one data type can be cast to another data type according to
     Type Promotion Rules.
@@ -72,7 +72,7 @@ def can_cast(from: Union[Dtype, Array], to: Dtype, /) -> bool:
 
     Parameters
     ----------
-    from : Union[Dtype, Array]
+    from_ : Union[Dtype, Array]
         Input data type or array from which to cast.
     to : Dtype
         Desired data type.
