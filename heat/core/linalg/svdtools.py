@@ -636,7 +636,7 @@ def _isvd(
     old_rowwise_mean: int, optional
         row-wise mean of the old matrix; if not provided, no mean subtraction is performed
     """
-    # old SVD is SVD of a matrix of dimension m x n as has rank r
+    # old SVD is SVD of a matrix of dimension m x n and has rank r
     # new data have shape m x d
     d = new_data.shape[1]
     n = V_old.shape[0] if V_old is not None else old_matrix_size
@@ -751,7 +751,7 @@ def isvd(
     maxrank: Optional[int] = None,
 ) -> Tuple[DNDarray, DNDarray, DNDarray]:
     r"""Incremental SVD (iSVD) for the addition of new data to an existing SVD.
-    Given the the SVD of an "old" matrix, :math:`X_\textnormal{old} = `U_\textnormal{old} \cdot S_\textnormal{old} \cdot V_\textnormal{old}^T`, and additional columns :math:`N` (\"`new_data`\"), this routine computes
+    Given the SVD of an "old" matrix, :math:`X_\textnormal{old} = `U_\textnormal{old} \cdot S_\textnormal{old} \cdot V_\textnormal{old}^T`, and additional columns :math:`N` (\"`new_data`\"), this routine computes
     (a possibly approximate) SVD of the extended matrix :math:`X_\textnormal{new} = [ X_\textnormal{old} | N]`.
 
     Parameters
