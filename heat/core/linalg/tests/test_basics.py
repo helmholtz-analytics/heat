@@ -375,7 +375,7 @@ class TestLinalgBasics(TestCase):
         a = ht.random.random((20, 20), dtype=dtype, split=0)
         ainv = ht.linalg.inv(a)
         i = ht.eye(a.shape, split=0, dtype=a.dtype)
-        print(f"Local result of rank {a.comm.Get_rank()}: {(a @ ainv).larray}")
+        # print(f"Local result of rank {a.comm.Get_rank()}: {(a @ ainv).larray}")
         self.assertTrue(ht.allclose(a @ ainv, i, atol=1e-5 if self.is_mps else atol * 1e2))
 
         with self.assertRaises(RuntimeError):

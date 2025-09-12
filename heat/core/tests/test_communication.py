@@ -74,8 +74,8 @@ class TestCommunication(TestCase):
         self.assertEqual(len(chunks), len(self.data.shape))
 
     def test_cuda_aware_mpi(self):
-        self.assertTrue(hasattr(ht.communication, "CUDA_AWARE_MPI"))
-        self.assertIsInstance(ht.communication.CUDA_AWARE_MPI, bool)
+        self.assertTrue(hasattr(ht.communication, "GPU_AWARE_MPI"))
+        self.assertIsInstance(ht.communication.GPU_AWARE_MPI, bool)
 
     def test_contiguous_memory_buffer(self):
         # vector heat tensor
@@ -139,7 +139,7 @@ class TestCommunication(TestCase):
 
         # check that after sending the data everything is equal
         self.assertTrue((non_contiguous_data.larray == contiguous_out.larray).all())
-        if ht.get_device().device_type == "cpu" or ht.communication.CUDA_AWARE_MPI:
+        if ht.get_device().device_type == "cpu" or ht.communication.GPU_AWARE_MPI:
             self.assertTrue(contiguous_out.larray.is_contiguous())
 
         # non-contiguous destination
@@ -158,7 +158,7 @@ class TestCommunication(TestCase):
         req.Wait()
         # check that after sending the data everything is equal
         self.assertTrue((contiguous_data.larray == non_contiguous_out.larray).all())
-        if ht.get_device().device_type == "cpu" or ht.communication.CUDA_AWARE_MPI:
+        if ht.get_device().device_type == "cpu" or ht.communication.GPU_AWARE_MPI:
             self.assertFalse(non_contiguous_out.larray.is_contiguous())
 
         # non-contiguous destination
@@ -181,7 +181,7 @@ class TestCommunication(TestCase):
         req.Wait()
         # check that after sending the data everything is equal
         self.assertTrue((both_non_contiguous_data.larray == both_non_contiguous_out.larray).all())
-        if ht.get_device().device_type == "cpu" or ht.communication.CUDA_AWARE_MPI:
+        if ht.get_device().device_type == "cpu" or ht.communication.GPU_AWARE_MPI:
             self.assertFalse(both_non_contiguous_out.larray.is_contiguous())
 
     def test_default_comm(self):
