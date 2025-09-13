@@ -862,7 +862,12 @@ class MPICommunication(Communication):
         return op
 
     def _minmax_op(
-        self, dtype: torch.dtype, total_count: int, offset: int = 0
+        self,
+        dtype: torch.dtype,
+        total_count: int,
+        shape: Tuple[int],
+        stride: Tuple[int],
+        offset: int = 0,
     ) -> Callable[[MPI.memory, MPI.memory, MPI.Datatype], None]:
         """
         Create an MPI.Op for elementwise min/max combine of a packed buffer [mins; maxs].
@@ -872,9 +877,14 @@ class MPICommunication(Communication):
         dtype: torch.dtype
             torch.dtype of underlying elements
         total_count: int
-            number of elements per mins OR per max (so recv buffer has 2*total_count elements)
+            Number of elements per mins OR per max (so recv buffer has 2*total_count elements)
+        shape: Tuple[int]
+            Shape of the packed buffer that the MPI callback will operate on.
+            This describes the logical shape of the concatenated buffer [mins; maxs]
+        stride: Tuple[int]
+            Stride (in elements) of the packed buffer's storage, matching the layout
         offset: int, optional
-            storage offset (if needed), default 0
+            Storage offset (if needed), default 0
         """
         ctype = self.__mpi_dtype2ctype[dtype]
 
@@ -884,11 +894,15 @@ class MPICommunication(Communication):
             recv_arr = (ctype * (2 * total_count + offset)).from_address(recvbuf.address)
 
             # create torch views (count=2*total_count, offset=offset)
-            send_tensor = torch.frombuffer(
-                send_arr, dtype=dtype, count=2 * total_count, offset=offset
+            send_tensor = torch.as_strided(
+                torch.frombuffer(send_arr, dtype=dtype, count=2 * total_count, offset=offset),
+                shape,
+                stride,
             )
-            recv_tensor = torch.frombuffer(
-                recv_arr, dtype=dtype, count=2 * total_count, offset=offset
+            recv_tensor = torch.as_strided(
+                torch.frombuffer(recv_arr, dtype=dtype, count=2 * total_count, offset=offset),
+                shape,
+                stride,
             )
 
             # reshape to (2, total_count)

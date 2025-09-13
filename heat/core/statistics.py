@@ -1787,53 +1787,53 @@ def ptp(
             mins = mins.reshape(1)
             maxs = maxs.reshape(1)
 
-        # Normalize dtype across ranks:
-        # - floats -> double unless MPS device, where we keep float
-        # - ints -> int64
-        if mins.is_floating_point():
-            # keep MPS behavior consistent with other functions
-            if mins.is_mps:
-                mins = mins.float()
-                maxs = maxs.float()
-            else:
-                mins = mins.double()
-                maxs = maxs.double()
-        else:
-            mins = mins.to(torch.int64)
-            maxs = maxs.to(torch.int64)
-
         return torch.cat((mins, maxs), dim=0)
 
+    lshape = tuple(x.larray.shape)
+    ndim = len(lshape)
     axis_sanitized = stride_tricks.sanitize_axis(x.shape, axis)
 
-    # Build a local "preview" of the packed buffer returned by the partial operation
     if axis_sanitized is None:
-        # Partial op applied to whole local array
-        preview = local_minmax(x.larray, dim=None, keepdim=True)
+        reduced_shape = tuple(1 for _ in lshape)  # keepdim=True => ones for all dims
     else:
-        if isinstance(axis_sanitized, int):
-            axes_iter = (axis_sanitized,)
-        else:
-            axes_iter = tuple(axis_sanitized)
-        partial = x.larray
-        for dim in axes_iter:
-            # Replicate __reduce_op behaviour: apply partial_op with keepdim=True
-            partial = local_minmax(partial, dim=dim, keepdim=True)
-        preview = partial
+        axes = (axis_sanitized,) if isinstance(axis_sanitized, int) else tuple(axis_sanitized)
+        # normalize negative axes
+        axes = tuple(a if a >= 0 else a + ndim for a in axes)
+        rs = list(lshape)
+        for a in axes:
+            rs[a] = 1
+        reduced_shape = tuple(rs)
 
-    preview_dtype = preview.dtype
-    if preview.numel() == 0 or (preview.numel() % 2 != 0):
+    total_count = int(np.prod(reduced_shape))
+    if total_count == 0:
         raise RuntimeError(
-            f"ptp: unexpected preview buffer size: preview.numel()={preview.numel()} "
-            "(must be non-zero and even)"
+            f"ptp: unexpected local reduced size 0 (x.larray.shape={x.larray.shape}, axis={axis})"
         )
-    total_count = preview.numel() // 2
+
+    # packed shape: double first axis
+    packed_shape = list(reduced_shape)
+    packed_shape[0] = packed_shape[0] * 2
+    packed_shape = tuple(packed_shape)
+
+    # contig stride helper
+    def contig_stride(shape):
+        if not shape:
+            return ()
+        s = [0] * len(shape)
+        s[-1] = 1
+        for i in range(len(shape) - 2, -1, -1):
+            s[i] = s[i + 1] * shape[i + 1]
+        return tuple(s)
+
+    packed_stride = contig_stride(packed_shape)
+    # dtype: take from x.larray (do not cast earlier)
+    preview_dtype = x.larray.dtype
 
     comm = x.comm
 
     # Create a dtype/size-specific MPI.Op via the communicator's factory
-    # The communicator must provide `_minmax_op(dtype, total_count, offset=0)`
-    op = comm._minmax_op(preview_dtype, total_count, offset=0)
+    # The communicator must provide `_minmax_op(dtype, total_count, shape, stride, offset=0)`
+    op = comm._minmax_op(preview_dtype, total_count, packed_shape, packed_stride, offset=0)
 
     # Run the global reduction with the freshly created op and always free it afterwards
     try:

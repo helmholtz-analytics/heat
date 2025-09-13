@@ -2081,12 +2081,15 @@ class TestCommunication(TestCase):
         send = ht.array([comm.rank * 2.0, comm.rank * 2.0 + 1.0], dtype=ht.float64)
         out = ht.zeros_like(send)
 
-        op = comm._minmax_op(torch.float64, total_count=1)
+        # build equivalent torch tensor to extract shape/stride
+        # send.larray is a torch tensor; use its shape/stride
+        shape = tuple(send.larray.shape)
+        stride = tuple(send.larray.stride())
+
+        op = comm._minmax_op(torch.float64, total_count=1, shape=shape, stride=stride)
         try:
-            # in-place semantics handled by wrapper: use Allreduce with send/out DNDarrays
             send.comm.Allreduce(send, out, op=op)
 
-            # expected: global min is 0.0, global max is (size-1)*2 + 1
             expected = torch.tensor([0.0, (comm.size - 1) * 2.0 + 1.0], dtype=torch.float64)
             self.assertTrue(torch.allclose(out.larray.cpu(), expected.cpu()))
         finally:
@@ -2106,13 +2109,15 @@ class TestCommunication(TestCase):
         send = ht.array(send_tensor.numpy(), dtype=ht.float64)
         out = ht.zeros_like(send)
 
-        op = comm._minmax_op(torch.float64, total_count=total_count)
+        # use the actual local torch tensor to get shape/stride that will be used by the op
+        shape = tuple(send.larray.shape)
+        stride = tuple(send.larray.stride())
+
+        op = comm._minmax_op(torch.float64, total_count=total_count, shape=shape, stride=stride)
         try:
             send.comm.Allreduce(send, out, op=op)
 
-            # expected: mins = base0 + 0, maxs = base1 + (size-1)
             expected = torch.vstack((base0 + 0.0, base1 + float(comm.size - 1)))
-            # compare flattened (both are contiguous)
             self.assertTrue(torch.allclose(out.larray.cpu(), expected.cpu()))
         finally:
             try:
@@ -2125,7 +2130,10 @@ class TestCommunication(TestCase):
         send = ht.array([comm.rank * 2, comm.rank * 2 + 1], dtype=ht.int32)
         out = ht.zeros_like(send)
 
-        op = comm._minmax_op(torch.int32, total_count=1)
+        shape = tuple(send.larray.shape)
+        stride = tuple(send.larray.stride())
+
+        op = comm._minmax_op(torch.int32, total_count=1, shape=shape, stride=stride)
         try:
             send.comm.Allreduce(send, out, op=op)
 
@@ -2139,7 +2147,10 @@ class TestCommunication(TestCase):
 
     def test_minmax_op_create_and_free_no_crash(self):
         comm = ht.MPI_WORLD
-        op = comm._minmax_op(torch.float64, total_count=1)
+        # minimal valid shape/stride for scalar packed buffer
+        shape = (2,)
+        stride = (1,)
+        op = comm._minmax_op(torch.float64, total_count=1, shape=shape, stride=stride)
         try:
             op.Free()
         except Exception:
