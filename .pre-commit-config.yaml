@@ -39,10 +39,12 @@ repos:
       - id: "validate-cff"
         args:
           - "--verbose"
-  - repo: https://github.com/gitleaks/gitleaks
-    rev: v8.28.0
+  - repo: https://github.com/thoughtworks/talisman
+    rev: 'v1.37.0'  # Update me!
     hooks:
-      - id: gitleaks
+      # both pre-commit and pre-push supported
+      # -   id: talisman-push
+      - id: talisman-commit
   - repo: https://github.com/shellcheck-py/shellcheck-py
     rev: v0.11.0.1
     hooks:
