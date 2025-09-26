@@ -856,7 +856,12 @@ def convolve2d(
             if a.comm.rank == 0:
                 local_index = 0
             else:
-                local_index = torch.sum(a.lshape_map[: a.comm.rank, a.split]).item() - halo_size
+                # lshape map does not know about padding, compute pad_offset for last rank
+                pad_offset = pad_size[a.split] if a.comm.rank == a.comm.size - 1 else 0
+
+                local_index = (
+                    torch.sum(a.lshape_map[: a.comm.rank, a.split]).item() + pad_offset - halo_size
+                )
                 local_index = local_index % stride[a.split]
 
                 print(
@@ -889,10 +894,16 @@ def convolve2d(
             signal_filtered = torch.tensor([[]], device=str(signal.device))
 
         # if kernel shape along split axis is even we need to get rid of duplicated values
-        if stride[a.split] == 1:
-            if a.comm.rank != 0 and a.split == 0 and v.shape[-2] % 2 == 0:
+        if (
+            a.is_distributed()
+            and stride[a.split] == 1
+            and a.comm.rank != 0
+            and v.shape[a.split] % 2 == 0
+        ):
+            print(f"Even kernel, so offset of 1 necessary. Split is: {stride[a.split]}")
+            if a.split == 0:
                 signal_filtered = signal_filtered[1:, :]
-            elif a.comm.rank != 0 and a.split == 1 and v.shape[-1] % 2 == 0:
+            elif a.split == 1:
                 signal_filtered = signal_filtered[:, 1:]
 
         result = DNDarray(

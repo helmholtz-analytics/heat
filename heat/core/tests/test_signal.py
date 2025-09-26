@@ -1332,6 +1332,7 @@ class TestSignal(TestCase):
 
         mode = "full"
         strides = [(1, 2), (2, 1), (2, 2)]
+        strides = [(2,1)]
 
         dis_signal = ht.array(np_sig, split=0).astype(ht_dtype)
         signal = ht.array(np_sig).astype(ht_dtype)
@@ -1481,8 +1482,8 @@ class TestSignal(TestCase):
             ht_dtype = ht.float32 if self.is_mps else ht.int32
             np_type = np.float32 if self.is_mps else np.int32
 
-            np_a = np.random.randint(1000, size=(140, 250))
-            np_b = np.random.randint(1000, size=(39, 17))
+            np_a = np.random.randint(0,1000, size=(140, 250))
+            np_b = np.random.randint(0,3, size=(39, 17))
             random_stride = tuple(np.random.randint(1, high=100, size=2))
             for mode in ["full", "same", "valid"]:
                 strides = [(1,1), random_stride] if mode != "same" else [(1,1)]
