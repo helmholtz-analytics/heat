@@ -28,6 +28,7 @@ class TestKMeans(TestCase):
         self.assertEqual(10, kmeans.n_clusters)
 
     def test_fit_iris_unsplit(self):
+        oversampling=10
         for split in [None, 0]:
             # get some test data
             iris = ht.load("heat/datasets/iris.csv", sep=";", split=split)
@@ -35,15 +36,15 @@ class TestKMeans(TestCase):
             # fit the clusters
             k = 3
             kmeans = ht.cluster.KMeans(n_clusters=k)
-            kmeans.fit(iris)
+            kmeans.fit(iris, oversampling=oversampling)
 
             # check whether the results are correct
             self.assertIsInstance(kmeans.cluster_centers_, ht.DNDarray)
             self.assertEqual(kmeans.cluster_centers_.shape, (k, iris.shape[1]))
 
             # same test with init=kmeans++
-            kmeans = ht.cluster.KMeans(n_clusters=k, init="kmeans++")
-            kmeans.fit(iris)
+            kmeans = ht.cluster.KMeans(n_clusters=k, init="probability_based")
+            kmeans.fit(iris, oversampling=oversampling)
 
             # check whether the results are correct
             self.assertIsInstance(kmeans.cluster_centers_, ht.DNDarray)
@@ -52,7 +53,7 @@ class TestKMeans(TestCase):
         iris = ht.load("heat/datasets/iris.csv", sep=";", split=0)
         # same test with init=batchparallel
         kmeans = ht.cluster.KMeans(n_clusters=k, init="batchparallel")
-        kmeans.fit(iris)
+        kmeans.fit(iris, oversampling=oversampling)
 
         # check whether the results are correct
         self.assertIsInstance(kmeans.cluster_centers_, ht.DNDarray)
@@ -76,6 +77,22 @@ class TestKMeans(TestCase):
         with self.assertRaises(NotImplementedError):
             kmeans = ht.cluster.KMeans(n_clusters=k, init="batchparallel")
             kmeans.fit(iris_split)
+        with self.assertRaises(ValueError):
+            kmeans = ht.cluster.KMeans(n_clusters=k, init=np.array([1, 2, 3]))
+            kmeans.fit(iris_split)
+        with self.assertRaises(ValueError):
+            kmeans = ht.cluster.KMeans(n_clusters=k)
+            kmeans.fit(iris_split, oversampling=-1)
+        with self.assertRaises(ValueError):
+            kmeans = ht.cluster.KMeans(n_clusters=k)
+            kmeans.fit(iris_split, iter_multiplier=-1)
+        with self.assertRaises(ValueError):
+            kmeans = ht.cluster.KMeans(n_clusters=k, init=ht.array([1, 2]))
+            kmeans.fit(iris_split)
+        with self.assertRaises(NotImplementedError):
+            kmeans = ht.cluster.KMeans(n_clusters=k, init="probability_based")
+            kmeans.fit(iris_split)
+
 
     def test_spherical_clusters(self):
         seed = 1
@@ -83,11 +100,12 @@ class TestKMeans(TestCase):
         data = create_spherical_dataset(
             num_samples_cluster=n, radius=1.0, offset=4.0, dtype=ht.float32, random_state=seed
         )
+
         kmeans = ht.cluster.KMeans(n_clusters=4, init="kmeans++")
         kmeans.fit(data)
+
         self.assertIsInstance(kmeans.cluster_centers_, ht.DNDarray)
         self.assertEqual(kmeans.cluster_centers_.shape, (4, 3))
-
         # More Samples
         n = 100 * ht.MPI_WORLD.size
         data = create_spherical_dataset(
