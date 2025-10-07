@@ -65,6 +65,7 @@ class KMedians(_KCluster):
         ----------
         x :  DNDarray
             Input data
+
         matching_centroids : DNDarray
             Array filled with indeces ``i`` indicating to which cluster ``ci`` each sample point in x is assigned
 
@@ -103,7 +104,7 @@ class KMedians(_KCluster):
 
         return new_cluster_centers
 
-    def fit(self, x: DNDarray):
+    def fit(self, x: DNDarray, oversampling: float = 2, iter_multiplier: float = 1):
         """
         Computes the centroid of a k-medians clustering.
 
@@ -111,13 +112,19 @@ class KMedians(_KCluster):
         ----------
         x : DNDarray
             Training instances to cluster. Shape = (n_samples, n_features)
+
+        oversampling : float
+            oversampling factor used in the k-means|| initializiation of centroids
+
+        iter_multiplier : float
+            factor that increases the number of iterations used in the initialization of centroids
         """
         # input sanitation
         if not isinstance(x, ht.DNDarray):
             raise ValueError(f"input needs to be a ht.DNDarray, but was {type(x)}")
 
         # initialize the clustering
-        self._initialize_cluster_centers(x)
+        self._initialize_cluster_centers(x, oversampling, iter_multiplier)
         self._n_iter = 0
 
         # iteratively fit the points to the centroids
