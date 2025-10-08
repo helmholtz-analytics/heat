@@ -3,6 +3,9 @@ import unittest
 import numpy as np
 import torch
 import heat as ht
+import shutil
+import h5py
+import zarr
 
 from ...core.tests.test_suites.basic_test import TestCase
 
@@ -322,9 +325,6 @@ class TestIncrementalPCA(TestCase):
         pca = ht.decomposition.IncrementalPCA(n_components=1)
         data0 = ht.random.randn(15, 15, split=None)
 
-        # fit is not yet implemented
-        with self.assertRaises(NotImplementedError):
-            pca.fit(data0)
         # wrong input for partial_fit
         with self.assertRaises(ValueError):
             pca.partial_fit(data0, y="Why can't we get rid of this argument?")
@@ -335,3 +335,81 @@ class TestIncrementalPCA(TestCase):
             pca.transform(ht.zeros((15, 16), split=None))
         with self.assertRaises(ValueError):
             pca.inverse_transform(ht.zeros((17, 2), split=None))
+
+    def test_incrementalpca_fit_hdf5(self):
+        path = os.path.join(os.getcwd(), "heat/datasets/iris.h5")
+        dataset_name = "data"
+
+        pca = ht.decomposition.IncrementalPCA(n_components=5)
+
+        if ht.MPI_WORLD.size > 4:  # Assumption: original file has 4 columns
+            with self.assertRaises(ValueError):
+                pca.fit(path=path, chunk_size=50, dataset=dataset_name)
+        else:
+            pca.fit(path=path, chunk_size=50, dataset=dataset_name)
+            self.assertEqual(pca.n_components_, 4)
+            self.assertEqual(pca.mean_.shape, (4,))
+            self.assertEqual(pca.components_.shape, (4, 4))
+            self.assertEqual(pca.n_samples_seen_, 150)
+
+    def test_incrementalpca_fit_zarr(self):
+        path = "temp_test_data.zarr"
+        dataset_name = "data"
+
+        try:
+            # Create mock dataset
+            if ht.MPI_WORLD.rank == 0:
+                # If number of columns is less than number of processes, error is expected
+                num_columns = ht.MPI_WORLD.size - 1 if ht.MPI_WORLD.size > 1 else 4
+                test_data = np.random.rand(150, num_columns)
+                root = zarr.open(path, mode="w")
+                root.create_dataset(dataset_name, data=test_data)
+            else:
+                num_columns = None
+
+            # Synchronize num_columns between all processes
+            num_columns = ht.MPI_WORLD.bcast(num_columns, root=0)
+
+            pca = ht.decomposition.IncrementalPCA(n_components=5)
+
+            if ht.MPI_WORLD.size > num_columns:
+                # Error when number of columns is less than number of processes
+                with self.assertRaises(ValueError):
+                    pca.fit(path=path, chunk_size=50, dataset=dataset_name)
+            else:
+                # Successful computation when number of columns >= number of processes
+                pca.fit(path=path, chunk_size=50, dataset=dataset_name)
+                self.assertEqual(pca.n_components_, min(5, num_columns))
+                self.assertEqual(pca.mean_.shape, (num_columns,))
+                self.assertEqual(pca.components_.shape, (min(5, num_columns), num_columns))
+                self.assertEqual(pca.n_samples_seen_, 150)
+        finally:
+            # Clean up temporary file
+            if ht.MPI_WORLD.rank == 0 and os.path.exists(path):
+                shutil.rmtree(path)
+            ht.MPI_WORLD.Barrier()
+
+    def test_incrementalpca_fit_invalid_file_format(self):
+        path = "temp_test_data.txt"
+        try:
+            if ht.MPI_WORLD.rank == 0:
+                with open(path, "w") as f:
+                    f.write("Invalid file format")
+            ht.MPI_WORLD.Barrier()
+
+            pca = ht.decomposition.IncrementalPCA(n_components=5)
+            with self.assertRaises(ValueError):
+                pca.fit(path=path, chunk_size=50)
+        finally:
+            if ht.MPI_WORLD.rank == 0 and os.path.exists(path):
+                os.remove(path)
+
+    def test_incrementalpca_fit_chunk_size_too_large(self):
+        path = os.path.join(os.getcwd(), "heat/datasets/iris.h5")
+        dataset_name = "data"
+
+        pca = ht.decomposition.IncrementalPCA(n_components=5)
+        with self.assertRaises(ValueError):
+            pca.fit(
+                path=path, chunk_size=200, dataset=dataset_name
+            )  # Assuming dataset has fewer than 200 rows
