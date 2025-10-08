@@ -1432,7 +1432,7 @@ else:
         path : str
             Path to the directory in which a .zarr-file is located.
         variable : str, optional
-            If the zarr store is a group, the variable to load from the group.
+            If the zarr store is a group, the variable (or path to variable) to load from the group.
         split : int
             Along which axis the loaded arrays should be concatenated.
         device : str, optional
