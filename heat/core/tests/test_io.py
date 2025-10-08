@@ -42,6 +42,11 @@ class TestIO(TestCase):
         cls.ZARR_TEMP_PATH = pwd + "/zarr_temp.zarr"
         cls.ZARR_NESTED_PATH = pwd + "/zarr_test_nested.zarr"
 
+        # device-aware dtypes
+        testing_types = [ht.int32, ht.int64, ht.float32]
+        if not cls.is_mps:
+            testing_types.append(ht.float64)
+        cls.testing_types = testing_types
 
     def tearDown(self):
         # synchronize all nodes
@@ -947,15 +952,15 @@ class TestIO(TestCase):
         import zarr
 
         test_data = np.arange(self.ZARR_SHAPE[0] * self.ZARR_SHAPE[1]).reshape(self.ZARR_SHAPE)
-
+        dtype = np.float32
         if ht.MPI_WORLD.rank == 0:
             try:
                 arr = zarr.create_array(
-                    self.ZARR_TEMP_PATH, shape=self.ZARR_SHAPE, dtype=np.float64
+                    self.ZARR_TEMP_PATH, shape=self.ZARR_SHAPE, dtype=dtype
                 )
             except AttributeError:
                 arr = zarr.create(
-                    store=self.ZARR_TEMP_PATH, shape=self.ZARR_SHAPE, dtype=np.float64
+                    store=self.ZARR_TEMP_PATH, shape=self.ZARR_SHAPE, dtype=dtype
                 )
             arr[:] = test_data
 
@@ -1066,7 +1071,7 @@ class TestIO(TestCase):
 
         import zarr
 
-        for type in [ht.types.int32, ht.types.int64, ht.types.float32, ht.types.float64]:
+        for type in self.testing_types:
             for dims in [(i, self.ZARR_SHAPE[1]) for i in range(1, max(10, ht.MPI_WORLD.size + 1))]:
                 with self.subTest(type=type, dims=dims):
                     n = dims[0] * dims[1]
@@ -1086,7 +1091,7 @@ class TestIO(TestCase):
 
         import zarr
 
-        for type in [ht.types.int32, ht.types.int64, ht.types.float32, ht.types.float64]:
+        for type in self.testing_types:
             for dims in [(self.ZARR_SHAPE[0], i) for i in range(1, max(10, ht.MPI_WORLD.size + 1))]:
                 with self.subTest(type=type, dims=dims):
                     n = dims[0] * dims[1]
@@ -1106,7 +1111,7 @@ class TestIO(TestCase):
 
         import zarr
 
-        for type in [ht.types.int32, ht.types.int64, ht.types.float32, ht.types.float64]:
+        for type in self.testing_types:
             for n in [10, 100, 1000]:
                 with self.subTest(type=type, n=n):
                     dndarray = ht.arange(n, dtype=type, split=None)
@@ -1124,7 +1129,7 @@ class TestIO(TestCase):
 
         import zarr
 
-        for type in [ht.types.int32, ht.types.int64, ht.types.float32, ht.types.float64]:
+        for type in self.testing_types:
             for n in [10, 100, 1000]:
                 with self.subTest(type=type, n=n):
                     dndarray = ht.arange(n, dtype=type, split=0)
