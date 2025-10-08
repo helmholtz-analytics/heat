@@ -1417,6 +1417,7 @@ else:
 
     def load_zarr(
         path: str,
+        variable: str = None,
         split: int = 0,
         device: Optional[str] = None,
         comm: Optional[Communication] = None,
@@ -1430,6 +1431,8 @@ else:
         ----------
         path : str
             Path to the directory in which a .zarr-file is located.
+        variable : str, optional
+            If the zarr store is a group, the variable to load from the group.
         split : int
             Along which axis the loaded arrays should be concatenated.
         device : str, optional
@@ -1455,13 +1458,15 @@ else:
                     continue
                 raise TypeError(f"Tuple values of slices must be slice or None, not {type(elem)}")
 
+        store_path = os.path.join(path, variable) if variable else path
+
         for extension in __ZARR_EXTENSIONS:
             if fnmatch.fnmatch(path, f"*{extension}"):
                 break
         else:
             raise ValueError("File has no zarr extension.")
 
-        arr: zarr.Array = zarr.open_array(store=path, **kwargs)
+        arr: zarr.Array = zarr.open_array(store=store_path, **kwargs)
         shape = arr.shape
 
         if isinstance(slices, slice) or slices is None:
