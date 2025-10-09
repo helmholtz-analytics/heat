@@ -40,6 +40,13 @@ class TestIO(TestCase):
         cls.ZARR_OUT_PATH = pwd + "/zarr_test_out.zarr"
         cls.ZARR_IN_PATH = pwd + "/zarr_test_in.zarr"
         cls.ZARR_TEMP_PATH = pwd + "/zarr_temp.zarr"
+        cls.ZARR_NESTED_PATH = pwd + "/zarr_test_nested.zarr"
+
+        # device-aware dtypes
+        testing_types = [ht.int32, ht.int64, ht.float32]
+        if not cls.is_mps:
+            testing_types.append(ht.float64)
+        cls.testing_types = testing_types
 
     def tearDown(self):
         # synchronize all nodes
@@ -57,14 +64,19 @@ class TestIO(TestCase):
                 os.remove(self.NETCDF_OUT_PATH)
             except FileNotFoundError:
                 pass
-        # if ht.MPI_WORLD.rank == 0:
 
         if ht.io.supports_zarr():
-            for file in [self.ZARR_TEMP_PATH, self.ZARR_IN_PATH, self.ZARR_OUT_PATH]:
-                try:
-                    shutil.rmtree(file)
-                except FileNotFoundError:
-                    pass
+            if ht.MPI_WORLD.rank == 0:
+                for file in [
+                    self.ZARR_TEMP_PATH,
+                    self.ZARR_IN_PATH,
+                    self.ZARR_OUT_PATH,
+                    self.ZARR_NESTED_PATH,
+                ]:
+                    try:
+                        shutil.rmtree(file)
+                    except FileNotFoundError:
+                        pass
 
         # synchronize all nodes
         ht.MPI_WORLD.Barrier()
@@ -831,9 +843,10 @@ class TestIO(TestCase):
             self.assertEqual(load_array.dtype, ht.float64)
             if ht.MPI_WORLD.rank == 0:
                 self.assertTrue((load_array_npy == float_array).all)
-                for file in os.listdir(os.path.join(os.getcwd(), "heat/datasets")):
-                    if fnmatch.fnmatch(file, "*.npy"):
-                        os.remove(os.path.join(os.getcwd(), "heat/datasets", file))
+        if ht.MPI_WORLD.rank == 0:
+            for file in os.listdir(os.path.join(os.getcwd(), "heat/datasets")):
+                if fnmatch.fnmatch(file, "*.npy"):
+                    os.remove(os.path.join(os.getcwd(), "heat/datasets", file))
 
     def test_load_npy_exception(self):
         with self.assertRaises(TypeError):
@@ -940,15 +953,15 @@ class TestIO(TestCase):
         import zarr
 
         test_data = np.arange(self.ZARR_SHAPE[0] * self.ZARR_SHAPE[1]).reshape(self.ZARR_SHAPE)
-
+        dtype = np.float32
         if ht.MPI_WORLD.rank == 0:
             try:
                 arr = zarr.create_array(
-                    self.ZARR_TEMP_PATH, shape=self.ZARR_SHAPE, dtype=np.float64
+                    self.ZARR_TEMP_PATH, shape=self.ZARR_SHAPE, dtype=dtype
                 )
             except AttributeError:
                 arr = zarr.create(
-                    store=self.ZARR_TEMP_PATH, shape=self.ZARR_SHAPE, dtype=np.float64
+                    store=self.ZARR_TEMP_PATH, shape=self.ZARR_SHAPE, dtype=dtype
                 )
             arr[:] = test_data
 
@@ -961,6 +974,48 @@ class TestIO(TestCase):
             self.assertTrue((dndnumpy == test_data).all())
 
         ht.MPI_WORLD.Barrier()
+
+    def test_load_zarr_group(self):
+        if not ht.io.supports_zarr():
+            self.skipTest("Requires zarr")
+
+        import zarr
+
+        # Create a nested Zarr store on rank 0
+        original_data = np.arange(np.prod(self.ZARR_SHAPE)).reshape(self.ZARR_SHAPE)
+        nested_group_name = "MAIN_0"
+        array_name = "DATA"
+        variable_path = f"{nested_group_name}/{array_name}"
+
+        if ht.MPI_WORLD.rank == 0:
+            root = zarr.open_group(self.ZARR_NESTED_PATH, mode="w")
+            main_0 = root.create_group(nested_group_name)
+            main_0.create_dataset(
+                array_name,
+                shape=original_data.shape,
+                dtype=original_data.dtype,
+                data=original_data,
+            )
+
+        ht.MPI_WORLD.Barrier()  # Ensure file is created before other ranks proceed
+
+        # Test loading using both positional and keyword arguments for different splits
+        for split in [None, 0, 1]:
+            # Test with positional argument
+            with self.subTest(split=split, arg_type="positional"):
+                ht_tensor_pos = ht.load(self.ZARR_NESTED_PATH, variable_path, split=split)
+                self.assertIsInstance(ht_tensor_pos, ht.DNDarray)
+                self.assertEqual(ht_tensor_pos.gshape, original_data.shape)
+                self.assertTrue(np.array_equal(ht_tensor_pos.numpy(), original_data))
+
+            # Test with keyword argument
+            with self.subTest(split=split, arg_type="keyword"):
+                ht_tensor_kw = ht.load(
+                    self.ZARR_NESTED_PATH, variable=variable_path, split=split
+                )
+                self.assertIsInstance(ht_tensor_kw, ht.DNDarray)
+                self.assertEqual(ht_tensor_kw.gshape, original_data.shape)
+                self.assertTrue(np.array_equal(ht_tensor_kw.numpy(), original_data))
 
     def test_load_zarr_slice(self):
         if not ht.io.supports_zarr():
@@ -1017,7 +1072,7 @@ class TestIO(TestCase):
 
         import zarr
 
-        for type in [ht.types.int32, ht.types.int64, ht.types.float32, ht.types.float64]:
+        for type in self.testing_types:
             for dims in [(i, self.ZARR_SHAPE[1]) for i in range(1, max(10, ht.MPI_WORLD.size + 1))]:
                 with self.subTest(type=type, dims=dims):
                     n = dims[0] * dims[1]
@@ -1037,7 +1092,7 @@ class TestIO(TestCase):
 
         import zarr
 
-        for type in [ht.types.int32, ht.types.int64, ht.types.float32, ht.types.float64]:
+        for type in self.testing_types:
             for dims in [(self.ZARR_SHAPE[0], i) for i in range(1, max(10, ht.MPI_WORLD.size + 1))]:
                 with self.subTest(type=type, dims=dims):
                     n = dims[0] * dims[1]
@@ -1057,7 +1112,7 @@ class TestIO(TestCase):
 
         import zarr
 
-        for type in [ht.types.int32, ht.types.int64, ht.types.float32, ht.types.float64]:
+        for type in self.testing_types:
             for n in [10, 100, 1000]:
                 with self.subTest(type=type, n=n):
                     dndarray = ht.arange(n, dtype=type, split=None)
@@ -1075,7 +1130,7 @@ class TestIO(TestCase):
 
         import zarr
 
-        for type in [ht.types.int32, ht.types.int64, ht.types.float32, ht.types.float64]:
+        for type in self.testing_types:
             for n in [10, 100, 1000]:
                 with self.subTest(type=type, n=n):
                     dndarray = ht.arange(n, dtype=type, split=0)
@@ -1095,7 +1150,7 @@ class TestIO(TestCase):
             ht.load_zarr(None)
         with self.assertRaises(ValueError):
             ht.load_zarr("data.npy")
-        with self.assertRaises(TypeError):
+        with self.assertRaises(ValueError):
             ht.load_zarr("", "")
         with self.assertRaises(TypeError):
             ht.load_zarr("", device=1)
