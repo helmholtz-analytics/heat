@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from functools import reduce
 from glob import glob
+
+# from importlib.resources import path
 import operator
 import os.path
 from math import log10
@@ -1465,14 +1467,21 @@ else:
         else:
             raise ValueError("File has no zarr extension.")
 
+        store_path = os.path.join(path, variable) if variable else path
+
         if variable and "*" in variable:
             # `variable` contains a wildcard pattern
             # i.e. data were chunked at write-out and stored in multiple directories
             if slices is not None:
                 raise NotImplementedError("Slicing is not supported when loading with a wildcard.")
-            basename, _, data_variable = variable.partition("*")
-            base_paths = sorted(glob(os.path.join(path, basename + "*")))
-            variable_paths = [os.path.join(bp, data_variable) for bp in base_paths]
+
+            base_paths = sorted(glob.glob(store_path))
+
+            if not base_paths:
+                raise FileNotFoundError(
+                    f"Zarr wildcard pattern '{variable}' did not match any arrays in store '{path}'"
+                )
+            variable_paths = [os.path.relpath(p, start=path) for p in base_paths]
 
             # each rank reads data from its assigned directories and concatenates locally
 
@@ -1545,8 +1554,6 @@ else:
             return dndarray
 
         # standard single zarr array
-        store_path = os.path.join(path, variable) if variable else path
-
         arr: zarr.Array = zarr.open_array(store=store_path, **kwargs)
         shape = arr.shape
 
