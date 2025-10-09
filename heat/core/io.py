@@ -800,6 +800,12 @@ def load(
     DNDarray([ 1.0000,  2.7183,  7.3891, 20.0855, 54.5981], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.load("data.nc", variable="DATA")
     DNDarray([ 1.0000,  2.7183,  7.3891, 20.0855, 54.5981], dtype=ht.float32, device=cpu:0, split=None)
+    >>> ht.load("my_data.zarr", variable="RECEIVER_1/DATA")
+    DNDarray([ 1.0000,  2.7183,  7.3891, 20.0855, 54.5981], dtype=ht.float32, device=cpu:0, split=0)
+    >>> ht.load("my_data.zarr", variable="RECEIVER_*/DATA")
+    DNDarray([[ 1.0000,  2.7183,  7.3891, 20.0855, 54.5981],
+                [ 1.0000,  2.7183,  7.3891, 20.0855, 54.5981],
+                [ 1.0000,  2.7183,  7.3891, 20.0855, 54.5981]], dtype=ht.float32, device=cpu:0, split=0)
 
     See Also
     --------
@@ -1428,7 +1434,7 @@ else:
         **kwargs,
     ) -> DNDarray:
         """
-        Loads zarr-Format into DNDarray which will be returned.
+        Loads data from a zarr store into DNDarray. `path` can either point to a single zarr array or a zarr group. In the latter case, `variable` must be provided to specify which array in the group to load. If `variable` contains a wildcard pattern (e.g. `RECEIVER_*/DATA`), all matching arrays will be loaded and concatenated along the specified `split` axis.
 
         Parameters
         ----------
@@ -1436,6 +1442,7 @@ else:
             Path to the directory in which a .zarr-file is located.
         variable : str, optional
             If the zarr store is a group, the variable (or path to variable) to load from the group.
+            Can contain a wildcard pattern to load and concatenate arrays stored in slices in different directories.
         split : int
             Along which axis the loaded arrays should be concatenated.
         device : str, optional
@@ -1546,8 +1553,6 @@ else:
                     comm=comm,
                     balanced=False,
                 )
-                # balance across all ranks
-                dndarray.balance_()
             else:
                 # all ranks are populated, create DNDarray directly
                 dndarray = factories.array(local_tensor, is_split=split, device=device, comm=comm)
