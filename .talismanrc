@@ -1,0 +1,6 @@
+fileignoreconfig:
+- filename: doc/source/tutorials/notebooks/Clustering_and_PCA.ipynb
+  checksum: 14b8c55c64d91a5b026f387e25447572e3de9052058fa0ab950d63c96124286e
+- filename: doc/source/tutorials/notebooks/DMD.ipynb
+  checksum: 1ace6dd062701f104e2f646d0404fb0c59ab8d521a086878b62c761be743689b
+version: "1.0"
