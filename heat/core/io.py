@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from functools import reduce
+from glob import glob
 import operator
 import os.path
 from math import log10
@@ -1458,13 +1459,93 @@ else:
                     continue
                 raise TypeError(f"Tuple values of slices must be slice or None, not {type(elem)}")
 
-        store_path = os.path.join(path, variable) if variable else path
-
         for extension in __ZARR_EXTENSIONS:
             if fnmatch.fnmatch(path, f"*{extension}"):
                 break
         else:
             raise ValueError("File has no zarr extension.")
+
+        if variable and "*" in variable:
+            # `variable` contains a wildcard pattern
+            # i.e. data were chunked at write-out and stored in multiple directories
+            if slices is not None:
+                raise NotImplementedError("Slicing is not supported when loading with a wildcard.")
+            basename, _, data_variable = variable.partition("*")
+            base_paths = sorted(glob(os.path.join(path, basename + "*")))
+            variable_paths = [os.path.join(bp, data_variable) for bp in base_paths]
+
+            # each rank reads data from its assigned directories and concatenates locally
+
+            # determine which directories to open on rank
+            dummy_array = factories.empty((len(base_paths),))
+            _, _, local_dir_slice = dummy_array.comm.chunk(
+                dummy_array.shape, rank=dummy_array.comm.rank, split=split
+            )
+
+            # load data to torch tensors
+            local_tensors = []
+            for i, var_path in enumerate(variable_paths[local_dir_slice[0]]):
+                local_tensor = torch.from_numpy(zarr.open(path)[var_path][:])
+                local_tensors.append(local_tensor)
+
+            # concatenate locally
+            if local_tensors:
+                local_tensor = torch.cat(local_tensors, dim=split if split is not None else 0)
+                empty_ranks = torch.tensor([0], dtype=torch.int32)
+            else:
+                # no data assigned to rank, create empty tensor
+                local_tensor = torch.empty(
+                    (0,), dtype=types.canonical_heat_type(kwargs.get("dtype", None)).torch_type()
+                )
+                empty_ranks = torch.tensor([1], dtype=torch.int32)
+            # check for empty ranks
+            dummy_array.comm.Allreduce(MPI.IN_PLACE, empty_ranks, op=MPI.SUM)
+            if empty_ranks.item() > 0:
+                # must fix local shape of empty tensors, otherwise ht.array() will fail
+                # Rank 0 broadcasts the info to all other ranks
+                target_dims = torch.tensor(local_tensor.ndim, dtype=torch.int32)
+                dummy_array.comm.Bcast(target_dims, root=0)
+                if local_tensor.numel() == 0:
+                    target_shape = torch.zeros(
+                        (
+                            1,
+                            target_dims.item(),
+                        ),
+                        dtype=torch.int64,
+                    )
+                else:
+                    target_shape = torch.tensor(local_tensor.shape, dtype=torch.int64).unsqueeze(0)
+                target_shapes = torch.zeros(
+                    (dummy_array.comm.size, target_dims.item()), dtype=torch.int64
+                )
+                dummy_array.comm.Allgather(target_shape, target_shapes)
+                if local_tensor.numel() == 0:
+                    # set to local shape of rank 0, set value along split axis to 0
+                    target_shape = target_shapes[0].clone()
+                    target_shape[split] = 0
+                    local_tensor.resize_(tuple(target_shape.tolist()))
+                # we have all the info to determine global shape
+                out_gshape = target_shapes[0].clone()
+                out_gshape[split] = target_shapes[:, split].sum().item()
+                # wrap local tensors in DNDarray
+                dndarray = DNDarray(
+                    local_tensor,
+                    gshape=tuple(out_gshape.tolist()),
+                    dtype=types.canonical_heat_type(local_tensor.dtype),
+                    split=split,
+                    device=device,
+                    comm=comm,
+                    balanced=False,
+                )
+                # balance across all ranks
+                dndarray.balance_()
+            else:
+                # all ranks are populated, create DNDarray directly
+                dndarray = factories.array(local_tensor, is_split=split, device=device, comm=comm)
+            return dndarray
+
+        # standard single zarr array
+        store_path = os.path.join(path, variable) if variable else path
 
         arr: zarr.Array = zarr.open_array(store=store_path, **kwargs)
         shape = arr.shape
