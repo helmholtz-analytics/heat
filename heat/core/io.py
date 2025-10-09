@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from functools import reduce
-from glob import glob
+import glob
 
 # from importlib.resources import path
 import operator
