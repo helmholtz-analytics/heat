@@ -1475,6 +1475,7 @@ else:
             raise ValueError("File has no zarr extension.")
 
         store_path = os.path.join(path, variable) if variable else path
+        torch_device = devices.sanitize_device(device).torch_device()
 
         if variable and "*" in variable:
             # `variable` contains a wildcard pattern
@@ -1517,7 +1518,7 @@ else:
             # check for empty ranks
             dummy_array.comm.Allreduce(MPI.IN_PLACE, empty_ranks, op=MPI.SUM)
             if empty_ranks.item() > 0:
-                # must fix local shape of empty tensors, otherwise ht.array() will fail
+                # must fix local shape of empty tensors, otherwise DNDarray construction will fail
                 # Rank 0 broadcasts the info to all other ranks
                 target_dims = torch.tensor(local_tensor.ndim, dtype=torch.int32)
                 dummy_array.comm.Bcast(target_dims, root=0)
@@ -1540,12 +1541,12 @@ else:
                     target_shape = target_shapes[0].clone()
                     target_shape[split] = 0
                     local_tensor.resize_(tuple(target_shape.tolist()))
-                # we have all the info to determine global shape
+                # calculate global array shape
                 out_gshape = target_shapes[0].clone()
                 out_gshape[split] = target_shapes[:, split].sum().item()
                 # wrap local tensors in DNDarray
                 dndarray = DNDarray(
-                    local_tensor,
+                    local_tensor.to(device=torch_device),
                     gshape=tuple(out_gshape.tolist()),
                     dtype=types.canonical_heat_type(local_tensor.dtype),
                     split=split,
