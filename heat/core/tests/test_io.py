@@ -1017,6 +1017,88 @@ class TestIO(TestCase):
                 self.assertEqual(ht_tensor_kw.gshape, original_data.shape)
                 self.assertTrue(np.array_equal(ht_tensor_kw.numpy(), original_data))
 
+        ht.MPI_WORLD.Barrier()
+
+        # test loading with wildcard
+        num_chunks = self.comm.size * 2 + 1
+        if self.comm.size > 3:
+            # test empty ranks
+            num_chunks  = self.comm.size - 1
+
+        np_testing_types = [np.int32, np.int64, np.float32, np.complex64]
+        if not self.is_mps:
+            # float64 and complex128 not supported in MPS
+            np_testing_types.extend([np.float64, np.complex128])
+
+        # # if zarr store already exists, remove it
+        # if self.comm.rank == 0 and os.path.exists(self.ZARR_OUT_PATH):
+        #     shutil.rmtree(self.ZARR_OUT_PATH)
+
+        ht.MPI_WORLD.Barrier()
+        for dtype in np_testing_types:
+            global_data_shape = (num_chunks * 10, num_chunks * 5, 7)
+            global_data = np.arange(np.prod(global_data_shape), dtype=dtype).reshape(global_data_shape)
+            if self.comm.rank == 0:
+                # create zarr store for split=0 and split=1
+
+                # shape of each individual chunk for both split directions
+                chunk_shape_split0 = (10, global_data_shape[1], global_data_shape[2])
+                chunk_shape_split1 = (global_data_shape[0], 5, global_data_shape[2])
+
+                root_zarr = zarr.open_group(self.ZARR_OUT_PATH, mode="w")
+
+                for i in range(num_chunks):
+                    # create split=0 chunk
+                    chunk_data_split0 = global_data[i * chunk_shape_split0[0] : (i + 1) * chunk_shape_split0[0], :, :]
+                    chunk_group_split0 = root_zarr.create_group(f"CHUNK_{i}_SPLIT0")
+                    chunk_group_split0.create_dataset(
+                        "DATA",
+                        shape=chunk_data_split0.shape,
+                        dtype=chunk_data_split0.dtype,
+                        data=chunk_data_split0
+                    )
+
+                    # create split=1 chunk
+                    chunk_data_split1 = global_data[:, i * chunk_shape_split1[1] : (i + 1) * chunk_shape_split1[1], :]
+                    chunk_group_split1 = root_zarr.create_group(f"CHUNK_{i}_SPLIT1")
+                    chunk_group_split1.create_dataset(
+                        "DATA",
+                        shape=chunk_data_split1.shape,
+                        dtype=chunk_data_split1.dtype,
+                        data=chunk_data_split1
+                    )
+            ht.MPI_WORLD.Barrier()
+
+            # test loading for split=0
+            with self.subTest(dtype=dtype, split=0):
+                ht_array_split0 = ht.load(self.ZARR_OUT_PATH, variable="CHUNK_*_SPLIT0/DATA", split=0, device=self.device)
+                self.assertIsInstance(ht_array_split0, ht.DNDarray)
+                self.assertEqual(ht_array_split0.gshape, global_data_shape)
+                ht_array_split0.balance_()
+                self.assertTrue((ht_array_split0.numpy() == global_data).all())
+                self.assertTrue(ht_array_split0.dtype == ht.types.canonical_heat_type(dtype))
+
+            # test loading for split=1
+            with self.subTest(dtype=dtype, split=1):
+                ht_array_split1 = ht.load(self.ZARR_OUT_PATH, variable="CHUNK_*_SPLIT1/DATA", split=1, device=self.device)
+                self.assertIsInstance(ht_array_split1, ht.DNDarray)
+                self.assertEqual(ht_array_split1.gshape, global_data_shape)
+                self.assertTrue((ht_array_split1.numpy() == global_data).all())
+                self.assertTrue(ht_array_split1.dtype == ht.types.canonical_heat_type(dtype))
+
+            ht.MPI_WORLD.Barrier()
+
+            # Test that loading misconstructs data when using the wrong split axis
+            with self.subTest(split="split_mismatch_0", dtype=dtype):
+                with self.assertRaises(ValueError):
+                    test = ht.load(self.ZARR_OUT_PATH, variable="CHUNK_*_SPLIT1/DATA", split=0, device=self.device)
+                    self.assertTrue((test.numpy() == global_data).all())
+
+            with self.subTest(split="split_mismatch_1", dtype=dtype):
+                with self.assertRaises(ValueError):
+                    test = ht.load(self.ZARR_OUT_PATH, variable="CHUNK_*_SPLIT0/DATA", split=1, device=self.device)
+                    self.assertFalse((test.numpy() == global_data).all())
+
     def test_load_zarr_slice(self):
         if not ht.io.supports_zarr():
             self.skipTest("Requires zarr")
@@ -1152,7 +1234,7 @@ class TestIO(TestCase):
             ht.load_zarr("data.npy")
         with self.assertRaises(ValueError):
             ht.load_zarr("", "")
-        with self.assertRaises(TypeError):
+        with self.assertRaises(ValueError):
             ht.load_zarr("", device=1)
         with self.assertRaises(TypeError):
             ht.load_zarr("", slices=0)
