@@ -5,7 +5,6 @@ from __future__ import annotations
 from functools import reduce
 import glob
 
-# from importlib.resources import path
 import operator
 import os.path
 from math import log10
@@ -1507,7 +1506,7 @@ else:
 
             # concatenate locally
             if len(local_tensors) >= 1:
-                split = sanitize_axis(tuple(local_tensor[0].shape), axis=split)
+                split = sanitize_axis(tuple(local_tensors[0].shape), axis=split)
                 if len(local_tensors) == 1:
                     local_tensor = local_tensors[0]
                 else:
