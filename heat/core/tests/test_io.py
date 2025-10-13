@@ -1023,16 +1023,12 @@ class TestIO(TestCase):
         num_chunks = self.comm.size * 2 + 1
         if self.comm.size > 3:
             # test empty ranks
-            num_chunks  = self.comm.size - 1
+            num_chunks = self.comm.size - 1
 
         np_testing_types = [np.int32, np.int64, np.float32, np.complex64]
         if not self.is_mps:
             # float64 and complex128 not supported in MPS
             np_testing_types.extend([np.float64, np.complex128])
-
-        # # if zarr store already exists, remove it
-        # if self.comm.rank == 0 and os.path.exists(self.ZARR_OUT_PATH):
-        #     shutil.rmtree(self.ZARR_OUT_PATH)
 
         ht.MPI_WORLD.Barrier()
         for dtype in np_testing_types:
