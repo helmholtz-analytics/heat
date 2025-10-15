@@ -6,7 +6,10 @@ import heat as ht
 from typing import Optional, Tuple, Union
 from ..core.linalg.svdtools import _isvd
 import h5py
-import zarr
+from ..core.io import supports_zarr
+
+if supports_zarr():
+    import zarr
 
 try:
     from typing import Self
@@ -375,17 +378,23 @@ class IncrementalPCA(ht.TransformMixin, ht.BaseEstimator):
             If the file format is not HDF5 or Zarr.
             If `chunk_size` is larger than the number of rows in the dataset.
             If the number of columns is smaller than the number of processes.
+        ImportError
+            If the file format is Zarr, but Zarr is not installed.
         """
         if path.endswith(".h5"):
             with h5py.File(path, "r") as f:
                 shape = f[dataset].shape
             load_data_from_file = ht.load_hdf5
         elif path.endswith(".zarr"):
+            if not supports_zarr():
+                raise ImportError(
+                    "Zarr support is not available. Please install Zarr to use this feature."
+                )
             z = zarr.open(path, mode="r")
             shape = z[dataset].shape
             load_data_from_file = ht.load_zarr
         else:
-            raise ValueError("`path` must direct to a hdf5 or zarr file.")
+            raise ValueError("`path` must direct to a HDF5 or Zarr file.")
 
         # Check if the number of columns is at least equal to the number of processes
         if shape[1] < ht.MPI_WORLD.size:

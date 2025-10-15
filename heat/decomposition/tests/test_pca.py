@@ -5,7 +5,7 @@ import torch
 import heat as ht
 import shutil
 import h5py
-import zarr
+from ...core.io import supports_zarr
 
 from ...core.tests.test_suites.basic_test import TestCase
 
@@ -352,7 +352,9 @@ class TestIncrementalPCA(TestCase):
             self.assertEqual(pca.components_.shape, (4, 4))
             self.assertEqual(pca.n_samples_seen_, 150)
 
+    @unittest.skipUnless(supports_zarr(), "Requires Zarr")
     def test_incrementalpca_fit_zarr(self):
+        import zarr
         path = "temp_test_data.zarr"
         dataset_name = "data"
 
