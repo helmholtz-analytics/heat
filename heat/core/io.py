@@ -1478,7 +1478,7 @@ else:
 
         if variable and "*" in variable:
             # `variable` contains a wildcard pattern
-            # i.e. data were chunked at write-out and stored in multiple directories
+            # e.g. data were chunked at write-out and stored in multiple directories
             if slices is not None:
                 raise NotImplementedError("Slicing is not supported when loading with a wildcard.")
 
@@ -1488,6 +1488,7 @@ else:
                 raise FileNotFoundError(
                     f"Zarr wildcard pattern '{variable}' did not match any arrays in store '{path}'"
                 )
+
             variable_paths = [os.path.relpath(p, start=path) for p in base_paths]
 
             # each rank reads data from its assigned directories and concatenates locally
@@ -1504,9 +1505,22 @@ else:
                 local_tensor = torch.from_numpy(zarr.open(path)[var_path][:])
                 local_tensors.append(local_tensor)
 
+            # Have rank 0 determine the single-store shape and broadcast it to all ranks for sanitation
+            target_ndims = torch.zeros(1, dtype=torch.int32)
+            if dummy_array.comm.rank == 0:
+                if len(local_tensors) == 0:
+                    raise ValueError(
+                        f"Zarr wildcard pattern '{variable}' did not match any arrays in store '{path}'"
+                    )
+                # broadcast shape of first local tensor to allow sanitation on empty ranks
+                target_ndims = torch.tensor(local_tensors[0].ndim, dtype=torch.int32)
+            dummy_array.comm.Bcast(target_ndims, root=0)
+            # sanitize split axis
+            proxy_shape = (1,) * target_ndims.item()
+            split = sanitize_axis(proxy_shape, axis=split)
+
             # concatenate locally
             if len(local_tensors) >= 1:
-                split = sanitize_axis(tuple(local_tensors[0].shape), axis=split)
                 if len(local_tensors) == 1:
                     local_tensor = local_tensors[0]
                 else:
@@ -1517,18 +1531,17 @@ else:
                 # no local tensors i.e. no data assigned to rank
                 local_tensor = torch.empty((0,))
                 empty_ranks = torch.tensor([1], dtype=torch.int32)
-                ht_type_code = -1  # placeholder
+                # dummy dtype code
+                ht_type_code = -1
             # check for empty ranks
             dummy_array.comm.Allreduce(MPI.IN_PLACE, empty_ranks, op=MPI.SUM)
             if empty_ranks.item() > 0:
-                # must fix local shape and dtype of empty tensors, otherwise DNDarray construction will fail
+                # fix local shape and dtype of empty tensors, otherwise DNDarray construction will fail
                 # Rank 0 broadcasts the info to all other ranks
-                target_dims = torch.tensor(local_tensor.ndim, dtype=torch.int32)
-                dummy_array.comm.Bcast(target_dims, root=0)
                 target_shape = torch.zeros(
                     (
                         1,
-                        target_dims.item() + 1,
+                        target_ndims.item() + 1,
                     ),
                     dtype=torch.int64,
                 )
@@ -1538,7 +1551,7 @@ else:
                 target_shape[0, -1] = ht_type_code
                 # share info about target shape and dtype
                 target_shapes = torch.zeros(
-                    (dummy_array.comm.size, target_dims.item() + 1), dtype=torch.int64
+                    (dummy_array.comm.size, target_ndims.item() + 1), dtype=torch.int64
                 )
                 dummy_array.comm.Allgather(target_shape, target_shapes)
                 if local_tensor.numel() == 0:
