@@ -1076,6 +1076,16 @@ class TestIO(TestCase):
                 self.assertTrue((ht_array_split1.numpy() == global_data).all())
                 self.assertTrue(ht_array_split1.dtype == ht.types.canonical_heat_type(dtype))
 
+            # test wildcard loading with dtype conversion
+            with self.subTest(dtype=dtype, split="dtype_conversion"):
+                # only for non-complex dtypes
+                if not np.issubdtype(dtype, np.complexfloating):
+                    ht_array_split0 = ht.load(self.ZARR_OUT_PATH, variable="CHUNK_*_SPLIT0/DATA", split=0, device=self.device, dtype=ht.float32)
+                    self.assertIsInstance(ht_array_split0, ht.DNDarray)
+                    self.assertEqual(ht_array_split0.gshape, global_data_shape)
+                    self.assertTrue((ht_array_split0.numpy() == global_data).all())
+                    self.assertTrue(ht_array_split0.dtype == ht.float32)
+
             ht.MPI_WORLD.Barrier()
 
             # Test data misconstruction when using the wrong split axis
