@@ -364,10 +364,14 @@ class TestIncrementalPCA(TestCase):
                 # If number of columns is less than number of processes, error is expected
                 num_columns = ht.MPI_WORLD.size - 1 if ht.MPI_WORLD.size > 1 else 4
                 test_data = np.random.rand(150, num_columns)
-                zarr_array = zarr.create(path, shape=test_data.shape, dtype=test_data.dtype)
-                zarr_array[:] = test_data
+                root = zarr.open(store=path, mode="w")
+                if dataset_name in root:
+                    del root[dataset_name]
+                root.create_dataset(dataset_name, data=test_data)
             else:
                 num_columns = None
+
+            ht.MPI_WORLD.Barrier()
 
             # Synchronize num_columns between all processes
             num_columns = ht.MPI_WORLD.bcast(num_columns, root=0)
