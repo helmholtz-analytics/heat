@@ -384,7 +384,11 @@ class IncrementalPCA(ht.TransformMixin, ht.BaseEstimator):
         if path.endswith(".h5"):
             with h5py.File(path, "r") as f:
                 shape = f[dataset].shape
-            load_data_from_file = ht.load_hdf5
+
+            def load_data_from_file(start, end):
+                return ht.load_hdf5(
+                    path, dataset=dataset, split=0, slices=[slice(start, end), None]
+                )
         elif path.endswith(".zarr"):
             if not supports_zarr():
                 raise ImportError(
@@ -392,7 +396,9 @@ class IncrementalPCA(ht.TransformMixin, ht.BaseEstimator):
                 )
             z = zarr.open(path, mode="r")
             shape = z[dataset].shape
-            load_data_from_file = ht.load_zarr
+
+            def load_data_from_file(start, end):
+                return ht.load_zarr(path, split=0, slices=[slice(start, end), None])
         else:
             raise ValueError("`path` must direct to a HDF5 or Zarr file.")
 
@@ -412,13 +418,9 @@ class IncrementalPCA(ht.TransformMixin, ht.BaseEstimator):
 
         while start < shape[0]:
             if end <= shape[0]:
-                X = load_data_from_file(
-                    path, dataset=dataset, split=0, slices=[slice(start, end), None]
-                )
+                X = load_data_from_file(start, end)
             else:
-                X = load_data_from_file(
-                    path, dataset=dataset, split=0, slices=[slice(start, shape[0]), None]
-                )
+                X = load_data_from_file(start, shape[0])
             self.partial_fit(X)
             start += chunk_size
             end += chunk_size
