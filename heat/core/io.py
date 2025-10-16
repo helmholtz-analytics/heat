@@ -1476,6 +1476,9 @@ else:
 
         store_path = os.path.join(path, variable) if variable else path
 
+        output_dtype = kwargs.pop("dtype", None)
+        torch_output_dtype = output_dtype.torch_type() if output_dtype else None
+
         if variable and "*" in variable:
             # `variable` contains a wildcard pattern
             # e.g. data were chunked at write-out and stored in multiple directories
@@ -1494,7 +1497,7 @@ else:
             # each rank reads data from its assigned directories and concatenates locally
 
             # determine which directories to open on rank
-            dummy_array = factories.empty((len(base_paths),))
+            dummy_array = factories.empty((len(base_paths),), dtype=types.float32)
             _, _, local_dir_slice = dummy_array.comm.chunk(
                 dummy_array.shape, rank=dummy_array.comm.rank, split=0
             )
@@ -1503,6 +1506,8 @@ else:
             local_tensors = []
             for i, var_path in enumerate(variable_paths[local_dir_slice[0]]):
                 local_tensor = torch.from_numpy(zarr.open(path)[var_path][:])
+                if torch_output_dtype:
+                    local_tensor = local_tensor.to(torch_output_dtype)
                 local_tensors.append(local_tensor)
 
             # Have rank 0 determine the single-store shape and broadcast it to all ranks for sanitation
@@ -1574,7 +1579,9 @@ else:
                 dndarray = DNDarray(
                     local_tensor.to(device=torch_device),
                     gshape=tuple(out_gshape.tolist()),
-                    dtype=types.canonical_heat_type(local_tensor.dtype),
+                    dtype=output_dtype
+                    if output_dtype
+                    else types.canonical_heat_type(local_tensor.dtype),
                     split=split,
                     device=device,
                     comm=comm,
