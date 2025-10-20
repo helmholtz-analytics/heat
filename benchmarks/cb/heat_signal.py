@@ -43,7 +43,7 @@ def convolution_batch_processing_stride(signal, kernel, stride):
 
 
 def run_signal_benchmarks():
-    n_s = 1000000000
+    n_s = 2000000
     n_k = 10003
     stride = 3
 
@@ -75,8 +75,8 @@ def run_signal_benchmarks():
     del signal, kernel
 
     # batch processing
-    n_s = 90000
-    n_b = 90000
+    n_s = 50000
+    n_b = 1000
     n_k = 503
     signal = ht.random.random((n_b, n_s), split=0)
     kernel = ht.random.random_integer(0, 1, (n_b, n_k), split=0)
