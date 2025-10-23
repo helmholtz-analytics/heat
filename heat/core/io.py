@@ -585,7 +585,7 @@ else:
                [16, 17],
                [18, 19]]
 
-        >>> sliced = ht.load_hdf5("other_data.h5", dataset="DATA", split=0, slices=slice(8))
+        >>> sliced = ht.load_hdf5("other_data.h5", dataset="DATA", split=0, slices=[slice(8)])
         >>> sliced.shape
         [0/2] (8,2)
         [1/2] (8,2)
@@ -603,7 +603,9 @@ else:
                [14, 15],
                [16, 17]]
 
-        >>> sliced = ht.load_hdf5('other_data.h5', dataset='DATA', split=0, slices=(slice(2,8), slice(0,1))
+        >>> sliced = ht.load_hdf5(
+        ...     "other_data.h5", dataset="DATA", split=0, slices=[slice(2, 8), slice(0, 1)]
+        ... )
         >>> sliced.shape
         [0/2] (6,1)
         [1/2] (6,1)
