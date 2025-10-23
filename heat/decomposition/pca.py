@@ -6,10 +6,6 @@ import heat as ht
 from typing import Optional, Tuple, Union
 from ..core.linalg.svdtools import _isvd
 import h5py
-from ..core.io import supports_zarr
-
-if supports_zarr():
-    import zarr
 
 try:
     from typing import Self
@@ -361,7 +357,7 @@ class IncrementalPCA(ht.TransformMixin, ht.BaseEstimator):
         Parameters
         ----------
         path : str
-            Path to the file containing the dataset. The file must be in either HDF5 or Zarr format.
+            Path to the file containing the dataset. The file must be in HDF5 format.
         chunk_size : int
             Number of rows to load and process in each chunk. Must be smaller than or equal to the total number of rows in the dataset.
         dataset : str, default="DATA"
@@ -375,32 +371,21 @@ class IncrementalPCA(ht.TransformMixin, ht.BaseEstimator):
         Raises
         ------
         ValueError
-            If the file format is not HDF5 or Zarr.
+            If the file format is not HDF5.
             If `chunk_size` is larger than the number of rows in the dataset.
             If the number of columns is smaller than the number of processes.
-        ImportError
-            If the file format is Zarr, but Zarr is not installed.
         """
         if path.endswith(".h5"):
             with h5py.File(path, "r") as f:
                 shape = f[dataset].shape
 
+            # This additional intermediate step makes it easier to implement support for other file formats (such as Zarr) later on.
             def load_data_from_file(start, end):
                 return ht.load_hdf5(
                     path, dataset=dataset, split=0, slices=[slice(start, end), None]
                 )
-        elif path.endswith(".zarr"):
-            if not supports_zarr():
-                raise ImportError(
-                    "Zarr support is not available. Please install Zarr to use this feature."
-                )
-            z = zarr.open(path, mode="r")
-            shape = z[dataset].shape
-
-            def load_data_from_file(start, end):
-                return ht.load_zarr(path, split=0, slices=[slice(start, end), None])
         else:
-            raise ValueError("`path` must direct to a HDF5 or Zarr file.")
+            raise ValueError("`path` must direct to a HDF5 file.")
 
         # Check if the number of columns is at least equal to the number of processes
         if shape[1] < ht.MPI_WORLD.size:

@@ -3,9 +3,6 @@ import unittest
 import numpy as np
 import torch
 import heat as ht
-import shutil
-import h5py
-from ...core.io import supports_zarr
 
 from ...core.tests.test_suites.basic_test import TestCase
 
@@ -351,49 +348,6 @@ class TestIncrementalPCA(TestCase):
             self.assertEqual(pca.mean_.shape, (4,))
             self.assertEqual(pca.components_.shape, (4, 4))
             self.assertEqual(pca.n_samples_seen_, 150)
-
-    @unittest.skipUnless(supports_zarr(), "Requires Zarr")
-    def test_incrementalpca_fit_zarr(self):
-        import zarr
-        path = "temp_test_data.zarr"
-        dataset_name = "data"
-
-        try:
-            # Create mock dataset
-            if ht.MPI_WORLD.rank == 0:
-                # If number of columns is less than number of processes, error is expected
-                num_columns = ht.MPI_WORLD.size - 1 if ht.MPI_WORLD.size > 1 else 4
-                test_data = np.random.rand(150, num_columns)
-                root = zarr.open(store=path, mode="w")
-                if dataset_name in root:
-                    del root[dataset_name]
-                root.create_dataset(dataset_name, data=test_data)
-            else:
-                num_columns = None
-
-            ht.MPI_WORLD.Barrier()
-
-            # Synchronize num_columns between all processes
-            num_columns = ht.MPI_WORLD.bcast(num_columns, root=0)
-
-            pca = ht.decomposition.IncrementalPCA(n_components=5)
-
-            if ht.MPI_WORLD.size > num_columns:
-                # Error when number of columns is less than number of processes
-                with self.assertRaises(ValueError):
-                    pca.fit(path=path, chunk_size=50, dataset=dataset_name)
-            else:
-                # Successful computation when number of columns >= number of processes
-                pca.fit(path=path, chunk_size=50, dataset=dataset_name)
-                self.assertEqual(pca.n_components_, min(5, num_columns))
-                self.assertEqual(pca.mean_.shape, (num_columns,))
-                self.assertEqual(pca.components_.shape, (min(5, num_columns), num_columns))
-                self.assertEqual(pca.n_samples_seen_, 150)
-        finally:
-            # Clean up temporary file
-            if ht.MPI_WORLD.rank == 0 and os.path.exists(path):
-                shutil.rmtree(path)
-            ht.MPI_WORLD.Barrier()
 
     def test_incrementalpca_fit_invalid_file_format(self):
         path = "temp_test_data.txt"
