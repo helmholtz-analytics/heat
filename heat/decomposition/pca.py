@@ -349,7 +349,7 @@ class IncrementalPCA(ht.TransformMixin, ht.BaseEstimator):
 
     def fit(self, path: str, chunk_size: int, dataset: str = "DATA") -> Self:
         """
-        Fit the IncrementalPCA model using data loaded in chunks from a file.
+        Fit the IncrementalPCA model using data loaded in chunks from a HDF5 file.
 
         This method processes data incrementally, loading chunks of data from a file and updating the PCA model iteratively.
         It is particularly useful for large datasets that cannot fit into memory.
