@@ -1,3 +1,17 @@
+# v1.6.1 - Heat Patch Release 1.6.1
+## Changes
+
+- #1979 [Backport stable] Sturdier MPI Check (by @[github-actions[bot]](https://github.com/apps/github-actions))
+
+### Bug Fixes
+
+- #1999 [Backport stable] Bugs/1990  Fix handling of zarr groups (by @[github-actions[bot]](https://github.com/apps/github-actions))
+
+## Contributors
+
+@github-actions[bot] and [github-actions[bot]](https://github.com/apps/github-actions)
+
+
 # v1.6.0
 ## Highlights
 
