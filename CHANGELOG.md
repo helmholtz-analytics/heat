@@ -1,16 +1,12 @@
-# v1.6.1 - Heat Patch Release 1.6.1
+# v1.6.1
 ## Changes
-
-- #1979 [Backport stable] Sturdier MPI Check (by @[github-actions[bot]](https://github.com/apps/github-actions))
-
 ### Bug Fixes
 
-- #1999 [Backport stable] Bugs/1990  Fix handling of zarr groups (by @[github-actions[bot]](https://github.com/apps/github-actions))
+* Sturdier MPI+GPU compatibility check by @JuanPedroGHM in https://github.com/helmholtz-analytics/heat/pull/1979
+* Fix handling of zarr groups by @ClaudiaComito in https://github.com/helmholtz-analytics/heat/pull/1990
 
 ## Contributors
-
-@github-actions[bot] and [github-actions[bot]](https://github.com/apps/github-actions)
-
+@ClaudiaComito, JuanPedroGHM
 
 # v1.6.0
 ## Highlights
