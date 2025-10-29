@@ -1,4 +1,5 @@
 """
+Vmap module.
 This implements a functionality similar to PyTorchs vmap function.
 Requires PyTorch 2.0.0 or higher.
 """
@@ -21,7 +22,7 @@ def vmap(
     chunk_size: int = None,
 ) -> Callable[[Tuple[DNDarray]], Tuple[DNDarray]]:
     """
-    This function is used to apply a function to a DNDarray in a vectorized way.
+    Apply a function to a DNDarray in a vectorized way.
     `heat.vmap` return a callable that can be applied to DNDarrays.
     Vectorization will automatically take place along the split axis/axes of the DNDarray(s);
     therefore, unlike in PyTorch, there is no argument `in_dims`.

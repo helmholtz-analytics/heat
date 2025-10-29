@@ -42,7 +42,7 @@ class Lasso(ht.RegressionMixin, ht.BaseEstimator):
     Examples
     --------
     >>> X = ht.random.randn(10, 4, split=0)
-    >>> y = ht.random.randn(10,1, split=0)
+    >>> y = ht.random.randn(10, 1, split=0)
     >>> estimator = ht.regression.lasso.Lasso(max_iter=100, tol=None)
     >>> estimator.fit(X, y)
     """

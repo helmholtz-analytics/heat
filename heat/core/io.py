@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from functools import reduce
+import glob
+
 import operator
 import os.path
 from math import log10
@@ -126,20 +128,20 @@ else:
             The device id on which to place the data, defaults to globally set default device.
 
         Raises
-        -------
+        ------
         TypeError
             If any of the input parameters are not of correct type.
 
         Examples
         --------
-        >>> a = ht.load_netcdf('data.nc', variable='DATA')
+        >>> a = ht.load_netcdf("data.nc", variable="DATA")
         >>> a.shape
         [0/2] (5,)
         [1/2] (5,)
         >>> a.lshape
         [0/2] (5,)
         [1/2] (5,)
-        >>> b = ht.load_netcdf('data.nc', variable='DATA', split=0)
+        >>> b = ht.load_netcdf("data.nc", variable="DATA", split=0)
         >>> b.shape
         [0/2] (5,)
         [1/2] (5,)
@@ -216,7 +218,7 @@ else:
             additional arguments passed to the created dataset.
 
         Raises
-        -------
+        ------
         TypeError
             If any of the input parameters are not of correct type.
         ValueError
@@ -226,7 +228,7 @@ else:
         Examples
         --------
         >>> x = ht.arange(100, split=0)
-        >>> ht.save_netcdf(x, 'data.nc', dataset='DATA')
+        >>> ht.save_netcdf(x, "data.nc", dataset="DATA")
         """
         if not isinstance(data, DNDarray):
             raise TypeError(f"data must be heat tensor, not {type(data)}")
@@ -278,7 +280,7 @@ else:
                 split-axis of dndarray.
 
             Raises
-            -------
+            ------
             ValueError
                 If resulting shapes do not match.
             """
@@ -322,7 +324,7 @@ else:
             data_slices: Optional[Tuple[int, slice]] = None,
         ) -> Tuple[Union[int, slice]]:
             """
-            This method allows replacing:
+            Allows replacing:
                 ``var[var_slices][data_slices] = data``
             (a `netcdf4.Variable.__getitem__` and a `numpy.ndarray.__setitem__` call)
 
@@ -542,20 +544,20 @@ else:
             The communication to use for the data distribution.
 
         Raises
-        -------
+        ------
         TypeError
             If any of the input parameters are not of correct type
 
         Examples
         --------
-        >>> a = ht.load_hdf5('data.h5', dataset='DATA')
+        >>> a = ht.load_hdf5("data.h5", dataset="DATA")
         >>> a.shape
         [0/2] (5,)
         [1/2] (5,)
         >>> a.lshape
         [0/2] (5,)
         [1/2] (5,)
-        >>> b = ht.load_hdf5('data.h5', dataset='DATA', split=0)
+        >>> b = ht.load_hdf5("data.h5", dataset="DATA", split=0)
         >>> b.shape
         [0/2] (5,)
         [1/2] (5,)
@@ -564,7 +566,7 @@ else:
         [1/2] (2,)
 
         Using the slicing argument:
-        >>> not_sliced = ht.load_hdf5('other_data.h5', dataset='DATA', split=0)
+        >>> not_sliced = ht.load_hdf5("other_data.h5", dataset="DATA", split=0)
         >>> not_sliced.shape
         [0/2] (10,2)
         [1/2] (10,2)
@@ -583,7 +585,7 @@ else:
                [16, 17],
                [18, 19]]
 
-        >>> sliced = ht.load_hdf5('other_data.h5', dataset='DATA', split=0, slices=slice(8))
+        >>> sliced = ht.load_hdf5("other_data.h5", dataset="DATA", split=0, slices=slice(8))
         >>> sliced.shape
         [0/2] (8,2)
         [1/2] (8,2)
@@ -637,7 +639,6 @@ else:
             offsets = [0] * len(gshape)
             if slices is not None:
                 for i in range(len(gshape)):
-
                     if i < len(slices) and slices[i]:
                         s = slices[i]
                         if s.step is not None and s.step != 1:
@@ -705,7 +706,7 @@ else:
             Additional arguments passed to the created dataset.
 
         Raises
-        -------
+        ------
         TypeError
             If any of the input parameters are not of correct type.
         ValueError
@@ -714,7 +715,7 @@ else:
         Examples
         --------
         >>> x = ht.arange(100, split=0)
-        >>> ht.save_hdf5(x, 'data.h5', dataset='DATA')
+        >>> ht.save_hdf5(x, "data.h5", dataset="DATA")
         """
         if not isinstance(data, DNDarray):
             raise TypeError(f"data must be heat tensor, not {type(data)}")
@@ -786,7 +787,7 @@ def load(
         Additional options passed to the particular functions.
 
     Raises
-    -------
+    ------
     ValueError
         If the file extension is not understood or known.
     RuntimeError
@@ -794,10 +795,16 @@ def load(
 
     Examples
     --------
-    >>> ht.load('data.h5', dataset='DATA')
+    >>> ht.load("data.h5", dataset="DATA")
     DNDarray([ 1.0000,  2.7183,  7.3891, 20.0855, 54.5981], dtype=ht.float32, device=cpu:0, split=None)
-    >>> ht.load('data.nc', variable='DATA')
+    >>> ht.load("data.nc", variable="DATA")
     DNDarray([ 1.0000,  2.7183,  7.3891, 20.0855, 54.5981], dtype=ht.float32, device=cpu:0, split=None)
+    >>> ht.load("my_data.zarr", variable="RECEIVER_1/DATA")
+    DNDarray([ 1.0000,  2.7183,  7.3891, 20.0855, 54.5981], dtype=ht.float32, device=cpu:0, split=0)
+    >>> ht.load("my_data.zarr", variable="RECEIVER_*/DATA")
+    DNDarray([[ 1.0000,  2.7183,  7.3891, 20.0855, 54.5981],
+                [ 1.0000,  2.7183,  7.3891, 20.0855, 54.5981],
+                [ 1.0000,  2.7183,  7.3891, 20.0855, 54.5981]], dtype=ht.float32, device=cpu:0, split=0)
 
     See Also
     --------
@@ -869,14 +876,14 @@ def load_csv(
         The communication to use for the data distribution, defaults to global default
 
     Raises
-    -------
+    ------
     TypeError
         If any of the input parameters are not of correct type.
 
     Examples
     --------
     >>> import heat as ht
-    >>> a = ht.load_csv('data.csv')
+    >>> a = ht.load_csv("data.csv")
     >>> a.shape
     [0/3] (150, 4)
     [1/3] (150, 4)
@@ -887,7 +894,7 @@ def load_csv(
     [1/3] (38, 4)
     [2/3] (37, 4)
     [3/3] (37, 4)
-    >>> b = ht.load_csv('data.csv', header_lines=10)
+    >>> b = ht.load_csv("data.csv", header_lines=10)
     >>> b.shape
     [0/3] (140, 4)
     [1/3] (140, 4)
@@ -940,12 +947,12 @@ def load_csv(
             f.seek(displs[rank], 0)
             line_starts = []
             r = f.read(counts[rank])
-            for pos, l in enumerate(r):
-                if chr(l) == "\n":
+            for pos, line in enumerate(r):
+                if chr(line) == "\n":
                     # Check if it is part of '\r\n'
                     if chr(r[pos - 1]) != "\r":
                         line_starts.append(pos + 1)
-                elif chr(l) == "\r":
+                elif chr(line) == "\r":
                     # check if file line is terminated by '\r\n'
                     if pos + 1 < len(r) and chr(r[pos + 1]) == "\n":
                         line_starts.append(pos + 2)
@@ -1214,7 +1221,7 @@ def save(
         Additional options passed to the particular functions.
 
     Raises
-    -------
+    ------
     ValueError
         If the file extension is not understood or known.
     RuntimeError
@@ -1223,7 +1230,7 @@ def save(
     Examples
     --------
     >>> x = ht.arange(100, split=0)
-    >>> ht.save(x, 'data.h5', 'DATA', mode='a')
+    >>> ht.save(x, "data.h5", "DATA", mode="a")
     """
     if not isinstance(path, str):
         raise TypeError(f"Expected path to be str, but was {type(path)}")
@@ -1418,6 +1425,7 @@ else:
 
     def load_zarr(
         path: str,
+        variable: str = None,
         split: int = 0,
         device: Optional[str] = None,
         comm: Optional[Communication] = None,
@@ -1425,12 +1433,15 @@ else:
         **kwargs,
     ) -> DNDarray:
         """
-        Loads zarr-Format into DNDarray which will be returned.
+        Loads data from a zarr store into DNDarray. `path` can either point to a single zarr array or a zarr group. In the latter case, `variable` must be provided to specify which array in the group to load. If `variable` contains a wildcard pattern (e.g. `RECEIVER_*/DATA`), all matching arrays will be loaded and concatenated along the specified `split` axis.
 
         Parameters
         ----------
         path : str
             Path to the directory in which a .zarr-file is located.
+        variable : str, optional
+            If the zarr store is a group, the variable (or path to variable) to load from the group.
+            Can contain a wildcard pattern to load and concatenate arrays stored in slices in different directories.
         split : int
             Along which axis the loaded arrays should be concatenated.
         device : str, optional
@@ -1442,12 +1453,13 @@ else:
         **kwargs : Any
             extra Arguments to pass to zarr.open
         """
+        # sanitize inputs
+        device = devices.sanitize_device(device)
+        torch_device = device.torch_device
+        comm = sanitize_comm(comm)
+
         if not isinstance(path, str):
             raise TypeError(f"path must be str, not {type(path)}")
-        if split is not None and not isinstance(split, int):
-            raise TypeError(f"split must be None or int, not {type(split)}")
-        if device is not None and not isinstance(device, str):
-            raise TypeError(f"device must be None or str, not {type(split)}")
         if not isinstance(slices, (slice, Iterable)) and slices is not None:
             raise TypeError(f"Slices Argument must be slice, tuple or None and not {type(slices)}")
         if isinstance(slices, Iterable):
@@ -1462,7 +1474,127 @@ else:
         else:
             raise ValueError("File has no zarr extension.")
 
-        arr: zarr.Array = zarr.open_array(store=path, **kwargs)
+        store_path = os.path.join(path, variable) if variable else path
+
+        output_dtype = kwargs.pop("dtype", None)
+        torch_output_dtype = output_dtype.torch_type() if output_dtype else None
+
+        if variable and "*" in variable:
+            # `variable` contains a wildcard pattern
+            # e.g. data were chunked at write-out and stored in multiple directories
+            if slices is not None:
+                raise NotImplementedError("Slicing is not supported when loading with a wildcard.")
+
+            base_paths = sorted(glob.glob(store_path))
+
+            if not base_paths:
+                raise FileNotFoundError(
+                    f"Zarr wildcard pattern '{variable}' did not match any arrays in store '{path}'"
+                )
+
+            variable_paths = [os.path.relpath(p, start=path) for p in base_paths]
+
+            # each rank reads data from its assigned directories and concatenates locally
+
+            # determine which directories to open on rank
+            dummy_array = factories.empty((len(base_paths),), dtype=types.float32)
+            _, _, local_dir_slice = dummy_array.comm.chunk(
+                dummy_array.shape, rank=dummy_array.comm.rank, split=0
+            )
+
+            # load data to torch tensors
+            local_tensors = []
+            for i, var_path in enumerate(variable_paths[local_dir_slice[0]]):
+                local_tensor = torch.from_numpy(zarr.open(path)[var_path][:])
+                if torch_output_dtype:
+                    local_tensor = local_tensor.to(torch_output_dtype)
+                local_tensors.append(local_tensor)
+
+            # Have rank 0 determine the single-store shape and broadcast it to all ranks for sanitation
+            target_ndims = torch.zeros(1, dtype=torch.int32)
+            if dummy_array.comm.rank == 0:
+                if len(local_tensors) == 0:
+                    raise ValueError(
+                        f"Zarr wildcard pattern '{variable}' did not match any arrays in store '{path}'"
+                    )
+                # broadcast shape of first local tensor to allow sanitation on empty ranks
+                target_ndims = torch.tensor(local_tensors[0].ndim, dtype=torch.int32)
+            dummy_array.comm.Bcast(target_ndims, root=0)
+            # sanitize split axis
+            proxy_shape = (1,) * target_ndims.item()
+            split = sanitize_axis(proxy_shape, axis=split)
+
+            # concatenate locally
+            if len(local_tensors) >= 1:
+                if len(local_tensors) == 1:
+                    local_tensor = local_tensors[0]
+                else:
+                    local_tensor = torch.cat(local_tensors, dim=split if split is not None else 0)
+                empty_ranks = torch.tensor([0], dtype=torch.int32)
+                ht_type_code = types.__type_codes[types.canonical_heat_type(local_tensor.dtype)]
+            else:
+                # no local tensors i.e. no data assigned to rank
+                local_tensor = torch.empty((0,))
+                empty_ranks = torch.tensor([1], dtype=torch.int32)
+                # dummy dtype code
+                ht_type_code = -1
+            # check for empty ranks
+            dummy_array.comm.Allreduce(MPI.IN_PLACE, empty_ranks, op=MPI.SUM)
+            if empty_ranks.item() > 0:
+                # fix local shape and dtype of empty tensors, otherwise DNDarray construction will fail
+                # Rank 0 broadcasts the info to all other ranks
+                target_shape = torch.zeros(
+                    (
+                        1,
+                        target_ndims.item() + 1,
+                    ),
+                    dtype=torch.int64,
+                )
+                if local_tensor.numel() > 0:
+                    target_shape[0, :-1] = torch.tensor(local_tensor.shape, dtype=torch.int64)
+                # encode dtype as last entry
+                target_shape[0, -1] = ht_type_code
+                # share info about target shape and dtype
+                target_shapes = torch.zeros(
+                    (dummy_array.comm.size, target_ndims.item() + 1), dtype=torch.int64
+                )
+                dummy_array.comm.Allgather(target_shape, target_shapes)
+                if local_tensor.numel() == 0:
+                    ht_type_code = target_shapes[0, -1].item()
+                    target_shape = target_shapes[0, :-1].clone()
+                    target_shape[split] = 0
+                    for dtype, dtype_code in types.__type_codes.items():
+                        if dtype_code == ht_type_code:
+                            ht_type = dtype
+                            break
+                    local_tensor = torch.empty(
+                        tuple(target_shape.tolist()), dtype=ht_type.torch_type()
+                    )
+                # discard dtype code column
+                target_shapes = target_shapes[:, :-1]
+                # calculate global array shape
+                out_gshape = target_shapes[0, :].clone()
+                out_gshape[split] = target_shapes[:, split].sum().item()
+                # wrap local tensors in DNDarray
+                dndarray = DNDarray(
+                    local_tensor.to(device=torch_device),
+                    gshape=tuple(out_gshape.tolist()),
+                    dtype=output_dtype
+                    if output_dtype
+                    else types.canonical_heat_type(local_tensor.dtype),
+                    split=split,
+                    device=device,
+                    comm=comm,
+                    balanced=False,
+                )
+            else:
+                # all ranks are populated, create DNDarray directly
+                dndarray = factories.array(local_tensor, is_split=split, device=device, comm=comm)
+            dndarray.balance_()
+            return dndarray
+
+        # standard single zarr array
+        arr: zarr.Array = zarr.open_array(store=store_path, **kwargs)
         shape = arr.shape
 
         if isinstance(slices, slice) or slices is None:
@@ -1477,8 +1609,7 @@ else:
         slices.extend([slice(None) for _ in range(abs(len(slices) - len(shape)))])
 
         dtype = types.canonical_heat_type(arr.dtype)
-        device = devices.sanitize_device(device)
-        comm = sanitize_comm(comm)
+        split = sanitize_axis(shape, axis=split)
 
         # slices = tuple(slice(*tslice.indices(length)) for length, tslice in zip(shape, slices))
         slices = tuple(slices)
@@ -1511,7 +1642,7 @@ else:
             - If it already exists and no overwrite is specified.
 
         Notes
-        ------
+        -----
         Zarr functions by chunking the data, were a chunk is a file inside the store.
         The problem ist that only one process writes to it at a time. Therefore when two
         processes try to write to the same chunk one will fail, unless the other finishes before
@@ -1539,6 +1670,10 @@ else:
 
         Another Problem is the split=None scenario. In this case every processs has the same data, so only one needs to write
         so we ignore chunking and let zarr decide the chunk size and let only one process, aka rank=0 write.
+
+        To avoid errors when using NumPy arrays as chunk shape, the chunks argument is only passed to zarr.create if it is
+        not None. This prevents issues with ambiguous truth values or attribute errors on None.
+
         """
         if not isinstance(path, str):
             raise TypeError(f"path must be str, not {type(path)}")
@@ -1586,14 +1721,19 @@ else:
                         )
 
             dtype = dndarray.dtype.char()
-            zarr_array = zarr.create(
-                store=path,
-                shape=dndarray.gshape,
-                dtype=dtype,
-                overwrite=overwrite,
-                chunks=chunks,
+
+            zarr_create_kwargs = {
+                "store": path,
+                "shape": dndarray.gshape,
+                "dtype": dtype,
+                "overwrite": overwrite,
                 **kwargs,
-            )
+            }
+
+            if chunks is not None:
+                zarr_create_kwargs["chunks"] = chunks.tolist()
+
+            zarr_array = zarr.create(**zarr_create_kwargs)
 
         # Wait for the file creation to finish
         MPI_WORLD.Barrier()
