@@ -106,7 +106,7 @@ class TestIO(TestCase):
     def test_load(self):
         # HDF5
         if ht.io.supports_hdf5():
-            iris = ht.load(self.HDF5_PATH, dataset="data")
+            iris = ht.load(self.HDF5_PATH, dataset="data", dtype=ht.float32)
             self.assertIsInstance(iris, ht.DNDarray)
             # shape invariant
             self.assertEqual(iris.shape, self.IRIS.shape)
@@ -591,7 +591,7 @@ class TestIO(TestCase):
             self.skipTest("Requires HDF5")
 
         # default parameters
-        iris = ht.load_hdf5(self.HDF5_PATH, self.HDF5_DATASET)
+        iris = ht.load_hdf5(self.HDF5_PATH, self.HDF5_DATASET, dtype=ht.float32)
         self.assertIsInstance(iris, ht.DNDarray)
         self.assertEqual(iris.shape, self.IRIS.shape)
         self.assertEqual(iris.dtype, ht.float32)
@@ -602,13 +602,13 @@ class TestIO(TestCase):
         iris = ht.load_hdf5(self.HDF5_PATH, self.HDF5_DATASET, split=0)
         self.assertIsInstance(iris, ht.DNDarray)
         self.assertEqual(iris.shape, self.IRIS.shape)
-        self.assertEqual(iris.dtype, ht.float32)
+        self.assertEqual(iris.dtype, ht.float64)
         lshape = iris.lshape
         self.assertLessEqual(lshape[0], self.IRIS.shape[0])
         self.assertEqual(lshape[1], self.IRIS.shape[1])
 
         # negative split axis
-        iris = ht.load_hdf5(self.HDF5_PATH, self.HDF5_DATASET, split=-1)
+        iris = ht.load_hdf5(self.HDF5_PATH, self.HDF5_DATASET, split=-1, dtype=ht.float32)
         self.assertIsInstance(iris, ht.DNDarray)
         self.assertEqual(iris.shape, self.IRIS.shape)
         self.assertEqual(iris.dtype, ht.float32)

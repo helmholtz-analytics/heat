@@ -742,9 +742,9 @@ else:
 
         if dtype is None:
             dtype = data.dtype
-        if type(dtype) == torch.dtype:
+        elif type(dtype) == torch.dtype:
             dtype = str(dtype).split(".")[-1]
-        else:
+        if type(dtype) is not str:
             dtype = dtype.__name__
 
         # attempt to perform parallel I/O if possible
