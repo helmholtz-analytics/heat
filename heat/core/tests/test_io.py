@@ -650,7 +650,7 @@ class TestIO(TestCase):
         # local unsplit data
         local_data = ht.arange(100)
         ht.save_hdf5(
-            local_data, self.HDF5_OUT_PATH, self.HDF5_DATASET, dtype=local_data.dtype.char()
+            local_data, self.HDF5_OUT_PATH, self.HDF5_DATASET, dtype=torch.int32
         )
         if local_data.comm.rank == 0:
             with ht.io.h5py.File(self.HDF5_OUT_PATH, "r") as handle:
@@ -662,7 +662,7 @@ class TestIO(TestCase):
         # distributed data range
         split_data = ht.arange(100, split=0)
         ht.save_hdf5(
-            split_data, self.HDF5_OUT_PATH, self.HDF5_DATASET, dtype=split_data.dtype.char()
+            split_data, self.HDF5_OUT_PATH, self.HDF5_DATASET
         )
         if split_data.comm.rank == 0:
             with ht.io.h5py.File(self.HDF5_OUT_PATH, "r") as handle:
