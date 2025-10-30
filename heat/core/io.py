@@ -517,7 +517,7 @@ else:
     def load_hdf5(
         path: str,
         dataset: str,
-        dtype: datatype = types.float32,
+        dtype: Optional[datatype] = None,
         slices: Optional[Tuple[Optional[slice], ...]] = None,
         split: Optional[int] = None,
         device: Optional[str] = None,
@@ -533,7 +533,7 @@ else:
         dataset : str
             Name of the dataset to be read.
         dtype : datatype, optional
-            Data type of the resulting array.
+            Data type of the resulting array, defaults to the loaded datasets type.
         slices : tuple of slice objects, optional
             Load only the specified slices of the dataset.
         split : int or None, optional
@@ -625,8 +625,6 @@ else:
         elif split is not None and not isinstance(split, int):
             raise TypeError(f"split must be None or int, not {type(split)}")
 
-        # infer the type and communicator for the loaded array
-        dtype = types.canonical_heat_type(dtype)
         # determine the comm and device the data will be placed on
         device = devices.sanitize_device(device)
         comm = sanitize_comm(comm)
@@ -637,6 +635,9 @@ else:
             gshape = data.shape
             new_gshape = tuple()
             offsets = [0] * len(gshape)
+            if dtype is None:
+                dtype = data.dtype
+            dtype = types.canonical_heat_type(dtype)
             if slices is not None:
                 for i in range(len(gshape)):
                     if i < len(slices) and slices[i]:
