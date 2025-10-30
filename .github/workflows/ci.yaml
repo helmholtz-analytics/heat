@@ -19,16 +19,15 @@ jobs:
         mpi: [ 'openmpi' ]
         install-options: [ '.', '.[hdf5,netcdf,pandas,zarr]' ]
         pytorch-version:
-          - 'numpy==1.26 torch==2.1.2 torchvision==0.16.2 torchaudio==2.1.2'
           - 'numpy==1.26 torch==2.2.2 torchvision==0.17.2 torchaudio==2.2.2'
           - 'torch==2.3.1 torchvision==0.18.1 torchaudio==2.3.1'
           - 'torch==2.4.1 torchvision==0.19.1 torchaudio==2.4.1'
           - 'torch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1'
           - 'torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0'
           - 'torch==2.7.1 torchvision==0.22.1 torchaudio==2.7.1'
+          - 'torch==2.8.0 torchvision==0.23.0 torchaudio==2.8.0'
+          - 'torch==2.9.0 torchvision==0.24.0 torchaudio==2.9.0'
         exclude:
-          - py-version: '3.13'
-            pytorch-version: 'numpy==1.26 torch==2.1.2 torchvision==0.16.2 torchaudio==2.1.2'
           - py-version: '3.13'
             pytorch-version: 'numpy==1.26 torch==2.2.2 torchvision==0.17.2 torchaudio==2.2.2'
           - py-version: '3.13'
@@ -37,8 +36,6 @@ jobs:
             pytorch-version: 'torch==2.4.1 torchvision==0.19.1 torchaudio==2.4.1'
           - py-version: '3.13'
             pytorch-version: 'torch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1'
-          - py-version: '3.12'
-            pytorch-version: 'numpy==1.26 torch==2.1.2 torchvision==0.16.2 torchaudio==2.1.2'
           - py-version: '3.12'
             pytorch-version: 'numpy==1.26 torch==2.2.2 torchvision==0.17.2 torchaudio==2.2.2'
           - py-version: '3.10'
