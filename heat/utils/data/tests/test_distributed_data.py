@@ -26,25 +26,25 @@ class SeedEnviroment:
 
 class TestDistbributedData(unittest.TestCase):
     def test_dataset_and_sampler(self) -> bool:
-        reference = ht.array(
-            [
-                [10, 11, 12, 13, 14],
-                [20, 21, 22, 23, 24],
-                [15, 16, 17, 18, 19],
-                [0, 1, 2, 3, 4],
-                [5, 6, 7, 8, 9],
-            ],
-            split=0,
-            dtype=ht.int32,
-        )
 
-        with SeedEnviroment():
-            arr = ht.arange(25, dtype=ht.int32, split=0).reshape(5, 5)
-            dset = DistributedDataset(arr)
-            dsampler = DistributedSampler(dset, shuffle=True, seed=42)
-            dsampler._shuffle()
+        reference = ht.arange(100, dtype=torch.int32).reshape(20, 5)
 
-        self.assertTrue((arr == reference).all())
+        heat_array = ht.copy(reference).resplit_(0)
+        dset = DistributedDataset(heat_array)
+        dsampler = DistributedSampler(dset, shuffle=True)
+        dsampler._shuffle()
+
+        # To test this, the resulting array should be balanced, have the same number of elements as the original one, and the sum of all the columns should be the same
+        # And the elements should not be equal to each other.
+        self.assertTrue(dset.dndarray.size == reference.size)
+        self.assertTrue(dset.dndarray.shape == reference.shape)
+        self.assertTrue(dset.dndarray.balanced)
+
+        ref_col_sum = reference.sum(0)
+        col_sum = dset.dndarray.sum(0)
+
+        self.assertTrue(ht.equal(col_sum, ref_col_sum))
+        self.assertFalse(ht.equal(reference, dset.dndarray))
 
     def test_batches(self) -> bool:
         reference = ht.array(

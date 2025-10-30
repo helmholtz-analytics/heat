@@ -17,7 +17,8 @@ import torch.utils
 import torchvision
 
 from ...core.dndarray import DNDarray
-from ...core.communication import CUDA_AWARE_MPI, MPI_WORLD, MPICommunication
+from ...core.communication import GPU_AWARE_MPI, MPI_WORLD, MPICommunication
+from ...core.random import permutation
 from . import partial_dataset
 
 __all__ = [
@@ -371,11 +372,18 @@ class DistributedSampler(torch_data.Sampler):
     def _shuffle(self) -> None:
         """Shuffles the given dndarray at creation across processes."""
         if self.shuffle_type == "local":
+            rand_perm = torch.randperm(self.dndarray.larray.shape[0])
+            self.dndarray.larray = self.dndarray.larray[rand_perm]
             return
 
         if self.shuffle_type != "global":
             raise ValueError("Shuffle type is not 'local' nor 'global'")
 
+        self.dndarray = permutation(self.dndarray)
+        self.dataset.dndarray = self.dndarray
+
+    def _alltoall_shuffle(self) -> None:
+        # Exchanges the data using Indexed data types and  i iaj
         dtype = self.dndarray.dtype.torch_type()
         comm: MPICommunication = self.dndarray.comm
         rank: int = comm.rank
@@ -447,7 +455,7 @@ class DistributedSampler(torch_data.Sampler):
                 break
 
         send_elems = self.dndarray.larray
-        send_elems = send_elems if CUDA_AWARE_MPI else send_elems.cpu()
+        send_elems = send_elems if GPU_AWARE_MPI else send_elems.cpu()
 
         recv_types: List[mpi4py.MPI.Datatype] = []
 
