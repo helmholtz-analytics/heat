@@ -210,7 +210,7 @@ def __repr__(dndarray) -> str:
     Returns a printable representation of the passed DNDarray.
     Unlike the __str__ method, which prints a representation targeted at users, this method targets developers by showing key internal parameters of the DNDarray.
     """
-    return f"<DNDarray({torch._tensor_str._tensor_str(dndarray.larray, 0)}, MPI-rank: {dndarray.comm.rank}, Shape: {dndarray.shape}, Split: {dndarray.split}, Local Shape: {dndarray.lshape}, Device: {dndarray.device}, Dtype: {dndarray.dtype.__name__})>"
+    return f"<DNDarray(MPI-rank: {dndarray.comm.rank}, Shape: {dndarray.shape}, Split: {dndarray.split}, Local Shape: {dndarray.lshape}, Device: {dndarray.device}, Dtype: {dndarray.dtype.__name__})>"
 
 
 def _torch_data(dndarray, summarize) -> DNDarray:
