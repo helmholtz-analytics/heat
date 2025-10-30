@@ -379,8 +379,10 @@ class DistributedSampler(torch_data.Sampler):
         if self.shuffle_type != "global":
             raise ValueError("Shuffle type is not 'local' nor 'global'")
 
-        self.dndarray = permutation(self.dndarray)
-        self.dataset.dndarray = self.dndarray
+        # TODO: Find out which implementation is better
+        # self.dndarray = permutation(self.dndarray)
+        # self.dataset.dndarray = self.dndarray
+        self._alltoall_shuffle()
 
     def _alltoall_shuffle(self) -> None:
         # Exchanges the data using Indexed data types and  i iaj
