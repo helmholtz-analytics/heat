@@ -258,6 +258,25 @@ class TestDNDarray(TestCase):
         self.assertEqual(x.__array__().dtype, x_np.dtype)
         self.assertEqual(x.__array__().shape, x.lshape)
 
+    def test_array_ufunc(self):
+        arr = ht.array([1, 2, 3, 4])
+        self.assertIsInstance(np.multiply(arr, 3), ht.DNDarray)
+        self.assertIsInstance(np.add(arr, 3), ht.DNDarray)
+        self.assertIsInstance(np.sin(arr), ht.DNDarray)
+
+        with self.assertRaises(TypeError):
+            np.multiply.reduce(arr)
+        with self.assertRaises(TypeError):
+            np.heaviside(arr, 5)
+
+    def test_array_function(self):
+        arr = ht.array([1, 2, 3, 4])
+        self.assertIsInstance(np.concatenate([arr, arr]), ht.DNDarray)
+        self.assertIsInstance(np.sum(arr, axis=0), ht.DNDarray)
+
+        with self.assertRaises(TypeError):
+            np.array_equiv(arr, arr)
+
     def test_larray(self):
         # undistributed case
         x = ht.arange(6 * 7 * 8).reshape((6, 7, 8))
@@ -1210,10 +1229,6 @@ class TestDNDarray(TestCase):
                 st.redistribute_(lshape_map=torch.zeros(2))
             with self.assertRaises(ValueError):
                 st.redistribute_(target_map=torch.zeros((2, 4)))
-
-    def test_repr(self):
-        a = ht.array([1, 2, 3, 4])
-        self.assertEqual(a.__repr__(), a.__str__())
 
     def test_resplit(self):
         # MPS tests are always 1 process only
@@ -2351,6 +2366,14 @@ class TestDNDarray(TestCase):
             )
         self.assertTrue(dndarray_proxy_nbytes == 1)
         self.assertTrue(dndarray_proxy.names.index("split") == 1)
+
+    def test_torch_function(self):
+        arr = ht.array([1, 2, 3, 4])
+        self.assertIsInstance(torch.concatenate([arr, arr]), ht.DNDarray)
+        self.assertIsInstance(torch.sum(arr, axis=0), ht.DNDarray)
+
+        with self.assertRaises(TypeError):
+            torch.sigmoid(arr)
 
     def test_xor(self):
         int16_tensor = ht.array([[1, 1], [2, 2]], dtype=ht.int16)

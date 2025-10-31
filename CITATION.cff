@@ -9,46 +9,44 @@ authors:
 # release highlights
   - family-names: Hoppe
     given-names: Fabian
-  - family-names: Osterfeld
-    given-names: Fynn
   - family-names: Gutiérrez Hermosillo Muriedas
     given-names: Juan Pedro
-  - family-names: Vaithinathan Aravindan
-    given-names: Ashwath
+  - family-names: Palazoglu
+    given-names: Berkant
+  - family-names: Fischer
+    given-names: Carola
+  - family-names: Akdag
+    given-names: Hakan
   - family-names: Comito
     given-names: Claudia
-  - family-names: Krajsek
-    given-names: Kai
-  - family-names: Nguyen Xuan
-    given-names: Tu
-  - family-names: Tarnawa
-    given-names: Michael
+# active contributors in alphabetic order
   - family-names: Hees
     given-names: Jörn
-# core team
-  # - family-names: Comito
-  #   given-names: Claudia
+  - family-names: Jindra
+    given-names: Marc
+  - family-names: Korten
+    given-names: Till
+  - family-names: Krajsek
+    given-names: Kai
+  - family-names: Lemmen
+    given-names: Jonas
+  - family-names: Scheib
+    given-names: Lukas
+  - family-names: Tarnawa
+    given-names: Michael
+# historic core team
   - family-names: Coquelin
     given-names: Daniel
   - family-names: Debus
     given-names: Charlotte
-  - family-names: Götz
-    given-names: Markus
-#  - family-names: Gutiérrez Hermosillo Muriedas
-#    given-names: Juan Pedro
   - family-names: Hagemeier
     given-names: Björn
-  # - family-names: Hoppe
-  #   given-names: Fabian
   - family-names: Knechtges
     given-names: Philipp
-  # - family-names: Krajsek
-  #   given-names: Kai
   - family-names: Rüttgers
     given-names: Alexander
-  # - family-names: Tarnawa
-  #   given-names: Michael
-# release contributors - add as needed below
+  - family-names: Götz
+    given-names: Markus
 repository-code: 'https://github.com/helmholtz-analytics/heat'
 url: 'https://helmholtz-analytics.github.io/heat/'
 repository: 'https://heat.readthedocs.io/en/stable/'
