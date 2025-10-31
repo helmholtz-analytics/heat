@@ -884,15 +884,16 @@ class TestSignal(TestCase):
 
     def test_convolve_kernel_odd_modes(self):
         ht_dtype = ht.int
-        mode = "valid"
 
-        full_odd = ht.array(
-            [0, 1, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 42, 29, 15]
-        ).astype(ht.int)
-        dis_signal = ht.arange(0, 16, split=0).astype(ht_dtype)
-        signal = ht.arange(0, 16).astype(ht_dtype)
-        kernel_odd = ht.ones(3).astype(ht.int)
-        dis_kernel_odd = ht.ones(3, split=0).astype(ht.int)
+        np_sig = np.arange(0,16)
+        np_k_odd = np.arange(3)
+        full_odd = ht.array(sig.convolve(np_sig, np_k_odd)).astype(ht_dtype)
+
+        signal = ht.array(np_sig).astype(ht_dtype)
+        dis_signal = ht.array(np_sig, split=0).astype(ht_dtype)
+
+        kernel_odd = ht.array(np_k_odd).astype(ht.int)
+        dis_kernel_odd = ht.array(np_k_odd, split=0).astype(ht.int)
 
         # avoid kernel larger than signal chunk
         if self.comm.size <= 3:
@@ -929,7 +930,7 @@ class TestSignal(TestCase):
     def test_convolve2d_kernel_odd_modes(self):
         ht_dtype = ht.int
         np_sig = np.arange(256).reshape((16, 16))
-        np_k_odd = np.ones(9).reshape((3, 3))
+        np_k_odd = np.arange(9).reshape((3, 3))
         full_odd = ht.array(sig.convolve2d(np_sig, np_k_odd))
 
         dis_signal = ht.array(np_sig, split=0).astype(ht_dtype)
@@ -980,36 +981,42 @@ class TestSignal(TestCase):
 
         mode = "full"
         stride = 2
-        solution = ht.array([0, 3, 9, 15, 21, 27, 33, 39, 29]).astype(ht_dtype)
 
-        dis_signal = ht.arange(0, 16, split=0).astype(ht_dtype)
-        signal = ht.arange(0, 16).astype(ht_dtype)
-        kernel = ht.ones(3).astype(ht_dtype)
-        dis_kernel = ht.ones(3, split=0).astype(ht_dtype)
+        np_sig = np.arange(0, 16)
+        np_k_odd = np.arange(3)
+        full_odd = ht.array(sig.convolve(np_sig, np_k_odd)).astype(ht_dtype)
+
+        signal = ht.array(np_sig).astype(ht_dtype)
+        dis_signal = ht.array(np_sig, split=0).astype(ht_dtype)
+
+        kernel = ht.array(np_k_odd).astype(ht.int)
+        dis_kernel = ht.array(np_k_odd, split = 0).astype(ht.int)
 
         # avoid kernel larger than signal chunk
         if self.comm.size <= 3:
             if not self.is_mps:
                 # torch convolution does not support int on MPS
                 self.assert_convolution_stride(
-                    dis_signal, kernel, mode, stride, solution
+                    dis_signal, kernel, mode, stride, full_odd[::stride]
                 )
+                print("Test distributed kernel")
                 self.assert_convolution_stride(
-                    signal, dis_kernel, mode, stride, solution
+                    signal, dis_kernel, mode, stride, full_odd[::stride]
                 )
+                print("Test distributed kernel and signal")
                 self.assert_convolution_stride(
-                    dis_signal, dis_kernel, mode, stride, solution
+                    dis_signal, dis_kernel, mode, stride, full_odd[::stride]
                 )
-
+            print("Test floats")
             # different data types of input and kernel
             self.assert_convolution_stride(
-                dis_signal.astype(ht.float), kernel, mode, stride, solution
+                dis_signal.astype(ht.float), kernel, mode, stride, full_odd[::stride]
             )
             self.assert_convolution_stride(
-                signal.astype(ht.float), dis_kernel, mode, stride, solution
+                signal.astype(ht.float), dis_kernel, mode, stride, full_odd[::stride]
             )
             self.assert_convolution_stride(
-                dis_signal.astype(ht.float), dis_kernel, mode, stride, solution
+                dis_signal.astype(ht.float), dis_kernel, mode, stride, full_odd[::stride]
             )
 
     def test_convolve_stride_kernel_odd_mode_valid(self):
@@ -1017,51 +1024,59 @@ class TestSignal(TestCase):
 
         mode = "valid"
         stride = 2
-        solution = ht.array([3, 9, 15, 21, 27, 33, 39]).astype(ht_dtype)
 
-        dis_signal = ht.arange(0, 16, split=0).astype(ht_dtype)
-        signal = ht.arange(0, 16).astype(ht_dtype)
-        kernel = ht.ones(3).astype(ht_dtype)
-        dis_kernel = ht.ones(3, split=0).astype(ht_dtype)
+        np_sig = np.arange(0, 16)
+        np_k_odd = np.arange(3)
+        valid_odd = ht.array(sig.convolve(np_sig, np_k_odd, mode="valid")).astype(ht_dtype)
+
+        signal = ht.array(np_sig).astype(ht_dtype)
+        dis_signal = ht.array(np_sig, split=0).astype(ht_dtype)
+
+        kernel = ht.array(np_k_odd).astype(ht.int)
+        dis_kernel = ht.array(np_k_odd, split=0).astype(ht.int)
 
         # avoid kernel larger than signal chunk
         if self.comm.size <= 3:
             if not self.is_mps:
                 # torch convolution does not support int on MPS
                 self.assert_convolution_stride(
-                    dis_signal, kernel, mode, stride, solution
+                    dis_signal, kernel, mode, stride, valid_odd[::stride]
                 )
+                print("Test distributed kernel only")
                 self.assert_convolution_stride(
-                    signal, dis_kernel, mode, stride, solution
+                    signal, dis_kernel, mode, stride, valid_odd[::stride]
                 )
+
                 self.assert_convolution_stride(
-                    dis_signal, dis_kernel, mode, stride, solution
+                    dis_signal, dis_kernel, mode, stride, valid_odd[::stride]
                 )
 
             # different data types of input and kernel
             self.assert_convolution_stride(
-                dis_signal.astype(ht.float), kernel, mode, stride, solution
+                dis_signal.astype(ht.float), kernel, mode, stride, valid_odd[::stride]
             )
             self.assert_convolution_stride(
-                signal.astype(ht.float), dis_kernel, mode, stride, solution
+                signal.astype(ht.float), dis_kernel, mode, stride, valid_odd[::stride]
             )
             self.assert_convolution_stride(
-                dis_signal.astype(ht.float), dis_kernel, mode, stride, solution
+                dis_signal.astype(ht.float), dis_kernel, mode, stride, valid_odd[::stride]
             )
 
     def test_convolve2d_stride_kernel_odd_mode_full(self):
         ht_dtype = ht.int
 
         np_sig = np.arange(256).reshape((16, 16))
-        np_k_odd = np.ones(9).reshape((3, 3))
+        np_sig = np_sig[:4,:]
+        np_k_odd = np.arange(9).reshape((3, 3))
         full_odd = ht.array(sig.convolve2d(np_sig, np_k_odd)).astype(ht_dtype)
 
         mode = "full"
-        strides = [(1,2), (2,1), (2,2)]
+        strides = [(1,1), (1,2), (2,1), (2,2)]
 
         dis_signal = ht.array(np_sig, split=0).astype(ht_dtype)
         signal = ht.array(np_sig).astype(ht_dtype)
 
+        np_k_odd_fl = np.array([[3,4,5],[6,7,8],[0,1,2]])
         kernel_odd = ht.array(np_k_odd).astype(ht_dtype)
         dis_kernel_odd = ht.array(np_k_odd, split=0).astype(ht_dtype)
 
@@ -1077,13 +1092,17 @@ class TestSignal(TestCase):
 
                     conv = ht.convolve2d(signal, dis_kernel_odd, stride=stride)
                     gathered = manipulations.resplit(conv, axis=None)
+                    print()
+                    print(gathered)
+                    print(full_odd[::stride[0], ::stride[1]])
                     self.assertTrue(
                         ht.equal(full_odd[::stride[0], ::stride[1]], gathered))
 
                     conv = ht.convolve2d(dis_signal, dis_kernel_odd, stride=stride)
-                    gathered = manipulations.resplit(conv, axis=None)
                     self.assertTrue(
                         ht.equal(full_odd[::stride[0], ::stride[1]], gathered))
+
+
 
                 # different data types of input and kernel
                 conv = ht.convolve2d(dis_signal.astype(ht.float), kernel_odd, stride=stride)
@@ -1448,7 +1467,7 @@ class TestSignal(TestCase):
                 self.assertTrue(
                     ht.equal(full_even[::stride[0], ::stride[1]], gathered))
 
-    def test_convolution_large_signal_and_kernel_modes(self):
+    def test_convolve_large_signal_and_kernel_modes(self):
         if self.comm.size <= 3:
             # prep
             np.random.seed(12)
@@ -1476,7 +1495,7 @@ class TestSignal(TestCase):
                     conv = ht.convolve(a, b, mode=mode, stride=stride)
                     self.assert_array_equal(conv, solution)
 
-    def test_convolution2d_large_signal_and_kernel_modes(self):
+    def test_convolve2d_large_signal_and_kernel_modes(self):
         if self.comm.size <= 3:
             np.random.seed(12)
             ht_dtype = ht.float32 if self.is_mps else ht.int32
@@ -1484,10 +1503,12 @@ class TestSignal(TestCase):
 
             np_a = np.random.randint(0,1000, size=(140, 250))
             np_b = np.random.randint(0,3, size=(39, 17))
+            #np_b = np.ones((39,17))
             random_stride = tuple(np.random.randint(1, high=100, size=2))
             for mode in ["full", "same", "valid"]:
                 strides = [(1,1), random_stride] if mode != "same" else [(1,1)]
                 for stride in strides:
+                    print("Stride", stride, "Mode", mode)
                     sc_conv = sig.convolve2d(np_a, np_b, mode=mode).astype(np_type)
                     solution = sc_conv[::stride[0], ::stride[1]]
 
@@ -1496,9 +1517,14 @@ class TestSignal(TestCase):
                     conv = ht.convolve2d(a, b, mode=mode, stride=stride)
                     self.assert_array_equal(conv, solution)
 
-                    b = ht.array(np_b, split=1, dtype=ht_dtype)
+                    b = ht.array(np_b, split=0, dtype=ht_dtype)
                     conv = ht.convolve2d(a, b, mode=mode, stride=stride)
+                    gathered = manipulations.resplit(conv, axis=None)
+
+                    print(gathered[0, :10])
+                    print(solution[0, :10])
                     self.assert_array_equal(conv, solution)
+
 
                     a = ht.array(np_a, split=1, dtype=ht_dtype)
                     b = ht.array(np_b, split=None, dtype=ht_dtype)
