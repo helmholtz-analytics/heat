@@ -18,8 +18,14 @@ from decomposition import run_decomposition_benchmarks
 from heat_signal import run_signal_benchmarks
 
 run_linalg_benchmarks()
+print("Linalg finished")
 run_cluster_benchmarks()
+print("Cluster finished")
 run_manipulation_benchmarks()
+print("Manipulation finished")
 run_preprocessing_benchmarks()
+print("Preprocessing finished")
 run_decomposition_benchmarks()
+print("Decomposition finished")
 run_signal_benchmarks()
+print("Signal finished")
