@@ -630,7 +630,6 @@ class TestSignal(TestCase):
                 self.assertTrue(padded_signal.shape[0] == local_signal.squeeze().shape[0])
                 self.assertTrue(padded_signal.shape[1] == 18)
 
-
     def test_only_balanced_kernel(self):
         for conv_dim in (1, 2):
             if conv_dim == 1:
@@ -1535,7 +1534,7 @@ class TestSignal(TestCase):
                     conv = ht.convolve2d(a, b, mode=mode, stride=stride)
                     self.assert_array_equal(conv, solution)
 
-    def test_convolution_kernel_size_1(self):
+    def test_convolve_kernel_size_1(self):
         # prep
         ht_dtype = ht.float32 if self.is_mps else ht.int32
 
@@ -1551,7 +1550,7 @@ class TestSignal(TestCase):
                 conv = ht.convolve(1, 5, stride=stride)
                 self.assertTrue(ht.equal(ht.array([5]), conv))
 
-    def test_convolution2d_kernel_size_1(self):
+    def test_convolve2d_kernel_size_1(self):
         # prep
         ht_dtype = ht.float32 if self.is_mps else ht.int32
 

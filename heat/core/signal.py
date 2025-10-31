@@ -799,8 +799,7 @@ def convolve2d(
             #   f"Before convolution {a.comm.rank}, {r}: weight {weight.shape[-2:]}, gshape: {gshape} ")
 
             rec_v = t_v.clone()
-            v.comm.bcast(rec_v, root=r)
-
+            v.comm.Bcast(rec_v, root=r)
             t_v1 = rec_v.reshape(1, 1, rec_v.shape[0], rec_v.shape[1])
             # if r != rank:
             #    print(rank, r, "on broadcast")
@@ -912,7 +911,12 @@ def convolve2d(
             signal_filtered = torch.tensor([[]], device=str(signal.device))
 
         # if kernel shape along split axis is even we need to get rid of duplicated values
-        if a.comm.rank != 0 and stride[a.split] == 1 and v.shape[a.split] % 2 == 0:
+        if (
+            a.is_distributed()
+            and a.comm.rank != 0
+            and stride[a.split] == 1
+            and v.shape[a.split] % 2 == 0
+        ):
             if a.split == 0:
                 signal_filtered = signal_filtered[1:, :]
             elif a.split == 1:
