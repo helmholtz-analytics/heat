@@ -63,7 +63,6 @@ class TestDataParallel(unittest.TestCase):
             ht.optim.DataParallelOptimizer(optimizer, "asdf")
         dp_optimizer = ht.optim.DataParallelOptimizer(optimizer, True)
 
-        ht.random.seed(1)
         torch.random.manual_seed(1)
 
         labels = torch.randn((2, 10), device=ht.get_device().torch_device)
