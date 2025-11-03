@@ -838,13 +838,6 @@ else:
             ranges.append((n, n + rows))
             n += rows
 
-        def find_file(idx: int) -> h5py.File | None:
-            for i, (start, end) in enumerate(ranges):
-                if not (start <= idx and idx < end):
-                    continue
-                return h5_files[i]
-            return None
-
         def find_file_ids_for_range(rslice: slice) -> list[int]:
             files = list()
             for i, (start, end) in enumerate(ranges):
