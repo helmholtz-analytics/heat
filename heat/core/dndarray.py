@@ -588,6 +588,8 @@ class DNDarray:
         [1/2] (7, 2) (2, 2)
         [2/2] (7, 2) (2, 2)
         """
+        if not self.is_distributed():
+            self.__balanced = True
         if self.is_balanced(force_check=True):
             return
         self.redistribute_()
@@ -947,7 +949,7 @@ class DNDarray:
             except RuntimeError:
                 raise IndexError("Invalid indices: expected a list of integers, got {}".format(key))
         if isinstance(key, (DNDarray, torch.Tensor, np.ndarray)):
-            if key.dtype in (bool, uint8, torch.bool, torch.uint8, np.bool_, np.uint8):
+            if key.dtype in (ht_bool, ht_uint8, torch.bool, torch.uint8, np.bool_, np.uint8):
                 # boolean indexing: shape must be consistent with arr.shape
                 key_ndim = key.ndim
                 if not tuple(key.shape) == arr.shape[:key_ndim]:
@@ -1469,8 +1471,10 @@ class DNDarray:
         if key is None:
             return self.expand_dims(0)
         if (
-            key is ... or isinstance(key, slice) and key == slice(None)
-        ):  # latter doesnt work with torch for 0-dim tensors
+            key is ...
+            or (isinstance(key, slice) and key == slice(None))
+            or (isinstance(key, tuple) and key == ())
+        ):
             return self
 
         original_split = self.split
@@ -1523,7 +1527,8 @@ class DNDarray:
             # key is torch-proof, index underlying torch tensor
             indexed_arr = self.larray[key]
             # transpose array back if needed
-            self = self.transpose(backwards_transpose_axes)
+            if self.ndim > 0:
+                self = self.transpose(backwards_transpose_axes)
             return DNDarray(
                 indexed_arr,
                 gshape=output_shape,
@@ -1556,13 +1561,15 @@ class DNDarray:
                     balanced=out_is_balanced,
                 )
                 # transpose array back if needed
-                self = self.transpose(backwards_transpose_axes)
+                if self.ndim > 0:
+                    self = self.transpose(backwards_transpose_axes)
                 return indexed_arr
 
             # root is None, i.e. indexing does not affect split axis, apply as is
             indexed_arr = self.larray[key]
             # transpose array back if needed
-            self = self.transpose(backwards_transpose_axes)
+            if self.ndim > 0:
+                self = self.transpose(backwards_transpose_axes)
             return DNDarray(
                 indexed_arr,
                 gshape=output_shape,
@@ -1732,7 +1739,8 @@ class DNDarray:
             balanced=out_is_balanced,
         )
         # transpose array back if needed
-        self = self.transpose(backwards_transpose_axes)
+        if self.ndim > 0:
+            self = self.transpose(backwards_transpose_axes)
         return indexed_arr
 
     if torch.cuda.device_count() > 0:
@@ -2119,13 +2127,13 @@ class DNDarray:
         # sanitize the axis to check whether it is in range
         axis = sanitize_axis(self.shape, axis)
 
+        self.__partitions_dict__ = None
+
         # early out for unchanged content
         if self.comm.size == 1:
             self.__split = axis
         if axis == self.split:
             return self
-
-        self.__partitions_dict__ = None
 
         if axis is None:
             gathered = torch.empty(
@@ -2302,7 +2310,12 @@ class DNDarray:
 
         # workaround for Heat issue #1292. TODO: remove when issue is fixed
         if not isinstance(key, DNDarray):
-            if key is None or key is ... or key is slice(None):
+            if (
+                key is None
+                or key is ...
+                or (isinstance(key, slice) and key == slice(None))
+                or (isinstance(key, tuple) and key == ())
+            ):
                 # match dimensions
                 value, _ = __broadcast_value(self, key, value)
                 # make sure `self` and `value` distribution are aligned
@@ -2808,4 +2821,5 @@ from . import types
 
 from .devices import Device
 from .stride_tricks import sanitize_axis
-from .types import datatype, canonical_heat_type, bool, uint8
+from .types import datatype, canonical_heat_type
+from .types import bool as ht_bool, uint8 as ht_uint8
