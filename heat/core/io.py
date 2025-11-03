@@ -38,6 +38,8 @@ __all__ = [
     "load_csv",
     "save_csv",
     "save",
+    "save_zarr",
+    "save_zarr_group",
     "supports_hdf5",
     "supports_netcdf",
     "load_npy_from_path",
@@ -1750,3 +1752,141 @@ else:
                 zarr_array[:] = dndarray.larray.cpu().numpy()
 
         MPI_WORLD.Barrier()
+
+    def save_zarr_group(
+        dndarray: DNDarray,
+        path: str,
+        variable_pattern: str,
+        overwrite: bool = False,
+        **kwargs,
+    ) -> None:
+        """
+        Writes the DNDArray into a zarr group, where each rank writes its
+        local data to a separate array within the group.
+
+        This is a high-performance alternative to save_zarr for split DNDarrays,
+        as it avoids write-conflicts by having each rank write to an
+        independent file.
+
+        The resulting group can be read back using `load_zarr` with a wildcard
+        in the variable argument.
+
+        Parameters
+        ----------
+        dndarray : DNDarray
+            DNDArray to save. Must be split (i.e., `split` is not None).
+        path : str
+            Path to the top-level zarr group to create (e.g., "my_data.zarr").
+        variable_pattern : str
+            A string pattern for the arrays to be created within the group.
+            Must contain the placeholder `{rank}` which will be replaced by
+            the zero-padded rank ID.
+            Example: "receiver_{rank}/data"
+        overwrite : bool
+            Whether to overwrite an existing group or arrays.
+        **kwargs : Any
+            Extra Arguments to pass to `zarr.create_dataset` for each
+            local array (e.g., `chunks`, `compressor`).
+
+        Raises
+        ------
+        TypeError
+            If input parameters are of the wrong type.
+        ValueError
+            - If the DNDarray is not split (split=None).
+            - If `variable_pattern` does not contain "{rank}".
+        RuntimeError
+            If the path exists and `overwrite=False`.
+
+        Examples
+        --------
+        >>> # Create a DNDarray split across 4 processes
+        >>> a = ht.arange(100, split=0, comm=ht.MPI_WORLD)
+        >>>
+        >>> # Save as a group, each rank writes its own array
+        >>> # Rank 0 writes to "my_store.zarr/data_00"
+        >>> # Rank 1 writes to "my_store.zarr/data_01"
+        >>> # ...
+        >>> ht.save_zarr_group(
+        ...     a,
+        ...     "my_store.zarr",
+        ...     "data_{rank}",
+        ...     overwrite=True,
+        ...     chunks=(10,)
+        ... )
+        >>>
+        >>> # Load the data back by matching the pattern
+        >>> b = ht.load_zarr("my_store.zarr", variable="data_*", split=0)
+        """
+        if not isinstance(dndarray, DNDarray):
+            raise TypeError(f"dndarray must be DNDarray, not {type(dndarray)}")
+        if not isinstance(path, str):
+            raise TypeError(f"path must be str, not {type(path)}")
+        if not isinstance(variable_pattern, str):
+            raise TypeError(f"variable_pattern must be str, not {type(variable_pattern)}")
+
+        for extension in __ZARR_EXTENSIONS:
+            if fnmatch.fnmatch(path, f"*{extension}"):
+                break
+        else:
+            raise ValueError("path does not end on a Zarr extension.")
+
+        if dndarray.split is None:
+            raise ValueError(
+                "save_zarr_group is only for distributed DNDarrays. "
+                "For non-distributed arrays, use save_zarr."
+            )
+
+        if "{rank}" not in variable_pattern:
+            raise ValueError(f"variable_pattern must contain the '{{rank}}' placeholder.")
+
+        comm = dndarray.comm
+        if comm.rank == 0:
+            # Rank 0 creates the top-level group
+            try:
+                mode = "w" if overwrite else "w-"
+                g = zarr.open_group(store=path, mode=mode)
+            except zarr.errors.ContainsGroupError as e:
+                if not overwrite:
+                    raise RuntimeError(
+                        f"Path {path} already exists. Use overwrite=True."
+                    ) from e
+                # If overwrite=True, mode="w" handles it.
+            except Exception as e:
+                # Some other error (e.g., permissions)
+                raise e
+
+        # Wait for rank 0 to finish creating the group directory
+        comm.Barrier()
+
+        # All ranks open the group and write their part
+        # "r+" means open for read/write, must exist
+        g = zarr.open_group(store=path, mode="r+")
+
+        # Calculate zero-padding width for rank string
+        # This ensures glob sorting works correctly (e.g., "rank_01", "rank_10")
+        width = 1
+        if comm.size > 1:
+            # Use log10 to find number of digits
+            width = int(log10(comm.size - 1)) + 1
+        rank_str = f"{comm.rank:0{width}d}"
+
+        # Get the path for this rank's local array
+        local_array_path = variable_pattern.format(rank=rank_str)
+
+        # Each rank creates its own dataset *within* the group
+        # This is an independent operation, no locks needed.
+        arr = g.create_dataset(
+            local_array_path,
+            shape=dndarray.lshape,
+            dtype=dndarray.dtype.char(),
+            overwrite=overwrite,
+            **kwargs,  # Pass user-defined chunks, compressors, etc.
+        )
+
+        # Write the local torch tensor data
+        # convert to .cpu().numpy() as zarr requires numpy
+        arr[:] = dndarray.larray.cpu().numpy()
+
+        # Wait for all ranks to finish writing before returning
+        comm.Barrier()
