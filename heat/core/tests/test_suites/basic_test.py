@@ -18,6 +18,8 @@ class TestCase(unittest.TestCase):
     other_device: Optional[Device] = None
     envar: Optional[str] = None
 
+    def setUp(self) -> None:
+        seed(42)
 
     @classmethod
     def setUpClass(cls) -> None:
@@ -61,7 +63,6 @@ class TestCase(unittest.TestCase):
             )
 
         cls.device, cls.other_device, cls.envar, cls.is_mps = ht_device, other_device, envar, is_mps
-        seed(42)
 
     @property
     def comm(self) -> MPICommunication:
