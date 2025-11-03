@@ -1384,72 +1384,74 @@ class TestIO(TestCase):
 
         comm.Barrier()
 
-        dndarray = ht.io.load_multiple_hdf5(self.HDF5_MULTIPLE_FOLDER, self.HDF5_MULTIPLE_DATASET, dtype=ht.float32)
+        dndarray = ht.io.load_multiple_hdf5(self.HDF5_MULTIPLE_FOLDER, self.HDF5_MULTIPLE_DATASET)
         dndarray_np = dndarray.numpy()
         original_data_np = original_data.numpy()
         self.assertTrue((dndarray_np == original_data_np).all())
 
-    # @unittest.skipIf(not ht.io.supports_hdf5(), reason="Requires HDF5")
-    # def test_load_multiple_hdf5_exceptions(self):
-    #     # wrong type for folder path
-    #     with self.assertRaises(TypeError):
-    #         ht.io.load_multiple_hdf5(1, "my_dataset_name")
+    @unittest.skipIf(not ht.io.supports_hdf5(), reason="Requires HDF5")
+    def test_load_multiple_hdf5_exceptions(self):
+        # wrong type for folder path
+        with self.assertRaises(TypeError):
+            ht.io.load_multiple_hdf5(1, "my_dataset_name")
 
-    #     # wrong type for dataset name
-    #     with self.assertRaises(TypeError):
-    #         ht.io.load_multiple_hdf5("/my_folder_name", 3.14)
+        # wrong type for dataset name
+        with self.assertRaises(TypeError):
+            ht.io.load_multiple_hdf5("/my_folder_name", 3.14)
 
-    #     # wrong type for sorting function
-    #     with self.assertRaises(TypeError):
-    #         ht.io.load_multiple_hdf5("/my_folder_name", "my_dataset_name", sorting_func=5)
+        # wrong type for sorting function
+        with self.assertRaises(TypeError):
+            ht.io.load_multiple_hdf5("/my_folder_name", "my_dataset_name", sorting_func=5)
 
-    #     # folder does not exist
-    #     with self.assertRaises(ValueError):
-    #         ht.io.load_multiple_hdf5("/this/folder/does/not/exist", "my_dataset_name")
+        # folder does not exist
+        with self.assertRaises(ValueError):
+            ht.io.load_multiple_hdf5("/this/folder/does/not/exist", "my_dataset_name")
 
-        # import h5py
-        # # folder is empty
-        # comm = ht.MPI_WORLD
-        # empty_folder = Path(self.HDF5_MULTIPLE_FOLDER, "empty_test_folder")
-        # if comm.rank == 0:
-        #     empty_folder.mkdir(exist_ok=True)
-        # comm.Barrier()
-        # with self.assertRaises(ValueError):
-        #     ht.io.load_multiple_hdf5(str(empty_folder), "my_dataset_name")
-        # comm.Barrier()
-        # if comm.rank == 0:
-        #     empty_folder.rmdir()
+        import h5py
+        comm = ht.MPI_WORLD
 
-        # # Amount of dimensions of all hdf5 files must be the same
-        # inconsistent_folder = Path(self.HDF5_MULTIPLE_FOLDER, "inconsistent_test_folder")
-        # if comm.rank == 0:
-        #     inconsistent_folder.mkdir(exist_ok=True)
-        #     # create first file with dataset of shape (4, 5)
-        #     with h5py.File(str(Path(inconsistent_folder, "file_0.h5")), "w") as file:
-        #         file["my_dataset"] = np.random.rand(4, 5)
-        #     # create second file with dataset of shape (4, 5, 6)
-        #     with h5py.File(str(Path(inconsistent_folder, "file_1.h5")), "w") as file:
-        #         file["my_dataset"] = np.random.rand(4, 5, 6)
-        # comm.Barrier()
-        # with self.assertRaises(ValueError):
-        #     ht.io.load_multiple_hdf5(str(inconsistent_folder), "my_dataset")
-        # comm.Barrier()
-        # if comm.rank == 0:
-        #     shutil.rmtree(inconsistent_folder)
+        # folder is empty
+        empty_folder = Path(self.HDF5_MULTIPLE_FOLDER, "empty_test_folder")
+        if comm.rank == 0:
+            empty_folder.mkdir(parents=True,exist_ok=True)
+        comm.Barrier()
+        with self.assertRaises(ValueError):
+            ht.io.load_multiple_hdf5(str(empty_folder), "my_dataset_name")
+        comm.Barrier()
+        if comm.rank == 0:
+            empty_folder.rmdir()
+        comm.Barrier()
 
-        # # Dimension missmatch on ndim
-        # missmatch_folder = Path(self.HDF5_MULTIPLE_FOLDER, "missmatch_test_folder")
-        # if comm.rank == 0:
-        #     missmatch_folder.mkdir(exist_ok=True)
-        #     # create first file with dataset of shape (4, 5)
-        #     with h5py.File(str(Path(missmatch_folder, "file_0.h5")), "w") as file:
-        #         file["my_dataset"] = np.random.rand(4, 5)
-        #     # create second file with dataset of shape (6, 5)
-        #     with h5py.File(str(Path(missmatch_folder, "file_1.h5")), "w") as file:
-        #         file["my_dataset"] = np.random.rand(6, 5)
-        # comm.Barrier()
-        # with self.assertRaises(ValueError):
-        #     ht.io.load_multiple_hdf5(str(missmatch_folder), "my_dataset", dtype=ht.float32)
-        # comm.Barrier()
-        # if comm.rank == 0:
-        #     shutil.rmtree(missmatch_folder)
+        # Amount of dimensions of all hdf5 files must be the same
+        inconsistent_folder = Path(self.HDF5_MULTIPLE_FOLDER, "inconsistent_test_folder")
+        if comm.rank == 0:
+            inconsistent_folder.mkdir(exist_ok=True)
+            # create first file with dataset of shape (4, 5)
+            with h5py.File(str(Path(inconsistent_folder, "file_0.h5")), "w") as file:
+                file["my_dataset"] = np.random.rand(4, 5)
+            # create second file with dataset of shape (4, 5, 6)
+            with h5py.File(str(Path(inconsistent_folder, "file_1.h5")), "w") as file:
+                file["my_dataset"] = np.random.rand(4, 5, 6)
+        comm.Barrier()
+        with self.assertRaises(ValueError):
+            ht.io.load_multiple_hdf5(str(inconsistent_folder), "my_dataset")
+        comm.Barrier()
+        if comm.rank == 0:
+            shutil.rmtree(inconsistent_folder)
+
+        # Dimension missmatch on ndim
+        missmatch_folder = Path(self.HDF5_MULTIPLE_FOLDER, "missmatch_test_folder")
+        if comm.rank == 0:
+            missmatch_folder.mkdir(exist_ok=True)
+            # create first file with dataset of shape (4, 5)
+            with h5py.File(str(Path(missmatch_folder, "file_0.h5")), "w") as file:
+                file["my_dataset"] = np.random.rand(4, 5)
+            # create second file with dataset of shape (6, 5)
+            with h5py.File(str(Path(missmatch_folder, "file_1.h5")), "w") as file:
+                file["my_dataset"] = np.random.rand(6, 7)
+        comm.Barrier()
+        with self.assertRaises(ValueError):
+            ht.io.load_multiple_hdf5(str(missmatch_folder), "my_dataset", dtype=ht.float32)
+        comm.Barrier()
+        if comm.rank == 0:
+            shutil.rmtree(missmatch_folder)
