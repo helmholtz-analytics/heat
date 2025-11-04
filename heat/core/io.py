@@ -43,7 +43,6 @@ __all__ = [
     "supports_netcdf",
     "load_npy_from_path",
     "supports_zarr",
-    "load_multiple_hdf5",
 ]
 
 
