@@ -502,7 +502,7 @@ except ImportError:
 
 else:
     # add functions to exports
-    __all__.extend(["load_hdf5", "save_hdf5"])
+    __all__.extend(["load_hdf5", "save_hdf5", "load_multiple_hdf5"])
 
     # warn the user about serial hdf5
     if not h5py.get_config().mpi and MPI_WORLD.rank == 0:
