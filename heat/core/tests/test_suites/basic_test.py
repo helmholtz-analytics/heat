@@ -18,6 +18,8 @@ class TestCase(unittest.TestCase):
     other_device: Optional[Device] = None
     envar: Optional[str] = None
 
+    def setUp(self) -> None:
+        seed(42)
 
     @classmethod
     def setUpClass(cls) -> None:
