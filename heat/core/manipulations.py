@@ -3743,6 +3743,7 @@ def resplit(arr: DNDarray, axis: Optional[int] = None) -> DNDarray:
             arr.shape, dtype=arr.dtype.torch_type(), device=arr.device.torch_device
         )
         counts, displs = arr.counts_displs()
+        print(arr.comm.rank, "resplit", counts, displs, shape)
         arr.comm.Allgatherv(arr.larray, (gathered, counts, displs), recv_axis=arr.split)
         new_arr = factories.array(
             gathered, is_split=axis, device=arr.device, comm=arr.comm, dtype=arr.dtype

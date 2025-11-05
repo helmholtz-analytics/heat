@@ -42,19 +42,27 @@ def conv_pad(a, convolution_dim, signal, pad, boundary, fillvalue):
          Value to fill pad input arrays with. Default is 0.
     """
     # check if more than one rank is involved
+
     if a.is_distributed() and a.comm.size > 1:
+        # print(a.comm.rank, "check more than one rank")
         dim_split = a.split - a.ndim
+
         if boundary == "reflect" and dim_split >= -1 * convolution_dim:
-            if (a.comm.rank == 0 and pad[2 * dim_split] >= a.lshape_map[0, a.split]) or (
-                a.comm.rank == a.comm.size - 1
-                and pad[2 * dim_split + 1] >= a.lshape_map[-1, a.split]
+            # print("check boundary reflect error")
+            # print("Condition 1a:", pad[2*dim_split])
+            # print("Condition 1b:", lshape_map[0, split])
+            if (pad[2 * dim_split] >= a.lshape_map[0, a.split]) or (
+                pad[2 * dim_split + 1] >= a.lshape_map[-1, a.split]
             ):
+                # print("I caused a value error in boundary reflect")
                 raise ValueError(
                     "Local chunk needs to be larger than padding for boundary mode reflect"
                 )
-
+            # print("no value error in boundary reflect")
         # check if split along a convolution dimension
+
         if dim_split >= -1 * convolution_dim:
+            # print(a.comm.rank, "split along convolution dim")
             if boundary == "circular":
                 raise ValueError(
                     "Circular boundary for distributed signals in padding dimensions is currently not supported."
@@ -69,15 +77,18 @@ def conv_pad(a, convolution_dim, signal, pad, boundary, fillvalue):
                 pad[2 * dim_split + 1] = 0
                 pad[2 * dim_split] = 0
 
+    # print(a.comm.rank, "pad", pad)
     # rearrange pad for torch
     if convolution_dim == 2:
         pad = [pad[-2], pad[-1], pad[-4], pad[-3]]
     elif convolution_dim == 3:
         pad = [pad[-2], pad[-1], pad[-4], pad[-3], pad[-6], pad[-5]]
+    # print(a.comm.rank, "rearranged pad", pad)
 
     if boundary == "constant":
         signal = fc.pad(signal, pad, mode=boundary, value=fillvalue)
     elif boundary in ("circular", "reflect", "replicate"):
+        print(a.comm.rank, "boundary not constant")
         signal = fc.pad(signal, pad, mode=boundary)
     else:
         raise ValueError(
@@ -786,7 +797,7 @@ def convolve2d(
             local_signal_filtered = local_signal_filtered[0, 0, :, :]
 
             # if kernel shape along split axis is even we need to get rid of duplicated values
-            if a.comm.rank != 0 and v.lshape_map[0][split_axis] % 2 == 0:
+            if v.comm.rank != 0 and v.lshape_map[0][split_axis] % 2 == 0:
                 if split_axis == 0:
                     local_signal_filtered = local_signal_filtered[1:, :]
                 else:
@@ -797,7 +808,10 @@ def convolve2d(
                 local_signal_filtered, is_split=split_axis, device=a.device, comm=a.comm
             )
 
+            # print(v.comm.rank, r, "gsf", global_signal_filtered.larray)
+
             if r == 0:
+                print(v.comm.rank, "signal split", a.split)
                 # initialize signal_filtered, starting point of slice
                 signal_filtered = zeros(
                     gshape, dtype=a.dtype, split=a.split, device=a.device, comm=a.comm
@@ -805,11 +819,14 @@ def convolve2d(
                 start_idx = 0
 
             try:
+                print(v.comm.rank, r, "Not in Exception", signal_filtered.split)
+
                 if split_axis == 0:
                     signal_filtered += global_signal_filtered[start_idx : start_idx + gshape[0], :]
                 else:
                     signal_filtered += global_signal_filtered[:, start_idx : start_idx + gshape[1]]
             except (ValueError, TypeError):
+                print(v.comm.rank, r, "In Exception", signal_filtered.split)
                 if split_axis == 0:
                     signal_filtered = (
                         signal_filtered
@@ -826,10 +843,13 @@ def convolve2d(
                 start_idx += v.lshape_map[r + 1][split_axis].item()
 
         # any stride is a subset of arrays of stride 1
+        print(v.comm.rank, "before stride", signal_filtered.larray)
         if any(s > 1 for s in stride):
             signal_filtered = signal_filtered[:: stride[0], :: stride[1]]
+        print(v.comm.rank, "after stride", signal_filtered.larray)
 
-        signal_filtered.balance_()
+        if a.is_distributed():
+            signal_filtered.balance_()
 
         return signal_filtered
 
