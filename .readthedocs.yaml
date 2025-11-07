@@ -5,14 +5,11 @@ build:
   tools:
     python : "3.12"
 
-# python: "3.12"
-
 python:
   install:
   - method: pip
-
-path:
-- requirements: docs/requirements.txt
+    path: .
+    requirements: docs/requirements.txt
 
 mkdocs:
 configuration: mkdocs.yml
