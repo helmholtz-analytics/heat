@@ -1,0 +1,29 @@
+site_name: Heat
+site_url: https://heat.readthedocs.io
+
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - content.code.copy
+    - search.suggest
+    - search.highlight
+
+plugins:
+  - search
+  - mkdocstrings
+  - git-revision-date-localized
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - toc
+
+nav:
+  - Home: index.md
+  - Introduction: introduction.md
+  - Getting started: getting_started.md
+  # - Documentation guide: documentation_howto.md
+  - Case studies: case_studies.md
+  - API Reference: api/index.md

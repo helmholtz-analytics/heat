@@ -45,7 +45,10 @@ extensions = [
     "sphinx.ext.mathjax",
     "sphinx_copybutton",
     "nbsphinx",
+    "myst_parser"
 ]
+
+myst_enable_extensions = ["colon_fence", "deflist", "linkify", "attrs"]
 
 # Document Python Code
 autoapi_type = "python"
