@@ -1,3 +1,13 @@
+# v1.6.1
+## Changes
+### Bug Fixes
+
+* Sturdier MPI+GPU compatibility check by @JuanPedroGHM in https://github.com/helmholtz-analytics/heat/pull/1979
+* Fix handling of zarr groups by @ClaudiaComito in https://github.com/helmholtz-analytics/heat/pull/1990
+
+## Contributors
+@ClaudiaComito, JuanPedroGHM
+
 # v1.6.0
 ## Highlights
 
