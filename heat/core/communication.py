@@ -1591,12 +1591,15 @@ class MPICommunication(Communication):
             if np.all(np.array(subsizes) > 0):
                 if (
                     is_contiguous
-                    and np.all(np.array(lshape) < 2**31)
-                    and np.all(np.array(subsizes) < 2**31)
-                    and np.all(np.array(substarts) < 2**31)
+                    and np.all(np.array(lshape) < self.COUNT_LIMIT)
+                    and np.all(np.array(subsizes) < self.COUNT_LIMIT)
+                    and np.all(np.array(substarts) < self.COUNT_LIMIT)
                 ):
                     # Commit the source subarray datatypes
                     # Subarray parameters are calculated based on the work by Dalcin et al. (https://arxiv.org/abs/1804.09536)
+                    print(
+                        f"{self.handle.rank}: Creating subarray datatype for sendbuf with lshape: {lshape}, subsizes: {subsizes}, substarts: {substarts}"
+                    )
                     subarray_type = send_datatype.Create_subarray(
                         lshape, subsizes, substarts, order=MPI.ORDER_C
                     ).Commit()
@@ -1614,7 +1617,8 @@ class MPICommunication(Communication):
         # Unpack recvbuf information
         recvbuf_tensor, (recv_counts, recv_displs), subarray_params_list = recvbuf
         recvbuf = self._moveToCompDevice(recvbuf_tensor, self.handle.Alltoallw)
-        recvbuf_ptr, _, recv_datatype = self.as_buffer(recvbuf)
+        recvbuf_ptr = self.as_mpi_memory(recvbuf)
+        recv_datatype = self.mpi_type_of(recvbuf.dtype)
 
         # Commit the receive subarray datatypes
         target_subarray_types = []
@@ -1623,10 +1627,13 @@ class MPICommunication(Communication):
 
             if np.all(np.array(subsizes) > 0):
                 if (
-                    np.all(np.array(lshape) <= 2**31 - 1)
-                    and np.all(np.array(subsizes) <= 2**31 - 1)
-                    and np.all(np.array(substarts) <= 2**31 - 1)
+                    np.all(np.array(lshape) < self.COUNT_LIMIT)
+                    and np.all(np.array(subsizes) < self.COUNT_LIMIT)
+                    and np.all(np.array(substarts) < self.COUNT_LIMIT)
                 ):
+                    print(
+                        f"{self.handle.rank}: Creating subarray datatype for recvbuf with lshape: {lshape}, subsizes: {subsizes}, substarts: {substarts}"
+                    )
                     target_subarray_types.append(
                         recv_datatype.Create_subarray(
                             lshape, subsizes, substarts, order=MPI.ORDER_C
@@ -1645,6 +1652,7 @@ class MPICommunication(Communication):
                 target_subarray_types.append(MPI.INT)
 
         # Perform the Alltoallw operation
+        print(f"{send_counts}, {send_displs}, {recv_counts}, {recv_displs}")
         self.handle.Alltoallw(
             [sendbuf_ptr, (send_counts, send_displs), source_subarray_types],
             [recvbuf_ptr, (recv_counts, recv_displs), target_subarray_types],
