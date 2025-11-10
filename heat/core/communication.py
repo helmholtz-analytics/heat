@@ -1597,9 +1597,6 @@ class MPICommunication(Communication):
                 ):
                     # Commit the source subarray datatypes
                     # Subarray parameters are calculated based on the work by Dalcin et al. (https://arxiv.org/abs/1804.09536)
-                    print(
-                        f"{self.handle.rank}: Creating subarray datatype for sendbuf with lshape: {lshape}, subsizes: {subsizes}, substarts: {substarts}"
-                    )
                     subarray_type = send_datatype.Create_subarray(
                         lshape, subsizes, substarts, order=MPI.ORDER_C
                     ).Commit()
@@ -1631,9 +1628,6 @@ class MPICommunication(Communication):
                     and np.all(np.array(subsizes) < self.COUNT_LIMIT)
                     and np.all(np.array(substarts) < self.COUNT_LIMIT)
                 ):
-                    print(
-                        f"{self.handle.rank}: Creating subarray datatype for recvbuf with lshape: {lshape}, subsizes: {subsizes}, substarts: {substarts}"
-                    )
                     target_subarray_types.append(
                         recv_datatype.Create_subarray(
                             lshape, subsizes, substarts, order=MPI.ORDER_C
@@ -1652,7 +1646,6 @@ class MPICommunication(Communication):
                 target_subarray_types.append(MPI.INT)
 
         # Perform the Alltoallw operation
-        print(f"{send_counts}, {send_displs}, {recv_counts}, {recv_displs}")
         self.handle.Alltoallw(
             [sendbuf_ptr, (send_counts, send_displs), source_subarray_types],
             [recvbuf_ptr, (recv_counts, recv_displs), target_subarray_types],
@@ -1719,7 +1712,6 @@ class MPICommunication(Communication):
         while i > 0:
             current_stride = tensor_stride[i]
             current_size = subarray_sizes[i]
-            # print(f"i: {i}, current_stride: {current_stride}, current_size: {current_size}")
 
             # Define vector out of previous datatype with stride equals to current stride
             if i == len(tensor_stride) - 1 and current_stride == 1:

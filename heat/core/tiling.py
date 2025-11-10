@@ -261,7 +261,6 @@ class SplitTiles:
             # todo: implement advanced indexing (lists of positions to iterate through)
             lkey = key
             stop = self.tile_ends_g[d][lkey[d]].max().item()
-            # print(stop, self.lshape_map[end_rank][d].max())
             stop = (
                 stop
                 if d != arr.split or stop is None
@@ -371,8 +370,6 @@ class SplitTiles:
 
             subsizes[to_axis] = chunk_size
             substarts[to_axis] = chunk_start
-            # print(f"Rank {arr.comm.rank} - tile_dims: {tile_dimensions}")
-            # print(f"Rank {arr.comm.rank} - subarray params: {lshape}, {subsizes}, {substarts}")
             subarray_param_list.append((lshape, subsizes.copy(), substarts.copy()))
 
         return subarray_param_list
