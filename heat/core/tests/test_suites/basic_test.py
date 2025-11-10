@@ -8,7 +8,7 @@ from typing import Optional, Callable, Any, Union
 
 import heat as ht
 from heat.core import MPI, MPICommunication, dndarray, factories, types, Device
-
+from heat.core.random import seed
 
 # TODO adapt for GPU once this is working properly
 class TestCase(unittest.TestCase):
@@ -18,6 +18,8 @@ class TestCase(unittest.TestCase):
     other_device: Optional[Device] = None
     envar: Optional[str] = None
 
+    def setUp(self) -> None:
+        seed(42)
 
     @classmethod
     def setUpClass(cls) -> None:
