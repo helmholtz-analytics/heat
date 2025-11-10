@@ -412,7 +412,7 @@ class SquareDiagTiles:
         rows on the process whos rank equals the index
 
     Warnings
-    -----------
+    --------
     The generation of these tiles may unbalance the original ``DNDarray``!
 
     Notes
