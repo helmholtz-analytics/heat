@@ -18,12 +18,23 @@ markdown_extensions:
   - admonition
   - pymdownx.details
   - pymdownx.superfences
+  - attr_list
+  - md_in_html
   - toc
+
+extra_css:
+  - styles/extra.css
 
 nav:
   - Home: index.md
   - Introduction: introduction.md
   - Getting started: getting_started.md
+  - Tutorials:
+        Overview: tutorials/tutorial.md
+        30 minutes: tutorials/tutorial_30_minutes.md
+        Clustering: tutorials/tutorial_clustering.md
+        Notebook gallery: tutorials/tutorial_notebook_gallery.md
+        Parallel computation: tutorials/tutorial_parallel_computation.md
   # - Documentation guide: documentation_howto.md
   - Case studies: case_studies.md
   - API Reference: api/index.md
