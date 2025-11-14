@@ -517,7 +517,7 @@ else:
     def load_hdf5(
         path: str,
         dataset: str,
-        dtype: datatype = types.float32,
+        dtype: Optional[datatype] = None,
         slices: Optional[Tuple[Optional[slice], ...]] = None,
         split: Optional[int] = None,
         device: Optional[str] = None,
@@ -533,7 +533,7 @@ else:
         dataset : str
             Name of the dataset to be read.
         dtype : datatype, optional
-            Data type of the resulting array.
+            Data type of the resulting array, defaults to the loaded datasets type.
         slices : tuple of slice objects, optional
             Load only the specified slices of the dataset.
         split : int or None, optional
@@ -625,8 +625,6 @@ else:
         elif split is not None and not isinstance(split, int):
             raise TypeError(f"split must be None or int, not {type(split)}")
 
-        # infer the type and communicator for the loaded array
-        dtype = types.canonical_heat_type(dtype)
         # determine the comm and device the data will be placed on
         device = devices.sanitize_device(device)
         comm = sanitize_comm(comm)
@@ -637,6 +635,9 @@ else:
             gshape = data.shape
             new_gshape = tuple()
             offsets = [0] * len(gshape)
+            if dtype is None:
+                dtype = data.dtype
+            dtype = types.canonical_heat_type(dtype)
             if slices is not None:
                 for i in range(len(gshape)):
                     if i < len(slices) and slices[i]:
@@ -687,7 +688,12 @@ else:
             return DNDarray(data, gshape, dtype, split, device, comm, balanced)
 
     def save_hdf5(
-        data: DNDarray, path: str, dataset: str, mode: str = "w", **kwargs: Dict[str, object]
+        data: DNDarray,
+        path: str,
+        dataset: str,
+        mode: str = "w",
+        dtype: Optional[datatype] = None,
+        **kwargs: Dict[str, object],
     ):
         """
         Saves ``data`` to an HDF5 file. Attempts to utilize parallel I/O if possible.
@@ -702,6 +708,8 @@ else:
             Name of the dataset the data is saved to.
         mode : str, optional
             File access mode, one of ``'w', 'a', 'r+'``
+        dtype : datatype, optional
+            Data type of the saved data
         kwargs : dict, optional
             Additional arguments passed to the created dataset.
 
@@ -732,16 +740,23 @@ else:
         is_split = data.split is not None
         _, _, slices = data.comm.chunk(data.gshape, data.split if is_split else 0)
 
+        if dtype is None:
+            dtype = data.dtype
+        elif type(dtype) == torch.dtype:
+            dtype = str(dtype).split(".")[-1]
+        if type(dtype) is not str:
+            dtype = dtype.__name__
+
         # attempt to perform parallel I/O if possible
         if h5py.get_config().mpi:
             with h5py.File(path, mode, driver="mpio", comm=data.comm.handle) as handle:
-                dset = handle.create_dataset(dataset, data.shape, **kwargs)
+                dset = handle.create_dataset(dataset, data.shape, dtype=dtype, **kwargs)
                 dset[slices] = data.larray.cpu() if is_split else data.larray[slices].cpu()
 
         # otherwise a single rank only write is performed in case of local data (i.e. no split)
         elif data.comm.rank == 0:
             with h5py.File(path, mode) as handle:
-                dset = handle.create_dataset(dataset, data.shape, **kwargs)
+                dset = handle.create_dataset(dataset, data.shape, dtype=dtype, **kwargs)
                 if is_split:
                     dset[slices] = data.larray.cpu()
                 else:
@@ -763,7 +778,7 @@ else:
             next_rank = (data.comm.rank + 1) % data.comm.size
             data.comm.Isend([None, 0, MPI.INT], dest=next_rank)
 
-    DNDarray.save_hdf5 = lambda self, path, dataset, mode="w", **kwargs: save_hdf5(
+    DNDarray.save_hdf5 = lambda self, path, dataset, mode="w", dtype=None, **kwargs: save_hdf5(
         self, path, dataset, mode, **kwargs
     )
     DNDarray.save_hdf5.__doc__ = save_hdf5.__doc__
