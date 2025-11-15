@@ -49,9 +49,7 @@ if ht.MPI_WORLD.rank == 0:
 ```
 
 This will render something like
-
-```{image} ../_static/images/data.png
-```
+![Split array](../images/data.png){ .centered }
 
 Now we perform the clustering analysis with kmeans. We chose 'kmeans++' as an intelligent way of sampling the
 initial centroids.
@@ -94,8 +92,7 @@ if ht.MPI_WORLD.rank == 0:
     plt.show()
 ```
 
-```{image} ../_static/images/clustering.png
-```
+![Split array](../images/clustering.png){ .centered }
 
 We can also cluster the data with kmedians. The respective advanced initial centroid sampling is called 'kmedians++'.
 
@@ -129,8 +126,7 @@ if ht.MPI_WORLD.rank == 0:
     plt.show()
 ```
 
-```{image} ../_static/images/clustering_kmeans.png
-```
+![Split array](../images/clustering_kmeans.png){ .centered }
 
 ## The Iris Dataset
 

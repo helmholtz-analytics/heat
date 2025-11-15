@@ -73,10 +73,7 @@ For the following code examples, make sure you have [MPI](https://computing.llnl
 
 With Heat you can even compute in distributed memory environments with multiple computation nodes, like modern high-performance cluster systems. For this, Heat makes use of the fact that operations performed on multi-dimensional arrays tend to be identical for all data items. Hence, they can be processed in data-parallel manner. Heat partitions the total number of data items equally among all processing nodes. A `DNDarray` assumes the role of a virtual overlay over these node-local data portions and manages them for you while offering the same interface. Consequently, operations can now be executed in parallel. Each processing node applies them locally to their own data chunk. If necessary, partial results are communicated and automatically combined behind the scenes for correct global results.
 
-```{image} ../_static/images/split_array.svg
-:align: center
-:width: 80%
-```
+![Split array](../images/split_array.svg){ .centered width="80%" }
 
 Data chunking in Heat is always done along a singular axis, i.e. a one-dimensional domain decomposition. You can specify this axis by using the `split` parameter in operations and `DNDarray` creation functions. The picture above shows the result of setting different `split` axis on a three-dimensional volume and three processing nodes called $p_0, p_1$ and $p_2$. A Heat `DNDarray` without any split, i.e. `split=None` (default), results in redundant copy on each computation node.
 
@@ -203,10 +200,7 @@ DNDarray([[1., 2., 3., 4.],
 
 On a technical level, Heat is inspired by the so-called [Bulk Synchronous Parallel (BSP)](https://en.wikipedia.org/wiki/Bulk_synchronous_parallel) processing model. Computations proceed in a series of hierarchical supersteps, each consisting of a number of node-local computations and subsequent communications. In contrast to the classical BSP model, communicated data is available immediately, rather than after the next global synchronization. In Heat, global synchronization only occurs for collective MPI calls as well as at the program start and termination.
 
-```{image} ../_static/images/bsp.svg
-:align: center
-:width: 60%
-```
+![Split array](../images/bsp.svg){ .centered width="60%" }
 
 ### Distributed Interactive Interpreter
 
@@ -232,19 +226,19 @@ When working with parallel and distributed computation in Heat there are some be
 
 ### Dos
 
-- Use the high-level Heat API
+> - Use the high-level Heat API
   : - computational kernels are optimized
     - Python constructs (e.g. loops) may be slow
-- Split large data amounts
+> - Split large data amounts
   : - often this along the 'observations/samples/time' dimension
     - large intermediate matrices
-- Have redundant copies (`split=None`) of small, frequently accessed matrices
+> - Have redundant copies (`split=None`) of small, frequently accessed matrices
 
 ### Dont's
 
-- Avoid extensive data copying, e.g.
+> - Avoid extensive data copying, e.g.
   : - operations with operands of different splits (except `None`)
     - reshape() that actually change the array dimensions (adding extra dimensions with size 1 is fine)
-- Overly use the GPU
+> - Overly use the GPU
   : - computation-intensive operations are usually a good fit
     - operations extensively accessing memory only (e.g. sorting) are not
