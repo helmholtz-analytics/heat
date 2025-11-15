@@ -1,18 +1,25 @@
-Here’s a MkDocs‑ready replacement for docs/case_studies.md you can copy‑paste. It removes Sphinx/MyST directives and uses plain Markdown so it renders correctly with Material. Place referenced images under docs/images/ and adjust filenames if yours differ.
+<section class="cases">
+  <article class="case">
+    <img class="case-logo" src="/images/fzj_logo.svg" alt="FZJ logo" />
+    <div class="case-body">
+      <div class="case-title">TerrSysMP</div>
+      <p>The IBG‑3 at Research Centre Juelich uses Heat to postprocess TerrSysMP hydrological flow simulations.</p>
+    </div>
+  </article>
 
-# Case studies
+  <article class="case">
+    <img class="case-logo" src="/images/dlr_logo.svg" alt="DLR logo" />
+    <div class="case-body">
+      <div class="case-title">Rocket Science</div>
+      <p>The German Aerospace Center (DLR) uses Heat to analyze combustion phases of rockets in high‑speed camera videos.</p>
+    </div>
+  </article>
 
-## TerrSysMP
-![FZJ logo](
-
-The IBG‑3 at Research Centre Jülich uses Heat to post‑process TerrSysMP hydrological flow simulations.
-
-## Rocket science
-![DLR logo](
-
-The German Aerospace Center (DLR) uses Heat to analyze combustion phases of rockets in high‑speed camera videos.
-
-## Protein simulations
-![KIT logo](
-
-At Karlsruhe Institute of Technology, researchers identify protein folding states in MD simulations with Heat.
+  <article class="case">
+    <img class="case-logo" src="/images/kit_logo.svg" alt="KIT logo" />
+    <div class="case-body">
+      <div class="case-title">Protein Simulations</div>
+      <p>At Karlsruhe Institute of Technology researchers identify protein folding states in MD‑simulations with Heat.</p>
+    </div>
+  </article>
+</section>

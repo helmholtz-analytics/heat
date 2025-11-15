@@ -1,11 +1,29 @@
 # Heat — The Helmholtz Analytics Toolkit
 
-Heat is a distributed tensor framework for high‑performance data analytics built on PyTorch and MPI, enabling CPU, GPU, and multi‑node workloads.
+**Release:** {{ release }}
 
-Quick links:
-- Introduction → [introduction.md](introduction.md)
-- Getting started → [getting_started.md](getting_started.md)
-- Case studies → [case_studies.md](case_studies.md)
-- Documentation guide → [documentation_howto.md](documentation_howto.md)
+Heat is a distributed tensor framework for high‑performance data analytics.
 
-Explore the API reference at [api/index.md](api/index.md) once your environment can import the package.
+
+## Quick links:
+
+> - [Introduction](introduction.md)
+> - [Getting Started](getting_started.md)
+> - [Heat Tutorials](tutorials/tutorials.md)
+> - [Case Studies](case_studies.md)
+> - [Documentation How-To](documentation_howto.md)
+
+
+Explore the [API Reference](api/index.md), once your environment can import the package.
+
+---
+
+Also visit us on [GitHub](https://github.com/helmholtz-analytics/heat) for more examples, documentation, code, and contributions.
+
+---
+
+## Indices
+
+- [General Index](genindex)
+- [Module Index](modindex)
+- [Search Page](search)

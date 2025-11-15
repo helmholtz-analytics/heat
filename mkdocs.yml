@@ -13,6 +13,7 @@ plugins:
   - search
   - mkdocstrings
   - git-revision-date-localized
+  - macros
 
 markdown_extensions:
   - admonition
