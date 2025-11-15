@@ -55,7 +55,7 @@ Below are quick links to the heat tutorials. Click a card to open the page.​
         <img class="ht-head-logo" src="/images/jupyter.png" alt="Notebooks" />
       </div>
       <div class="ht-head-right">
-        <div class="ht-head-title">Example notebooks</div>
+        <div class="ht-head-title">Example Notebooks</div>
       </div>
     </div>
     <p class="ht-card-desc">Ideal for people who like using Jupyter or other interactive environments.</p>

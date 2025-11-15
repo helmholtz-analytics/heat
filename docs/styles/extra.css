@@ -80,7 +80,7 @@
   border-radius: 14px;
   background: var(--md-default-bg-color, #fff);
   box-shadow: 0 2px 10px rgb(0 0 0 / 6%);
-  transition: box-shadow 0.2s ease, transform 0.12s ease, border-color 0.2s ease,
+  transition: box-shadow 0.2s ease, transform 0.12s ease, border-color 0.2s ease;
 }
 
 .ht-card:hover,
@@ -239,7 +239,6 @@
   text-align: center;
 }
 
-
 @media (max-width: 720px) {
   .hg-grid {
     grid-template-columns: 1fr;
@@ -254,4 +253,17 @@
     width: 80px;
     height: 80px;
   }
+}
+
+.md-typeset .orangemaker {
+  color: rgb(240, 120, 30);
+  font-weight: 600;
+}
+.md-typeset .greymarker {
+  color: rgb(90, 105, 110);
+  font-weight: 600;
+}
+.md-typeset .bluemarker {
+  color: rgb(0, 90, 160);
+  font-weight: 600;
 }

@@ -1,2 +1,8 @@
 allowed_patterns:
 - 'uses: [A-Za-z-\/]+@[\w\d]+ # v\d+\.\d+\.\d+'
+
+fileignoreconfig:
+- filename: docs/documentation_howto.md
+  checksum: 3619c9504377a5b1c155c11dfca3742917d1a3b4621959090f9c5e6060e5cf94
+- filename: doc/documentation_howto.md
+  checksum: 2fafbfc1b65912fc09c5fa323efc9ca338d74097f0961184735c4adba59ce98c
