@@ -1,0 +1,7 @@
+mkdocs
+mkdocs-material
+mkdocstrings
+mkdocstrings-python
+mkdocs-git-revision-date-localized-plugin
+mkdocs-macros-plugin
+mkdocs-jupyter>=0.24.6
