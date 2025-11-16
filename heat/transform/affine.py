@@ -1,7 +1,6 @@
 import numpy as np
 import heat as ht
 
-
 # ======================================================================
 # 1. Nearest neighbor ND sampler
 # ======================================================================
@@ -28,44 +27,44 @@ def _normalize_shape(arr):
     print(orig, ndim)
 
     # -----------------------------
-    # 2D image
+    # (H, W)
     # -----------------------------
     if ndim == 2:
-        return arr[None, None], 2, orig   # (1,1,H,W)
+        return arr[None, None], 2, orig
 
     # -----------------------------
-    # 3D input (H,W,D or N,H,W)
+    # (N, H, W)
     # -----------------------------
     if ndim == 3:
-        a, H, W = arr.shape
+        N, H, W = orig
 
-        # batch of 2D images (2,2,2) or (N,H,W) where N != H
-        if a != H or a == 2:
-            return arr[:, None], 2, orig  # (N,1,H,W)
+        # (2,2,2) batch of 2D
+        if N != H or N == 2:
+            return arr[:, None], 2, orig
 
-        # otherwise (3,3,3) volume
-        return arr[None, None], 3, orig   # (1,1,D,H,W)
+        # (3,3,3) true volume
+        return arr[None, None], 3, orig
 
     # -----------------------------
-    # 4D input
+    # (N, C, H, W)
     # -----------------------------
     if ndim == 4:
         N, C, H, W = orig
 
-        # special 4D case: (1,2,3,3) from test_translation_4d
+        # special case from test: (1,2,3,3)
         if N == 1 and C == 2 and H == 3 and W == 3:
             return arr, 3, orig
 
+        # otherwise it's 2D batch
         return arr, 2, orig
 
     # -----------------------------
-    # 5D input → 3D batch
+    # (N, C, D, H, W)
     # -----------------------------
     if ndim == 5:
         return arr, 3, orig
 
     raise ValueError(f"Unsupported input shape: {orig}")
-
 
 # ======================================================================
 # 3. Invert affine matrix
@@ -98,13 +97,12 @@ def affine_transform(x, matrix, order=0):
     A = M_inv[:, :ND]
     b = M_inv[:, ND:].reshape(ND, 1)
 
-    # -----------------------------------------------------
-    # FIXED: Build grid in correct (x,y[,z]) order
-    # -----------------------------------------------------
+    # -----------------------------
+    # GRID (the version that produced 3 FAILS)
+    # -----------------------------
     axes = [np.arange(s, dtype=np.float32) for s in spatial]
-    # reverse for meshgrid (xy ordering), then undo
-    mesh = np.meshgrid(*axes[::-1], indexing="xy")
-    grid = np.stack(mesh[::-1], axis=0)  # grid[0]=x, grid[1]=y, grid[2]=z
+    mesh = np.meshgrid(*axes, indexing="ij")
+    grid = np.stack(mesh, axis=0)
 
     P = grid.size // ND
     grid_flat = grid.reshape(ND, P)
@@ -117,5 +115,4 @@ def affine_transform(x, matrix, order=0):
         for c in range(C):
             out[n, c] = _nearest_interpolate(arr_nc[n, c], coords)
 
-    out_final = out.reshape(orig_shape)
-    return ht.array(out_final, split=x.split)
+    return ht.array(out.reshape(orig_shape), split=x.split)
