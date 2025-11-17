@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@ec9f2d5744a09debf3a187a3f4f675c53b671911 # v2.13.0
+        uses: step-security/harden-runner@95d9a5deda9de15063e7595e9719c11c38c90ae2 # v2.13.2
         with:
           egress-policy: audit
 
@@ -40,15 +40,15 @@ jobs:
           ref: '${{ inputs.working_branch }}'
       - name: Set env variables
         run: |
-          echo "previous_pytorch=$(grep 'torch>=' setup.py | awk -F '<' '{print $2}' | tr -d '",')" >> $GITHUB_ENV
+          echo "previous_pytorch=$(grep 'torch~=' pyproject.toml | awk -F '<' '{print $2}' | tr -d '",')" >> $GITHUB_ENV
           echo "new_pytorch=$(<.github/pytorch-release-versions/pytorch-latest.txt)"  >> $GITHUB_ENV
       - name: Increment version
         run: |
           chmod +x .github/workflows/increment_version.sh
           echo "setup_pytorch=$(.github/workflows/increment_version.sh ${{ env.new_pytorch }})" >> $GITHUB_ENV
-      - name: Update setup.py
+      - name: Update pyproject.toml
         run: |
-          sed -i '/torch>=/ s/'"${{ env.previous_pytorch }}"'/'"${{ env.setup_pytorch }}"'/g' setup.py
+          sed -i '/torch~=/ s/'"${{ env.previous_pytorch }}"'/'"${{ env.setup_pytorch }}"'/g' pyproject.toml
       - name: Create PR from branch
         uses: peter-evans/create-pull-request@271a8d0340265f705b14b6d32b9829c1cb33d45e # v7.0.8
         with:
