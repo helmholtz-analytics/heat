@@ -1,0 +1,2 @@
+allowed_patterns:
+- 'uses: [A-Za-z-\/]+@[\w\d]+ # v\d+\.\d+\.\d+'
