@@ -4,6 +4,7 @@
 
 * Sturdier MPI+GPU compatibility check by @JuanPedroGHM in https://github.com/helmholtz-analytics/heat/pull/1979
 * Fix handling of zarr groups by @ClaudiaComito in https://github.com/helmholtz-analytics/heat/pull/1990
+* Correct dtype is set when loading and saving HDF5 by @Marc-Jindra in https://github.com/helmholtz-analytics/heat/pull/2014
 
 ## Contributors
 @ClaudiaComito, JuanPedroGHM
