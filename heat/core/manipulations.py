@@ -1102,6 +1102,8 @@ def flip(a: DNDarray, axis: Union[int, Tuple[int, ...]] = None) -> DNDarray:
     if isinstance(axis, int):
         axis = [axis]
 
+    axis = [dim + a.ndim if dim < 0 else dim for dim in axis]
+
     flipped = torch.flip(a.larray, axis)
 
     if not a.is_distributed() or a.split not in axis:
