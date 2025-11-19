@@ -1,29 +1,29 @@
-% Heat documentation master file, created by
-% sphinx-quickstart on Wed Aug 29 09:02:49 2018.
-% You can adapt this file completely to your liking, but it should at least
-% contain the root `toctree` directive.
+# Heat — The Helmholtz Analytics Toolkit
 
-# Heat -- The Helmholtz Analytics Toolkit
+**Release:** {{ release }}
 
-Release: {{ release }}
+Heat is a distributed tensor framework for high‑performance data analytics.
 
-Heat is a distributed tensor framework for high performance data analytics.
 
-```{toctree}
-:caption: Table of Contents
-:maxdepth: 1
+## Quick links
 
-introduction
-getting_started
-tutorials/tutorials
-case_studies
-documentation_howto
-```
+> - [Introduction](introduction.md)
+> - [Getting Started](getting_started.md)
+> - [Heat Tutorials](tutorials/tutorials.md)
+> - [Case Studies](case_studies.md)
+> - [Documentation How-To](documentation_howto.md)
 
-Also visit us on [GitHub](https://github.com/helmholtz-analytics/heat) for more examples, docs, code and contributions.
 
-# Indices
+Explore the [API Reference](api/index.md), once your environment can import the package.
 
-- {ref}`genindex`
-- {ref}`modindex`
-- {ref}`search`
+---
+
+Also visit us on [GitHub](https://github.com/helmholtz-analytics/heat) for more examples, documentation, code, and contributions.
+
+---
+
+## Indices
+
+- [General Index](genindex)
+- [Module Index](modindex)
+- [Search Page](search)

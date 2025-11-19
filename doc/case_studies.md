@@ -1,43 +1,25 @@
-# Case Studies
+<section class="cases">
+  <article class="case">
+    <img class="case-logo" src="/images/fzj_logo.svg" alt="FZJ logo" />
+    <div class="case-body">
+      <div class="case-title">TerrSysMP</div>
+      <p>The IBG‑3 at Research Centre Juelich uses Heat to postprocess TerrSysMP hydrological flow simulations.</p>
+    </div>
+  </article>
 
-::::{container} case
+  <article class="case">
+    <img class="case-logo" src="/images/dlr_logo.svg" alt="DLR logo" />
+    <div class="case-body">
+      <div class="case-title">Rocket Science</div>
+      <p>The German Aerospace Center (DLR) uses Heat to analyze combustion phases of rockets in high‑speed camera videos.</p>
+    </div>
+  </article>
 
-:::{container} case-image
-```{image} _static/images/fzj_logo.svg
-```
-:::
-
-:::{container} case-text
-**TerrSysMP**
-
-The IBG-3 at Research Centre Juelich uses Heat to postprocess TerrSysMP hydrological flow simulations.
-:::
-::::
-
-::::{container} case
-
-:::{container} case-image
-```{image} _static/images/dlr_logo.svg
-```
-:::
-
-:::{container} case-text
-**Rocket Science**
-
-The German Aerospace Center (DLR) uses Heat to analyze combustion phases of rockets in high-speed camera videos.
-:::
-::::
-
-::::{container} case
-
-:::{container} case-image
-```{image} _static/images/kit_logo.svg
-```
-:::
-
-:::{container} case-text
-**Protein Simulations**
-
-At Karlsruhe Institute of Technology researchers identifies protein folding states in MD-simulations with Heat.
-:::
-::::
+  <article class="case">
+    <img class="case-logo" src="/images/kit_logo.svg" alt="KIT logo" />
+    <div class="case-body">
+      <div class="case-title">Protein Simulations</div>
+      <p>At Karlsruhe Institute of Technology researchers identify protein folding states in MD‑simulations with Heat.</p>
+    </div>
+  </article>
+</section>

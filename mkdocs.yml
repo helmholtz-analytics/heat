@@ -9,6 +9,8 @@ theme:
     - search.suggest
     - search.highlight
 
+docs_dir: doc
+
 plugins:
   - search
   - mkdocstrings
@@ -38,23 +40,22 @@ nav:
   - Introduction: introduction.md
   - Getting Started: getting_started.md
   - Heat Tutorials:
-        Overview: tutorials/tutorial.md
-        30 Minutes Welcome: tutorials/tutorial_30_minutes.md
-        Parallel Computation: tutorials/tutorial_parallel_computation.md
-        Cluster Analysis: tutorials/tutorial_clustering.md
-        Notebook Gallery: tutorials/tutorial_notebook_gallery.md
-        Setup:
-          Local Setup: tutorials/notebooks/0_setup/0_setup_local.ipynb
-          JSC Setup: tutorials/notebooks/0_setup/0_setup_jsc.ipynb
-          HAICORE Setup: tutorials/notebooks/0_setup/0_setup_haicore.ipynb
-        Examples:
-          Heat Basics: tutorials/notebooks/1_basics.ipynb
-          Internals: tutorials/notebooks/2_internals.ipynb
-          Loading and Preprocessing: tutorials/notebooks/3_loading_preprocessing.ipynb
-          Matrix Factorizations: tutorials/notebooks/4_matrix_factorizations.ipynb
-          Clustering: tutorials/notebooks/5_clustering.ipynb
-          Profiling: tutorials/notebooks/6_profiling.ipynb
-
+      Overview: tutorials/tutorial.md
+      30 Minutes Welcome: tutorials/tutorial_30_minutes.md
+      Parallel Computation: tutorials/tutorial_parallel_computation.md
+      Cluster Analysis: tutorials/tutorial_clustering.md
+      Notebook Gallery: tutorials/tutorial_notebook_gallery.md
+      Setup:
+        Local Setup: tutorials/notebooks/0_setup/0_setup_local.ipynb
+        JSC Setup: tutorials/notebooks/0_setup/0_setup_jsc.ipynb
+        HAICORE Setup: tutorials/notebooks/0_setup/0_setup_haicore.ipynb
+      Examples:
+        Heat Basics: tutorials/notebooks/1_basics.ipynb
+        Internals: tutorials/notebooks/2_internals.ipynb
+        Loading and Preprocessing: tutorials/notebooks/3_loading_preprocessing.ipynb
+        Matrix Factorizations: tutorials/notebooks/4_matrix_factorizations.ipynb
+        Clustering: tutorials/notebooks/5_clustering.ipynb
+        Profiling: tutorials/notebooks/6_profiling.ipynb
   - Documentation Guide: documentation_howto.md
   - Case Studies: case_studies.md
   - API Reference: api/index.md

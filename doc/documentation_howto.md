@@ -1,15 +1,3 @@
-```{eval-rst}
-.. role:: orangemarker
-```
-
-```{eval-rst}
-.. role:: greymarker
-```
-
-```{eval-rst}
-.. role:: bluemarker
-```
-
 # Writing Heat Documentation
 
 In order to maintain proper, uniform and understandable API documentation of Heat, a few style guidelines are
@@ -21,9 +9,11 @@ The Heat documentation is build using Sphinx (Version 3.0.3), with a custom deri
 (defined in `_static/css/custom.css`).
 There are three main colors available for formatting:
 
-- {orangemarker}`Orange: RGB(240, 120, 30)`
-- {greymarker}`Grey: RGB(90, 105, 110)`
-- {bluemarker}`Blue: RGB(0, 90, 160)`
+- <span class="orangemaker">Orange: RGB(240, 120, 30)</span>
+
+- <span class="greymarker">Grey: RGB(90, 105, 110)</span>
+
+- <span class="bluemarker">Blue: RGB(0, 90, 160)</span>
 
 All configurations regarding the documentation build are set in `doc/source/conf.py`.
 API Documentation is generated using the [sphinx-autoapi extension](https://sphinx-autoapi.readthedocs.io) . This is
@@ -39,7 +29,7 @@ should be checked before creating pull requests
 
 ## Docstring Guidelines
 
-Dostrings are written using the NumPy Documentation style (see sphinx-contributions [napoleon](https://sphinxcontrib-napoleon.readthedocs.io) ).
+Dostrings are written using the NumPy Documentation style (see sphinx-contributions [napoleon](https://sphinxcontrib-napoleon.readthedocs.io)).
 Apart from that, formatting happens via reStructuredText (reST). For a full reference on reST see [here](https://www.sphinx-doc.org/en/master/usage/restructuredtext/basics.html)
 
 ### Docstring Content
@@ -47,19 +37,14 @@ Apart from that, formatting happens via reStructuredText (reST). For a full refe
 - Write clear on concise docstrings, especially in the function and parameter descriptions
 
 - Use type hints for:
-
-  - Parameters
-  - Return types
+  >-  Parameters
+  >-  Return types
 
 - Cross-referencing of major Heat classes (`DNDarray`, `Communication`, `Device`, `data_type`)
-
-  - Import major classes directly (e.g. `from .dndarray import DNDarray`, `from .devices import Device`)
-
-  - In descriptions, use cross references when useful (full module path with tilde): `` :class:`~heat.core.dndarray.DNDarray` ``
-    or `` :function:`~heat.core.arithmetics.add` ``
-
-  - use `from __future__ import annotations` for module internal crossreferencing: see e.g.
-    naive_bayes/gaussianNB.py: partial_fit
+  >-  Import major classes directly (e.g. `from .dndarray import DNDarray`, `from .devices import Device`)
+  >-  In descriptions, use cross references when useful (full module path with tilde): `` :class:`~heat.core.dndarray.DNDarray` `` or `` :function:`~heat.core.arithmetics.add` ``
+  >-  use `from __future__ import annotations` for module internal crossreferencing: see e.g.
+  naive_bayes/gaussianNB.py: partial_fit
 
 - In narrative form always refer to DNDarrays as array and not as tensor. The latter is exclusively reserved for PyTorch tensors.
 
@@ -71,7 +56,7 @@ Apart from that, formatting happens via reStructuredText (reST). For a full refe
 
 Method Template
 
-: The following example shows the standard formatting of a function docstring
+The following example shows the standard formatting of a function docstring
 
   ```
   def foo(x: DNDarray, y: str, k: int = 0) -> DNDarray
@@ -130,18 +115,18 @@ way, all attributes that are passed for class initialization are documented prop
 value annotation
 
 Parameter Definitions
-: - Defaults are defined in the function Parameters
-  - Shape definitions go at the very end of the Parameter description in the following format: `Shape = (x, y, ...)`
-  - For classes, the initialization parameters are defined as section `Attributes`
-  - Different Parameter types are separated by `or`, not commas
-  - For detailed instructions on type hints for parameter and return type annotation (such as `Union`, `List`,
-    `Tuple`, etc.)
-    See [typing](https://docs.python.org/3/library/typing.html) (PEP 484)
+  >- Defaults are defined in the function Parameters
+  >-  Shape definitions go at the very end of the Parameter description in the following format: `Shape = (x, y, ...)`
+  >-  For classes, the initialization parameters are defined as section `Attributes`
+  >-  Different Parameter types are separated by `or`, not commas
+  >-  For detailed instructions on type hints for parameter and return type annotation (such as `Union`, `List`,
+  `Tuple`, etc.)
+  See [typing](https://docs.python.org/3/library/typing.html) (PEP 484)
 
 Examples
-: - Examples should only be separated by empty lines, if there is a clear distinction between the two example types.
-    Note that every empty line in the examples will create a new example code block. This is fine for 2-3 separated
-    blocks, but do not separate 15 different examples into individual blocks.
-  - There must not be a colon after Examples
-  - No comments in the examples (on number of processes or what the example shows). Put these in coding examples
-    under `Notes`
+  >-  Examples should only be separated by empty lines, if there is a clear distinction between the two example types.
+  Note that every empty line in the examples will create a new example code block. This is fine for 2 >- 3 separated
+  blocks, but do not separate 15 different examples into individual blocks.
+  >-  There must not be a colon after Examples
+  >-  No comments in the examples (on number of processes or what the example shows). Put these in coding examples
+  under `Notes`
