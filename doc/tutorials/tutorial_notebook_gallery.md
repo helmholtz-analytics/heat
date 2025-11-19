@@ -11,7 +11,7 @@ Example notebooks explaining how to setup an MPI enabled notebook to work with h
 
   <article class="hg-card">
     <a class="hg-link" href="/tutorials/notebooks/0_setup/0_setup_jsc/">
-      <img class="hg-icon" src="/images/jsc_logo.png" alt="JSC setup" />
+      <img class="hg-icon" src="/styles/jsc_logo.png" alt="JSC setup" />
       <div class="hg-title">JSC Setup</div>
     </a>
   </article>
