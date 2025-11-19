@@ -1,0 +1,48 @@
+name: Test Array API
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.10', '3.11', '3.12', '3.13']
+        mpi: [ 'openmpi' ]
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v5
+      with:
+        path: heat
+    - name: Setup MPI
+      uses: mpi4py/setup-mpi@v1
+      with:
+        mpi: ${{ matrix.mpi }}
+    - name: Use Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+        architecture: x64
+    - name: Install
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install ${GITHUB_WORKSPACE}/heat/
+    - name: Checkout array-api-tests
+      uses: actions/checkout@v5
+      with:
+        repository: data-apis/array-api-tests
+        path: array-api-tests
+        submodules: 'true'
+    - name: Install dependencies
+      run: |
+        python -m pip install -r ${GITHUB_WORKSPACE}/array-api-tests/requirements.txt
+    - name: Run the test suite
+      env:
+        ARRAY_API_TESTS_MODULE: heat.array_api
+      run: |
+        export PYTHONPATH="${GITHUB_WORKSPACE}/heat"
+        # Skip testing functions with known issues
+        cd ${GITHUB_WORKSPACE}/array-api-tests
+        pytest array_api_tests/ -v -rxXfE --ci --xfails-file ${GITHUB_WORKSPACE}/heat/heat/array_api/test/xfails.txt --skips-file ${GITHUB_WORKSPACE}/heat/heat/array_api/test/skips.txt --disable-extension linalg
