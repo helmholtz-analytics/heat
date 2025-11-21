@@ -20,7 +20,7 @@ class MPILibrary(Enum):
     MVAPICH = "mvapich"
     MPICH = "mpich"
     CrayMPI = "craympi"
-    ParastationMPI = "psmpi"
+    ParaStationMPI = "psmpi"
     Other = "other"
 
 
@@ -41,6 +41,8 @@ def _get_mpi_library() -> MPILibraryInfo:
             return MPILibraryInfo(MPILibrary.MPICH, library[2])
         case ["MVAPICH", "Version:", *_]:
             return MPILibraryInfo(MPILibrary.MVAPICH, library[2])
+        case ["===", "ParaStation", "MPI", *_]:
+            return MPILibraryInfo(MPILibrary.ParaStationMPI, library[3])
         case _:
             return MPILibraryInfo(MPILibrary.Other, "unknown")
 
@@ -84,7 +86,7 @@ def _check_gpu_aware_mpi(library: MPILibraryInfo) -> tuple[bool, bool]:
             cuda = os.environ.get("MPICH_GPU_SUPPORT_ENABLED") == "1"
             rocm = os.environ.get("MPICH_GPU_SUPPORT_ENABLED") == "1"
             return cuda, rocm
-        case MPILibrary.ParastationMPI:
+        case MPILibrary.ParaStationMPI:
             cuda = os.environ.get("PSP_CUDA") == "1"
             rocm = False
             return cuda, rocm
