@@ -2,6 +2,7 @@
 Everything you need to know about the configuration of Heat
 """
 
+from mpi4py import MPI
 import torch
 import platform
 import mpi4py
@@ -20,6 +21,7 @@ class MPILibrary(Enum):
     MPICH = "mpich"
     CrayMPI = "craympi"
     ParastationMPI = "psmpi"
+    Other = "other"
 
 
 @dataclasses.dataclass
@@ -37,9 +39,10 @@ def _get_mpi_library() -> MPILibraryInfo:
             return MPILibraryInfo(MPILibrary.IntelMPI, library[3])
         case ["MPICH", "Version:", *_]:
             return MPILibraryInfo(MPILibrary.MPICH, library[2])
-        ### Missing libraries
+        case ["MVAPICH", "Version:", *_]:
+            return MPILibraryInfo(MPILibrary.MVAPICH, library[2])
         case _:
-            print("Did not find a matching library")
+            return MPILibraryInfo(MPILibrary.Other, "unknown")
 
 
 def _check_gpu_aware_mpi(library: MPILibraryInfo) -> tuple[bool, bool]:
