@@ -5,4 +5,6 @@ fileignoreconfig:
   checksum: 1ace6dd062701f104e2f646d0404fb0c59ab8d521a086878b62c761be743689b
 - filename: doc/source/tutorials/notebooks/1_basics.ipynb
   checksum: 068e573bd3c25479dd9d584ba67e4186ac9d910f188099c3d180509c07956309
+- filename: doc/source/tutorials/notebooks/heat_dl_tutorial/heat_dl_00_env_info.py
+  checksum: 7accff417aba27a4b54e7c4385edc4d2d56bc8e4184363c68f66f54431906d54
 version: "1.0"
