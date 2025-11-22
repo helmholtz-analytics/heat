@@ -11,7 +11,7 @@ module load IPython ipyparallel/.9.0.0 # parallel usage on notebook
 module load PyTorch torchvision
 module load h5py zarr netCDF # I/O
 module load xarray scikit-learn matplotlib # interoperability
-module load SciPy-bundle Python-bundle-PyPI py-cpuinfo #psutil # perun deps
+module load SciPy-bundle Python-bundle-PyPI py-cpuinfo # perun deps
 module load heat
 
 
