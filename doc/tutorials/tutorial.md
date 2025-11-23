@@ -7,7 +7,7 @@ Below are quick links to the heat tutorials. Click a card to open the page.​
   <a class="ht-card-link" href="/tutorials/tutorial_30_minutes/">
     <div class="ht-card-head">
       <div class="ht-head-left">
-        <img class="ht-head-logo" src="/images/tutorial_logo.svg" alt="Feel the Heat" />
+        <img class="ht-head-logo" src="https://raw.githubusercontent.com/helmholtz-analytics/heat/main/doc/source/_static/images/tutorial_logo.svg" alt="Feel the Heat" />
       </div>
       <div class="ht-head-right">
         <div class="ht-head-title">Feel the Heat — A 30 Minutes Welcome</div>
@@ -22,7 +22,7 @@ Below are quick links to the heat tutorials. Click a card to open the page.​
   <a class="ht-card-link" href="/tutorials/tutorial_parallel_computation/">
     <div class="ht-card-head">
       <div class="ht-head-left">
-        <img class="ht-head-logo" src="/images/tutorial_split_dndarray.svg" alt="Parallel" />
+        <img class="ht-head-logo" src="https://raw.githubusercontent.com/helmholtz-analytics/heat/main/doc/source/_static/images/tutorial_split_dndarray.svg" alt="Parallel" />
       </div>
       <div class="ht-head-right">
         <div class="ht-head-title">Turn up the Heat — Parallel Computing</div>
@@ -37,7 +37,7 @@ Below are quick links to the heat tutorials. Click a card to open the page.​
   <a class="ht-card-link" href="/tutorials/tutorial_clustering/">
     <div class="ht-card-head">
       <div class="ht-head-left">
-        <img class="ht-head-logo" src="/images/tutorial_clustering.svg" alt="Clustering" />
+        <img class="ht-head-logo" src="https://raw.githubusercontent.com/helmholtz-analytics/heat/main/doc/source/_static/images/tutorial_clustering.svg" alt="Clustering" />
       </div>
       <div class="ht-head-right">
         <div class="ht-head-title">Keep the Heat — Cluster Analysis</div>
@@ -52,7 +52,7 @@ Below are quick links to the heat tutorials. Click a card to open the page.​
   <a class="ht-card-link" href="/tutorials/tutorial_notebook_gallery/">
     <div class="ht-card-head">
       <div class="ht-head-left">
-        <img class="ht-head-logo" src="/images/jupyter.png" alt="Notebooks" />
+        <img class="ht-head-logo" src="https://raw.githubusercontent.com/helmholtz-analytics/heat/main/doc/source/_static/images/jupyter.png" alt="Notebooks" />
       </div>
       <div class="ht-head-right">
         <div class="ht-head-title">Example Notebooks</div>
