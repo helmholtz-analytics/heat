@@ -1,6 +1,6 @@
 #!/bin/bash
 
-module purge
+module --force purge
 module load Stages/2025
 module load GCC
 module load Python
