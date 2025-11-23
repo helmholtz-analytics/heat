@@ -9,7 +9,7 @@ module load jupyter-server  # provides ipykernel
 module load ParaStationMPI mpi4py #MPI
 module load IPython ipyparallel/.9.0.0 # parallel usage on notebook
 module load PyTorch torchvision
-module load h5py zarr netCDF # I/O
+module load h5py zarr netcdf4-python # I/O
 module load xarray scikit-learn matplotlib # interoperability
 module load SciPy-bundle Python-bundle-PyPI py-cpuinfo # perun deps
 module load heat
