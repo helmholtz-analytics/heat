@@ -3,21 +3,21 @@ Example notebooks explaining how to setup an MPI enabled notebook to work with h
 
 <div class="hg-grid">
   <article class="hg-card">
-    <a class="hg-link" href="/tutorials/notebooks/0_setup/0_setup_local/">
+    <a class="hg-link" href="tutorials/notebooks/0_setup/0_setup_local/">
       <img class="hg-icon" src="https://raw.githubusercontent.com/helmholtz-analytics/heat/main/doc/source/_static/images/local_laptop.png" alt="Local setup" />
       <div class="hg-title">Local Setup</div>
     </a>
   </article>
 
   <article class="hg-card">
-    <a class="hg-link" href="/tutorials/notebooks/0_setup/0_setup_jsc/">
+    <a class="hg-link" href="tutorials/notebooks/0_setup/0_setup_jsc/">
       <img class="hg-icon" src="https://raw.githubusercontent.com/helmholtz-analytics/heat/main/doc/source/_static/images/jsc_logo.png" alt="JSC setup" />
       <div class="hg-title">JSC Setup</div>
     </a>
   </article>
 
   <article class="hg-card">
-    <a class="hg-link" href="/tutorials/notebooks/0_setup/0_setup_haicore/">
+    <a class="hg-link" href="tutorials/notebooks/0_setup/0_setup_haicore/">
       <img class="hg-icon" src="https://raw.githubusercontent.com/helmholtz-analytics/heat/main/doc/source/_static/images/nhr_verein_logo.jpg" alt="HAICORE setup" />
       <div class="hg-title">HAICORE Setup</div>
     </a>
