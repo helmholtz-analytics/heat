@@ -170,5 +170,16 @@ Output:
 DNDarray([0, 1, 2, 3, 4], dtype=ht.int64, device=cpu:0, split=None)
 ```
 
+
 !!!seealso
-Read up more later on hundreds of other functions in our [API Reference](api/heat/core/arithmetics.md). Or find out about them interactively by using the `help()` function in your Python interpreter.
+Read up more later on hundreds of other functions in our [API Reference](../api/heat/core/index.md). Or find out about them interactively by using the `help()` function in your Python interpreter.
+
+
+!!!seealso
+Read up more later on hundreds of other functions in our [API Reference](../api/heat/core/arithmetics.md). Or find out about them interactively by using the `help()` function in your Python interpreter.
+
+!!!seealso
+Read up more later on hundreds of other functions in our [API Reference](../../api/heat/core/index.md). Or find out about them interactively by using the `help()` function in your Python interpreter.
+
+!!!seealso
+Read up more later on hundreds of other functions in our [API Reference](../../api/heat/core/arithmetics.md). Or find out about them interactively by using the `help()` function in your Python interpreter.

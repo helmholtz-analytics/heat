@@ -62,7 +62,9 @@ nav:
   - Case Studies: case_studies.md
   - API Reference:
       - Core:
+          - Index: api/heat/core/index.md
           - Arithmetics: api/heat/core/arithmetics.md
+          - Base: api/heat/core/base.md
           - Communication: api/heat/core/communication.md
           - Complex Math: api/heat/core/complex_math.md
           - Constants: api/heat/core/constants.md
@@ -73,6 +75,7 @@ nav:
           - Indexing: api/heat/core/indexing.md
           - IO: api/heat/core/io.md
           - Linalg:
+              - Index: api/heat/core/linalg/index.md
               - Basics: api/heat/core/linalg/basics.md
               - Eigh: api/heat/core/linalg/eigh.md
               - Polar: api/heat/core/linalg/polar.md
