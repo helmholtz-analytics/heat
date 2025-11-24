@@ -1,6 +1,6 @@
 Module heat.core
 ================
-add the core heat function to the ht.core namespace
+Add the core heat function to the ht.core namespace
 
 Sub-modules
 -----------

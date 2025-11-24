@@ -86,7 +86,7 @@ If you're running the following examples in a distributed computation environmen
 
 
 !!!note
-Most of the examples throughout the documentation display the split `DNDarrays`. This is not the default behavior when displaying a `DNDarray`, and the full array will be printed multiple times (based on the number of processes). This behaviour can be changed using the `ht.local_printing()` option or by printing the local arrays for each process with the property [larray](https://heat.readthedocs.io/en/latest/autoapi/heat/core/dndarray/index.html?highlight=dndarray#heat.core.dndarray.DNDarray.larray).
+Most of the examples throughout the documentation display the split `DNDarrays`. This is not the default behavior when displaying a `DNDarray`, and the full array will be printed multiple times (based on the number of processes). This behaviour can be changed using the `ht.local_printing()` option or by printing the local arrays for each process with the property [larray](../api/heat/core/dndarray.md).
 
 
 ```python
