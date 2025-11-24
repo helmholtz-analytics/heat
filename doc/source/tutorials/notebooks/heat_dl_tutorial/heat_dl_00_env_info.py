@@ -1,99 +1,66 @@
 # heat_dl_00_env_info.py
 """
-Run on JURECA (1 node, 4 GPUs):
+====================================================================================================
+SLURM ENVIRONMENT TRAINING
+====================================================================================================
 
-    srun --ntasks=4 \
-         --nodes=1 \
-         --ntasks-per-node=4 \
-         --gres=gpu:4 \
-         python step_00_env_info_single_node.py
-
-===========================================================
-Single-Node, 4-GPU Learning Tasks
-===========================================================
-
-------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 Task 1 — One Process on One Node
-------------------------------------------------------------
-Run:
-    srun --ntasks=1 --nodes=1 --gres=gpu:4 python step_00_env_info_single_node.py
+----------------------------------------------------------------------------------------------------
+Run:  
+    srun --ntasks=1 \
+         --nodes=1 \
+         --ntasks-per-node=1 \
+         python python heat_dl_00_env_info.py
 
 Questions:
     Q1: How many processes are created?
     Q2: What are RANK, NPROCS, LOCALID?
     Q3: Why is LOCALID always 0?
 
-
-------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 Task 2 — Two Processes on One Node
-------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 Run:
-    srun --ntasks=2 --nodes=1 --gres=gpu:4 python step_00_env_info_single_node.py
+    srun --ntasks=2 --nodes=1 python heat_dl_00_env_info.py
 
 Questions:
     Q1: What RANK values appear?
     Q2: Why is NPROCS the same in both?
     Q3: What does LOCALID represent?
 
-
-
-------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 Task 3 — Four Processes on Four GPUs
-------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 Run:
-    srun --ntasks=4 --nodes=1 --ntasks-per-node=4 --gres=gpu:4 python step_00_env_info_single_node.py
+    srun --ntasks=4 --nodes=1 --ntasks-per-node=4  python heat_dl_00_env_info.py
 
 Questions:
     Q1: What LOCALID values do you expect?
     Q2: How should these map to GPUs?
     Q3: What does CUDA_VISIBLE_DEVICES look like?
-
-
-
-------------------------------------------------------------
-Task 4 — Understanding GPU Affinity
-------------------------------------------------------------
-Run:
-    srun --ntasks=4 --gres=gpu:4 python step_00_env_info_single_node.py
-
-Questions:
-    Q1: How does SLURM ensure unique GPU assignment?
-    Q2: Why do processes often only see GPU "0"?
-    Q3: Why does DDP rely on LOCALID?
-
-
-
-------------------------------------------------------------
-Task 5 — Predict Mapping With 3 Processes
-------------------------------------------------------------
-Run:
-    srun --ntasks=3 --nodes=1 --gres=gpu:4 python step_00_env_info_single_node.py
-
-Questions:
-    Q1: What RANK values appear?
-    Q2: What LOCALID values appear?
-    Q3: How many GPUs remain unused?
-
-
-------------------------------------------------------------
-Task 6 — Reflection Summary
-------------------------------------------------------------
+    
+----------------------------------------------------------------------------------------------------
+Task 4 — Reflection Summary
+----------------------------------------------------------------------------------------------------
 
 Questions:
     Q1: What do RANK, NPROCS, LOCALID mean on a single node?
-    Q2: Why should GPU selection be based on LOCALID?
+    Q2: How should the GPU be selected within PyTorch?
     Q3: What happens if two processes use the same GPU?
 
-
-
-===========================================================
+====================================================================================================
 End of Tasks
-===========================================================
+====================================================================================================
 """
 
 import os
 import socket
 
+# check SLURM
+if "SLURM_JOB_ID" not in os.environ:
+    print("Warning: not running inside a SLURM environment.")
+      
 hostname = socket.gethostname()
 pid = os.getpid()
 rank = os.environ.get("SLURM_PROCID")

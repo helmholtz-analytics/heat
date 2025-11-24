@@ -1,7 +1,7 @@
 """
-===========================================================
-CUDA + PyTorch GPU Inspection Script (Single Node)
-===========================================================
+====================================================================================================
+CUDA + PyTorch GPU Inspection
+====================================================================================================
 
 This script prints detailed information about:
   - SLURM environment (RANK, LOCALID, task count)
@@ -12,38 +12,26 @@ This script prints detailed information about:
 
 Use it to verify correct GPU mapping under SLURM.
 
-===========================================================
-Tasks (with Questions & Answers)
-===========================================================
 
-------------------------------------------------------------
-Task 1 — CPU vs GPU Environment Detection
-------------------------------------------------------------
+For other accelerators, PyTorch provides the method 
+torch.accelerator.current_accelerator() (available since version 2.9.0).
+
+----------------------------------------------------------------------------------------------------
+Task 1 — Single GPU Test
+----------------------------------------------------------------------------------------------------
 Run:
-    srun --ntasks=1  --node=1 python cuda_info.py
-
-Questions:
-    Q1: What does the script print if the job has **no GPUs**?
-    Q2: Why does the script exit early in that case?
-
-
-------------------------------------------------------------
-Task 2 — Single GPU Test
-------------------------------------------------------------
-Run:
-    srun --ntasks=1 --gres=gpu:1 python cuda_info.py
+    srun --ntasks=1 --gres=gpu:1 python heat_dl_01_gpu_info.py
 
 Questions:
     Q1: What should CUDA_VISIBLE_DEVICES show?
     Q2: How many GPUs should PyTorch detect?
     Q3: What is the expected value of `current device index`?
 
-
-------------------------------------------------------------
-Task 3 — Multi-GPU Visibility (4 tasks / 4 GPUs)
-------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
+Task 2 — Multi-GPU Visibility (4 tasks / 4 GPUs)
+----------------------------------------------------------------------------------------------------
 Run:
-    srun --ntasks=4 --gres=gpu:4 python cuda_info.py
+    srun --ntasks=4 --gres=gpu:4 python heat_dl_01_gpu_info.py
 
 Expected:
     Each process sees exactly **one GPU**, even though the node has 4.
@@ -53,50 +41,42 @@ Questions:
     Q2: Does each process see a unique GPU?
     Q3: Why does PyTorch still report GPU count = 1?
 
-
-
-------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 Task 4 — Understanding Device Properties
-------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 Run:
-    srun --ntasks=1 --gres=gpu:1 python cuda_info.py
+    srun --ntasks=1 --gres=gpu:1 heat_dl_01_gpu_info.py
 
 Questions:
     Q1: What device properties does PyTorch report?
     Q2: Why is total memory shown in gigabytes?
     Q3: What does "compute capability" mean?
 
-
-
-------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 Task 5 — Compare SLURM and PyTorch Device Counts
-------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 Run:
-    srun --ntasks=1 --gres=gpu:4 python cuda_info.py   # 1 task on 4 GPUs
+    srun --ntasks=1 --gres=gpu:4 python heat_dl_01_gpu_info.py
 
 Questions:
     Q1: How many GPUs does SLURM make visible to this single task?
     Q2: How many GPUs does PyTorch report?
     Q3: Why might they differ from the number of physical GPUs?
 
-
-
-------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 Task 6 — Debugging Mismatched GPU Usage
-------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 Run in a misconfigured job (example):
-    srun --ntasks=2 --gres=gpu:1 python cuda_info.py
+    srun --ntasks=2 --gres=gpu:1 python heat_dl_01_gpu_info.py
 
 Questions:
     Q1: What happens if two tasks request 1 GPU each but only 1 GPU exists?
     Q2: How does CUDA_VISIBLE_DEVICES help diagnose the issue?
     Q3: What failure modes might appear in PyTorch?
 
-
-
-===========================================================
+====================================================================================================
 End of Tasks
-===========================================================
+====================================================================================================
 """
 
 import os
@@ -104,6 +84,7 @@ import socket
 import torch
 
 def cuda_info():
+
     host = socket.gethostname()
     pid = os.getpid()
 
@@ -112,8 +93,13 @@ def cuda_info():
     localid   = os.environ.get("SLURM_LOCALID", "?")
     nprocs    = os.environ.get("SLURM_NPROCS", "?")
     visible   = os.environ.get("CUDA_VISIBLE_DEVICES", "?")
+    
+    
+    print(
+    f"\n[HOST={host} | PID={pid} | RANK={rank} | LOCALID={localid} | "
+    f"NPROCS={nprocs} | CUDA_VISIBLE={visible}]"
+    )
 
-    print(f"\n[HOST={host} | PID={pid} | RANK={rank} | LOCALID={localid} | NPROCS={nprocs} | CUDA_VISIBLE={visible}]")
 
     print("=== CUDA & GPU Information ===")
     print(f"CUDA available: {torch.cuda.is_available()}")
@@ -130,8 +116,10 @@ def cuda_info():
     print(f"GPU count                   : {gpu_count}")
 
     # Current device
+    num_visible = torch.cuda.device_count()
     current_dev = torch.cuda.current_device()
-    print(f"Current device index        : {current_dev}")
+    physical_id = visible.split(",")[current_dev]
+    print(f"PyTorch device index        : {current_dev}")
     print(f"Current device name         : {torch.cuda.get_device_name(current_dev)}")
 
     # Per-device details

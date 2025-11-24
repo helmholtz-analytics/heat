@@ -1,10 +1,8 @@
-# train_single_gpu_timed_extended.py
-# srun --ntasks 1 --nodes=1 python train_single_gpu_timed_extended.py
-
+# heat_dl_02_single_gpu.py
 """
-===========================================================
-Single-GPU Timing + FLOPs + Throughput + Memory — Q/A Guide
-===========================================================
+====================================================================================================
+Single-GPU Timing + FLOPs + Throughput + Memory 
+====================================================================================================
 
 This script trains a small Linear model on a single GPU and reports:
     • Per-step time + mean + standard error
@@ -16,61 +14,72 @@ This script trains a small Linear model on a single GPU and reports:
 
 Use this to understand GPU utilization, timing stability, and model cost.
 
-------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 Task 1 — GPU Verification
-------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 Questions:
     Q1: How do we know the script runs on the GPU?
     Q2: What happens if no GPU exists?
     Q3: Why is torch.cuda.synchronize() used before timing?
 
-------------------------------------------------------------
+
+----------------------------------------------------------------------------------------------------
 Task 2 — FLOPs Computation
-------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 Questions:
     Q1: What FLOPs formula is used for nn.Linear?
     Q2: Why is the FLOP count approximate?
     Q3: Why are FLOPs important?
 
-------------------------------------------------------------
+
+----------------------------------------------------------------------------------------------------
 Task 3 — Understanding Throughput
-------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 Questions:
     Q1: How is samples/sec computed?
-    Q2: What does GFLOPs/sec measure?
+    Q2: What does FLOPs/sec measure?
     Q3: Why is this useful?
 
 
-------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 Task 4 — GPU Memory Monitoring
-------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 Questions:
     Q1: What is "allocated" vs "reserved" GPU memory?
     Q2: Why is reserved memory often larger?
     Q3: Why does memory usage remain almost constant?
 
 
-------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 Task 5 — Timing Stability
-------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 Questions:
     Q1: Why can the first steps be slower?
     Q2: Why compute standard error?
     Q3: What factors influence step-time variability?
 
 
-------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 Task 6 — Model Size & Performance Scaling
-------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 Questions:
     Q1: If we increase model dimensions, what happens to FLOPs?
     Q2: What happens to step time?
     Q3: What happens to throughput (samples/sec)?
 
 
-===========================================================
-End of Q/A Section
-===========================================================
+        
+----------------------------------------------------------------------------------------------------
+Task 7 — FLOPs Computation, the 2nd
+----------------------------------------------------------------------------------------------------
+Questions:
+    Q1: What is the exact FLOPS a a forward pass?
+    Q2: What is the FLOPS of the backward pass, exact and estimate
+    Q3: How does this approx. generalize to multiple layers
+
+
+====================================================================================================
+====================================================================================================
 """
 
 import time
@@ -120,7 +129,7 @@ nepochs = 1000
 print_interval = 100
 
 model = nn.Linear(in_dim, out_dim).cuda()
-optimizer = optim.SGD(model.parameters(), lr=0.1)
+optimizer = optim.SGD(model.parameters(), lr=0.001)
 
 x = torch.randn(batch_size, in_dim).cuda()
 y = torch.randn(batch_size, out_dim).cuda()
@@ -163,7 +172,7 @@ total_time = train_end - train_start
 
 mean_step, std_error = compute_time_stats(step_times)
 samples_per_sec = batch_size / mean_step
-flops = (flops_per_step / mean_step)
+flops = (flops_per_step / mean_step) 
 
 print("\n===== Training Summary =====")
 print(f"Batch size:             {batch_size}")
