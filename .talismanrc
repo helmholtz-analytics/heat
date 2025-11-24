@@ -1,2 +1,19 @@
 allowed_patterns:
 - 'uses: [A-Za-z-\/]+@[\w\d]+ # v\d+\.\d+\.\d+'
+fileignoreconfig:
+- filename: doc/api/heat/core/communication.md
+  checksum: bc3c94844563914d8699c1402a4abde3299fd116770d7ef5e1c070a033f4eacf
+- filename: doc/api/heat/core/random.md
+  checksum: c1eb4ea8d8435c712639e949296411aff4789c2d89751fd2951019bbe6bfc1da
+- filename: doc/api/heat/core/tiling.md
+  checksum: a64c827bbf08bd0f61470d3352ee9e711b23521aea8944854c34c7c00c393f33
+- filename: doc/api/heat/core/io.md
+  checksum: f5289cd5507487a1cfd432a038083c18b53b30b338a2a6187116b1ee3d821536
+- filename: doc/api/heat/core/exponential.md
+  checksum: 2a840d5c6bb43caada5ed7b4aa92739fdfa9523ce50fc31f606ddc1dd00bcddf
+- filename: doc/api/heat/core/factories.md
+  checksum: 3be4e1f2ec3ffc1fc55bca4a082eff60cb2426917814dcb0c6789b60f5995c27
+- filename: doc/api/heat/core/linalg/basics.md
+  checksum: 59448ee5640ea8007856ce844e68faf195571ba99ec4588ed9a20cf310c58d1f
+- filename: doc/api/heat/core/dndarray.md
+  checksum: 904826a791036d03728861a1d432faa95f3d4f9a358f678baea4ada7fddb789f

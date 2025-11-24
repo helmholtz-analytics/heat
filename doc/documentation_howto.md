@@ -15,9 +15,9 @@ There are three main colors available for formatting:
 
 - <span class="bluemarker">Blue: RGB(0, 90, 160)</span>
 
-All configurations regarding the documentation build are set in `doc/source/conf.py`.
+<!-- All configurations regarding the documentation build are set in `doc/source/conf.py`.
 API Documentation is generated using the [sphinx-autoapi extension](https://sphinx-autoapi.readthedocs.io) . This is
-done via custom templates, defined in `source/_templates/autoapi/python`.
+done via custom templates, defined in `source/_templates/autoapi/python`. -->
 
 To build the documentation locally please run the following commands in the Heat home directory:
 

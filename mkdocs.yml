@@ -23,6 +23,8 @@ markdown_extensions:
   - admonition
   - pymdownx.details
   - pymdownx.superfences
+  - pymdownx.details
+  - pymdownx.tabbed
   - pymdownx.arithmatex:
       generic: true
   - attr_list
@@ -40,22 +42,118 @@ nav:
   - Introduction: introduction.md
   - Getting Started: getting_started.md
   - Heat Tutorials:
-      Overview: tutorials/tutorial.md
-      30 Minutes Welcome: tutorials/tutorial_30_minutes.md
-      Parallel Computation: tutorials/tutorial_parallel_computation.md
-      Cluster Analysis: tutorials/tutorial_clustering.md
-      Notebook Gallery: tutorials/tutorial_notebook_gallery.md
-      Setup:
-        Local Setup: tutorials/notebooks/0_setup/0_setup_local.ipynb
-        JSC Setup: tutorials/notebooks/0_setup/0_setup_jsc.ipynb
-        HAICORE Setup: tutorials/notebooks/0_setup/0_setup_haicore.ipynb
-      Examples:
-        Heat Basics: tutorials/notebooks/1_basics.ipynb
-        Internals: tutorials/notebooks/2_internals.ipynb
-        Loading and Preprocessing: tutorials/notebooks/3_loading_preprocessing.ipynb
-        Matrix Factorizations: tutorials/notebooks/4_matrix_factorizations.ipynb
-        Clustering: tutorials/notebooks/5_clustering.ipynb
-        Profiling: tutorials/notebooks/6_profiling.ipynb
+     - Overview: tutorials/tutorial.md
+     - 30 Minutes Welcome: tutorials/tutorial_30_minutes.md
+     - Parallel Computation: tutorials/tutorial_parallel_computation.md
+     - Cluster Analysis: tutorials/tutorial_clustering.md
+     - Notebook Gallery: tutorials/tutorial_notebook_gallery.md
+     - Setup:
+       - Local Setup: tutorials/notebooks/0_setup/0_setup_local.ipynb
+       - JSC Setup: tutorials/notebooks/0_setup/0_setup_jsc.ipynb
+       - HAICORE Setup: tutorials/notebooks/0_setup/0_setup_haicore.ipynb
+     - Examples:
+       - Heat Basics: tutorials/notebooks/1_basics.ipynb
+       - Internals: tutorials/notebooks/2_internals.ipynb
+       - Loading and Preprocessing: tutorials/notebooks/3_loading_preprocessing.ipynb
+       - Matrix Factorizations: tutorials/notebooks/4_matrix_factorizations.ipynb
+       - Clustering: tutorials/notebooks/5_clustering.ipynb
+       - Profiling: tutorials/notebooks/6_profiling.ipynb
   - Documentation Guide: documentation_howto.md
   - Case Studies: case_studies.md
-  - API Reference: api/index.md
+  - API Reference:
+      - Core:
+          - Arithmetics: api/heat/core/arithmetics.md
+          - Communication: api/heat/core/communication.md
+          - Complex Math: api/heat/core/complex_math.md
+          - Constants: api/heat/core/constants.md
+          - Devices: api/heat/core/devices.md
+          - DNDarray: api/heat/core/dndarray.md
+          - Exponential: api/heat/core/exponential.md
+          - Factories: api/heat/core/factories.md
+          - Indexing: api/heat/core/indexing.md
+          - IO: api/heat/core/io.md
+          - Linalg:
+              - Basics: api/heat/core/linalg/basics.md
+              - Eigh: api/heat/core/linalg/eigh.md
+              - Polar: api/heat/core/linalg/polar.md
+              - QR: api/heat/core/linalg/qr.md
+              - Solver: api/heat/core/linalg/solver.md
+              - SVD: api/heat/core/linalg/svd.md
+              - SVD Tools: api/heat/core/linalg/svdtools.md
+              - Tests:
+                  - Index: api/heat/core/linalg/tests/index.md
+                  - Test Basics: api/heat/core/linalg/tests/test_basics.md
+                  - Test Eigh: api/heat/core/linalg/tests/test_eigh.md
+                  - Test Polar: api/heat/core/linalg/tests/test_polar.md
+                  - Test QR: api/heat/core/linalg/tests/test_qr.md
+                  - Test Solver: api/heat/core/linalg/tests/test_solver.md
+                  - Test SVD: api/heat/core/linalg/tests/test_svd.md
+                  - Test SVDTools: api/heat/core/linalg/tests/test_svdtools.md
+          - Logical: api/heat/core/logical.md
+          - Manipulations: api/heat/core/manipulations.md
+          - Memory: api/heat/core/memory.md
+          - Printing: api/heat/core/printing.md
+          - Random: api/heat/core/random.md
+          - Relational: api/heat/core/relational.md
+          - Rounding: api/heat/core/rounding.md
+          - Sanitation: api/heat/core/sanitation.md
+          - Signal: api/heat/core/signal.md
+          - Statistics: api/heat/core/statistics.md
+          - Stride Tricks: api/heat/core/stride_tricks.md
+          - Tests:
+              - Index: api/heat/core/tests/index.md
+              - Test Arithmetics: api/heat/core/tests/test_arithmetics.md
+              - Test Communication: api/heat/core/tests/test_communication.md
+              - Test Complex Math: api/heat/core/tests/test_complex_math.md
+              - Test Constants: api/heat/core/tests/test_constants.md
+              - Test Devices: api/heat/core/tests/test_devices.md
+              - Test DNDarray: api/heat/core/tests/test_dndarray.md
+              - Test Exponential: api/heat/core/tests/test_exponential.md
+              - Test Factories: api/heat/core/tests/test_factories.md
+              - Test Indexing: api/heat/core/tests/test_indexing.md
+              - Test IO: api/heat/core/tests/test_io.md
+              - Test Logical: api/heat/core/tests/test_logical.md
+              - Test Manipulations: api/heat/core/tests/test_manipulations.md
+              - Test Memory: api/heat/core/tests/test_memory.md
+              - Test Operations: api/heat/core/tests/test_operations.md
+              - Test Printing: api/heat/core/tests/test_printing.md
+              - Test Random: api/heat/core/tests/test_random.md
+              - Test Relational: api/heat/core/tests/test_relational.md
+              - Test Rounding: api/heat/core/tests/test_rounding.md
+              - Test Sanitation: api/heat/core/tests/test_sanitation.md
+              - Test Signal: api/heat/core/tests/test_signal.md
+              - Test Statistics: api/heat/core/tests/test_statistics.md
+              - Test Stride Tricks: api/heat/core/tests/test_stride_tricks.md
+              - Test Tiling: api/heat/core/tests/test_tiling.md
+              - Test Trigonometrics: api/heat/core/tests/test_trigonometrics.md
+              - Test Types: api/heat/core/tests/test_types.md
+              - Test Vmap: api/heat/core/tests/test_vmap.md
+              - Test Suites:
+                  - Index: api/heat/core/tests/test_suites/index.md
+                  - Basic Test: api/heat/core/tests/test_suites/basic_test.md
+                  - Test Basic Test: api/heat/core/tests/test_suites/test_basic_test.md
+          - Tiling: api/heat/core/tiling.md
+          - Trigonometrics: api/heat/core/trigonometrics.md
+          - Types: api/heat/core/types.md
+          - Version: api/heat/core/version.md
+          - Vmap: api/heat/core/vmap.md
+      - Cluster:
+          - Index: api/heat/cluster/index.md
+          - BatchParallelClustering: api/heat/cluster/batchparallelclustering.md
+          - KMeans: api/heat/cluster/kmeans.md
+          - KMedians: api/heat/cluster/kmedians.md
+          - KMedoids: api/heat/cluster/kmedoids.md
+          - Spectral: api/heat/cluster/spectral.md
+          - Tests:
+              - Index: api/heat/cluster/tests/index.md
+              - Test BatchParallelClustering: api/heat/cluster/tests/test_batchparallelclustering.md
+              - Test KMeans: api/heat/cluster/tests/test_kmeans.md
+              - Test KMedians: api/heat/cluster/tests/test_kmedians.md
+              - Test KMedoids: api/heat/cluster/tests/test_kmedoids.md
+              - Test Spectral: api/heat/cluster/tests/test_spectral.md
+      - Classification:
+          - Index: api/heat/classification/index.md
+          - KNeighborsClassifier: api/heat/classification/kneighborsclassifier.md
+          - Tests:
+              - Index: api/heat/classification/tests/index.md
+              - Test KNN: api/heat/classification/tests/test_knn.md
