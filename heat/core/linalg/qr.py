@@ -31,7 +31,7 @@ def qr(
     Parameters
     ----------
     A : DNDarray of shape (M, N), of shape (...,M,N) in the batched case
-        Array which will be decomposed. So far only arrays with datatype float32 or float64 or complex64 are supported
+        Array which will be decomposed. So far only arrays with datatype float32 or float64 are supported
     mode : str, optional
         default "reduced" returns Q and R with dimensions (M, min(M,N)) and (min(M,N), N). Potential batch dimensions are not modified.
         "r" returns only R, with dimensions (min(M,N), N).
@@ -94,12 +94,12 @@ def qr(
     if procs_to_merge == 0:
         procs_to_merge = A.comm.size
 
-    if A.dtype not in [float32, float64], complex64:
+    if A.dtype not in [float32, float64, complex64]:
         raise TypeError(f"Array 'A' must have a datatype of float32 or float64, but has {A.dtype}")
 
-    QR = collections.namedtuple("QR", "Q, R"), complex64]
-    if A.ndim == 3:, complex64
-        single_proc_qr = torch.vmap(torch.linalg.qr, in_dims=0, out_dims=0) or complex64
+    QR = collections.namedtuple("QR", "Q, R")
+    if A.ndim == 3:
+        single_proc_qr = torch.vmap(torch.linalg.qr, in_dims=0, out_dims=0)
     else:
         single_proc_qr = torch.linalg.qr
 
