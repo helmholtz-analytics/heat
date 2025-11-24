@@ -14,7 +14,7 @@ Heat is a distributed tensor framework for high‑performance data analytics.
 > - [Documentation How-To](documentation_howto.md)
 
 
-Explore the [API Reference](api/index.md), once your environment can import the package.
+Explore the [API Reference](./api/heat/core/index.md), once your environment can import the package.
 
 ---
 
