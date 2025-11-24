@@ -17,7 +17,7 @@ Example notebooks explaining how to setup an MPI enabled notebook to work with h
   </article>
 
   <article class="hg-card">
-    <a class="hg-link" href="../tutorials/notebooks/0_setup/0_setup_haicore/">
+    <a class="hg-link" href="../notebooks/0_setup/0_setup_haicore/">
       <img class="hg-icon" src="https://raw.githubusercontent.com/helmholtz-analytics/heat/main/doc/source/_static/images/nhr_verein_logo.jpg" alt="HAICORE setup" />
       <div class="hg-title">HAICORE Setup</div>
     </a>
@@ -36,35 +36,35 @@ These notebooks contain heat examples that have been used in interactive tutoria
   </article>
 
   <article class="hg-card">
-    <a class="hg-link" href="../2_internals/">
+    <a class="hg-link" href="../notebooks/2_internals/">
       <img class="hg-icon" src="https://raw.githubusercontent.com/helmholtz-analytics/heat/main/doc/source/_static/images/tutorial_split_dndarray.svg" alt="Heat as infrastructure" />
       <div class="hg-title">Heat as Infrastructure</div>
     </a>
   </article>
 
   <article class="hg-card">
-    <a class="hg-link" href="/tutorials/notebooks/3_loading_preprocessing/">
+    <a class="hg-link" href="../notebooks/3_loading_preprocessing/">
       <img class="hg-icon" src="https://raw.githubusercontent.com/helmholtz-analytics/heat/main/doc/source/_static/images/jupyter.png" alt="Loading and Preprocessing" />
       <div class="hg-title">Loading and Preprocessing</div>
     </a>
   </article>
 
   <article class="hg-card">
-    <a class="hg-link" href="/tutorials/notebooks/4_matrix_factorizations/">
+    <a class="hg-link" href="../notebooks/4_matrix_factorizations/">
       <img class="hg-icon" src="https://raw.githubusercontent.com/helmholtz-analytics/heat/main/doc/source/_static/images/hSVD_bench_rank5.png" alt="Matrix factorizations" />
       <div class="hg-title">Matrix Factorizations</div>
     </a>
   </article>
 
   <article class="hg-card">
-    <a class="hg-link" href="/tutorials/notebooks/5_clustering/">
+    <a class="hg-link" href="../notebooks/5_clustering/">
       <img class="hg-icon" src="https://raw.githubusercontent.com/helmholtz-analytics/heat/main/doc/source/_static/images/clustering.png" alt="Clustering" />
       <div class="hg-title">Clustering</div>
     </a>
   </article>
 
   <article class="hg-card">
-    <a class="hg-link" href="/tutorials/notebooks/6_profiling/">
+    <a class="hg-link" href="../notebooks/6_profiling/">
       <img class="hg-icon" src="https://raw.githubusercontent.com/helmholtz-analytics/heat/main/doc/source/_static/images/perun_logo.svg" alt="Profiling" />
       <div class="hg-title">Profiling</div>
     </a>
