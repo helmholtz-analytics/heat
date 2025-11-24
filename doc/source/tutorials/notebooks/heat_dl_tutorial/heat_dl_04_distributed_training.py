@@ -6,7 +6,7 @@ Distributed PyTorch Example on JURECA (4 GPUS per Node)
 This example assumes:
 - SLURM launches *one process per GPU*
 - There are exactly 4 GPUs per node
-- The local GPU index can be computed as: local_rank = rank % 4 or retrieved 
+- The local GPU index can be computed as: local_rank = rank % 4 or retrieved
   from SLURM_LOCALID
 - However, SLURm might be configurated such that each process sees only one GPU
 
@@ -181,7 +181,7 @@ def main():
     if args.use_cifar:
         if rank == 0:
             print("[Info] Using CIFAR-10 dataset.")
-            
+
         transform = transforms.Compose([
         transforms.ToTensor(),
         transforms.Normalize((0.4914, 0.4822, 0.4465),
@@ -190,20 +190,20 @@ def main():
 
         trainset = torchvision.datasets.CIFAR10(
             root="./data", train=True, download=True, transform=transform)
-      
-           
+
+
     else:
         if rank == 0:
             print("[Info] Using fake random data.")
-            
-        trainset = RandomData(length=50000)    
-        
-        
-    train_sampler = DistributedSampler(trainset, num_replicas=world_size, rank=rank)    
-        
+
+        trainset = RandomData(length=50000)
+
+
+    train_sampler = DistributedSampler(trainset, num_replicas=world_size, rank=rank)
+
     trainloader = DataLoader(
         trainset, batch_size=args.batch_size, sampler=train_sampler, num_workers=args.num_workers)
-    # 
+    #
     dist.barrier()
     # ----------------------------------------------------------------------------------------------
     # Training Loop
@@ -214,8 +214,8 @@ def main():
     torch.cuda.synchronize()
     start_time = time.time()
     t0 = time.time()
-    
-    
+
+
     from torch.profiler import profile, record_function, ProfilerActivity
     with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA]) as prof:
         # ------------------------------------------------------------------------------------------
@@ -239,20 +239,20 @@ def main():
 
                 running_loss += loss.item()
 
-            
+
             epoch_times.append(time.time() - t0)
-              
+
             print(
                   f"[Rank {local_rank}] Epoch {epoch+1}: "
                   f"loss = {running_loss / len(trainloader):.4f}"
             )
 
- 
+
     dist.barrier()
     # ----------------------------------------------------------------------------------------------
     if rank == 0:
-        
-        
+
+
         vals = epoch_times[1:]
         mean_epoch = statistics.mean(vals)
         # sample standard deviation
@@ -260,7 +260,7 @@ def main():
         # standard error
         se = sd / math.sqrt(len(vals))
         print(f"\nEpoch time: {mean_epoch:.3f} ± {se:.3f}s")
-        
+
     dist.destroy_process_group()
 
     if rank == 0:

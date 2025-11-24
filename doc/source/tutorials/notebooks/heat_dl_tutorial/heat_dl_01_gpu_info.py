@@ -13,7 +13,7 @@ This script prints detailed information about:
 Use it to verify correct GPU mapping under SLURM.
 
 
-For other accelerators, PyTorch provides the method 
+For other accelerators, PyTorch provides the method
 torch.accelerator.current_accelerator() (available since version 2.9.0).
 
 ----------------------------------------------------------------------------------------------------
@@ -93,8 +93,8 @@ def cuda_info():
     localid   = os.environ.get("SLURM_LOCALID", "?")
     nprocs    = os.environ.get("SLURM_NPROCS", "?")
     visible   = os.environ.get("CUDA_VISIBLE_DEVICES", "?")
-    
-    
+
+
     print(
     f"\n[HOST={host} | PID={pid} | RANK={rank} | LOCALID={localid} | "
     f"NPROCS={nprocs} | CUDA_VISIBLE={visible}]"

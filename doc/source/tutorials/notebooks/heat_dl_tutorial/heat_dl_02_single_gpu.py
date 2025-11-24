@@ -1,7 +1,7 @@
 # heat_dl_02_single_gpu.py
 """
 ====================================================================================================
-Single-GPU Timing + FLOPs + Throughput + Memory 
+Single-GPU Timing + FLOPs + Throughput + Memory
 ====================================================================================================
 
 This script trains a small Linear model on a single GPU and reports:
@@ -68,7 +68,7 @@ Questions:
     Q3: What happens to throughput (samples/sec)?
 
 
-        
+
 ----------------------------------------------------------------------------------------------------
 Task 7 — FLOPs Computation, the 2nd
 ----------------------------------------------------------------------------------------------------
@@ -172,7 +172,7 @@ total_time = train_end - train_start
 
 mean_step, std_error = compute_time_stats(step_times)
 samples_per_sec = batch_size / mean_step
-flops = (flops_per_step / mean_step) 
+flops = (flops_per_step / mean_step)
 
 print("\n===== Training Summary =====")
 print(f"Batch size:             {batch_size}")

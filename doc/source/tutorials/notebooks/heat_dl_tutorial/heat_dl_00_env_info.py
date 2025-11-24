@@ -7,7 +7,7 @@ SLURM ENVIRONMENT TRAINING
 ----------------------------------------------------------------------------------------------------
 Task 1 — One Process on One Node
 ----------------------------------------------------------------------------------------------------
-Run:  
+Run:
     srun --ntasks=1 \
          --nodes=1 \
          --ntasks-per-node=1 \
@@ -39,7 +39,7 @@ Questions:
     Q1: What LOCALID values do you expect?
     Q2: How should these map to GPUs?
     Q3: What does CUDA_VISIBLE_DEVICES look like?
-    
+
 ----------------------------------------------------------------------------------------------------
 Task 4 — Reflection Summary
 ----------------------------------------------------------------------------------------------------
@@ -60,7 +60,7 @@ import socket
 # check SLURM
 if "SLURM_JOB_ID" not in os.environ:
     print("Warning: not running inside a SLURM environment.")
-      
+
 hostname = socket.gethostname()
 pid = os.getpid()
 rank = os.environ.get("SLURM_PROCID")

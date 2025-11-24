@@ -90,7 +90,7 @@ def load_cifar10_shard_cpu(rank, world_size):
     )
     # Make sure all ranks see the files
     ht.comm.barrier()
-    
+
     total = len(dataset)  # typically 50,000
     shard = total // world_size
 
@@ -245,7 +245,7 @@ def train(rank, world_size, local_rank):
 
     # Load CIFAR-10 shard into CPU memory
     local_x_cpu, local_y_cpu = load_cifar10_shard_cpu(rank, world_size)
-    
+
     slice_size=1000
     # Ensure slice_size is even (required by 1/2 splitting)
     if slice_size % 2 != 0:
@@ -278,20 +278,20 @@ def train(rank, world_size, local_rank):
         )
         print("epoch: ", epoch)
         model.train()
-        
-       
-        
+
+
+
         for xb_cpu, yb_cpu in loader:
             # Move batch CPU -> GPU
             xb = xb_cpu.to(device, non_blocking=True)
             yb = yb_cpu.to(device, non_blocking=True)
-            
+
             optimizer.zero_grad()
             logits = model(xb)
             loss = criterion(logits, yb)
             loss.backward()
             optimizer.step()
-       
+
 
 
         # -------------------------------
@@ -319,4 +319,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

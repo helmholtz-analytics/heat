@@ -85,8 +85,8 @@ def benchmark_loader(root, batch_size=256, num_workers=8, warmup=1, measure_batc
         batch = next(it)
         batch_size_actual = batch[0].shape[0]
         total_images += batch_size_actual
-        
-        
+
+
 
     duration = time.time() - start
 
@@ -103,8 +103,8 @@ def benchmark_loader(root, batch_size=256, num_workers=8, warmup=1, measure_batc
 
 
 def main():
-    imagenet_root = "/p/scratch/training2546/datasets"   
-    
+    imagenet_root = "/p/scratch/training2546/datasets"
+
     # Try various worker counts
     for workers in [1, 4, 8, 12, 16, 20]:
         benchmark_loader(

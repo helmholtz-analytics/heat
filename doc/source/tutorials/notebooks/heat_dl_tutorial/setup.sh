@@ -7,7 +7,7 @@ ml mpi4py
 ml PyTorch
 ml torchvision
 ml h5py
-ml heat 
+ml heat
 
 
 
@@ -28,5 +28,3 @@ pip install h5py
 pip install pillow
 pip install nvidia-ml-py3
 pip install pandas
-
-

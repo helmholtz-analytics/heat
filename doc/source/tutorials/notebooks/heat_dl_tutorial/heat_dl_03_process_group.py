@@ -1,10 +1,10 @@
 # heat_dl__03_process_group.py
 """
 ===========================================================================
-DDP Initialization Script — Questions 
+DDP Initialization Script — Questions
 ===========================================================================
 
-This script shows the minimal steps to initialize a PyTorch Distributed 
+This script shows the minimal steps to initialize a PyTorch Distributed
 Data Parallel (DDP) process group under SLURM using the NCCL backend.
 
 It uses the environment variables set by SLURM:
@@ -19,7 +19,7 @@ Task 1 — Understanding DDP Initialization
 Questions:
     Q1: What does dist.init_process_group() do?
     Q2: Why must every process call this function?
-    Q3: What information must each process know? 
+    Q3: What information must each process know?
         How is this information retrived?
 
 ---------------------------------------------------------------------------
@@ -94,9 +94,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    
-    
-    
-    
-    
-    
