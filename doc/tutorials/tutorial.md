@@ -19,7 +19,7 @@ Below are quick links to the heat tutorials. Click a card to open the page.​
 </article>
 
 <article class="ht-card">
-  <a class="ht-card-link" href="/tutorial_parallel_computation/">
+  <a class="ht-card-link" href="../tutorial_parallel_computation/">
     <div class="ht-card-head">
       <div class="ht-head-left">
         <img class="ht-head-logo" src="https://raw.githubusercontent.com/helmholtz-analytics/heat/main/doc/source/_static/images/tutorial_split_dndarray.svg" alt="Parallel" />
@@ -34,7 +34,7 @@ Below are quick links to the heat tutorials. Click a card to open the page.​
 </article>
 
 <article class="ht-card">
-  <a class="ht-card-link" href="/tutorial_clustering.md">
+  <a class="ht-card-link" href="../tutorial_clustering/">
     <div class="ht-card-head">
       <div class="ht-head-left">
         <img class="ht-head-logo" src="https://raw.githubusercontent.com/helmholtz-analytics/heat/main/doc/source/_static/images/tutorial_clustering.svg" alt="Clustering" />
@@ -49,7 +49,7 @@ Below are quick links to the heat tutorials. Click a card to open the page.​
 </article>
 
 <article class="ht-card">
-  <a class="ht-card-link" href="/tutorials/tutorial_notebook_gallery/">
+  <a class="ht-card-link" href="../tutorial_notebook_gallery/">
     <div class="ht-card-head">
       <div class="ht-head-left">
         <img class="ht-head-logo" src="https://raw.githubusercontent.com/helmholtz-analytics/heat/main/doc/source/_static/images/jupyter.png" alt="Notebooks" />
