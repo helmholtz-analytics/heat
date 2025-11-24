@@ -12,6 +12,6 @@ would otherwise exceed memory limits of a single node.
 
 ## Features
 
-> - high-performance n-dimensional tensors
+> - High-performance n-dimensional tensors
 > - CPU, GPU and distributed computation using MPI
-> - powerful machine learning methods using above mentioned tensors
+> - Powerful machine learning methods using above mentioned tensors

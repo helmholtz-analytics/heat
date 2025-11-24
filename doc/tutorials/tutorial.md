@@ -4,7 +4,7 @@ Below are quick links to the heat tutorials. Click a card to open the page.​
 
 <section class="ht-cards">
   <article class="ht-card">
-  <a class="ht-card-link" href="../tutorials/tutorial_30_minutes/">
+  <a class="ht-card-link" href="../tutorials/tutorial_30_minutes.md">
     <div class="ht-card-head">
       <div class="ht-head-left">
         <img class="ht-head-logo" src="https://raw.githubusercontent.com/helmholtz-analytics/heat/main/doc/source/_static/images/tutorial_logo.svg" alt="Feel the Heat" />

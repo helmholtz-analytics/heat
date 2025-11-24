@@ -3,7 +3,7 @@ Example notebooks explaining how to setup an MPI enabled notebook to work with h
 
 <div class="hg-grid">
   <article class="hg-card">
-    <a class="hg-link" href="../tutorials/notebooks/0_setup/0_setup_local/">
+    <a class="hg-link" href="../tutorials/notebooks/0_setup/0_setup_local.ipynb">
       <img class="hg-icon" src="https://raw.githubusercontent.com/helmholtz-analytics/heat/main/doc/source/_static/images/local_laptop.png" alt="Local setup" />
       <div class="hg-title">Local Setup</div>
     </a>
