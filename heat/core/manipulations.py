@@ -1104,7 +1104,7 @@ def flip(a: DNDarray, axis: Union[int, Tuple[int, ...]] = None) -> DNDarray:
     elif isinstance(axis, list):
         axis = tuple(axis)
 
-    stride_tricks.sanitize_axis(a.shape, axis)
+    axis = stride_tricks.sanitize_axis(a.shape, axis)
 
     flipped = torch.flip(a.larray, axis)
 
