@@ -1100,9 +1100,11 @@ def flip(a: DNDarray, axis: Union[int, Tuple[int, ...]] = None) -> DNDarray:
 
     # torch.flip only accepts tuples
     if isinstance(axis, int):
-        axis = [axis]
+        axis = (axis,)
+    elif isinstance(axis, list):
+        axis = tuple(axis)
 
-    axis = [dim + a.ndim if dim < 0 else dim for dim in axis]
+    stride_tricks.sanitize_axis(a.shape, axis)
 
     flipped = torch.flip(a.larray, axis)
 

@@ -1119,7 +1119,7 @@ class TestManipulations(TestCase):
 
         # test exception
         a = ht.arange(10)
-        with self.assertRaises(IndexError):
+        with self.assertRaises(ValueError):
             ht.fliplr(a)
 
     def test_flipud(self):
