@@ -147,7 +147,9 @@ def _eigh(
         orig_split = A.split
         A.resplit_(None)
         Lambda_loc, Q_loc = torch.linalg.eigh(A.larray)
-        Lambda = factories.array(torch.flip(Lambda_loc, (0,)), split=0, comm=A.comm, device=A.device)
+        Lambda = factories.array(
+            torch.flip(Lambda_loc, (0,)), split=0, comm=A.comm, device=A.device
+        )
         V = factories.array(torch.flip(Q_loc, (1,)), split=orig_split, comm=A.comm, device=A.device)
         A.resplit_(orig_split)
         return Lambda, V
