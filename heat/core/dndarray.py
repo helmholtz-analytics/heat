@@ -1226,8 +1226,10 @@ class DNDarray:
             if key_is_mask_like:
                 key = list(key)
                 key_splits = [k.split for k in key]
-                if arr.split is not None:
-                    if not key_splits.count(key_splits[arr.split]) == len(key_splits):
+                if arr.split is not None and arr.split in advanced_indexing_dims:
+                    split_key_pos = advanced_indexing_dims.index(arr.split)
+
+                    if not key_splits.count(key_splits[split_key_pos]) == len(key_splits):
                         if (
                             key_splits[arr.split] is not None
                             and key_splits.count(None) == len(key_splits) - 1
@@ -1511,6 +1513,55 @@ class DNDarray:
                 )
                 return indexed_arr
         else:
+            # ------------------------------------------------------------------
+            # Special case: 2D array with 1D boolean mask along split axis 0
+            # Pattern: x[mask_1d]  with
+            #   - self.ndim == 2
+            #   - self.split == 0
+            #   - key is DNDarray, bool, 1D, same split and length as axis 0
+            # This corresponds to NumPy's "select rows by mask" semantics.
+            # ------------------------------------------------------------------
+            if (
+                isinstance(key, DNDarray)
+                and key.dtype in (ht_bool, ht_uint8)
+                and key.ndim == 1
+                and self.ndim == 2
+                and self.split == 0
+                and key.split == 0
+                and key.gshape == (self.gshape[0],)
+            ):
+                # Local boolean mask on this rank
+                local_mask = key.larray  # torch.bool, shape (local_rows,)
+                local_result = self.larray[local_mask, :]  # shape (n_local_true, 2)
+
+                # Compute global number of selected rows (sum over ranks)
+                local_rows = torch.tensor(
+                    [local_result.shape[0]],
+                    device=self.larray.device,
+                    dtype=torch.int64,
+                )
+                rows_buffer = torch.zeros(
+                    (self.comm.size,),
+                    device=self.larray.device,
+                    dtype=torch.int64,
+                )
+                self.comm.Allgather(local_rows, rows_buffer)
+                total_rows = int(rows_buffer.sum().item())
+
+                # Global output shape: (total_rows, n_cols)
+                output_shape = (total_rows, self.gshape[1])
+
+                # Result remains split along axis 0, generally unbalanced.
+                result = DNDarray(
+                    local_result,
+                    gshape=output_shape,
+                    dtype=self.dtype,
+                    split=0,
+                    device=self.device,
+                    comm=self.comm,
+                    balanced=False,
+                )
+                return result
             # process multi-element key
             (
                 self,
@@ -1621,6 +1672,7 @@ class DNDarray:
             if incoming_indices.numel() > 0:
                 if key_is_mask_like:
                     # apply selection to all dimensions
+                    print(f" \n ################# DEBUGGING ###################### \n key: {key}")
                     for i in range(len(key)):
                         recv_indices[start:stop, i] = key[i][indices_from_p].flatten()
                     recv_indices[start:stop, self.split] -= displs[p]
