@@ -23,7 +23,7 @@ import os
 import sys
 
 # sys.path.insert(0, os.path.abspath('.'))
-sys.path.insert(0, os.path.abspath("../../heat"))
+sys.path.insert(0, os.path.abspath("../../src/heat"))
 
 
 # -- General configuration ------------------------------------------------
@@ -49,7 +49,7 @@ extensions = [
 
 # Document Python Code
 autoapi_type = "python"
-autoapi_dirs = ["../../heat/"]
+autoapi_dirs = ["../../src/heat/"]
 autoapi_ignore = ["*/operations.py", "*/tests/*"]
 autoapi_template_dir = "_templates/autoapi"
 
@@ -117,7 +117,7 @@ author = "Helmholtz Analytics Framework Consortium"
 # built documents.
 #
 # The short X.Y version.
-sys.path.insert(0, "../../heat/core")
+sys.path.insert(0, "../../src/heat/core")
 import version as ht_version
 
 version = f"{ht_version.major}.{ht_version.minor}.{ht_version.micro}"
