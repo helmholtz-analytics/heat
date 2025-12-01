@@ -1355,10 +1355,10 @@ class TestStatistics(TestCase):
         # 1D: comparison with NumPy and invariance to split
         v = ht.random.rand(50)
         v_np = v.copy().numpy()
-        self.assertAlmostEqual(ht.ptp(v), np.ptp(v_np), places=5)
+        self.assertEqual(ht.ptp(v), np.ptp(v_np))
 
         v = ht.resplit(v, 0)
-        self.assertAlmostEqual(ht.ptp(v), np.ptp(v_np), places=5)
+        self.assertEqual(ht.ptp(v), np.ptp(v_np))
 
         # 2D float (take into account mps as in other tests)
         dtype = ht.float32 if self.is_mps else ht.float64
