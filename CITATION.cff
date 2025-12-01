@@ -7,19 +7,15 @@ message: 'If you use this software, please cite it as below.'
 type: software
 authors:
 # release highlights
+  - family-names: Comito
+    given-names: Claudia
   - family-names: Hoppe
     given-names: Fabian
   - family-names: Gutiérrez Hermosillo Muriedas
     given-names: Juan Pedro
-  - family-names: Palazoglu
-    given-names: Berkant
-  - family-names: Fischer
-    given-names: Carola
+# active contributors in alphabetic order
   - family-names: Akdag
     given-names: Hakan
-  - family-names: Comito
-    given-names: Claudia
-# active contributors in alphabetic order
   - family-names: Hees
     given-names: Jörn
   - family-names: Jindra
