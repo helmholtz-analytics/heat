@@ -2393,7 +2393,6 @@ class TestDNDarray(TestCase):
 
         result_ht_s0 = arr_ht_s0[mask_ht_s0]
 
-        print(f" \n ################# DEBUGGING ###################### \n result_ht_s0 {result_ht_s0}\n arr_ht_s0: {arr_ht_s0},  \n mask_ht_s0: {mask_ht_s0}")
         self.assert_array_equal(result_ht_s0, result_np)
         self.assertEqual(result_ht_s0.split, 0)
         self.assertEqual(result_ht_s0.gshape, (5, 2))
@@ -2428,98 +2427,98 @@ class TestDNDarray(TestCase):
         self.assertEqual(result_ht_3d_s2.gshape, (4, 5))
         self.assertEqual(result_ht_3d_s2.split, 1) # New split axis (originally 2, 2 dims removed)
 
-    # def test_setitem_boolean_fewer_dims(self):
-    #     # Test case: 2D array, 1D boolean mask (selects rows)
-    #     arr_np = np.arange(20).reshape((10, 2))
-    #     mask_np = np.array([True, False, True, False, True, False, True, False, True, False])
-    #     value = 99
-    #     arr_np_set = arr_np.copy()
-    #     arr_np_set[mask_np] = value
+    def test_setitem_boolean_fewer_dims(self):
+        # Test case: 2D array, 1D boolean mask (selects rows)
+        arr_np = np.arange(20).reshape((10, 2))
+        mask_np = np.array([True, False, True, False, True, False, True, False, True, False])
+        value = 99
+        arr_np_set = arr_np.copy()
+        arr_np_set[mask_np] = value
 
-    #     # Case 1: split=None (local)
-    #     arr_ht = ht.array(arr_np, split=None)
-    #     mask_ht = ht.array(mask_np, split=None)
-    #     arr_ht[mask_ht] = value
-    #     self.assert_array_equal(arr_ht, arr_np_set)
+        # Case 1: split=None (local)
+        arr_ht = ht.array(arr_np, split=None)
+        mask_ht = ht.array(mask_np, split=None)
+        arr_ht[mask_ht] = value
+        self.assert_array_equal(arr_ht, arr_np_set)
 
-    #     # Case 2: split=0 (split on the indexed dimension)
-    #     arr_ht_s0 = ht.array(arr_np, split=0)
-    #     mask_ht_s0 = ht.array(mask_np, split=0)
-    #     arr_ht_s0[mask_ht_s0] = value
-    #     self.assert_array_equal(arr_ht_s0, arr_np_set)
+        # Case 2: split=0 (split on the indexed dimension)
+        arr_ht_s0 = ht.array(arr_np, split=0)
+        mask_ht_s0 = ht.array(mask_np, split=0)
+        arr_ht_s0[mask_ht_s0] = value
+        self.assert_array_equal(arr_ht_s0, arr_np_set)
 
-    #     # Case 3: split=1 (split on a non-indexed dimension)
-    #     arr_ht_s1 = ht.array(arr_np, split=1)
-    #     mask_ht_sNone = ht.array(mask_np, split=None)
-    #     arr_ht_s1[mask_ht_sNone] = value
-    #     self.assert_array_equal(arr_ht_s1, arr_np_set)
+        # Case 3: split=1 (split on a non-indexed dimension)
+        arr_ht_s1 = ht.array(arr_np, split=1)
+        mask_ht_sNone = ht.array(mask_np, split=None)
+        arr_ht_s1[mask_ht_sNone] = value
+        self.assert_array_equal(arr_ht_s1, arr_np_set)
 
-    # def test_getitem_edge_cases(self):
-    #     # Test edge cases from NumPy docs
+    def test_getitem_edge_cases(self):
+        # Test edge cases from NumPy docs
 
-    #     # Case 1: 0-D (Scalar) DNDarray
-    #     x_ht_0d = ht.array(10)
-    #     self.assertEqual(x_ht_0d.ndim, 0)
-    #     result_0d = x_ht_0d[()]
-    #     # NumPy returns a scalar, heat returns a 0-D tensor
-    #     self.assertEqual(result_0d.ndim, 0)
-    #     self.assertEqual(result_0d.item(), 10)
+        # Case 1: 0-D (Scalar) DNDarray
+        x_ht_0d = ht.array(10)
+        self.assertEqual(x_ht_0d.ndim, 0)
+        result_0d = x_ht_0d[()]
+        # NumPy returns a scalar, heat returns a 0-D tensor
+        self.assertEqual(result_0d.ndim, 0)
+        self.assertEqual(result_0d.item(), 10)
 
-    #     # Case 2: N-D local DNDarray
-    #     arr_np = np.arange(10).reshape((5, 2))
-    #     arr_ht_local = ht.array(arr_np, split=None)
+        # Case 2: N-D local DNDarray
+        arr_np = np.arange(10).reshape((5, 2))
+        arr_ht_local = ht.array(arr_np, split=None)
 
-    #     # Test [...]
-    #     result_ellipsis = arr_ht_local[...]
-    #     self.assert_array_equal(result_ellipsis, arr_np)
-    #     self.assertIs(result_ellipsis.larray, arr_ht_local.larray) # Check for view
+        # Test [...]
+        result_ellipsis = arr_ht_local[...]
+        self.assert_array_equal(result_ellipsis, arr_np)
+        self.assertIs(result_ellipsis.larray, arr_ht_local.larray) # Check for view
 
-    #     # Test [()]
-    #     result_empty_tuple = arr_ht_local[()]
-    #     self.assert_array_equal(result_empty_tuple, arr_np)
-    #     self.assertIs(result_empty_tuple.larray, arr_ht_local.larray) # Check for view
+        # Test [()]
+        result_empty_tuple = arr_ht_local[()]
+        self.assert_array_equal(result_empty_tuple, arr_np)
+        self.assertIs(result_empty_tuple.larray, arr_ht_local.larray) # Check for view
 
-    #     # Case 3: N-D split DNDarray
-    #     arr_ht_split = ht.array(arr_np, split=0)
+        # Case 3: N-D split DNDarray
+        arr_ht_split = ht.array(arr_np, split=0)
 
-    #     # Test [...]
-    #     result_split_ellipsis = arr_ht_split[...]
-    #     self.assert_array_equal(result_split_ellipsis, arr_np)
-    #     self.assertEqual(result_split_ellipsis.split, 0)
-    #     self.assertIs(result_split_ellipsis.larray, arr_ht_split.larray) # Check for view
+        # Test [...]
+        result_split_ellipsis = arr_ht_split[...]
+        self.assert_array_equal(result_split_ellipsis, arr_np)
+        self.assertEqual(result_split_ellipsis.split, 0)
+        self.assertIs(result_split_ellipsis.larray, arr_ht_split.larray) # Check for view
 
-    #     # Test [()]
-    #     result_split_empty_tuple = arr_ht_split[()]
-    #     self.assert_array_equal(result_split_empty_tuple, arr_np)
-    #     self.assertEqual(result_split_empty_tuple.split, 0)
-    #     self.assertIs(result_split_empty_tuple.larray, arr_ht_split.larray) # Check for view
+        # Test [()]
+        result_split_empty_tuple = arr_ht_split[()]
+        self.assert_array_equal(result_split_empty_tuple, arr_np)
+        self.assertEqual(result_split_empty_tuple.split, 0)
+        self.assertIs(result_split_empty_tuple.larray, arr_ht_split.larray) # Check for view
 
-    # def test_setitem_edge_cases(self):
-    #     # Test edge cases from NumPy docs
+    def test_setitem_edge_cases(self):
+        # Test edge cases from NumPy docs
 
-    #     # Case 1: 0-D (Scalar) DNDarray
-    #     x_ht_0d = ht.array(10)
-    #     x_ht_0d[()] = 99
-    #     self.assertEqual(x_ht_0d.item(), 99)
+        # Case 1: 0-D (Scalar) DNDarray
+        x_ht_0d = ht.array(10)
+        x_ht_0d[()] = 99
+        self.assertEqual(x_ht_0d.item(), 99)
 
-    #     # Case 2: N-D local DNDarray
-    #     arr_ht_local = ht.ones((5, 2), split=None)
+        # Case 2: N-D local DNDarray
+        arr_ht_local = ht.ones((5, 2), split=None)
 
-    #     # Test [...]
-    #     arr_ht_local[...] = 99
-    #     self.assertTrue(ht.all(arr_ht_local == 99).item())
+        # Test [...]
+        arr_ht_local[...] = 99
+        self.assertTrue(ht.all(arr_ht_local == 99).item())
 
-    #     # Test [()]
-    #     arr_ht_local[()] = 100
-    #     self.assertTrue(ht.all(arr_ht_local == 100).item())
+        # Test [()]
+        arr_ht_local[()] = 100
+        self.assertTrue(ht.all(arr_ht_local == 100).item())
 
-    #     # Case 3: N-D split DNDarray
-    #     arr_ht_split = ht.ones((5, 2), split=0)
+        # Case 3: N-D split DNDarray
+        arr_ht_split = ht.ones((5, 2), split=0)
 
-    #     # # Test [...]
-    #     # arr_ht_split[...] = 99
-    #     # self.assertTrue(ht.all(arr_ht_split == 99).item())
+        # Test [...]
+        arr_ht_split[...] = 99
+        self.assertTrue(ht.all(arr_ht_split == 99).item())
 
-    #     # # Test [()]
-    #     # arr_ht_split[()] = 100
-    #     # self.assertTrue(ht.all(arr_ht_split == 100).item())
+        # Test [()]
+        arr_ht_split[()] = 100
+        self.assertTrue(ht.all(arr_ht_split == 100).item())

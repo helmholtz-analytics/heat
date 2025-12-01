@@ -2364,20 +2364,6 @@ class DNDarray:
         # keep the key in its original form to handle edge cases
         original_key = key
 
-        # workaround for Heat issue #1292. TODO: remove when issue is fixed
-        if not isinstance(key, DNDarray):
-            if (
-                key is None
-                or key is ...
-                or (isinstance(key, slice) and key == slice(None))
-                or (isinstance(key, tuple) and key == ())
-            ):
-                # match dimensions
-                value, _ = __broadcast_value(self, key, value)
-                # make sure `self` and `value` distribution are aligned
-                value = sanitation.sanitize_distribution(value, target=self)
-                return __set(self, key, value)
-
         # single-element key
         scalar = np.isscalar(key) or getattr(key, "ndim", 1) == 0
         if scalar:
@@ -2428,9 +2414,13 @@ class DNDarray:
 
         # early out for non-distributed case
         if not self.is_distributed() and not value.is_distributed():
-            # no communication needed
+            # no communication needed, just apply the local set
             __set(self, key, value)
-            self = self.transpose(backwards_transpose_axes)
+
+            # For 0-D arrays there is nothing to transpose; avoid permute() with no dims
+            if self.ndim > 0:
+                self = self.transpose(backwards_transpose_axes)
+
             return
 
         # distributed case
@@ -2595,16 +2585,17 @@ class DNDarray:
                         return
 
                     # Build local key tuple, subtracting displacements along the split axis
-                    key = tuple(
-                        [
-                            (
-                                key[i][local_indices] - displs[rank]
-                                if i == self.split
-                                else key[i][local_indices]
-                            )
-                            for i in range(len(key))
-                        ]
-                    )
+                    new_key = []
+                    for i, k_i in enumerate(key):
+                        if isinstance(k_i, slice):
+                            new_key.append(k_i)
+                        else:
+                            if i == self.split:
+                                new_key.append(k_i[local_indices] - displs[rank])
+                            else:
+                                new_key.append(k_i[local_indices])
+
+                    key = tuple(new_key)
 
                     if not key[self.split].numel() == 0:
                         if value_is_scalar:
