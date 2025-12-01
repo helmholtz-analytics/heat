@@ -2105,59 +2105,59 @@ class TestDNDarray(TestCase):
         self.assertTrue(np.all(arr.numpy() == np_arr))
         self.assertTrue(ht.all(arr[t_key, 4] == 10.0))
 
-    #     # key -> torch.bool
-    #     split = 0
-    #     arr = ht.random.random((20, 20)).resplit(split)
-    #     np_arr = arr.numpy()
-    #     np_key = (np_arr < 0.5)[0]
-    #     t_key = torch.tensor(np_key, device=arr.larray.device)
-    #     arr[t_key] = 10.0
-    #     np_arr[np_key] = 10.0
-    #     self.assertTrue(np.all(arr.numpy() == np_arr))
-    #     self.assertTrue(ht.all(arr[t_key] == 10.0))
+        # key -> torch.bool
+        split = 0
+        arr = ht.random.random((20, 20)).resplit(split)
+        np_arr = arr.numpy()
+        np_key = (np_arr < 0.5)[0]
+        t_key = torch.tensor(np_key, device=arr.larray.device)
+        arr[t_key] = 10.0
+        np_arr[np_key] = 10.0
+        self.assertTrue(np.all(arr.numpy() == np_arr))
+        self.assertTrue(ht.all(arr[t_key] == 10.0))
 
-    #     split = 1
-    #     arr = ht.random.random((20, 20, 10)).resplit(split)
-    #     np_arr = arr.numpy()
-    #     np_key = np_arr < 0.5
-    #     ht_key = ht.array(np_key, split=split)
-    #     arr[ht_key] = 10.0
-    #     np_arr[np_key] = 10.0
-    #     self.assertTrue(np.all(arr.numpy() == np_arr))
-    #     self.assertTrue(ht.all(arr[ht_key] == 10.0))
+        split = 1
+        arr = ht.random.random((20, 20, 10)).resplit(split)
+        np_arr = arr.numpy()
+        np_key = np_arr < 0.5
+        ht_key = ht.array(np_key, split=split)
+        arr[ht_key] = 10.0
+        np_arr[np_key] = 10.0
+        self.assertTrue(np.all(arr.numpy() == np_arr))
+        self.assertTrue(ht.all(arr[ht_key] == 10.0))
 
-    #     split = 2
-    #     arr = ht.random.random((15, 20, 20)).resplit(split)
-    #     np_arr = arr.numpy()
-    #     np_key = np_arr < 0.5
-    #     ht_key = ht.array(np_key, split=split)
-    #     arr[ht_key] = 10.0
-    #     np_arr[np_key] = 10.0
-    #     self.assertTrue(np.all(arr.numpy() == np_arr))
-    #     self.assertTrue(ht.all(arr[ht_key] == 10.0))
+        split = 2
+        arr = ht.random.random((15, 20, 20)).resplit(split)
+        np_arr = arr.numpy()
+        np_key = np_arr < 0.5
+        ht_key = ht.array(np_key, split=split)
+        arr[ht_key] = 10.0
+        np_arr[np_key] = 10.0
+        self.assertTrue(np.all(arr.numpy() == np_arr))
+        self.assertTrue(ht.all(arr[ht_key] == 10.0))
 
-    #     with self.assertRaises(ValueError):
-    #         a[..., ...]
-    #     with self.assertRaises(ValueError):
-    #         a[..., ...] = 1
-    #     if a.comm.size > 1:
-    #         with self.assertRaises(ValueError):
-    #             x = ht.ones((10, 10), split=0)
-    #             setting = ht.zeros((8, 8), split=1)
-    #             x[1:-1, 1:-1] = setting
+        with self.assertRaises(ValueError):
+            a[..., ...]
+        with self.assertRaises(ValueError):
+            a[..., ...] = 1
+        if a.comm.size > 1:
+            with self.assertRaises(RuntimeError):
+                x = ht.ones((10, 10), split=0)
+                setting = ht.zeros((8, 8), split=1)
+                x[1:-1, 1:-1] = setting
 
-    #     for split in [None, 0, 1, 2]:
-    #         for new_dim in [0, 1, 2]:
-    #             for add in [np.newaxis, None]:
-    #                 arr = ht.ones((4, 3, 2), split=split, dtype=ht.int32)
-    #                 check = torch.ones((4, 3, 2), dtype=torch.int32)
-    #                 idx = [slice(None), slice(None), slice(None)]
-    #                 idx[new_dim] = add
-    #                 idx = tuple(idx)
-    #                 arr = arr[idx]
-    #                 check = check[idx]
-    #                 self.assertTrue(arr.shape == check.shape)
-    #                 self.assertTrue(arr.lshape[new_dim] == 1)
+        for split in [None, 0, 1, 2]:
+            for new_dim in [0, 1, 2]:
+                for add in [np.newaxis, None]:
+                    arr = ht.ones((4, 3, 2), split=split, dtype=ht.int32)
+                    check = torch.ones((4, 3, 2), dtype=torch.int32)
+                    idx = [slice(None), slice(None), slice(None)]
+                    idx[new_dim] = add
+                    idx = tuple(idx)
+                    arr = arr[idx]
+                    check = check[idx]
+                    self.assertTrue(arr.shape == check.shape)
+                    self.assertTrue(arr.lshape[new_dim] == 1)
 
     def test_size_gnumel(self):
         a = ht.zeros((10, 10, 10), split=None)

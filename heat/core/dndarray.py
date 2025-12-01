@@ -2478,7 +2478,6 @@ class DNDarray:
             backwards_transpose_axes,
         ) = self.__process_key(key, return_local_indices=True, op="set")
 
-        # print("DEBUGGING: key, split_key_is_ordered", key, split_key_is_ordered)
         # match dimensions
         value, value_is_scalar = __broadcast_value(self, key, value, output_shape=output_shape)
 
@@ -2706,43 +2705,7 @@ class DNDarray:
                     self = self.transpose(backwards_transpose_axes)
                     return
 
-                # if key_is_mask_like:
-                #    split_key = key[self.split]
-                #    local_indices = torch.nonzero(
-                #        (split_key >= displs[rank]) & (split_key < displs[rank] + counts[rank])
-                #    ).flatten()
-                #
-                #    if local_indices.numel() == 0:
-                #        self = self.transpose(backwards_transpose_axes)
-                #        return
-                #
-                #    # Build local key tuple, subtracting displacements along the split axis
-                #    new_key = []
-                #    for i, k_i in enumerate(key):
-                #        if isinstance(k_i, slice):
-                #            new_key.append(k_i)
-                #        else:
-                #            if i == self.split:
-                #                new_key.append(k_i[local_indices] - displs[rank])
-                #            else:
-                #                new_key.append(k_i[local_indices])
-                #
-                #    key = tuple(new_key)
-                #
-                #    if not key[self.split].numel() == 0:
-                #        if value_is_scalar:
-                #            self.larray[key] = value.larray.type(self.dtype.torch_type())
-                #        else:
-                #            self.larray[key] = value.larray[local_indices].type(
-                #                self.dtype.torch_type()
-                #            )
-                #
-                #    self = self.transpose(backwards_transpose_axes)
-                #    return
-                #
-
                 if key_is_mask_like:
-                    print("DEBUGGING: key is mask-like")
                     # Boolean mask along the split axis.
                     # We only work locally here, no global index arithmetic.
 
