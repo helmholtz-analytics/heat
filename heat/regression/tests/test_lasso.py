@@ -14,7 +14,13 @@ class TestLasso(TestCase):
         lasso = ht.regression.Lasso()
         params = lasso.get_params()
 
-        self.assertEqual(params, {"lam": 0.1, "max_iter": 100, "tol": 1e-6})
+        expected_params = {
+            "lam": 0.1,
+            "max_iter": 100,
+            "tol": 1e-6,
+            "step_size": None
+        }
+        self.assertEqual(params, expected_params)
 
         params["max_iter"] = 200
         lasso.set_params(**params)
