@@ -1076,7 +1076,7 @@ def flip(a: DNDarray, axis: Union[int, Tuple[int, ...]] = None) -> DNDarray:
     a: DNDarray
         Input array to be flipped
     axis: int or Tuple[int,...]
-        A list of axes to be flipped
+        The axis or sequence of axes to be flipped
 
     See Also
     --------
