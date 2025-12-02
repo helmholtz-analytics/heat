@@ -1,3 +1,19 @@
+# v1.7.0 - Heat Minor Release - 1.7.0
+## Changes
+
+
+### Bug Fixes
+
+* Sturdier MPI+GPU compatibility check by @JuanPedroGHM in https://github.com/helmholtz-analytics/heat/pull/1979
+* Fix handling of zarr groups by @ClaudiaComito in https://github.com/helmholtz-analytics/heat/pull/1990
+* Supporting negative indices for flip operations by @Marc-Jindra in https://github.com/helmholtz-analytics/heat/pull/2014
+* Fixed issue where matrices returned by ```eigh``` were not on the expected device by @GioPede in https://github.com/helmholtz-analytics/heat/pull/2046
+* Fixed issue where matrices returned by ```qr``` were not on the expected device by @GioPede in https://github.com/helmholtz-analytics/heat/pull/2045
+* Dtype is now set correctly when loading and saving hdf5 files by @Marc-Jindra in https://github.com/helmholtz-analytics/heat/pull/2014
+
+## Contributors
+@Marc-Jindra, @ClaudiaComito, @JuanPedroGHM
+
 # v1.6.0
 ## Highlights
 
