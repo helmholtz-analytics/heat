@@ -40,6 +40,7 @@ __all__ = [
     "min",
     "minimum",
     "percentile",
+    "ptp",
     "skew",
     "std",
     "var",
@@ -1737,6 +1738,187 @@ def percentile(
         del sorted_x
 
     return percentile
+
+
+def ptp(
+    x: DNDarray,
+    axis: Optional[Union[int, Tuple[int, ...]]] = None,
+    out: Optional[DNDarray] = None,
+    keepdims: bool = False,
+) -> DNDarray:
+    """
+    Range of values (maximum - minimum) along a given axis.
+
+    Parameters
+    ----------
+    x : ht.DNDarray
+        Input array.
+    axis : None or int or Tuple[int,...], optional
+        Axis or axes along which to operate. By default, flattened input is used.
+        If this is a tuple of ints, the ptp is selected over multiple axes,
+        instead of a single axis or all the axes as before.
+    out : DNDarray, optional
+        Output array to place the result.
+    keepdims : bool, optional
+        If this is set to ``True``, the axes which are reduced are left in the result as dimensions with size one.
+
+    Returns
+    -------
+    ptp : ht.DNDarray
+        An array with the same shape as `x`, with the specified axis removed. If `keepdims` is True, the reduced axes are left in the result as dimensions with size one.
+
+    Examples
+    --------
+    >>> a = ht.array([[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]], dtype=ht.float32)
+    >>> ht.ptp(a)
+    DNDarray([11.], dtype=ht.float32, device=cpu:0, split=None)
+    >>> ht.ptp(a, axis=0)
+    DNDarray([9., 9., 9.], dtype=ht.float32, device=cpu:0, split=None)
+    >>> ht.ptp(a, axis=1)
+    DNDarray([2., 2., 2., 2.], dtype=ht.float32, device=cpu:0, split=None)
+    """
+
+    def local_minmax(t, dim=None, **kwargs):
+        mins = torch.amin(t, dim=dim, **kwargs)
+        maxs = torch.amax(t, dim=dim, **kwargs)
+
+        # If scalar (0-D), make it 1-D so torch.cat works
+        if mins.ndim == 0:
+            mins = mins.reshape(1)
+            maxs = maxs.reshape(1)
+
+        return torch.cat((mins, maxs), dim=0)
+
+    lshape = tuple(x.larray.shape)
+    ndim = len(lshape)
+    axis_sanitized = stride_tricks.sanitize_axis(x.shape, axis)
+
+    if axis_sanitized is None:
+        reduced_shape = tuple(1 for _ in lshape)  # keepdim=True => ones for all dims
+    else:
+        axes = (axis_sanitized,) if isinstance(axis_sanitized, int) else tuple(axis_sanitized)
+        # normalize negative axes
+        axes = tuple(a if a >= 0 else a + ndim for a in axes)
+        rs = list(lshape)
+        for a in axes:
+            rs[a] = 1
+        reduced_shape = tuple(rs)
+
+    total_count = int(np.prod(reduced_shape))
+    if total_count == 0:
+        raise RuntimeError(
+            f"ptp: unexpected local reduced size 0 (x.larray.shape={x.larray.shape}, axis={axis})"
+        )
+
+    # packed shape: double first axis
+    packed_shape = list(reduced_shape)
+    packed_shape[0] = packed_shape[0] * 2
+    packed_shape = tuple(packed_shape)
+
+    # contig stride helper
+    def contig_stride(shape):
+        if not shape:
+            return ()
+        s = [0] * len(shape)
+        s[-1] = 1
+        for i in range(len(shape) - 2, -1, -1):
+            s[i] = s[i + 1] * shape[i + 1]
+        return tuple(s)
+
+    packed_stride = contig_stride(packed_shape)
+    # dtype: take from x.larray (do not cast earlier)
+    preview_dtype = x.larray.dtype
+
+    comm = x.comm
+
+    # Create a dtype/size-specific MPI.Op via the communicator's factory
+    # The communicator must provide `_minmax_op(dtype, total_count, shape, stride, offset=0)`
+    op = comm._minmax_op(preview_dtype, total_count, packed_shape, packed_stride, offset=0)
+
+    # Run the global reduction with the freshly created op and always free it afterwards
+    try:
+        packed = _operations.__reduce_op(x, local_minmax, op, axis=axis, keepdims=True)
+    finally:
+        try:
+            op.Free()
+        except Exception:
+            pass
+
+    # Unpack global mins and maxs
+    mins_t, maxs_t = packed.larray.chunk(2, dim=0)
+    y = maxs_t - mins_t
+
+    # Compute correct split for the result (based on original x.split and axis)
+    if axis is None or isinstance(axis, tuple):
+        split = None
+    else:
+        if x.split is not None:
+            if axis < x.split:
+                split = x.split - 1
+            elif axis > x.split:
+                split = x.split
+            else:
+                split = None
+        else:
+            split = None
+
+    # Handle keepdims: remove reduced dims when requested
+    if not keepdims:
+        if axis is None:
+            y = y.reshape(())
+            split = None
+        else:
+            axes = axis if isinstance(axis, tuple) else (axis,)
+            for ax in sorted(axes, reverse=True):
+                y = y.squeeze(ax)
+
+    # Compute global output shape (gshape) from x.gshape, axis and keepdims
+    def _compute_gshape(gshape_in, axis, keepdims):
+        if axis is None:
+            return tuple(1 for _ in gshape_in) if keepdims else ()
+        axes = axis if isinstance(axis, tuple) else (axis,)
+        axes = tuple(a if a >= 0 else a + len(gshape_in) for a in axes)
+        if keepdims:
+            gs = list(gshape_in)
+            for a in axes:
+                gs[a] = 1
+            return tuple(gs)
+        else:
+            return tuple(gshape_in[i] for i in range(len(gshape_in)) if i not in axes)
+
+    gshape = _compute_gshape(x.gshape, axis, keepdims)
+
+    # If user provided an out buffer, write into it (sanitization does shape/split checks)
+    if out is not None:
+        sanitation.sanitize_out(out, gshape, split, x.device)
+        out._DNDarray__array = y
+        return out
+
+    # Return new DNDarray: use gshape (global shape), not local y.shape
+    return DNDarray(
+        y,
+        gshape,
+        packed.dtype,
+        split=split,
+        device=packed.device,
+        comm=packed.comm,
+        balanced=packed.balanced,
+    )
+
+
+def _ptp(
+    x: DNDarray,
+    axis: Optional[Union[int, Tuple[int, ...]]] = None,
+    out: Optional[DNDarray] = None,
+    keepdims: bool = False,
+) -> DNDarray:
+    return ptp(x, axis, out, keepdims)
+
+
+DNDarray.ptp: Callable[
+    [DNDarray, Optional[Union[int, Tuple[int, ...]]], Optional[DNDarray], bool], DNDarray
+] = _ptp
+DNDarray.ptp.__doc__ = ptp.__doc__
 
 
 def skew(x: DNDarray, axis: int = None, unbiased: bool = True) -> DNDarray:
