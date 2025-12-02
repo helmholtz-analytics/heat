@@ -10,13 +10,17 @@
 
 # Q6: What happens when converter.convert() is called?
 
+
+import sys
+sys.path.append("./hpc_pytorch_loader")
 from datasets.memmap.memmap_converter import MemmapConverter
 from utils.utils import ResizeAndConvert
 from torchvision.datasets import CIFAR10
 
+
 # Prepare the dataset
 dataset = CIFAR10(
-    root="./cifar10_dataset",
+    root="./data",
     train=True,
     download=True,
     transform=ResizeAndConvert((32, 32), "RGB")

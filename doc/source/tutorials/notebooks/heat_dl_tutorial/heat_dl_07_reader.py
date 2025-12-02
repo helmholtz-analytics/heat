@@ -1,13 +1,20 @@
 # Q1: What is the purpose of the MemmapReader?
 
+
 # Q2: Why do we apply transforms in the Reader?
+
 
 # Q3: How does the DataLoader interact with the MemmapReader?
 
+
 # Q4: Can MemmapReader work with num_workers in DataLoader?
+
 
 # Q5: How do we know the memmap dataset is working correctly?
 
+
+import sys
+sys.path.append("./hpc_pytorch_loader")
 from datasets.memmap.memmap_reader import MemmapReader
 from torch.utils.data import DataLoader
 from torchvision import transforms
