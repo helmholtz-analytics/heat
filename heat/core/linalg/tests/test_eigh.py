@@ -28,7 +28,6 @@ class TestEigh(TestCase):
         for split in splits:
             for dtype in dtypes:
                 with self.subTest(split=split, dtype=dtype):
-                    ht.random.seed(41 + i)
                     X = ht.random.randn(100, 100, split=split, dtype=dtype)
                     X = X + X.T.resplit_(X.split)
                     Lambda, H = ht.linalg.eigh(X)
@@ -37,7 +36,6 @@ class TestEigh(TestCase):
 
     def test_eigh_options(self):
         # test non-default options
-        ht.random.seed(42)
         X = ht.random.randn(101, 101, split=0, dtype=ht.float32)
         X = X @ X.T
         Lambda, H = ht.linalg.eigh(X, r_max_zolopd=1, silent=False)

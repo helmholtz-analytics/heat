@@ -1076,7 +1076,7 @@ def flip(a: DNDarray, axis: Union[int, Tuple[int, ...]] = None) -> DNDarray:
     a: DNDarray
         Input array to be flipped
     axis: int or Tuple[int,...]
-        A list of axes to be flipped
+        The axis or sequence of axes to be flipped
 
     See Also
     --------
@@ -1100,7 +1100,11 @@ def flip(a: DNDarray, axis: Union[int, Tuple[int, ...]] = None) -> DNDarray:
 
     # torch.flip only accepts tuples
     if isinstance(axis, int):
-        axis = [axis]
+        axis = (axis,)
+    elif isinstance(axis, list):
+        axis = tuple(axis)
+
+    axis = stride_tricks.sanitize_axis(a.shape, axis)
 
     flipped = torch.flip(a.larray, axis)
 

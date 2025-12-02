@@ -12,7 +12,6 @@ class TestQR(TestCase):
             dtypes = [ht.float32]
         else:
             dtypes = [ht.float32, ht.float64]
-        ht.random.seed(1234)
 
         for split in [1, None]:
             for mode in ["reduced", "r"]:
@@ -147,7 +146,6 @@ class TestQR(TestCase):
         # skip float64 tests on MPS
         if not self.is_mps:
             # two batch dimensions, float64 data type, "split = 1" (last dimension)
-            ht.random.seed(0)
             x = ht.random.rand(3, 2, 50, ht.MPI_WORLD.size * 5 + 3, dtype=ht.float64, split=3)
             q, r = ht.linalg.qr(x)
             batched_id = ht.stack([ht.eye(q.shape[3], dtype=ht.float64) for _ in range(6)]).reshape(
@@ -160,7 +158,6 @@ class TestQR(TestCase):
             self.assertTrue(ht.allclose(q @ r, x, atol=1e-6, rtol=1e-6))
 
     def test_batched_qr_split0(self):
-        ht.random.seed(424242)
         # one batch dimension, float32 data type, "split = 0" (second last dimension)
         x = ht.random.randn(
             8, ht.MPI_WORLD.size * 10 + 3, ht.MPI_WORLD.size * 10 - 1, dtype=ht.float32, split=1
