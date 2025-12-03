@@ -92,10 +92,10 @@ jobs:
           ## ----- END Workflow to update Dockerfile Images -------
 
           # Write on to the version.py file
-          sed -i "s/major: int = \([0-9]\+\)/major: int = $MAJOR/g" heat/core/version.py
-          sed -i "s/minor: int = \([0-9]\+\)/minor: int = $MINOR/g" heat/core/version.py
-          sed -i "s/micro: int = \([0-9]\+\)/micro: int = $MICRO/g" heat/core/version.py
-          sed -i "s/extension: str = .*/extension: str = None/g" heat/core/version.py
+          sed -i "s/major: int = \([0-9]\+\)/major: int = $MAJOR/g" src/heat/core/version.py
+          sed -i "s/minor: int = \([0-9]\+\)/minor: int = $MINOR/g" src/heat/core/version.py
+          sed -i "s/micro: int = \([0-9]\+\)/micro: int = $MICRO/g" src/heat/core/version.py
+          sed -i "s/extension: str = .*/extension: str = None/g" src/heat/core/version.py
 
           { echo -e "# v${MAJOR}.${MINOR}.${MICRO} - ${{github.event.inputs.title}}\n${{ steps.release_drafter.outputs.body}}\n"; cat CHANGELOG.md; } > tmp.md
           mv tmp.md CHANGELOG.md
@@ -105,7 +105,7 @@ jobs:
           git config --global user.name "Heat Release Bot"
 
           # Commit the changes
-          git add heat/core/version.py CHANGELOG.md
+          git add src/heat/core/version.py CHANGELOG.md
           git commit -m "Bump version to $VERSION"
 
           # Commit Dockerfile changes

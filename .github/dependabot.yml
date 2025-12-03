@@ -11,6 +11,6 @@ updates:
       interval: "weekly"
 
   - package-ecosystem: docker
-    directory: /heat/core/tests
+    directory: /tests
     schedule:
       interval: "weekly"
