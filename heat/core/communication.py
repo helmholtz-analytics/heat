@@ -13,6 +13,8 @@ from mpi4py import MPI
 
 from typing import Any, Callable, Optional, List, Tuple, Union
 
+import torch.version
+
 from .stride_tricks import sanitize_axis
 
 from ._config import GPU_AWARE_MPI
@@ -135,9 +137,6 @@ class MPICommunication(Communication):
     __mpi_dtype2ctype = {
         torch.bool: ctypes.c_bool,
         torch.uint8: ctypes.c_uint8,
-        torch.uint16: ctypes.c_uint16,
-        torch.uint32: ctypes.c_uint32,
-        torch.uint64: ctypes.c_uint64,
         torch.int8: ctypes.c_int8,
         torch.int16: ctypes.c_int16,
         torch.int32: ctypes.c_int32,
@@ -147,6 +146,11 @@ class MPICommunication(Communication):
         torch.complex64: ctypes.c_double,
         torch.complex128: ctypes.c_longdouble,
     }
+
+    # Check for newer types:
+    for type_str in ["uint16", "uint32", "uint64"]:
+        if hasattr(torch, type_str):
+            __mpi_dtype2ctype[getattr(torch, type_str)] = getattr(ctypes, f"c_{type_str}")
 
     def __init__(self, handle=MPI.COMM_WORLD):
         self.handle = handle
