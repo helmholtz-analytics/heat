@@ -33,8 +33,22 @@ class Spectral(ht.ClusteringMixin, ht.BaseEstimator):
     boundary : str
         How to interpret threshold: 'upper', 'lower'
         Ignorded for laplacian='fully_connected'
-    n_lanczos : int
-        number of Lanczos iterations for Eigenvalue decomposition
+    eigen_solver : str
+        The eigenvalue decomposition strategy to use.
+            - 'lanczos' : Use Lanczos iterations to reduce the Laplacian matrix size before applying the torch eigenvalue solver.
+            - 'randomized' : Use a randomized algorithm to compute the approximate eigenvalues and eigenvectors.
+    reigh_rank : int
+        number of samples for randomized eigenvalue decomposition. Only used if eigen_solver='randomized'.
+        It must hold reigh_rank >= n_clusters. If n_clusters is None (automatic selection of number of clusters),
+        reigh_rank gives an upper bound on the number of clusters that can be found. Therefore, reigh_rank should
+        be set high enough to capture the expected number of clusters in that case.
+    reigh_n_oversamples : int
+        number of oversamples for randomized eigenvalue decomposition. Only used if eigen_solver='randomized'. Default is 10.
+    reigh_power_iter : int
+        number of power iterations for randomized eigenvalue decomposition. Only used if eigen_solver='randomized'. Default is 0.
+        Consider increasing this value if the eigen-spectrum of the Laplacian decays slowly.
+    lanczos_n_iter : int
+        number of Lanczos iterations for Eigenvalue decomposition. Only used if eigen_solver='lanczos'. Default is 300.
     assign_labels: str
          The strategy to use to assign labels in the embedding space.
     **params: dict
@@ -49,7 +63,11 @@ class Spectral(ht.ClusteringMixin, ht.BaseEstimator):
         laplacian: str = "fully_connected",
         threshold: float = 1.0,
         boundary: str = "upper",
-        n_lanczos: int = 300,
+        eigen_solver: str = "randomized",
+        reigh_rank: int = 100,
+        reigh_n_oversamples: int = 10,
+        reigh_power_iter: int = 0,
+        lanczos_n_iter: int = 300,
         assign_labels: str = "kmeans",
         **params,
     ):
@@ -59,8 +77,21 @@ class Spectral(ht.ClusteringMixin, ht.BaseEstimator):
         self.laplacian = laplacian
         self.threshold = threshold
         self.boundary = boundary
-        self.n_lanczos = n_lanczos
+        self.lanczos_n_iter = lanczos_n_iter
         self.assign_labels = assign_labels
+        self.eigen_solver = eigen_solver
+        self.reigh_n_oversamples = reigh_n_oversamples
+        self.reigh_power_iter = reigh_power_iter
+        self.reigh_rank = reigh_rank
+
+        if eigen_solver not in ["lanczos", "randomized"]:
+            raise NotImplementedError(
+                f"Currently only 'lanczos' and 'randomized' eigen_solver are supported, but got '{eigen_solver}' as input."
+            )
+        if eigen_solver == "randomized" and reigh_rank < (
+            n_clusters if n_clusters is not None else 1
+        ):
+            raise ValueError("reigh_rank must be at least equal to n_clusters")
 
         if metric == "rbf":
             sig = math.sqrt(1 / (2 * gamma))
@@ -116,35 +147,45 @@ class Spectral(ht.ClusteringMixin, ht.BaseEstimator):
 
         """
         L = self._laplacian.construct(x)
-        # 3. Eigenvalue and -vector calculation via Lanczos Algorithm
-        v0 = ht.full(
-            (L.shape[0],),
-            fill_value=1.0 / math.sqrt(L.shape[0]),
-            dtype=L.dtype,
-            split=0,
-            device=L.device,
-        )
-        V, T = ht.lanczos(L, self.n_lanczos, v0)
 
-        # if int(torch.__version__.split(".")[1]) >= 9:
-        try:
-            # 4. Calculate and Sort Eigenvalues and Eigenvectors of tridiagonal matrix T
-            eval, evec = torch.linalg.eig(T.larray)
+        if self.eigen_solver == "lanczos":
+            # use Lanczos Algorithm: for Eigenvalue and -vector calculation
+            v0 = ht.full(
+                (L.shape[0],),
+                fill_value=1.0 / math.sqrt(L.shape[0]),
+                dtype=L.dtype,
+                split=0,
+                device=L.device,
+            )
+            V, T = ht.lanczos(L, self.lanczos_n_iter, v0)
 
-            # If x is an Eigenvector of T, then y = V@x is the corresponding Eigenvector of L
-            eval, idx = torch.sort(eval.real, dim=0)
-            eigenvalues = ht.array(eval)
-            eigenvectors = ht.matmul(V, ht.array(evec))[:, idx]
+            # if int(torch.__version__.split(".")[1]) >= 9:
+            try:
+                # 4. Calculate and Sort Eigenvalues and Eigenvectors of tridiagonal matrix T
+                eval, evec = torch.linalg.eig(T.larray)
 
-            return eigenvalues.real, eigenvectors.real
-        except AttributeError:  # torch version is less than 1.9.0
-            # 4. Calculate and Sort Eigenvalues and Eigenvectors of tridiagonal matrix T
-            eval, evec = torch.eig(T.larray, eigenvectors=True)
-            # If x is an Eigenvector of T, then y = V@x is the corresponding Eigenvector of L
-            eval, idx = torch.sort(eval[:, 0], dim=0)
-            eigenvalues = ht.array(eval)
-            eigenvectors = ht.matmul(V, ht.array(evec))[:, idx]
+                # If x is an Eigenvector of T, then y = V@x is the corresponding Eigenvector of L
+                eval, idx = torch.sort(eval.real, dim=0)
+                eigenvalues = ht.array(eval)
+                eigenvectors = ht.matmul(V, ht.array(evec))[:, idx]
 
+                return eigenvalues.real, eigenvectors.real
+            except AttributeError:  # torch version is less than 1.9.0
+                # 4. Calculate and Sort Eigenvalues and Eigenvectors of tridiagonal matrix T
+                eval, evec = torch.eig(T.larray, eigenvectors=True)
+                # If x is an Eigenvector of T, then y = V@x is the corresponding Eigenvector of L
+                eval, idx = torch.sort(eval[:, 0], dim=0)
+                eigenvalues = ht.array(eval)
+                eigenvectors = ht.matmul(V, ht.array(evec))[:, idx]
+                return eigenvalues, eigenvectors
+        else:
+            # use randomized eigenvalue decomposition with the chosen arguments
+            eigenvectors, eigenvalues = ht.linalg.reigh(
+                L,
+                self.reigh_rank,
+                n_oversamples=self.reigh_n_oversamples,
+                power_iter=self.reigh_power_iter,
+            )
             return eigenvalues, eigenvectors
 
     def fit(self, x: DNDarray):
