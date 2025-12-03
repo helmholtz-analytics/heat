@@ -1333,6 +1333,75 @@ class TestStatistics(TestCase):
         with self.assertRaises(ValueError):
             ht.percentile(X, q, axis=axis, sketched=True, sketch_size=10)
 
+    def test_ptp(self):
+        # argument errors
+        x = ht.zeros((2, 3, 4))
+        with self.assertRaises((ValueError, IndexError)):
+            ht.ptp(x, axis=10)
+        with self.assertRaises(TypeError):
+            ht.ptp(x, axis="01")
+        with self.assertRaises(TypeError):
+            ht.ptp(x, axis=(0, "10"))
+
+        # simple deterministic example
+        a = ht.array([[1, 2, 3],
+                      [4, 5, 6],
+                      [7, 8, 9],
+                      [10, 11, 12]])
+        self.assertEqual(ht.ptp(a), 11)
+        self.assertEqual(a.ptp(), 11)
+
+        # helper to check split of result
+        def __split_calc(ht_split, axis):
+            sp = ht_split if axis > ht_split else ht_split - 1
+            if axis == ht_split:
+                sp = None
+            return sp
+
+        # 1D: comparison with NumPy and invariance to split
+        v = ht.random.rand(50)
+        v_np = v.copy().numpy()
+        self.assertEqual(ht.ptp(v), np.ptp(v_np))
+
+        v = ht.resplit(v, 0)
+        self.assertEqual(ht.ptp(v), np.ptp(v_np))
+
+        # 2D float (take into account mps as in other tests)
+        dtype = ht.float32 if self.is_mps else ht.float64
+        X = ht.random.rand(50, 30, dtype=dtype)
+        X_np = X.copy().numpy()
+
+        # without axis
+        self.assertAlmostEqual(ht.ptp(X) - np.ptp(X_np), 0.0, places=5)
+
+        # along axes and for different splits
+        for split in (0, 1):
+            Xs = ht.resplit(X, split)
+            for ax in (0, 1):
+                expected = ht.array(np.ptp(X_np, axis=ax), dtype=Xs.dtype)
+                got = ht.ptp(Xs, axis=ax)
+                self.assertTrue(ht.allclose(got, expected, atol=1e-5))
+                self.assertEqual(got.split, __split_calc(Xs.split, ax))
+
+        # keepdims: only shape is checked (different splits are not important)
+        kd0 = ht.ptp(X, axis=0, keepdims=True)
+        kd1 = ht.ptp(X, axis=1, keepdims=True)
+        self.assertEqual(kd0.shape, (1, 30))
+        self.assertEqual(kd1.shape, (50, 1))
+
+        # out buffer: correct shape, return the same object, values match
+        Xs = ht.resplit(X, 0)
+        out = ht.empty((30,), dtype=Xs.dtype, split=None)
+        res = ht.ptp(Xs, axis=0, out=out)
+        self.assertIs(res, out)
+        self.assertTrue(ht.allclose(out, ht.ptp(Xs, axis=0)))
+
+        # integer input: correct value and dtype retention
+        b = ht.arange(-3, 5, dtype=ht.int64) # range [-3..4]
+        r = ht.ptp(b)
+        self.assertEqual(r, 7) # 4 - (-3) = 7
+        self.assertEqual(r.dtype, b.dtype)
+
     def test_skew(self):
         x = ht.zeros((2, 3, 4))
         with self.assertRaises(ValueError):
