@@ -21,6 +21,9 @@ class TestIndexing(TestCase):
         self.assertEqual(len(nz[0]), 6)
         self.assertEqual(nz[0].dtype, ht.int64)
         a[nz] = 10
+        print(f"\n\n\n ####### Debug ####### \n\n\n {nz=} \n\n\n")
+        print(f"\n\n\n ####### Debug ####### \n\n\n {a[nz]=} \n\n\n")
+        print(f"\n\n\n ####### Debug ####### \n\n\n {a[nz][0].item()=} \n\n\n")
         self.assertEqual(ht.all(a[nz] == 10), 1)
 
     def test_where(self):
@@ -29,9 +32,10 @@ class TestIndexing(TestCase):
         a = ht.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]], split=None)
         cond = a > 3
         wh = ht.where(cond)
-        self.assertEqual(wh.gshape, (6, 2))
-        self.assertEqual(wh.dtype, ht.int64)
-        self.assertEqual(wh.split, None)
+        self.assertEqual(len(wh), 2)
+        self.assertEqual(wh[0].gshape[0], 6)
+        self.assertEqual(wh[0].dtype, ht.int64)
+        self.assertEqual(wh[0].split, None)
         # split
         a = ht.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]], split=1)
         cond = a > 3
