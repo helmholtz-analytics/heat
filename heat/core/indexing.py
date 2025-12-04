@@ -63,7 +63,7 @@ def nonzero(x: DNDarray) -> Tuple[DNDarray, ...]:
         lcl_nonzero = torch.nonzero(input=local_x, as_tuple=True)
         # bookkeeping for final DNDarray construct
         nonzero_size = lcl_nonzero[0].shape[0]
-        output_split = None if x.split is None else 0
+        output_split = None
         output_balanced = True
     else:
         lcl_nonzero = torch.nonzero(input=local_x, as_tuple=False)
@@ -98,12 +98,13 @@ def nonzero(x: DNDarray) -> Tuple[DNDarray, ...]:
             # return indices as tuple of columns
             lcl_nonzero = lcl_nonzero.split(1, dim=1)
             output_balanced = False
+
         nonzero_size = nonzero_size.item()
+        output_split = 0
 
     # return global_nonzero as tuple of DNDarrays
     global_nonzero = list(lcl_nonzero)
     output_shape = (nonzero_size,)
-    output_split = 0
     for i, nz_tensor in enumerate(global_nonzero):
         if nz_tensor.ndim > 1:
             # extra dimension in distributed case from usage of torch.split()
@@ -181,7 +182,23 @@ def where(
                 var = float(var)
         return cond.dtype(cond == 0) * y + cond * x
     elif x is None and y is None:
-        return nonzero(cond)
+        # Only condition given: return "nonzero"-like indices.
+        # For non-distributed arrays like NumPy: tuple of index vectors
+        if not cond.is_distributed():
+            return nonzero(cond)
+
+        # For distributed arrays: return coordinate matrix (N, ndim)
+        nz = nonzero(cond)  # Tuple[DNDarray, ...], each with shape (N,)
+
+        # Stack columns into an (N, ndim) matrix, axis 1 = dimension
+        coords = manipulations.stack(nz, axis=1)
+        coords = coords.astype(types.int64, copy=False)
+
+        # Ensure we are split along axis 0
+        if coords.split is None:
+            coords.resplit_(0)
+
+        return coords
     else:
         raise TypeError(
             f"either both or neither x and y must be given and both must be DNDarrays or numerical scalars({type(x)}, {type(y)})"
