@@ -8,23 +8,24 @@ import heat as ht
 # Why? Sampling code expects a batch+channel dimension.
 # ============================================================
 
+
 def _normalize_input(x, ND):
     orig_shape = x.shape
     t = x.larray
 
     # 2D image: (H, W) or (C, H, W)
     if ND == 2:
-        if x.ndim == 2:   # (H,W)
-            t = t.unsqueeze(0).unsqueeze(0)   # → (1,1,H,W)
-        elif x.ndim == 3: # (C,H,W)
-            t = t.unsqueeze(0)               # → (1,C,H,W)
+        if x.ndim == 2:  # (H,W)
+            t = t.unsqueeze(0).unsqueeze(0)  # → (1,1,H,W)
+        elif x.ndim == 3:  # (C,H,W)
+            t = t.unsqueeze(0)  # → (1,C,H,W)
 
     # 3D image: (D,H,W) or (C,D,H,W)
     else:
-        if x.ndim == 3:   # (D,H,W)
-            t = t.unsqueeze(0).unsqueeze(0)   # → (1,1,D,H,W)
-        elif x.ndim == 4: # (C,D,H,W)
-            t = t.unsqueeze(0)               # → (1,C,D,H,W)
+        if x.ndim == 3:  # (D,H,W)
+            t = t.unsqueeze(0).unsqueeze(0)  # → (1,1,D,H,W)
+        elif x.ndim == 4:  # (C,D,H,W)
+            t = t.unsqueeze(0)  # → (1,C,D,H,W)
 
     return t, orig_shape
 
@@ -34,6 +35,7 @@ def _normalize_input(x, ND):
 # (z,y,x) for 3D, (y,x) for 2D
 # Why? This represents output pixel positions.
 # ============================================================
+
 
 def _make_grid(spatial, device):
     if len(spatial) == 2:
@@ -55,6 +57,7 @@ def _make_grid(spatial, device):
 # Padding helper for nearest/bilinear sampling
 # Why? Coordinates may go outside image → we map to valid pixels.
 # ============================================================
+
 
 def _apply_padding(pix, spatial, mode, constant_value):
     ND = len(spatial)
@@ -90,6 +93,7 @@ def _apply_padding(pix, spatial, mode, constant_value):
 # Why? Fastest and simplest.
 # ============================================================
 
+
 def _nearest_sample(x_local, coords_h, mode, constant_value):
     ND = coords_h.shape[0]
     pix = coords_h.round().long()
@@ -119,8 +123,9 @@ def _nearest_sample(x_local, coords_h, mode, constant_value):
 # Why? Smooth transformations for images.
 # ============================================================
 
+
 def _bilinear_sample(x_local, coords_h, mode, constant_value):
-    if coords_h.shape[0] != 2:   # fallback for 3D
+    if coords_h.shape[0] != 2:  # fallback for 3D
         return _nearest_sample(x_local, coords_h, mode, constant_value)
 
     y, x = coords_h
@@ -163,15 +168,15 @@ def _bilinear_sample(x_local, coords_h, mode, constant_value):
 #   input_coord = A_inv @ output_coord - A_inv @ b
 # ============================================================
 
+
 def affine_transform(
     x,
     M,
     order=0,
     mode="nearest",
     constant_value=0.0,
-    expand=False,   # kept for later; currently no-op
+    expand=False,  # kept for later; currently no-op
 ):
-
     M = np.asarray(M, dtype=np.float32)
 
     # Determine 2D or 3D
@@ -221,9 +226,7 @@ def affine_transform(
         # PT (x,y,z) → Heat (z,y,x)
         cx, cy, cz = coords_pt
         coords_h = torch.stack(
-            [cz.reshape(spatial),
-             cy.reshape(spatial),
-             cx.reshape(spatial)], dim=0
+            [cz.reshape(spatial), cy.reshape(spatial), cx.reshape(spatial)], dim=0
         )
 
     # Choose interpolation
@@ -234,10 +237,10 @@ def affine_transform(
 
     # Convert back to original shape
     out = out_local.squeeze(0)  # remove batch dim
-# x.split should be a value (None/int/tuple), but some Heat objects expose it as a METHOD
+    # x.split should be a value (None/int/tuple), but some Heat objects expose it as a METHOD
     split_val = None
     if hasattr(x, "split") and not callable(x.split):
-       split_val = x.split
+        split_val = x.split
 
     out = ht.array(out, split=split_val)
 

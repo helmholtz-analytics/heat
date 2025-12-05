@@ -64,7 +64,7 @@ def show_results(titles, images, save_path=None):
 # ============================================================
 def main():
     # -------- LOAD MRI --------
-    vol = load_mri("/Users/marka.k/1900_Image_transformations/heat/heat/datasets/flair.nii.gz")     
+    vol = load_mri("/Users/marka.k/1900_Image_transformations/heat/heat/datasets/flair.nii.gz")
     print("Loaded MRI:", vol.shape)
 
     orig = middle_slice(vol)             # (H,W)

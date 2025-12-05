@@ -5,6 +5,7 @@ import heat as ht
 # 1. Nearest neighbor ND sampler
 # ======================================================================
 
+
 def _nearest_interpolate(img, coords):
     ND = coords.shape[0]
     spatial = img.shape
@@ -19,6 +20,7 @@ def _nearest_interpolate(img, coords):
 # ======================================================================
 # 2. Normalize shape
 # ======================================================================
+
 
 def _normalize_shape(arr):
     orig = arr.shape
@@ -66,21 +68,24 @@ def _normalize_shape(arr):
 
     raise ValueError(f"Unsupported input shape: {orig}")
 
+
 # ======================================================================
 # 3. Invert affine matrix
 # ======================================================================
 
+
 def _invert_affine(theta):
     ND = theta.shape[0]
     H = np.eye(ND + 1, dtype=np.float32)
-    H[:ND, :ND + 1] = theta
+    H[:ND, : ND + 1] = theta
     Hinv = np.linalg.inv(H)
-    return Hinv[:ND, :ND + 1]
+    return Hinv[:ND, : ND + 1]
 
 
 # ======================================================================
 # 4. Main affine transform
 # ======================================================================
+
 
 def affine_transform(x, matrix, order=0):
     arr = x.larray.numpy().astype(np.float32)
@@ -91,7 +96,7 @@ def affine_transform(x, matrix, order=0):
 
     M = np.asarray(matrix, dtype=np.float32)
     if M.shape != (ND, ND + 1):
-        raise ValueError(f"Invalid matrix shape {M.shape}, expected ({ND},{ND+1})")
+        raise ValueError(f"Invalid matrix shape {M.shape}, expected ({ND},{ND + 1})")
 
     M_inv = _invert_affine(M)
     A = M_inv[:, :ND]
