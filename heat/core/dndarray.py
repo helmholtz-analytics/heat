@@ -1602,6 +1602,7 @@ class DNDarray:
                     balanced=False,
                 )
                 return result
+
             # process multi-element key
             (
                 self,
@@ -1614,6 +1615,12 @@ class DNDarray:
                 root,
                 backwards_transpose_axes,
             ) = self.__process_key(key, return_local_indices=True)
+            # Do not treat keys that contain slices as "mask-like".
+            # For such keys, we fall back to the simpler non-mask-like
+            # path below, which only treats the split axis as globally indexed.
+            if key_is_mask_like and isinstance(key, (tuple, list)):
+                if any(isinstance(k, slice) for k in key):
+                    key_is_mask_like = False
 
         if not self.is_distributed():
             # key is torch-proof, index underlying torch tensor
