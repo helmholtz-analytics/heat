@@ -170,27 +170,44 @@ def where(
               [ 0,  2, -1],
               [ 0,  3, -1]], dtype=ht.int64, device=cpu:0, split=None)
     """
+    # --- binary where(cond, x, y) case ----------------------------------------
     if cond.split is not None and (isinstance(x, DNDarray) or isinstance(y, DNDarray)):
         if (isinstance(x, DNDarray) and cond.split != x.split) or (
             isinstance(y, DNDarray) and cond.split != y.split
         ):
-            if len(y.shape) >= 1 and y.shape[0] > 1:
+            if isinstance(y, DNDarray) and len(y.shape) >= 1 and y.shape[0] > 1:
                 raise NotImplementedError("binary op not implemented for different split axes")
+
     if isinstance(x, (DNDarray, int, float)) and isinstance(y, (DNDarray, int, float)):
+        # Ensure ints are promoted to floats if necessary
         for var in [x, y]:
             if isinstance(var, int):
                 var = float(var)
         return cond.dtype(cond == 0) * y + cond * x
+
+    # --- index-returning variant: where(cond) ---------------------------------
     elif x is None and y is None:
-        # Only condition given: return "nonzero"-like indices.
-        # For non-distributed arrays like NumPy: tuple of index vectors
-        if not cond.is_distributed():
+        # If the condition is not split, behave like NumPy: return a tuple of 1-D
+        # index arrays (one per dimension). This preserves the original API.
+        if cond.split is None:
             return nonzero(cond)
 
-        # For distributed arrays: return coordinate matrix (N, ndim)
+        # For split conditions, we want a convenient index object:
+        # - 1D condition: return a single index vector (N,) as DNDarray
+        # - nD condition (n >= 2): return a coordinate matrix of shape (N, n)
         nz = nonzero(cond)  # Tuple[DNDarray, ...], each with shape (N,)
 
-        # Stack columns into an (N, ndim) matrix, axis 1 = dimension
+        if cond.ndim == 1:
+            # Single dimension: just return the index vector.
+            coords = nz[0].astype(types.int64, copy=False)
+
+            # Ensure we are split along axis 0 for distributed use.
+            if coords.split is None:
+                coords.resplit_(0)
+
+            return coords
+
+        # Multi-dimensional case: stack per-dimension indices into (N, ndim)
         coords = manipulations.stack(nz, axis=1)
         coords = coords.astype(types.int64, copy=False)
 
@@ -199,6 +216,8 @@ def where(
             coords.resplit_(0)
 
         return coords
+
+    # --- invalid argument combination -----------------------------------------
     else:
         raise TypeError(
             f"either both or neither x and y must be given and both must be DNDarrays or numerical scalars({type(x)}, {type(y)})"
