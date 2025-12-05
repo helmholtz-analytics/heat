@@ -2,6 +2,10 @@ import unittest
 import heat as ht
 import numpy as np
 from heat.ndimage.affine import affine_transform
+"""
+Unit tests for heat.ndimage.affine_transform.
+These tests validate 2D/3D affine transforms, interpolation, and padding modes.
+"""
 
 # ============================================================
 # BACKWARD-WARP NEAREST 2D
