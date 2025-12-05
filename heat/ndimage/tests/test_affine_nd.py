@@ -1,7 +1,7 @@
 import unittest
 import heat as ht
 import numpy as np
-from heat.transform.affine import affine_transform
+from heat.ndimage.affine import affine_transform
 
 # ============================================================
 # BACKWARD-WARP NEAREST 2D
