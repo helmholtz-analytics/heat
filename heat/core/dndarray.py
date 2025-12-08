@@ -1523,20 +1523,12 @@ class DNDarray:
 
         def _normalize_index_component(comp):
             if isinstance(comp, DNDarray):
-                # 1) Bool-Masken NICHT anfassen, sie werden weiter unten
-                #    explizit und speziell behandelt
                 if comp.dtype in (ht_bool, ht_uint8):
                     return comp
 
-                # 2) Verteilte Index-DNDarrays ebenfalls NICHT anfassen.
-                #    Für diese ist die komplexe Kommunikationslogik in
-                #    __process_key() vorgesehen (globaler Query-Vektor).
                 if comp.split is not None:
                     return comp
 
-                # 3) Nicht-verteilte, integer-artige Index-DNDarrays:
-                #    Wir nutzen lokal die torch-Tensor-Repräsentation
-                #    als Index (Standard-Advanced-Indexing).
                 return comp.larray.to(torch.int64)
 
             return comp
@@ -1549,7 +1541,7 @@ class DNDarray:
         if isinstance(key, tuple) and len(key) >= 1 and self.ndim >= 1:
             first = key[0]
 
-            # Fall 1: DNDarray Bool-Maske
+            # Case 1: DNDarray boolean mask
             if (
                 isinstance(first, DNDarray)
                 and first.dtype in (ht_bool, ht_uint8)
@@ -1557,16 +1549,14 @@ class DNDarray:
                 and first.gshape == (self.gshape[0],)
             ):
                 nz = first.nonzero()
-                # ht.nonzero kann ein Tupel zurückgeben
                 if isinstance(nz, tuple):
                     nz = nz[0]
-                # evtl. (N,1) -> (N,) eindampfen
                 if getattr(nz, "ndim", 1) > 1 and nz.shape[-1] == 1:
                     nz = nz.squeeze(-1)
-                idx0 = nz  # DNDarray mit Integer-Indizes
+                idx0 = nz
                 key = (idx0,) + key[1:]
 
-            # Fall 2: torch.Tensor Bool-Maske
+            # Case 2: torch.Tensor boolean mask
             elif (
                 isinstance(first, torch.Tensor)
                 and first.ndim == 1
@@ -1576,7 +1566,7 @@ class DNDarray:
                 idx0 = torch.nonzero(first, as_tuple=False).flatten()
                 key = (idx0,) + key[1:]
 
-            # Fall 3: numpy.ndarray Bool-Maske
+            # Case 3: numpy.ndarray boolean mask
             elif (
                 isinstance(first, np.ndarray)
                 and first.ndim == 1
