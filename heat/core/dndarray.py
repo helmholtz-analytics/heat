@@ -1480,6 +1480,45 @@ class DNDarray:
         ):
             return self
 
+        from .types import bool as ht_bool, uint8 as ht_uint8  # avoid circulars
+
+        # if not self.is_distributed():
+        #     # Normalize any DNDarray index components to local torch tensors
+
+        #     def _normalize_local_index(comp):
+        #         """
+        #         For local indexing, convert DNDarray indices to the underlying
+        #         torch.Tensor. Boolean masks become torch.bool, integer indices
+        #         become torch.int64.
+        #         """
+        #         if isinstance(comp, DNDarray):
+        #             if comp.dtype in (ht_bool, ht_uint8):
+        #                 return comp.larray.to(torch.bool)
+        #             else:
+        #                 # treat as integer index
+        #                 return comp.larray.to(torch.int64)
+        #         return comp
+
+        #     local_key = key
+        #     if isinstance(local_key, DNDarray):
+        #         local_key = _normalize_local_index(local_key)
+        #     elif isinstance(local_key, (tuple, list)):
+        #         local_key = type(local_key)(_normalize_local_index(k) for k in local_key)
+
+        #     # Now rely on PyTorch/Numpy-style advanced indexing on the local tensor
+        #     indexed_arr = self.larray[local_key]
+        #     output_shape = tuple(indexed_arr.shape)
+
+        #     return DNDarray(
+        #         indexed_arr,
+        #         gshape=output_shape,
+        #         dtype=self.dtype,        # dtype bleibt erhalten
+        #         split=None,              # lokal, keine Verteilung
+        #         device=self.device,
+        #         comm=self.comm,
+        #         balanced=True,
+        #     )
+
         original_split = self.split
 
         if isinstance(key, tuple) and len(key) >= 1 and self.ndim >= 1:
@@ -1521,6 +1560,11 @@ class DNDarray:
             ):
                 idx0 = np.nonzero(first)[0].astype(np.int64)
                 key = (idx0,) + key[1:]
+
+        if isinstance(key, DNDarray):
+            # Exclude boolean masks; they have their own dedicated handling.
+            if key.ndim == 1 and key.dtype not in (ht_bool, ht_uint8):
+                key = key.larray.to(torch.int64)
 
         # Single-element indexing
         scalar = np.isscalar(key) or getattr(key, "ndim", 1) == 0

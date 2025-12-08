@@ -133,17 +133,31 @@ class KMedoids(_KCluster):
             raise ValueError(f"input needs to be a ht.DNDarray, but was {type(x)}")
 
         # initialize the clustering
+        print(
+            f"\n\n ########## Debug ########## \n\n rank: {ht.MPI_WORLD.rank}  start: _initialize_cluster_centers"
+        )
         self._initialize_cluster_centers(x, oversampling, iter_multiplier)
         self._n_iter = 0
 
         # iteratively fit the points to the centroids
+        print(
+            f"\n\n ########## Debug ########## \n\n rank: {ht.MPI_WORLD.rank}  start:  epoch loop"
+        )
         for epoch in range(self.max_iter):
             # increment the iteration count
             self._n_iter += 1
             # determine the centroids
+
+            print(
+                f"\n\n ########## Debug ########## \n\n rank: {ht.MPI_WORLD.rank}  start: assign_to_cluster"
+            )
             matching_centroids = self._assign_to_cluster(x)
 
             # update the centroids
+
+            print(
+                f"\n\n ########## Debug ########## \n\n rank: {ht.MPI_WORLD.rank}  start: update_centroids"
+            )
             new_cluster_centers = self._update_centroids(x, matching_centroids)
 
             # check whether centroid movement has converged

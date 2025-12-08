@@ -170,58 +170,106 @@ def where(
               [ 0,  2, -1],
               [ 0,  3, -1]], dtype=ht.int64, device=cpu:0, split=None)
     """
-    # ---- binary where(cond, x, y) branch ------------------------------------
+    # # ---- binary where(cond, x, y) branch ------------------------------------
+    # if cond.split is not None and (isinstance(x, DNDarray) or isinstance(y, DNDarray)):
+    #     if (isinstance(x, DNDarray) and cond.split != x.split) or (
+    #         isinstance(y, DNDarray) and cond.split != y.split
+    #     ):
+    #         # Only raise if the "other" array has a meaningful first dimension.
+    #         if isinstance(y, DNDarray) and len(y.shape) >= 1 and y.shape[0] > 1:
+    #             raise NotImplementedError("binary op not implemented for different split axes")
+
+    # if isinstance(x, (DNDarray, int, float)) and isinstance(y, (DNDarray, int, float)):
+    #     # Simple elementwise selection using arithmetic:
+    #     # cond == 0 -> take y, cond == 1 -> take x
+    #     for var in [x, y]:
+    #         if isinstance(var, int):
+    #             var = float(var)
+    #     return cond.dtype(cond == 0) * y + cond * x
+
+    # # ---- where(cond) "indices only" branch ----------------------------------
+    # elif x is None and y is None:
+    #     # General rule: delegate to nonzero(cond), and only wrap into a 2-D
+    #     # coordinate matrix in the special distributed case where the array
+    #     # is split along a non-zero axis.
+    #     nz = nonzero(cond)  # tuple of DNDarrays, one per dimension
+
+    #     # 1) Non-distributed: behave exactly like ht.nonzero(cond)
+    #     if cond.split is None:
+    #         return nz
+
+    #     # 2) Distributed along axis 0: keep the legacy tuple-of-indices API.
+    #     #    This is relied upon in several parts of the code base (e.g. KMeans).
+    #     if cond.split == 0:
+    #         return nz
+
+    #     # 3) Distributed along a non-zero axis (split > 0)
+    #     #    a) 1-D condition: only a single index vector exists, nothing to stack.
+    #     if cond.ndim == 1:
+    #         return nz[0]
+
+    #     #    b) Higher-dimensional condition: build an (N, ndim) coordinate matrix
+    #     #       from the column vectors in `nz`.
+    #     coords = manipulations.stack(nz, axis=1)
+    #     coords = coords.astype(types.int64, copy=False)
+
+    #     # Ensure indices are split along axis 0 for stable distributed behavior
+    #     if coords.split is None:
+    #         coords.resplit_(0)
+
+    #     return coords
+
+    # # ---- invalid combinations ----------------------------------------------
+    # else:
+    #     raise TypeError(
+    #         "either both or neither x and y must be given and both must be "
+    #         f"DNDarrays or numerical scalars (got {type(x)}, {type(y)})"
+    #     )
+
+    # Mixed-split safety: only allow same split axis for DNDarray x,y
     if cond.split is not None and (isinstance(x, DNDarray) or isinstance(y, DNDarray)):
         if (isinstance(x, DNDarray) and cond.split != x.split) or (
             isinstance(y, DNDarray) and cond.split != y.split
         ):
-            # Only raise if the "other" array has a meaningful first dimension.
             if isinstance(y, DNDarray) and len(y.shape) >= 1 and y.shape[0] > 1:
                 raise NotImplementedError("binary op not implemented for different split axes")
 
+    # Case 1: x and y given -> elementwise selection
     if isinstance(x, (DNDarray, int, float)) and isinstance(y, (DNDarray, int, float)):
-        # Simple elementwise selection using arithmetic:
-        # cond == 0 -> take y, cond == 1 -> take x
+        # Upcast ints to float to avoid fragile mixed-type arithmetic
         for var in [x, y]:
             if isinstance(var, int):
                 var = float(var)
         return cond.dtype(cond == 0) * y + cond * x
 
-    # ---- where(cond) "indices only" branch ----------------------------------
+    # Case 2: only Condition -> "nonzero"-like behaviour
     elif x is None and y is None:
-        # General rule: delegate to nonzero(cond), and only wrap into a 2-D
-        # coordinate matrix in the special distributed case where the array
-        # is split along a non-zero axis.
-        nz = nonzero(cond)  # tuple of DNDarrays, one per dimension
-
-        # 1) Non-distributed: behave exactly like ht.nonzero(cond)
-        if cond.split is None:
-            return nz
-
-        # 2) Distributed along axis 0: keep the legacy tuple-of-indices API.
-        #    This is relied upon in several parts of the code base (e.g. KMeans).
-        if cond.split == 0:
-            return nz
-
-        # 3) Distributed along a non-zero axis (split > 0)
-        #    a) 1-D condition: only a single index vector exists, nothing to stack.
+        # 1D condition: behave like numpy.where(cond)[0]
+        # → return a single 1D index vector (DNDarray[int64])
         if cond.ndim == 1:
-            return nz[0]
+            nz = nonzero(cond)  # tuple of length 1
+            idx = nz[0]
+            # Ensure dtype is int64 (nonzero already does this, aber zur Sicherheit)
+            if idx.dtype != types.int64:
+                idx = idx.astype(types.int64, copy=False)
+            return idx
 
-        #    b) Higher-dimensional condition: build an (N, ndim) coordinate matrix
-        #       from the column vectors in `nz`.
+        if not cond.is_distributed():
+            return nonzero(cond)
+
+        nz = nonzero(cond)
+
+        # Stack columns into an (N, ndim) matrix, axis 1 = dimension
         coords = manipulations.stack(nz, axis=1)
         coords = coords.astype(types.int64, copy=False)
 
-        # Ensure indices are split along axis 0 for stable distributed behavior
+        # Ensure we are split along axis 0
         if coords.split is None:
             coords.resplit_(0)
 
         return coords
 
-    # ---- invalid combinations ----------------------------------------------
     else:
         raise TypeError(
-            "either both or neither x and y must be given and both must be "
-            f"DNDarrays or numerical scalars (got {type(x)}, {type(y)})"
+            f"either both or neither x and y must be given and both must be DNDarrays or numerical scalars({type(x)}, {type(y)})"
         )
