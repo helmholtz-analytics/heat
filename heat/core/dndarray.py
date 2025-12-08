@@ -1521,6 +1521,31 @@ class DNDarray:
 
         original_split = self.split
 
+        def _normalize_index_component(comp):
+            if isinstance(comp, DNDarray):
+                # 1) Bool-Masken NICHT anfassen, sie werden weiter unten
+                #    explizit und speziell behandelt
+                if comp.dtype in (ht_bool, ht_uint8):
+                    return comp
+
+                # 2) Verteilte Index-DNDarrays ebenfalls NICHT anfassen.
+                #    Für diese ist die komplexe Kommunikationslogik in
+                #    __process_key() vorgesehen (globaler Query-Vektor).
+                if comp.split is not None:
+                    return comp
+
+                # 3) Nicht-verteilte, integer-artige Index-DNDarrays:
+                #    Wir nutzen lokal die torch-Tensor-Repräsentation
+                #    als Index (Standard-Advanced-Indexing).
+                return comp.larray.to(torch.int64)
+
+            return comp
+
+        if isinstance(key, DNDarray):
+            key = _normalize_index_component(key)
+        elif isinstance(key, (list, tuple)):
+            key = type(key)(_normalize_index_component(k) for k in key)
+
         if isinstance(key, tuple) and len(key) >= 1 and self.ndim >= 1:
             first = key[0]
 
