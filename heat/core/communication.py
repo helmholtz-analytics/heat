@@ -249,10 +249,33 @@ class MPICommunication(Communication):
         return cls.__mpi_type_mappings[dtype]
 
     @classmethod
-    def _handle_large_count(cls, mpi_type: MPI.Datatype, elements: int):
-        # Uses vector type to get around the MAX_INT limit on certain MPI implementations
-        # This is at the moment only applied when sending contiguous data, as the construction of data types to get around non-contiguous data naturally aliviates the problem to a certain extent.
-        # Thanks to: J. R. Hammond, A. Schäfer and R. Latham, "To INT_MAX... and Beyond! Exploring Large-Count Support in MPI," 2014 Workshop on Exascale MPI at Supercomputing Conference, New Orleans, LA, USA, 2014, pp. 1-8, doi: 10.1109/ExaMPI.2014.5. keywords: {Vectors;Standards;Libraries;Optimization;Context;Memory management;Open area test sites},
+    def _handle_large_count(cls, mpi_type: MPI.Datatype, elements: int) -> Tuple[MPI.Datatype, int]:
+        """
+        Handles large counts for MPI data types by creating vector types to circumvent the MAX_INT limit on certain MPI implementations.
+
+        Parameters
+        ----------
+        mpi_type : MPI.Datatype
+            The base MPI data type
+        elements : int
+            The total number of elements to be sent
+
+        Returns
+        -------
+        Tuple[MPI.Datatype, int]
+            A tuple containing the constructed MPI data type and the count (always 1 in this case)
+
+        Raises
+        ------
+        ValueError
+            If the tensor is too large to be handled
+
+        Notes
+        -----
+        Uses vector type to get around the MAX_INT limit on certain MPI implementations
+        This is at the moment only applied when sending contiguous data, as the construction of data types to get around non-contiguous data naturally aliviates the problem to a certain extent.
+        Thanks to: J. R. Hammond, A. Schäfer and R. Latham, "To INT_MAX... and Beyond! Exploring Large-Count Support in MPI," 2014 Workshop on Exascale MPI at Supercomputing Conference, New Orleans, LA, USA, 2014, pp. 1-8
+        """
         new_count = elements // cls.COUNT_LIMIT
         left_over = elements % cls.COUNT_LIMIT
 
@@ -1714,7 +1737,11 @@ class MPICommunication(Communication):
             current_size = subarray_sizes[i]
 
             # Define vector out of previous datatype with stride equals to current stride
-            if i == len(tensor_stride) - 1 and current_stride == 1:
+            if (
+                i == len(tensor_stride) - 1
+                and current_stride == 1
+                and tensor_stride[i - 1] < self.COUNT_LIMIT
+            ):
                 i -= 1
                 # Define vector out of previous datatype with stride equals to current stride
                 current_stride = tensor_stride[i]

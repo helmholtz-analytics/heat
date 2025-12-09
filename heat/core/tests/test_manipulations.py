@@ -1,4 +1,5 @@
 import numpy as np
+import unittest
 import torch
 
 import heat as ht
@@ -3256,6 +3257,35 @@ class TestManipulations(TestCase):
                             self.assertEqual(resplit_a.dtype, a.dtype)
                             del a
                             del resplit_a
+
+    @unittest.skipIf(ht.MPI_WORLD.size < 2, "Test requires at least 2 MPI processes")
+    def test_resplit_large_count_limit(self):
+        if not self.is_mps:
+            # Test resplit with large dimensions
+            for shape in [(ht.MPI_WORLD.COUNT_LIMIT + 1, 2),(2, ht.MPI_WORLD.COUNT_LIMIT + 1)]:
+                control = np.arange(np.prod(shape), dtype=np.int8).reshape(shape)
+                control_sum = np.sum(control)
+                control_sum_0 = np.sum(control, axis=0)
+                control_sum_1 = np.sum(control, axis=1)
+                for resplit_type in [(0, 1), (1, 0)]:
+                    with self.subTest(shape=shape, resplit_type=resplit_type):
+                        a = ht.array(control, split=resplit_type[0])
+                        a_resplit = ht.resplit(a, axis=resplit_type[1])
+                        del a
+                        print("Resplit")
+                        self.assertEqual(a_resplit.shape, shape)
+                        self.assertEqual(a_resplit.split, resplit_type[1])
+
+                        a_r_sum = ht.sum(a_resplit)
+                        a_r_sum_0 = ht.sum(a_resplit, axis=0)
+                        a_r_sum_1 = ht.sum(a_resplit, axis=1)
+                        del a_resplit
+                        print("Compare")
+                        self.assertEqual(control_sum, a_r_sum)
+                        self.assertEqual(control_sum_0, a_r_sum_0)
+                        self.assertEqual(control_sum_1, a_r_sum_1)
+
+                del control
 
     def test_squeeze(self):
         torch.manual_seed(1)
