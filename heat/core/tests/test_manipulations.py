@@ -3262,8 +3262,7 @@ class TestManipulations(TestCase):
     def test_resplit_large_count_limit(self):
         if not self.is_mps:
             # Test resplit with large dimensions
-            world_size = ht.MPI_WORLD.size
-            for shape in [(ht.MPI_WORLD.COUNT_LIMIT + 2, world_size),(world_size, ht.MPI_WORLD.COUNT_LIMIT + 2)]:
+            for shape in [(ht.MPI_WORLD.COUNT_LIMIT + 2, 2),(2, ht.MPI_WORLD.COUNT_LIMIT + 2)]:
                 for resplit_type in [(0, 1), (1, 0)]:
                     with self.subTest(shape=shape, resplit_type=resplit_type):
                         ht.comm.Barrier()
