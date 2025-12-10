@@ -1,5 +1,5 @@
 """
-distributed hierarchical SVD
+Randomized linear algebra algorithms, including randomized SVD (rSVD) and randomized EIGH (reigh).
 """
 
 import torch
@@ -140,7 +140,7 @@ def reigh(
     n_oversamples: int = 10,
     power_iter: int = 0,
     qr_procs_to_merge: int = 2,
-) -> Union[Tuple[DNDarray, DNDarray], Tuple[DNDarray]]:
+) -> Tuple[DNDarray, DNDarray]:
     r"""
     Randomized eigenvalue decomposition (rEIGH) with prescribed truncation rank `rank`.
 
