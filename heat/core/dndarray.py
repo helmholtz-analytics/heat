@@ -2473,30 +2473,26 @@ class DNDarray:
         scalar = np.isscalar(key) or getattr(key, "ndim", 1) == 0
         if scalar:
             key, root = self.__process_scalar_key(key, indexed_axis=0, return_local_indices=True)
-            # match dimensions
-            value, _ = __broadcast_value(self, key, value)
-            # `root` will be None when the indexed axis is not the split axis, or when the
-            # indexed axis is the split axis but the indexed element is not local
+            value, value_is_scalar = __broadcast_value(self, key, value)
+
             if root is not None:
                 if self.comm.rank == root:
-                    # verify that `self[key]` and `value` distribution are aligned
-                    # do not index `self` with `key` directly here, as this would MPI-broadcast to all ranks
                     indexed_proxy = self.__torch_proxy__()[key]
                     if indexed_proxy.names.count("split") != 0:
-                        # distribution map of indexed subarray is the same as the lshape_map of the original array after losing the first dimension
                         indexed_lshape_map = self.lshape_map[:, 1:]
                         if value.lshape_map != indexed_lshape_map:
                             try:
                                 value.redistribute_(target_map=indexed_lshape_map)
                             except ValueError:
                                 raise ValueError(
-                                    f"cannot assign value to indexed DNDarray because distribution schemes do not match: {value.lshape_map} vs. {indexed_lshape_map}"
+                                    f"cannot assign value to indexed DNDarray because "
+                                    f"distribution schemes do not match: "
+                                    f"{value.lshape_map} vs. {indexed_lshape_map}"
                                 )
                     __set(self, key, value)
             else:
-                # `root` is None, i.e. the indexed element is local on each process
-                # verify that `self[key]` and `value` distribution are aligned
-                value = sanitation.sanitize_distribution(value, target=self[key])
+                if not value_is_scalar:
+                    value = sanitation.sanitize_distribution(value, target=self[key])
                 __set(self, key, value)
             return
 
@@ -2575,27 +2571,15 @@ class DNDarray:
 
         # distributed case
         if split_key_is_ordered == 1:
-            print(
-                "\n\n ############################ TEST split_key_is_ordered == 1 ############################ \n\n"
-            )
             # key all local
             if root is not None:
-                print(
-                    "\n\n ############################ TEST if root is not None ############################ \n\n"
-                )
                 # single-element assignment along split axis, only one active process
                 if self.comm.rank == root:
                     self.larray[key] = value.larray.type(self.dtype.torch_type())
             else:
-                print(
-                    "\n\n ############################ TEST if root is not None else ############################ \n\n"
-                )
                 # indexed elements are process-local
                 if self.is_distributed() and not value_is_scalar:
                     if not value.is_distributed():
-                        print(
-                            "\n\n ############################ TEST if not value.is_distributed() ############################ \n\n"
-                        )
                         # work with distributed `value`
                         value = factories.array(
                             value.larray,
@@ -2605,9 +2589,6 @@ class DNDarray:
                             comm=self.comm,
                         )
                     else:
-                        print(
-                            "\n\n ############################ TEST if not value.is_distributed() else ############################ \n\n"
-                        )
                         if value.split != output_split:
                             raise RuntimeError(
                                 f"Cannot assign distributed `value` with split axis {value.split} to indexed DNDarray with split axis {output_split}."
@@ -2628,9 +2609,6 @@ class DNDarray:
             return
 
         if split_key_is_ordered == -1:
-            print(
-                "\n\n ############################ TEST split_key_is_ordered == -1 ############################ \n\n"
-            )
             # key along split axis is in descending order, i.e. slice with negative step
             # N.B. PyTorch doesn't support negative-step slices. Key has been processed into torch tensor.
 
