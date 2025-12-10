@@ -70,6 +70,9 @@ def hsvd_rank(
     Note that, as sci-kit learn's randomized SVD, this routine is different from `numpy.linalg.svd` because not all singular values and vectors are computed
     and even those computed may be inaccurate if the input matrix exhibts a unfavorable structure.
 
+    Please note that "rank" in the context of SVD always refers to the number of singular values/vectors to compute (i.e., "rank" refers to the mathematical rank
+    of a matrix). This is completely different from the notion of "(MPI-)rank", i.e., the ID given to a process, in a parallel MPI-application.
+
     See Also
     --------
     :func:`hsvd`
@@ -175,6 +178,9 @@ def hsvd_rtol(
 
         To avoid confusion, note that `rtol` in this routine does not have any similarity to `tol` in scikit learn's TruncatedSVD.
 
+        Please note that "rank" in the context of SVD always refers to the number of singular values/vectors to compute (i.e., "rank" refers to the mathematical rank
+        of a matrix). This is completely different from the notion of "(MPI-)rank", i.e., the ID given to a process, in a parallel MPI-application.
+
     See Also
     --------
     :func:`hsvd`
@@ -270,11 +276,10 @@ def hsvd(
     warnings_off: bool, optional
         switch on and off warnings that are not intended for the high-level routines based on this function
 
-    Returns
-    -------
-    (Union[    Tuple[DNDarray, DNDarray, DNDarray, float], Tuple[DNDarray, DNDarray, DNDarray], DNDarray])
-        if compute_sv=True: U, Sigma, V, a-posteriori error estimate for the reconstruction error ||A-U Sigma V^T ||_F / ||A||_F (computed according to [2] along the "true" merging tree used in the computations).
-        if compute_sv=False: U, a-posteriori error estimate
+    Notes
+    -----
+    Please note that "rank" in the context of SVD always refers to the number of singular values/vectors to compute (i.e., "rank" refers to the mathematical rank
+    of a matrix). This is completely different from the notion of "(MPI-)rank", i.e., the ID given to a process, in a parallel MPI-application.
 
     References
     ----------
@@ -670,6 +675,9 @@ def isvd(
     Inexactness may arise due to truncation to maximal rank `maxrank` if rank of the data to be processed exceeds this rank.
     If you set `maxrank` to a high number (or None) in order to avoid inexactness, you may encounter memory issues.
     The implementation follows the approach described in Ref. [1], Sect. 2.
+
+    Please note that "rank" in the context of SVD always refers to the number of singular values/vectors to compute (i.e., "rank" refers to the mathematical rank
+    of a matrix). This is completely different from the notion of "(MPI-)rank", i.e., the ID given to a process, in a parallel MPI-application.
 
     References
     ----------

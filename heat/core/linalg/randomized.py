@@ -30,6 +30,8 @@ def _randomized_range_finder(
     Computes an orthonormal matrix Q with r columns whose range approximates the range of A.
     n_oversamples is the number of additional samples used to improve the quality of the approximation.
     For qr_procs_to_merge see the corresponding remarks for :func:`heat.linalg.qr() <heat.core.linalg.qr.qr()>`.
+
+    Please note that "rank" here refers to the mathematical rank of a matrix, which is different from the notion of "(MPI-)rank".
     """
     if not isinstance(rank, int):
         raise TypeError(f"rank must be an integer, but is {type(rank)}.")
@@ -75,14 +77,14 @@ def _randomized_range_finder(
 
 def rsvd(
     A: DNDarray,
-    rank: int,
+    svd_rank: int,
     n_oversamples: int = 10,
     power_iter: int = 0,
     qr_procs_to_merge: int = 2,
 ) -> Union[Tuple[DNDarray, DNDarray, DNDarray], Tuple[DNDarray, DNDarray]]:
     r"""
-    Randomized SVD (rSVD) with prescribed truncation rank `rank`.
-    If :math:`A = U \operatorname{diag}(S) V^T` is the true SVD of A, this routine computes an approximation for U[:,:rank] (and S[:rank], V[:,:rank]).
+    Randomized SVD (rSVD) with prescribed truncation rank `svd_rank`.
+    If :math:`A = U \operatorname{diag}(S) V^T` is the true SVD of A, this routine computes an approximation for U[:,:svd_rank] (and S[:svd_rank], V[:,:svd_rank]).
 
     The accuracy of this approximation depends on the structure of A ("low-rank" is best) and appropriate choice of parameters.
 
@@ -90,8 +92,8 @@ def rsvd(
     ----------
     A : DNDarray
         2D-array (float32/64) of which the rSVD has to be computed.
-    rank : int
-        truncation rank. (This parameter corresponds to `n_components` in scikit-learn's TruncatedSVD.)
+    svd_rank : int
+        truncation rank of the SVD. (This parameter corresponds to `n_components` in scikit-learn's TruncatedSVD.)
     n_oversamples : int, optional
         number of oversamples. The default is 10.
     power_iter : int, optional
@@ -103,8 +105,11 @@ def rsvd(
 
     Notes
     -----
-    Memory requirements: the SVD computation of a matrix of size (rank + n_oversamples) x (rank + n_oversamples) must fit into the memory of a single process.
+    Memory requirements: the SVD computation of a matrix of size (svd_rank + n_oversamples) x (svd_rank + n_oversamples) must fit into the memory of a single process.
     The implementation follows Algorithm 4.4 (randomized range finder) and Algorithm 5.1 (direct SVD) in [1].
+
+    Please note that "rank" in the context of SVD always refers to the number of singular values/vectors to compute (i.e., "rank" refers to the mathematical rank
+    of a matrix). This is completely different from the notion of "(MPI-)rank", i.e., the ID given to a process, in a parallel MPI-application.
 
     References
     ----------
@@ -112,7 +117,7 @@ def rsvd(
     """
     Q = _randomized_range_finder(
         A,
-        rank,
+        svd_rank,
         n_oversamples=n_oversamples,
         power_iter=power_iter,
         qr_procs_to_merge=qr_procs_to_merge,
@@ -126,30 +131,30 @@ def rsvd(
         None
     )  # B will be of size ell x n and thus small enough to fit into memory of a single process
     U, sigma, V = svd(B)  # actually just torch svd as input is not split anymore
-    U = matmul(Q, U)[:, :rank]
+    U = matmul(Q, U)[:, :svd_rank]
     U.balance_()
-    S = sigma[:rank]
-    V = V[:, :rank]
+    S = sigma[:svd_rank]
+    V = V[:, :svd_rank]
     V.balance_()
     return U, S, V
 
 
 def reigh(
     A: DNDarray,
-    rank: int,
+    n_eigenvalues: int,
     n_oversamples: int = 10,
     power_iter: int = 0,
     qr_procs_to_merge: int = 2,
 ) -> Tuple[DNDarray, DNDarray]:
     r"""
-    Randomized eigenvalue decomposition (rEIGH) with prescribed truncation rank `rank`.
+    Randomized eigenvalue decomposition (rEIGH). Only the top `n_eigenvalues` eigenvalues (ordered by magnitude) and corresponding eigenvectors are computed.
 
     Parameters
     ----------
     A : DNDarray
         2D-array (float32/64) of which the rEIGH has to be computed. Must be symmetric.
-    rank : int
-        truncation rank. (This parameter corresponds to `n_components` in scikit-learn's PCA.)
+    n_eigenvalues : int
+        number of eigenvalues to compute. (This parameter corresponds to `n_components` in scikit-learn's PCA.)
     n_oversamples : int, optional
         number of oversamples. The default is 10.
     power_iter : int, optional
@@ -161,7 +166,7 @@ def reigh(
 
     Notes
     -----
-    Memory requirements: the symmetric eigenvalue decomposition of a matrix of size (rank + n_oversamples) x (rank + n_oversamples) must fit into the memory of a single process.
+    Memory requirements: the symmetric eigenvalue decomposition of a matrix of size (n_eigenvalues + n_oversamples) x (n_eigenvalues + n_oversamples) must fit into the memory of a single process.
     The implementation follows Algorithm 4.4 (randomized range finder) and Algorithm 5.3 (eigenvalue decomposition from an SVD) in [1].
 
     References
@@ -171,7 +176,7 @@ def reigh(
     """
     Q = _randomized_range_finder(
         A,
-        rank,
+        n_eigenvalues,
         n_oversamples=n_oversamples,
         power_iter=power_iter,
         qr_procs_to_merge=qr_procs_to_merge,
@@ -187,8 +192,8 @@ def reigh(
         B.larray
     )  # actually just torch eigh as input is not split anymore
     idx = torch.argsort(eigvals, descending=True)
-    eigvals = eigvals[idx][:rank]
-    eigvecs = eigvecs[:, idx][:, :rank]
+    eigvals = eigvals[idx][:n_eigenvalues]
+    eigvecs = eigvecs[:, idx][:, :n_eigenvalues]
     eigvecs = DNDarray(
         eigvecs,
         tuple(eigvecs.shape),

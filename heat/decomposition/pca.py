@@ -78,8 +78,8 @@ class PCA(ht.TransformMixin, ht.BaseEstimator):
 
     Notes
     -----
-    Hierarchical SVD (`svd_solver = "hierarchical"`) computes an approximate, truncated SVD. Thus, the results are not exact, in general, unless the
-    truncation rank chosen is larger than the actual rank (matrix rank) of the underlying data; see :func:`ht.linalg.hsvd_rank` and :func:`ht.linalg.hsvd_rtol` for details.
+    Hierarchical SVD (`svd_solver = "hierarchical"`) computes an approximate, truncated SVD. Thus, the results are not exact, in general, unless `n_components`
+    chosen is larger than the actual rank (=matrix rank) of the underlying data; see :func:`ht.linalg.hsvd_rank` and :func:`ht.linalg.hsvd_rtol` for details.
     Randomized SVD (`svd_solver = "randomized"`) is a stochastic algorithm that computes an approximate, truncated SVD.
     """
 
@@ -219,7 +219,7 @@ class PCA(ht.TransformMixin, ht.BaseEstimator):
                     X_centered, (1 - self.n_components_) ** 0.5, compute_sv=True, safetyshift=0
                 )
             else:
-                # hierarchical SVD with prescribed, fixed rank
+                # hierarchical SVD with prescribed, fixed (truncation) rank
                 _, S, V, info = ht.linalg.hsvd_rank(
                     X_centered, self.n_components_, compute_sv=True, safetyshift=0
                 )
