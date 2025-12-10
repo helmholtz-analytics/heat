@@ -2531,6 +2531,21 @@ class DNDarray:
                     self[new_key] = value
                     return
 
+        # handle negative indices in multi-element keys
+        if isinstance(key, tuple):
+            key_list = list(key)
+            for ax, k_ax in enumerate(key_list):
+                if isinstance(k_ax, (int, np.integer)) and not isinstance(k_ax, (bool, np.bool_)):
+                    if k_ax < 0:
+                        dim = self.gshape[ax]
+                        if -dim <= k_ax < 0:
+                            key_list[ax] = dim + k_ax
+                        else:
+                            raise IndexError(
+                                f"index {k_ax} is out of bounds for axis {ax} with size {dim}"
+                            )
+            key = tuple(key_list)
+
         # multi-element key, incl. slicing and striding, ordered and non-ordered advanced indexing
         (
             self,
@@ -2560,15 +2575,27 @@ class DNDarray:
 
         # distributed case
         if split_key_is_ordered == 1:
+            print(
+                "\n\n ############################ TEST split_key_is_ordered == 1 ############################ \n\n"
+            )
             # key all local
             if root is not None:
+                print(
+                    "\n\n ############################ TEST if root is not None ############################ \n\n"
+                )
                 # single-element assignment along split axis, only one active process
                 if self.comm.rank == root:
                     self.larray[key] = value.larray.type(self.dtype.torch_type())
             else:
+                print(
+                    "\n\n ############################ TEST if root is not None else ############################ \n\n"
+                )
                 # indexed elements are process-local
                 if self.is_distributed() and not value_is_scalar:
                     if not value.is_distributed():
+                        print(
+                            "\n\n ############################ TEST if not value.is_distributed() ############################ \n\n"
+                        )
                         # work with distributed `value`
                         value = factories.array(
                             value.larray,
@@ -2578,6 +2605,9 @@ class DNDarray:
                             comm=self.comm,
                         )
                     else:
+                        print(
+                            "\n\n ############################ TEST if not value.is_distributed() else ############################ \n\n"
+                        )
                         if value.split != output_split:
                             raise RuntimeError(
                                 f"Cannot assign distributed `value` with split axis {value.split} to indexed DNDarray with split axis {output_split}."
@@ -2598,6 +2628,9 @@ class DNDarray:
             return
 
         if split_key_is_ordered == -1:
+            print(
+                "\n\n ############################ TEST split_key_is_ordered == -1 ############################ \n\n"
+            )
             # key along split axis is in descending order, i.e. slice with negative step
             # N.B. PyTorch doesn't support negative-step slices. Key has been processed into torch tensor.
 
@@ -2687,6 +2720,9 @@ class DNDarray:
             x_local[lhs_index] = rhs.to(out_dtype)
 
         if split_key_is_ordered == 0:
+            print(
+                "\n\n ############################ TEST split_key_is_ordered == 0 ############################ \n\n"
+            )
             # key along split axis is unordered, communication needed in general
             # key along the split axis is torch tensor, indices are GLOBAL
             counts, displs = self.counts_displs()
