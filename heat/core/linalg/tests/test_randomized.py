@@ -79,7 +79,7 @@ class TestREIGH(TestCase):
                 for rank in [5, 10]:
                     for n_oversamples in [5, 10]:
                         for power_iter in [0, 1, 2]:
-                            V, S = ht.linalg.reigh(
+                            S, V = ht.linalg.reigh(
                                 A, rank, n_oversamples=n_oversamples,
                                 power_iter=power_iter
                             )

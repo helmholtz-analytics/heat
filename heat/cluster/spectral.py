@@ -180,7 +180,7 @@ class Spectral(ht.ClusteringMixin, ht.BaseEstimator):
                 return eigenvalues, eigenvectors
         else:
             # use randomized eigenvalue decomposition with the chosen arguments
-            eigenvectors, eigenvalues = ht.linalg.reigh(
+            eigenvalues, eigenvectors = ht.linalg.reigh(
                 L,
                 self.reigh_rank,
                 n_oversamples=self.reigh_n_oversamples,

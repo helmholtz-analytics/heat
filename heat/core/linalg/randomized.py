@@ -124,7 +124,7 @@ def rsvd(
     B = matmul(Q.T, A)
     B.resplit_(
         None
-    )  # B will be of size ell x ell and thus small enough to fit into memory of a single process
+    )  # B will be of size ell x n and thus small enough to fit into memory of a single process
     U, sigma, V = svd(B)  # actually just torch svd as input is not split anymore
     U = matmul(Q, U)[:, :rank]
     U.balance_()
@@ -208,4 +208,4 @@ def reigh(
         balanced=A.balanced,
     )
     eigvecs = matmul(Q, eigvecs)
-    return eigvecs, eigvals
+    return eigvals, eigvecs
