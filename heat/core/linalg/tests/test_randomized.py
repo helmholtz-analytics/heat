@@ -1,5 +1,4 @@
 import heat as ht
-import torch
 
 from ...tests.test_suites.basic_test import TestCase
 

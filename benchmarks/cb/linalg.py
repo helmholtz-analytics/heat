@@ -89,13 +89,13 @@ def randomized_svd_split1(a, r):
     svd = ht.linalg.rsvd(a, r)
 
 @monitor()
-def randomized_eigh_split0(A,r):
-    H, Lambda = ht.linalg.reigh(A,r)
+def randomized_eigh_split0(A, r):
+    H, Lambda = ht.linalg.reigh(A, r)
 
 
 @monitor()
 def randomized_eigh_split1(A, r):
-    H, Lambda = ht.linalg.reigh(A,r)
+    H, Lambda = ht.linalg.reigh(A, r)
 
 
 def run_linalg_benchmarks():
@@ -185,10 +185,10 @@ def run_linalg_benchmarks():
     n = 1000
     A = ht.random.random((n, n), split=0)
     A += A.T.resplit_(0)
-    randomized_eigh_split0(A,10)
+    randomized_eigh_split0(A, 10)
     del A
 
     A = ht.random.random((n, n), split=1)
     A += A.T.resplit_(1)
-    randomized_eigh_split1(A,10)
+    randomized_eigh_split1(A, 10)
     del A
