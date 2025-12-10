@@ -94,7 +94,7 @@ def randomized_eigh_split0(A,r):
 
 
 @monitor()
-def randomized_eigh_split1(A,r):
+def randomized_eigh_split1(A, r):
     H, Lambda = ht.linalg.reigh(A,r)
 
 
