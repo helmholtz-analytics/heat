@@ -8,12 +8,13 @@ import glob
 import operator
 import os.path
 from math import log10
+from pathlib import Path
 import numpy as np
 import torch
 import warnings
 import fnmatch
 
-from typing import Dict, Iterable, List, Optional, Tuple, Union
+from typing import Callable, Dict, Iterable, List, Optional, Tuple, Union
 
 from . import devices
 from . import factories
@@ -500,7 +501,7 @@ except ImportError:
 
 else:
     # add functions to exports
-    __all__.extend(["load_hdf5", "save_hdf5"])
+    __all__.extend(["load_hdf5", "save_hdf5", "load_multiple_hdf5"])
 
     # warn the user about serial hdf5
     if not h5py.get_config().mpi and MPI_WORLD.rank == 0:
@@ -517,7 +518,7 @@ else:
     def load_hdf5(
         path: str,
         dataset: str,
-        dtype: datatype = types.float32,
+        dtype: Optional[datatype] = None,
         slices: Optional[Tuple[Optional[slice], ...]] = None,
         split: Optional[int] = None,
         device: Optional[str] = None,
@@ -533,7 +534,7 @@ else:
         dataset : str
             Name of the dataset to be read.
         dtype : datatype, optional
-            Data type of the resulting array.
+            Data type of the resulting array, defaults to the loaded datasets type.
         slices : tuple of slice objects, optional
             Load only the specified slices of the dataset.
         split : int or None, optional
@@ -627,8 +628,6 @@ else:
         elif split is not None and not isinstance(split, int):
             raise TypeError(f"split must be None or int, not {type(split)}")
 
-        # infer the type and communicator for the loaded array
-        dtype = types.canonical_heat_type(dtype)
         # determine the comm and device the data will be placed on
         device = devices.sanitize_device(device)
         comm = sanitize_comm(comm)
@@ -639,6 +638,9 @@ else:
             gshape = data.shape
             new_gshape = tuple()
             offsets = [0] * len(gshape)
+            if dtype is None:
+                dtype = data.dtype
+            dtype = types.canonical_heat_type(dtype)
             if slices is not None:
                 for i in range(len(gshape)):
                     if i < len(slices) and slices[i]:
@@ -689,7 +691,12 @@ else:
             return DNDarray(data, gshape, dtype, split, device, comm, balanced)
 
     def save_hdf5(
-        data: DNDarray, path: str, dataset: str, mode: str = "w", **kwargs: Dict[str, object]
+        data: DNDarray,
+        path: str,
+        dataset: str,
+        mode: str = "w",
+        dtype: Optional[datatype] = None,
+        **kwargs: Dict[str, object],
     ):
         """
         Saves ``data`` to an HDF5 file. Attempts to utilize parallel I/O if possible.
@@ -704,6 +711,8 @@ else:
             Name of the dataset the data is saved to.
         mode : str, optional
             File access mode, one of ``'w', 'a', 'r+'``
+        dtype : datatype, optional
+            Data type of the saved data
         kwargs : dict, optional
             Additional arguments passed to the created dataset.
 
@@ -734,16 +743,23 @@ else:
         is_split = data.split is not None
         _, _, slices = data.comm.chunk(data.gshape, data.split if is_split else 0)
 
+        if dtype is None:
+            dtype = data.dtype
+        elif type(dtype) == torch.dtype:
+            dtype = str(dtype).split(".")[-1]
+        if type(dtype) is not str:
+            dtype = dtype.__name__
+
         # attempt to perform parallel I/O if possible
         if h5py.get_config().mpi:
             with h5py.File(path, mode, driver="mpio", comm=data.comm.handle) as handle:
-                dset = handle.create_dataset(dataset, data.shape, **kwargs)
+                dset = handle.create_dataset(dataset, data.shape, dtype=dtype, **kwargs)
                 dset[slices] = data.larray.cpu() if is_split else data.larray[slices].cpu()
 
         # otherwise a single rank only write is performed in case of local data (i.e. no split)
         elif data.comm.rank == 0:
             with h5py.File(path, mode) as handle:
-                dset = handle.create_dataset(dataset, data.shape, **kwargs)
+                dset = handle.create_dataset(dataset, data.shape, dtype=dtype, **kwargs)
                 if is_split:
                     dset[slices] = data.larray.cpu()
                 else:
@@ -765,10 +781,115 @@ else:
             next_rank = (data.comm.rank + 1) % data.comm.size
             data.comm.Isend([None, 0, MPI.INT], dest=next_rank)
 
-    DNDarray.save_hdf5 = lambda self, path, dataset, mode="w", **kwargs: save_hdf5(
+    DNDarray.save_hdf5 = lambda self, path, dataset, mode="w", dtype=None, **kwargs: save_hdf5(
         self, path, dataset, mode, **kwargs
     )
     DNDarray.save_hdf5.__doc__ = save_hdf5.__doc__
+
+    def load_multiple_hdf5(
+        folder: str | Path,
+        dataset: str,
+        dtype=None,
+        sorting_func: Callable[[list[Path]], list[Path]] | None = None,
+    ) -> DNDarray:
+        """Loads all .hdf5 or .h5 files inside the given folder into a single DNDarray that is split along axis 0; the arrays
+        from the different files are concatenated along axis 0.
+        The files are sorted by the sorting_func, if given, or by the default sorted function.
+
+        Parameters
+        ----------
+        folder : str | Path
+            folder containing all .h5 or .hdf5 files
+        dataset : str
+            dataset to load
+        dtype : _type_, optional
+            dtype to create array with, by default None
+        sorting_func : Callable[[list[Path]], list[Path]] | None, optional
+            how to sort the files, by default None, ie the sorted function
+        """
+        if not isinstance(folder, (str, Path)):
+            raise TypeError(f"path must be an String or Path, not {type(folder)}")
+        if not isinstance(dataset, str):
+            raise TypeError(f"dataset must be a string not, {type(dataset)}")
+        if not isinstance(sorting_func, Callable) and sorting_func is not None:
+            raise TypeError(f"sorting_func must be None or Callable, not {type(sorting_func)}")
+        if not Path(folder).is_dir():
+            raise ValueError("Path must be a Folder")
+
+        files: list[Path] = list(
+            filter(lambda x: x.suffix == ".h5" or x.suffix == ".hdf5", Path(folder).iterdir())
+        )
+        files: list[Path] = sorted(files) if sorting_func is None else sorting_func(files)
+
+        if len(files) == 0:
+            raise ValueError("No files inside the directory.")
+
+        h5_files: list[h5py.File] = [h5py.File(x) for x in files]
+        shapes: list[tuple[int, ...]] = [x[dataset].shape for x in h5_files]
+        dtypes: list[np.dtype] = [x[dataset].dtype for x in h5_files]
+        bytes: list[int] = [x[dataset].dtype.itemsize for x in h5_files]
+
+        if len(set(len(x) for x in shapes)) != 1:
+            raise ValueError("Amount of dimensions of all hdf5 files must be the same")
+
+        if dtype is None:
+            warnings.warn("No explicit dtype given, will use biggest dtype across all files")
+            dtype = dtypes[np.argmax(bytes)]
+
+        shapes_arr = np.array(shapes, dtype=int)
+        gshape = np.zeros(shapes_arr.shape[1], dtype=int)
+
+        for i in range(1, len(gshape)):  # rows can be diffrent
+            if len(set(shapes_arr[:, i])) != 1:
+                raise ValueError(f"Dimension missmatch on ndim {i + 1}")
+            gshape[i] = shapes_arr[0][i]
+        gshape[0] = shapes_arr[:, 0].sum()
+        gshape = tuple(gshape.astype(int))
+
+        ranges: list[tuple[int, int]] = list()
+
+        n = 0
+        for i, shape in enumerate(shapes):
+            rows = shape[0]
+            ranges.append((n, n + rows))
+            n += rows
+
+        def find_file_ids_for_range(rslice: slice) -> list[int]:
+            files = list()
+            for i, (start, end) in enumerate(ranges):
+                if start <= rslice.start and rslice.start < end:
+                    files.append(i)
+                elif start < rslice.stop and rslice.stop <= end:
+                    files.append(i)
+                elif rslice.start <= start and end <= rslice.stop:
+                    files.append(i)
+            return files
+
+        _, _, slices = MPI_WORLD.chunk(gshape, split=0)
+        local_slice: slice = slices[0]  # global row slice of local rank
+
+        local_h5_file_ids: list[int] = find_file_ids_for_range(local_slice)
+
+        data: DNDarray = factories.empty(gshape, dtype=dtype, split=0)
+
+        n = 0
+        start_h5_index = local_slice.start - shapes_arr[: local_h5_file_ids[0], 0].sum()
+        max_n: int = data.larray.shape[0]
+        for i, idx in enumerate(local_h5_file_ids):
+            if i == 0:
+                start_index = start_h5_index
+            else:
+                start_index = 0
+            h5_file: h5py.File = h5_files[idx]
+            rows: int = shapes[idx][0] - start_index
+
+            diff = n + rows - min(n + rows, max_n)  # amount of overshoot
+
+            data.larray[n : (n + rows - diff)] = torch.from_numpy(
+                h5_file[dataset][start_index : (start_index + rows - diff)]
+            )
+            n += rows - diff
+        return data
 
 
 def load(
