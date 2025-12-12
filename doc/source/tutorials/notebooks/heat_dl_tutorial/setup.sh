@@ -21,8 +21,6 @@ pip install typing_extensions
 pip install tqdm
 pip install requests
 pip install pillow
-pip install tqdm
-pip install requests
 pip install pyarrow
 pip install h5py
 pip install pillow
