@@ -1107,6 +1107,42 @@ class DNDarray:
         advanced_indexing_shapes = []
         lose_dims = 0
         for i, k in enumerate(key):
+            if isinstance(k, DNDarray) and k.ndim == 0:
+                k = k.larray.item()
+                key[i] = k
+            # for robustness: handle list/tuple keys that contain DNDarrays
+            elif isinstance(k, (list, tuple)) and any(isinstance(kk, DNDarray) for kk in k):
+                # Case 1: singleton container (common from where/nonzero): (idx,) -> idx
+                if len(k) == 1 and isinstance(k[0], DNDarray):
+                    k = k[0]
+                    key[i] = k
+
+                else:
+                    # Case 2: sequence of scalar DNDarrays -> unwrap to python scalars
+                    new_k = []
+                    all_scalar = True
+                    for kk in k:
+                        if isinstance(kk, DNDarray):
+                            if kk.ndim != 0:
+                                all_scalar = False
+                                break
+                            new_k.append(kk.larray.item())
+                        else:
+                            new_k.append(kk)
+
+                    if all_scalar:
+                        k = new_k
+                        key[i] = k
+                    else:
+                        # This is an ambiguous nested "tuple of index arrays" inside a single axis.
+                        # In NumPy semantics such tuples belong at TOP LEVEL (arr[idx0, idx1, ...]),
+                        # not nested as one axis key.
+                        raise TypeError(
+                            "Nested tuple/list of non-scalar DNDarray indices is not supported. "
+                            "Pass them as separate indices (e.g. arr[idx0, idx1, ...]) or unwrap "
+                            "singleton tuples (e.g. idx = idx[0])."
+                        )
+
             if np.isscalar(k) or getattr(k, "ndim", 1) == 0:
                 # single-element indexing along axis i
                 try:
@@ -1127,9 +1163,10 @@ class DNDarray:
             elif isinstance(k, Iterable) or isinstance(k, DNDarray):
                 advanced_indexing = True
                 advanced_indexing_dims.append(i)
-                # work with DNDarrays to assess distribution
-                # torch tensors will be extracted in the advanced indexing section below
-                k = factories.array(k, device=arr.device, comm=arr.comm, copy=None)
+
+                if not isinstance(k, DNDarray):
+                    k = factories.array(k, device=arr.device, comm=arr.comm, copy=None)
+
                 advanced_indexing_shapes.append(k.gshape)
                 if arr_is_distributed and i == arr.split:
                     if (
