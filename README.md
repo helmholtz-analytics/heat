@@ -252,18 +252,31 @@ Work in progress...
   - Students
   - system administrators -->
 
-## Acknowledgements
 
-*This work is supported by the [Helmholtz Association Initiative and
-Networking Fund](https://www.helmholtz.de/en/about_us/the_association/initiating_and_networking/)
-under project number ZT-I-0003 and the Helmholtz AI platform grant.*
+# Acknowledgements
 
-*This project has received funding from Google Summer of Code (GSoC) in 2022.*
-
-*This work is partially carried out under a [programme](https://activities.esa.int/index.php/4000144045) of, and funded by, the European Space Agency.
-Any view expressed in this repository or related publications can in no way be taken to reflect the official opinion of the European Space Agency.*
-
----
+### Current Funding and Support
 
 <div align="center">
-  <a href="https://www.dlr.de/EN/Home/home_node.html"><img src="https://raw.githubusercontent.com/helmholtz-analytics/heat/main/doc/source/_static/images/dlr_logo.svg" height="50px" hspace="3%" vspace="20px"></a><a href="https://www.fz-juelich.de/portal/EN/Home/home_node.html"><img src="https://raw.githubusercontent.com/helmholtz-analytics/heat/main/doc/source/_static/images/fzj_logo.svg" height="40px" hspace="3%" vspace="20px"></a><a href="http://www.kit.edu/english/index.php"><img src="https://raw.githubusercontent.com/helmholtz-analytics/heat/main/doc/source/_static/images/kit_logo.svg" height="40px" hspace="3%" vspace="5px"></a><a href="https://www.helmholtz.de/en/"><img src="https://raw.githubusercontent.com/helmholtz-analytics/heat/main/doc/source/_static/images/helmholtz_logo.svg" height="50px" hspace="3%" vspace="5px"></a><a href="https://www.esa.int/"><img src="https://github.com/user-attachments/assets/2ee251b4-733e-44ea-8d1c-8b75928eef55" height="45px" hspace="3%" vspace="20px"></a>
+  <a href="https://www.fz-juelich.de/portal/EN/Home/home_node.html"><img src="https://raw.githubusercontent.com/helmholtz-analytics/heat/main/doc/source/_static/images/fzj_logo.svg" height="40px" hspace="3%" vspace="20px"></a><a href="http://www.kit.edu/english/index.php"><img src="https://raw.githubusercontent.com/helmholtz-analytics/heat/main/doc/source/_static/images/kit_logo.svg" height="40px" hspace="3%" vspace="5px"></a><a href="https://www.helmholtz.de/en/"><img src="https://raw.githubusercontent.com/helmholtz-analytics/heat/main/doc/source/_static/images/helmholtz_logo.svg" height="50px" hspace="3%" vspace="5px">
+</a>
+</div>
+
+* Heat is currently actively developed and maintained by the **Research Center Jülich (FZJ)** and the **Karlsruhe Institute of Technology (KIT)**
+* The project is supported by ... **@ClaudiaComito please add funding info for ScienceServe here / replace Helmholtz-Logo by a suited one**
+
+### Past Funding and Support
+
+<div align="center">
+  <a href="https://www.dlr.de/EN/Home/home_node.html"><img src="https://raw.githubusercontent.com/helmholtz-analytics/heat/main/doc/source/_static/images/dlr_logo.svg" height="50px" hspace="3%" vspace="20px"></a><a href="https://www.helmholtz.de/en/"><img src="https://raw.githubusercontent.com/helmholtz-analytics/heat/main/doc/source/_static/images/helmholtz_logo.svg" height="50px" hspace="3%" vspace="5px"></a><a href="https://www.esa.int/"><img src="https://github.com/user-attachments/assets/2ee251b4-733e-44ea-8d1c-8b75928eef55" height="45px" hspace="3%" vspace="20px"></a></div>
+
+* The initiation of Heat has been supported by the [**Helmholtz Association Initiative and
+Networking Fund**](https://www.helmholtz.de/en/about_us/the_association/initiating_and_networking/)
+under project number ZT-I-0003 and the **Helmholtz AI** platform grant.
+
+* The project has received funding from **Google Summer of Code (GSoC)** in 2022.
+
+* Parts of this work (in particular the implementation of SVD, PCA, and DMD) have been carried out under a [programme](https://activities.esa.int/index.php/4000144045) of, and funded by, the **European Space Agency (ESA)**.
+Any view expressed in this repository or related publications can in no way be taken to reflect the official opinion of the European Space Agency.
+
+* Until 2025, the **German Aerospace Center (DLR)** took actively part in the development and maintenance of Heat.
