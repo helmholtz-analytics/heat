@@ -322,9 +322,6 @@ class TestIncrementalPCA(TestCase):
         pca = ht.decomposition.IncrementalPCA(n_components=1)
         data0 = ht.random.randn(15, 15, split=None)
 
-        # fit is not yet implemented
-        with self.assertRaises(NotImplementedError):
-            pca.fit(data0)
         # wrong input for partial_fit
         with self.assertRaises(ValueError):
             pca.partial_fit(data0, y="Why can't we get rid of this argument?")
@@ -335,3 +332,63 @@ class TestIncrementalPCA(TestCase):
             pca.transform(ht.zeros((15, 16), split=None))
         with self.assertRaises(ValueError):
             pca.inverse_transform(ht.zeros((17, 2), split=None))
+
+    def test_incrementalpca_fit(self):
+        if not ht.io.supports_hdf5():
+            return
+        """Test the fit method with HDF5 files."""
+        path = os.path.join(os.getcwd(), "heat/datasets/iris.h5")
+        dataset_name = "data"
+
+        pca = ht.decomposition.IncrementalPCA(n_components=5)
+
+        if ht.MPI_WORLD.size > 4:  # Assumption: original file has 4 columns
+            with self.assertRaises(ValueError):
+                pca.fit(path=path, chunk_size=50, dataset=dataset_name)
+        else:
+            # Test with chunk_size that divides evenly
+            pca.fit(path=path, chunk_size=50, dataset=dataset_name)
+            self.assertEqual(pca.n_components_, 4)
+            self.assertEqual(pca.mean_.shape, (4,))
+            self.assertEqual(pca.components_.shape, (4, 4))
+            self.assertEqual(pca.n_samples_seen_, 150)
+
+            # Test with chunk_size that doesn't divide evenly (incomplete last chunk)
+            pca2 = ht.decomposition.IncrementalPCA(n_components=5)
+            pca2.fit(path=path, chunk_size=70, dataset=dataset_name)
+            self.assertEqual(pca2.n_components_, 4)
+            self.assertEqual(pca2.mean_.shape, (4,))
+            self.assertEqual(pca2.components_.shape, (4, 4))
+            self.assertEqual(pca2.n_samples_seen_, 150)
+
+    def test_incrementalpca_fit_catch_wrong_inputs(self):
+        """Test error handling in the fit method."""
+        path_h5 = os.path.join(os.getcwd(), "heat/datasets/iris.h5")
+        dataset_name = "data"
+
+        # test when HDF5 support is not available
+        if not ht.io.supports_hdf5():
+            pca = ht.decomposition.IncrementalPCA(n_components=5)
+            with self.assertRaises(RuntimeError):
+                pca.fit(path=path_h5, chunk_size=10, dataset=dataset_name)
+            return
+        # Test with invalid file format
+        path_txt = "temp_test_data.txt"
+        try:
+            if ht.MPI_WORLD.rank == 0:
+                with open(path_txt, "w") as f:
+                    f.write("Invalid file format")
+            ht.MPI_WORLD.Barrier()
+
+            pca = ht.decomposition.IncrementalPCA(n_components=5)
+            with self.assertRaises(ValueError):
+                pca.fit(path=path_txt, chunk_size=50)
+        finally:
+            if ht.MPI_WORLD.rank == 0 and os.path.exists(path_txt):
+                os.remove(path_txt)
+
+        # Test with chunk_size too large
+        pca = ht.decomposition.IncrementalPCA(n_components=5)
+        with self.assertRaises(ValueError):
+            # Assuming dataset has fewer than 200 rows
+            pca.fit(path=path_h5, chunk_size=200, dataset=dataset_name)
