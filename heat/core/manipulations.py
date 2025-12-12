@@ -508,7 +508,9 @@ def concatenate(arrays: Sequence[DNDarray, ...], axis: int = 0) -> DNDarray:
     # no splits, local concat
     if s0 is None and s1 is None:
         return factories.array(
-            torch.cat((arr0.larray, arr1.larray), dim=axis), device=arr0.device, comm=arr0.comm
+            torch.cat((arr0.larray, arr1.larray), dim=axis),
+            device=arr0.device,
+            comm=arr0.comm,
         )
 
     # non-matching splits when both arrays are split
@@ -1038,14 +1040,22 @@ def flatten(a: DNDarray) -> DNDarray:
 
     if a.split is None:
         return factories.array(
-            torch.flatten(a.larray), dtype=a.dtype, is_split=None, device=a.device, comm=a.comm
+            torch.flatten(a.larray),
+            dtype=a.dtype,
+            is_split=None,
+            device=a.device,
+            comm=a.comm,
         )
 
     if a.split > 0:
         a = resplit(a, 0)
 
     a = factories.array(
-        torch.flatten(a.larray), dtype=a.dtype, is_split=a.split, device=a.device, comm=a.comm
+        torch.flatten(a.larray),
+        dtype=a.dtype,
+        is_split=a.split,
+        device=a.device,
+        comm=a.comm,
     )
     a.balance_()
 
@@ -1066,7 +1076,7 @@ def flip(a: DNDarray, axis: Union[int, Tuple[int, ...]] = None) -> DNDarray:
     a: DNDarray
         Input array to be flipped
     axis: int or Tuple[int,...]
-        A list of axes to be flipped
+        The axis or sequence of axes to be flipped
 
     See Also
     --------
@@ -1090,7 +1100,11 @@ def flip(a: DNDarray, axis: Union[int, Tuple[int, ...]] = None) -> DNDarray:
 
     # torch.flip only accepts tuples
     if isinstance(axis, int):
-        axis = [axis]
+        axis = (axis,)
+    elif isinstance(axis, list):
+        axis = tuple(axis)
+
+    axis = stride_tricks.sanitize_axis(a.shape, axis)
 
     flipped = torch.flip(a.larray, axis)
 

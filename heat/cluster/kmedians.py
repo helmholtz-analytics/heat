@@ -104,7 +104,7 @@ class KMedians(_KCluster):
 
         return new_cluster_centers
 
-    def fit(self, x: DNDarray, oversampling: float = 100, iter_multiplier: float = 20):
+    def fit(self, x: DNDarray, oversampling: float = 2, iter_multiplier: float = 1):
         """
         Computes the centroid of a k-medians clustering.
 

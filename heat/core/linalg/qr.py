@@ -107,7 +107,7 @@ def qr(
     if not A.is_distributed() or A.split < A.ndim - 2:
         # handle the case of a single process or split=None: just PyTorch QR
         Q, R = single_proc_qr(A.larray, mode=mode)
-        R = factories.array(R, is_split=A.split)
+        R = factories.array(R, is_split=A.split, device=A.device)
         if mode == "reduced":
             Q = factories.array(Q, is_split=A.split, device=A.device)
         else:
@@ -158,7 +158,9 @@ def qr(
             if i < nprocs - 1:
                 k_loc_i = min(A.shape[-2], A.lshape_map[i, -1])
                 Q_buf = torch.zeros(
-                    (*A.shape[:-1], k_loc_i), dtype=A.larray.dtype, device=A.device.torch_device
+                    (*A.shape[:-1], k_loc_i),
+                    dtype=A.larray.dtype,
+                    device=A.device.torch_device,
                 )
 
             if A.comm.rank == i:

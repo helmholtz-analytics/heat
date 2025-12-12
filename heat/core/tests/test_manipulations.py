@@ -688,7 +688,8 @@ class TestManipulations(TestCase):
         res.balance_()
         self.assertTrue(
             torch.equal(
-                res.larray, torch.tensor([rank * 2, 1 + rank * 2], device=self.device.torch_device)
+                res.larray,
+                torch.tensor([rank * 2, 1 + rank * 2], device=self.device.torch_device),
             )
         )
 
@@ -705,7 +706,8 @@ class TestManipulations(TestCase):
         res.balance_()
         self.assertTrue(
             torch.equal(
-                res.larray, torch.tensor([rank * 2, 1 + rank * 2], device=self.device.torch_device)
+                res.larray,
+                torch.tensor([rank * 2, 1 + rank * 2], device=self.device.torch_device),
             )
         )
 
@@ -1087,6 +1089,25 @@ class TestManipulations(TestCase):
         r_a = ht.array([[[3, 2], [1, 0]], [[7, 6], [5, 4]]], split=0, dtype=ht.uint8)
         self.assertTrue(ht.equal(ht.flip(a, [1, 2]), r_a))
 
+        # test negative axis
+        a = ht.array([[1, 2], [3, 4]])
+        r_a = ht.array([[2, 1], [4, 3]])
+        self.assertTrue(ht.equal(ht.flip(a, -1), r_a))
+
+        a = ht.array([[1, 2], [3, 4]])
+        r_a = ht.array([[3, 4], [1, 2]])
+        self.assertTrue(ht.equal(ht.flip(a, -2), r_a))
+
+        a = ht.array([[1, 2], [3, 4]])
+        r_a = ht.array([[4, 3], [2, 1]])
+        self.assertTrue(ht.equal(ht.flip(a, (-2, -1)), r_a))
+
+        # test negative axis with split
+        a = ht.array([[2, 3], [4, 5], [6, 7], [8, 9]], split=1, dtype=ht.float32)
+        r_a = ht.array([[9, 8], [7, 6], [5, 4], [3, 2]], split=1, dtype=ht.float32)
+        self.assertTrue(ht.equal(ht.flip(a, (0, -1)), r_a))
+        self.assertTrue(ht.equal(ht.flip(a, (-2, -1)), r_a))
+
     def test_fliplr(self):
         b = ht.array([[1, 2], [3, 4]])
         r_b = ht.array([[2, 1], [4, 3]])
@@ -1117,7 +1138,7 @@ class TestManipulations(TestCase):
 
         # test exception
         a = ht.arange(10)
-        with self.assertRaises(IndexError):
+        with self.assertRaises(ValueError):
             ht.fliplr(a)
 
     def test_flipud(self):

@@ -74,8 +74,8 @@ class TestCommunication(TestCase):
         self.assertEqual(len(chunks), len(self.data.shape))
 
     def test_cuda_aware_mpi(self):
-        self.assertTrue(hasattr(ht.communication, "CUDA_AWARE_MPI"))
-        self.assertIsInstance(ht.communication.CUDA_AWARE_MPI, bool)
+        self.assertTrue(hasattr(ht.communication, "GPU_AWARE_MPI"))
+        self.assertIsInstance(ht.communication.GPU_AWARE_MPI, bool)
 
     def test_contiguous_memory_buffer(self):
         # vector heat tensor
@@ -139,7 +139,7 @@ class TestCommunication(TestCase):
 
         # check that after sending the data everything is equal
         self.assertTrue((non_contiguous_data.larray == contiguous_out.larray).all())
-        if ht.get_device().device_type == "cpu" or ht.communication.CUDA_AWARE_MPI:
+        if ht.get_device().device_type == "cpu" or ht.communication.GPU_AWARE_MPI:
             self.assertTrue(contiguous_out.larray.is_contiguous())
 
         # non-contiguous destination
@@ -158,7 +158,7 @@ class TestCommunication(TestCase):
         req.Wait()
         # check that after sending the data everything is equal
         self.assertTrue((contiguous_data.larray == non_contiguous_out.larray).all())
-        if ht.get_device().device_type == "cpu" or ht.communication.CUDA_AWARE_MPI:
+        if ht.get_device().device_type == "cpu" or ht.communication.GPU_AWARE_MPI:
             self.assertFalse(non_contiguous_out.larray.is_contiguous())
 
         # non-contiguous destination
@@ -181,7 +181,7 @@ class TestCommunication(TestCase):
         req.Wait()
         # check that after sending the data everything is equal
         self.assertTrue((both_non_contiguous_data.larray == both_non_contiguous_out.larray).all())
-        if ht.get_device().device_type == "cpu" or ht.communication.CUDA_AWARE_MPI:
+        if ht.get_device().device_type == "cpu" or ht.communication.GPU_AWARE_MPI:
             self.assertFalse(both_non_contiguous_out.larray.is_contiguous())
 
     def test_default_comm(self):
@@ -2074,6 +2074,89 @@ class TestCommunication(TestCase):
 
         self.assertTrue((data.larray == size).all())
         # MPI Inplace is not allowed for AllToAll
+
+    def test_minmax_op_allreduce_scalar_float64(self):
+        comm = ht.MPI_WORLD
+        # per-rank packed buffer: [min_value, max_value]
+        send = ht.array([comm.rank * 2.0, comm.rank * 2.0 + 1.0], dtype=ht.float64)
+        out = ht.zeros_like(send)
+
+        # build equivalent torch tensor to extract shape/stride
+        # send.larray is a torch tensor; use its shape/stride
+        shape = tuple(send.larray.shape)
+        stride = tuple(send.larray.stride())
+
+        op = comm._minmax_op(torch.float64, total_count=1, shape=shape, stride=stride)
+        try:
+            send.comm.Allreduce(send, out, op=op)
+
+            expected = torch.tensor([0.0, (comm.size - 1) * 2.0 + 1.0], dtype=torch.float64)
+            self.assertTrue(torch.allclose(out.larray.cpu(), expected.cpu()))
+        finally:
+            try:
+                op.Free()
+            except Exception:
+                pass
+
+    def test_minmax_op_allreduce_vector_float64(self):
+        comm = ht.MPI_WORLD
+        total_count = 3
+        base0 = torch.tensor([10.0, 20.0, 30.0], dtype=torch.float64)
+        base1 = torch.tensor([100.0, 200.0, 300.0], dtype=torch.float64)
+
+        # per-rank rows: add rank so mins are from rank 0, maxs from rank (size-1)
+        send_tensor = torch.vstack((base0 + float(comm.rank), base1 + float(comm.rank)))
+        send = ht.array(send_tensor.numpy(), dtype=ht.float64)
+        out = ht.zeros_like(send)
+
+        # use the actual local torch tensor to get shape/stride that will be used by the op
+        shape = tuple(send.larray.shape)
+        stride = tuple(send.larray.stride())
+
+        op = comm._minmax_op(torch.float64, total_count=total_count, shape=shape, stride=stride)
+        try:
+            send.comm.Allreduce(send, out, op=op)
+
+            expected = torch.vstack((base0 + 0.0, base1 + float(comm.size - 1)))
+            self.assertTrue(torch.allclose(out.larray.cpu(), expected.cpu()))
+        finally:
+            try:
+                op.Free()
+            except Exception:
+                pass
+
+    def test_minmax_op_allreduce_int32(self):
+        comm = ht.MPI_WORLD
+        send = ht.array([comm.rank * 2, comm.rank * 2 + 1], dtype=ht.int32)
+        out = ht.zeros_like(send)
+
+        shape = tuple(send.larray.shape)
+        stride = tuple(send.larray.stride())
+
+        op = comm._minmax_op(torch.int32, total_count=1, shape=shape, stride=stride)
+        try:
+            send.comm.Allreduce(send, out, op=op)
+
+            expected = torch.tensor([0, (comm.size - 1) * 2 + 1], dtype=torch.int32)
+            self.assertTrue(torch.equal(out.larray.cpu(), expected.cpu()))
+        finally:
+            try:
+                op.Free()
+            except Exception:
+                pass
+
+    def test_minmax_op_create_and_free_no_crash(self):
+        comm = ht.MPI_WORLD
+        # minimal valid shape/stride for scalar packed buffer
+        shape = (2,)
+        stride = (1,)
+        op = comm._minmax_op(torch.float64, total_count=1, shape=shape, stride=stride)
+        try:
+            op.Free()
+        except Exception:
+            pass
+        # If we reached here, create/free at least didn't core-dump the process.
+        self.assertTrue(True)
 
     def test_reduce(self):
         # contiguous data

@@ -317,13 +317,16 @@ class _BatchParallelKCluster(ht.ClusteringMixin, ht.BaseEstimator):
         if self._p == 2:
             self._functional_value = (
                 torch.norm(
-                    x.larray - self._cluster_centers.larray[local_labels, :].squeeze(), p="fro"
+                    x.larray - self._cluster_centers.larray[local_labels, :].squeeze(),
+                    p="fro",
                 )
                 ** 2
             )
         else:
             self._functional_value = torch.norm(
-                x.larray - self._cluster_centers.larray[local_labels, :].squeeze(), p=self._p, dim=1
+                x.larray - self._cluster_centers.larray[local_labels, :].squeeze(),
+                p=self._p,
+                dim=1,
             ).sum()
         x.comm.Allreduce(ht.communication.MPI.IN_PLACE, self._functional_value)
         self._functional_value = self._functional_value.item()
