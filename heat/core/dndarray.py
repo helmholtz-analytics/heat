@@ -1519,43 +1519,6 @@ class DNDarray:
 
         from .types import bool as ht_bool, uint8 as ht_uint8  # avoid circulars
 
-        # if not self.is_distributed():
-        #     # Normalize any DNDarray index components to local torch tensors
-
-        #     def _normalize_local_index(comp):
-        #         """
-        #         For local indexing, convert DNDarray indices to the underlying
-        #         torch.Tensor. Boolean masks become torch.bool, integer indices
-        #         become torch.int64.
-        #         """
-        #         if isinstance(comp, DNDarray):
-        #             if comp.dtype in (ht_bool, ht_uint8):
-        #                 return comp.larray.to(torch.bool)
-        #             else:
-        #                 # treat as integer index
-        #                 return comp.larray.to(torch.int64)
-        #         return comp
-
-        #     local_key = key
-        #     if isinstance(local_key, DNDarray):
-        #         local_key = _normalize_local_index(local_key)
-        #     elif isinstance(local_key, (tuple, list)):
-        #         local_key = type(local_key)(_normalize_local_index(k) for k in local_key)
-
-        #     # Now rely on PyTorch/Numpy-style advanced indexing on the local tensor
-        #     indexed_arr = self.larray[local_key]
-        #     output_shape = tuple(indexed_arr.shape)
-
-        #     return DNDarray(
-        #         indexed_arr,
-        #         gshape=output_shape,
-        #         dtype=self.dtype,        # dtype bleibt erhalten
-        #         split=None,              # lokal, keine Verteilung
-        #         device=self.device,
-        #         comm=self.comm,
-        #         balanced=True,
-        #     )
-
         original_split = self.split
 
         def _normalize_index_component(comp):
@@ -1759,7 +1722,32 @@ class DNDarray:
                 if self.ndim > 0:
                     self = self.transpose(backwards_transpose_axes)
                 return indexed_arr
+            # This covers patterns like A[idx] where A is distributed (split=0) and idx has global indices (e.g. (N,k)).
+            if self.is_distributed() and self.split == 0 and self.ndim == 1:
+                k0 = key
+                # key may be wrapped as a singleton tuple
+                if isinstance(k0, tuple) and len(k0) == 1:
+                    k0 = k0[0]
 
+                # tolerate DNDarray key (can still happen depending on __process_key path)
+                if isinstance(k0, DNDarray):
+                    idx_t = k0.larray
+                else:
+                    idx_t = k0
+
+                if isinstance(idx_t, torch.Tensor) and idx_t.dtype in (
+                    torch.int8,
+                    torch.int16,
+                    torch.int32,
+                    torch.int64,
+                    torch.uint8,
+                ):
+                    return self.__take_split0_global_1d(
+                        idx_t,
+                        out_gshape=output_shape,
+                        out_split=0,
+                        out_is_balanced=out_is_balanced,
+                    )
             # root is None, i.e. indexing does not affect split axis, apply as is
             indexed_arr = self.larray[key]
             # transpose array back if needed
@@ -3186,6 +3174,120 @@ class DNDarray:
             self.__array.__setitem__(key, value.data)
         else:
             raise NotImplementedError(f"Not implemented for {value.__class__.__name__}")
+
+    def __take_split0_global_1d(
+        self,
+        idx: torch.Tensor,
+        out_gshape: Tuple[int, ...],
+        out_split: Optional[int],
+        out_is_balanced: bool,
+    ) -> "DNDarray":
+        """
+        Distributed take for 1D arrays split along axis 0.
+        idx contains GLOBAL indices (any shape). Returns self[idx] with shape out_gshape.
+
+        Communication strategy:
+        - each rank sends requested indices to owning ranks (Alltoallv)
+        - owners lookup local values and send them back (Alltoallv)
+        - requester reorders to original idx order and reshapes
+        """
+        comm = self.comm
+        size = comm.Get_size()
+        rank = comm.Get_rank()
+
+        # flatten local request
+        idx_flat = idx.reshape(-1).contiguous()
+
+        # handle empty
+        if idx_flat.numel() == 0:
+            empty = self.larray.new_empty(idx.shape, dtype=self.larray.dtype)
+            return DNDarray(
+                empty,
+                out_gshape,
+                dtype=self.dtype,
+                split=out_split,
+                device=self.device,
+                comm=comm,
+                balanced=out_is_balanced,
+            )
+
+        # normalize negative indices
+        n = self.gshape[0]
+        if (idx_flat < 0).any():
+            idx_flat = idx_flat.clone()
+            idx_flat[idx_flat < 0] += n
+
+        # bounds check
+        if (idx_flat < 0).any() or (idx_flat >= n).any():
+            raise IndexError("index out of bounds")
+
+        # ownership map via counts/displs of self
+        counts, displs = self.counts_displs()  # python lists
+        if size == 1:
+            vals = self.larray[idx_flat].reshape(idx.shape)
+            return DNDarray(
+                vals,
+                out_gshape,
+                dtype=self.dtype,
+                split=out_split,
+                device=self.device,
+                comm=comm,
+                balanced=out_is_balanced,
+            )
+
+        boundaries = torch.tensor(displs[1:], device=idx_flat.device, dtype=idx_flat.dtype)
+        owners = torch.bucketize(idx_flat, boundaries, right=True)
+
+        # group requests by owner
+        owners_sorted, order = owners.sort(stable=True)
+        idx_sorted = idx_flat[order]
+
+        # send counts/displs
+        send_counts_t = torch.bincount(owners_sorted, minlength=size).to(torch.int64)
+        send_counts = send_counts_t.cpu().tolist()
+        send_displs = [0]
+        for c in send_counts[:-1]:
+            send_displs.append(send_displs[-1] + c)
+
+        # recv counts/displs
+        recv_counts = comm.alltoall(send_counts)
+        recv_displs = [0]
+        for c in recv_counts[:-1]:
+            recv_displs.append(recv_displs[-1] + c)
+        recv_total = sum(recv_counts)
+
+        # exchange indices
+        recv_idx = torch.empty((recv_total,), dtype=idx_sorted.dtype, device=idx_sorted.device)
+        comm.Alltoallv((idx_sorted, send_counts, send_displs), (recv_idx, recv_counts, recv_displs))
+
+        # local lookup on owner
+        offset = displs[rank]
+        local_idx = recv_idx - offset
+        local_src = self.larray.contiguous()
+        send_vals = local_src[local_idx]
+
+        # send values back (reverse pattern)
+        recv_vals_grouped = torch.empty(
+            (idx_sorted.numel(),), dtype=send_vals.dtype, device=send_vals.device
+        )
+        comm.Alltoallv(
+            (send_vals, recv_counts, recv_displs), (recv_vals_grouped, send_counts, send_displs)
+        )
+
+        # undo grouping permutation
+        inv = torch.empty_like(order)
+        inv[order] = torch.arange(order.numel(), device=order.device, dtype=order.dtype)
+        vals = recv_vals_grouped[inv].reshape(idx.shape)
+
+        return DNDarray(
+            vals,
+            out_gshape,
+            dtype=self.dtype,
+            split=out_split,
+            device=self.device,
+            comm=comm,
+            balanced=out_is_balanced,
+        )
 
     def __str__(self) -> str:
         """
