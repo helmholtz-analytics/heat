@@ -939,7 +939,7 @@ class DNDarray:
         advanced_indexing = False
         split_key_is_ordered = 1
         key_is_mask_like = False
-        out_is_balanced = False
+        out_is_balanced = True if not arr.is_distributed() else arr.balanced
         root = None
         backwards_transpose_axes = tuple(range(arr.ndim))
 
