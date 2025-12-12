@@ -116,130 +116,130 @@ autolabeler:
       - '/Support.+/'
   - label: 'classification'
     files:
-      - 'heat/classification/**/*'
+      - 'src/heat/classification/**/*'
   - label: 'cluster'
     files:
-      - 'heat/cluster/**/*'
+      - 'src/heat/cluster/**/*'
   - label: 'core'
     files:
-      - 'heat/core/**/*'
+      - 'src/heat/core/**/*'
   - label: 'datasets'
     files:
-      - 'heat/datasets/**/*'
+      - 'src/heat/datasets/**/*'
   - label: 'decomposition'
     files:
-      - 'heat/decomposition/**/*'
+      - 'src/heat/decomposition/**/*'
   - label: 'fft'
     files:
-      - 'heat/fft/**/*'
+      - 'src/heat/fft/**/*'
   - label: 'graph'
     files:
-      - 'heat/graph/**/*'
+      - 'src/heat/graph/**/*'
   - label: 'naive bayes'
     files:
-      - 'heat/naive_bayes/**/*'
+      - 'src/heat/naive_bayes/**/*'
   - label: 'nn'
     files:
-      - 'heat/nn/**/*'
+      - 'src/heat/nn/**/*'
   - label: 'optim'
     files:
-      - 'heat/optim/**/*'
+      - 'src/heat/optim/**/*'
   - label: 'preprocessing'
     files:
-      - 'heat/preprocessing/**/*'
+      - 'src/heat/preprocessing/**/*'
   - label: 'regression'
     files:
-      - 'heat/regression/**/*'
+      - 'src/heat/regression/**/*'
   - label: 'sparse'
     files:
-      - 'heat/sparse/**/*'
+      - 'src/heat/sparse/**/*'
   - label: 'spatial'
     files:
-      - 'heat/spatial/**/*'
+      - 'src/heat/spatial/**/*'
   - label: 'utils'
     files:
-      - 'heat/utils/**/*'
+      - 'src/heat/utils/**/*'
   - label: 'linalg'
     files:
-      - 'heat/core/linalg/**/*'
+      - 'src/heat/core/linalg/**/*'
   - label: 'arithmetics'
     files:
-      - 'heat/core/arithmetics.py'
+      - 'src/heat/core/arithmetics.py'
   - label: 'base'
     files:
-      - 'heat/core/base.py'
+      - 'src/heat/core/base.py'
   - label: 'communication'
     files:
-      - 'heat/core/communication.py'
+      - 'src/heat/core/communication.py'
   - label: 'complex_math'
     files:
-      - 'heat/core/complex_math.py'
+      - 'src/heat/core/complex_math.py'
   - label: 'constants'
     files:
-      - 'heat/core/constants.py'
+      - 'src/heat/core/constants.py'
   - label: 'devices'
     files:
-      - 'heat/core/devices.py'
+      - 'src/heat/core/devices.py'
   - label: 'dndarray'
     files:
-      - 'heat/core/dndarray.py'
+      - 'src/heat/core/dndarray.py'
   - label: 'exponential'
     files:
-      - 'heat/core/exponential.py'
+      - 'src/heat/core/exponential.py'
   - label: 'indexing'
     files:
-      - 'heat/core/indexing.py'
+      - 'src/heat/core/indexing.py'
   - label: 'io'
     files:
-      - 'heat/core/io.py'
+      - 'src/heat/core/io.py'
   - label: 'logical'
     files:
-      - 'heat/core/logical.py'
+      - 'src/heat/core/logical.py'
   - label: 'manipulations'
     files:
-      - 'heat/core/manipulations.py'
+      - 'src/heat/core/manipulations.py'
   - label: 'memory'
     files:
-      - 'heat/core/memory.py'
+      - 'src/heat/core/memory.py'
   - label: 'printing'
     files:
-      - 'heat/core/printing.py'
+      - 'src/heat/core/printing.py'
   - label: 'random'
     files:
-      - 'heat/core/random.py'
+      - 'src/heat/core/random.py'
   - label: 'relational'
     files:
-      - 'heat/core/relational.py'
+      - 'src/heat/core/relational.py'
   - label: 'rounding'
     files:
-      - 'heat/core/rounding.py'
+      - 'src/heat/core/rounding.py'
   - label: 'sanitation'
     files:
-      - 'heat/core/sanitation.py'
+      - 'src/heat/core/sanitation.py'
   - label: 'signal'
     files:
-      - 'heat/core/signal.py'
+      - 'src/heat/core/signal.py'
   - label: 'statistics'
     files:
-      - 'heat/core/statistics.py'
+      - 'src/heat/core/statistics.py'
   - label: 'stride_tricks'
     files:
-      - 'heat/core/stride_tricks.py'
+      - 'src/heat/core/stride_tricks.py'
   - label: 'tiling'
     files:
-      - 'heat/core/tiling.py'
+      - 'src/heat/core/tiling.py'
   - label: 'trigonometrics'
     files:
-      - 'heat/core/trigonometrics.py'
+      - 'src/heat/core/trigonometrics.py'
   - label: 'types'
     files:
-      - 'heat/core/types.py'
+      - 'src/heat/core/types.py'
   - label: 'version'
     files:
-      - 'heat/core/version.py'
+      - 'src/heat/core/version.py'
   - label: 'vmap'
     files:
-      - 'heat/core/vmap.py'
+      - 'src/heat/core/vmap.py'
 
 change-template: '- #$NUMBER $TITLE (by @$AUTHOR)'
 category-template: '### $TITLE'

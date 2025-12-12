@@ -1,7 +1,3 @@
-[build-system]
-requires = ["setuptools"]
-build-backend = "setuptools.build_meta"
-
 [project]
 name="heat"
 dynamic = ["version"]
@@ -101,14 +97,17 @@ Repository = "https://github.com/helmholtz-analytics/heat"
 Issues = "https://github.com/helmholtz-analytics/heat/issues"
 Changelog = "https://github.com/helmholtz-analytics/heat/blob/main/CHANGELOG.md"
 
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
 [tool.setuptools.packages.find]
-where = ["."]
+where = ["src"]
 include = ["heat", "heat.*"]
 exclude = ["*tests*", "*benchmarks*"]
 
-
 [tool.setuptools.package-data]
-datasets = ["*.csv", "*.h5", "*.nc"]
+"heat.datasets" = ["*.csv", "*.h5", "*.nc"]
 heat = ["py.typed"]
 
 [tool.setuptools.dynamic]
