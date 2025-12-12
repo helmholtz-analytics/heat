@@ -14,7 +14,7 @@ Q4: Why does shuffling happen on CPU?
 Q5: How is distributed training initialized?
 
 
-Q5: What environment is required?
+Q6: What environment is required?
 """
 
 import argparse
