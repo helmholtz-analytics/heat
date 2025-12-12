@@ -1,12 +1,1 @@
-fileignoreconfig:
-- filename: doc/source/tutorials/notebooks/Clustering_and_PCA.ipynb
-  checksum: 14b8c55c64d91a5b026f387e25447572e3de9052058fa0ab950d63c96124286e
-- filename: doc/source/tutorials/notebooks/DMD.ipynb
-  checksum: 1ace6dd062701f104e2f646d0404fb0c59ab8d521a086878b62c761be743689b
-- filename: doc/source/tutorials/notebooks/1_basics.ipynb
-  checksum: 068e573bd3c25479dd9d584ba67e4186ac9d910f188099c3d180509c07956309
-- filename: doc/source/tutorials/notebooks/heat_dl_tutorial/heat_dl_00_env_info.py
-  checksum: 7accff417aba27a4b54e7c4385edc4d2d56bc8e4184363c68f66f54431906d54
-- filename: doc/source/tutorials/notebooks/0_setup/0_setup_jsc.ipynb
-  checksum: 3e981c51f8b301fec8e4edc31aa800aa8a28f239b8962936f77faa64465d0ad8
 version: "1.0"
