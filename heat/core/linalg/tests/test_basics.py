@@ -569,6 +569,7 @@ class TestLinalgBasics(TestCase):
             self.assertEqual(ret00.dtype, ht.float)
             self.assertEqual(ret00.split, 0)
 
+
             # splits 1 None
             a = ht.ones((n, m), split=1)
             b = ht.ones((j, k), split=None)

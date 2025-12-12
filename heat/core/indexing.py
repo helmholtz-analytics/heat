@@ -63,33 +63,65 @@ def nonzero(x: DNDarray) -> Tuple[DNDarray, ...]:
         lcl_nonzero = torch.nonzero(input=local_x, as_tuple=True)
         # bookkeeping for final DNDarray construct
         nonzero_size = lcl_nonzero[0].shape[0]
-        output_split = None if x.split is None else 0
+        output_split = None
         output_balanced = True
     else:
-        # a is split
-        lcl_nonzero = torch.nonzero(input=x.larray, as_tuple=False)
-        _, _, slices = x.comm.chunk(x.shape, x.split)
-        lcl_nonzero[..., x.split] += slices[x.split].start
-        gout = list(lcl_nonzero.size())
-        gout[0] = x.comm.allreduce(gout[0], MPI.SUM)
-        is_split = 0
+        lcl_nonzero = torch.nonzero(input=local_x, as_tuple=False)
+        nonzero_size = torch.tensor(
+            lcl_nonzero.shape[0], dtype=torch.int64, device=lcl_nonzero.device
+        )
+        # global nonzero_size
+        x.comm.Allreduce(MPI.IN_PLACE, nonzero_size, MPI.SUM)
+        # correct indices along split axis
+        _, displs = x.counts_displs()
+        lcl_nonzero[:, x.split] += displs[x.comm.rank]
 
-    if x.ndim == 1:
-        lcl_nonzero = lcl_nonzero.squeeze(dim=1)
+        if x.split != 0:
+            # construct global 2D DNDarray of nz indices:
+            shape_2d = (nonzero_size.item(), x.ndim)
+            global_nonzero = DNDarray(
+                lcl_nonzero,
+                gshape=shape_2d,
+                dtype=types.int64,
+                split=0,
+                device=x.device,
+                comm=x.comm,
+                balanced=False,
+            )
+            # stabilize distributed result: vectorized sorting of nz indices along axis 0
+            global_nonzero.balance_()
+            global_nonzero = manipulations.unique(global_nonzero, axis=0)
+            # return indices as tuple of columns
+            lcl_nonzero = global_nonzero.larray.split(1, dim=1)
+            output_balanced = True
+        else:
+            # return indices as tuple of columns
+            lcl_nonzero = lcl_nonzero.split(1, dim=1)
+            output_balanced = False
 
-    for g in range(len(gout) - 1, -1, -1):
-        if gout[g] == 1 and len(gout) > 1:
-            del gout[g]
+        nonzero_size = nonzero_size.item()
+        output_split = 0
 
-    return DNDarray(
-        lcl_nonzero,
-        gshape=tuple(gout),
-        dtype=types.canonical_heat_type(lcl_nonzero.dtype),
-        split=is_split,
-        device=x.device,
-        comm=x.comm,
-        balanced=False,
-    )
+    # return global_nonzero as tuple of DNDarrays
+    global_nonzero = list(lcl_nonzero)
+    output_shape = (nonzero_size,)
+    for i, nz_tensor in enumerate(global_nonzero):
+        if nz_tensor.ndim > 1:
+            # extra dimension in distributed case from usage of torch.split()
+            nz_tensor = nz_tensor.squeeze(dim=-1)
+        nz_array = DNDarray(
+            nz_tensor,
+            gshape=output_shape,
+            dtype=types.int64,
+            split=output_split,
+            device=x.device,
+            comm=x.comm,
+            balanced=output_balanced,
+        )
+        global_nonzero[i] = nz_array
+    global_nonzero = tuple(global_nonzero)
+
+    return tuple(global_nonzero)
 
 
 DNDarray.nonzero = lambda self: nonzero(self)
@@ -138,20 +170,58 @@ def where(
               [ 0,  2, -1],
               [ 0,  3, -1]], dtype=ht.int64, device=cpu:0, split=None)
     """
+    # ---- binary where(cond, x, y) branch ------------------------------------
     if cond.split is not None and (isinstance(x, DNDarray) or isinstance(y, DNDarray)):
         if (isinstance(x, DNDarray) and cond.split != x.split) or (
             isinstance(y, DNDarray) and cond.split != y.split
         ):
-            if len(y.shape) >= 1 and y.shape[0] > 1:
+            # Only raise if the "other" array has a meaningful first dimension.
+            if isinstance(y, DNDarray) and len(y.shape) >= 1 and y.shape[0] > 1:
                 raise NotImplementedError("binary op not implemented for different split axes")
+
     if isinstance(x, (DNDarray, int, float)) and isinstance(y, (DNDarray, int, float)):
+        # Simple elementwise selection using arithmetic:
+        # cond == 0 -> take y, cond == 1 -> take x
         for var in [x, y]:
             if isinstance(var, int):
                 var = float(var)
         return cond.dtype(cond == 0) * y + cond * x
+
+    # ---- where(cond) "indices only" branch ----------------------------------
     elif x is None and y is None:
-        return nonzero(cond)
+        # General rule: delegate to nonzero(cond), and only wrap into a 2-D
+        # coordinate matrix in the special distributed case where the array
+        # is split along a non-zero axis.
+        nz = nonzero(cond)  # tuple of DNDarrays, one per dimension
+
+        # 1) Non-distributed: behave exactly like ht.nonzero(cond)
+        if cond.split is None:
+            return nz
+
+        # 2) Distributed along axis 0: keep the legacy tuple-of-indices API.
+        #    This is relied upon in several parts of the code base (e.g. KMeans).
+        if cond.split == 0:
+            return nz
+
+        # 3) Distributed along a non-zero axis (split > 0)
+        #    a) 1-D condition: only a single index vector exists, nothing to stack.
+        if cond.ndim == 1:
+            return nz[0]
+
+        #    b) Higher-dimensional condition: build an (N, ndim) coordinate matrix
+        #       from the column vectors in `nz`.
+        coords = manipulations.stack(nz, axis=1)
+        coords = coords.astype(types.int64, copy=False)
+
+        # Ensure indices are split along axis 0 for stable distributed behavior
+        if coords.split is None:
+            coords.resplit_(0)
+
+        return coords
+
+    # ---- invalid combinations ----------------------------------------------
     else:
         raise TypeError(
-            f"either both or neither x and y must be given and both must be DNDarrays or numerical scalars({type(x)}, {type(y)})"
+            "either both or neither x and y must be given and both must be "
+            f"DNDarrays or numerical scalars (got {type(x)}, {type(y)})"
         )

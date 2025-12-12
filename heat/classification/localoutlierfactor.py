@@ -217,12 +217,7 @@ class LocalOutlierFactor:
         """
         # Using heat's advanced indexing for large data set
         if self.fully_distributed is True:
-            # TODO: currently, the required advanced indexing only works if k_dist=k_dist.resplit_(None).
-            # Once the advanced indexing is implemented for all configurations, replace the following loop
-            # by indexed_A=A[idx]
-            indexed_A = ht.zeros(idx.shape, split=0)
-            for i in range(A.shape[0]):
-                indexed_A[i] = A[idx[i]]
+            indexed_A = A[idx]
         # Use local arrays, i.e., torch.tensors, to reduce runtime while indexing
         # (only possible if all local arrays defined below fit into memory)
         else:

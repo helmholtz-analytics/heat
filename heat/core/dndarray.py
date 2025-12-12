@@ -588,6 +588,8 @@ class DNDarray:
         [1/2] (7, 2) (2, 2)
         [2/2] (7, 2) (2, 2)
         """
+        if not self.is_distributed():
+            self.__balanced = True
         if self.is_balanced(force_check=True):
             return
         self.redistribute_()
@@ -937,7 +939,7 @@ class DNDarray:
         advanced_indexing = False
         split_key_is_ordered = 1
         key_is_mask_like = False
-        out_is_balanced = False
+        out_is_balanced = True if not arr.is_distributed() else arr.balanced
         root = None
         backwards_transpose_axes = tuple(range(arr.ndim))
 
@@ -947,7 +949,7 @@ class DNDarray:
             except RuntimeError:
                 raise IndexError("Invalid indices: expected a list of integers, got {}".format(key))
         if isinstance(key, (DNDarray, torch.Tensor, np.ndarray)):
-            if key.dtype in (bool, uint8, torch.bool, torch.uint8, np.bool_, np.uint8):
+            if key.dtype in (ht_bool, ht_uint8, torch.bool, torch.uint8, np.bool_, np.uint8):
                 # boolean indexing: shape must be consistent with arr.shape
                 key_ndim = key.ndim
                 if not tuple(key.shape) == arr.shape[:key_ndim]:
@@ -1105,6 +1107,42 @@ class DNDarray:
         advanced_indexing_shapes = []
         lose_dims = 0
         for i, k in enumerate(key):
+            if isinstance(k, DNDarray) and k.ndim == 0:
+                k = k.larray.item()
+                key[i] = k
+            # for robustness: handle list/tuple keys that contain DNDarrays
+            elif isinstance(k, (list, tuple)) and any(isinstance(kk, DNDarray) for kk in k):
+                # Case 1: singleton container (common from where/nonzero): (idx,) -> idx
+                if len(k) == 1 and isinstance(k[0], DNDarray):
+                    k = k[0]
+                    key[i] = k
+
+                else:
+                    # Case 2: sequence of scalar DNDarrays -> unwrap to python scalars
+                    new_k = []
+                    all_scalar = True
+                    for kk in k:
+                        if isinstance(kk, DNDarray):
+                            if kk.ndim != 0:
+                                all_scalar = False
+                                break
+                            new_k.append(kk.larray.item())
+                        else:
+                            new_k.append(kk)
+
+                    if all_scalar:
+                        k = new_k
+                        key[i] = k
+                    else:
+                        # This is an ambiguous nested "tuple of index arrays" inside a single axis.
+                        # In NumPy semantics such tuples belong at TOP LEVEL (arr[idx0, idx1, ...]),
+                        # not nested as one axis key.
+                        raise TypeError(
+                            "Nested tuple/list of non-scalar DNDarray indices is not supported. "
+                            "Pass them as separate indices (e.g. arr[idx0, idx1, ...]) or unwrap "
+                            "singleton tuples (e.g. idx = idx[0])."
+                        )
+
             if np.isscalar(k) or getattr(k, "ndim", 1) == 0:
                 # single-element indexing along axis i
                 try:
@@ -1125,9 +1163,10 @@ class DNDarray:
             elif isinstance(k, Iterable) or isinstance(k, DNDarray):
                 advanced_indexing = True
                 advanced_indexing_dims.append(i)
-                # work with DNDarrays to assess distribution
-                # torch tensors will be extracted in the advanced indexing section below
-                k = factories.array(k, device=arr.device, comm=arr.comm, copy=None)
+
+                if not isinstance(k, DNDarray):
+                    k = factories.array(k, device=arr.device, comm=arr.comm, copy=None)
+
                 advanced_indexing_shapes.append(k.gshape)
                 if arr_is_distributed and i == arr.split:
                     if (
@@ -1139,6 +1178,7 @@ class DNDarray:
                         out_is_balanced = None
                     else:
                         split_key_is_ordered = 0
+
                         # redistribute key along last axis to match split axis of indexed array
                         k = k.resplit(-1)
                         out_is_balanced = True
@@ -1223,8 +1263,10 @@ class DNDarray:
             if key_is_mask_like:
                 key = list(key)
                 key_splits = [k.split for k in key]
-                if arr.split is not None:
-                    if not key_splits.count(key_splits[arr.split]) == len(key_splits):
+                if arr.split is not None and arr.split in advanced_indexing_dims:
+                    split_key_pos = advanced_indexing_dims.index(arr.split)
+
+                    if not key_splits.count(key_splits[split_key_pos]) == len(key_splits):
                         if (
                             key_splits[arr.split] is not None
                             and key_splits.count(None) == len(key_splits) - 1
@@ -1469,11 +1511,75 @@ class DNDarray:
         if key is None:
             return self.expand_dims(0)
         if (
-            key is ... or isinstance(key, slice) and key == slice(None)
-        ):  # latter doesnt work with torch for 0-dim tensors
+            key is ...
+            or (isinstance(key, slice) and key == slice(None))
+            or (isinstance(key, tuple) and key == ())
+        ):
             return self
 
+        from .types import bool as ht_bool, uint8 as ht_uint8  # avoid circulars
+
         original_split = self.split
+
+        def _normalize_index_component(comp):
+            if isinstance(comp, DNDarray):
+                if comp.dtype in (ht_bool, ht_uint8):
+                    return comp
+
+                if comp.split is not None:
+                    return comp
+
+                return comp.larray.to(torch.int64)
+
+            return comp
+
+        if isinstance(key, DNDarray):
+            key = _normalize_index_component(key)
+        elif isinstance(key, (list, tuple)):
+            key = type(key)(_normalize_index_component(k) for k in key)
+
+        if isinstance(key, tuple) and len(key) >= 1 and self.ndim >= 1:
+            first = key[0]
+
+            # Case 1: DNDarray boolean mask
+            if (
+                isinstance(first, DNDarray)
+                and first.dtype in (ht_bool, ht_uint8)
+                and first.ndim == 1
+                and first.gshape == (self.gshape[0],)
+            ):
+                nz = first.nonzero()
+                if isinstance(nz, tuple):
+                    nz = nz[0]
+                if getattr(nz, "ndim", 1) > 1 and nz.shape[-1] == 1:
+                    nz = nz.squeeze(-1)
+                idx0 = nz
+                key = (idx0,) + key[1:]
+
+            # Case 2: torch.Tensor boolean mask
+            elif (
+                isinstance(first, torch.Tensor)
+                and first.ndim == 1
+                and first.shape[0] == self.gshape[0]
+                and first.dtype in (torch.bool, torch.uint8)
+            ):
+                idx0 = torch.nonzero(first, as_tuple=False).flatten()
+                key = (idx0,) + key[1:]
+
+            # Case 3: numpy.ndarray boolean mask
+            elif (
+                isinstance(first, np.ndarray)
+                and first.ndim == 1
+                and first.shape[0] == self.gshape[0]
+                and first.dtype in (np.bool_, np.uint8)
+            ):
+                idx0 = np.nonzero(first)[0].astype(np.int64)
+                key = (idx0,) + key[1:]
+
+        if isinstance(key, DNDarray):
+            # Exclude boolean masks; they have their own dedicated handling.
+            if key.ndim == 1 and key.dtype not in (ht_bool, ht_uint8):
+                key = key.larray.to(torch.int64)
 
         # Single-element indexing
         scalar = np.isscalar(key) or getattr(key, "ndim", 1) == 0
@@ -1506,6 +1612,56 @@ class DNDarray:
                 )
                 return indexed_arr
         else:
+            # ------------------------------------------------------------------
+            # Special case: 2D array with 1D boolean mask along split axis 0
+            # Pattern: x[mask_1d]  with
+            #   - self.ndim == 2
+            #   - self.split == 0
+            #   - key is DNDarray, bool, 1D, same split and length as axis 0
+            # This corresponds to NumPy's "select rows by mask" semantics.
+            # ------------------------------------------------------------------
+            if (
+                isinstance(key, DNDarray)
+                and key.dtype in (ht_bool, ht_uint8)
+                and key.ndim == 1
+                and self.ndim == 2
+                and self.split == 0
+                and key.split == 0
+                and key.gshape == (self.gshape[0],)
+            ):
+                # Local boolean mask on this rank
+                local_mask = key.larray  # torch.bool, shape (local_rows,)
+                local_result = self.larray[local_mask, :]  # shape (n_local_true, 2)
+
+                # Compute global number of selected rows (sum over ranks)
+                local_rows = torch.tensor(
+                    [local_result.shape[0]],
+                    device=self.larray.device,
+                    dtype=torch.int64,
+                )
+                rows_buffer = torch.zeros(
+                    (self.comm.size,),
+                    device=self.larray.device,
+                    dtype=torch.int64,
+                )
+                self.comm.Allgather(local_rows, rows_buffer)
+                total_rows = int(rows_buffer.sum().item())
+
+                # Global output shape: (total_rows, n_cols)
+                output_shape = (total_rows, self.gshape[1])
+
+                # Result remains split along axis 0, generally unbalanced.
+                result = DNDarray(
+                    local_result,
+                    gshape=output_shape,
+                    dtype=self.dtype,
+                    split=0,
+                    device=self.device,
+                    comm=self.comm,
+                    balanced=False,
+                )
+                return result
+
             # process multi-element key
             (
                 self,
@@ -1518,12 +1674,19 @@ class DNDarray:
                 root,
                 backwards_transpose_axes,
             ) = self.__process_key(key, return_local_indices=True)
+            # Do not treat keys that contain slices as "mask-like".
+            # For such keys, we fall back to the simpler non-mask-like
+            # path below, which only treats the split axis as globally indexed.
+            if key_is_mask_like and isinstance(key, (tuple, list)):
+                if any(isinstance(k, slice) for k in key):
+                    key_is_mask_like = False
 
         if not self.is_distributed():
             # key is torch-proof, index underlying torch tensor
             indexed_arr = self.larray[key]
             # transpose array back if needed
-            self = self.transpose(backwards_transpose_axes)
+            if self.ndim > 0:
+                self = self.transpose(backwards_transpose_axes)
             return DNDarray(
                 indexed_arr,
                 gshape=output_shape,
@@ -1556,13 +1719,40 @@ class DNDarray:
                     balanced=out_is_balanced,
                 )
                 # transpose array back if needed
-                self = self.transpose(backwards_transpose_axes)
+                if self.ndim > 0:
+                    self = self.transpose(backwards_transpose_axes)
                 return indexed_arr
+            # This covers patterns like A[idx] where A is distributed (split=0) and idx has global indices (e.g. (N,k)).
+            if self.is_distributed() and self.split == 0 and self.ndim == 1:
+                k0 = key
+                # key may be wrapped as a singleton tuple
+                if isinstance(k0, tuple) and len(k0) == 1:
+                    k0 = k0[0]
 
+                # tolerate DNDarray key (can still happen depending on __process_key path)
+                if isinstance(k0, DNDarray):
+                    idx_t = k0.larray
+                else:
+                    idx_t = k0
+
+                if isinstance(idx_t, torch.Tensor) and idx_t.dtype in (
+                    torch.int8,
+                    torch.int16,
+                    torch.int32,
+                    torch.int64,
+                    torch.uint8,
+                ):
+                    return self.__take_split0_global_1d(
+                        idx_t,
+                        out_gshape=output_shape,
+                        out_split=0,
+                        out_is_balanced=out_is_balanced,
+                    )
             # root is None, i.e. indexing does not affect split axis, apply as is
             indexed_arr = self.larray[key]
             # transpose array back if needed
-            self = self.transpose(backwards_transpose_axes)
+            if self.ndim > 0:
+                self = self.transpose(backwards_transpose_axes)
             return DNDarray(
                 indexed_arr,
                 gshape=output_shape,
@@ -1732,7 +1922,8 @@ class DNDarray:
             balanced=out_is_balanced,
         )
         # transpose array back if needed
-        self = self.transpose(backwards_transpose_axes)
+        if self.ndim > 0:
+            self = self.transpose(backwards_transpose_axes)
         return indexed_arr
 
     if torch.cuda.device_count() > 0:
@@ -2119,13 +2310,13 @@ class DNDarray:
         # sanitize the axis to check whether it is in range
         axis = sanitize_axis(self.shape, axis)
 
+        self.__partitions_dict__ = None
+
         # early out for unchanged content
         if self.comm.size == 1:
             self.__split = axis
         if axis == self.split:
             return self
-
-        self.__partitions_dict__ = None
 
         if axis is None:
             gathered = torch.empty(
@@ -2300,45 +2491,81 @@ class DNDarray:
         except TypeError:
             raise TypeError(f"Cannot assign object of type {type(value)} to DNDarray.")
 
-        # workaround for Heat issue #1292. TODO: remove when issue is fixed
-        if not isinstance(key, DNDarray):
-            if key is None or key is ... or key is slice(None):
-                # match dimensions
-                value, _ = __broadcast_value(self, key, value)
-                # make sure `self` and `value` distribution are aligned
-                value = sanitation.sanitize_distribution(value, target=self)
-                return __set(self, key, value)
+        # keep the key in its original form to handle edge cases
+        original_key = key
 
         # single-element key
         scalar = np.isscalar(key) or getattr(key, "ndim", 1) == 0
         if scalar:
             key, root = self.__process_scalar_key(key, indexed_axis=0, return_local_indices=True)
-            # match dimensions
-            value, _ = __broadcast_value(self, key, value)
-            # `root` will be None when the indexed axis is not the split axis, or when the
-            # indexed axis is the split axis but the indexed element is not local
+            value, value_is_scalar = __broadcast_value(self, key, value)
+
             if root is not None:
                 if self.comm.rank == root:
-                    # verify that `self[key]` and `value` distribution are aligned
-                    # do not index `self` with `key` directly here, as this would MPI-broadcast to all ranks
                     indexed_proxy = self.__torch_proxy__()[key]
                     if indexed_proxy.names.count("split") != 0:
-                        # distribution map of indexed subarray is the same as the lshape_map of the original array after losing the first dimension
                         indexed_lshape_map = self.lshape_map[:, 1:]
                         if value.lshape_map != indexed_lshape_map:
                             try:
                                 value.redistribute_(target_map=indexed_lshape_map)
                             except ValueError:
                                 raise ValueError(
-                                    f"cannot assign value to indexed DNDarray because distribution schemes do not match: {value.lshape_map} vs. {indexed_lshape_map}"
+                                    f"cannot assign value to indexed DNDarray because "
+                                    f"distribution schemes do not match: "
+                                    f"{value.lshape_map} vs. {indexed_lshape_map}"
                                 )
                     __set(self, key, value)
             else:
-                # `root` is None, i.e. the indexed element is local on each process
-                # verify that `self[key]` and `value` distribution are aligned
-                value = sanitation.sanitize_distribution(value, target=self[key])
+                if not value_is_scalar:
+                    value = sanitation.sanitize_distribution(value, target=self[key])
                 __set(self, key, value)
             return
+
+        if isinstance(key, tuple) and len(key) >= 1 and self.ndim >= 1:
+            first = key[0]
+            if isinstance(first, (DNDarray, torch.Tensor, np.ndarray)):
+                first_dtype = getattr(first, "dtype", None)
+                first_ndim = getattr(first, "ndim", 0)
+                first_shape = tuple(getattr(first, "shape", ()))
+
+                if (
+                    first_ndim == 1
+                    and first_shape == (self.shape[0],)
+                    and first_dtype
+                    in (ht_bool, ht_uint8, torch.bool, torch.uint8, np.bool_, np.uint8)
+                ):
+                    # 1D boolean row mask -> explicit integer indices
+                    if isinstance(first, DNDarray):
+                        nz = first.nonzero()
+                        if isinstance(nz, tuple):
+                            nz = nz[0]
+                        idx0 = nz  # DNDarray of int indices (global)
+                    else:
+                        first_t = torch.as_tensor(first, device=self.device.torch_device)
+                        idx0 = torch.nonzero(first_t, as_tuple=False).flatten()
+
+                    # Baue neuen Key: (idx0, rest...)
+                    new_key = (idx0,) + key[1:]
+
+                    # Rekursiver Aufruf mit Integer-Advanced-Indexing.
+                    # In diesem Aufruf ist first kein Bool mehr, d.h. wir landen nicht erneut hier.
+                    self[new_key] = value
+                    return
+
+        # handle negative indices in multi-element keys
+        if isinstance(key, tuple):
+            key_list = list(key)
+            for ax, k_ax in enumerate(key_list):
+                if isinstance(k_ax, (int, np.integer)) and not isinstance(k_ax, (bool, np.bool_)):
+                    if k_ax < 0:
+                        dim = self.gshape[ax]
+                        if -dim <= k_ax < 0:
+                            key_list[ax] = dim + k_ax
+                        else:
+                            raise IndexError(
+                                f"index {k_ax} is out of bounds for axis {ax} with size {dim}"
+                            )
+            key = tuple(key_list)
 
         # multi-element key, incl. slicing and striding, ordered and non-ordered advanced indexing
         (
@@ -2353,15 +2580,18 @@ class DNDarray:
             backwards_transpose_axes,
         ) = self.__process_key(key, return_local_indices=True, op="set")
 
-        # print("DEBUGGING: key, split_key_is_ordered", key, split_key_is_ordered)
         # match dimensions
         value, value_is_scalar = __broadcast_value(self, key, value, output_shape=output_shape)
 
         # early out for non-distributed case
         if not self.is_distributed() and not value.is_distributed():
-            # no communication needed
+            # no communication needed, just apply the local set
             __set(self, key, value)
-            self = self.transpose(backwards_transpose_axes)
+
+            # For 0-D arrays there is nothing to transpose; avoid permute() with no dims
+            if self.ndim > 0:
+                self = self.transpose(backwards_transpose_axes)
+
             return
 
         # distributed case
@@ -2430,15 +2660,194 @@ class DNDarray:
             self = self.transpose(backwards_transpose_axes)
             return
 
+        def _advanced_setitem_unordered_local(
+            x_local: torch.Tensor,
+            split_key: torch.Tensor,
+            value_torch: torch.Tensor,
+            *,
+            split_axis: int,
+            value_key_start_dim: int,
+            local_offset: int,
+            local_size: int,
+            value_is_scalar: bool,
+            out_dtype: torch.dtype,
+            base_index: Optional[Tuple] = None,
+        ) -> None:
+            """
+            The function is a helper that updates ``x_local`` in-place according to the logical advanced
+            indexing pattern encoded by ``split_key`` and the broadcasted ``value_torch``.
+            This helper operates exclusively on local ``torch.Tensor`` views:
+            - ``x_local`` is the local slice of the distributed array on this rank.
+            - ``split_key`` contains GLOBAL indices along the split axis.
+            - Only those indices that fall into ``[local_offset, local_offset + local_size)``
+              are applied on this rank.
+            """
+            # 1) Local mask: which global indices in `split_key` belong to this rank?
+            global_indices = split_key
+            local_mask = (global_indices >= local_offset) & (
+                global_indices < local_offset + local_size
+            )
+
+            coord = local_mask.nonzero(as_tuple=True)
+
+            if coord[0].numel() == 0:
+                # Nothing to do on this rank, exit early.
+                return
+
+            # 2) Map global → local indices along the split axis
+            global_split_indices = global_indices[coord]
+            local_split_indices = global_split_indices - local_offset
+
+            # 3) Build LHS index for x_local (corresponds to self.larray)
+            if base_index is None:
+                lhs_index = [slice(None)] * x_local.ndim
+            else:
+                lhs_index = list(base_index)
+
+            lhs_index[split_axis] = local_split_indices
+            lhs_index = tuple(lhs_index)
+
+            # 4) Build RHS index for value_torch
+            if value_is_scalar:
+                # Scalar assignment: broadcast scalar to the selected positions
+                x_local[lhs_index] = value_torch.to(out_dtype)
+                return
+
+            rhs_index = [slice(None)] * value_torch.ndim
+            m = split_key.ndim
+
+            for d in range(m):
+                rhs_index[value_key_start_dim + d] = coord[d]
+
+            rhs = value_torch[tuple(rhs_index)]
+            x_local[lhs_index] = rhs.to(out_dtype)
+
         if split_key_is_ordered == 0:
-            # key along split axis is unordered, communication needed
+            print(
+                "\n\n ############################ TEST split_key_is_ordered == 0 ############################ \n\n"
+            )
+            # key along split axis is unordered, communication needed in general
             # key along the split axis is torch tensor, indices are GLOBAL
             counts, displs = self.counts_displs()
             rank, _ = self.comm.rank, self.comm.size
 
-            #
             key_is_single_tensor = isinstance(key, torch.Tensor)
+
+            if (
+                not value.is_distributed()
+                and value_is_scalar
+                and isinstance(original_key, tuple)
+                and len(original_key) == self.ndim
+                and all(
+                    isinstance(k, DNDarray)
+                    and k.ndim == 1
+                    and k.dtype in (types.int32, types.int64)
+                    for k in original_key
+                )
+            ):
+                # Alle Indexvektoren global auf *jedem* Rang verfügbar machen,
+                # unabhängig davon, wie nz verteilt ist.
+                global_indices = []
+                for k in original_key:
+                    k_full = k.copy()
+                    k_full.resplit_(None)  # alle Ränge halten anschließend den kompletten 1D-Vektor
+                    global_indices.append(k_full.larray)
+
+                # Globale Indizes entlang der Split-Achse
+                idx_split_global = global_indices[self.split]
+                local_offset = displs[rank]
+                local_size = counts[rank]
+
+                # Welche Einträge von nz gehören zu diesem Rang?
+                mask = (idx_split_global >= local_offset) & (
+                    idx_split_global < local_offset + local_size
+                )
+                if not mask.any():
+                    # Auf diesem Rang ist nichts zu tun
+                    self = self.transpose(backwards_transpose_axes)
+                    return
+
+                # Pro Dimension einen lokalen Indextensor bauen
+                lhs_index = []
+                for dim, gind in enumerate(global_indices):
+                    sel = gind[mask]
+                    if dim == self.split:
+                        # globale -> lokale Indizes
+                        sel = sel - local_offset
+                    lhs_index.append(sel)
+                lhs_index = tuple(lhs_index)
+
+                # Skalarwert in richtigen Torch-Typ/Device bringen
+                if hasattr(value, "larray"):
+                    scalar_torch = value.larray
+                else:
+                    scalar_torch = torch.as_tensor(value, device=self.device.torch_device)
+                scalar_torch = scalar_torch.type(self.dtype.torch_type())
+
+                # In-place Update der lokalen Daten
+                self.larray[lhs_index] = scalar_torch
+                self = self.transpose(backwards_transpose_axes)
+                return
+
+            # No communication needed if `value` is not distributed, only set elements local to each process
             if not value.is_distributed():
+                # Edge case: pure boolean DNDarray mask with same split as `self`
+                if (
+                    key_is_mask_like
+                    and isinstance(original_key, DNDarray)
+                    and original_key.split == self.split
+                    and original_key.larray.dtype == torch.bool
+                ):
+                    local_mask = original_key.larray
+
+                    if value_is_scalar:
+                        if hasattr(value, "larray"):
+                            scalar_torch = value.larray
+                        else:
+                            scalar_torch = torch.as_tensor(value, device=self.device.torch_device)
+                        scalar_torch = scalar_torch.type(self.dtype.torch_type())
+                        self.larray[local_mask] = scalar_torch
+                    else:
+                        if hasattr(value, "larray"):
+                            value_torch = value.larray
+                        else:
+                            value_torch = torch.as_tensor(value, device=self.device.torch_device)
+
+                        if value_torch.ndim == 1:
+                            # RHS is already flat, length == #True(global)
+                            # -> we need to extract the appropriate section from value_torch for each rank
+
+                            # 1) Local number of True values
+                            local_mask_flat = local_mask.flatten()
+                            local_true = int(local_mask_flat.sum().item())
+
+                            # 2) Prefix sum across ranks to find the start index
+                            if self.comm.size > 1:
+                                if self.comm.rank == 0:
+                                    offset = 0
+                                    _ = self.comm.exscan(local_true)
+                                else:
+                                    offset = self.comm.exscan(local_true)
+                            else:
+                                offset = 0
+
+                            # 3) Extract the local section from RHS
+                            rhs_local = value_torch[offset : offset + local_true].type(
+                                self.dtype.torch_type()
+                            )
+
+                            # 4) Insert the local section into the True positions
+                            x_flat = self.larray.view(-1)
+                            x_flat[local_mask_flat] = rhs_local
+                        else:
+                            # Value has the same shape as arr (or is broadcastable)
+                            self.larray[local_mask] = value_torch[local_mask].type(
+                                self.dtype.torch_type()
+                            )
+
+                    self = self.transpose(backwards_transpose_axes)
+                    return
+
                 if key_is_single_tensor:
                     # key is a single torch.Tensor
                     split_key = key
@@ -2456,66 +2865,130 @@ class DNDarray:
                         self.larray[key] = value.larray[local_indices].type(self.dtype.torch_type())
                     self = self.transpose(backwards_transpose_axes)
                     return
-                # key is a sequence
-                split_key = key[self.split]
-                split_key_dims = split_key.ndim
-                if split_key_dims > 1:
-                    # flatten `split_key`
-                    split_key = split_key.flatten()
-                    # flatten  split_key dimensions of `value`:
-                    new_shape = list(value.shape)
-                    new_shape = (
-                        new_shape[: output_split - (split_key_dims - 1)]
-                        + [-1]
-                        + new_shape[output_split + 1 :]
-                    )
-                    if not value_is_scalar:
-                        # reshape `value` to match indexed array
-                        value = value.reshape(new_shape)
-                    output_split -= split_key_dims - 1
-                # find elements of `split_key` that are local to this process
-                local_indices = torch.nonzero(
-                    (split_key >= displs[rank]) & (split_key < displs[rank] + counts[rank])
-                ).flatten()
-                key = list(key)
+
                 if key_is_mask_like:
-                    # keep local indexing keys across all dimensions
-                    # correct for displacements along the split axis
-                    key = tuple(
-                        [
-                            (
-                                key[i][local_indices] - displs[rank]
-                                if i == self.split
-                                else key[i][local_indices]
+                    # Echte boolsche Maske entlang der Split-Achse, lokal auswerten.
+                    split_part = key[self.split]
+
+                    if isinstance(split_part, DNDarray):
+                        local_mask = split_part.larray
+                    elif isinstance(split_part, torch.Tensor):
+                        if split_part.dtype not in (torch.bool, torch.uint8):
+                            raise TypeError(
+                                f"mask-like key along the split axis must be boolean, got {split_part.dtype}"
                             )
-                            for i in range(len(key))
-                        ]
-                    )
-                    if not key[self.split].numel() == 0:
-                        if value_is_scalar:
-                            # no need to index value
-                            self.larray[key] = value.larray.type(self.dtype.torch_type())
+                        start = displs[rank]
+                        stop = start + counts[rank]
+                        local_mask = split_part[start:stop]
+                    else:
+                        raise TypeError("Unsupported mask-like key type along split axis")
+
+                    local_indices = torch.nonzero(local_mask, as_tuple=False).flatten()
+
+                    if local_indices.numel() == 0:
+                        self = self.transpose(backwards_transpose_axes)
+                        return
+
+                    # Lokalen Key bauen: Split-Achse bekommt lokale Integer-Indizes,
+                    # DNDarray-Komponenten werden zu lokalen Torch-Tensoren.
+                    new_key = []
+                    for i, k_i in enumerate(key):
+                        if i == self.split:
+                            new_key.append(local_indices)
                         else:
-                            self.larray[key] = value.larray[local_indices].type(
-                                self.dtype.torch_type()
-                            )
+                            if isinstance(k_i, DNDarray):
+                                new_key.append(k_i.larray)
+                            else:
+                                new_key.append(k_i)
+
+                    key_local = tuple(new_key)
+
+                    # Wert vorbereiten
+                    if value_is_scalar:
+                        if hasattr(value, "larray"):
+                            scalar_torch = value.larray
+                        else:
+                            scalar_torch = torch.as_tensor(value, device=self.device.torch_device)
+                        scalar_torch = scalar_torch.type(self.dtype.torch_type())
+                        self.larray[key_local] = scalar_torch
+                    else:
+                        if hasattr(value, "larray"):
+                            value_torch = value.larray
+                        else:
+                            value_torch = torch.as_tensor(value, device=self.device.torch_device)
+                        self.larray[key_local] = value_torch[key_local].type(
+                            self.dtype.torch_type()
+                        )
+
+                    self = self.transpose(backwards_transpose_axes)
+                    return
+
+                # Use original split of ``value`` (applying __process_key splits it like the input array)
+                # and take care of transposes
+                original_split_axis = backwards_transpose_axes[self.split]
+                raw_split_part = original_key[original_split_axis]
+
+                if isinstance(raw_split_part, DNDarray):
+                    split_key = raw_split_part.larray
+                elif isinstance(raw_split_part, torch.Tensor):
+                    split_key = raw_split_part
                 else:
-                    # keep local indexing key and correct for displacements along split dimension
-                    key[self.split] = split_key[local_indices] - displs[rank]
-                    key = tuple(key)
-                    # set local elements of `self` to corresponding elements of `value`
-                    if not key[self.split].numel() == 0:
-                        if value_is_scalar:
-                            # no need to index value
-                            self.larray[key] = value.larray.type(self.dtype.torch_type())
-                        else:
-                            value_key = tuple(
-                                [
-                                    local_indices if i == output_split else slice(None)
-                                    for i in range(value.ndim)
-                                ]
-                            )
-                            self.larray[key] = value.larray[value_key].type(self.dtype.torch_type())
+                    # Fallback to previous behaviour: use processed key on the (possibly transposed) split axis
+                    split_key = key[self.split]
+
+                # Convert to torch.Tensor if a DNDarray was passed
+                if isinstance(split_key, DNDarray):
+                    split_key = split_key.larray
+
+                if split_key.dtype == torch.bool:
+                    # assume mask along the split axis: convert to global indices
+                    split_key = torch.nonzero(split_key, as_tuple=False).flatten()
+
+                local_offset = displs[rank]
+                local_size = counts[rank]
+
+                # Ensure value is a local torch.Tensor (avoid DNDarray-style indexing here)
+                if hasattr(value, "larray"):
+                    value_torch = value.larray
+                else:
+                    value_torch = torch.as_tensor(value, device=self.device.torch_device)
+
+                feature_dims = self.larray.ndim - (self.split + 1)
+
+                if value_is_scalar:
+                    value_key_start_dim = 0
+                else:
+                    value_key_start_dim = value_torch.ndim - split_key.ndim - feature_dims
+                    if value_key_start_dim < 0:
+                        raise RuntimeError("value_key_start_dim < 0 – inconsistent shapes")
+
+                local_split_axis = self.split
+
+                base_index = [slice(None)] * self.larray.ndim
+                for dim, k_part in enumerate(original_key):
+                    if dim == self.split:
+                        continue
+                    # DNDarray → torch.Tensor
+                    if isinstance(k_part, DNDarray):
+                        base_index[dim] = k_part.larray
+                    else:
+                        # slices, ints, torch.Tensor, ...
+                        base_index[dim] = k_part
+
+                # apply the advanced indexing setitem locally
+                _advanced_setitem_unordered_local(
+                    x_local=self.larray,
+                    split_key=split_key,
+                    value_torch=value_torch,
+                    split_axis=local_split_axis,
+                    value_key_start_dim=value_key_start_dim,
+                    local_offset=local_offset,
+                    local_size=local_size,
+                    value_is_scalar=value_is_scalar,
+                    out_dtype=self.dtype.torch_type(),
+                    base_index=tuple(base_index),
+                )
+
                 self = self.transpose(backwards_transpose_axes)
                 return
 
@@ -2537,9 +3010,9 @@ class DNDarray:
                     split_key = key
                 else:
                     split_key = key[self.split]
-                global_split_key = factories.array(
-                    split_key, is_split=0, device=self.device, comm=self.comm, copy=False
-                )
+                    global_split_key = factories.array(
+                        split_key, is_split=0, device=self.device, comm=self.comm, copy=False
+                    )
                 target_map = global_split_key.lshape_map
                 target_map[:, 0] = value.lshape_map[:, value.split]
                 global_split_key.redistribute_(target_map=target_map)
@@ -2702,6 +3175,120 @@ class DNDarray:
         else:
             raise NotImplementedError(f"Not implemented for {value.__class__.__name__}")
 
+    def __take_split0_global_1d(
+        self,
+        idx: torch.Tensor,
+        out_gshape: Tuple[int, ...],
+        out_split: Optional[int],
+        out_is_balanced: bool,
+    ) -> "DNDarray":
+        """
+        Distributed take for 1D arrays split along axis 0.
+        idx contains GLOBAL indices (any shape). Returns self[idx] with shape out_gshape.
+
+        Communication strategy:
+        - each rank sends requested indices to owning ranks (Alltoallv)
+        - owners lookup local values and send them back (Alltoallv)
+        - requester reorders to original idx order and reshapes
+        """
+        comm = self.comm
+        size = comm.Get_size()
+        rank = comm.Get_rank()
+
+        # flatten local request
+        idx_flat = idx.reshape(-1).contiguous()
+
+        # handle empty
+        if idx_flat.numel() == 0:
+            empty = self.larray.new_empty(idx.shape, dtype=self.larray.dtype)
+            return DNDarray(
+                empty,
+                out_gshape,
+                dtype=self.dtype,
+                split=out_split,
+                device=self.device,
+                comm=comm,
+                balanced=out_is_balanced,
+            )
+
+        # normalize negative indices
+        n = self.gshape[0]
+        if (idx_flat < 0).any():
+            idx_flat = idx_flat.clone()
+            idx_flat[idx_flat < 0] += n
+
+        # bounds check
+        if (idx_flat < 0).any() or (idx_flat >= n).any():
+            raise IndexError("index out of bounds")
+
+        # ownership map via counts/displs of self
+        counts, displs = self.counts_displs()  # python lists
+        if size == 1:
+            vals = self.larray[idx_flat].reshape(idx.shape)
+            return DNDarray(
+                vals,
+                out_gshape,
+                dtype=self.dtype,
+                split=out_split,
+                device=self.device,
+                comm=comm,
+                balanced=out_is_balanced,
+            )
+
+        boundaries = torch.tensor(displs[1:], device=idx_flat.device, dtype=idx_flat.dtype)
+        owners = torch.bucketize(idx_flat, boundaries, right=True)
+
+        # group requests by owner
+        owners_sorted, order = owners.sort(stable=True)
+        idx_sorted = idx_flat[order]
+
+        # send counts/displs
+        send_counts_t = torch.bincount(owners_sorted, minlength=size).to(torch.int64)
+        send_counts = send_counts_t.cpu().tolist()
+        send_displs = [0]
+        for c in send_counts[:-1]:
+            send_displs.append(send_displs[-1] + c)
+
+        # recv counts/displs
+        recv_counts = comm.alltoall(send_counts)
+        recv_displs = [0]
+        for c in recv_counts[:-1]:
+            recv_displs.append(recv_displs[-1] + c)
+        recv_total = sum(recv_counts)
+
+        # exchange indices
+        recv_idx = torch.empty((recv_total,), dtype=idx_sorted.dtype, device=idx_sorted.device)
+        comm.Alltoallv((idx_sorted, send_counts, send_displs), (recv_idx, recv_counts, recv_displs))
+
+        # local lookup on owner
+        offset = displs[rank]
+        local_idx = recv_idx - offset
+        local_src = self.larray.contiguous()
+        send_vals = local_src[local_idx]
+
+        # send values back (reverse pattern)
+        recv_vals_grouped = torch.empty(
+            (idx_sorted.numel(),), dtype=send_vals.dtype, device=send_vals.device
+        )
+        comm.Alltoallv(
+            (send_vals, recv_counts, recv_displs), (recv_vals_grouped, send_counts, send_displs)
+        )
+
+        # undo grouping permutation
+        inv = torch.empty_like(order)
+        inv[order] = torch.arange(order.numel(), device=order.device, dtype=order.dtype)
+        vals = recv_vals_grouped[inv].reshape(idx.shape)
+
+        return DNDarray(
+            vals,
+            out_gshape,
+            dtype=self.dtype,
+            split=out_split,
+            device=self.device,
+            comm=comm,
+            balanced=out_is_balanced,
+        )
+
     def __str__(self) -> str:
         """
         Computes a string representation of the passed ``DNDarray``.
@@ -2808,4 +3395,5 @@ from . import types
 
 from .devices import Device
 from .stride_tricks import sanitize_axis
-from .types import datatype, canonical_heat_type, bool, uint8
+from .types import datatype, canonical_heat_type
+from .types import bool as ht_bool, uint8 as ht_uint8

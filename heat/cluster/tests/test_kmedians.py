@@ -36,7 +36,7 @@ class TestKMedians(TestCase):
 
         # fit the clusters
         k = 3
-        kmedian = ht.cluster.KMedians(n_clusters=k)
+        kmedian = ht.cluster.KMedians(n_clusters=k, random_state=1)
         kmedian.fit(iris)
 
         # check whether the results are correct

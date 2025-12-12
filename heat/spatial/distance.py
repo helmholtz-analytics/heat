@@ -369,6 +369,14 @@ def cdist_small(
     )
     current_idx += ydispl[rank]
 
+    # enforce deterministic order also for the initial block: (dist asc, idx asc)
+    current_idx_sorted, perm_idx = torch.sort(current_idx, dim=1, stable=True)
+    current_dist = torch.gather(current_dist, 1, perm_idx)
+    current_dist, perm_dist = torch.sort(current_dist, dim=1, stable=True)
+    current_idx = torch.gather(current_idx_sorted, 1, perm_dist)
+    current_dist = current_dist[:, :n_smallest]
+    current_idx = current_idx[:, :n_smallest]
+
     # Communicate the parts of Y between the processes in a circular fashion and keep parts of X fixed.
     # Reduce memory consumption of the distance matrix with the following strategy (during each communication step):
     #   1.  Caluclate the distances between the parts of X in each process with the part of Y that is received
@@ -406,10 +414,18 @@ def cdist_small(
         merged_dist = torch.cat((current_dist, new_dist), dim=1)
         merged_idx = torch.cat((current_idx, new_idx), dim=1)
 
-        # take only the n_smallest distances
-        current_dist, topk_indices = torch.topk(merged_dist, n_smallest, largest=False, sorted=True)
-        # extract the corresponding indices
-        current_idx = torch.gather(merged_idx, 1, topk_indices)
+        # take only the n_smallest distances and extract the corresponding indices
+        # 1) stable sort by index (ascending)
+        merged_idx_sorted, perm_idx = torch.sort(merged_idx, dim=1, stable=True)
+        merged_dist_reordered = torch.gather(merged_dist, 1, perm_idx)
+
+        # 2) stable sort by distance (ascending)
+        merged_dist_sorted, perm_dist = torch.sort(merged_dist_reordered, dim=1, stable=True)
+        merged_idx_sorted = torch.gather(merged_idx_sorted, 1, perm_dist)
+
+        # 3) keep first n_smallest
+        current_dist = merged_dist_sorted[:, :n_smallest]
+        current_idx = merged_idx_sorted[:, :n_smallest]
 
     # assign the local results on each process (torch.tensor) to the distributed distance and index matrix (ht.DNDarray)
     dist_small = ht.array(current_dist, is_split=0)
