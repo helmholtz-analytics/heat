@@ -14,7 +14,7 @@ ml heat
 
 
 python -m venv bench_env
-# change to theevirt-env
+# activate the bench_env virtual environment
 source bench_env/bin/activate
 pip install --upgrade pip
 pip install typing_extensions
