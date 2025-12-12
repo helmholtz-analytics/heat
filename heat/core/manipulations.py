@@ -4058,7 +4058,7 @@ def tile(x: DNDarray, reps: Sequence[int, ...]) -> DNDarray:
         except AttributeError:
             x = factories.array(x).reshape(1)
 
-    x_proxy = x.__torch_proxy__()
+    x_proxy = x.__torch_proxy__().rename(None)  # drop named-tensor metadata
 
     # torch-proof args/kwargs:
     # torch `reps`: int or sequence of ints; numpy `reps`: can be array-like

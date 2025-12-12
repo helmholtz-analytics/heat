@@ -390,17 +390,13 @@ class TestStatistics(TestCase):
         self.assertEqual(a.dtype, ht.int64)
         self.assertTrue(a.shape, v.shape)
 
-        print("\n \n \n rank", ht.MPI_WORLD.rank, "torch.initial_seed()", torch.initial_seed())
-        print("ht.random.get_state()", ht.random.get_state(), "\n \n \n")
-        torch.manual_seed(52)
+        torch.manual_seed(42)
         boundaries, _ = torch.sort(torch.rand(5, device=self.device.torch_device))
         v = torch.rand(6, device=self.device.torch_device)
         t = torch.bucketize(v, boundaries, out_int32=True)
 
         v = ht.array(v, split=0)
         a = ht.bucketize(v, boundaries, out_int32=True)
-        print(f"\n\n ############ Debug ############ \n {a.larray=} \n {t=} #################### \n\n")
-        print(f"\n\n ############ Debug ############ \n {ht.resplit(a, None).larray=} \n {ht.asarray(t)=} #################### \n\n")
         self.assertTrue(ht.equal(ht.resplit(a, None), ht.asarray(t)))
         self.assertEqual(a.dtype, ht.int32)
 
