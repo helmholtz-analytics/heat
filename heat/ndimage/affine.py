@@ -129,9 +129,12 @@ def _apply_padding(pix, spatial, mode, constant_value):
         elif mode == "wrap":
             final[d] = torch.remainder(p, size)
         elif mode == "reflect":
-            r = torch.abs(p)
-            r = torch.remainder(r, 2 * size - 2)
-            final[d] = torch.where(r < size, r, 2 * size - 2 - r)
+            if size == 1:
+                final[d] = torch.zeros_like(p)
+            else:
+                r = torch.abs(p)
+                r = torch.remainder(r, 2 * size - 2)
+                final[d] = torch.where(r < size, r, 2 * size - 2 - r)
 
     return final, valid
 
@@ -320,4 +323,4 @@ def affine_transform(
 
     out = ht.array(out, split=split_val)
 
-    return out.reshape(orig_shape)
+    return out
