@@ -16,6 +16,7 @@ import heat as ht
 # Utility: normalize input → (N, C, spatial…)
 # ============================================================
 
+
 def _normalize_input(x, ND):
     """
     Normalize a Heat array to include batch and channel dimensions.
@@ -38,14 +39,14 @@ def _normalize_input(x, ND):
     t = x.larray
 
     if ND == 2:
-        if x.ndim == 2:        # (H, W)
+        if x.ndim == 2:  # (H, W)
             t = t.unsqueeze(0).unsqueeze(0)
-        elif x.ndim == 3:      # (C, H, W)
+        elif x.ndim == 3:  # (C, H, W)
             t = t.unsqueeze(0)
     else:
-        if x.ndim == 3:        # (D, H, W)
+        if x.ndim == 3:  # (D, H, W)
             t = t.unsqueeze(0).unsqueeze(0)
-        elif x.ndim == 4:      # (C, D, H, W)
+        elif x.ndim == 4:  # (C, D, H, W)
             t = t.unsqueeze(0)
 
     return t, orig_shape
@@ -54,6 +55,7 @@ def _normalize_input(x, ND):
 # ============================================================
 # Utility: build coordinate grid in Heat order
 # ============================================================
+
 
 def _make_grid(spatial, device):
     """
@@ -89,6 +91,7 @@ def _make_grid(spatial, device):
 # ============================================================
 # Padding helper
 # ============================================================
+
 
 def _apply_padding(pix, spatial, mode, constant_value):
     """
@@ -143,6 +146,7 @@ def _apply_padding(pix, spatial, mode, constant_value):
 # Nearest neighbor sampler
 # ============================================================
 
+
 def _nearest_sample(x_local, coords_h, mode, constant_value):
     """
     Sample an image using nearest-neighbor interpolation.
@@ -190,6 +194,7 @@ def _nearest_sample(x_local, coords_h, mode, constant_value):
 # Bilinear sampling (2D only)
 # ============================================================
 
+
 def _bilinear_sample(x_local, coords_h, mode, constant_value):
     """
     Sample a 2D image using bilinear interpolation.
@@ -231,6 +236,7 @@ def _bilinear_sample(x_local, coords_h, mode, constant_value):
 # ============================================================
 # Public API
 # ============================================================
+
 
 def affine_transform(
     x,
@@ -304,9 +310,7 @@ def affine_transform(
     else:
         cx, cy, cz = coords_pt
         coords_h = torch.stack(
-            [cz.reshape(spatial),
-             cy.reshape(spatial),
-             cx.reshape(spatial)],
+            [cz.reshape(spatial), cy.reshape(spatial), cx.reshape(spatial)],
             dim=0,
         )
 
