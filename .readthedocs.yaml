@@ -19,12 +19,20 @@ build:
       - |
         if [ -n "$READTHEDOCS_VERSION_TYPE" ] && [ "$READTHEDOCS_VERSION_TYPE" = "external" ]; then
           # This is a PR build, check for labels
-          PR_NUMBER=$(echo $READTHEDOCS_VERSION | sed 's/^pr-//')
-          if command -v curl > /dev/null 2>&1 && [ -n "$PR_NUMBER" ]; then
-            LABELS=$(curl -s "https://api.github.com/repos/helmholtz-analytics/heat/pulls/$PR_NUMBER" | grep -o '"name":"[^"]*"' | grep -E '"name":"(automation|chore)"' || true)
-            if [ -n "$LABELS" ]; then
-              echo "Skipping build for PR #$PR_NUMBER with automation/chore label"
-              exit 183
+          PR_NUMBER=$(echo "$READTHEDOCS_VERSION" | sed 's/^pr-//')
+          # Validate that PR_NUMBER contains only digits
+          if echo "$PR_NUMBER" | grep -qE '^[0-9]+$'; then
+            if command -v curl > /dev/null 2>&1; then
+              # Fetch PR labels from GitHub API (anonymous access with rate limits)
+              API_RESPONSE=$(curl -s -f "https://api.github.com/repos/helmholtz-analytics/heat/pulls/$PR_NUMBER" 2>/dev/null || echo "")
+              if [ -n "$API_RESPONSE" ]; then
+                # Check if PR has 'automation' or 'chore' labels
+                LABELS=$(echo "$API_RESPONSE" | grep -o '"name":"[^"]*"' | grep -E '"name":"(automation|chore)"' || true)
+                if [ -n "$LABELS" ]; then
+                  echo "Skipping build for PR #$PR_NUMBER with automation/chore label"
+                  exit 183
+                fi
+              fi
             fi
           fi
         fi
