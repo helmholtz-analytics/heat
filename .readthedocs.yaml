@@ -27,7 +27,7 @@ build:
               API_RESPONSE=$(curl -s -f "https://api.github.com/repos/helmholtz-analytics/heat/pulls/$PR_NUMBER" 2>/dev/null || echo "")
               if [ -n "$API_RESPONSE" ]; then
                 # Check if PR has 'automation' or 'chore' labels
-                LABELS=$(echo "$API_RESPONSE" | grep -o '"name":"[^"]*"' | grep -E '"name":"(automation|chore)"' || true)
+                LABELS=$(echo "$API_RESPONSE" | grep -o '"name":"[^"]*"' | grep -E '"name":"(dependencies|chore)"' || true)
                 if [ -n "$LABELS" ]; then
                   echo "Skipping build for PR #$PR_NUMBER with automation/chore label"
                   exit 183
