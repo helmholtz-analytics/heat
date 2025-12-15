@@ -1435,7 +1435,7 @@ class TestDNDarray(TestCase):
         x_split0 = ht.zeros(27, split=0).reshape(3, 3, 3)
         key = -2
         x_split0[key] = ht.arange(3)
-        self.assertTrue((x_split0[key].larray == torch.arange(3)).all())
+        self.assertTrue((x_split0[key] == ht.arange(3, device=x_split0.device)).all().item())
         self.assertTrue(x_split0[key].dtype == ht.float32)
         self.assertTrue(x_split0.split == 0)
         # 3D, distributed split, != 0
