@@ -2825,9 +2825,6 @@ class DNDarray:
             x_local[lhs_index] = rhs.to(out_dtype)
 
         if split_key_is_ordered == 0:
-            print(
-                "\n\n ############################ TEST split_key_is_ordered == 0 ############################ \n\n"
-            )
             # key along split axis is unordered, communication needed in general
             # key along the split axis is torch tensor, indices are GLOBAL
             counts, displs = self.counts_displs()

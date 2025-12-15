@@ -23,6 +23,11 @@ class TestIndexing(TestCase):
         a[nz] = 10
         self.assertEqual(ht.all(a[nz] == 10), 1)
 
+        # attribute error
+        a = a.numpy()
+        with self.assertRaises(TypeError):
+            ht.nonzero(a)
+
     def test_where(self):
         # cases to test
         # no x and y
