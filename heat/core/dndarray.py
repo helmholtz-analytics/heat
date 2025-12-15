@@ -1025,12 +1025,17 @@ class DNDarray:
                                     split_key_is_ordered = split_key_is_ordered.item()
                                 key = key.larray
                             except AttributeError:
-                                # torch or ndarray key
                                 try:
                                     sorted, _ = torch.sort(key, stable=True)
                                 except TypeError:
-                                    # ndarray key
-                                    sorted = torch.tensor(np.sort(key), device=arr.larray.device)
+                                    # ndarray key -> move key to same device as arr before any torch ops / comparisons
+                                    key = torch.as_tensor(key, device=arr.larray.device)
+                                    try:
+                                        sorted, _ = torch.sort(key, stable=True)
+                                    except TypeError:
+                                        # fallback for older torch without stable=
+                                        sorted, _ = torch.sort(key)
+
                                 split_key_is_ordered = (key == sorted).all().item()
                                 if not split_key_is_ordered:
                                     # prepare for distributed non-ordered indexing: distribute torch/numpy key
