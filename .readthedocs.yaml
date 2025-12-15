@@ -13,6 +13,21 @@ build:
   apt_packages:
     - pandoc
     - libopenmpi-dev
+  jobs:
+    pre_build:
+      # Skip builds for PRs labeled with 'automation' or 'chore'
+      - |
+        if [ -n "$READTHEDOCS_VERSION_TYPE" ] && [ "$READTHEDOCS_VERSION_TYPE" = "external" ]; then
+          # This is a PR build, check for labels
+          PR_NUMBER=$(echo $READTHEDOCS_VERSION | sed 's/^pr-//')
+          if command -v curl > /dev/null 2>&1 && [ -n "$PR_NUMBER" ]; then
+            LABELS=$(curl -s "https://api.github.com/repos/helmholtz-analytics/heat/pulls/$PR_NUMBER" | grep -o '"name":"[^"]*"' | grep -E '"name":"(automation|chore)"' || true)
+            if [ -n "$LABELS" ]; then
+              echo "Skipping build for PR #$PR_NUMBER with automation/chore label"
+              exit 183
+            fi
+          fi
+        fi
 
 # Build documentation in the docs/ directory with Sphinx
 sphinx:
