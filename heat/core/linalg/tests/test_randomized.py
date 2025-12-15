@@ -16,30 +16,37 @@ class TestRSVD(TestCase):
                 for rank in [ht.MPI_WORLD.size, 10]:
                     for n_oversamples in [5, 10]:
                         for power_iter in [0, 1, 2, 3]:
-                            U, S, V = ht.linalg.rsvd(
-                                X, rank, n_oversamples=n_oversamples,
-                                power_iter=power_iter
-                            )
-                            self.assertEqual(U.shape, (X.shape[0], rank))
-                            self.assertEqual(S.shape, (rank,))
-                            self.assertEqual(V.shape, (X.shape[1], rank))
-                            self.assertTrue(ht.all(S >= 0))
-                            self.assertTrue(
-                                ht.allclose(
-                                    U.T @ U,
-                                    ht.eye(rank, dtype=U.dtype, split=U.split),
-                                    rtol=dtype_tol,
-                                    atol=dtype_tol,
+                            with self.subTest(
+                                dtype=dtype,
+                                split=split,
+                                rank=rank,
+                                n_oversamples=n_oversamples,
+                                power_iter=power_iter,
+                            ):
+                                U, S, V = ht.linalg.rsvd(
+                                    X, rank, n_oversamples=n_oversamples,
+                                    power_iter=power_iter
                                 )
-                            )
-                            self.assertTrue(
-                                ht.allclose(
-                                    V.T @ V,
-                                    ht.eye(rank, dtype=V.dtype, split=V.split),
-                                    rtol=dtype_tol,
-                                    atol=dtype_tol,
+                                self.assertEqual(U.shape, (X.shape[0], rank))
+                                self.assertEqual(S.shape, (rank,))
+                                self.assertEqual(V.shape, (X.shape[1], rank))
+                                self.assertTrue(ht.all(S >= 0))
+                                self.assertTrue(
+                                    ht.allclose(
+                                        U.T @ U,
+                                        ht.eye(rank, dtype=U.dtype, split=U.split),
+                                        rtol=dtype_tol,
+                                        atol=dtype_tol,
+                                    )
                                 )
-                            )
+                                self.assertTrue(
+                                    ht.allclose(
+                                        V.T @ V,
+                                        ht.eye(rank, dtype=V.dtype, split=V.split),
+                                        rtol=dtype_tol,
+                                        atol=dtype_tol,
+                                    )
+                                )
 
     def test_rsvd_catch_wrong_inputs(self):
         X = ht.random.randn(10, 10)
@@ -79,26 +86,33 @@ class TestREIGH(TestCase):
                 for rank in [5, 10]:
                     for n_oversamples in [5, 10]:
                         for power_iter in [0, 1, 2]:
-                            S, V = ht.linalg.reigh(
-                                A, rank, n_oversamples=n_oversamples,
-                                power_iter=power_iter
-                            )
-                            self.assertEqual(V.shape, (A.shape[0], rank))
-                            self.assertEqual(S.shape, (rank,))
-                            # Check eigenvalues are real (symmetric matrices)
-                            self.assertTrue(ht.all(ht.isreal(S)))
-                            # Check that eigenvalues are in descending order
-                            self.assertTrue(ht.all(S[:-1] >= S[1:]))
-                            # Check orthogonality of eigenvectors
-                            V.resplit_(None)
-                            self.assertTrue(
-                                ht.allclose(
-                                    V.T @ V,
-                                    ht.eye(rank, dtype=V.dtype, split=V.split),
-                                    rtol=dtype_tol,
-                                    atol=dtype_tol,
+                            with self.subTest(
+                                dtype=dtype,
+                                split=split,
+                                rank=rank,
+                                n_oversamples=n_oversamples,
+                                power_iter=power_iter,
+                            ):
+                                S, V = ht.linalg.reigh(
+                                    A, rank, n_oversamples=n_oversamples,
+                                    power_iter=power_iter
                                 )
-                            )
+                                self.assertEqual(V.shape, (A.shape[0], rank))
+                                self.assertEqual(S.shape, (rank,))
+                                # Check eigenvalues are real (symmetric matrices)
+                                self.assertTrue(ht.all(ht.isreal(S)))
+                                # Check that eigenvalues are in descending order
+                                self.assertTrue(ht.all(S[:-1] >= S[1:]))
+                                # Check orthogonality of eigenvectors
+                                V.resplit_(None)
+                                self.assertTrue(
+                                    ht.allclose(
+                                        V.T @ V,
+                                        ht.eye(rank, dtype=V.dtype, split=V.split),
+                                        rtol=dtype_tol,
+                                        atol=dtype_tol,
+                                    )
+                                )
 
     def test_reigh_catch_wrong_inputs(self):
         # Create a symmetric matrix for testing
