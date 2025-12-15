@@ -26,10 +26,10 @@ build:
               # Fetch PR labels from GitHub API (anonymous access with rate limits)
               API_RESPONSE=$(curl -s -f "https://api.github.com/repos/helmholtz-analytics/heat/pulls/$PR_NUMBER" 2>/dev/null || echo "")
               if [ -n "$API_RESPONSE" ]; then
-                # Check if PR has 'automation' or 'chore' labels
+                # Check if PR has 'dependencies' or 'chore' labels
                 LABELS=$(echo "$API_RESPONSE" | grep -o '"name":"[^"]*"' | grep -E '"name":"(dependencies|chore)"' || true)
                 if [ -n "$LABELS" ]; then
-                  echo "Skipping build for PR #$PR_NUMBER with automation/chore label"
+                  echo "Skipping build for PR #$PR_NUMBER with dependencies/chore label"
                   exit 183
                 fi
               fi
