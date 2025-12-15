@@ -204,12 +204,6 @@ def where(
             return nz
 
         # 3) Distributed along a non-zero axis (split > 0)
-        #    a) 1-D condition: only a single index vector exists, nothing to stack.
-        if cond.ndim == 1:
-            return nz[0]
-
-        #    b) Higher-dimensional condition: build an (N, ndim) coordinate matrix
-        #       from the column vectors in `nz`.
         coords = manipulations.stack(nz, axis=1)
         coords = coords.astype(types.int64, copy=False)
 
