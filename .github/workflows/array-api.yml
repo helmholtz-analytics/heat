@@ -13,7 +13,7 @@ jobs:
 
     steps:
     - name: Checkout
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
       with:
         path: heat
     - name: Setup MPI
@@ -30,7 +30,7 @@ jobs:
         python -m pip install --upgrade pip
         python -m pip install ${GITHUB_WORKSPACE}/heat/
     - name: Checkout array-api-tests
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
       with:
         repository: data-apis/array-api-tests
         path: array-api-tests
