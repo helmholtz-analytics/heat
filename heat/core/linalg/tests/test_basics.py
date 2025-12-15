@@ -35,13 +35,14 @@ class TestLinalgBasics(TestCase):
         self.assertTrue(est.item() >= xnpsvals.max() / xnpsvals.min())
 
         # split = 1, float64
+        dtype = np.float32 if self.is_mps else np.float64
         x = ht.random.randn(
-            25 * ht.MPI_WORLD.size + 2, 25 * ht.MPI_WORLD.size + 1, split=1, dtype=ht.float64
+            25 * ht.MPI_WORLD.size + 2, 25 * ht.MPI_WORLD.size + 1, split=1, dtype=dtype
         )
         est = ht.linalg.condest(x, algorithm="randomized", params={"nsamples": 15})
         self.assertEqual(est.shape, ())
         self.assertEqual(est.device, x.device)
-        self.assertTrue(est.dtype, ht.float64)
+        self.assertTrue(est.dtype, dtype)
         self.assertTrue(est.item() >= np.linalg.svd(x.numpy(), compute_uv=False).max())
 
         # catch wrong inputs
@@ -458,7 +459,8 @@ class TestLinalgBasics(TestCase):
 
         if a.comm.size > 1:
             # splits 00
-            a = ht.ones((n, m), split=0, dtype=ht.float64)
+            dtype = ht.float32 if self.is_mps else ht.float64
+            a = ht.ones((n, m), split=0, dtype=dtype)
             b = ht.ones((j, k), split=0)
             a[0] = ht.arange(1, m + 1)
             a[:, -1] = ht.arange(1, n + 1)
@@ -470,7 +472,7 @@ class TestLinalgBasics(TestCase):
             self.assertTrue(ht.equal(ret00, ret_comp00))
             self.assertIsInstance(ret00, ht.DNDarray)
             self.assertEqual(ret00.shape, (n, k))
-            self.assertEqual(ret00.dtype, ht.float64)
+            self.assertEqual(ret00.dtype, dtype)
             self.assertEqual(ret00.split, 0)
 
             # splits 00 (numpy)
@@ -486,12 +488,12 @@ class TestLinalgBasics(TestCase):
             self.assertTrue(ht.equal(ret00, ret_comp00))
             self.assertIsInstance(ret00, ht.DNDarray)
             self.assertEqual(ret00.shape, (n, k))
-            self.assertEqual(ret00.dtype, ht.float64)
+            self.assertEqual(ret00.dtype, dtype)
             self.assertEqual(ret00.split, 0)
 
             # splits 01
             a = ht.ones((n, m), split=0)
-            b = ht.ones((j, k), split=1, dtype=ht.float64)
+            b = ht.ones((j, k), split=1, dtype=dtype)
             a[0] = ht.arange(1, m + 1)
             a[:, -1] = ht.arange(1, n + 1)
             b[0] = ht.arange(1, k + 1)
@@ -502,7 +504,7 @@ class TestLinalgBasics(TestCase):
             self.assertTrue(ht.equal(ret00, ret_comp01))
             self.assertIsInstance(ret00, ht.DNDarray)
             self.assertEqual(ret00.shape, (n, k))
-            self.assertEqual(ret00.dtype, ht.float64)
+            self.assertEqual(ret00.dtype, dtype)
             self.assertEqual(ret00.split, 0)
 
             # splits 10
