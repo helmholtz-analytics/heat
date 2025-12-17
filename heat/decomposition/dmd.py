@@ -67,6 +67,9 @@ class DMD(ht.RegressionMixin, ht.BaseEstimator):
     -----
     We follow the "exact DMD" method as described in [1], Sect. 2.2.
 
+    Please note that "rank" in the context of SVD always refers to the number of singular values/vectors to compute (i.e., "rank" refers to the mathematical rank
+    of a matrix). This is completely different from the notion of "(MPI-)rank", i.e., the ID given to a process, in a parallel MPI-application.
+
     References
     ----------
     [1] J. L. Proctor, S. L. Brunton, and J. N. Kutz, "Dynamic Mode Decomposition with Control," SIAM Journal on Applied Dynamical Systems, vol. 15, no. 1, pp. 142-161, 2016.
@@ -392,6 +395,9 @@ class DMDc(ht.RegressionMixin, ht.BaseEstimator):
     We follow the approach described in [1], Sects. 3.3 and 3.4.
     In the case that svd_rank is prescribed, the rank of the SVD of the full system matrix is set to svd_rank + n_control_features; cf. https://github.com/dynamicslab/pykoopman
     for the same approach.
+
+    Please note that "rank" in the context of SVD always refers to the number of singular values/vectors to compute (i.e., "rank" refers to the mathematical rank
+    of a matrix). This is completely different from the notion of "(MPI-)rank", i.e., the ID given to a process, in a parallel MPI-application.
 
     References
     ----------
