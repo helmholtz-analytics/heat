@@ -7,6 +7,7 @@ import torch
 import numpy as np
 from mpi4py import MPI
 from typing import Callable
+import warnings
 
 from ..core import tiling
 from ..core import factories
@@ -256,8 +257,9 @@ def _chunk_wise_topk(
     """
     # input sanitation
     if chunks > x_.shape[0]:
-        raise ValueError(
-            "The parameter chunks must be smaller than the number of elements of x_ in each process."
+        chunks = x_.shape[0]
+        warnings.warn(
+            f"The parameter chunks should not be larger than the number of elements of x_ in each process. The value of chunks has been set to {chunks}."
         )
 
     # initialize empty tensors that will be filled iteratively with the respective chunks
