@@ -275,7 +275,7 @@ class TestDistances(TestCase):
         std_dist, std_idx = ht.topk(d, k=n_neighbors, dim=1, largest=False)
         dist, idx = ht.spatial.cdist_small(X, Y, n_smallest=n_neighbors)
 
-        print(f"\n\n\n ############## debug ############### \n\n\n {dist=}")
+        print(f"\n\n\n ############## debug ############### \n\n\n {dist.numpy()=}, {std_dist.numpy()=}")
         self.assertTrue(ht.allclose(std_dist, dist, atol=1e-3, rtol=1e-3))
         # Note: if some distances in the same row of the distance matrix are the same,
         # the respective indices in this comarison may differ (randomly ordered)
