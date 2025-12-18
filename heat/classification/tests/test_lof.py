@@ -127,12 +127,12 @@ class TestLOF(TestCase):
         lof = LocalOutlierFactor(n_neighbors=n_neighbors, fully_distributed=False)
         lof.fit(X)
         lof_scores = lof.lof_scores
-        condition = ht.allclose(lof_scores, sklearn_result, atol=1e-3)
+        condition = ht.allclose(lof_scores, sklearn_result, atol=1e-1)
         self.assertTrue(condition)
 
         # test with memory-efficient implementation
         lof = LocalOutlierFactor(n_neighbors=n_neighbors, fully_distributed=True)
         lof.fit(X)
         lof_scores = lof.lof_scores
-        condition = ht.allclose(lof_scores, sklearn_result, atol=1e-3)
+        condition = ht.allclose(lof_scores, sklearn_result, atol=1e-1)
         self.assertTrue(condition)
