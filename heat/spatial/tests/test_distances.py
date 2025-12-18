@@ -267,7 +267,7 @@ class TestDistances(TestCase):
     def test_cdist_small(self):
         ht.random.seed(10)
         n_neighbors = 10
-        X = ht.random.rand(1000, 100, dtype=ht.float2, split=0)
+        X = ht.random.rand(1000, 100, dtype=ht.float32, split=0)
         Y = ht.random.rand(1500, 100, dtype=ht.float32, split=0)
 
         # Test functionality
