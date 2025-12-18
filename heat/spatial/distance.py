@@ -415,14 +415,22 @@ def cdist_small(
         )
         new_idx += ydispl[sender]
 
-        # merge candidate distances: current (k) + new (k) -> 2k candidates per row
+        # merge the current distances with the new distances in one matrix (analogous for indices)
         merged_dist = torch.cat((current_dist, new_dist), dim=1)
         merged_idx = torch.cat((current_idx, new_idx), dim=1)
 
-        # global top-k on the merged candidates, consistent with torch.topk semantics
-        # (smallest k distances per row, sorted ascending)
-        current_dist, pos = torch.topk(merged_dist, k=n_smallest, dim=1, largest=False, sorted=True)
-        current_idx = torch.gather(merged_idx, 1, pos)
+        # take only the n_smallest distances and extract the corresponding indices
+        # 1) stable sort by index (ascending)
+        merged_idx_sorted, perm_idx = torch.sort(merged_idx, dim=1, stable=True)
+        merged_dist_reordered = torch.gather(merged_dist, 1, perm_idx)
+
+        # 2) stable sort by distance (ascending)
+        merged_dist_sorted, perm_dist = torch.sort(merged_dist_reordered, dim=1, stable=True)
+        merged_idx_sorted = torch.gather(merged_idx_sorted, 1, perm_dist)
+
+        # 3) keep first n_smallest
+        current_dist = merged_dist_sorted[:, :n_smallest]
+        current_idx = merged_idx_sorted[:, :n_smallest]
 
     # assign the local results on each process (torch.tensor) to the distributed distance and index matrix (ht.DNDarray)
     dist_small = ht.array(current_dist, is_split=0)
