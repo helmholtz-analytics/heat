@@ -267,7 +267,7 @@ class TestDistances(TestCase):
     def test_cdist_small(self):
         ht.random.seed(10)
         n_neighbors = 10
-        X = ht.random.rand(1000, 100, dtype=ht.float32, split=0)
+        X = ht.random.rand(1000, 100, dtype=ht.float2, split=0)
         Y = ht.random.rand(1500, 100, dtype=ht.float32, split=0)
 
         # Test functionality
@@ -275,16 +275,15 @@ class TestDistances(TestCase):
         std_dist, std_idx = ht.topk(d, k=n_neighbors, dim=1, largest=False)
         dist, idx = ht.spatial.cdist_small(X, Y, n_smallest=n_neighbors)
 
-        print(f"\n\n\n ############## debug ############### \n\n\n {dist.numpy()=}, {std_dist.numpy()=}")
-        self.assertTrue(ht.allclose(std_dist, dist, atol=1e-3, rtol=1e-3))
+        self.assertTrue(ht.allclose(std_dist, dist, atol=1e-6, rtol=1e-6))
         # Note: if some distances in the same row of the distance matrix are the same,
         # the respective indices in this comarison may differ (randomly ordered)
-        self.assertTrue(ht.allclose(std_idx, idx, atol=1e-3, rtol=1e-3))
+        self.assertTrue(ht.allclose(std_idx, idx, atol=1e-6, rtol=1e-6))
 
         # Test functionality with chunk-wise computation
         dist_chunked, idx_chunked = ht.spatial.cdist_small(X, Y, chunks=1, n_smallest=n_neighbors)
-        self.assertTrue(ht.allclose(std_dist, dist_chunked, atol=1e-3, rtol=1e-3))
-        self.assertTrue(ht.allclose(std_idx, idx_chunked, atol=1e-3, rtol=1e-3))
+        self.assertTrue(ht.allclose(std_dist, dist_chunked, atol=1e-6, rtol=1e-6))
+        self.assertTrue(ht.allclose(std_idx, idx_chunked, atol=1e-6, rtol=1e-6))
 
         # Splitting
         X = ht.random.rand(1000, 100, dtype=ht.float32, split=None)

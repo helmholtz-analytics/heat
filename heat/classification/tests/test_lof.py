@@ -128,13 +128,12 @@ class TestLOF(TestCase):
         lof.fit(X)
         lof_scores = lof.lof_scores
 
-        print(f"\n\n\n ############## debug ############### \n\n\n {lof_scores.numpy()=}")
-        condition = ht.allclose(lof_scores, sklearn_result, atol=1e-1, rtol=1e-3)
+        condition = ht.allclose(lof_scores, sklearn_result, atol=1e-6, rtol=1e-6)
         self.assertTrue(condition)
 
         # test with memory-efficient implementation
         lof = LocalOutlierFactor(n_neighbors=n_neighbors, fully_distributed=True)
         lof.fit(X)
         lof_scores = lof.lof_scores
-        condition = ht.allclose(lof_scores, sklearn_result, atol=1e-1, rtol=1e-3)
+        condition = ht.allclose(lof_scores, sklearn_result, atol=1e-6, rtol=1e-6)
         self.assertTrue(condition)
