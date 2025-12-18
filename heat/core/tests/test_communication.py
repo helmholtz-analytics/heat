@@ -2540,3 +2540,22 @@ class TestCommunication(TestCase):
         )
         ht.MPI_WORLD.Allreduce(ht.MPI.IN_PLACE, data, op=ht.MPI.SUM)
         self.assertTrue(data.all())
+
+    def test_handle_large_count_exceptions(self):
+        elements = (2**64)  # larger than uint32 max
+        with self.assertRaises(ValueError):
+            ht.MPI_WORLD._handle_large_count(ht.MPI.INT, elements)
+
+
+    def test_handle_large_count_residue(self):
+        elements = ht.MPI_WORLD.COUNT_LIMIT * 2
+        dtype, type_count = ht.MPI_WORLD._handle_large_count(ht.MPI.INT, elements)
+        combiner = dtype.Get_envelope()[4]
+        assert combiner == ht.MPI.COMBINER_VECTOR
+        assert type_count == 1
+
+        elements = ht.MPI_WORLD.COUNT_LIMIT * 2 + 101
+        dtype, type_count = ht.MPI_WORLD._handle_large_count(ht.MPI.INT, elements)
+        combiner = dtype.Get_envelope()[4]
+        assert combiner == ht.MPI.COMBINER_STRUCT
+        assert type_count == 1
