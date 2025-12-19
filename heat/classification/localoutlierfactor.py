@@ -57,16 +57,6 @@ class LocalOutlierFactor:
     idx_n_neighbors : DNDarray
         Indices of nearest neighbors for each sample in the data set.
 
-    Raises
-    ------
-    ValueError
-        If ``binary_decision`` is not "threshold" or "top_n".
-        If ``metric`` is neither "euclidian", "manhattan", nor "gaussian".
-
-    Warnings
-    --------
-        If ``n_neighbors`` is in a non-suitable range for the lof.
-
     References
     ----------
     [1] Breunig, M. M., Kriegel, H. P., Ng, R. T., & Sander, J. (2000). LOF: identifying density-based local outliers.
@@ -171,19 +161,9 @@ class LocalOutlierFactor:
 
     def _binary_classifier(self):
         """
-        Binary classification of the data points as outliers or inliers based on their non-binary LOF. According to the method,
+        Binary classification of the data points as outliers (1) or inliers (-1) based on their non-binary LOF. According to the method,
         the data points are classified as outliers if their LOF is greater or equal to a specified threshold or if they have one
         of the top_n largest LOF scores.
-
-        Returns
-        -------
-        anomaly : DNDarray
-            Array with outlier classification (1 -> outlier, -1 -> inlier).
-
-        Raises
-        ------
-        ValueError
-            If ``method`` is not "threshold" or "top_n".
         """
         if self.binary_decision == "threshold":
             # Use the provided threshold value

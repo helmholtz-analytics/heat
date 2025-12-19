@@ -29,21 +29,17 @@ class TestLOF(TestCase):
         with self.assertRaises(ValueError):
             LocalOutlierFactor(metric=None)
 
-
-    def test_utility(self):
+    def _setup_lof_dataset(self):
         """
-        Functional and consistency tests for LocalOutlierFactor.
+        Helper method to construct dataset for LOF tests.
 
-        This test:
-        - builds a simple 2D dataset with well-separated outliers,
-        - checks both binary_decision modes "threshold" and "top_n",
-        - verifies that fully_distributed=True and fully_distributed=False
-          produce (numerically) equivalent LOF scores.
+        Returns:
+            X (DNDarray): Combined dataset (50 inliers + 5 outliers)
+            n_outliers (int): Number of outliers (5)
+            sklearn_result (DNDarray): Expected LOF scores from scikit-learn
         """
-        n_neighbors = 10
-
         # ------------------------------------------------------------------
-        # 1) Construct dataset
+        # Construct data set
         #    - 50 inliers: Gaussian cluster around (0, 0)
         #    - 5 clearly separated outliers far away from the cluster
         # ------------------------------------------------------------------
@@ -70,40 +66,7 @@ class TestLOF(TestCase):
         X = ht.array(X_np, split=0, dtype=ht.float64, device=self.device)
 
         # ------------------------------------------------------------------
-        # 2) LOF with threshold-based decision
-        #    Threshold chosen safely above typical inlier-LOF values
-        # ------------------------------------------------------------------
-        lof = LocalOutlierFactor(
-            n_neighbors=n_neighbors,
-            binary_decision="threshold",
-            threshold=3.0,
-        )
-        lof.fit(X)
-        anomaly = lof.anomaly.numpy()
-
-        # All inliers should be classified as inliers (-1),
-        # the 5 explicit outliers as outliers (+1)
-        self.assertTrue(np.all(anomaly[:-n_outliers] == -1))
-        self.assertTrue(np.all(anomaly[-n_outliers:] == 1))
-
-        # ------------------------------------------------------------------
-        # 3) LOF with top_n-based decision
-        #    Select the last n_outliers points (the far-away ones)
-        # ------------------------------------------------------------------
-        lof = LocalOutlierFactor(
-            n_neighbors=n_neighbors,
-            binary_decision="top_n",
-            top_n=n_outliers,
-        )
-        lof.fit(X)
-        anomaly = lof.anomaly.numpy()
-
-        # The last n_outliers samples must be flagged as outliers
-        self.assertTrue(np.all(anomaly[-n_outliers:] == 1))
-
-        # ------------------------------------------------------------------
-        # 4) Consistency check:
-        #    compare the results with fully_distributed=False and fully_distributed=True with the scikit-learn implementation
+        # Construct data set for consistency check with the scikit-learn implementation:
         #    The following scikit-learn results can be reproduced using
         #    >>> X= X.resplit_(None).larray
         #    >>> skLOF = sklearn.neighbors.LocalOutlierFactor(n_neighbors, metric='euclidean', algorithm='brute')
@@ -123,17 +86,74 @@ class TestLOF(TestCase):
            5.55093291, 7.60215346, 7.99742319, 7.75727456, 5.6316978 ])
 
         sklearn_result = ht.array(sklearn_result, split=0)
-        # test with run-time-efficient implementation
-        lof = LocalOutlierFactor(n_neighbors=n_neighbors, fully_distributed=False)
+
+        return X, n_outliers, sklearn_result
+
+
+
+    def _test_utility(self, fully_distributed, n_neighbors=10):
+        """
+        Helper function and consistency tests for LocalOutlierFactor.
+        """
+        X, n_outliers, sklearn_result = self._setup_lof_dataset()
+
+        # ------------------------------------------------------------------
+        # 1) LOF with threshold-based decision
+        #    Threshold chosen safely above typical inlier-LOF values
+        # ------------------------------------------------------------------
+        lof = LocalOutlierFactor(
+            n_neighbors=n_neighbors,
+            binary_decision="threshold",
+            threshold=3.0,
+            fully_distributed=fully_distributed,
+        )
+        lof.fit(X)
+        anomaly = lof.anomaly.numpy()
+
+        # All inliers should be classified as inliers (-1),
+        # the 5 explicit outliers as outliers (+1)
+        self.assertTrue(np.all(anomaly[:-n_outliers] == -1))
+        self.assertTrue(np.all(anomaly[-n_outliers:] == 1))
+
+        # ------------------------------------------------------------------
+        # 2) LOF with top_n-based decision
+        #    Select the last n_outliers points (the far-away ones)
+        # ------------------------------------------------------------------
+        lof = LocalOutlierFactor(
+            n_neighbors=n_neighbors,
+            binary_decision="top_n",
+            top_n=n_outliers,
+            fully_distributed=fully_distributed,
+        )
+        lof.fit(X)
+        anomaly = lof.anomaly.numpy()
+
+        # The last n_outliers samples must be flagged as outliers
+        self.assertTrue(np.all(anomaly[-n_outliers:] == 1))
+
+        # ------------------------------------------------------------------
+        # 3) Consistency check:
+        #    compare the lof scores with the scikit-learn implementation
+        # ------------------------------------------------------------------
+        lof = LocalOutlierFactor(n_neighbors=n_neighbors, fully_distributed=fully_distributed)
         lof.fit(X)
         lof_scores = lof.lof_scores
 
         condition = ht.allclose(lof_scores, sklearn_result, atol=1e-6, rtol=1e-6)
         self.assertTrue(condition)
 
-        # test with memory-efficient implementation
-        lof = LocalOutlierFactor(n_neighbors=n_neighbors, fully_distributed=True)
-        lof.fit(X)
-        lof_scores = lof.lof_scores
-        condition = ht.allclose(lof_scores, sklearn_result, atol=1e-6, rtol=1e-6)
-        self.assertTrue(condition)
+
+    def _test_utility_runtime_efficient(self):
+        """
+        Tests LocalOutlierFactor with a runtime efficient implementation.
+        """
+        n_neighbors = 10
+        self._test_utility(self, fully_distributed=False, n_neighbors=n_neighbors)
+
+
+    def _test_utility_memory_efficient(self):
+        """
+        Tests LocalOutlierFactor with a memory efficient implementation.
+        """
+        n_neighbors = 10
+        self._test_utility(self, fully_distributed=True, n_neighbors=n_neighbors)

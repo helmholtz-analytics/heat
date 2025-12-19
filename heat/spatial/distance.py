@@ -237,23 +237,6 @@ def _chunk_wise_topk(
         For ``chunks``= 2: first compute one half of the distance matrix and then the second half.
     device: torch.device
         The device on which the computation is performed. If None, the default device of the input tensors is used.
-
-    Returns
-    -------
-    dist: torch.tensor
-        Distance matrix storing the top k distances between the elements of ``x_`` and ``y_``
-    idx: torch.tensor
-        Indices of the top k distances between the elements of ``x_`` and ``y_``
-
-    Raises
-    ------
-    ValueError
-        If ``n_smallest`` or ``chunks`` is larger than the number of elements in ``y_`` on each process
-
-    Returns
-    -------
-    dist: torch.tensor, shape (m, n)
-        Distance matrix storing the distances between the elements of ``x_`` and ``y_``
     """
     # input sanitation
     if chunks > x_.shape[0]:
@@ -292,10 +275,7 @@ def cdist_small(
 ) -> DNDarray:
     """
     Calculate the pairwise distances between two DNDarrays (values sorted from smallest to largest), which has
-    on optimized memory consumption if only the ``n_smallest`` smallest distances are needed. Note that the
-    matrix will is not symmetric as in the usual function cdist. To reduce the number of required processes,
-    the parameter ``chunks`` enables a chunk-wise calculation of the distance matrix in an iterative fashion.
-    This allows to choose a trade-off between total memory consumption and computation time.
+    an optimized memory consumption if only the ``n_smallest`` smallest distances are needed.
 
     Parameters
     ----------
@@ -311,18 +291,11 @@ def cdist_small(
         Define if the distances on each process are calculated iteratively. For example, if ``chunks=2``, the
         each processes will first compute one half of the distance matrix and then the second half.
 
-    Returns
-    -------
-    dist_small: DNDarray, shape (m, n_smallest)
-        Distance matrix storing the n_smallest smallest distances between the elements of ``X`` and ``Y``,
-        sorted from smallest to largest
-
-    Raises
-    ------
-    ValueError
-        If ``n_smallest`` or ``chunks`` is larger than the number of elements in ``Y`` on each process
-    NotImplementedError
-        If split axes of ``X`` and ``Y`` are not 0
+    Notes
+    -----
+    - The matrix cdist_small is not square as in the usual function cdist.
+    - To reduce the number of required processes, the parameter ``chunks`` enables a chunk-wise calculation of the distance
+    matrix in an iterative fashion. This allows to choose a trade-off between total memory consumption and computation time.
     """
     # input sanitation
     if not isinstance(X, DNDarray) or not isinstance(Y, DNDarray):
