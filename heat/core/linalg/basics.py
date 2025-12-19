@@ -262,7 +262,7 @@ def cross(
     if a_2d and b_2d:
         z_slice = [slice(None, None, None)] * ret.ndim
         z_slice[axisc] = -1
-        ret = ret[z_slice]
+        ret = ret[tuple(z_slice)]
     else:
         output_shape = output_shape[:axis] + (3,) + output_shape[axis:]
 
@@ -1748,7 +1748,7 @@ def outer(
             t_outer_slice[0] = local_slice[0]
         t_outer = torch.zeros(t_outer_shape, dtype=t_outer_dtype, device=t_a.device)
         if lshape_map[rank] != 0:
-            t_outer[t_outer_slice] = torch.einsum("i,j->ij", t_a, t_b)
+            t_outer[tuple(t_outer_slice)] = torch.einsum("i,j->ij", t_a, t_b)
 
         # Ring: fill in missing slices of outer product
         # allocate memory for traveling data

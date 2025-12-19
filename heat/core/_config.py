@@ -2,7 +2,6 @@
 Everything you need to know about the configuration of Heat
 """
 
-from mpi4py import MPI
 import torch
 import platform
 import mpi4py

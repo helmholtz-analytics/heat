@@ -1,4 +1,5 @@
 import unittest
+import warnings
 import numpy as np
 import torch
 import heat as ht
@@ -295,18 +296,18 @@ class TestArithmeticsCSR(TestCase):
             self.assertTrue(
                 (
                     heat_sparse_csr_C.lindices
-                    == torch.tensor(indices_C_dist[self.rank], device=self.device.torch_device)
+                    == indices_C_dist[self.rank].detach().clone().to(self.device.torch_device)
                 ).all()
             )
             self.assertTrue(
                 (
-                    heat_sparse_csr_C.data == torch.tensor(data_C, device=self.device.torch_device)
+                    heat_sparse_csr_C.data == data_C.detach().clone().to(self.device.torch_device)
                 ).all()
             )
             self.assertTrue(
                 (
                     heat_sparse_csr_C.ldata
-                    == torch.tensor(data_C_dist[self.rank], device=self.device.torch_device)
+                    == data_C_dist[self.rank].detach().clone().to(self.device.torch_device)
                 ).all()
             )
             self.assertEqual(heat_sparse_csr_C.nnz, len(data_C))
@@ -325,36 +326,36 @@ class TestArithmeticsCSR(TestCase):
             self.assertTrue(
                 (
                     heat_sparse_csr_C.indptr
-                    == torch.tensor(indptr_C, device=self.device.torch_device)
+                    == indptr_C.detach().clone().to(self.device.torch_device)
                 ).all()
             )
             self.assertTrue(
                 (
                     heat_sparse_csr_C.lindptr
-                    == torch.tensor(indptr_C_dist[self.rank], device=self.device.torch_device)
+                    == indptr_C_dist[self.rank].detach().clone().to(self.device.torch_device)
                 ).all()
             )
             self.assertTrue(
                 (
                     heat_sparse_csr_C.indices
-                    == torch.tensor(indices_C, device=self.device.torch_device)
+                    == indices_C.detach().clone().to(self.device.torch_device)
                 ).all()
             )
             self.assertTrue(
                 (
                     heat_sparse_csr_C.lindices
-                    == torch.tensor(indices_C_dist[self.rank], device=self.device.torch_device)
+                    == indices_C_dist[self.rank].detach().clone().to(self.device.torch_device)
                 ).all()
             )
             self.assertTrue(
                 (
-                    heat_sparse_csr_C.data == torch.tensor(data_C, device=self.device.torch_device)
+                    heat_sparse_csr_C.data == data_C.detach().clone().to(self.device.torch_device)
                 ).all()
             )
             self.assertTrue(
                 (
                     heat_sparse_csr_C.ldata
-                    == torch.tensor(data_C_dist[self.rank], device=self.device.torch_device)
+                    == data_C_dist[self.rank].detach().clone().to(self.device.torch_device)
                 ).all()
             )
             self.assertEqual(heat_sparse_csr_C.nnz, len(data_C))
@@ -372,36 +373,36 @@ class TestArithmeticsCSR(TestCase):
             self.assertTrue(
                 (
                     heat_sparse_csr_C.indptr
-                    == torch.tensor(indptr_C, device=self.device.torch_device)
+                    == indptr_C.detach().clone().to(self.device.torch_device)
                 ).all()
             )
             self.assertTrue(
                 (
                     heat_sparse_csr_C.lindptr
-                    == torch.tensor(indptr_C_dist[self.rank], device=self.device.torch_device)
+                    == indptr_C_dist[self.rank].detach().clone().to(self.device.torch_device)
                 ).all()
             )
             self.assertTrue(
                 (
                     heat_sparse_csr_C.indices
-                    == torch.tensor(indices_C, device=self.device.torch_device)
+                    == indices_C.detach().clone().to(self.device.torch_device)
                 ).all()
             )
             self.assertTrue(
                 (
                     heat_sparse_csr_C.lindices
-                    == torch.tensor(indices_C_dist[self.rank], device=self.device.torch_device)
+                    == indices_C_dist[self.rank].detach().clone().to(self.device.torch_device)
                 ).all()
             )
             self.assertTrue(
                 (
-                    heat_sparse_csr_C.data == torch.tensor(data_C, device=self.device.torch_device)
+                    heat_sparse_csr_C.data == data_C.detach().clone().to(self.device.torch_device)
                 ).all()
             )
             self.assertTrue(
                 (
                     heat_sparse_csr_C.ldata
-                    == torch.tensor(data_C_dist[self.rank], device=self.device.torch_device)
+                    == data_C_dist[self.rank].detach().clone().to(self.device.torch_device)
                 ).all()
             )
             self.assertEqual(heat_sparse_csr_C.nnz, len(data_C))
@@ -451,36 +452,36 @@ class TestArithmeticsCSR(TestCase):
             self.assertTrue(
                 (
                     heat_sparse_csr_C.indptr
-                    == torch.tensor(indptr_C, device=self.device.torch_device)
+                    == indptr_C.detach().clone().to(self.device.torch_device)
                 ).all()
             )
             self.assertTrue(
                 (
                     heat_sparse_csr_C.lindptr
-                    == torch.tensor(indptr_C_dist[self.rank], device=self.device.torch_device)
+                    == indptr_C_dist[self.rank].detach().clone().to(self.device.torch_device)
                 ).all()
             )
             self.assertTrue(
                 (
                     heat_sparse_csr_C.indices
-                    == torch.tensor(indices_C, device=self.device.torch_device)
+                    == indices_C.detach().clone().to(self.device.torch_device)
                 ).all()
             )
             self.assertTrue(
                 (
                     heat_sparse_csr_C.lindices
-                    == torch.tensor(indices_C_dist[self.rank], device=self.device.torch_device)
+                    == indices_C_dist[self.rank].detach().clone().to(self.device.torch_device)
                 ).all()
             )
             self.assertTrue(
                 (
-                    heat_sparse_csr_C.data == torch.tensor(data_C, device=self.device.torch_device)
+                    heat_sparse_csr_C.data == data_C.detach().clone().to(self.device.torch_device)
                 ).all()
             )
             self.assertTrue(
                 (
                     heat_sparse_csr_C.ldata
-                    == torch.tensor(data_C_dist[self.rank], device=self.device.torch_device)
+                    == data_C_dist[self.rank].detach().clone().to(self.device.torch_device)
                 ).all()
             )
             self.assertEqual(heat_sparse_csr_C.nnz, len(data_C))
@@ -499,36 +500,36 @@ class TestArithmeticsCSR(TestCase):
             self.assertTrue(
                 (
                     heat_sparse_csr_C.indptr
-                    == torch.tensor(indptr_C, device=self.device.torch_device)
+                    == indptr_C.detach().clone().to(self.device.torch_device)
                 ).all()
             )
             self.assertTrue(
                 (
                     heat_sparse_csr_C.lindptr
-                    == torch.tensor(indptr_C_dist[self.rank], device=self.device.torch_device)
+                    == indptr_C_dist[self.rank].detach().clone().to(self.device.torch_device)
                 ).all()
             )
             self.assertTrue(
                 (
                     heat_sparse_csr_C.indices
-                    == torch.tensor(indices_C, device=self.device.torch_device)
+                    == indices_C.detach().clone().to(self.device.torch_device)
                 ).all()
             )
             self.assertTrue(
                 (
                     heat_sparse_csr_C.lindices
-                    == torch.tensor(indices_C_dist[self.rank], device=self.device.torch_device)
+                    == indices_C_dist[self.rank].detach().clone().to(self.device.torch_device)
                 ).all()
             )
             self.assertTrue(
                 (
-                    heat_sparse_csr_C.data == torch.tensor(data_C, device=self.device.torch_device)
+                    heat_sparse_csr_C.data == data_C.detach().clone().to(self.device.torch_device)
                 ).all()
             )
             self.assertTrue(
                 (
                     heat_sparse_csr_C.ldata
-                    == torch.tensor(data_C_dist[self.rank], device=self.device.torch_device)
+                    == data_C_dist[self.rank].detach().clone().to(self.device.torch_device)
                 ).all()
             )
             self.assertEqual(heat_sparse_csr_C.nnz, len(data_C))
@@ -546,36 +547,36 @@ class TestArithmeticsCSR(TestCase):
             self.assertTrue(
                 (
                     heat_sparse_csr_C.indptr
-                    == torch.tensor(indptr_C, device=self.device.torch_device)
+                    == indptr_C.detach().clone().to(self.device.torch_device)
                 ).all()
             )
             self.assertTrue(
                 (
                     heat_sparse_csr_C.lindptr
-                    == torch.tensor(indptr_C_dist[self.rank], device=self.device.torch_device)
+                    == indptr_C_dist[self.rank].detach().clone().to(self.device.torch_device)
                 ).all()
             )
             self.assertTrue(
                 (
                     heat_sparse_csr_C.indices
-                    == torch.tensor(indices_C, device=self.device.torch_device)
+                    == indices_C.detach().clone().to(self.device.torch_device)
                 ).all()
             )
             self.assertTrue(
                 (
                     heat_sparse_csr_C.lindices
-                    == torch.tensor(indices_C_dist[self.rank], device=self.device.torch_device)
+                    == indices_C_dist[self.rank].detach().clone().to(self.device.torch_device)
                 ).all()
             )
             self.assertTrue(
                 (
-                    heat_sparse_csr_C.data == torch.tensor(data_C, device=self.device.torch_device)
+                    heat_sparse_csr_C.data == data_C.detach().clone().to(self.device.torch_device)
                 ).all()
             )
             self.assertTrue(
                 (
                     heat_sparse_csr_C.ldata
-                    == torch.tensor(data_C_dist[self.rank], device=self.device.torch_device)
+                    == data_C_dist[self.rank].detach().clone().to(self.device.torch_device)
                 ).all()
             )
             self.assertEqual(heat_sparse_csr_C.nnz, len(data_C))
@@ -596,17 +597,17 @@ class TestArithmeticsCSR(TestCase):
         self.assertIsInstance(heat_sparse_csr_C, ht.sparse.DCSR_matrix)
         self.assertTrue(
             (
-                heat_sparse_csr_C.indptr == torch.tensor(indptr_C, device=self.device.torch_device)
+                heat_sparse_csr_C.indptr == indptr_C.detach().clone().to(self.device.torch_device)
             ).all()
         )
         self.assertTrue(
             (
                 heat_sparse_csr_C.indices
-                == torch.tensor(indices_C, device=self.device.torch_device)
+                == indices_C.detach().clone().to(self.device.torch_device)
             ).all()
         )
         self.assertTrue(
-            (heat_sparse_csr_C.data == torch.tensor(data_C, device=self.device.torch_device)).all()
+            (heat_sparse_csr_C.data == data_C.detach().clone().to(self.device.torch_device)).all()
         )
         self.assertEqual(heat_sparse_csr_C.nnz, len(data_C))
         self.assertEqual(heat_sparse_csr_C.split, None)
@@ -1255,17 +1256,17 @@ class TestArithmeticsCSR(TestCase):
         self.assertIsInstance(heat_sparse_csr_C, ht.sparse.DCSR_matrix)
         self.assertTrue(
             (
-                heat_sparse_csr_C.indptr == torch.tensor(indptr_C, device=self.device.torch_device)
+                heat_sparse_csr_C.indptr == indptr_C.detach().clone().to(self.device.torch_device)
             ).all()
         )
         self.assertTrue(
             (
                 heat_sparse_csr_C.indices
-                == torch.tensor(indices_C, device=self.device.torch_device)
+                == indices_C.detach().clone().to(self.device.torch_device)
             ).all()
         )
         self.assertTrue(
-            (heat_sparse_csr_C.data == torch.tensor(data_C, device=self.device.torch_device)).all()
+            (heat_sparse_csr_C.data == data_C.detach().clone().to(self.device.torch_device)).all()
         )
         self.assertEqual(heat_sparse_csr_C.nnz, len(data_C))
         self.assertEqual(heat_sparse_csr_C.split, None)

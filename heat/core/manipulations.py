@@ -8,7 +8,7 @@ import numpy as np
 import torch
 import warnings
 
-from typing import Iterable, Type, List, Callable, Union, Tuple, Sequence, Optional
+from typing import Any, Iterable, Type, List, Callable, Union, Tuple, Sequence, Optional
 
 from .communication import MPI, Communication
 from .dndarray import DNDarray
@@ -207,7 +207,7 @@ def broadcast_to(x: DNDarray, shape: Tuple[int, ...]) -> DNDarray:
     split_tags = [None] * x.ndim
     if x.split is not None:
         split_tags[x.split] = "split"
-        torch_proxy = torch.tensor(torch_proxy, names=split_tags)
+        torch_proxy = torch_proxy.detach().clone().rename_(*split_tags)
         try:
             torch_proxy = torch_proxy.broadcast_to(shape)
         except RuntimeError:
@@ -659,13 +659,13 @@ def concatenate(arrays: Sequence[DNDarray, ...], axis: int = 0) -> DNDarray:
                     # the chunk map is adjusted by subtracting what data is already in the correct place (the data from
                     # arr1 is already correctly placed) i.e. the chunk map shows how much data is still needed on each
                     # process, the local
-                    chunk_map[arb_slice] -= lshape_map[tuple([1] + arb_slice)]
+                    chunk_map[tuple(arb_slice)] -= lshape_map[tuple([1] + arb_slice)]
 
                 # after adjusting arr1 need to now select the target data in arr0 on each node with a local slice
                 if arr0.comm.rank == 0:
-                    lcl_slice = [slice(None)] * arr0.ndim
+                    lcl_slice: list[slice[Any, Any, Any]] | Any = [slice(None)] * arr0.ndim
                     lcl_slice[axis] = slice(chunk_map[0, axis].item())
-                    t_arr0 = t_arr0[lcl_slice].clone().squeeze()
+                    t_arr0 = t_arr0[tuple(lcl_slice)].clone().squeeze()
                 ttl = chunk_map[0, axis].item()
                 for en in range(1, arr0.comm.size):
                     sz = chunk_map[en, axis]
@@ -682,7 +682,7 @@ def concatenate(arrays: Sequence[DNDarray, ...], axis: int = 0) -> DNDarray:
                 arb_slice = [None] * len(arr0.shape)
                 for c in range(len(chunk_map)):
                     arb_slice[axis] = c
-                    chunk_map[arb_slice] -= lshape_map[tuple([0] + arb_slice)]
+                    chunk_map[tuple(arb_slice)] -= lshape_map[tuple([0] + arb_slice)]
 
                 # get the desired data in arr1 on each node with a local slice
                 if arr1.comm.rank == arr1.comm.size - 1:
@@ -690,7 +690,7 @@ def concatenate(arrays: Sequence[DNDarray, ...], axis: int = 0) -> DNDarray:
                     lcl_slice[axis] = slice(
                         t_arr1.shape[axis] - chunk_map[-1, axis].item(), t_arr1.shape[axis], 1
                     )
-                    t_arr1 = t_arr1[lcl_slice].clone().squeeze()
+                    t_arr1 = t_arr1[tuple(lcl_slice)].clone().squeeze()
                 ttl = chunk_map[-1, axis].item()
                 for en in range(arr1.comm.size - 2, -1, -1):
                     sz = chunk_map[en, axis]
