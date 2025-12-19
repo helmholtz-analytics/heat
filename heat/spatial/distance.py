@@ -395,6 +395,7 @@ def cdist_small(
         recv_nrows, recv_ncols = Y.lshape_map[sender]
         # for correct communication, the buffer has to be created on CPU
         buffer = torch.zeros((recv_nrows, recv_ncols), dtype=torch_type, device="cpu")
+        # move the part of Y to CPU for sending
         y_ = y_.cpu()
 
         # send the individually stored parts of Y to the next process, avoid deadlocks with non-blocking actions
