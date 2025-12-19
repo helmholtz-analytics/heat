@@ -386,16 +386,7 @@ def cdist_small(
     #   2.  Merge `new_dist` and `current_dist` to one matrix and take only the n_smallest distances. Result is stored in `current_dist`
     #   3.  Constantly keep track of indices of the n_smallest distances.
 
-    # ------------------------------------------------------------------
-    # MPI communication:
-    # We circulate the *local chunks* of Y between processes in a ring.
-    # To keep memory usage low and MPI happy, we:
-    #   - keep the local Y chunk on CPU as send buffer (y_send)
-    #   - use a single reusable CPU receive buffer (recv_buffer_cpu)
-    #     whose size is adjusted only when necessary.
-    # ------------------------------------------------------------------
-
-    # ensure that the local Y chunk is on CPU for MPI communication
+    # To avoid issues with MPI that is not CUDA aware, ensure that the local Y chunk is on CPU for MPI communication
     if y_.device.type == "cuda":
         # copy once from GPU to CPU; this stays constant in all iterations
         y_send = y_.to("cpu")
@@ -474,58 +465,6 @@ def cdist_small(
     indices = ht.array(current_idx, is_split=0)
 
     return dist_small, indices
-    # # circular communication of the parts of Y between the processes
-    # for iter in range(1, size):
-    #     receiver = (rank + iter) % size
-    #     sender = (rank - iter) % size
-
-    #     # set a buffer to store the part of Y that is sent to the next process
-    #     recv_nrows, recv_ncols = Y.lshape_map[sender]
-    #     # for correct communication, the buffer has to be created on CPU
-    #     buffer = torch.zeros((recv_nrows, recv_ncols), dtype=torch_type, device="cpu")
-    #     # move the part of Y to CPU for sending
-    #     y_ = y_.cpu()
-
-    #     # send the individually stored parts of Y to the next process, avoid deadlocks with non-blocking actions
-    #     # Non-blocking receive
-    #     req_recv = comm.Irecv(buffer, source=sender, tag=iter)
-    #     # Non-blocking send
-    #     req_send = comm.Isend(y_, dest=receiver, tag=iter)
-    #     # Wait to finish receiving and sending
-    #     req_recv.wait()
-    #     req_send.wait()
-
-    #     # now move the buffer to the correct device
-    #     buffer = buffer.to(X.device.torch_device)
-
-    #     # distance between the part of X stored in the current process and the newly received part of Y
-    #     new_dist, new_idx = _chunk_wise_topk(
-    #         x_, buffer, n_smallest, metric=metric, chunks=chunks, device=X.device.torch_device
-    #     )
-    #     new_idx += ydispl[sender]
-
-    #     # merge the current distances with the new distances in one matrix (analogous for indices)
-    #     merged_dist = torch.cat((current_dist, new_dist), dim=1)
-    #     merged_idx = torch.cat((current_idx, new_idx), dim=1)
-
-    #     # take only the n_smallest distances and extract the corresponding indices
-    #     # 1) stable sort by index (ascending)
-    #     merged_idx_sorted, perm_idx = torch.sort(merged_idx, dim=1, stable=True)
-    #     merged_dist_reordered = torch.gather(merged_dist, 1, perm_idx)
-
-    #     # 2) stable sort by distance (ascending)
-    #     merged_dist_sorted, perm_dist = torch.sort(merged_dist_reordered, dim=1, stable=True)
-    #     merged_idx_sorted = torch.gather(merged_idx_sorted, 1, perm_dist)
-
-    #     # 3) keep first n_smallest
-    #     current_dist = merged_dist_sorted[:, :n_smallest]
-    #     current_idx = merged_idx_sorted[:, :n_smallest]
-
-    # # assign the local results on each process (torch.tensor) to the distributed distance and index matrix (ht.DNDarray)
-    # dist_small = ht.array(current_dist, is_split=0)
-    # indices = ht.array(current_idx, is_split=0)
-
-    # return dist_small, indices
 
 
 def _dist(X: DNDarray, Y: DNDarray = None, metric: Callable = _euclidian) -> DNDarray:
