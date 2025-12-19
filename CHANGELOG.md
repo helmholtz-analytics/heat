@@ -1,6 +1,21 @@
 # v1.7.0 - Heat Minor Release - 1.7.0
-## Changes
 
+## Highlights
+
+1) Randomized Symmetric eignevalue decomposition (eigh)
+2) DistributedSampler for efficient data loading and shuffling across multiple nodes with PyTorch
+3) Incremental SVD directly from an HDF5 file
+4) Partial support of the Array API Standard (version: '2020.10'), and API namespace under `x.__array_namespace__(api_version='2020.10')`
+5) Distributed PTP (peak to peak) function
+
+## Changes
+### Features
+
+* Randomized Symmetric Eigenvalue Decomposition (eigh) by @mrfh92 in https://github.com/helmholtz-analytics/heat/pull/1964
+* Incremental SVD directly from HDF5 file by @LScheib in https://github.com/helmholtz-analytics/heat/pull/2005
+* Array API Namespace by @mtar in https://github.com/helmholtz-analytics/heat/pull/1022
+* Distributed Peak to Peak (ptp) function by @ivansherbakov9 in https://github.com/helmholtz-analytics/heat/pull/1954
+* PyTorch compatible DistributedSampler by @Berkant03 in https://githubcom/helmholtz-analytics/heat/pull/1807
 
 ### Bug Fixes
 
@@ -10,6 +25,9 @@
 * Fixed issue where matrices returned by ```eigh``` were not on the expected device by @GioPede in https://github.com/helmholtz-analytics/heat/pull/2046
 * Fixed issue where matrices returned by ```qr``` were not on the expected device by @GioPede in https://github.com/helmholtz-analytics/heat/pull/2045
 * Dtype is now set correctly when loading and saving hdf5 files by @Marc-Jindra in https://github.com/helmholtz-analytics/heat/pull/2014
+* Fix MPI large count issues when respliting by @JuanPedroGHM in https://github.com/helmholtz-analytics/heat/pull/1973
+* Default GPU+MPI compatibility settings for unknown MPI implementations by @JuanPedroGHM in https://github.com/helmholtz-analytics/heat/pull/2060
+
 
 ## Contributors
 @Marc-Jindra, @ClaudiaComito, @JuanPedroGHM
