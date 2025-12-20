@@ -1173,6 +1173,43 @@ class DNDarray:
                 if not isinstance(k, DNDarray):
                     k = factories.array(k, device=arr.device, comm=arr.comm, copy=None)
 
+                # Normalize negative integer indices (NumPy/PyTorch semantics) and validate bounds
+                if k.dtype in (types.int32, types.int64) and k.ndim >= 1:
+                    dim = arr.gshape[i]
+
+                    # compute local flags even if k.larray is empty (any() on empty -> False)
+                    invalid_local = ((k.larray < -dim) | (k.larray >= dim)).any().item()
+                    has_neg_local = (k.larray < 0).any().item()
+
+                    # Decide once, then ALL ranks take the same path for collectives
+                    do_reduce = (
+                        arr.comm is not None
+                        and getattr(arr.comm, "size", 1) > 1
+                        and k.is_distributed()
+                    )
+
+                    if do_reduce:
+                        invalid_sum = arr.comm.allreduce(int(invalid_local), op=MPI.SUM)
+                        has_neg_sum = arr.comm.allreduce(int(has_neg_local), op=MPI.SUM)
+                    else:
+                        invalid_sum = int(invalid_local)
+                        has_neg_sum = int(has_neg_local)
+
+                    if invalid_sum > 0:
+                        raise IndexError(f"index out of bounds for axis {i} with size {dim}")
+
+                    if has_neg_sum > 0:
+                        k_l = k.larray.clone()
+                        k_l[k_l < 0] += dim
+                        k = factories.array(
+                            k_l,
+                            dtype=k.dtype,
+                            split=k.split,
+                            device=arr.device,
+                            comm=arr.comm,
+                            copy=False,
+                        )
+
                 advanced_indexing_shapes.append(k.gshape)
                 if arr_is_distributed and i == arr.split:
                     if (
@@ -1181,7 +1218,7 @@ class DNDarray:
                         and (k.larray == torch.sort(k.larray, stable=True)[0]).all()
                     ):
                         split_key_is_ordered = 1
-                        out_is_balanced = None
+                        out_is_balanced = False
                     else:
                         split_key_is_ordered = 0
 
@@ -1199,7 +1236,9 @@ class DNDarray:
                     # PyTorch doesn't support negative step as of 1.13
                     # Lazy solution, potentially large memory footprint
                     # TODO: implement ht.fromiter (implemented in ASSET_ht)
-                    key[i] = torch.tensor(list(range(start, stop, step)), device=arr.larray.device)
+                    key[i] = torch.arange(
+                        start, stop, step, device=arr.larray.device, dtype=torch.int64
+                    )
                     output_shape[i] = len(key[i])
                     split_key_is_ordered = -1
                     if arr_is_distributed and new_split == i:
