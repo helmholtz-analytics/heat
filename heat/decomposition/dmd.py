@@ -509,6 +509,7 @@ class DMDc(ht.RegressionMixin, ht.BaseEstimator):
             )
         Xplus = X[:, 1:]
         Xplus.balance_()
+
         Omega = ht.concatenate((X, C), axis=0)[:, :-1]
         # first step of DMDc: compute the SVD of the input data from first to second last time step
         # as well as of the full system matrix
@@ -536,7 +537,7 @@ class DMDc(ht.RegressionMixin, ht.BaseEstimator):
             else:
                 # no truncation
                 self.n_modes_ = S.shape[0]
-                self.n_modes_system = Stilde.shape[0]
+                self.n_modes_system_ = Stilde.shape[0]
 
             self.rom_basis_ = U[:, : self.n_modes_]
             V = V[:, : self.n_modes_]
@@ -596,10 +597,20 @@ class DMDc(ht.RegressionMixin, ht.BaseEstimator):
             Utilde1 = Utilde[: X.shape[0], :]
             Utilde2 = Utilde[X.shape[0] :, :]
 
+        print(
+            f"\n\n\n ################## {ht.MPI_WORLD.rank=}:  after if condition Block #######################\n\n\n"
+        )
+        print(f"Rank {ht.MPI_WORLD.rank}: Utilde1.shape={Utilde1.shape}, split={Utilde1.split}")
+        print(f"Rank {ht.MPI_WORLD.rank}: Utilde2.shape={Utilde2.shape}, split={Utilde2.split}")
+        print(f"Rank {ht.MPI_WORLD.rank}: Vtilde.shape={Vtilde.shape}, split={Vtilde.split}")
         # ensure that everything is balanced for the following steps
         Utilde2.balance_()
         Utilde1.balance_()
         Vtilde.balance_()
+
+        print(
+            f"\n\n\n ################## {ht.MPI_WORLD.rank=}:  new if condition Block #######################\n\n\n"
+        )
         if Utilde2.split is not None and Utilde2.shape[Utilde2.split] < Utilde2.comm.size:
             Utilde2.resplit_((Utilde2.split + 1) % 2)
         if Utilde1.split is not None and Utilde1.shape[Utilde1.split] < Utilde1.comm.size:
@@ -608,6 +619,10 @@ class DMDc(ht.RegressionMixin, ht.BaseEstimator):
             Vtilde.resplit_((Vtilde.split + 1) % 2)
         # second step of DMD: compute the reduced order model transfer matrix
         # we need to assume that the the transfer matrix of the ROM is small enough to fit into memory of one process
+
+        print(
+            f"\n\n\n ################## {ht.MPI_WORLD.rank=}: rom_transfer_matrix_ Block #######################\n\n\n"
+        )
         self.rom_transfer_matrix_ = (
             self.rom_basis_.T
             @ Xplus
@@ -620,13 +635,17 @@ class DMDc(ht.RegressionMixin, ht.BaseEstimator):
         self.rom_transfer_matrix_.resplit_(None)
         self.rom_control_matrix_.resplit_(None)
 
+        print(
+            f"\n\n\n ################## {ht.MPI_WORLD.rank=}:  eigvals_loc, eigvec_loc Block #######################\n\n\n"
+        )
         # third step of DMD: compute the reduced order model eigenvalues and eigenmodes
         eigvals_loc, eigvec_loc = torch.linalg.eig(self.rom_transfer_matrix_.larray)
         self.rom_eigenvalues_ = ht.array(eigvals_loc, split=None, device=X.device)
         self.rom_eigenmodes_ = ht.array(eigvec_loc, split=None, device=X.device)
-        self.dmdmodes_ = (
-            Xplus @ (Vtilde / Stilde) @ Utilde1.T @ self.rom_basis_ @ self.rom_eigenmodes_
-        )
+        # self.dmdmodes_ = (
+        #     Xplus @ (Vtilde / Stilde) @ Utilde1.T @ self.rom_basis_ @ self.rom_eigenmodes_
+        # )
+        self.dmdmodes_ = self.rom_basis_ @ self.rom_eigenmodes_
 
     def predict(self, X: ht.DNDarray, C: ht.DNDarray) -> ht.DNDarray:
         """
