@@ -717,9 +717,10 @@ class DNDarray:
         lshape_map = torch.zeros(
             (self.comm.size, self.ndim), dtype=torch.int64, device=self.device.torch_device
         )
-        if not self.is_distributed:
+        if not self.is_distributed():
             lshape_map[:] = torch.tensor(self.gshape, device=self.device.torch_device)
-            return lshape_map
+            self.__lshape_map = lshape_map
+            return lshape_map.clone()
         if self.is_balanced(force_check=True):
             for i in range(self.comm.size):
                 _, lshape, _ = self.comm.chunk(self.gshape, self.split, rank=i)
@@ -792,15 +793,15 @@ class DNDarray:
         part_tiling = [1] * self.ndim
         lcls = [0] * self.ndim
 
-        z = torch.tensor([0], device=self.device.torch_device, dtype=self.dtype.torch_type())
+        z = torch.tensor([0], device=self.device.torch_device, dtype=torch.int64)
+
         if self.split is not None:
             starts = torch.cat((z, torch.cumsum(lshape_map[:, self.split], dim=0)[:-1]), dim=0)
             lcls[self.split] = self.comm.rank
             part_tiling[self.split] = self.comm.size
+            start_idx_map[:, self.split] = starts
         else:
-            starts = torch.zeros(self.ndim, dtype=torch.int, device=self.device.torch_device)
-
-        start_idx_map[:, self.split] = starts
+            start_idx_map[:] = 0
 
         partitions = {}
         base_key = [0] * self.ndim
@@ -1190,17 +1191,10 @@ class DNDarray:
                 key[i] = k
 
             elif isinstance(k, slice) and k != slice(None):
-                start, stop, step = k.start, k.stop, k.step
-                if start is None:
-                    start = 0
-                elif start < 0:
-                    start += arr.gshape[i]
-                if stop is None:
-                    stop = arr.gshape[i]
-                elif stop < 0:
-                    stop += arr.gshape[i]
-                if step is None:
-                    step = 1
+                if k.step == 0:
+                    raise ValueError("Slice step cannot be zero")
+                start, stop, step = slice(k.start, k.stop, k.step).indices(arr.gshape[i])
+
                 if step < 0 and start > stop:
                     # PyTorch doesn't support negative step as of 1.13
                     # Lazy solution, potentially large memory footprint
@@ -1224,7 +1218,9 @@ class DNDarray:
                             ).larray
                             out_is_balanced = True
                 elif step > 0 and start < stop:
-                    output_shape[i] = int(torch.tensor((stop - start) / step).ceil().item())
+                    # output_shape[i] = int(torch.tensor((stop - start) / step).ceil().item())
+                    output_shape[i] = len(range(start, stop, step))
+
                     if arr_is_distributed and new_split == i:
                         split_key_is_ordered = 1
                         out_is_balanced = False
@@ -1240,7 +1236,8 @@ class DNDarray:
                                 # slice ends on current rank
                                 local_stop = stop - displs[arr.comm.rank]
                             else:
-                                local_stop = local_arr_end
+                                local_stop = counts[arr.comm.rank]
+
                             key[i] = slice(local_start, local_stop, step)
                         else:
                             key[i] = slice(0, 0)
@@ -1679,12 +1676,46 @@ class DNDarray:
                 root,
                 backwards_transpose_axes,
             ) = self.__process_key(key, return_local_indices=True)
+
             # Do not treat keys that contain slices as "mask-like".
             # For such keys, we fall back to the simpler non-mask-like
             # path below, which only treats the split axis as globally indexed.
             if key_is_mask_like and isinstance(key, (tuple, list)):
                 if any(isinstance(k, slice) for k in key):
                     key_is_mask_like = False
+
+            # ------------------------------------------------------------
+            # Fast path: pure BASIC slicing/indexing must never trigger any
+            # cross-rank reductions or communication.
+            # Example: X[:, 1:], X[5:10], X[:, :-1], ...
+            # ------------------------------------------------------------
+            def _is_basic_component(k):
+                return k is ... or k is None or isinstance(k, (slice, int, np.integer))
+
+            _basic_index = isinstance(key, (tuple, list)) and all(
+                _is_basic_component(k) for k in key
+            )
+
+            if _basic_index:
+                # Slices are ordered by definition; also not mask-like.
+                split_key_is_ordered = 1
+                key_is_mask_like = False
+            else:
+                if self.is_distributed():
+                    # branch_code: 2 => ordered (1), 1 => descending slice (-1), 0 => unordered (0)
+                    # Use MIN so unordered dominates, then descending, then ordered.
+                    local_code = (
+                        2 if split_key_is_ordered == 1 else (1 if split_key_is_ordered == -1 else 0)
+                    )
+                    global_code = self.comm.allreduce(local_code, op=MPI.MIN)
+                    split_key_is_ordered = (
+                        1 if global_code == 2 else (-1 if global_code == 1 else 0)
+                    )
+
+                    # key_is_mask_like must also be consistent across ranks (False dominates)
+                    km_local = 1 if key_is_mask_like else 0
+                    km_global = self.comm.allreduce(km_local, op=MPI.MIN)
+                    key_is_mask_like = bool(km_global)
 
         if not self.is_distributed():
             # key is torch-proof, index underlying torch tensor
@@ -1758,6 +1789,7 @@ class DNDarray:
             # transpose array back if needed
             if self.ndim > 0:
                 self = self.transpose(backwards_transpose_axes)
+
             return DNDarray(
                 indexed_arr,
                 gshape=output_shape,
@@ -1767,7 +1799,6 @@ class DNDarray:
                 balanced=out_is_balanced,
                 comm=self.comm,
             )
-
         # key along split axis is not ordered, indices are GLOBAL
         # prepare for communication of indices and data
         counts, displs = self.counts_displs()
@@ -1787,7 +1818,7 @@ class DNDarray:
             communication_split = output_split
 
         # determine the number of elements to be received from each process
-        recv_counts = torch.zeros((size, 1), dtype=torch.int64, device=self.larray.device)
+        recv_counts = torch.zeros((size,), dtype=torch.int64, device=self.larray.device)
         if key_is_mask_like:
             recv_indices = torch.zeros(
                 (len(split_key), len(key)), dtype=split_key.dtype, device=self.larray.device
@@ -1801,10 +1832,9 @@ class DNDarray:
             cond2 = split_key < displs[p] + counts[p]
             indices_from_p = torch.nonzero(cond1 & cond2, as_tuple=False)
             incoming_indices = split_key[indices_from_p].flatten()
-            recv_counts[p, 0] = incoming_indices.numel()
-            # store incoming indices in appropiate slice of recv_indices
-            start = recv_counts[:p].sum().item()
-            stop = start + recv_counts[p].item()
+            recv_counts[p] = incoming_indices.numel()
+            start = int(recv_counts[:p].sum().item())
+            stop = start + int(recv_counts[p].item())
             if incoming_indices.numel() > 0:
                 if key_is_mask_like:
                     # apply selection to all dimensions
@@ -1819,17 +1849,17 @@ class DNDarray:
         self.comm.Allgather(recv_counts, comm_matrix)
         send_counts = comm_matrix[:, rank]
 
-        # active rank pairs:
         active_rank_pairs = torch.nonzero(comm_matrix, as_tuple=False)
 
-        # Communication build-up:
-        active_recv_indices_from = active_rank_pairs[torch.where(active_rank_pairs[:, 1] == rank)][
-            :, 0
-        ]
-        active_send_indices_to = active_rank_pairs[torch.where(active_rank_pairs[:, 0] == rank)][
-            :, 1
-        ]
-        rank_is_active = active_recv_indices_from.numel() > 0 or active_send_indices_to.numel() > 0
+        # rank sicher als Python-int
+        rank = int(rank)
+
+        mask_recv = active_rank_pairs[:, 1].eq(rank)
+        mask_send = active_rank_pairs[:, 0].eq(rank)
+
+        active_recv_indices_from = [int(x.item()) for x in active_rank_pairs[mask_recv, 0]]
+        active_send_indices_to = [int(x.item()) for x in active_rank_pairs[mask_send, 1]]
+        rank_is_active = (len(active_recv_indices_from) > 0) or (len(active_send_indices_to) > 0)
 
         # allocate recv_buf for incoming data
         recv_buf_shape = list(output_shape)
@@ -2646,11 +2676,10 @@ class DNDarray:
                         first_t = torch.as_tensor(first, device=self.device.torch_device)
                         idx0 = torch.nonzero(first_t, as_tuple=False).flatten()
 
-                    # Baue neuen Key: (idx0, rest...)
+                    # Build new key: (idx0, rest...)
                     new_key = (idx0,) + key[1:]
 
-                    # Rekursiver Aufruf mit Integer-Advanced-Indexing.
-                    # In diesem Aufruf ist first kein Bool mehr, d.h. wir landen nicht erneut hier.
+                    # recursuve call with integer advanced indexing.
                     self[new_key] = value
                     return
 
@@ -2681,6 +2710,17 @@ class DNDarray:
             root,
             backwards_transpose_axes,
         ) = self.__process_key(key, return_local_indices=True, op="set")
+
+        if self.is_distributed():
+            local_code = (
+                2 if split_key_is_ordered == 1 else (1 if split_key_is_ordered == -1 else 0)
+            )
+            global_code = self.comm.allreduce(local_code, op=MPI.MIN)
+            split_key_is_ordered = 1 if global_code == 2 else (-1 if global_code == 1 else 0)
+
+            km_local = 1 if key_is_mask_like else 0
+            km_global = self.comm.allreduce(km_local, op=MPI.MIN)
+            key_is_mask_like = bool(km_global)
 
         # match dimensions
         value, value_is_scalar = __broadcast_value(self, key, value, output_shape=output_shape)
