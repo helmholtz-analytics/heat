@@ -344,11 +344,15 @@ def cdist_small(
     )
     current_idx += ydispl[rank]
 
-    # enforce deterministic order also for the initial block: (dist asc, idx asc)
-    current_idx_sorted, perm_idx = torch.sort(current_idx, dim=1, stable=True)
-    current_dist = torch.gather(current_dist, 1, perm_idx)
-    current_dist, perm_dist = torch.sort(current_dist, dim=1, stable=True)
-    current_idx = torch.gather(current_idx_sorted, 1, perm_dist)
+    # For size==1: keep torch.topk() tie-break behaviour to match ht.topk()
+    if size > 1:
+        # enforce deterministic order for the initial block: (dist asc, idx asc)
+        current_idx_sorted, perm_idx = torch.sort(current_idx, dim=1, stable=True)
+        current_dist = torch.gather(current_dist, 1, perm_idx)
+        current_dist, perm_dist = torch.sort(current_dist, dim=1, stable=True)
+        current_idx = torch.gather(current_idx_sorted, 1, perm_dist)
+
+    # always keep only the first n_smallest entries
     current_dist = current_dist[:, :n_smallest]
     current_idx = current_idx[:, :n_smallest]
 
