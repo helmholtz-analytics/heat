@@ -1,4 +1,5 @@
 import numpy as np
+import unittest
 import torch
 
 import heat as ht
@@ -3256,6 +3257,25 @@ class TestManipulations(TestCase):
                             self.assertEqual(resplit_a.dtype, a.dtype)
                             del a
                             del resplit_a
+
+    @unittest.skipIf(ht.MPI_WORLD.size < 2, "Test requires at least 2 MPI processes")
+    def test_resplit_large_count_limit(self):
+        if not self.is_mps:
+            # Test resplit with large dimensions
+            for shape in [(ht.MPI_WORLD.COUNT_LIMIT + 2, 2),(2, ht.MPI_WORLD.COUNT_LIMIT + 2)]:
+                for resplit_type in [(0, 1), (1, 0)]:
+                    with self.subTest(shape=shape, resplit_type=resplit_type):
+                        ht.comm.Barrier()
+                        x = ht.ones(shape, dtype=ht.int8, split=resplit_type[0])
+                        x.larray *= ht.MPI_WORLD.rank + 1
+
+                        x_resplit = ht.resplit(x, axis=resplit_type[1])
+
+                        self.assertEqual(x_resplit.shape, shape)
+                        self.assertEqual(x_resplit.split, resplit_type[1])
+                        del x
+                        del x_resplit
+
 
     def test_squeeze(self):
         torch.manual_seed(1)
