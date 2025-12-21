@@ -157,3 +157,43 @@ class TestLOF(TestCase):
         """
         n_neighbors = 10
         self._test_utility(self, fully_distributed=True, n_neighbors=n_neighbors)
+
+    def test_map_idx_to_proc(self):
+        lof = LocalOutlierFactor()
+        comm = ht.communication.MPI_WORLD
+        size = comm.Get_size()
+
+        # Pick an array length that is usually not divisible by number of ranks
+        n = size * 3 + 1
+
+        # --- 1D test case ---------------------------------------------------
+        idx_1d = ht.arange(n, split=0, dtype=ht.int64)
+        mapped_1d = lof._map_idx_to_proc(idx_1d, comm)
+
+        # Expected rank assignment according to block distribution
+        _, displ, _ = comm.counts_displs_shape(idx_1d.shape, idx_1d.split)
+        expected_1d = np.empty(n, dtype=np.int64)
+        for rank in range(size):
+            lower = int(displ[rank])
+            upper = n if rank == size - 1 else int(displ[rank + 1])
+            expected_1d[lower:upper] = rank
+
+        self.assertEqual(mapped_1d.shape, idx_1d.shape)
+        self.assertEqual(mapped_1d.split, idx_1d.split)
+        self.assertEqual(mapped_1d.dtype, idx_1d.dtype)
+        self.assertTrue(np.array_equal(mapped_1d.numpy(), expected_1d))
+
+        # --- 2D test case ---------------------------------------------------
+        rng = np.random.RandomState(123)
+        idx_np = rng.randint(0, n, size=(n, 4)).astype(np.int64)
+        idx_2d = ht.array(idx_np, split=0, dtype=ht.int64)
+        mapped_2d = lof._map_idx_to_proc(idx_2d, comm)
+
+        # Expected mapping via searchsorted on displacement boundaries
+        displ_np = np.asarray(displ, dtype=np.int64)
+        expected_2d = np.searchsorted(displ_np[1:], idx_np, side="right")
+
+        self.assertEqual(mapped_2d.shape, idx_2d.shape)
+        self.assertEqual(mapped_2d.split, idx_2d.split)
+        self.assertEqual(mapped_2d.dtype, idx_2d.dtype)
+        self.assertTrue(np.array_equal(mapped_2d.numpy(), expected_2d))
