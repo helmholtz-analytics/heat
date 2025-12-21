@@ -1784,7 +1784,7 @@ def outer(
                     a.gshape, a.split, rank=actual_origin, w_size=size
                 )
                 t_outer_slice[0] = remote_slice[0]
-            t_outer[t_outer_slice] = torch.einsum("i,j->ij", t_a, t_b)
+            t_outer[tuple(t_outer_slice)] = torch.einsum("i,j->ij", t_a, t_b)
     else:
         # outer product, all local
         t_outer = torch.einsum("i,j->ij", t_a, t_b)

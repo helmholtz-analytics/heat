@@ -582,11 +582,11 @@ def concatenate(arrays: Sequence[DNDarray, ...], axis: int = 0) -> DNDarray:
                                 send_slice[arr0.split] = slice(0, send_amt)
                                 keep_slice[arr0.split] = slice(send_amt, t_arr0.shape[axis])
                                 send = arr0.comm.Isend(
-                                    t_arr0[send_slice].clone(),
+                                    t_arr0[tuple(send_slice)].clone(),
                                     dest=pr,
                                     tag=pr + arr0.comm.size + spr,
                                 )
-                                t_arr0 = t_arr0[keep_slice].clone()
+                                t_arr0 = t_arr0[tuple(keep_slice)].clone()
                                 send.Wait()
                     for pr in range(spr):
                         snt = abs((chunk_map[pr, s0] - lshape_map[0, pr, s0]).item())
@@ -627,11 +627,11 @@ def concatenate(arrays: Sequence[DNDarray, ...], axis: int = 0) -> DNDarray:
                                 )
                                 keep_slice[axis] = slice(0, t_arr1.shape[axis] - send_amt)
                                 send = arr1.comm.Isend(
-                                    t_arr1[send_slice].clone(),
+                                    t_arr1[tuple(send_slice)].clone(),
                                     dest=pr,
                                     tag=pr + arr1.comm.size + spr,
                                 )
-                                t_arr1 = t_arr1[keep_slice].clone()
+                                t_arr1 = t_arr1[tuple(keep_slice)].clone()
                                 send.Wait()
                     for pr in range(arr1.comm.size - 1, spr, -1):
                         snt = abs((chunk_map[pr, axis] - lshape_map[1, pr, axis]).item())
@@ -2589,6 +2589,12 @@ def sort(a: DNDarray, axis: int = -1, descending: bool = False, out: Optional[DN
     (array([[4, 1]], array([[0, 1]]))
     (array([[3, 2]], array([[1, 0]]))
     """
+    # TODO: Find a better way to ignore specific warnings. This one seems to be related to numpy trying to sort torch tensors. Maybe changing to torch.sort would help?
+    warnings.filterwarnings(
+        "ignore",
+        category=DeprecationWarning,
+        message=r".*__array_wrap__ must accept context and return_scalar arguments.*",
+    )
     stride_tricks.sanitize_axis(a.shape, axis)
 
     if not a.is_distributed() or axis != a.split:
@@ -2686,7 +2692,9 @@ def sort(a: DNDarray, axis: int = -1, descending: bool = False, out: Optional[DN
 
         # Iterate through one layer and send values with alltoallv
         for idx in np.ndindex(local_sorted.shape[1:]):
-            idx_slice = [slice(None)] + [slice(ind, ind + 1) for ind in idx]
+            idx_slice: tuple(slice, ...) = (slice(None),) + tuple(
+                slice(ind, ind + 1) for ind in idx
+            )
 
             send_count = scounts[idx_slice].reshape(-1).tolist()
             send_disp = [0] + list(np.cumsum(send_count[:-1]))
@@ -2708,7 +2716,9 @@ def sort(a: DNDarray, axis: int = -1, descending: bool = False, out: Optional[DN
         send_vec = torch.zeros(local_sorted.shape[1:] + (size, size), dtype=torch.int64)
         target_cumsum = np.cumsum(counts)
         for idx in np.ndindex(local_sorted.shape[1:]):
-            idx_slice = [slice(None)] + [slice(ind, ind + 1) for ind in idx]
+            idx_slice: tuple(slice, ...) = (slice(None),) + tuple(
+                slice(ind, ind + 1) for ind in idx
+            )
             current_counts = partition_matrix[idx_slice].reshape(-1).tolist()
             current_cumsum = list(np.cumsum(current_counts))
             for proc in range(size):
@@ -2761,7 +2771,9 @@ def sort(a: DNDarray, axis: int = -1, descending: bool = False, out: Optional[DN
         second_result = torch.empty_like(local_sorted)
         second_indices = torch.empty_like(second_result)
         for idx in np.ndindex(local_sorted.shape[1:]):
-            idx_slice = [slice(None)] + [slice(ind, ind + 1) for ind in idx]
+            idx_slice: tuple(slice, ...) = (slice(None),) + tuple(
+                slice(ind, ind + 1) for ind in idx
+            )
 
             send_count = send_vec[idx][rank]
             send_disp = [0] + list(np.cumsum(send_count[:-1]))
