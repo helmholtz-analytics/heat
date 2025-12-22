@@ -94,6 +94,31 @@ Classes
     * heat.core.tests.test_types.TestTypeConversion
     * heat.core.tests.test_types.TestTypes
     * heat.core.tests.test_vmap.TestVmap
+    * heat.decomposition.tests.test_dmd.TestDMD
+    * heat.decomposition.tests.test_dmd.TestDMDc
+    * heat.decomposition.tests.test_pca.TestIncrementalPCA
+    * heat.decomposition.tests.test_pca.TestPCA
+    * heat.fft.tests.test_fft.TestFFT
+    * heat.graph.tests.test_laplacian.TestLaplacian
+    * heat.naive_bayes.tests.test_gaussiannb.TestGaussianNB
+    * heat.optim.tests.test_dp_optimizer.TestDASO
+    * heat.optim.tests.test_optim.TestLRScheduler
+    * heat.optim.tests.test_optim.TestOptim
+    * heat.optim.tests.test_utils.TestUtils
+    * heat.preprocessing.tests.test_preprocessing.TestMaxAbsScaler
+    * heat.preprocessing.tests.test_preprocessing.TestMinMaxScaler
+    * heat.preprocessing.tests.test_preprocessing.TestNormalizer
+    * heat.preprocessing.tests.test_preprocessing.TestRobustScaler
+    * heat.preprocessing.tests.test_preprocessing.TestStandardScaler
+    * heat.regression.tests.test_lasso.TestLasso
+    * heat.sparse.tests.test_arithmetics_csr.TestArithmeticsCSR
+    * heat.sparse.tests.test_dcscmatrix.TestDCSC_matrix
+    * heat.sparse.tests.test_dcsrmatrix.TestDCSR_matrix
+    * heat.sparse.tests.test_factories.TestFactories
+    * heat.sparse.tests.test_manipulations.TestManipulations
+    * heat.spatial.tests.test_distances.TestDistances
+    * heat.utils.data.tests.test_matrixgallery.TestMatrixgallery
+    * heat.utils.data.tests.test_spherical.TestCreateClusters
 
     ### Class variables
 

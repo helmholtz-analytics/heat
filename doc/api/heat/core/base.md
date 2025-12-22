@@ -57,6 +57,10 @@ Classes
     * heat.cluster._kcluster._KCluster
     * heat.cluster.batchparallelclustering._BatchParallelKCluster
     * heat.cluster.spectral.Spectral
+    * heat.decomposition.dmd.DMD
+    * heat.decomposition.dmd.DMDc
+    * heat.decomposition.pca.IncrementalPCA
+    * heat.decomposition.pca.PCA
     * heat.naive_bayes.gaussianNB.GaussianNB
     * heat.preprocessing.preprocessing.MaxAbsScaler
     * heat.preprocessing.preprocessing.MinMaxScaler
@@ -158,6 +162,8 @@ Classes
 
     ### Descendants
 
+    * heat.decomposition.dmd.DMD
+    * heat.decomposition.dmd.DMDc
     * heat.regression.lasso.Lasso
 
     ### Methods
@@ -196,6 +202,8 @@ Classes
 
     ### Descendants
 
+    * heat.decomposition.pca.IncrementalPCA
+    * heat.decomposition.pca.PCA
     * heat.preprocessing.preprocessing.MaxAbsScaler
     * heat.preprocessing.preprocessing.MinMaxScaler
     * heat.preprocessing.preprocessing.Normalizer

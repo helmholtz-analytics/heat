@@ -10,9 +10,17 @@ import unittest
 
 from . import functional
 
+__all__ = ["functional"]
 
 if sys.version_info.minor >= 7:
     from .data_parallel import *
+
+    try:
+        from . import data_parallel as _dp
+
+        __all__.extend(getattr(_dp, "__all__", []))
+    except Exception:
+        pass
 
     functional.__getattr__ = functional.func_getattr
 

@@ -17,3 +17,11 @@ fileignoreconfig:
   checksum: 59448ee5640ea8007856ce844e68faf195571ba99ec4588ed9a20cf310c58d1f
 - filename: doc/api/heat/core/dndarray.md
   checksum: 904826a791036d03728861a1d432faa95f3d4f9a358f678baea4ada7fddb789f
+- filename: doc/api/heat/graph/laplacian.md
+  checksum: d8d4ec48750ae7c5d34e11ff7e6a79157f87a220accd57f4d8fa4d1a82254605
+- filename: doc/api/heat/sparse/factories.md
+  checksum: 7f57c6834ad98632f9a5e599c9fb9ec927c391fa8d44041d8a6efb1806c6a98e
+- filename: doc/api/heat/optim/dp_optimizer.md
+  checksum: 47492db3eb665a09e16b9346487925554f2c96d020f3d8a0d2180a5f0b5d511b
+- filename: doc/api/heat/optim/index.md
+  checksum: 0965bdff7bc43743551b0043720b525cc0992247ed4840a69228d4fe28ebb812

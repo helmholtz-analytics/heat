@@ -42,25 +42,32 @@ nav:
   - Introduction: introduction.md
   - Getting Started: getting_started.md
   - Heat Tutorials:
-     - Overview: tutorials/tutorial.md
-     - 30 Minutes Welcome: tutorials/tutorial_30_minutes.md
-     - Parallel Computation: tutorials/tutorial_parallel_computation.md
-     - Cluster Analysis: tutorials/tutorial_clustering.md
-     - Notebook Gallery: tutorials/tutorial_notebook_gallery.md
-     - Setup:
-       - Local Setup: tutorials/notebooks/0_setup/0_setup_local.ipynb
-       - JSC Setup: tutorials/notebooks/0_setup/0_setup_jsc.ipynb
-       - HAICORE Setup: tutorials/notebooks/0_setup/0_setup_haicore.ipynb
-     - Examples:
-       - Heat Basics: tutorials/notebooks/1_basics.ipynb
-       - Internals: tutorials/notebooks/2_internals.ipynb
-       - Loading and Preprocessing: tutorials/notebooks/3_loading_preprocessing.ipynb
-       - Matrix Factorizations: tutorials/notebooks/4_matrix_factorizations.ipynb
-       - Clustering: tutorials/notebooks/5_clustering.ipynb
-       - Profiling: tutorials/notebooks/6_profiling.ipynb
+    - Overview: tutorials/tutorial.md
+    - 30 Minutes Welcome: tutorials/tutorial_30_minutes.md
+    - Parallel Computation: tutorials/tutorial_parallel_computation.md
+    - Cluster Analysis: tutorials/tutorial_clustering.md
+    - Notebook Gallery: tutorials/tutorial_notebook_gallery.md
+    - Setup:
+        - Local Setup: tutorials/notebooks/0_setup/0_setup_local.ipynb
+        - JSC Setup: tutorials/notebooks/0_setup/0_setup_jsc.ipynb
+        - HAICORE Setup: tutorials/notebooks/0_setup/0_setup_haicore.ipynb
+    - Examples:
+        - Heat Basics: tutorials/notebooks/1_basics.ipynb
+        - Internals: tutorials/notebooks/2_internals.ipynb
+        - Loading and Preprocessing: tutorials/notebooks/3_loading_preprocessing.ipynb
+        - Matrix Factorizations: tutorials/notebooks/4_matrix_factorizations.ipynb
+        - Clustering: tutorials/notebooks/5_clustering.ipynb
+        - Profiling: tutorials/notebooks/6_profiling.ipynb
   - Documentation Guide: documentation_howto.md
   - Case Studies: case_studies.md
   - API Reference:
+      - Heat:
+          - Index: api/heat/index.md
+          - CLI: api/heat/cli.md
+          - Tests:
+              - Index: api/heat/tests/index.md
+              - Test CLI: api/heat/tests/test_cli.md
+
       - Core:
           - Index: api/heat/core/index.md
           - Arithmetics: api/heat/core/arithmetics.md
@@ -140,6 +147,7 @@ nav:
           - Types: api/heat/core/types.md
           - Version: api/heat/core/version.md
           - Vmap: api/heat/core/vmap.md
+
       - Cluster:
           - Index: api/heat/cluster/index.md
           - BatchParallelClustering: api/heat/cluster/batchparallelclustering.md
@@ -154,9 +162,117 @@ nav:
               - Test KMedians: api/heat/cluster/tests/test_kmedians.md
               - Test KMedoids: api/heat/cluster/tests/test_kmedoids.md
               - Test Spectral: api/heat/cluster/tests/test_spectral.md
+
       - Classification:
           - Index: api/heat/classification/index.md
           - KNeighborsClassifier: api/heat/classification/kneighborsclassifier.md
           - Tests:
               - Index: api/heat/classification/tests/index.md
               - Test KNN: api/heat/classification/tests/test_knn.md
+
+      - Datasets:
+          - Index: api/heat/datasets/index.md
+
+      - Decomposition:
+          - Index: api/heat/decomposition/index.md
+          - DMD: api/heat/decomposition/dmd.md
+          - PCA: api/heat/decomposition/pca.md
+          - Tests:
+              - Index: api/heat/decomposition/tests/index.md
+              - Test DMD: api/heat/decomposition/tests/test_dmd.md
+              - Test PCA: api/heat/decomposition/tests/test_pca.md
+
+      - FFT:
+          - Index: api/heat/fft/index.md
+          - FFT: api/heat/fft/fft.md
+          - Tests:
+              - Index: api/heat/fft/tests/index.md
+              - Test FFT: api/heat/fft/tests/test_fft.md
+
+      - Graph:
+          - Index: api/heat/graph/index.md
+          - Laplacian: api/heat/graph/laplacian.md
+          - Tests:
+              - Index: api/heat/graph/tests/index.md
+              - Test Laplacian: api/heat/graph/tests/test_laplacian.md
+
+      - Naive Bayes:
+          - Index: api/heat/naive_bayes/index.md
+          - GaussianNB: api/heat/naive_bayes/gaussianNB.md
+          - Tests:
+              - Index: api/heat/naive_bayes/tests/index.md
+              - Test GaussianNB: api/heat/naive_bayes/tests/test_gaussiannb.md
+
+      - Neural Networks:
+          - Index: api/heat/nn/index.md
+          - Data Parallel: api/heat/nn/data_parallel.md
+          - Functional: api/heat/nn/functional.md
+          - Tests:
+              - Index: api/heat/nn/tests/index.md
+              - Test Data Parallel: api/heat/nn/tests/test_data_parallel.md
+              - Test NN: api/heat/nn/tests/test_nn.md
+
+      - Optim:
+          - Index: api/heat/optim/index.md
+          - DP Optimizer: api/heat/optim/dp_optimizer.md
+          - LR Scheduler: api/heat/optim/lr_scheduler.md
+          - Utils: api/heat/optim/utils.md
+          - Tests:
+              - Index: api/heat/optim/tests/index.md
+              - Test DP Optimizer: api/heat/optim/tests/test_dp_optimizer.md
+              - Test Optim: api/heat/optim/tests/test_optim.md
+              - Test Utils: api/heat/optim/tests/test_utils.md
+
+      - Preprocessing:
+          - Index: api/heat/preprocessing/index.md
+          - Preprocessing: api/heat/preprocessing/preprocessing.md
+          - Tests:
+              - Index: api/heat/preprocessing/tests/index.md
+              - Test Preprocessing: api/heat/preprocessing/tests/test_preprocessing.md
+
+      - Regression:
+          - Index: api/heat/regression/index.md
+          - Lasso: api/heat/regression/lasso.md
+          - Tests:
+              - Index: api/heat/regression/tests/index.md
+              - Test Lasso: api/heat/regression/tests/test_lasso.md
+
+      - Sparse:
+          - Index: api/heat/sparse/index.md
+          - Arithmetics: api/heat/sparse/arithmetics.md
+          - DCSX Matrix: api/heat/sparse/dcsx_matrix.md
+          - Factories: api/heat/sparse/factories.md
+          - Manipulations: api/heat/sparse/manipulations.md
+          - Tests:
+              - Index: api/heat/sparse/tests/index.md
+              - Test Arithmetics CSR: api/heat/sparse/tests/test_arithmetics_csr.md
+              - Test DCSCMatrix: api/heat/sparse/tests/test_dcscmatrix.md
+              - Test DCSRMatrix: api/heat/sparse/tests/test_dcsrmatrix.md
+              - Test Factories: api/heat/sparse/tests/test_factories.md
+              - Test Manipulations: api/heat/sparse/tests/test_manipulations.md
+
+      - Spatial:
+          - Index: api/heat/spatial/index.md
+          - Distance: api/heat/spatial/distance.md
+          - Tests:
+              - Index: api/heat/spatial/tests/index.md
+              - Test Distances: api/heat/spatial/tests/test_distances.md
+
+      - Utils:
+          - Index: api/heat/utils/index.md
+          - Vision Transforms: api/heat/utils/vision_transforms.md
+          - Data:
+              - Index: api/heat/utils/data/index.md
+              - DataTools: api/heat/utils/data/datatools.md
+              - MatrixGallery: api/heat/utils/data/matrixgallery.md
+              - MNIST: api/heat/utils/data/mnist.md
+              - Partial Dataset: api/heat/utils/data/partial_dataset.md
+              - Spherical: api/heat/utils/data/spherical.md
+              - Tests:
+                  - Index: api/heat/utils/data/tests/index.md
+                  - Test MatrixGallery: api/heat/utils/data/tests/test_matrixgallery.md
+                  - Test Partial Dataset: api/heat/utils/data/tests/test_partial_dataset.md
+                  - Test Spherical: api/heat/utils/data/tests/test_spherical.md
+          - Tests:
+              - Index: api/heat/utils/tests/index.md
+              - Test Vision Transforms: api/heat/utils/tests/test_vision_transforms.md
