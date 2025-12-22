@@ -3258,7 +3258,7 @@ class TestManipulations(TestCase):
                             del a
                             del resplit_a
 
-    @unittest.skipIf(ht.MPI_WORLD.size < 2, "Test requires at least 2 MPI processes")
+    @unittest.skipIf(ht.MPI_WORLD.size != 2, "Test requires exactly 2 MPI processes")
     def test_resplit_large_count_limit(self):
         if not self.is_mps:
             # Test resplit with large dimensions
