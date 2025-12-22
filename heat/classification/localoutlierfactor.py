@@ -165,21 +165,13 @@ class LocalOutlierFactor:
         the data points are classified as outliers if their LOF is greater or equal to a specified threshold or if they have one
         of the top_n largest LOF scores.
         """
-        if self.binary_decision == "threshold":
-            # Use the provided threshold value
-            threshold_value = self.threshold
-        elif self.binary_decision == "top_n":
+        if self.binary_decision == "top_n":
             # Determine the threshold based on the top_n largest LOF scores
-            threshold_value = ht.topk(self.lof_scores, k=self.top_n, sorted=True, largest=True)[0][
+            self.threshold = ht.topk(self.lof_scores, k=self.top_n, sorted=True, largest=True)[0][
                 -1
             ]
-        else:
-            raise ValueError(
-                f"Unknown method for binary decision: {self.binary_decision}. Use 'threshold' or 'top_n'."
-            )
-
         # Classify anomalies based on the threshold value
-        self.anomaly = ht.where(self.lof_scores >= threshold_value, 1, -1)
+        self.anomaly = ht.where(self.lof_scores >= self.threshold, 1, -1)
 
     def _advanced_indexing(self, A: DNDarray, idx: DNDarray) -> DNDarray:
         """
@@ -277,17 +269,17 @@ class LocalOutlierFactor:
 
         # check if the top_n parameter is specified when using the top_n method
         if self.binary_decision == "top_n":
-            if self.top_n is None:
-                raise ValueError(
-                    "For binary decision='top_n', the parameter 'top_n' has to be specified."
-                )
-            elif self.top_n < 1:
-                raise ValueError("The number of top outliers should be greater than one.")
             if self.threshold != 1.5:
                 warnings.warn(
                     "You are specifying the parameter threshold, although binary_decision is set to 'top_n'. The threshold will be ignored.",
                     UserWarning,
                 )
+            if self.top_n is None:
+                raise ValueError(
+                    "For binary decision='top_n', the parameter 'top_n' has to be specified."
+                )
+            if self.top_n < 1:
+                raise ValueError("The number of top outliers should be greater than one.")
 
         if self.binary_decision == "threshold":
             if self.threshold <= 1 or self.threshold is None:

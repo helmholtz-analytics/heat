@@ -90,6 +90,26 @@ class TestLOF(TestCase):
         return X, n_outliers, sklearn_result
 
 
+    def test_advanced_indexing(self):
+        X, _, _ = self._setup_lof_dataset()
+        idx = ht.array([0, 2, 4, 6, 8], split=0)
+        idx_np = idx.numpy()
+        X_np = X.numpy()
+        X_reference = X_np[idx_np]
+
+        lof = LocalOutlierFactor(fully_distributed=True)
+        X_indexed = lof._advanced_indexing(X, idx)
+        X_indexed = X_indexed.resplit_(None)
+        X_indexed = X_indexed.numpy()
+        print(f"{X_indexed=}, {X_reference=}")
+
+        lof = LocalOutlierFactor(fully_distributed=False)
+        X_indexed = lof._advanced_indexing(X, idx)
+        X_indexed = X_indexed.resplit_(None)
+        X_indexed = X_indexed.numpy()
+        print(f"{X_indexed=}, {X_reference=}")
+
+
 
     def _test_utility(self, fully_distributed, n_neighbors=10):
         """
