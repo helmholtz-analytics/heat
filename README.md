@@ -118,6 +118,7 @@ computational and memory needs of your laptop and desktop.
 ### Parallel I/O
 - h5py
 - netCDF4
+- zarr
 
 ### GPU support
 In order to do computations on your GPU(s):
@@ -132,10 +133,10 @@ On most HPC-systems you will not be able to install/compile MPI or CUDA/ROCm you
 Install the latest version with
 
 ```bash
-pip install heat[hdf5,netcdf]
+pip install heat[hdf5,netcdf,zarr]
 ```
 where the part in brackets is a list of optional dependencies. You can omit
-it, if you do not need HDF5 or NetCDF support.
+it, if you do not need HDF5, NetCDF, or Zarr support.
 
 ## **conda**
 
