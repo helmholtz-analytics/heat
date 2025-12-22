@@ -6,6 +6,8 @@ import torch
 import heat as ht
 import numpy as np
 import math
+from heat.spatial.distance import _chunk_wise_topk, _euclidian
+import warnings
 
 from heat.core.tests.test_suites.basic_test import TestCase
 
@@ -263,3 +265,97 @@ class TestDistances(TestCase):
             d = ht.spatial.cdist(B, quadratic_expansion=False)
             result = ht.array(res, dtype=ht.float64, split=0)
             self.assertTrue(ht.allclose(d, result, atol=1e-8))
+
+    def test_cdist_small(self):
+        ht.random.seed(10)
+        n_neighbors = 10
+        X = ht.random.rand(1000, 100, dtype=ht.float32, split=0)
+        Y = ht.random.rand(1500, 100, dtype=ht.float32, split=0)
+
+        # Test functionality
+        d = ht.spatial.cdist(X, Y, quadratic_expansion=False)
+        std_dist, std_idx = ht.topk(d, k=n_neighbors, dim=1, largest=False)
+        dist, idx = ht.spatial.cdist_small(X, Y, n_smallest=n_neighbors)
+
+        self.assertTrue(ht.allclose(std_dist, dist, atol=1e-6, rtol=1e-6))
+        # Note: if some distances in the same row of the distance matrix are the same,
+        # the respective indices in this comarison may differ (randomly ordered)
+        self.assertTrue(ht.allclose(std_idx, idx, atol=1e-6, rtol=1e-6))
+
+        # Test functionality with chunk-wise computation
+        dist_chunked, idx_chunked = ht.spatial.cdist_small(X, Y, chunks=1, n_smallest=n_neighbors)
+        self.assertTrue(ht.allclose(std_dist, dist_chunked, atol=1e-6, rtol=1e-6))
+        self.assertTrue(ht.allclose(std_idx, idx_chunked, atol=1e-6, rtol=1e-6))
+
+        # Splitting
+        X = ht.random.rand(1000, 100, dtype=ht.float32, split=None)
+        Y = ht.random.rand(1500, 100, dtype=ht.float32, split=0)
+        Z = ht.random.rand(2000, 100, dtype=ht.float32, split=1)
+        with self.assertRaises(NotImplementedError):
+            ht.spatial.cdist_small(X, Y)
+        with self.assertRaises(NotImplementedError):
+            ht.spatial.cdist_small(Y, X)
+        with self.assertRaises(NotImplementedError):
+            ht.spatial.cdist_small(X, Z)
+        with self.assertRaises(NotImplementedError):
+            ht.spatial.cdist_small(Z, X)
+        with self.assertRaises(NotImplementedError):
+            ht.spatial.cdist_small(Y, Z)
+        with self.assertRaises(NotImplementedError):
+            ht.spatial.cdist_small(Z, Y)
+
+        # Non-matching shape[1]
+        X = ht.random.rand(1000, 100, dtype=ht.float32, split=0)
+        Y = ht.random.rand(1500, 150, dtype=ht.float32, split=0)
+        with self.assertRaises(ValueError):
+            ht.spatial.cdist_small(X, Y)
+
+        # More neighbors than points
+        n_smallest = 2000
+        X = ht.random.rand(1000, 100, dtype=ht.float32, split=0)
+        Y = ht.random.rand(1500, 100, dtype=ht.float32, split=0)
+        with self.assertRaises(ValueError):
+            ht.spatial.cdist_small(X, Y, n_smallest=n_smallest)
+
+    def test_chunk_wise_topk(self):
+        torch.manual_seed(1234)
+
+        # random sample data
+        x = torch.randn(11, 3, dtype=torch.float32, device="cpu")
+        y = torch.randn(7, 3, dtype=torch.float32, device="cpu")
+        k = 5
+
+        # Reference implementation: full cdist + topk
+        ref_full = _euclidian(x, y)
+        ref_dist, ref_idx = torch.topk(ref_full, k, largest=False, sorted=True)
+
+        # chunks=1 should match reference
+        dist_1, idx_1 = _chunk_wise_topk(x, y, k=k, metric=_euclidian, chunks=1, device=x.device)
+        self.assertIsInstance(dist_1, torch.Tensor)
+        self.assertIsInstance(idx_1, torch.Tensor)
+        self.assertEqual(dist_1.shape, (x.shape[0], k))
+        self.assertEqual(idx_1.shape, (x.shape[0], k))
+        self.assertEqual(dist_1.dtype, torch.float32)
+        self.assertEqual(idx_1.dtype, torch.long)
+        self.assertTrue(torch.allclose(dist_1, ref_dist, atol=0.0, rtol=0.0))
+        self.assertTrue(torch.equal(idx_1, ref_idx))
+
+        # Multi-chunk runs should give identical results
+        for chunks in (2, 3, 5):
+            dist_c, idx_c = _chunk_wise_topk(x, y, k=k, metric=_euclidian, chunks=chunks, device=x.device)
+            self.assertTrue(torch.allclose(dist_c, ref_dist, atol=0.0, rtol=0.0))
+            self.assertTrue(torch.equal(idx_c, ref_idx))
+            # Distances must be sorted in ascending order per row
+            self.assertTrue(torch.all(dist_c[:, :-1] <= dist_c[:, 1:]).item())
+
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            dist_w, idx_w = _chunk_wise_topk(
+                x, y, k=k, metric=_euclidian, chunks=x.shape[0] + 10, device=x.device
+            )
+            self.assertTrue(
+                any("chunks should not be larger" in str(warn.message) for warn in w),
+                msg="Expected a warning about 'chunks' being clamped."
+            )
+        self.assertTrue(torch.allclose(dist_w, ref_dist, atol=0.0, rtol=0.0))
+        self.assertTrue(torch.equal(idx_w, ref_idx))

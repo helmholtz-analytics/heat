@@ -42,7 +42,25 @@ def _initialize_plus_plus(
     for i in range(1, n_clusters):
         dist = torch.cdist(X, X[idxs[:i]], p=p)
         dist = torch.min(dist, dim=1)[0]
-        idxs[i] = torch.multinomial(weights * dist, 1)
+        probs = weights * dist
+        probs = torch.nan_to_num(probs, nan=0.0, posinf=0.0, neginf=0.0)
+
+        # Minimal fallback ONLY if multinomial would crash
+        if probs.sum() <= 0:
+            # fall back to standard k-means++ (ignore weights)
+            probs = torch.nan_to_num(dist, nan=0.0, posinf=0.0, neginf=0.0)
+
+        if probs.sum() <= 0:
+            # fully degenerate (all distances zero) -> pick any not-yet-picked index if possible
+            mask = torch.ones(X.shape[0], dtype=torch.bool, device=X.device)
+            mask[idxs[:i]] = False
+            candidates = torch.nonzero(mask, as_tuple=False).flatten()
+            if candidates.numel() > 0:
+                idxs[i] = candidates[torch.randint(0, candidates.numel(), (1,), device=X.device)]
+            else:
+                idxs[i] = torch.randint(0, X.shape[0], (1,), device=X.device)
+        else:
+            idxs[i] = torch.multinomial(probs, 1)
     return X[idxs]
 
 
@@ -174,7 +192,7 @@ class _BatchParallelKCluster(ht.ClusteringMixin, ht.BaseEstimator):
         """
         return self._functional_value
 
-    def fit(self, x: DNDarray):
+    def fit(self, x: DNDarray, weights: torch.tensor = 1):
         """
         Computes the centroid of the clustering algorithm to fit the data ``x``.
 
@@ -205,6 +223,7 @@ class _BatchParallelKCluster(ht.ClusteringMixin, ht.BaseEstimator):
             self.max_iter,
             self.tol,
             local_random_state,
+            weights,
         )
 
         # hierarchical approach to obtail "global" cluster centers from the "local" centers
@@ -240,6 +259,7 @@ class _BatchParallelKCluster(ht.ClusteringMixin, ht.BaseEstimator):
                         self.max_iter,
                         self.tol,
                         local_random_state,
+                        weights,
                     )
                     del gathered_centers_local
                     n_iters_local += n_iters_local_new
