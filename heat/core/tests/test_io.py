@@ -4,7 +4,6 @@ import numpy as np
 import os
 import torch
 import tempfile
-import time
 import random
 import shutil
 import fnmatch
