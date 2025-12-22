@@ -1,132 +1,141 @@
 # Writing Heat Documentation
 
-In order to maintain proper, uniform and understandable API documentation of Heat, a few style guidelines are
-enforced. The following sections summarize the key features of Heats API documentation.
+Heat’s documentation is now built entirely with **MkDocs** and the Material theme, with API reference pages generated from the source code.  This guide explains how to build the docs locally and how to write consistent, high‑quality docstrings.
 
 ## Prerequisites
 
-The Heat documentation is build using Sphinx (Version 3.0.3), with a custom derivation of the Sphinx-RTD-Theme
-(defined in `_static/css/custom.css`).
-There are three main colors available for formatting:
+The documentation stack consists of:
 
-- <span class="orangemaker">Orange: RGB(240, 120, 30)</span>
+- MkDocs with the Material theme for the static site.
+- pdoc for auto‑generated API reference pages under `doc/api/heat/...`.
+- Standard Markdown (plus a few MkDocs/Material extensions such as admonitions and fenced code blocks).
 
-- <span class="greymarker">Grey: RGB(90, 105, 110)</span>
+Install the documentation dependencies into your virtual environment:
 
-- <span class="bluemarker">Blue: RGB(0, 90, 160)</span>
+```bash
+pip install -e .
+pip install -r doc/requirements.txt
+```
 
-<!-- All configurations regarding the documentation build are set in `doc/source/conf.py`.
-API Documentation is generated using the [sphinx-autoapi extension](https://sphinx-autoapi.readthedocs.io) . This is
-done via custom templates, defined in `source/_templates/autoapi/python`. -->
+Typical requirements include `mkdocs`, `mkdocs-material`, `mkdocstrings-python`, `mkdocs-git-revision-date-localized-plugin`, and `pdoc`.
 
-To build the documentation locally please run the following commands in the Heat home directory:
+All MkDocs configuration lives in `mkdocs.yml`, and the Markdown sources are under `doc/`.
 
-- `pip install -r doc/requirements.txt`
-- `sphinx-build -T -E -b html doc/source doc/build/html`
+## Building the documentation
 
-The second command will build a local rendering of the documentation in the `doc/build/html/autoapi` folder. These
-should be checked before creating pull requests
+There are two steps: regenerate the API reference and build the MkDocs site.
 
-## Docstring Guidelines
+  I. From the project root, regenerate the API docs:
 
-Dostrings are written using the NumPy Documentation style (see sphinx-contributions [napoleon](https://sphinxcontrib-napoleon.readthedocs.io)).
-Apart from that, formatting happens via reStructuredText (reST). For a full reference on reST see [here](https://www.sphinx-doc.org/en/master/usage/restructuredtext/basics.html)
+   ```bash
+   PYTHONPATH=. pdoc --skip-errors --force --output-dir doc/api heat
+   ```
 
-### Docstring Content
+   This recreates `doc/api/heat/...` and produces one Markdown page per module, class, and function, including subpackages and tests.
 
-- Write clear on concise docstrings, especially in the function and parameter descriptions
+  II. Build or serve the MkDocs site:
 
-- Use type hints for:
-  >-  Parameters
-  >-  Return types
+   ```bash
+   mkdocs serve        # local preview at http://127.0.0.1:8000
+   # or
+   mkdocs build        # static site output in site/
+   ```
 
-- Cross-referencing of major Heat classes (`DNDarray`, `Communication`, `Device`, `data_type`)
-  >-  Import major classes directly (e.g. `from .dndarray import DNDarray`, `from .devices import Device`)
-  >-  In descriptions, use cross references when useful (full module path with tilde): `` :class:`~heat.core.dndarray.DNDarray` `` or `` :function:`~heat.core.arithmetics.add` ``
-  >-  use `from __future__ import annotations` for module internal crossreferencing: see e.g.
-  naive_bayes/gaussianNB.py: partial_fit
+MkDocs uses the navigation specified in `mkdocs.yml` to organize tutorials, guides, and the API Reference sidebar, fully replacing the previous Sphinx + autoapi setup.
 
-- In narrative form always refer to DNDarrays as array and not as tensor. The latter is exclusively reserved for PyTorch tensors.
+- The API navigation is maintained manually in `mkdocs.yml`. When new modules are added or removed, update the `API Reference` section so the sidebar matches the generated `doc/api/heat/...` pages.
 
-- Use code-style markdown to annotate functions, parameters or globally defined variables (e.g. `None`, `True`, `NotImplementedError` etc.) in description texts.
+## Docstring guidelines
 
-- Math-style markdown can be used to typeset formulas
+Docstrings continue to follow the **NumPy** style, with reStructuredText‑like section headings (Parameters, Returns, Notes, Examples, …), but the surrounding site is now pure Markdown.  pdoc renders these docstrings into the API pages, so clarity and consistency matter.
 
-### Docstrings Format
+### Docstring content
 
-Method Template
+- Write clear, concise descriptions that explain behavior and intent, not just types.
+- Use type hints for all parameters and return types whenever possible.
+- Cross‑reference major Heat classes (`DNDarray`, `Communication`, `Device`, `data_type`) by importing them in the module and referring to them by name in the text (pdoc will link them where possible).
+- In narrative text, refer to Heat arrays as “array” and reserve “tensor” for PyTorch tensors.
+- Use code formatting for function names, parameters, literals, and exceptions, for example `add`, `dtype`, `None`, `True`, `NotImplementedError`.
+- Use math formatting (LaTeX inside `\( … \)` or `\[ … \]`) for formulas in docstrings or Markdown pages.
 
-The following example shows the standard formatting of a function docstring
+### Docstring format
 
-  ```
-  def foo(x: DNDarray, y: str, k: int = 0) -> DNDarray
-  """
-  A description of the function behaviour and return value (not the type): What does the function do?
-  Any additional information can be given here, either in narrative form or in bullet points like such:
-   * Item 1 \n
-   * Item 2 \n
+A standard function should look like this:
 
-  Parameters
-  -----------
-  x : DNDarray
-      Parameter desription of x
-  y : str
-      Parameter description of y. Can be either 'a', 'b' or 'c'
-  k : int, optional
+```python
+def foo(x: DNDarray, y: str, k: int = 0) -> DNDarray:
+    """
+    One-line summary of what the function does.
 
-  Notes
-  -----------
-  Notes on the function should be given in the "Notes" section (not in the function description
+    A longer description can explain details, edge cases, or provide a short narrative
+    about how the function should be used.
 
-  References
-  -----------
-  [1] Webpage references \n
-  [2] Paper references.  \n
-  [3] Do not use indentations at linebreaks for a reference
+    Parameters
+    ----------
+    x : DNDarray
+        Description of x.
+    y : str
+        Description of y. Can be either 'a', 'b' or 'c'.
+    k : int, optional
+        Description of k. Default is 0.
 
-  Warnings
-  -----------
-  Warnings on the function should be given in the "Warnings" section (not in the function description
+    Notes
+    -----
+    Additional background, algorithmic details, or caveats.
 
-  Raises
-  -----------
-  If the function raises any "unexpected" Errors/Exceptions that the user might not be aware of, these should be
-  mentioned here. This does not include standard exceptions like type errors from input sanitation or similar
+    References
+    ----------
+    [1] Webpage or paper reference.
+    [2] Additional literature as needed.
 
-  See Also
-  -----------
-  Referencencs to other functions can be given here (e.g for aliasing)
+    Warnings
+    --------
+    Important usage warnings or behavioral quirks.
 
-  Examples
-  ----------
-  >>> import heat as ht
-  >>> T = ht.array([[1,2],[3,4]], dtype=ht.float)
-  >>> ht.add(T, 2)
-  tensor([[3., 4.],
-          [5., 6.]])
-  >>> T + 2
-  tensor([[3., 4.],
-          [5., 6.]])
-  """
-  ```
+    Raises
+    ------
+    ValueError
+        Describe when this is raised.
+    RuntimeError
+        Describe when this is raised.
 
-For classes, the docstring goes right under the class definition (as opposed to in the \_\_init\_\_ function). This
-way, all attributes that are passed for class initialization are documented properly, with type and default
-value annotation
+    See Also
+    --------
+    other_function : Brief explanation of the relationship.
 
-Parameter Definitions
-  >- Defaults are defined in the function Parameters
-  >-  Shape definitions go at the very end of the Parameter description in the following format: `Shape = (x, y, ...)`
-  >-  For classes, the initialization parameters are defined as section `Attributes`
-  >-  Different Parameter types are separated by `or`, not commas
-  >-  For detailed instructions on type hints for parameter and return type annotation (such as `Union`, `List`,
-  `Tuple`, etc.)
-  See [typing](https://docs.python.org/3/library/typing.html) (PEP 484)
+    Examples
+    --------
+    >>> import heat as ht
+    >>> T = ht.array([[1, 2], [3, 4]], dtype=ht.float32)
+    >>> ht.add(T, 2)
+    DNDarray([[3., 4.],
+              [5., 6.]], dtype=ht.float32, device=cpu:0)
+    """
+```
 
-Examples
-  >-  Examples should only be separated by empty lines, if there is a clear distinction between the two example types.
-  Note that every empty line in the examples will create a new example code block. This is fine for 2 >- 3 separated
-  blocks, but do not separate 15 different examples into individual blocks.
-  >-  There must not be a colon after Examples
-  >-  No comments in the examples (on number of processes or what the example shows). Put these in coding examples
-  under `Notes`
+For classes, place the docstring directly under the `class` definition rather than in `__init__`, so that initialization parameters and attributes are captured correctly.
+
+### Parameter and example conventions
+
+- Define default values in the **Parameters** section (for example, “Default is 0”) rather than in separate notes.
+- Shape information goes at the end of the parameter description, e.g. `Shape = (x, y, ...)`.
+- For classes, describe initialization parameters in an **Attributes** section.
+- When listing alternative types, separate them with `or`, not commas (for example, `int or None`).
+- For complex type hints (`Union`, `List`, `Tuple`, etc.), follow the standard `typing` module conventions.
+
+Examples:
+
+- Group related examples into a single **Examples** block; use blank lines only when there is a clear distinction between examples.
+- Do not add a colon after the **Examples** heading.
+- Avoid inline comments inside doctest blocks; move explanatory text into **Notes** instead.
+
+## Writing Markdown pages
+
+All narrative documentation (tutorials, guides, case studies) is now written in Markdown under `doc/`.
+
+- Use standard Markdown headings (`#`, `##`, `###`) and fenced code blocks (```python).
+- Prefer Markdown links for internal navigation, for example `[API Reference](../api/heat/core/arithmetics.md)`, with correct relative paths from the current page.
+- HTML is allowed for advanced layout (tooltips, custom cards), but ensure all tags are properly closed and paths remain relative so they work on Read the Docs.
+- Images should use repository‑relative paths under `doc/`, not raw GitHub URLs, to keep builds portable.
+
+By keeping docstrings NumPy‑style and Markdown pages consistent with these guidelines, Heat’s MkDocs site remains readable, maintainable, and fully synchronized with the source code and API surface.
