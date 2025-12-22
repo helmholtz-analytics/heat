@@ -1,4 +1,4 @@
-# v1.7.0 - Heat Minor Release - 1.7.0
+# v1.7.0
 
 ## Highlights
 

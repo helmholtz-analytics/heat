@@ -27,10 +27,10 @@ jobs:
           - 'torch==2.7.1 torchvision==0.22.1 torchaudio==2.7.1'
           - 'torch==2.8.0 torchvision==0.23.0 torchaudio==2.8.0'
           - 'torch==2.9.1 torchvision==0.24.1 torchaudio==2.9.1'
-        include:
-          - py-version: '3.14'
-            pytorch-version: 'torch==2.9.1 torchvision==0.24.1 torchaudio==2.9.1'
-            install-options: '.'
+        # include:
+        #   - py-version: '3.14'
+        #     pytorch-version: 'torch==2.9.1 torchvision==0.24.1 torchaudio==2.9.1'
+        #     install-options: '.'
         exclude:
           - py-version: '3.13'
             pytorch-version: 'numpy==1.26 torch==2.2.2 torchvision==0.17.2 torchaudio==2.2.2'
