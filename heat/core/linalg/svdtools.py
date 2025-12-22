@@ -2,26 +2,20 @@
 distributed hierarchical SVD
 """
 
-import numpy as np
-import collections
 import torch
-from typing import Type, Callable, Dict, Any, TypeVar, Union, Tuple, Optional
+from typing import Union, Tuple, Optional
 
-from ..communication import MPICommunication
 from ..dndarray import DNDarray
 from .. import factories
-from .. import types
 from ..linalg import matmul, vector_norm, qr, svd
-from ..indexing import where
-from ..random import randn
 from ..sanitation import sanitize_in_nd_realfloating
-from ..manipulations import vstack, hstack, diag, balance
+from ..manipulations import vstack, hstack, diag
 
 from .. import statistics
-from math import log, ceil, floor, sqrt
+from math import floor, sqrt
 
 
-__all__ = ["hsvd_rank", "hsvd_rtol", "hsvd", "rsvd", "isvd"]
+__all__ = ["hsvd_rank", "hsvd_rtol", "hsvd", "isvd"]
 
 
 #######################################################################################
@@ -75,6 +69,9 @@ def hsvd_rank(
     The size of the process local SVDs to be computed during merging is proportional to the non-split size of the input A and (maxrank + safetyshift). Therefore, conservative choice of maxrank and safetyshift is advised to avoid memory issues.
     Note that, as sci-kit learn's randomized SVD, this routine is different from `numpy.linalg.svd` because not all singular values and vectors are computed
     and even those computed may be inaccurate if the input matrix exhibts a unfavorable structure.
+
+    Please note that "rank" in the context of SVD always refers to the number of singular values/vectors to compute (i.e., "rank" refers to the mathematical rank
+    of a matrix). This is completely different from the notion of "(MPI-)rank", i.e., the ID given to a process, in a parallel MPI-application.
 
     See Also
     --------
@@ -181,6 +178,9 @@ def hsvd_rtol(
 
         To avoid confusion, note that `rtol` in this routine does not have any similarity to `tol` in scikit learn's TruncatedSVD.
 
+        Please note that "rank" in the context of SVD always refers to the number of singular values/vectors to compute (i.e., "rank" refers to the mathematical rank
+        of a matrix). This is completely different from the notion of "(MPI-)rank", i.e., the ID given to a process, in a parallel MPI-application.
+
     See Also
     --------
     :func:`hsvd`
@@ -276,11 +276,10 @@ def hsvd(
     warnings_off: bool, optional
         switch on and off warnings that are not intended for the high-level routines based on this function
 
-    Returns
-    -------
-    (Union[    Tuple[DNDarray, DNDarray, DNDarray, float], Tuple[DNDarray, DNDarray, DNDarray], DNDarray])
-        if compute_sv=True: U, Sigma, V, a-posteriori error estimate for the reconstruction error ||A-U Sigma V^T ||_F / ||A||_F (computed according to [2] along the "true" merging tree used in the computations).
-        if compute_sv=False: U, a-posteriori error estimate
+    Notes
+    -----
+    Please note that "rank" in the context of SVD always refers to the number of singular values/vectors to compute (i.e., "rank" refers to the mathematical rank
+    of a matrix). This is completely different from the notion of "(MPI-)rank", i.e., the ID given to a process, in a parallel MPI-application.
 
     References
     ----------
@@ -507,102 +506,6 @@ def _compute_local_truncated_svd(
 
 
 ##############################################################################################
-# Randomized SVD "rSVD"
-##############################################################################################
-
-
-def rsvd(
-    A: DNDarray,
-    rank: int,
-    n_oversamples: int = 10,
-    power_iter: int = 0,
-    qr_procs_to_merge: int = 2,
-) -> Union[Tuple[DNDarray, DNDarray, DNDarray], Tuple[DNDarray, DNDarray]]:
-    r"""
-    Randomized SVD (rSVD) with prescribed truncation rank `rank`.
-    If :math:`A = U \operatorname{diag}(S) V^T` is the true SVD of A, this routine computes an approximation for U[:,:rank] (and S[:rank], V[:,:rank]).
-
-    The accuracy of this approximation depends on the structure of A ("low-rank" is best) and appropriate choice of parameters.
-
-    Parameters
-    ----------
-    A : DNDarray
-        2D-array (float32/64) of which the rSVD has to be computed.
-    rank : int
-        truncation rank. (This parameter corresponds to `n_components` in scikit-learn's TruncatedSVD.)
-    n_oversamples : int, optional
-        number of oversamples. The default is 10.
-    power_iter : int, optional
-        number of power iterations. The default is 0.
-        Choosing `power_iter > 0` can improve the accuracy of the SVD approximation in the case of slowly decaying singular values, but increases the computational cost.
-    qr_procs_to_merge : int, optional
-        number of processes to merge at each step of QR decomposition in the power iteration (if power_iter > 0). The default is 2. See the corresponding remarks for :func:`heat.linalg.qr() <heat.core.linalg.qr.qr()>` for more details.
-
-
-    Notes
-    -----
-    Memory requirements: the SVD computation of a matrix of size (rank + n_oversamples) x (rank + n_oversamples) must fit into the memory of a single process.
-    The implementation follows Algorithm 4.4 (randomized range finder) and Algorithm 5.1 (direct SVD) in [1].
-
-    References
-    ----------
-    [1] Halko, N., Martinsson, P. G., & Tropp, J. A. (2011). Finding structure with randomness: Probabilistic algorithms for constructing approximate matrix decompositions. SIAM review, 53(2), 217-288.
-    """
-    sanitize_in_nd_realfloating(A, "A", [2])
-    if not isinstance(rank, int):
-        raise TypeError(f"rank must be an integer, but is {type(rank)}.")
-    if rank < 1:
-        raise ValueError(f"rank must be positive, but is {rank}.")
-    if not isinstance(n_oversamples, int):
-        raise TypeError(
-            f"if provided, n_oversamples must be an integer, but is {type(n_oversamples)}."
-        )
-    if n_oversamples < 0:
-        raise ValueError(f"n_oversamples must be non-negative, but is {n_oversamples}.")
-    if not isinstance(power_iter, int):
-        raise TypeError(f"if provided, power_iter must be an integer, but is {type(power_iter)}.")
-    if power_iter < 0:
-        raise ValueError(f"power_iter must be non-negative, but is {power_iter}.")
-
-    ell = rank + n_oversamples
-    q = power_iter
-
-    # random matrix
-    splitOmega = 1 if A.split == 0 else 0
-    Omega = randn(A.shape[1], ell, dtype=A.dtype, device=A.device, split=splitOmega)
-
-    # compute the range of A
-    Y = matmul(A, Omega)
-    Q, _ = qr(Y, procs_to_merge=qr_procs_to_merge)
-
-    # power iterations
-    for _ in range(q):
-        if Q.split is not None and Q.shape[Q.split] < Q.comm.size:
-            Q.resplit_(None)
-        Y = matmul(A.T, Q)
-        Q, _ = qr(Y, procs_to_merge=qr_procs_to_merge)
-        if Q.split is not None and Q.shape[Q.split] < Q.comm.size:
-            Q.resplit_(None)
-        Y = matmul(A, Q)
-        Q, _ = qr(Y, procs_to_merge=qr_procs_to_merge)
-
-    # compute the SVD of the projected matrix
-    if Q.split is not None and Q.shape[Q.split] < Q.comm.size:
-        Q.resplit_(None)
-    B = matmul(Q.T, A)
-    B.resplit_(
-        None
-    )  # B will be of size ell x ell and thus small enough to fit into memory of a single process
-    U, sigma, V = svd.svd(B)  # actually just torch svd as input is not split anymore
-    U = matmul(Q, U)[:, :rank]
-    U.balance_()
-    S = sigma[:rank]
-    V = V[:, :rank]
-    V.balance_()
-    return U, S, V
-
-
-##############################################################################################
 # Incremental SVD "iSVD"
 ##############################################################################################
 
@@ -636,7 +539,7 @@ def _isvd(
     old_rowwise_mean: int, optional
         row-wise mean of the old matrix; if not provided, no mean subtraction is performed
     """
-    # old SVD is SVD of a matrix of dimension m x n as has rank r
+    # old SVD is SVD of a matrix of dimension m x n and has rank r
     # new data have shape m x d
     d = new_data.shape[1]
     n = V_old.shape[0] if V_old is not None else old_matrix_size
@@ -751,7 +654,7 @@ def isvd(
     maxrank: Optional[int] = None,
 ) -> Tuple[DNDarray, DNDarray, DNDarray]:
     r"""Incremental SVD (iSVD) for the addition of new data to an existing SVD.
-    Given the the SVD of an "old" matrix, :math:`X_\textnormal{old} = `U_\textnormal{old} \cdot S_\textnormal{old} \cdot V_\textnormal{old}^T`, and additional columns :math:`N` (\"`new_data`\"), this routine computes
+    Given the SVD of an "old" matrix, :math:`X_\textnormal{old} = `U_\textnormal{old} \cdot S_\textnormal{old} \cdot V_\textnormal{old}^T`, and additional columns :math:`N` (\"`new_data`\"), this routine computes
     (a possibly approximate) SVD of the extended matrix :math:`X_\textnormal{new} = [ X_\textnormal{old} | N]`.
 
     Parameters
@@ -772,6 +675,9 @@ def isvd(
     Inexactness may arise due to truncation to maximal rank `maxrank` if rank of the data to be processed exceeds this rank.
     If you set `maxrank` to a high number (or None) in order to avoid inexactness, you may encounter memory issues.
     The implementation follows the approach described in Ref. [1], Sect. 2.
+
+    Please note that "rank" in the context of SVD always refers to the number of singular values/vectors to compute (i.e., "rank" refers to the mathematical rank
+    of a matrix). This is completely different from the notion of "(MPI-)rank", i.e., the ID given to a process, in a parallel MPI-application.
 
     References
     ----------

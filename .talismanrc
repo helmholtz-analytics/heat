@@ -1,0 +1,3 @@
+threshold: medium
+allowed_patterns:
+- 'uses: [A-Za-z-\/]+@[\w\d]+'

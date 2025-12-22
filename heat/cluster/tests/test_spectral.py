@@ -26,8 +26,12 @@ class TestSpectral(TestCase):
                 "laplacian": "fully_connected",
                 "threshold": 1.0,
                 "boundary": "upper",
-                "n_lanczos": 300,
+                "lanczos_n_iter": 300,
                 "assign_labels": "kmeans",
+                "eigen_solver": "randomized",
+                "reigh_rank": 100,
+                "reigh_n_oversamples": 10,
+                "reigh_power_iter": 0,
             },
         )
 
@@ -40,10 +44,11 @@ class TestSpectral(TestCase):
         if not self.is_mps:
             # get some test data
             iris = ht.load("heat/datasets/iris.csv", sep=";", split=0)
-            m = 10
+            lanczosniter = 10
+            reighrank = 10
             # fit the clusters
             spectral = ht.cluster.Spectral(
-                n_clusters=3, gamma=1.0, metric="rbf", laplacian="fully_connected", n_lanczos=m
+                n_clusters=3, gamma=1.0, metric="rbf", laplacian="fully_connected", eigen_solver="lanczos", lanczos_n_iter=lanczosniter
             )
             spectral.fit(iris)
             self.assertIsInstance(spectral.labels_, ht.DNDarray)
@@ -53,7 +58,15 @@ class TestSpectral(TestCase):
                 laplacian="eNeighbour",
                 threshold=0.5,
                 boundary="upper",
-                n_lanczos=m,
+                eigen_solver="randomized",
+                reigh_rank=reighrank,
+            )
+            labels = spectral.fit_predict(iris)
+            self.assertIsInstance(labels, ht.DNDarray)
+
+            kmeans = {"kmeans++": "kmeans++", "max_iter": 30, "tol": -1}
+            spectral = ht.cluster.Spectral(
+                n_clusters=3, gamma=1.0, normalize=True, params=kmeans
             )
             labels = spectral.fit_predict(iris)
             self.assertIsInstance(labels, ht.DNDarray)
@@ -64,23 +77,25 @@ class TestSpectral(TestCase):
                 laplacian="eNeighbour",
                 threshold=0.5,
                 boundary="upper",
-                n_lanczos=m,
-            )
-            labels = spectral.fit_predict(iris)
-            self.assertIsInstance(labels, ht.DNDarray)
-
-            kmeans = {"kmeans++": "kmeans++", "max_iter": 30, "tol": -1}
-            spectral = ht.cluster.Spectral(
-                n_clusters=3, gamma=1.0, normalize=True, n_lanczos=m, params=kmeans
+                eigen_solver="randomized",
+                reigh_rank=5,
+                reigh_n_oversamples=2,
+                reigh_power_iter=1,
             )
             labels = spectral.fit_predict(iris)
             self.assertIsInstance(labels, ht.DNDarray)
 
             # Errors
             with self.assertRaises(NotImplementedError):
-                spectral = ht.cluster.Spectral(metric="ahalanobis", n_lanczos=m)
+                spectral = ht.cluster.Spectral(eigen_solver="unknown")
+
+            with self.assertRaises(ValueError):
+                spectral = ht.cluster.Spectral(eigen_solver="randomized", reigh_rank=2, n_clusters=5)
+
+            with self.assertRaises(NotImplementedError):
+                spectral = ht.cluster.Spectral(metric="ahalanobis", lanczos_n_iter=2)
 
             iris_split = ht.load("heat/datasets/iris.csv", sep=";", split=1)
-            spectral = ht.cluster.Spectral(n_lanczos=20)
+            spectral = ht.cluster.Spectral(eigen_solver="lanczos", lanczos_n_iter=20)
             with self.assertRaises(NotImplementedError):
                 spectral.fit(iris_split)

@@ -110,9 +110,6 @@ class TestFactories(TestCase):
             check_precision = ht.arange(16777217.0, 16777218, 1, dtype=ht.float64)
             self.assertEqual(check_precision.sum(), 16777217)
 
-        check_precision = ht.arange(16777217.0, 16777218, 1, dtype=ht.float64)
-        self.assertEqual(check_precision.sum(), 16777217)
-
         # exceptions
         with self.assertRaises(ValueError):
             ht.arange(-5, 3, split=1)

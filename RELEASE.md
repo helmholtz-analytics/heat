@@ -53,7 +53,7 @@ Go to the main repo page, and then to releases (right panel). There should be a 
 
   - Go to the GitHub repo's [Releases](https://github.com/helmholtz-analytics/heat/releases) page.
   - The release notes draft is automated. Click on Edit Draft
-  - Select the new tag: v1.5.0. Modify Target branch: `release/1.5.x`
+  - Select the new tag: v1.5.0. Modify Target branch: `stable`
   - Edit release notes as needed (see older releases)
   - Click on Save **but do not publish yet**
 
@@ -83,6 +83,7 @@ Go to the main repo page, and then to releases (right panel). There should be a 
 
 11. Go back to the Release Notes draft and publish them. The new release is out!
 
+  - Attach the tar and wheel file genereated on step 8 in the dist folder.
   - Make sure the CHANGELOG.md got updated, if not, call @JuanPedroGHM.
   - Check our [Zenodo page](https://zenodo.org/doi/10.5281/zenodo.2531472) to make sure a DOI was created for the release.
 
