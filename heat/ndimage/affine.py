@@ -19,6 +19,7 @@ import heat as ht
 # Helpers
 # ============================================================
 
+
 def _is_identity_affine(M, ND):
     """
     Check whether an affine matrix represents the identity transform.
@@ -67,14 +68,14 @@ def _normalize_input(x, ND):
     t = x.larray
 
     if ND == 2:
-        if x.ndim == 2:          # (H, W)
+        if x.ndim == 2:  # (H, W)
             t = t.unsqueeze(0).unsqueeze(0)
-        elif x.ndim == 3:        # (C, H, W)
+        elif x.ndim == 3:  # (C, H, W)
             t = t.unsqueeze(0)
     else:
-        if x.ndim == 3:          # (D, H, W)
+        if x.ndim == 3:  # (D, H, W)
             t = t.unsqueeze(0).unsqueeze(0)
-        elif x.ndim == 4:        # (C, D, H, W)
+        elif x.ndim == 4:  # (C, D, H, W)
             t = t.unsqueeze(0)
 
     return t, orig_shape
@@ -114,6 +115,7 @@ def _make_grid(spatial, device):
 # ============================================================
 # Padding
 # ============================================================
+
 
 def _apply_padding(pix, spatial, mode):
     """
@@ -168,6 +170,7 @@ def _apply_padding(pix, spatial, mode):
 # ============================================================
 # Sampling
 # ============================================================
+
 
 def _nearest_sample(x, coords, mode, constant_value):
     """
@@ -258,12 +261,7 @@ def _bilinear_sample(x, coords, mode, constant_value):
     wy = y - y0.float()
     wx = x_ - x0.float()
 
-    out = (
-        Ia * (1 - wy) * (1 - wx) +
-        Ib * (1 - wy) * wx +
-        Ic * wy * (1 - wx) +
-        Id * wy * wx
-    )
+    out = Ia * (1 - wy) * (1 - wx) + Ib * (1 - wy) * wx + Ic * wy * (1 - wx) + Id * wy * wx
 
     if mode == "constant":
         const = torch.full_like(out, constant_value)
@@ -275,6 +273,7 @@ def _bilinear_sample(x, coords, mode, constant_value):
 # ============================================================
 # Local affine (NO MPI logic)
 # ============================================================
+
 
 def _affine_transform_local(x, M, order, mode, constant_value, expand):
     """
@@ -326,11 +325,13 @@ def _affine_transform_local(x, M, order, mode, constant_value, expand):
         coords = coords[[1, 0]].reshape((2, *spatial))
     else:
         cx, cy, cz = coords
-        coords = torch.stack([
-            cz.reshape(spatial),
-            cy.reshape(spatial),
-            cx.reshape(spatial),
-        ])
+        coords = torch.stack(
+            [
+                cz.reshape(spatial),
+                cy.reshape(spatial),
+                cx.reshape(spatial),
+            ]
+        )
 
     if order == 0:
         out = _nearest_sample(x_local, coords, mode, constant_value)
@@ -359,6 +360,7 @@ def _affine_transform_local(x, M, order, mode, constant_value, expand):
 # ============================================================
 # Public API (MPI-safe)
 # ============================================================
+
 
 def affine_transform(x, M, order=0, mode="nearest", constant_value=0.0, expand=False):
     """
@@ -390,11 +392,7 @@ def affine_transform(x, M, order=0, mode="nearest", constant_value=0.0, expand=F
     """
     if x.split is not None:
         x_full = x.resplit(None)
-        y_full = _affine_transform_local(
-            x_full, M, order, mode, constant_value, expand
-        )
+        y_full = _affine_transform_local(x_full, M, order, mode, constant_value, expand)
         return y_full.resplit(x.split)
 
-    return _affine_transform_local(
-        x, M, order, mode, constant_value, expand
-    )
+    return _affine_transform_local(x, M, order, mode, constant_value, expand)
