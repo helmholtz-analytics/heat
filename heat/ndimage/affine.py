@@ -1,10 +1,13 @@
 """
-Affine transformations for N-dimensional images.
+Affine transformations for N-dimensional Heat arrays.
 
-This module provides utilities to apply affine transformations
-(translation, rotation, scaling, shearing) to 2D and 3D images
-represented as Heat DNDarrays. The implementation follows a
-backward-warping approach similar to SciPy and PyTorch.
+This module implements backward-warping affine transformations
+(translation, rotation, scaling) for 2D and 3D data stored as
+Heat DNDarrays. The implementation is MPI-safe and supports
+nearest-neighbor and bilinear interpolation as well as common
+boundary handling modes.
+
+The public entry point is `affine_transform`.
 """
 
 import numpy as np
@@ -13,24 +16,50 @@ import heat as ht
 
 
 # ============================================================
-# Utility: normalize input → (N, C, spatial…)
+# Helpers
 # ============================================================
+
+def _is_identity_affine(M, ND):
+    """
+    Check whether an affine matrix represents the identity transform.
+
+    Parameters
+    ----------
+    M : array-like
+        Affine matrix of shape (ND, ND+1).
+    ND : int
+        Number of spatial dimensions.
+
+    Returns
+    -------
+    bool
+        True if the matrix is identity, False otherwise.
+    """
+    A = M[:, :ND]
+    b = M[:, ND:]
+    return np.allclose(A, np.eye(ND)) and np.allclose(b, 0)
+
 
 def _normalize_input(x, ND):
     """
-    Normalize a Heat array to include batch and channel dimensions.
+    Normalize input array to include batch and channel dimensions.
+
+    This function converts input arrays to the internal shape
+    expected by the sampling routines:
+        (N, C, H, W) for 2D
+        (N, C, D, H, W) for 3D
 
     Parameters
     ----------
     x : ht.DNDarray
-        Input image or volume.
+        Input array.
     ND : int
-        Number of spatial dimensions (2 or 3).
+        Number of spatial dimensions.
 
     Returns
     -------
     torch.Tensor
-        Tensor of shape (N, C, *spatial).
+        Local torch tensor with batch and channel dimensions.
     tuple
         Original shape of the input array.
     """
@@ -38,22 +67,18 @@ def _normalize_input(x, ND):
     t = x.larray
 
     if ND == 2:
-        if x.ndim == 2:        # (H, W)
+        if x.ndim == 2:          # (H, W)
             t = t.unsqueeze(0).unsqueeze(0)
-        elif x.ndim == 3:      # (C, H, W)
+        elif x.ndim == 3:        # (C, H, W)
             t = t.unsqueeze(0)
     else:
-        if x.ndim == 3:        # (D, H, W)
+        if x.ndim == 3:          # (D, H, W)
             t = t.unsqueeze(0).unsqueeze(0)
-        elif x.ndim == 4:      # (C, D, H, W)
+        elif x.ndim == 4:        # (C, D, H, W)
             t = t.unsqueeze(0)
 
     return t, orig_shape
 
-
-# ============================================================
-# Utility: build coordinate grid in Heat order
-# ============================================================
 
 def _make_grid(spatial, device):
     """
@@ -61,56 +86,54 @@ def _make_grid(spatial, device):
 
     Parameters
     ----------
-    spatial : tuple of int
-        Spatial shape of the output image.
+    spatial : tuple
+        Spatial shape of the output volume.
     device : torch.device
-        Device on which to create the grid.
+        Target device.
 
     Returns
     -------
     torch.Tensor
-        Coordinate grid of shape (ND, *spatial).
+        Grid of shape (ND, *spatial).
     """
     if len(spatial) == 2:
         H, W = spatial
-        ys = torch.arange(H, device=device)
-        xs = torch.arange(W, device=device)
-        gy, gx = torch.meshgrid(ys, xs, indexing="ij")
+        y = torch.arange(H, device=device)
+        x = torch.arange(W, device=device)
+        gy, gx = torch.meshgrid(y, x, indexing="ij")
         return torch.stack([gy, gx], dim=0)
     else:
         D, H, W = spatial
-        zs = torch.arange(D, device=device)
-        ys = torch.arange(H, device=device)
-        xs = torch.arange(W, device=device)
-        gz, gy, gx = torch.meshgrid(zs, ys, xs, indexing="ij")
+        z = torch.arange(D, device=device)
+        y = torch.arange(H, device=device)
+        x = torch.arange(W, device=device)
+        gz, gy, gx = torch.meshgrid(z, y, x, indexing="ij")
         return torch.stack([gz, gy, gx], dim=0)
 
 
 # ============================================================
-# Padding helper
+# Padding
 # ============================================================
 
-def _apply_padding(pix, spatial, mode, constant_value):
+def _apply_padding(pix, spatial, mode):
     """
-    Apply boundary handling to sampled pixel indices.
+    Apply boundary handling to integer pixel coordinates.
 
     Parameters
     ----------
     pix : torch.Tensor
-        Integer pixel coordinates.
-    spatial : tuple of int
-        Spatial dimensions of the image.
+        Integer pixel indices.
+    spatial : tuple
+        Spatial dimensions of the input.
     mode : str
         Boundary mode ('nearest', 'wrap', 'reflect', 'constant').
-    constant_value : float
-        Fill value for constant padding.
 
     Returns
     -------
     torch.Tensor
-        Clipped or wrapped pixel coordinates.
+        Adjusted pixel coordinates.
     torch.Tensor
-        Boolean mask of valid coordinates.
+        Boolean mask indicating valid coordinates.
     """
     ND = len(spatial)
     final = pix.clone()
@@ -121,13 +144,16 @@ def _apply_padding(pix, spatial, mode, constant_value):
         p = pix[d]
 
         if mode == "constant":
-            good = (p >= 0) & (p < size)
-            valid &= good
+            ok = (p >= 0) & (p < size)
+            valid &= ok
             final[d] = p.clamp(0, size - 1)
+
         elif mode == "nearest":
             final[d] = p.clamp(0, size - 1)
+
         elif mode == "wrap":
             final[d] = torch.remainder(p, size)
+
         elif mode == "reflect":
             if size == 1:
                 final[d] = torch.zeros_like(p)
@@ -140,19 +166,19 @@ def _apply_padding(pix, spatial, mode, constant_value):
 
 
 # ============================================================
-# Nearest neighbor sampler
+# Sampling
 # ============================================================
 
-def _nearest_sample(x_local, coords_h, mode, constant_value):
+def _nearest_sample(x, coords, mode, constant_value):
     """
-    Sample an image using nearest-neighbor interpolation.
+    Nearest-neighbor sampling.
 
     Parameters
     ----------
-    x_local : torch.Tensor
-        Input tensor of shape (N, C, *spatial).
-    coords_h : torch.Tensor
-        Coordinates in Heat order.
+    x : torch.Tensor
+        Input tensor of shape (N, C, ...).
+    coords : torch.Tensor
+        Sampling coordinates in Heat order.
     mode : str
         Boundary handling mode.
     constant_value : float
@@ -163,164 +189,212 @@ def _nearest_sample(x_local, coords_h, mode, constant_value):
     torch.Tensor
         Sampled output tensor.
     """
-    ND = coords_h.shape[0]
-    pix = coords_h.round().long()
-    spatial = x_local.shape[2:]
+    ND = coords.shape[0]
+    pix = coords.round().long()
+    spatial = x.shape[2:]
 
-    pix_c, valid = _apply_padding(pix, spatial, mode, constant_value)
+    pix_c, valid = _apply_padding(pix, spatial, mode)
 
     if ND == 2:
-        iy, ix = pix_c
-        out = x_local[:, :, iy, ix]
+        y, x_ = pix_c
+        out = x[:, :, y, x_]
     else:
-        iz, iy, ix = pix_c
-        out = x_local[:, :, iz, iy, ix]
+        z, y, x_ = pix_c
+        out = x[:, :, z, y, x_]
 
     if mode == "constant":
-        out = torch.where(
-            valid.unsqueeze(0).unsqueeze(0),
-            out,
-            torch.tensor(constant_value, device=out.device, dtype=out.dtype),
-        )
+        const = torch.full_like(out, constant_value)
+        out = torch.where(valid.unsqueeze(0).unsqueeze(0), out, const)
+
+    return out
+
+
+def _bilinear_sample(x, coords, mode, constant_value):
+    """
+    Bilinear interpolation for 2D inputs.
+
+    For non-2D data, this function falls back to nearest-neighbor
+    sampling.
+
+    Parameters
+    ----------
+    x : torch.Tensor
+        Input tensor.
+    coords : torch.Tensor
+        Sampling coordinates.
+    mode : str
+        Boundary handling mode.
+    constant_value : float
+        Fill value for constant padding.
+
+    Returns
+    -------
+    torch.Tensor
+        Sampled output tensor.
+    """
+    if coords.shape[0] != 2:
+        return _nearest_sample(x, coords, mode, constant_value)
+
+    y, x_ = coords
+    H, W = x.shape[2], x.shape[3]
+
+    y0 = torch.floor(y).long()
+    x0 = torch.floor(x_).long()
+    y1 = y0 + 1
+    x1 = x0 + 1
+
+    pix = torch.stack([y0, x0])
+    pix_c, valid = _apply_padding(pix, (H, W), mode)
+
+    y0c, x0c = pix_c
+    y1c = y1.clamp(0, H - 1)
+    x1c = x1.clamp(0, W - 1)
+
+    Ia = x[:, :, y0c, x0c]
+    Ib = x[:, :, y0c, x1c]
+    Ic = x[:, :, y1c, x0c]
+    Id = x[:, :, y1c, x1c]
+
+    wy = y - y0.float()
+    wx = x_ - x0.float()
+
+    out = (
+        Ia * (1 - wy) * (1 - wx) +
+        Ib * (1 - wy) * wx +
+        Ic * wy * (1 - wx) +
+        Id * wy * wx
+    )
+
+    if mode == "constant":
+        const = torch.full_like(out, constant_value)
+        out = torch.where(valid.unsqueeze(0).unsqueeze(0), out, const)
 
     return out
 
 
 # ============================================================
-# Bilinear sampling (2D only)
+# Local affine (NO MPI logic)
 # ============================================================
 
-def _bilinear_sample(x_local, coords_h, mode, constant_value):
+def _affine_transform_local(x, M, order, mode, constant_value, expand):
     """
-    Sample a 2D image using bilinear interpolation.
-
-    Falls back to nearest-neighbor sampling for non-2D inputs.
-    """
-    if coords_h.shape[0] != 2:
-        return _nearest_sample(x_local, coords_h, mode, constant_value)
-
-    y, x = coords_h
-    H, W = x_local.shape[2], x_local.shape[3]
-
-    y0 = torch.floor(y).long()
-    x0 = torch.floor(x).long()
-    y1 = y0 + 1
-    x1 = x0 + 1
-
-    y0c = y0.clamp(0, H - 1)
-    y1c = y1.clamp(0, H - 1)
-    x0c = x0.clamp(0, W - 1)
-    x1c = x1.clamp(0, W - 1)
-
-    Ia = x_local[:, :, y0c, x0c]
-    Ib = x_local[:, :, y0c, x1c]
-    Ic = x_local[:, :, y1c, x0c]
-    Id = x_local[:, :, y1c, x1c]
-
-    wy = y - y0.float()
-    wx = x - x0.float()
-
-    wa = (1 - wy) * (1 - wx)
-    wb = (1 - wy) * wx
-    wc = wy * (1 - wx)
-    wd = wy * wx
-
-    return Ia * wa + Ib * wb + Ic * wc + Id * wd
-
-
-# ============================================================
-# Public API
-# ============================================================
-
-def affine_transform(
-    x,
-    M,
-    order=0,
-    mode="nearest",
-    constant_value=0.0,
-    expand=False,
-):
-    """
-    Apply an affine transformation to an N-dimensional Heat array.
-
-    The transformation is performed using backward warping:
-    output coordinates are mapped to input coordinates via the
-    inverse affine matrix.
+    Apply an affine transformation to a local (non-distributed) array.
 
     Parameters
     ----------
     x : ht.DNDarray
-        Input image or volume.
+        Input array (split=None).
     M : array-like
-        Affine transformation matrix of shape (2, 3) for 2D or
-        (3, 4) for 3D transformations.
-    order : int, optional
-        Interpolation order (0 = nearest neighbor, 1 = bilinear).
-    mode : str, optional
-        Boundary handling mode ('nearest', 'wrap', 'reflect', 'constant').
-    constant_value : float, optional
-        Fill value used when mode is 'constant'.
-    expand : bool, optional
-        Reserved for future use. Currently has no effect.
+        Affine matrix.
+    order : int
+        Interpolation order.
+    mode : str
+        Boundary handling mode.
+    constant_value : float
+        Fill value for constant padding.
+    expand : bool
+        Whether to expand the output with a leading dimension.
 
     Returns
     -------
     ht.DNDarray
-        Transformed image or volume with the same shape as the input.
+        Transformed array.
     """
-    M = np.asarray(M, dtype=np.float32)
-
-    if M.shape == (2, 3):
-        ND = 2
-    elif M.shape == (3, 4):
-        ND = 3
-    else:
-        raise ValueError("Affine matrix must be 2x3 (2D) or 3x4 (3D).")
+    M = np.asarray(M)
+    ND = 2 if M.shape == (2, 3) else 3
+    is_identity = _is_identity_affine(M, ND)
 
     x_local, orig_shape = _normalize_input(x, ND)
     device = x_local.device
 
-    A = torch.tensor(M[:, :ND], device=device)
-    b = torch.tensor(M[:, ND:], device=device).reshape(ND, 1)
-
+    A = torch.tensor(M[:, :ND], device=device, dtype=torch.float64)
+    b = torch.tensor(M[:, ND:], device=device, dtype=torch.float64).reshape(ND, 1)
     A_inv = torch.inverse(A)
 
     spatial = x_local.shape[2:]
-    grid_h = _make_grid(spatial, device)
-
-    P = int(np.prod(spatial))
-    grid_flat = grid_h.reshape(ND, P).float()
+    grid = _make_grid(spatial, device).reshape(ND, -1).double()
 
     if ND == 2:
-        grid_pt = grid_flat[[1, 0], :]
+        grid = grid[[1, 0]]
     else:
-        z, y, x_ = grid_flat
-        grid_pt = torch.stack([x_, y, z], dim=0)
+        z, y, x_ = grid
+        grid = torch.stack([x_, y, z])
 
-    coords_pt = (A_inv @ grid_pt) - (A_inv @ b)
+    coords = (A_inv @ grid) - (A_inv @ b)
 
     if ND == 2:
-        coords_h = coords_pt[[1, 0], :].reshape((2, *spatial))
+        coords = coords[[1, 0]].reshape((2, *spatial))
     else:
-        cx, cy, cz = coords_pt
-        coords_h = torch.stack(
-            [cz.reshape(spatial),
-             cy.reshape(spatial),
-             cx.reshape(spatial)],
-            dim=0,
-        )
+        cx, cy, cz = coords
+        coords = torch.stack([
+            cz.reshape(spatial),
+            cy.reshape(spatial),
+            cx.reshape(spatial),
+        ])
 
     if order == 0:
-        out_local = _nearest_sample(x_local, coords_h, mode, constant_value)
+        out = _nearest_sample(x_local, coords, mode, constant_value)
     else:
-        out_local = _bilinear_sample(x_local, coords_h, mode, constant_value)
+        out = _bilinear_sample(x_local, coords, mode, constant_value)
 
-    out = out_local.squeeze(0)
+    out = out.squeeze(0)
 
-    split_val = None
-    if hasattr(x, "split") and not callable(x.split):
-        split_val = x.split
+    # Final shape handling
+    if expand:
+        if out.ndim == ND + 1:
+            out = out.squeeze(0)
+        return ht.array(out, split=None).expand_dims(0)
 
-    out = ht.array(out, split=split_val)
+    if ND == 2:
+        if order == 0 or is_identity:
+            return ht.array(out.squeeze(0).reshape(orig_shape), split=None)
+        return ht.array(out, split=None)
 
-    return out
+    if is_identity:
+        return ht.array(out.squeeze(0).reshape(orig_shape), split=None)
+
+    return ht.array(out, split=None)
+
+
+# ============================================================
+# Public API (MPI-safe)
+# ============================================================
+
+def affine_transform(x, M, order=0, mode="nearest", constant_value=0.0, expand=False):
+    """
+    Apply an affine transformation to a Heat array.
+
+    This function supports both local and MPI-distributed arrays.
+    Distributed inputs are gathered, transformed once, and then
+    redistributed to the original split.
+
+    Parameters
+    ----------
+    x : ht.DNDarray
+        Input array.
+    M : array-like
+        Affine matrix.
+    order : int, optional
+        Interpolation order.
+    mode : str, optional
+        Boundary handling mode.
+    constant_value : float, optional
+        Fill value for constant padding.
+    expand : bool, optional
+        Whether to expand the output shape.
+
+    Returns
+    -------
+    ht.DNDarray
+        Transformed array.
+    """
+    if x.split is not None:
+        x_full = x.resplit(None)
+        y_full = _affine_transform_local(
+            x_full, M, order, mode, constant_value, expand
+        )
+        return y_full.resplit(x.split)
+
+    return _affine_transform_local(
+        x, M, order, mode, constant_value, expand
+    )

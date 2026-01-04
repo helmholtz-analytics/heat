@@ -2,58 +2,71 @@ import nibabel as nib
 import matplotlib.pyplot as plt
 
 # ============================================================
-# Load original and transformed MRI
+# Paths (ABSOLUTE – adjust if needed)
 # ============================================================
 
-orig_nii = nib.load("heat/datasets/flair.nii.gz")
-trans_nii = nib.load("heat/datasets/x_transformed.nii.gz")
+BASE = "/Users/marka.k/1900_Image_transformations/heat/heat/datasets"
 
-orig = orig_nii.get_fdata()
-trans = trans_nii.get_fdata()
+paths = {
+    "Original":   f"{BASE}/flair.nii.gz",
+    "Identity":   f"{BASE}/mri_identity.nii.gz",
+    "Scaled":     f"{BASE}/mri_scaled.nii.gz",
+    "Rotated":    f"{BASE}/mri_rotated.nii.gz",
+    "Translated": f"{BASE}/mri_translated.nii.gz",
+}
 
-# Sanity check
-assert orig.shape == trans.shape, "Original and transformed shapes do not match!"
+# ============================================================
+# Load volumes
+# ============================================================
 
-num_slices = orig.shape[0]
-slice_idx = num_slices // 2  # start in the middle
+volumes = {}
+for name, path in paths.items():
+    volumes[name] = nib.load(path).get_fdata()
 
+# Sanity check: all shapes equal
+shapes = {v.shape for v in volumes.values()}
+assert len(shapes) == 1, "Not all volumes have the same shape!"
+
+D, H, W = next(iter(shapes))
+slice_idx = D // 2
 
 # ============================================================
 # Create figure
 # ============================================================
 
-fig, ax = plt.subplots(1, 2, figsize=(10, 5))
+titles = list(volumes.keys())
+data = list(volumes.values())
 
-img_orig = ax[0].imshow(orig[slice_idx], cmap="gray")
-ax[0].set_title("Original")
-ax[0].axis("off")
+fig, axes = plt.subplots(1, len(data), figsize=(4 * len(data), 5))
+images = []
 
-img_trans = ax[1].imshow(trans[slice_idx], cmap="gray")
-ax[1].set_title("Transformed")
-ax[1].axis("off")
+for ax, title, vol in zip(axes, titles, data):
+    img = ax.imshow(vol[slice_idx], cmap="gray")
+    ax.set_title(title)
+    ax.axis("off")
+    images.append(img)
 
-fig.suptitle(f"Slice {slice_idx}/{num_slices - 1}")
-
+fig.suptitle(f"Slice {slice_idx}/{D - 1}")
 
 # ============================================================
-# Keyboard interaction
+# Keyboard navigation
 # ============================================================
 
 def on_key(event):
     global slice_idx
 
     if event.key == "up":
-        slice_idx = min(slice_idx + 1, num_slices - 1)
+        slice_idx = min(slice_idx + 1, D - 1)
     elif event.key == "down":
         slice_idx = max(slice_idx - 1, 0)
     else:
         return
 
-    img_orig.set_data(orig[slice_idx])
-    img_trans.set_data(trans[slice_idx])
-    fig.suptitle(f"Slice {slice_idx}/{num_slices - 1}")
-    fig.canvas.draw_idle()
+    for img, vol in zip(images, data):
+        img.set_data(vol[slice_idx])
 
+    fig.suptitle(f"Slice {slice_idx}/{D - 1}")
+    fig.canvas.draw_idle()
 
 fig.canvas.mpl_connect("key_press_event", on_key)
 plt.show()

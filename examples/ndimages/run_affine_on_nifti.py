@@ -1,17 +1,6 @@
 """
-End-user example: apply an affine transformation to a 3D NIfTI image
-and visualize the result directly in Python.
-
-This script:
-1. Loads x.nii.gz
-2. Applies a 3D affine transformation using heat.ndimage.affine_transform
-3. Saves the transformed volume as x_transformed.nii.gz
-4. Displays a side-by-side comparison of the middle slice
-
-Requirements:
-- nibabel
-- matplotlib
-- heat
+End-user demo: affine transformations on a 3D MRI volume
+(using Heat affine_transform – final implementation).
 """
 
 import nibabel as nib
@@ -22,104 +11,136 @@ from heat.ndimage.affine import affine_transform
 
 
 # ============================================================
-# STEP 1: Load NIfTI file
+# Helper: normalize output to (D,H,W)
 # ============================================================
 
-print("Loading x.nii.gz ...")
+def to_volume(y):
+    """
+    Convert Heat affine output to plain (D,H,W) NumPy array,
+    regardless of whether a leading dimension exists.
+    """
+    y_np = y.numpy()
+    if y_np.ndim == 4:   # (1,D,H,W)
+        return y_np[0]
+    return y_np          # (D,H,W)
 
-nii = nib.load("heat/datasets/flair.nii.gz")
+
+# ============================================================
+# STEP 1: Load MRI
+# ============================================================
+
+nii = nib.load(
+    "/Users/marka.k/1900_Image_transformations/heat/heat/datasets/flair.nii.gz"
+)
 x_np = nii.get_fdata().astype(np.float32)
-
-print("Input shape:", x_np.shape)
-
-
-# ============================================================
-# STEP 2: Convert to Heat array
-# ============================================================
-
 x = ht.array(x_np)
 
-print("Converted to Heat array.")
-
-
-# ============================================================
-# STEP 3: Define affine transform (3D)
-# ============================================================
-
-"""
-Affine matrix (3x4):
-
-[ a11 a12 a13 tx ]
-[ a21 a22 a23 ty ]
-[ a31 a32 a33 tz ]
-
-Below: translate volume by +20 voxels in x-direction
-"""
 D, H, W = x_np.shape
 cx, cy, cz = D / 2, H / 2, W / 2
-s = 1.4
 
-M = [
+print("Loaded MRI with shape:", x_np.shape)
+
+
+# ============================================================
+# STEP 2: Define affine matrices
+# ============================================================
+
+# 1️⃣ Identity
+M_identity = [
+    [1, 0, 0, 0],
+    [0, 1, 0, 0],
+    [0, 0, 1, 0],
+]
+
+# 2️⃣ Scaling (zoom around center)
+s = 1.4
+M_scale = [
     [s, 0, 0, cx * (1 - s)],
     [0, s, 0, cy * (1 - s)],
     [0, 0, s, cz * (1 - s)],
 ]
 
+# 3️⃣ Rotation (around Z axis)
+theta = np.deg2rad(20)
+c, s_ = np.cos(theta), np.sin(theta)
+M_rotate = [
+    [ c, -s_, 0, cx - c * cx + s_ * cy],
+    [ s_,  c, 0, cy - s_ * cx - c * cy],
+    [ 0,  0, 1, 0],
+]
 
-# ============================================================
-# STEP 4: Apply affine transform
-# ============================================================
-
-print("Applying affine transform...")
-
-y = affine_transform(
-    x,
-    M,
-    order=1,           # bilinear interpolation
-    mode="nearest"
-)
-
-print("Transformation complete.")
-
-
-# ============================================================
-# STEP 5: Convert back to NumPy
-# ============================================================
-
-y_np = y.numpy()
-
-# Remove leading batch/channel dimension if present
-if y_np.ndim == 4:
-    y_np = y_np[0]
-
-print("Output shape:", y_np.shape)
+# 4️⃣ Translation
+tx = 15
+M_translate = [
+    [1, 0, 0, tx],
+    [0, 1, 0,  0],
+    [0, 0, 1,  0],
+]
 
 
 # ============================================================
-# STEP 6: Save transformed volume
+# STEP 3: Apply affine transforms
 # ============================================================
 
-out_nii = nib.Nifti1Image(y_np, affine=nii.affine)
-nib.save(out_nii, "x_transformed.nii.gz")
+print("Applying affine transformations...")
 
-print("Saved x_transformed.nii.gz")
+y_identity  = to_volume(affine_transform(x, M_identity,  order=1))
+y_scale     = to_volume(affine_transform(x, M_scale,     order=1))
+y_rotate    = to_volume(affine_transform(x, M_rotate,    order=1))
+y_translate = to_volume(affine_transform(x, M_translate, order=1))
+
+print("Transformations complete.")
 
 
 # ============================================================
-# STEP 7: Visualize middle slice
+# STEP 4: Save transformed volumes
 # ============================================================
 
-mid = x_np.shape[0] // 2
+nib.save(nib.Nifti1Image(y_identity,  nii.affine), "mri_identity.nii.gz")
+nib.save(nib.Nifti1Image(y_scale,     nii.affine), "mri_scaled.nii.gz")
+nib.save(nib.Nifti1Image(y_rotate,    nii.affine), "mri_rotated.nii.gz")
+nib.save(nib.Nifti1Image(y_translate, nii.affine), "mri_translated.nii.gz")
 
-fig, ax = plt.subplots(1, 2, figsize=(12, 6))
+print("Saved transformed NIfTI files.")
 
-ax[0].imshow(x_np[mid], cmap="gray")
-ax[0].set_title("Original (middle slice)")
-ax[0].axis("off")
 
-ax[1].imshow(y_np[mid], cmap="gray")
-ax[1].set_title("Transformed (middle slice)")
-ax[1].axis("off")
+# ============================================================
+# STEP 5: Visualization (5x5 grid)
+# ============================================================
+
+slice_indices = np.linspace(0, D - 1, 5, dtype=int)
+
+volumes = [
+    x_np,
+    y_identity,
+    y_scale,
+    y_rotate,
+    y_translate,
+]
+
+titles = [
+    "Original",
+    "Identity",
+    "Scale (1.4×)",
+    "Rotate (20°)",
+    "Translate (+x)",
+]
+
+fig, axes = plt.subplots(5, 5, figsize=(12, 12))
+
+for row in range(5):
+    for col in range(5):
+        axes[row, col].imshow(
+            volumes[row][slice_indices[col]],
+            cmap="gray"
+        )
+        axes[row, col].axis("off")
+
+        if col == 0:
+            axes[row, col].set_ylabel(titles[row], fontsize=10)
+
+        if row == 0:
+            axes[row, col].set_title(f"Slice {slice_indices[col]}", fontsize=9)
 
 plt.tight_layout()
 plt.show()
