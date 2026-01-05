@@ -92,10 +92,10 @@ class TestLOF(TestCase):
 
     def test_advanced_indexing(self):
         X, _, _ = self._setup_lof_dataset()
-        X_np = X.resplit_(None).larray.contiguous().numpy()
+        X_ = X.resplit_(None).larray.contiguous()
         idx = ht.array([0, 2, 4, 6, 8], split=0)
-        idx_np = idx.resplit_(None).larray.contiguous().numpy()
-        X_reference = X_np[idx_np]
+        idx_ = idx.resplit_(None).larray.contiguous()
+        X_reference = X_[idx_]
         X_reference = ht.array(X_reference, split=0)
 
         lof = LocalOutlierFactor(fully_distributed=True)
