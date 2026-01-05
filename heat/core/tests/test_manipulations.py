@@ -6,6 +6,7 @@ import heat as ht
 from .test_suites.basic_test import TestCase
 
 
+
 class TestManipulations(TestCase):
     def test_broadcast_arrays(self):
         a = ht.array([[1], [2]])

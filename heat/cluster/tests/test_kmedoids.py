@@ -49,6 +49,8 @@ class TestKMeans(TestCase):
                 ht.any(ht.sum(ht.abs(kmedoid.cluster_centers_[i, :] - iris), axis=1) == 0)
             )
 
+
+
     def test_exceptions(self):
         # get some test data
         iris_split = ht.load("heat/datasets/iris.csv", sep=";", split=1)
