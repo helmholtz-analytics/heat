@@ -9,7 +9,7 @@ body:
       value: |
         This issue tracks updating the CITATION.cff file for the upcoming Heat release.
         This includes adding new contributors and updating release information.
-        
+
   - type: checkboxes
     id: citation-tasks
     attributes:
@@ -32,7 +32,7 @@ body:
           required: false
         - label: Test citation file with cffconvert tool
           required: false
-        
+
   - type: textarea
     id: new-contributors
     attributes:
@@ -42,9 +42,9 @@ body:
         Format (one per line):
         - family-names: LastName
           given-names: FirstName
-        - family-names: Smith  
+        - family-names: Smith
           given-names: John
-        
+
   - type: textarea
     id: core-team-updates
     attributes:
@@ -55,7 +55,7 @@ body:
         - Remove: Former member who left
         - Update: Changed affiliation for existing member
         - Add: New core team member
-        
+
   - type: textarea
     id: contributor-notes
     attributes:
@@ -65,7 +65,7 @@ body:
         Example:
         - John Smith: Major contribution to FFT module
         - Jane Doe: Fixed critical bug in distributed operations
-        
+
   - type: dropdown
     id: validation-status
     attributes:

@@ -9,7 +9,7 @@ body:
       value: |
         This issue tracks the selection of highlights for the upcoming Heat release.
         Review merged PRs and features to identify key highlights for the release notes.
-        
+
   - type: textarea
     id: major-features
     attributes:
@@ -20,7 +20,7 @@ body:
         - New distributed FFT implementation
         - Support for sparse tensor operations
         - Enhanced GPU memory management
-        
+
   - type: textarea
     id: performance-improvements
     attributes:
@@ -31,7 +31,7 @@ body:
         - 2x speedup in matrix multiplication for large matrices
         - Reduced memory usage in distributed operations
         - Optimized communication patterns
-        
+
   - type: textarea
     id: api-changes
     attributes:
@@ -42,7 +42,7 @@ body:
         - Deprecated old_function() in favor of new_function()
         - Changed default behavior of operation X
         - Removed previously deprecated feature Y
-        
+
   - type: textarea
     id: bug-fixes
     attributes:
@@ -53,7 +53,7 @@ body:
         - Fixed memory leak in distributed operations
         - Resolved incorrect results in edge case X
         - Fixed compatibility issue with PyTorch 2.x
-        
+
   - type: textarea
     id: documentation
     attributes:
@@ -64,7 +64,7 @@ body:
         - New tutorial on distributed computing
         - Updated getting started guide
         - Added performance benchmarking examples
-        
+
   - type: checkboxes
     id: highlight-tasks
     attributes:

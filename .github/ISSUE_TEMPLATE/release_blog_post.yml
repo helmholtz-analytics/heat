@@ -9,7 +9,7 @@ body:
       value: |
         This issue tracks the creation of a blog post draft for the upcoming Heat release.
         The blog post should highlight key features, improvements, and community updates.
-        
+
   - type: checkboxes
     id: blog-tasks
     attributes:
@@ -36,7 +36,7 @@ body:
           required: false
         - label: Schedule publication timing
           required: false
-        
+
   - type: textarea
     id: blog-outline
     attributes:
@@ -55,7 +55,7 @@ body:
         5. Installation & Getting Started
         6. What's Next - Roadmap preview
         7. Acknowledgments
-        
+
   - type: textarea
     id: key-messages
     attributes:
@@ -67,7 +67,7 @@ body:
         - Major performance improvements benefit all users
         - Growing community of contributors and users
         - Improved ease of use and documentation
-        
+
   - type: textarea
     id: target-audience
     attributes:
@@ -79,7 +79,7 @@ body:
         - Scientific Python community members
         - HPC and distributed computing researchers
         - Data scientists working with large datasets
-        
+
   - type: textarea
     id: publication-plan
     attributes:
@@ -91,7 +91,7 @@ body:
         - Python Software Foundation blog
         - LinkedIn/Twitter social media
         - Scientific Python newsletter
-        
+
   - type: dropdown
     id: draft-status
     attributes:

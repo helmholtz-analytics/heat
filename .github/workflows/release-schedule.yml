@@ -4,7 +4,7 @@ on:
   schedule:
     # 4 weeks before Easter (approximately March 1st)
     - cron: '0 9 1 3 *'
-    # 4 weeks before Christmas (approximately December 1st)  
+    # 4 weeks before Christmas (approximately December 1st)
     - cron: '0 9 1 12 *'
   workflow_dispatch:
     inputs:
@@ -70,14 +70,14 @@ jobs:
           script: |
             const version = '${{ steps.version.outputs.version }}';
             const season = '${{ steps.version.outputs.season }}';
-            
+
             const body = `## NEP 29 Compliance Check for Heat v${version}
 
             This issue was automatically created as part of the ${season} release preparation process.
 
             ### Tasks
             - [ ] Review current NEP 29 minimum supported versions
-            - [ ] Check Python version support in pyproject.toml  
+            - [ ] Check Python version support in pyproject.toml
             - [ ] Check NumPy version support in requirements
             - [ ] Check PyTorch version support in requirements
             - [ ] Update bug report template with current supported versions
@@ -92,7 +92,7 @@ jobs:
 
             **Due Date:** 4 weeks before release
             **Priority:** High`;
-            
+
             await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -107,7 +107,7 @@ jobs:
           script: |
             const version = '${{ steps.version.outputs.version }}';
             const season = '${{ steps.version.outputs.season }}';
-            
+
             const body = `## Release Highlights Selection for Heat v${version}
 
             This issue was automatically created as part of the ${season} release preparation process.
@@ -129,7 +129,7 @@ jobs:
 
             **Due Date:** 3 weeks before release
             **Priority:** High`;
-            
+
             await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -144,7 +144,7 @@ jobs:
           script: |
             const version = '${{ steps.version.outputs.version }}';
             const season = '${{ steps.version.outputs.season }}';
-            
+
             const body = `## CITATION.cff Update for Heat v${version}
 
             This issue was automatically created as part of the ${season} release preparation process.
@@ -165,7 +165,7 @@ jobs:
 
             **Due Date:** 3 weeks before release
             **Priority:** Medium`;
-            
+
             await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -180,7 +180,7 @@ jobs:
           script: |
             const version = '${{ steps.version.outputs.version }}';
             const season = '${{ steps.version.outputs.season }}';
-            
+
             const body = `## PR Merge Decisions for Heat v${version}
 
             This issue was automatically created as part of the ${season} release preparation process.
@@ -202,7 +202,7 @@ jobs:
 
             **Due Date:** 2 weeks before release (code freeze)
             **Priority:** High`;
-            
+
             await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -217,7 +217,7 @@ jobs:
           script: |
             const version = '${{ steps.version.outputs.version }}';
             const season = '${{ steps.version.outputs.season }}';
-            
+
             const body = `## Blog Post Draft for Heat v${version}
 
             This issue was automatically created as part of the ${season} release preparation process.
@@ -237,7 +237,7 @@ jobs:
             ### Suggested Outline
             1. Introduction - What's new in Heat v${version}
             2. Major Features & Improvements
-            3. Community Highlights & Contributors  
+            3. Community Highlights & Contributors
             4. Performance & Benchmarks
             5. Breaking Changes & Migration (if any)
             6. Installation & Getting Started
@@ -246,7 +246,7 @@ jobs:
 
             **Due Date:** 1 week before release
             **Priority:** Medium`;
-            
+
             await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -292,7 +292,7 @@ jobs:
         with:
           script: |
             const version = '${{ github.event.inputs.release_version }}';
-            
+
             const body = `## Code Freeze for Heat v${version}
 
             🚨 **CODE FREEZE IN EFFECT** 🚨
@@ -321,7 +321,7 @@ jobs:
 
             **Duration:** 2 weeks (until release)
             **Next Milestone:** Release notes draft (1 week before release)`;
-            
+
             await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -344,7 +344,7 @@ jobs:
         with:
           script: |
             const version = '${{ github.event.inputs.release_version }}';
-            
+
             const body = `## Finalize Release Notes for Heat v${version}
 
             🏁 **FINAL WEEK BEFORE RELEASE** 🏁
@@ -378,7 +378,7 @@ jobs:
 
             **Target Release Date:** 1 week from now
             **Final Review Required By:** 2 days before release`;
-            
+
             await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,

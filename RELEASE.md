@@ -28,7 +28,7 @@ The release process is largely automated with the following schedule:
 - Blog post drafting
 - All open PRs are labeled with `pr-talk` for discussion
 
-#### 2 Weeks Before Release (March 15th / December 15th)  
+#### 2 Weeks Before Release (March 15th / December 15th)
 **Code freeze begins:**
 - Automated code freeze issue is created
 - Only critical bug fixes accepted
@@ -55,7 +55,7 @@ The automated workflow uses several labels to organize release preparation:
 
 - `release-prep` - All automated release preparation issues
 - `pr-talk` - PRs that need discussion for release inclusion
-- `code-freeze-review` - PRs under code freeze review  
+- `code-freeze-review` - PRs under code freeze review
 - `compliance`, `highlights`, `citation`, `blog-post` - Specific task types
 - `high-priority`, `critical` - Priority levels
 

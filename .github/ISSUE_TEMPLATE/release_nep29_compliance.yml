@@ -9,7 +9,7 @@ body:
       value: |
         This issue tracks NEP 29 compliance verification for the upcoming Heat release.
         NEP 29 defines minimum supported versions for the scientific Python ecosystem.
-        
+
   - type: checkboxes
     id: nep29-tasks
     attributes:
@@ -32,14 +32,14 @@ body:
           required: false
         - label: Verify all dependencies meet NEP 29 requirements
           required: false
-        
+
   - type: textarea
     id: notes
     attributes:
       label: Additional Notes
       description: Any additional notes or findings regarding NEP 29 compliance
       placeholder: Add any version compatibility issues or notes here...
-      
+
   - type: textarea
     id: version-updates
     attributes:

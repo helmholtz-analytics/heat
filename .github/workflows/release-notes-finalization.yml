@@ -54,7 +54,7 @@ jobs:
             const version = '${{ steps.version.outputs.version }}';
             const season = '${{ steps.version.outputs.season }}';
             const targetDate = '${{ steps.version.outputs.target_date }}';
-            
+
             const body = `## 🏁 Final Week: Release Notes for Heat v${version}
 
             This issue was automatically created as part of the ${season} release preparation process.
@@ -105,12 +105,12 @@ jobs:
 
             ### 👥 Assignees
             - **Release Manager:** TBD
-            - **Documentation Review:** TBD  
+            - **Documentation Review:** TBD
             - **Testing Coordination:** TBD
             - **Communication:** TBD
 
             **Priority:** 🔴 **CRITICAL** - Release depends on completion of these tasks`;
-            
+
             await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -125,7 +125,7 @@ jobs:
           script: |
             const version = '${{ steps.version.outputs.version }}';
             const season = '${{ steps.version.outputs.season }}';
-            
+
             const body = `## 📝 Blog Post Review for Heat v${version}
 
             This issue tracks the final review and approval of the blog post for the ${season} release.
@@ -153,7 +153,7 @@ jobs:
             - **Publication:** Day of release
 
             **Priority:** High - Needed for release announcement`;
-            
+
             await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,

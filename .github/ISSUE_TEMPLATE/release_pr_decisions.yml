@@ -9,7 +9,7 @@ body:
       value: |
         This issue tracks decisions about which pull requests should be merged for the upcoming Heat release.
         Review open PRs and decide which ones are ready and appropriate for the release.
-        
+
   - type: checkboxes
     id: pr-review-tasks
     attributes:
@@ -32,7 +32,7 @@ body:
           required: false
         - label: Merge approved PRs before code freeze
           required: false
-        
+
   - type: textarea
     id: prs-to-merge
     attributes:
@@ -43,7 +43,7 @@ body:
         - #123 - Feature: New distributed algorithm
         - #124 - Fix: Memory leak in operation X
         - #125 - Docs: Update tutorial for feature Y
-        
+
   - type: textarea
     id: prs-to-defer
     attributes:
@@ -53,7 +53,7 @@ body:
         Format:
         - #126 - Feature: Complex new feature (needs more testing)
         - #127 - Breaking change: API redesign (schedule for major release)
-        
+
   - type: textarea
     id: critical-prs
     attributes:
@@ -63,7 +63,7 @@ body:
         Format:
         - #128 - Critical: Fix for data corruption bug
         - #129 - Critical: Security vulnerability fix
-        
+
   - type: textarea
     id: merge-notes
     attributes:
@@ -74,7 +74,7 @@ body:
         - PR #130 needs final review from maintainer X
         - PR #131 is waiting for contributor to address feedback
         - PR #132 conflicts with PR #133, need to resolve
-        
+
   - type: dropdown
     id: code-freeze-status
     attributes:

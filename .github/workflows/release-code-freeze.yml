@@ -50,9 +50,9 @@ jobs:
           script: |
             const version = '${{ steps.version.outputs.version }}';
             const season = '${{ steps.version.outputs.season }}';
-            
+
             const targetDate = season === 'Spring' ? 'End of March' : 'End of December';
-            
+
             const body = `## 🚨 Code Freeze for Heat v${version} 🚨
 
             This issue was automatically created as part of the ${season} release preparation process.
@@ -63,7 +63,7 @@ jobs:
 
             #### ✅ **ALLOWED during code freeze:**
             - Critical bug fixes
-            - Documentation improvements  
+            - Documentation improvements
             - Test fixes and improvements
             - Release preparation tasks
             - Security fixes
@@ -97,7 +97,7 @@ jobs:
 
             **Duration:** Until v${version} is released
             **Contact:** @helmholtz-analytics/heat-maintainers for questions`;
-            
+
             await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -128,7 +128,7 @@ jobs:
 
               // Add comment explaining code freeze
               const version = '${{ steps.version.outputs.version }}';
-              
+
               const commentBody = [
                 '🚨 **Code Freeze Notice**',
                 '',
@@ -145,7 +145,7 @@ jobs:
                 '',
                 'For questions, please contact the maintainers or comment on the [code freeze issue](../issues).'
               ].join('\n');
-              
+
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
