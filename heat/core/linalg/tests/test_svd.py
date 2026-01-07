@@ -12,11 +12,11 @@ class TestTallSkinnySVD(TestCase):
             with self.subTest(shape=shape):
                 # prepare data
                 if shape == 'tall_skinny':
-                    Xn = np.random.randn(ht.MPI_WORLD.size * 3 + 3, 3)
+                    Xn = np.random.randn(ht.MPI_WORLD.size * 10 + 3, 10)
                 elif shape == 'short_fat':
-                    Xn = np.random.randn(3, ht.MPI_WORLD.size * 3 + 3)
+                    Xn = np.random.randn(10, ht.MPI_WORLD.size * 10 + 3)
                 else:
-                    Xn = np.random.randn(ht.MPI_WORLD.size * 3, ht.MPI_WORLD.size * 3)
+                    Xn = np.random.randn(ht.MPI_WORLD.size * 10, ht.MPI_WORLD.size * 10)
                 Xn = ht.comm.bcast(Xn, root=0)
 
                 # do SVD in numpy
@@ -27,16 +27,16 @@ class TestTallSkinnySVD(TestCase):
                 U, S, Vh = ht.linalg.svd(X, full_matrices=full_matrices)
 
                 # test that the global in- and output are the same
-                X_glob = X.resplit(None)
-                U_glob = U.resplit(None)
-                S_glob = S.resplit(None)
-                Vh_glob = Vh.resplit(None)
+                X_glob = X.resplit(None).larray.cpu()
+                U_glob = U.resplit(None).larray.cpu()
+                S_glob = S.resplit(None).larray.cpu()
+                Vh_glob = Vh.resplit(None).larray.cpu()
 
-                self.assertTrue(np.allclose(X_glob.larray, Xn))
-                self.assertTrue(np.allclose(S_glob.larray, Sn))
+                self.assertTrue(np.allclose(X_glob, Xn))
+                self.assertTrue(np.allclose(S_glob, Sn))
                 self.assertTupleEqual(U.shape, Un.shape)
                 self.assertTupleEqual(Vh.shape, Vhn.shape)
-                self.assertTrue(np.allclose((U_glob @ ht.diag(S_glob) @ Vh_glob).larray, Un @ np.diag(Sn) @ Vhn))
+                self.assertTrue(np.allclose(U_glob @ np.diag(S_glob) @ Vh_glob, Un @ np.diag(Sn) @ Vhn))
 
     def test_tallskinny_split0(self):
         if self.is_mps:
