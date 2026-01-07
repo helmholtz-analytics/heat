@@ -432,11 +432,12 @@ class TestPrinting(TestCase):
 
     def test___repr__(self):
         a = ht.array([1, 2, 3, 4])
-        r = a.__repr__()
+        r = a.__repr__(force_debug_output=True)
         self.assertEqual(
             r,
             f"<DNDarray(MPI-rank: {a.comm.rank}, Shape: {a.shape}, Split: {a.split}, Local Shape: {a.lshape}, Device: {a.device}, Dtype: {a.dtype.__name__})>",
         )
+        self.assertEqual(a.__repr__(), a.__str__())
 
 
 class TestPrintingGPU(TestCase):
