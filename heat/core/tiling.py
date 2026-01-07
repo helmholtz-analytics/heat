@@ -261,7 +261,6 @@ class SplitTiles:
             # todo: implement advanced indexing (lists of positions to iterate through)
             lkey = key
             stop = self.tile_ends_g[d][lkey[d]].max().item()
-            # print(stop, self.lshape_map[end_rank][d].max())
             stop = (
                 stop
                 if d != arr.split or stop is None
@@ -360,8 +359,8 @@ class SplitTiles:
         subsizes = from_shape
         substarts = [0] * len(from_shape)
 
-        tile_dimensions = self.tile_dimensions[to_axis].to(torch.int32).tolist()
-        tile_starts = [0] + self.tile_ends_g[to_axis][:-1].to(torch.int32).tolist()
+        tile_dimensions = self.tile_dimensions[to_axis].to(torch.int64).tolist()
+        tile_starts = [0] + self.tile_ends_g[to_axis][:-1].to(torch.int64).tolist()
 
         subarray_param_list = []
         lshape = from_shape.copy()
@@ -412,7 +411,7 @@ class SquareDiagTiles:
         rows on the process whos rank equals the index
 
     Warnings
-    -----------
+    --------
     The generation of these tiles may unbalance the original ``DNDarray``!
 
     Notes
