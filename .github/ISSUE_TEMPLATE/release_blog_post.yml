@@ -30,6 +30,8 @@ body:
           required: false
         - label: Add relevant code examples or screenshots
           required: false
+        - label: Select cover figure
+          required: false
         - label: Review and edit for clarity and accuracy
           required: false
         - label: Get team review and approval

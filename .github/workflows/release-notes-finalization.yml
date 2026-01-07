@@ -2,10 +2,10 @@ name: Release Notes Finalization
 
 on:
   schedule:
-    # 1 week before Easter (approximately March 22nd)
-    - cron: '0 9 22 3 *'
-    # 1 week before Christmas (approximately December 22nd)
-    - cron: '0 9 22 12 *'
+    # 1 week before March 26
+    - cron: '0 9 19 3 *'
+    # 1 week before Dec 17
+    - cron: '0 9 10 12 *'
   workflow_dispatch:
     inputs:
       release_version:

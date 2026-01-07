@@ -2,10 +2,10 @@ name: Automated Release Schedule
 
 on:
   schedule:
-    # 4 weeks before Easter (approximately March 1st)
-    - cron: '0 9 1 3 *'
-    # 4 weeks before Christmas (approximately December 1st)
-    - cron: '0 9 1 12 *'
+    # 4 weeks before March 26
+    - cron: '0 9 26 2 *'
+    # 4 weeks before Dec 17
+    - cron: '0 9 19 11 *'
   workflow_dispatch:
     inputs:
       release_type:
@@ -230,6 +230,7 @@ jobs:
             - [ ] Acknowledge contributors and community
             - [ ] Include installation and getting started info
             - [ ] Add relevant code examples or screenshots
+            - [ ] Select cover figure
             - [ ] Review and edit for clarity and accuracy
             - [ ] Get team review and approval
             - [ ] Schedule publication timing
