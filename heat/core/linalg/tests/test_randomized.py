@@ -23,10 +23,11 @@ class TestRSVD(TestCase):
                                 n_oversamples=n_oversamples,
                                 power_iter=power_iter,
                             ):
-                                U, S, V = ht.linalg.rsvd(
+                                U, S, Vt = ht.linalg.rsvd(
                                     X, rank, n_oversamples=n_oversamples,
                                     power_iter=power_iter
                                 )
+                                V = Vt.T
                                 self.assertEqual(U.shape, (X.shape[0], rank))
                                 self.assertEqual(S.shape, (rank,))
                                 self.assertEqual(V.shape, (X.shape[1], rank))
