@@ -1,11 +1,16 @@
 import numpy as np
 import torch
+import os
 
 from itertools import combinations
 from scipy import stats as ss
 
 import heat as ht
 from .test_suites.basic_test import TestCase
+
+
+def get_dataset_path(dataset_name):
+    return os.path.join(os.path.dirname(ht.__file__), f"datasets/{dataset_name}")
 
 
 class TestStatistics(TestCase):
@@ -390,8 +395,9 @@ class TestStatistics(TestCase):
         self.assertEqual(a.dtype, ht.int64)
         self.assertTrue(a.shape, v.shape)
 
-        boundaries, _ = torch.sort(torch.rand(5, device=self.device.torch_device))
+        boundaries, _ = torch.sort(ht.comm.bcast(torch.rand(5, device=self.device.torch_device)))
         v = torch.rand(6, device=self.device.torch_device)
+        v = ht.comm.bcast(v)  # make sure we have the same random values on all tasks
         t = torch.bucketize(v, boundaries, out_int32=True)
 
         v = ht.array(v, split=0)
@@ -417,11 +423,11 @@ class TestStatistics(TestCase):
             actual = ht.array([[1, -1], [-1, 1]], split=0)
             self.assertTrue(ht.equal(cov, actual))
 
-        data = np.loadtxt("heat/datasets/iris.csv", delimiter=";")
+        data = np.loadtxt(get_dataset_path('iris.csv'), delimiter=";")
         np_cov = np.cov(data[:, 0], data[:, 1:3], rowvar=False).astype(np_dtype)
 
         # split = None tests
-        htdata = ht.load("heat/datasets/iris.csv", sep=";", split=None)
+        htdata = ht.load(get_dataset_path('iris.csv'), sep=";", split=None)
         ht_cov = ht.cov(htdata[:, 0], htdata[:, 1:3], rowvar=False)
         comp = ht.array(np_cov, dtype=dtype)
         self.assertTrue(ht.allclose(comp - ht_cov, 0, atol=1e-4))
@@ -439,10 +445,10 @@ class TestStatistics(TestCase):
         self.assertTrue(ht.allclose(ht.array(np_cov, dtype=dtype) - ht_cov, 0, atol=1e-4))
 
         # split = 0 tests
-        data = np.loadtxt("heat/datasets/iris.csv", delimiter=";")
+        data = np.loadtxt(get_dataset_path('iris.csv'), delimiter=";")
         np_cov = np.cov(data[:, 0], data[:, 1:3], rowvar=False).astype(np_dtype)
 
-        htdata = ht.load("heat/datasets/iris.csv", sep=";", split=0)
+        htdata = ht.load(get_dataset_path('iris.csv'), sep=";", split=0)
         ht_cov = ht.cov(htdata[:, 0], htdata[:, 1:3], rowvar=False)
         comp = ht.array(np_cov, dtype=ht.float)
         self.assertTrue(ht.allclose(comp - ht_cov, 0, atol=1e-4))
@@ -461,18 +467,18 @@ class TestStatistics(TestCase):
 
         if 1 < x.comm.size < 5:
             # split 1 tests
-            htdata = ht.load("heat/datasets/iris.csv", sep=";", split=1)
+            htdata = ht.load(get_dataset_path('iris.csv'), sep=";", split=1)
             np_cov = np.cov(data, rowvar=False).astype(np_dtype)
             ht_cov = ht.cov(htdata, rowvar=False)
             self.assertTrue(ht.allclose(ht.array(np_cov, dtype=dtype), ht_cov, atol=1e-4))
 
             np_cov = np.cov(data, data, rowvar=True).astype(np_dtype)
 
-            htdata = ht.load("heat/datasets/iris.csv", sep=";", split=0)
+            htdata = ht.load(get_dataset_path('iris.csv'), sep=";", split=0)
             ht_cov = ht.cov(htdata, htdata, rowvar=True)
             self.assertTrue(ht.allclose(ht.array(np_cov, dtype=dtype), ht_cov, atol=1e-4))
 
-            htdata = ht.load("heat/datasets/iris.csv", sep=";", split=0)
+            htdata = ht.load(get_dataset_path('iris.csv'), sep=";", split=0)
             with self.assertRaises(RuntimeError):
                 ht.cov(htdata[1:], rowvar=False)
             with self.assertRaises(RuntimeError):
@@ -553,6 +559,7 @@ class TestStatistics(TestCase):
 
         # matrix and splits
         c = torch.rand([10, 10, 10], device=self.device.torch_device)
+        c = ht.comm.bcast(c)  # make sure we have the same random values on all tasks
         comp = torch.histc(c)
 
         a = ht.array(c)
@@ -590,6 +597,7 @@ class TestStatistics(TestCase):
         # out parameter, min max
         out = ht.empty(20, dtype=ht.float32, device=self.device)
         c = torch.randint(10, size=(8,), dtype=torch.float32, device=self.device.torch_device)
+        c = ht.comm.bcast(c)  # make sure we have the same random values on all tasks
         comp = torch.histc(c, bins=20, min=0, max=20)
 
         a = ht.array(c)
@@ -979,7 +987,7 @@ class TestStatistics(TestCase):
         # values for the iris dataset mean measured by libreoffice calc
         ax0 = ht.array([5.84333333333333, 3.054, 3.75866666666667, 1.19866666666667])
         for sp in [None, 0, 1]:
-            iris = ht.load("heat/datasets/iris.csv", sep=";", split=sp)
+            iris = ht.load(get_dataset_path('iris.csv'), sep=";", split=sp)
             self.assertTrue(ht.allclose(ht.mean(iris), 3.46366666666667))
             self.assertTrue(ht.allclose(ht.mean(iris, axis=0), ax0))
 
@@ -1589,5 +1597,5 @@ class TestStatistics(TestCase):
 
         # values for the iris dataset var measured by libreoffice calc
         for sp in [None, 0, 1]:
-            iris = ht.load("heat/datasets/iris.csv", sep=";", split=sp)
+            iris = ht.load(get_dataset_path('iris.csv'), sep=";", split=sp)
             self.assertTrue(ht.allclose(ht.var(iris, bessel=True), 3.90318519755147))
