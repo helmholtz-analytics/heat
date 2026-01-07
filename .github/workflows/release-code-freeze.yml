@@ -2,7 +2,7 @@ name: Release Code Freeze
 
 on:
   schedule:
-    # 2 weeks before March 26 
+    # 2 weeks before March 26
     - cron: '0 9 12 3 *'
     # 2 weeks before Dec 17
     - cron: '0 9 3 12 *'
