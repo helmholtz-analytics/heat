@@ -1,5 +1,5 @@
 """
-implementations of the different dtypes supported in heat and the
+implementations of the different dtypes supported in heat
 """
 
 from __future__ import annotations
@@ -36,6 +36,8 @@ __all__ = [
     "long",
     "uint8",
     "ubyte",
+    "float16",
+    "half",
     "float32",
     "float",
     "float_",
@@ -79,6 +81,7 @@ class datatype:
                     - unsignedinteger (uintxx)(kind=B, u) \n
                         - uint8, ubyte
                 - floating (floatxx) (kind=f) \n
+                    - float16, half \n
                     - float32, float, float_ \n
                     - float64, double (double)
             - flexible (currently unused, placeholder for characters) \n
@@ -317,6 +320,26 @@ class floating(number):
     pass
 
 
+class float16(floating):
+    """
+    The 32 bit floating point datatype
+    """
+
+    @classmethod
+    def torch_type(cls) -> torch.dtype:
+        """
+        Torch Datatype
+        """
+        return torch.float16
+
+    @classmethod
+    def char(cls) -> str:
+        """
+        Datatype short-hand name
+        """
+        return "f2"
+
+
 class float32(floating):
     """
     The 32 bit floating point datatype
@@ -421,6 +444,7 @@ short = int16
 int = int32
 int_ = int32
 long = int64
+half = float16
 float = float32
 float_ = float32
 double = float64
