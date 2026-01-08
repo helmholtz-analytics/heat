@@ -309,3 +309,5 @@ perun_results/
 bench_data/
 my_dev_stuff/
 docs/source/autoapi
+
+.DS_Store
