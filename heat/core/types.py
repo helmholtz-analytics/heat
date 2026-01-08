@@ -90,6 +90,7 @@ class datatype:
     _can_be_cast_safely_to = []
     _can_be_cast_intuitively_to = []  # types that cannot be cast safely, but only intuitively
     mappings = []  # things that map to this datatype
+    is_complex_floating = False
 
     def __new__(
         cls,
@@ -556,7 +557,7 @@ class complex(number):
     The general complex datatype class.
     """
 
-    pass
+    is_complex_floating = True
 
 
 class complex64(complex):
@@ -626,17 +627,6 @@ cfloat = complex64
 csingle = complex64
 cdouble = complex128
 
-_complexfloating = (complex64, complex128)
-
-_inexact = (
-    float16,
-    float32,
-    float64,
-    *_complexfloating,
-)
-
-_exact = (uint8, int8, int16, int32, int64)
-
 
 def __get_all_heat_types():
     def all_subclasses(cls):
@@ -693,19 +683,19 @@ def heat_type_is_exact(ht_dtype: Type[datatype]) -> bool:
     ht_dtype: Type[datatype]
         HeAT type to check
     """
-    return ht_dtype in _exact
+    return issubdtype(ht_dtype, integer)
 
 
 def heat_type_is_inexact(ht_dtype: Type[datatype]) -> bool:
     """
-    Check if HeAT type is an inexact type, i.e floating point type. True if ht_dtype is a float, False otherwise
+    Check if HeAT type is an inexact type, i.e floating point type. True if ht_dtype is a float or complex, False otherwise
 
     Parameters
     ----------
     ht_dtype: Type[datatype]
         HeAT type to check
     """
-    return ht_dtype in _inexact
+    return issubdtype(ht_dtype, floating) or issubdtype(ht_dtype, complex)
 
 
 def heat_type_is_realfloating(ht_dtype: Type[datatype]) -> bool:
@@ -739,7 +729,11 @@ def heat_type_is_complexfloating(ht_dtype: Type[datatype]) -> bool:
     out: bool
         True if ht_dtype is a complex float, False otherwise
     """
-    return ht_dtype in _complexfloating
+    try:
+        ht_dtype = canonical_heat_type(ht_dtype)
+    except TypeError:
+        ht_dtype = heat_type_of(ht_dtype)
+    return ht_dtype.is_complex_floating
 
 
 def heat_type_of(
@@ -862,7 +856,7 @@ def iscomplex(x: dndarray.DNDarray) -> dndarray.DNDarray:
     """
     sanitation.sanitize_in(x)
 
-    if issubclass(x.dtype, _complexfloating):
+    if heat_type_is_complexfloating(canonical_heat_type(x.dtype)):
         return x.imag != 0
     else:
         return factories.zeros(x.shape, bool, split=x.split, device=x.device, comm=x.comm)
@@ -1029,12 +1023,18 @@ def result_type(
 
             # different parent type: bool < int < float < complex
             dtype_priority_order = [bool, integer, floating, complex]
-            dtype_priority1 = [issubdtype(type1, dtype) for dtype in dtype_priority_order].index(
-                True
-            )
-            dtype_priority2 = [issubdtype(type2, dtype) for dtype in dtype_priority_order].index(
-                True
-            )
+            try:
+                dtype_priority1 = [
+                    issubdtype(type1, dtype) for dtype in dtype_priority_order
+                ].index(True)
+            except ValueError:
+                return type2, prec2
+            try:
+                dtype_priority2 = [
+                    issubdtype(type2, dtype) for dtype in dtype_priority_order
+                ].index(True)
+            except ValueError:
+                return type1, prec1
 
             if dtype_priority1 < dtype_priority2:
                 return type2, min(prec1, prec2)
@@ -1089,7 +1089,7 @@ class finfo:
             # If given type is not heat type
             pass
 
-        if dtype not in _inexact:
+        if not heat_type_is_inexact(dtype):
             raise TypeError(f"Data type {dtype} not inexact, not supported")
 
         return super(finfo, cls).__new__(cls)._init(dtype)
@@ -1135,7 +1135,7 @@ class iinfo:
             # If given type is not heat type
             pass
 
-        if dtype not in _exact:
+        if not heat_type_is_exact(dtype):
             raise TypeError(f"Data type {dtype} not exact, not supported")
 
         return super(iinfo, cls).__new__(cls)._init(dtype)

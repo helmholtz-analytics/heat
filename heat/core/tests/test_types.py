@@ -95,6 +95,7 @@ class TestTypes(TestCase):
     def test_float16(self):
         self.assert_is_instantiable_heat_type(ht.float16, torch.float16)
         self.assert_is_instantiable_heat_type(ht.half, torch.float16)
+        self.assertEqual(ht.float16.char(), "f2")
 
     def test_float32(self):
         self.assert_is_instantiable_heat_type(ht.float32, torch.float32)
