@@ -90,7 +90,6 @@ class datatype:
     _can_be_cast_safely_to = []
     _can_be_cast_intuitively_to = []  # types that cannot be cast safely, but only intuitively
     mappings = []  # things that map to this datatype
-    is_complex_floating = False
 
     def __new__(
         cls,
@@ -557,8 +556,6 @@ class complex(number):
     The general complex datatype class.
     """
 
-    is_complex_floating = True
-
 
 class complex64(complex):
     """
@@ -733,7 +730,7 @@ def heat_type_is_complexfloating(ht_dtype: Type[datatype]) -> bool:
         ht_dtype = canonical_heat_type(ht_dtype)
     except TypeError:
         ht_dtype = heat_type_of(ht_dtype)
-    return ht_dtype.is_complex_floating
+    return issubclass(ht_dtype, complex)
 
 
 def heat_type_of(
