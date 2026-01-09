@@ -1,8 +1,5 @@
-import unittest
 import heat as ht
-import numpy as np
 from mpi4py import MPI
-import os
 
 from ...core.tests.test_suites.basic_test import TestCase
 

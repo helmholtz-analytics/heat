@@ -1,6 +1,4 @@
 import heat as ht
-import unittest
-import torch
 import numpy as np
 
 from ...tests.test_suites.basic_test import TestCase
@@ -113,7 +111,6 @@ class TestZoloSVD(TestCase):
             for split in splits:
                 for dtype in dtypes:
                     with self.subTest(shape=shape, split=split, dtype=dtype):
-                        ht.random.seed(123)
                         tol = 1e-2 if dtype == ht.float32 else 1e-2
                         X = ht.random.randn(*shape, split=split, dtype=dtype)
                         if split is not None and ht.MPI_WORLD.size > 1:

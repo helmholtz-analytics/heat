@@ -1,4 +1,5 @@
 import numpy as np
+import unittest
 import torch
 
 import heat as ht
@@ -1089,6 +1090,25 @@ class TestManipulations(TestCase):
         r_a = ht.array([[[3, 2], [1, 0]], [[7, 6], [5, 4]]], split=0, dtype=ht.uint8)
         self.assertTrue(ht.equal(ht.flip(a, [1, 2]), r_a))
 
+        # test negative axis
+        a = ht.array([[1, 2], [3, 4]])
+        r_a = ht.array([[2, 1], [4, 3]])
+        self.assertTrue(ht.equal(ht.flip(a, -1), r_a))
+
+        a = ht.array([[1, 2], [3, 4]])
+        r_a = ht.array([[3, 4], [1, 2]])
+        self.assertTrue(ht.equal(ht.flip(a, -2), r_a))
+
+        a = ht.array([[1, 2], [3, 4]])
+        r_a = ht.array([[4, 3], [2, 1]])
+        self.assertTrue(ht.equal(ht.flip(a, (-2, -1)), r_a))
+
+        # test negative axis with split
+        a = ht.array([[2, 3], [4, 5], [6, 7], [8, 9]], split=1, dtype=ht.float32)
+        r_a = ht.array([[9, 8], [7, 6], [5, 4], [3, 2]], split=1, dtype=ht.float32)
+        self.assertTrue(ht.equal(ht.flip(a, (0, -1)), r_a))
+        self.assertTrue(ht.equal(ht.flip(a, (-2, -1)), r_a))
+
     def test_fliplr(self):
         b = ht.array([[1, 2], [3, 4]])
         r_b = ht.array([[2, 1], [4, 3]])
@@ -1119,7 +1139,7 @@ class TestManipulations(TestCase):
 
         # test exception
         a = ht.arange(10)
-        with self.assertRaises(IndexError):
+        with self.assertRaises(ValueError):
             ht.fliplr(a)
 
     def test_flipud(self):
@@ -3237,6 +3257,25 @@ class TestManipulations(TestCase):
                             self.assertEqual(resplit_a.dtype, a.dtype)
                             del a
                             del resplit_a
+
+    @unittest.skipIf(ht.MPI_WORLD.size != 2, "Test requires exactly 2 MPI processes")
+    def test_resplit_large_count_limit(self):
+        if not self.is_mps:
+            # Test resplit with large dimensions
+            for shape in [(ht.MPI_WORLD.COUNT_LIMIT + 2, 2),(2, ht.MPI_WORLD.COUNT_LIMIT + 2)]:
+                for resplit_type in [(0, 1), (1, 0)]:
+                    with self.subTest(shape=shape, resplit_type=resplit_type):
+                        ht.comm.Barrier()
+                        x = ht.ones(shape, dtype=ht.int8, split=resplit_type[0])
+                        x.larray *= ht.MPI_WORLD.rank + 1
+
+                        x_resplit = ht.resplit(x, axis=resplit_type[1])
+
+                        self.assertEqual(x_resplit.shape, shape)
+                        self.assertEqual(x_resplit.split, resplit_type[1])
+                        del x
+                        del x_resplit
+
 
     def test_squeeze(self):
         torch.manual_seed(1)

@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Iterable
 import numpy as np
 import os
@@ -48,6 +49,11 @@ class TestIO(TestCase):
             testing_types.append(ht.float64)
         cls.testing_types = testing_types
 
+        cls.HDF5_MULTIPLE_FOLDER = pwd + "/hdf5_data"
+        cls.HDF5_MULTIPLE_FILE_PREFIX = "data_"
+        cls.HDF5_MULTIPLE_FILE_ENDING = ".h5"
+        cls.HDF5_MULTIPLE_DATASET = "data"
+
     def tearDown(self):
         # synchronize all processes
         ht.MPI_WORLD.Barrier()
@@ -56,6 +62,11 @@ class TestIO(TestCase):
         if ht.io.supports_hdf5():
             try:
                 os.remove(self.HDF5_OUT_PATH)
+            except FileNotFoundError:
+                pass
+
+            try:
+                shutil.rmtree(self.HDF5_MULTIPLE_FOLDER)
             except FileNotFoundError:
                 pass
 
@@ -106,7 +117,7 @@ class TestIO(TestCase):
     def test_load(self):
         # HDF5
         if ht.io.supports_hdf5():
-            iris = ht.load(self.HDF5_PATH, dataset="data")
+            iris = ht.load(self.HDF5_PATH, dataset="data", dtype=ht.float32)
             self.assertIsInstance(iris, ht.DNDarray)
             # shape invariant
             self.assertEqual(iris.shape, self.IRIS.shape)
@@ -591,7 +602,7 @@ class TestIO(TestCase):
             self.skipTest("Requires HDF5")
 
         # default parameters
-        iris = ht.load_hdf5(self.HDF5_PATH, self.HDF5_DATASET)
+        iris = ht.load_hdf5(self.HDF5_PATH, self.HDF5_DATASET, dtype=ht.float32)
         self.assertIsInstance(iris, ht.DNDarray)
         self.assertEqual(iris.shape, self.IRIS.shape)
         self.assertEqual(iris.dtype, ht.float32)
@@ -602,13 +613,13 @@ class TestIO(TestCase):
         iris = ht.load_hdf5(self.HDF5_PATH, self.HDF5_DATASET, split=0)
         self.assertIsInstance(iris, ht.DNDarray)
         self.assertEqual(iris.shape, self.IRIS.shape)
-        self.assertEqual(iris.dtype, ht.float32)
+        self.assertEqual(iris.dtype, ht.float64)
         lshape = iris.lshape
         self.assertLessEqual(lshape[0], self.IRIS.shape[0])
         self.assertEqual(lshape[1], self.IRIS.shape[1])
 
         # negative split axis
-        iris = ht.load_hdf5(self.HDF5_PATH, self.HDF5_DATASET, split=-1)
+        iris = ht.load_hdf5(self.HDF5_PATH, self.HDF5_DATASET, split=-1, dtype=ht.float32)
         self.assertIsInstance(iris, ht.DNDarray)
         self.assertEqual(iris.shape, self.IRIS.shape)
         self.assertEqual(iris.dtype, ht.float32)
@@ -650,7 +661,7 @@ class TestIO(TestCase):
         # local unsplit data
         local_data = ht.arange(100)
         ht.save_hdf5(
-            local_data, self.HDF5_OUT_PATH, self.HDF5_DATASET, dtype=local_data.dtype.char()
+            local_data, self.HDF5_OUT_PATH, self.HDF5_DATASET, dtype=torch.int32
         )
         if local_data.comm.rank == 0:
             with ht.io.h5py.File(self.HDF5_OUT_PATH, "r") as handle:
@@ -662,7 +673,7 @@ class TestIO(TestCase):
         # distributed data range
         split_data = ht.arange(100, split=0)
         ht.save_hdf5(
-            split_data, self.HDF5_OUT_PATH, self.HDF5_DATASET, dtype=split_data.dtype.char()
+            split_data, self.HDF5_OUT_PATH, self.HDF5_DATASET
         )
         if split_data.comm.rank == 0:
             with ht.io.h5py.File(self.HDF5_OUT_PATH, "r") as handle:
@@ -1310,3 +1321,137 @@ class TestIO(TestCase):
                     expected_iris = original_iris[tmp_slices]
                     sliced_iris = ht.load_hdf5(HDF5_PATH, HDF5_DATASET, split=axis, slices=slices)
                     self.assertTrue(ht.equal(sliced_iris, expected_iris))
+
+    def test_load_multiple_hdf5_even(self):
+        if not ht.io.supports_hdf5():
+            self.skipTest("Requires HDF5")
+
+        import h5py
+
+        N_FILES = 11
+        N_ROWS = 4
+        N_COLUMNS = 5
+        G_SHAPE = (N_FILES * N_ROWS, N_COLUMNS)
+        ELEMS = G_SHAPE[0] * G_SHAPE[1]
+        comm = ht.MPI_WORLD
+
+        original_data = torch.arange(0, ELEMS, dtype=torch.int64).view(G_SHAPE)
+
+        rank_slices = [comm.chunk(G_SHAPE, split=0, rank=i)[-1][0] for i in range(N_FILES)]  # all row slices
+        local_slice = rank_slices[comm.rank]
+
+        Path(self.HDF5_MULTIPLE_FOLDER).mkdir(exist_ok=True)
+
+        if comm.rank == 0:
+            for n in range(N_FILES):
+                file_path = Path(self.HDF5_MULTIPLE_FOLDER, self.HDF5_MULTIPLE_FILE_PREFIX+str(n)+self.HDF5_MULTIPLE_FILE_ENDING)
+                with h5py.File(str(file_path), "w") as file:
+                    file[self.HDF5_MULTIPLE_DATASET] = original_data[rank_slices[n]].numpy()
+
+        comm.Barrier()
+
+        dndarray = ht.io.load_multiple_hdf5(self.HDF5_MULTIPLE_FOLDER, self.HDF5_MULTIPLE_DATASET, dtype=torch.int64)
+        dndarray_np = dndarray.numpy()
+        original_data_np = original_data.numpy()
+        self.assertTrue((dndarray_np == original_data_np).all())
+
+
+    def test_load_multiple_hdf5_uneven(self):
+        if not ht.io.supports_hdf5():
+            self.skipTest("Requires HDF5")
+
+        import h5py
+
+        N_FILES = 9
+        N_ROWS = [2, 3, 1, 4, 6, 2, 1, 9, 2]
+        TOTAL_ROWS = sum(N_ROWS)
+        N_COLUMNS = 2
+        G_SHAPE = (TOTAL_ROWS, N_COLUMNS)
+        ELEMS = G_SHAPE[0] * G_SHAPE[1]
+        comm = ht.MPI_WORLD
+
+        original_data = torch.arange(0, ELEMS, dtype=torch.float32).view(G_SHAPE)
+
+        Path(self.HDF5_MULTIPLE_FOLDER).mkdir(exist_ok=True)
+
+        if comm.rank == 0:
+            for n in range(N_FILES):
+                file_path = Path(self.HDF5_MULTIPLE_FOLDER, self.HDF5_MULTIPLE_FILE_PREFIX+str(n)+self.HDF5_MULTIPLE_FILE_ENDING)
+                written_rows = sum(N_ROWS[:n])
+                to_write = N_ROWS[n]
+                with h5py.File(str(file_path), "w") as file:
+                    file[self.HDF5_MULTIPLE_DATASET] = original_data[written_rows:written_rows+to_write].numpy()
+
+        comm.Barrier()
+
+        dndarray = ht.io.load_multiple_hdf5(self.HDF5_MULTIPLE_FOLDER, self.HDF5_MULTIPLE_DATASET)
+        dndarray_np = dndarray.numpy()
+        original_data_np = original_data.numpy()
+        self.assertTrue((dndarray_np == original_data_np).all())
+
+    @unittest.skipIf(not ht.io.supports_hdf5(), reason="Requires HDF5")
+    def test_load_multiple_hdf5_exceptions(self):
+        # wrong type for folder path
+        with self.assertRaises(TypeError):
+            ht.io.load_multiple_hdf5(1, "my_dataset_name")
+
+        # wrong type for dataset name
+        with self.assertRaises(TypeError):
+            ht.io.load_multiple_hdf5("/my_folder_name", 3.14)
+
+        # wrong type for sorting function
+        with self.assertRaises(TypeError):
+            ht.io.load_multiple_hdf5("/my_folder_name", "my_dataset_name", sorting_func=5)
+
+        # folder does not exist
+        with self.assertRaises(ValueError):
+            ht.io.load_multiple_hdf5("/this/folder/does/not/exist", "my_dataset_name")
+
+        import h5py
+        comm = ht.MPI_WORLD
+
+        # folder is empty
+        empty_folder = Path(self.HDF5_MULTIPLE_FOLDER, "empty_test_folder")
+        if comm.rank == 0:
+            empty_folder.mkdir(parents=True,exist_ok=True)
+        comm.Barrier()
+        with self.assertRaises(ValueError):
+            ht.io.load_multiple_hdf5(str(empty_folder), "my_dataset_name")
+        comm.Barrier()
+        if comm.rank == 0:
+            empty_folder.rmdir()
+        comm.Barrier()
+
+        # Amount of dimensions of all hdf5 files must be the same
+        inconsistent_folder = Path(self.HDF5_MULTIPLE_FOLDER, "inconsistent_test_folder")
+        if comm.rank == 0:
+            inconsistent_folder.mkdir(exist_ok=True)
+            # create first file with dataset of shape (4, 5)
+            with h5py.File(str(Path(inconsistent_folder, "file_0.h5")), "w") as file:
+                file["my_dataset"] = np.random.rand(4, 5)
+            # create second file with dataset of shape (4, 5, 6)
+            with h5py.File(str(Path(inconsistent_folder, "file_1.h5")), "w") as file:
+                file["my_dataset"] = np.random.rand(4, 5, 6)
+        comm.Barrier()
+        with self.assertRaises(ValueError):
+            ht.io.load_multiple_hdf5(str(inconsistent_folder), "my_dataset")
+        comm.Barrier()
+        if comm.rank == 0:
+            shutil.rmtree(inconsistent_folder)
+
+        # Dimension missmatch on ndim
+        missmatch_folder = Path(self.HDF5_MULTIPLE_FOLDER, "missmatch_test_folder")
+        if comm.rank == 0:
+            missmatch_folder.mkdir(exist_ok=True)
+            # create first file with dataset of shape (4, 5)
+            with h5py.File(str(Path(missmatch_folder, "file_0.h5")), "w") as file:
+                file["my_dataset"] = np.random.rand(4, 5)
+            # create second file with dataset of shape (6, 5)
+            with h5py.File(str(Path(missmatch_folder, "file_1.h5")), "w") as file:
+                file["my_dataset"] = np.random.rand(6, 7)
+        comm.Barrier()
+        with self.assertRaises(ValueError):
+            ht.io.load_multiple_hdf5(str(missmatch_folder), "my_dataset", dtype=ht.float32)
+        comm.Barrier()
+        if comm.rank == 0:
+            shutil.rmtree(missmatch_folder)

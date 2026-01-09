@@ -6,6 +6,9 @@ from .basic_test import TestCase
 
 
 class TestBasicTest(TestCase):
+    def test_random_seed(self):
+        self.assertTrue(ht.random.get_state()[1] == 42)
+
     def test_assert_array_equal(self):
         heat_array = ht.ones((self.get_size(), 10, 10), dtype=ht.int32, split=1)
         np_array = np.ones((self.get_size(), 10, 10), dtype=np.int32)
