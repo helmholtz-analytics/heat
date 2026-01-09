@@ -1,4 +1,4 @@
-fileignoreconfig:
-- filename: heat/core/dndarray.py
-  checksum: 6f686fc92dc83c619144cfcde577b8f195213d3c02e9ba63b26760dd799e144d
 version: "1.0"
+threshold: medium
+allowed_patterns:
+- 'uses: [A-Za-z-\/]+@[\w\d]+'
