@@ -298,7 +298,7 @@ def average(
             wgt_lshape = tuple(
                 weights.lshape[0] if dim == axis else 1 for dim in list(range(x.ndim))
             )
-            wgt_slice = [slice(None) if dim == axis else 0 for dim in list(range(x.ndim))]
+            wgt_slice = tuple(slice(None) if dim == axis else 0 for dim in list(range(x.ndim)))
             wgt_split = None if weights.split is None else axis
             wgt = torch.empty(
                 wgt_lshape, dtype=weights.dtype.torch_type(), device=x.device.torch_device

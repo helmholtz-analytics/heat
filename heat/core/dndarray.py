@@ -385,7 +385,7 @@ class DNDarray:
         except IndexError:
             print("Indices out of bound")
 
-        return self.__array[ix].clone()
+        return self.__array[tuple(ix)].clone()
 
     def get_halo(self, halo_size: int, prev: bool = True, next: bool = True) -> torch.Tensor:
         """
@@ -1455,9 +1455,9 @@ class DNDarray:
             if snd_pr > rcv_pr:  # data passed to a lower rank (off the top)
                 send_slice[self.split] = slice(0, send_amt)
                 keep_slice[self.split] = slice(send_amt, self.lshape[self.split])
-            data = self.__array[send_slice].clone()
+            data = self.__array[tuple(send_slice)].clone()
             self.comm.Send(data, dest=rcv_pr, tag=685)
-            self.__array = self.__array[keep_slice]
+            self.__array = self.__array[tuple(keep_slice)]
         if rank == rcv_pr:
             shp = list(self.gshape)
             shp[self.split] = send_amt
@@ -1789,7 +1789,7 @@ class DNDarray:
                         loc_key[self.split] = slice(key_start_l, key_stop_l, key_step)
 
                         gout_full = torch.tensor(
-                            self_proxy[loc_key].shape, device=self.device.torch_device
+                            self_proxy[tuple(loc_key)].shape, device=self.device.torch_device
                         )
                         target_reshape_map[r] = gout_full
                     local_keys.append(loc_key)
