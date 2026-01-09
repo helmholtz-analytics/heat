@@ -2,15 +2,13 @@
 
 from __future__ import annotations
 
-import math
 import numpy as np
 import torch
 import warnings
 
-from inspect import stack
 from mpi4py import MPI
-from pathlib import Path
-from typing import List, Union, Tuple, TypeVar, Optional, Iterable
+from typing import TypeVar, Any
+from collections.abc import Iterable
 
 warnings.simplefilter("always", ResourceWarning)
 
@@ -45,7 +43,7 @@ class DNDarray:
     ----------
     array : torch.Tensor
         Local array elements
-    gshape : Tuple[int,...]
+    gshape : tuple[int,...]
         The global shape of the array
     dtype : datatype
         The datatype of the array
@@ -64,12 +62,12 @@ class DNDarray:
     def __init__(
         self,
         array: torch.Tensor,
-        gshape: Tuple[int, ...],
+        gshape: tuple[int, ...],
         dtype: datatype,
-        split: Union[int, None],
         device: Device,
         comm: Communication,
         balanced: bool,
+        split: int | None,
     ):
         self.__array = array
         self.__gshape = gshape
@@ -77,10 +75,10 @@ class DNDarray:
         self.__split = split
         self.__device = device
         self.__comm = comm
-        self.__balanced = balanced
+        self.__balanced: bool = balanced
         self.__ishalo = False
-        self.__halo_next = None
-        self.__halo_prev = None
+        self.__halo_next: torch.Tensor | None = None
+        self.__halo_prev: torch.Tensor | None = None
         self.__partitions_dict__ = None
         self.__lshape_map = None
 
@@ -116,7 +114,7 @@ class DNDarray:
         return self.__dtype
 
     @property
-    def gshape(self) -> Tuple:
+    def gshape(self) -> tuple:
         """
         Returns the global shape of the ``DNDarray`` across all processes
         """
@@ -263,7 +261,7 @@ class DNDarray:
         return np.prod(self.__array.shape)
 
     @property
-    def lloc(self) -> Union[DNDarray, None]:
+    def lloc(self) -> "DNDarray" | None:
         """
         Local item setter and getter. i.e. this function operates on a local
         level and only on the PyTorch tensors composing the :class:`DNDarray`.
@@ -272,7 +270,7 @@ class DNDarray:
 
         Parameters
         ----------
-        key : int or slice or Tuple[int,...]
+        key : int or slice or tuple[int,...]
             Indices of the desired data.
         value : scalar, optional
             All types compatible with pytorch tensors, if none given then this is a getter function
@@ -297,7 +295,7 @@ class DNDarray:
         return LocalIndex(self.__array)
 
     @property
-    def lshape(self) -> Tuple[int]:
+    def lshape(self) -> tuple[int]:
         """
         Returns the shape of the ``DNDarray`` on each node
         """
@@ -318,36 +316,36 @@ class DNDarray:
         return complex_math.real(self)
 
     @property
-    def shape(self) -> Tuple[int]:
+    def shape(self) -> tuple[int, ...]:
         """
         Returns the shape of the ``DNDarray`` as a whole
         """
         return self.__gshape
 
     @property
-    def split(self) -> int:
+    def split(self) -> int | None:
         """
         Returns the axis on which the ``DNDarray`` is split
         """
         return self.__split
 
     @property
-    def stride(self) -> Tuple[int]:
+    def stride(self) -> tuple[int, ...]:
         """
         Returns the steps in each dimension when traversing a ``DNDarray``. torch-like usage: ``self.stride()``
         """
-        return self.__array.stride
+        return self.__array.stride()
 
     @property
-    def strides(self) -> Tuple[int]:
+    def strides(self) -> tuple[int, ...]:
         """
         Returns bytes to step in each dimension when traversing a ``DNDarray``. numpy-like usage: ``self.strides()``
         """
-        steps = list(self.larray.stride())
+        steps = list(self.__array.stride())
         try:
-            itemsize = self.larray.untyped_storage().element_size()
+            itemsize = self.__array.untyped_storage().element_size()
         except AttributeError:
-            itemsize = self.larray.storage().element_size()
+            itemsize = self.__array.storage().element_size()
         strides = tuple(step * itemsize for step in steps)
         return strides
 
@@ -552,7 +550,7 @@ class DNDarray:
 
         return self
 
-    def balance_(self) -> DNDarray:
+    def balance_(self) -> None:
         """
         Function for balancing a :class:`DNDarray` between all nodes. To determine if this is needed use the :func:`is_balanced()` function.
         If the ``DNDarray`` is already balanced this function will do nothing. This function modifies the ``DNDarray``
@@ -600,7 +598,7 @@ class DNDarray:
         """
         return self.__cast(bool)
 
-    def __cast(self, cast_function) -> Union[float, int]:
+    def __cast(self, cast_function) -> float | int:
         """
         Implements a generic cast function for ``DNDarray`` objects.
 
@@ -626,7 +624,7 @@ class DNDarray:
 
         raise TypeError("only size-1 arrays can be converted to Python scalars")
 
-    def collect_(self, target_rank: Optional[int] = 0) -> None:
+    def collect_(self, target_rank: int | None = 0) -> None:
         """
         A method collecting a distributed DNDarray to one MPI rank, chosen by the `target_rank` variable.
         It is a specific case of the ``redistribute_`` method.
@@ -679,7 +677,7 @@ class DNDarray:
         """
         return self.__cast(complex)
 
-    def counts_displs(self) -> Tuple[Tuple[int], Tuple[int]]:
+    def counts_displs(self) -> tuple[tuple[int], tuple[int]]:
         """
         Returns actual counts (number of items per process) and displacements (offsets) of the DNDarray.
         Does not assume load balance.
@@ -883,11 +881,11 @@ class DNDarray:
         return self
 
     def __process_key(
-        arr: DNDarray,
-        key: Union[Tuple[int, ...], List[int, ...]],
-        return_local_indices: Optional[bool] = False,
-        op: Optional[str] = None,
-    ) -> Tuple:
+        arr: "DNDarray",
+        key: tuple[int, ...] | list[int],
+        return_local_indices: bool | None = False,
+        op: str | None = None,
+    ) -> tuple:
         """
         Private method to process the key used for indexing a ``DNDarray`` so that it can be applied to the process-local data, i.e. `key` must be "torch-proof".
         In a processed key:
@@ -900,7 +898,7 @@ class DNDarray:
         ----------
         arr : DNDarray
             The ``DNDarray`` to be indexed
-        key : int, Tuple[int, ...], List[int, ...]
+        key : int, tuple[int, ...], list[int, ...]
             The key used for indexing
         return_local_indices : bool, optional
             Whether to return the process-local indices of the key in the split dimension. This is only possible when the indexing key in the split dimension is ordered e.g. `split_key_is_ordered == 1`. Default: False
@@ -911,10 +909,10 @@ class DNDarray:
         -------
         arr : DNDarray
             The ``DNDarray`` to be indexed. Its dimensions might have been modified if advanced, dimensional, broadcasted indexing is used.
-        key : Union(Tuple[Any, ...], DNDarray, np.ndarray, torch.Tensor, slice, int, List[int, ...])
+        key : tuple[Any, ...] | "DNDarray" | np.ndarray | torch.Tensor | slice | int | list[int]
             The processed key ready for indexing ``arr``. Its dimensions match the (potentially modified) dimensions of ``arr``.
             Note: the key indices along the split axis are LOCAL indices, i.e. refer to the process-local data, if ordered indexing is used. Otherwise, they are GLOBAL indices, referring to the global memory-distributed DNDarray. Communication to extract the non-ordered elements of the input ``DNDarray`` is handled by the ``__getitem__`` function.
-        output_shape : Tuple[int, ...]
+        output_shape : tuple[int, ...]
             The shape of the output ``DNDarray``
         new_split : int
             The new split axis
@@ -924,7 +922,7 @@ class DNDarray:
             Whether the output ``DNDarray`` is balanced
         root : int
             The root process for the ``MPI.Bcast`` call when single-element indexing along the split axis is used
-        backwards_transpose_axes : Tuple[int, ...]
+        backwards_transpose_axes : tuple[int, ...]
             The axes to transpose the input ``DNDarray`` back to its original shape if it has been transposed for advanced indexing
         """
         output_shape = list(arr.gshape)
@@ -1448,11 +1446,11 @@ class DNDarray:
         )
 
     def __process_scalar_key(
-        arr: DNDarray,
-        key: Union[int, DNDarray, torch.Tensor, np.ndarray],
+        arr: "DNDarray",
+        key: int | "DNDarray" | torch.Tensor | np.ndarray,
         indexed_axis: int,
-        return_local_indices: Optional[bool] = False,
-    ) -> Tuple(int, int):
+        return_local_indices: bool | None = False,
+    ) -> tuple[int, int]:
         """
         Private method to process a single-item scalar key used for indexing a ``DNDarray``.
 
@@ -1517,7 +1515,7 @@ class DNDarray:
             return slice(local_inds.start, local_inds.stop, local_inds.step)
         return None
 
-    def __getitem__(self, key: Union[int, Tuple[int, ...], List[int, ...]]) -> DNDarray:
+    def __getitem__(self, key: int | tuple[int, ...] | list[int]) -> DNDarray:
         """
         Global getter function for DNDarrays.
         Returns a new DNDarray composed of the elements of the original tensor selected by the indices
@@ -1527,7 +1525,7 @@ class DNDarray:
 
         Parameters
         ----------
-        key : int, slice, Tuple[int,...], List[int,...]
+        key : int, slice, tuple[int,...], list[int,...]
             Indices to get from the tensor.
 
         Examples
@@ -2090,7 +2088,7 @@ class DNDarray:
         except IndexError:
             raise TypeError("len() of unsized DNDarray")
 
-    def numpy(self) -> np.array:
+    def numpy(self) -> np.typing.NDArray[Any]:
         """
         Returns a copy of the :class:`DNDarray` as numpy ndarray. If the ``DNDarray`` resides on the GPU, the underlying data will be copied to the CPU first.
 
@@ -2120,7 +2118,7 @@ class DNDarray:
         """
         return printing.__repr__(self)
 
-    def ravel(self):
+    def ravel(self) -> "DNDarray":
         """
         Flattens the ``DNDarray``.
 
@@ -2139,8 +2137,8 @@ class DNDarray:
         return manipulations.ravel(self)
 
     def redistribute_(
-        self, lshape_map: Optional[torch.Tensor] = None, target_map: Optional[torch.Tensor] = None
-    ):
+        self, lshape_map: torch.Tensor | None = None, target_map: torch.Tensor | None = None
+    ) -> None:
         """
         Redistributes the data of the :class:`DNDarray` *along the split axis* to match the given target map.
         This function does not modify the non-split dimensions of the ``DNDarray``.
@@ -2292,9 +2290,9 @@ class DNDarray:
 
     def __redistribute_shuffle(
         self,
-        snd_pr: Union[int, torch.Tensor],
-        send_amt: Union[int, torch.Tensor],
-        rcv_pr: Union[int, torch.Tensor],
+        snd_pr: int | torch.Tensor,
+        send_amt: int | torch.Tensor,
+        rcv_pr: int | torch.Tensor,
         snd_dtype: torch.dtype,
     ):
         """
@@ -2437,17 +2435,17 @@ class DNDarray:
 
     def __setitem__(
         self,
-        key: Union[int, Tuple[int, ...], List[int, ...]],
-        value: Union[float, DNDarray, torch.Tensor],
+        key: int | tuple[int, ...] | list[int],
+        value: float | "DNDarray" | torch.Tensor,
     ):
         """
         Global item setter
 
         Parameters
         ----------
-        key : Union[int, Tuple[int,...], List[int,...]]
+        key : int | tuple[int, ...] | list[int]
             Index/indices to be set
-        value: Union[float, DNDarray,torch.Tensor]
+        value: float | "DNDarray" | torch.Tensor
             Value to be set to the specified positions in the DNDarray (self)
 
         Notes
@@ -2471,9 +2469,9 @@ class DNDarray:
         """
 
         def __broadcast_value(
-            arr: DNDarray,
-            key: Union[int, Tuple[int, ...], slice],
-            value: DNDarray,
+            arr: "DNDarray",
+            key: int | tuple[int, ...] | slice,
+            value: "DNDarray",
             **kwargs,
         ):
             """
@@ -2547,7 +2545,7 @@ class DNDarray:
         def __dedup_last_wins_advanced_index(
             key_in,
             rhs_in: torch.Tensor,
-            target_shape: Tuple[int, ...],
+            target_shape: tuple[int, ...],
         ):
             """
             CUDA-safe handling for duplicate advanced indices:
@@ -2634,9 +2632,9 @@ class DNDarray:
             return key_u, rhs_u
 
         def __set(
-            arr: DNDarray,
-            key: Union[int, Tuple[int, ...], List[int, ...]],
-            value: Union[DNDarray, torch.Tensor, np.ndarray, float, int, list, tuple],
+            arr: "DNDarray",
+            key: int | tuple[int, ...] | list[int],
+            value: float | "DNDarray" | torch.Tensor,
         ):
             """
             Setter for not advanced indexing, i.e. when arr[key] is an in-place view of arr.
@@ -2852,7 +2850,7 @@ class DNDarray:
             local_size: int,
             value_is_scalar: bool,
             out_dtype: torch.dtype,
-            base_index: Optional[Tuple] = None,
+            base_index: tuple | None = None,
         ) -> None:
             """
             The function is a helper that updates ``x_local`` in-place according to the logical advanced
@@ -3327,8 +3325,8 @@ class DNDarray:
 
     def __setter(
         self,
-        key: Union[int, Tuple[int, ...], List[int, ...]],
-        value: Union[float, DNDarray, torch.Tensor],
+        key: int | tuple[int, ...] | list[int],
+        value: float | "DNDarray" | torch.Tensor,
     ):
         """
         Utility function for checking ``value`` and forwarding to :func:``__setitem__``
@@ -3356,8 +3354,8 @@ class DNDarray:
     def __take_split0_global_1d(
         self,
         idx: torch.Tensor,
-        out_gshape: Tuple[int, ...],
-        out_split: Optional[int],
+        out_gshape: tuple[int, ...],
+        out_split: int | None,
         out_is_balanced: bool,
     ) -> "DNDarray":
         """
@@ -3473,7 +3471,7 @@ class DNDarray:
         """
         return printing.__str__(self)
 
-    def tolist(self, keepsplit: bool = False) -> List:
+    def tolist(self, keepsplit: bool = False) -> list:
         """
         Return a copy of the local array data as a (nested) Python list. For scalars, a standard Python number is returned.
 
@@ -3540,7 +3538,7 @@ class DNDarray:
         step: int,
         ends: torch.Tensor,
         og_key_st: int,
-    ) -> Tuple[int, int]:
+    ) -> tuple[int, int]:
         # this does some basic logic for adjusting the starting and stoping of the a key for
         #   setitem and getitem
         if step is not None and rank > actives[0]:

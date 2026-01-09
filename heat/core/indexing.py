@@ -3,18 +3,16 @@ Functions relating to indices of items within DNDarrays, i.e. `where()`
 """
 
 import torch
-from typing import List, Dict, Any, TypeVar, Union, Tuple, Sequence
 
 from .communication import MPI
 from .dndarray import DNDarray
-from . import sanitation
 from . import types
 from . import manipulations
 
 __all__ = ["nonzero", "where"]
 
 
-def nonzero(x: DNDarray) -> Tuple[DNDarray, ...]:
+def nonzero(x: DNDarray) -> tuple[DNDarray, ...]:
     """
     TODO: UPDATE DOCS!
     Return a Tuple of :class:`~heat.core.dndarray.DNDarray`s, one for each dimension of ``x``,
@@ -130,8 +128,8 @@ DNDarray.nonzero.__doc__ = nonzero.__doc__
 
 def where(
     cond: DNDarray,
-    x: Union[None, int, float, DNDarray] = None,
-    y: Union[None, int, float, DNDarray] = None,
+    x: None | int | float | DNDarray = None,
+    y: None | int | float | DNDarray = None,
 ) -> DNDarray:
     """
     Return a :class:`~heat.core.dndarray.DNDarray` containing elements chosen from ``x`` or ``y`` depending on condition.
