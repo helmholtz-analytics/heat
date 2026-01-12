@@ -6,6 +6,9 @@ import heat as ht
 from typing import Optional, Tuple, Union
 from ..core.linalg.svdtools import _isvd
 
+if ht.io.supports_hdf5():
+    import h5py
+
 try:
     from typing import Self
 except ImportError:
@@ -78,8 +81,8 @@ class PCA(ht.TransformMixin, ht.BaseEstimator):
 
     Notes
     -----
-    Hierarchical SVD (`svd_solver = "hierarchical"`) computes an approximate, truncated SVD. Thus, the results are not exact, in general, unless the
-    truncation rank chosen is larger than the actual rank (matrix rank) of the underlying data; see :func:`ht.linalg.hsvd_rank` and :func:`ht.linalg.hsvd_rtol` for details.
+    Hierarchical SVD (`svd_solver = "hierarchical"`) computes an approximate, truncated SVD. Thus, the results are not exact, in general, unless `n_components`
+    chosen is larger than the actual rank (=matrix rank) of the underlying data; see :func:`ht.linalg.hsvd_rank` and :func:`ht.linalg.hsvd_rtol` for details.
     Randomized SVD (`svd_solver = "randomized"`) is a stochastic algorithm that computes an approximate, truncated SVD.
     """
 
@@ -219,7 +222,7 @@ class PCA(ht.TransformMixin, ht.BaseEstimator):
                     X_centered, (1 - self.n_components_) ** 0.5, compute_sv=True, safetyshift=0
                 )
             else:
-                # hierarchical SVD with prescribed, fixed rank
+                # hierarchical SVD with prescribed, fixed (truncation) rank
                 _, S, V, info = ht.linalg.hsvd_rank(
                     X_centered, self.n_components_, compute_sv=True, safetyshift=0
                 )
@@ -346,14 +349,72 @@ class IncrementalPCA(ht.TransformMixin, ht.BaseEstimator):
         self.batch_size_ = None
         self.n_samples_seen_ = 0
 
-    def fit(self, X, y=None) -> Self:
+    def fit(self, path: str, chunk_size: int, dataset: str = "DATA") -> Self:
         """
-        Not yet implemented; please use `.partial_fit` instead.
-        Please open an issue on GitHub if you would like to see this method implemented and make a suggestion on how you would like to see it implemented.
+        Fit the IncrementalPCA model using data loaded in chunks from a HDF5 file.
+
+        This method processes data incrementally, loading chunks of data from a file and updating the PCA model iteratively.
+        It is particularly useful for large datasets that cannot fit into memory.
+
+        Parameters
+        ----------
+        path : str
+            Path to the file containing the dataset. The file must be in HDF5 format.
+        chunk_size : int
+            Number of rows to load and process in each chunk. Must be smaller than or equal to the total number of rows in the dataset.
+        dataset : str, default="DATA"
+            Name of the dataset within the file to load.
+
+        Returns
+        -------
+        Self
+            The fitted IncrementalPCA instance.
+
+        Raises
+        ------
+        ValueError
+            If the file format is not HDF5.
+            If `chunk_size` is larger than the number of rows in the dataset.
+            If the number of columns is smaller than the number of processes.
         """
-        raise NotImplementedError(
-            f"You have called IncrementalPCA's `.fit`-method with an argument of type {type(X)}. \n So far, we have only implemented the method `.partial_fit` which performs a single-step update of incremental PCA. \n Please consider using `.partial_fit` for the moment, and open an issue on GitHub in which we can discuss what you would like to see implemented for the `.fit`-method."
-        )
+        if not ht.io.supports_hdf5():
+            raise RuntimeError(
+                "Computing IncrementalPCA from an HDF5 file requires HDF5 support, which is not available. Please install heat with HDF5 support."
+            )
+        if path.endswith(".h5"):
+            with h5py.File(path, "r") as f:
+                shape = f[dataset].shape
+
+            # This additional intermediate step makes it easier to implement support for other file formats (such as Zarr) later on.
+            def load_data_from_file(start, end):
+                return ht.load_hdf5(
+                    path, dataset=dataset, split=0, slices=[slice(start, end), None]
+                )
+        else:
+            raise ValueError("`path` must direct to a HDF5 file.")
+
+        # Check if the number of columns is at least equal to the number of processes
+        if shape[1] < ht.MPI_WORLD.size:
+            raise ValueError(
+                f"The number of columns ({shape[1]}) must be at least equal to the number of processes ({ht.MPI_WORLD.size})."
+            )
+
+        if chunk_size > shape[0]:
+            raise ValueError(
+                "The `chunk_size` cannot be bigger than the number of rows of the chosen file."
+            )
+
+        start = 0
+        end = chunk_size
+
+        while start < shape[0]:
+            if end <= shape[0]:
+                X = load_data_from_file(start, end)
+            else:
+                X = load_data_from_file(start, shape[0])
+            self.partial_fit(X)
+            start += chunk_size
+            end += chunk_size
 
     def partial_fit(self, X: ht.DNDarray, y=None):
         """
