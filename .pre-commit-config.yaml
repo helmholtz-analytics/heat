@@ -45,11 +45,3 @@ repos:
       # both pre-commit and pre-push supported
       # -   id: talisman-push
       - id: talisman-commit
-  - repo: https://github.com/shellcheck-py/shellcheck-py
-    rev: v0.11.0.1
-    hooks:
-      - id: shellcheck
-  #- repo: https://github.com/jumanjihouse/pre-commit-hooks
-  #  rev: 3.0.0
-  #  hooks:
-  #    - id: shellcheck
