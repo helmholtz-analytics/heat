@@ -334,6 +334,8 @@ class TestTypeConversion(TestCase):
         self.assertEqual(ht.promote_types("f4", ht.float), ht.float32)
         self.assertEqual(ht.promote_types(ht.bool_, "?"), ht.bool)
         self.assertEqual(ht.promote_types(ht.float32, ht.complex64), ht.complex64)
+        self.assertEqual(ht.promote_types(ht.float16, ht.int16), ht.float16)
+        self.assertEqual(ht.promote_types(ht.float16, ht.int32), ht.float32)
 
         # exceptions
         with self.assertRaises(TypeError):
@@ -349,6 +351,7 @@ class TestTypeConversion(TestCase):
         self.assertEqual(ht.result_type(1.0, ht.array(1, dtype=ht.int32)), ht.float32)
         self.assertEqual(ht.result_type(ht.uint8, ht.int8), ht.int16)
         self.assertEqual(ht.result_type("b", "f4"), ht.float32)
+        self.assertEqual(ht.result_type("f2", "f4", ht.int8), ht.float32)
         if not self.is_mps:
             self.assertEqual(ht.result_type(ht.array([1], dtype=ht.float64), "f4"), ht.float64)
             self.assertEqual(
