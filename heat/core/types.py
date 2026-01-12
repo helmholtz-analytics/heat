@@ -667,7 +667,8 @@ def canonical_heat_type(a_type: Union[str, Type[datatype], Any]) -> Type[datatyp
             if a_type in type_.mappings:
                 return type_
         except ValueError:
-            raise TypeError(f"data type {a_type} is not understood")
+            # this particular type_ cannot interpret a_type, try next candidate
+            continue
     raise TypeError(f"data type {a_type} is not understood")
 
 
