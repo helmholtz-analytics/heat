@@ -342,6 +342,8 @@ class TestTypeConversion(TestCase):
             ht.promote_types(1, "?")
         with self.assertRaises(TypeError):
             ht.promote_types(ht.float32, "hello world")
+        with self.assertRaises(Exception):
+            ht.promote_types(ht.float, ht.types.flexible)
 
     def test_result_type(self):
         self.assertEqual(ht.result_type(1), ht.int32)

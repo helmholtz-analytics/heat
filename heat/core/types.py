@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import builtins
 import collections
+from functools import cache
 import numpy as np
 import torch
 
@@ -625,6 +626,7 @@ csingle = complex64
 cdouble = complex128
 
 
+@cache
 def __get_all_heat_types():
     def all_subclasses(cls):
         return set(cls.__subclasses__()).union(
@@ -945,6 +947,10 @@ def promote_types(
 
     # get the types both types can be cast to intuitively
     shared = [me for me in options_1 if me in options_2]
+    if len(shared) == 0:
+        raise Exception(
+            f"Cannot find type that {heat_type1} and {heat_type2} can both be cast to intuitively. Please report this bug to the developers."
+        )
 
     # get the sizes in bits
     sizes = [np.int32(me[len(me.rstrip("0123456789")) :]) if me != "bool" else 1 for me in shared]
