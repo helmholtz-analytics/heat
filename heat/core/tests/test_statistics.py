@@ -195,6 +195,7 @@ class TestStatistics(TestCase):
             ht.argmin(data, axis=-4)
 
     def test_average(self):
+        torch.manual_seed(1)
         data = [[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]]
 
         ht_array = ht.array(data, dtype=float)
@@ -382,6 +383,7 @@ class TestStatistics(TestCase):
             ht.bincount(ht.array([0, 1, 2, 3], split=0), weights=ht.array([1, 2, 3, 4]))
 
     def test_bucketize(self):
+        torch.manual_seed(1)
         boundaries = ht.array([1, 3, 5, 7, 9])
         v = ht.array([[3, 6, 9], [3, 6, 9]])
         a = ht.bucketize(v, boundaries)
@@ -395,9 +397,8 @@ class TestStatistics(TestCase):
         self.assertEqual(a.dtype, ht.int64)
         self.assertTrue(a.shape, v.shape)
 
-        boundaries, _ = torch.sort(ht.comm.bcast(torch.rand(5, device=self.device.torch_device)))
+        boundaries, _ = torch.sort(torch.rand(5, device=self.device.torch_device))
         v = torch.rand(6, device=self.device.torch_device)
-        v = ht.comm.bcast(v)  # make sure we have the same random values on all tasks
         t = torch.bucketize(v, boundaries, out_int32=True)
 
         v = ht.array(v, split=0)
@@ -543,6 +544,7 @@ class TestStatistics(TestCase):
                 ht.digitize(a, ht.array([0.0, 0.5, 1.0], split=0))
 
     def test_histc(self):
+        torch.manual_seed(1)
         dtype = torch.float32 if self.is_mps else torch.float64
 
         # few entries and (if not MPS) float64
@@ -559,7 +561,6 @@ class TestStatistics(TestCase):
 
         # matrix and splits
         c = torch.rand([10, 10, 10], device=self.device.torch_device)
-        c = ht.comm.bcast(c)  # make sure we have the same random values on all tasks
         comp = torch.histc(c)
 
         a = ht.array(c)
@@ -597,7 +598,6 @@ class TestStatistics(TestCase):
         # out parameter, min max
         out = ht.empty(20, dtype=ht.float32, device=self.device)
         c = torch.randint(10, size=(8,), dtype=torch.float32, device=self.device.torch_device)
-        c = ht.comm.bcast(c)  # make sure we have the same random values on all tasks
         comp = torch.histc(c, bins=20, min=0, max=20)
 
         a = ht.array(c)
@@ -636,6 +636,7 @@ class TestStatistics(TestCase):
             ht.histogram(a, density=True)
 
     def test_kurtosis(self):
+        torch.manual_seed(1)
         x = ht.zeros((2, 3, 4))
         with self.assertRaises(ValueError):
             x.kurtosis(axis=10)
@@ -729,6 +730,7 @@ class TestStatistics(TestCase):
                 self.assertEqual(ht_kurtosis.split, sp)
 
     def test_max(self):
+        torch.manual_seed(1)
         data = [[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]]
 
         ht_array = ht.array(data)
@@ -820,6 +822,7 @@ class TestStatistics(TestCase):
             ht.max(ht_array, axis=-4)
 
     def test_maximum(self):
+        torch.manual_seed(1)
         data1 = [[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]]
         data2 = [[0, 3, 2], [5, 4, 7], [6, 9, 8], [9, 10, 11]]
 
@@ -840,7 +843,6 @@ class TestStatistics(TestCase):
         self.assertTrue((maximum.larray == torch.max(comparison1, comparison2)).all())
 
         # check maximum over float elements of split 3d tensors
-        torch.manual_seed(1)
         random_volume_1 = ht.random.randn(6, 3, 3, split=0)
         random_volume_2 = ht.random.randn(6, 1, 3, split=0)
         maximum_volume = ht.maximum(random_volume_1, random_volume_2)
@@ -992,6 +994,7 @@ class TestStatistics(TestCase):
             self.assertTrue(ht.allclose(ht.mean(iris, axis=0), ax0))
 
     def test_min(self):
+        torch.manual_seed(1)
         data = [[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]]
 
         ht_array = ht.array(data)
@@ -1084,6 +1087,7 @@ class TestStatistics(TestCase):
             ht.min(ht_array, axis=-4)
 
     def test_minimum(self):
+        torch.manual_seed(1)
         data1 = [[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]]
         data2 = [[0, 3, 2], [5, 4, 7], [6, 9, 8], [9, 10, 11]]
 
@@ -1104,7 +1108,6 @@ class TestStatistics(TestCase):
         self.assertTrue((minimum.larray == torch.min(comparison1, comparison2)).all())
 
         # check minimum over float elements of split 3d tensors
-        torch.manual_seed(1)
         random_volume_1 = ht.random.randn(6, 3, 3, split=0)
         random_volume_2 = ht.random.randn(6, 1, 3, split=0)
         minimum_volume = ht.minimum(random_volume_1, random_volume_2)
@@ -1185,6 +1188,7 @@ class TestStatistics(TestCase):
             ht.minimum(random_volume_1, random_volume_2, out=output)
 
     def test_percentile(self):
+        torch.manual_seed(1)
         # test local, distributed, split/axis combination, no data on process
         x_np = np.arange(3 * 10 * 10).reshape(3, 10, 10)
         x_ht = ht.array(x_np)
@@ -1301,6 +1305,7 @@ class TestStatistics(TestCase):
             ht.percentile(x_ht, q, out=out_wrong_split)
 
     def test_percentile_sketched(self):
+        torch.manual_seed(1)
         axis, q = 0, 50
         use_sketch_of_size = 0.1
         q = 50
@@ -1336,6 +1341,7 @@ class TestStatistics(TestCase):
             ht.percentile(X, q, axis=axis, sketched=True, sketch_size=10)
 
     def test_ptp(self):
+        torch.manual_seed(1)
         # argument errors
         x = ht.zeros((2, 3, 4))
         with self.assertRaises((ValueError, IndexError)):
@@ -1405,6 +1411,7 @@ class TestStatistics(TestCase):
         self.assertEqual(r.dtype, b.dtype)
 
     def test_skew(self):
+        torch.manual_seed(1)
         x = ht.zeros((2, 3, 4))
         with self.assertRaises(ValueError):
             x.skew(axis=10)
