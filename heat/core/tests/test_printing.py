@@ -431,13 +431,34 @@ class TestPrinting(TestCase):
             self.assertEqual(comparison, __str)
 
     def test___repr__(self):
-        a = ht.array([1, 2, 3, 4])
-        r = a.__repr__(force_debug_output=True)
+        a = ht.array([1, 2, 3, 4], split=0)
+        r = a.__repr__()
+        expect_meta = f"DNDarray(MPI-rank: {a.comm.rank}, Shape: {a.shape}, Split: {a.split}, Local Shape: {a.lshape}, Device: {a.device}, Dtype: {a.dtype.__name__}"
+        self.assertEqual(r[:r.index('\n')], expect_meta)
+
+        if ht.comm.size == 1:
+            loc_data_str  = '1, 2, 3, 4'
+        elif ht.comm.size == 2:
+            loc_data_str = f'{ht.comm.rank*2+1}, {ht.comm.rank*2+2}'
+        elif ht.comm.size == 3:
+            if ht.comm.rank == 0:
+                loc_data_str = '1, 2'
+            else:
+                loc_data_str = f'{ht.comm.rank + 2}'
+        else:
+            if ht.comm.rank < 4:
+                loc_data_str = f'{ht.comm.rank + 1}'
+            else:
+                loc_data_str = ''
+
+        expect = f'{expect_meta}\n         [{loc_data_str}])'
+
         self.assertEqual(
             r,
-            f"<DNDarray(MPI-rank: {a.comm.rank}, Shape: {a.shape}, Split: {a.split}, Local Shape: {a.lshape}, Device: {a.device}, Dtype: {a.dtype.__name__})>",
+            expect,
         )
-        self.assertEqual(a.__repr__(), a.__str__())
+
+
 
 
 class TestPrintingGPU(TestCase):
