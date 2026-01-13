@@ -486,3 +486,35 @@ for i, function_list in enumerate(numpy_functions):
     # Print the Markdown table
     f.write(markdown_table)
     f.write("\n")
+
+
+# for i, function_list in enumerate(numpy_functions):
+#     f.write(f"## {headers[str(i)]}\n")
+#     # Initialize a list to store the rows of the Markdown table
+#     table_rows = []
+
+#     # Check if functions exist in the heat library and create table rows
+#     for func_name in function_list:
+#         if (
+#             hasattr(heat, func_name)
+#             or hasattr(heat.linalg, func_name.replace("linalg.", ""))
+#             or hasattr(heat.random, func_name.replace("random.", ""))
+#         ):
+#             support_status = "✅"  # Green checkmark for supported functions
+#         else:
+#             support_status = "❌"  # Red cross for unsupported functions
+
+#         table_row = f"| {func_name} | {support_status} |"
+#         table_rows.append(table_row)
+
+#     # Create the Markdown table header
+#     table_header = f"| {headers[str(i)]} | Heat |\n|---|---|\n"
+
+#     # Combine the header and table rows
+#     markdown_table = table_header + "\n".join(table_rows)
+
+#     # write link to table of contents
+#     f.write("[Back to Table of Contents](#table-of-contents)\n\n")
+#     # Print the Markdown table
+#     f.write(markdown_table)
+#     f.write("\n")
