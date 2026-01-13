@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import math
-import sys
 import numpy as np
 import torch
 import warnings
@@ -1246,14 +1245,11 @@ class DNDarray:
         else:
             p.text(printing.__str__(self))
 
-    def __repr__(self, force_debug_output=False) -> str:
+    def __repr__(self) -> str:
         """
         Returns a printable representation of the passed DNDarray, targeting developers.
         """
-        if sys.gettrace() is None and not force_debug_output:  # Running without debugger
-            return printing.__str__(self)
-        else:
-            return printing.__repr__(self)
+        return printing.__repr__(self)
 
     def ravel(self):
         """
