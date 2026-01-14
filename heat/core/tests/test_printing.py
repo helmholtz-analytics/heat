@@ -433,7 +433,7 @@ class TestPrinting(TestCase):
     def test___repr__(self):
         a = ht.array([1, 2, 3, 4], split=0)
         r = a.__repr__()
-        expect_meta = f"DNDarray(MPI-rank: {a.comm.rank}, Shape: {a.shape}, Split: {a.split}, Local Shape: {a.lshape}, Device: {a.device}, Dtype: {a.dtype.__name__}"
+        expect_meta = f"DNDarray(MPI-rank: {a.comm.rank}, Shape: {a.shape}, Split: {a.split}, Local Shape: {a.lshape}, Device: {a.device}, Dtype: {a.dtype.__name__}, Data:"
         self.assertEqual(r[:r.index('\n')], expect_meta)
 
         if ht.comm.size == 1:
