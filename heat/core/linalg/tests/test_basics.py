@@ -363,7 +363,6 @@ class TestLinalgBasics(TestCase):
         self.assertEqual(ainv.device, a.device)
         self.assertTupleEqual(ainv.shape, a.shape)
         self.assertTrue(ht.allclose(ainv, ares, atol=atol))
-
         a = ht.random.random((20, 20), dtype=dtype, split=1)
         ainv = ht.linalg.inv(a)
         i = ht.eye(a.shape, split=1, dtype=a.dtype)

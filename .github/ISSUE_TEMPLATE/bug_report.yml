@@ -34,7 +34,7 @@ body:
       description: What version of Heat are you running?
       options:
         - main (development branch)
-        - 1.6.x
+        - 1.7.x
         - other
     validations:
       required: true
