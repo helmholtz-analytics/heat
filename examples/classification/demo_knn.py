@@ -5,13 +5,8 @@ import random
 import heat as ht
 from heat.classification.kneighborsclassifier import KNeighborsClassifier
 
-import pkg_resources
-
 # Load dataset from hdf5 file
-iris_path = pkg_resources.resource_filename(
-    pkg_resources.Requirement.parse("heat"), "heat/datasets/iris.h5"
-)
-
+iris_path = f'{os.path.dirname(ht.__file__)}/datasets/iris.h5'
 X = ht.load_hdf5(iris_path, dataset="data", split=0)
 
 # Generate keys for the iris.h5 dataset
