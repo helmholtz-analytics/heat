@@ -39,7 +39,8 @@ class TestHSVD(TestCase):
                     dtype_tol = 1e-3
 
                 for r in ranks:
-                    U, sigma, V, err_est = ht.linalg.hsvd_rank(A, r, compute_sv=True, silent=True)
+                    U, sigma, Vt, err_est = ht.linalg.hsvd_rank(A, r, compute_sv=True, silent=True)
+                    V = Vt.T
                     hsvd_rk = U.shape[1]
 
                     if ht.norm(A) > 0:
@@ -79,7 +80,8 @@ class TestHSVD(TestCase):
                         ht.linalg.hsvd_rank(A, r, maxmergedim=4)
 
                 for tol in rtols:
-                    U, sigma, V, err_est = ht.linalg.hsvd_rtol(A, tol, compute_sv=True, silent=True)
+                    U, sigma, Vt, err_est = ht.linalg.hsvd_rtol(A, tol, compute_sv=True, silent=True)
+                    V = Vt.T
                     hsvd_rk = U.shape[1]
 
                     if ht.norm(A) > 0:
@@ -123,7 +125,7 @@ class TestHSVD(TestCase):
                     with self.assertRaises(ValueError):
                         ht.linalg.hsvd_rtol(A, tol, no_of_merges=1)
 
-                # check if wrong input arrays are catched
+                # check if wrong input arrays are caught
                 wrong_test_matrices = [
                     0,
                     ht.ones((50, 15 * nprocs), dtype=ht.int8, split=1),
@@ -191,7 +193,8 @@ class TestHSVD(TestCase):
                 dtype_tol = 1e-3
 
             for r in [true_rk, true_rk + 2]:
-                U, s, V, _ = ht.linalg.hsvd_rank(A, r, compute_sv=True)
+                U, s, Vt, _ = ht.linalg.hsvd_rank(A, r, compute_sv=True)
+                V = Vt.T
                 V = V[:, :true_rk].resplit(V.split)
                 U = U[:, :true_rk].resplit(U.split)
                 s = s[:true_rk]
@@ -229,9 +232,10 @@ class TestRSVD(TestCase):
                 for rank in [ht.MPI_WORLD.size, 10]:
                     for n_oversamples in [5, 10]:
                         for power_iter in [0, 1, 2, 3]:
-                            U, S, V = ht.linalg.rsvd(
+                            U, S, Vt = ht.linalg.rsvd(
                                 X, rank, n_oversamples=n_oversamples, power_iter=power_iter
                             )
+                            V = Vt.T
                             self.assertEqual(U.shape, (X.shape[0], rank))
                             self.assertEqual(S.shape, (rank,))
                             self.assertEqual(V.shape, (X.shape[1], rank))
@@ -288,11 +292,13 @@ class TestISVD(TestCase):
                     250, 25, 3 * ht.MPI_WORLD.size, split=old_split, dtype=dtype
                 )
                 U_old, S_old, V_old = SVD_old
+                Vt_old = V_old.T
                 for new_split in [0, 1, None]:
                     new_data = ht.random.randn(
                         250, 2 * ht.MPI_WORLD.size, split=new_split, dtype=dtype
                     )
-                    U_new, S_new, V_new = ht.linalg.isvd(new_data, U_old, S_old, V_old)
+                    U_new, S_new, Vt_new = ht.linalg.isvd(new_data, U_old, S_old, Vt_old)
+                    V_new = Vt_new.T
                     # check if U_new, V_new are orthogonal
                     self.assertTrue(
                         ht.allclose(

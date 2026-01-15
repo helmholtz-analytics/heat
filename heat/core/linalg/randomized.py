@@ -84,7 +84,7 @@ def rsvd(
 ) -> Union[Tuple[DNDarray, DNDarray, DNDarray], Tuple[DNDarray, DNDarray]]:
     r"""
     Randomized SVD (rSVD) with prescribed truncation rank `svd_rank`.
-    If :math:`A = U \operatorname{diag}(S) V^T` is the true SVD of A, this routine computes an approximation for U[:,:svd_rank] (and S[:svd_rank], V[:,:svd_rank]).
+    If :math:`A = U \operatorname{diag}(S) V^T` is the true SVD of A, this routine computes an approximation for U[:,:svd_rank] (and S[:svd_rank], V.T[:,:svd_rank]).
 
     The accuracy of this approximation depends on the structure of A ("low-rank" is best) and appropriate choice of parameters.
 
@@ -130,13 +130,13 @@ def rsvd(
     B.resplit_(
         None
     )  # B will be of size ell x n and thus small enough to fit into memory of a single process
-    U, sigma, V = svd(B)  # actually just torch svd as input is not split anymore
+    U, sigma, Vt = svd(B)
     U = matmul(Q, U)[:, :svd_rank]
     U.balance_()
     S = sigma[:svd_rank]
-    V = V[:, :svd_rank]
-    V.balance_()
-    return U, S, V
+    Vt = Vt[:svd_rank, :]
+    Vt.balance_()
+    return U, S, Vt
 
 
 def reigh(

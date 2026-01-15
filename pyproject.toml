@@ -61,11 +61,12 @@ zarr = ["zarr"]
 
 ## Examples and tutorial
 examples = [
-    "scikit-learn~=0.24",
+    "scikit-learn",
     "matplotlib~=3.1",
     "jupyter",
     "ipyparallel",
-    "pillow"
+    "pillow",
+    "h5py>=2.8.0",
 ]
 
 dev = [
