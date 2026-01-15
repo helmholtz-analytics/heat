@@ -311,6 +311,19 @@ class DNDarray:
         return self.create_lshape_map()
 
     @property
+    def lslice(self) -> Tuple:
+        """
+        Returns the slice of the global array that is contained on this MPI rank.
+
+        Examples
+        --------
+        >>> a = ht.arange(12).reshape((4, 3)).resplit_(0)
+        >>> ht.allclose(ht.array(a.larray), a.resplit(None)[*a.lslice])
+        True
+        """
+        return self.comm.chunk(shape=self.shape, split=self.split)[2]
+
+    @property
     def real(self) -> DNDarray:
         """
         Return the real part of the ``DNDarray``.
