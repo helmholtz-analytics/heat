@@ -3,6 +3,7 @@ site_url: https://heat.readthedocs.io
 
 theme:
   name: material
+  custom_dir: doc/styles
   features:
     - navigation.tabs
     - content.code.copy
