@@ -265,12 +265,7 @@ def _bilinear_sample(x, coords, mode, constant_value):
     wy = y - y0.float()
     wx = x_ - x0.float()
 
-    out = (
-        Ia * (1 - wy) * (1 - wx)
-        + Ib * (1 - wy) * wx
-        + Ic * wy * (1 - wx)
-        + Id * wy * wx
-    )
+    out = Ia * (1 - wy) * (1 - wx) + Ib * (1 - wy) * wx + Ic * wy * (1 - wx) + Id * wy * wx
 
     if mode == "constant":
         const = torch.full_like(out, constant_value)
@@ -377,6 +372,7 @@ def _affine_transform_local(x, M, order, mode, constant_value, expand):
 # Public API (MPI-safe)
 # ============================================================
 
+
 def affine_transform(x, M, order=0, mode="nearest", constant_value=0.0, expand=False):
     """
     Apply an affine transformation to a Heat array.
@@ -408,7 +404,6 @@ def affine_transform(x, M, order=0, mode="nearest", constant_value=0.0, expand=F
     def is_axis_aligned_scaling():
         return np.allclose(A, np.diag(np.diag(A)))
 
-  
     if x.split is None:
         return _affine_transform_local(x, M, order, mode, constant_value, expand)
 
@@ -417,15 +412,12 @@ def affine_transform(x, M, order=0, mode="nearest", constant_value=0.0, expand=F
 
     # Fast path: split on non-spatial axis → safe
     if x.split not in spatial_axes:
-            return _affine_transform_local(x, M, order, mode, constant_value, expand)
+        return _affine_transform_local(x, M, order, mode, constant_value, expand)
 
-   
     if is_translation():
         # translation along spatial split requires full axis coverage
         x_tmp = x.resplit(None)
-        y_tmp = _affine_transform_local(
-            x_tmp, M, order, mode, constant_value, expand
-        )
+        y_tmp = _affine_transform_local(x_tmp, M, order, mode, constant_value, expand)
         return y_tmp.resplit(x.split)
 
     if is_axis_aligned_scaling():
@@ -433,16 +425,12 @@ def affine_transform(x, M, order=0, mode="nearest", constant_value=0.0, expand=F
         safe_axes = [ax for ax in range(x.ndim) if ax not in spatial_axes]
         if not safe_axes:
             raise NotImplementedError(
-                "Axis-aligned scaling on fully spatial arrays requires "
-                "a non-spatial axis"
+                "Axis-aligned scaling on fully spatial arrays requires a non-spatial axis"
             )
         safe_axis = safe_axes[0]
         x_tmp = x.resplit(safe_axis)
-        y_tmp = _affine_transform_local(
-            x_tmp, M, order, mode, constant_value, expand
-        )
+        y_tmp = _affine_transform_local(x_tmp, M, order, mode, constant_value, expand)
         return y_tmp.resplit(x.split)
-
 
     # Rotation / shear on spatial split → not supported
     raise NotImplementedError(
