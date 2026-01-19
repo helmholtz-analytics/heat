@@ -7,7 +7,7 @@ from .communication import MPI
 from .dndarray import DNDarray
 from .types import promote_types, float32, float64
 from .manipulations import pad, flip
-from .factories import array, zeros, arange
+from .factories import array, zeros
 import torch.nn.functional as fc
 
 __all__ = ["convolve", "convolve2d"]
@@ -566,8 +566,6 @@ def convolve2d(
     v: DNDarray,
     mode: str = "full",
     stride: tuple[int, int] = (1, 1),
-    boundary: str = "constant",
-    fillvalue: int = 0,
 ):
     """
     Returns the discrete, linear convolution of two two-dimensional HeAT tensors.
@@ -597,18 +595,6 @@ def convolve2d(
           effect.
     stride: Tuple(int,int), optional
         Stride of the convolution in (x,y) direction. Default is (1,1).
-    boundary: str{‘constant’, ‘circular’, ‘reflect’}, optional, Default 'constant'
-        A flag indicating how to handle boundaries:
-        'constant':
-         pad input arrays with constant fillvalue. Default 0
-        'circular':
-         periodic boundary conditions.
-        'reflect':
-         reflect along border to pad area
-         'replicate':
-         copy border into pad area
-    fillvalue: scalar, optional
-         Value to fill pad input arrays with. Default is 0.
 
     Returns
     -------
@@ -707,19 +693,17 @@ def convolve2d(
         # add batch dimension to signal
         local_a = local_a.unsqueeze(0)
 
-        # add padding
-        pad_array = [pad_size[0], pad_size[0], pad_size[1], pad_size[1]]
-        local_a = conv_pad(a, 2, local_a, pad_array, boundary, fillvalue)
-
         # cast to single-precision float if on GPU
         if local_a.is_cuda:
             float_type = torch.promote_types(local_a.dtype, torch.float32)
             local_a = local_a.to(float_type)
             local_v = local_v.to(float_type)
 
-        # apply torch convolution operator if local signal isn't empty
+        # apply torch convolution operator if local signal isn't empty, add zero padding
         if torch.prod(torch.tensor(local_a.shape, device=local_a.device)) > 0:
-            local_convolved = fc.conv2d(local_a, local_v, groups=channels, stride=stride)
+            local_convolved = fc.conv2d(
+                local_a, local_v, groups=channels, stride=stride, padding=tuple(pad_size)
+            )
         else:
             empty_shape = tuple(local_a.shape[:-1] + (gshape[-2],) + (gshape[-1],))
             local_convolved = torch.empty(empty_shape, dtype=local_a.dtype, device=local_a.device)
@@ -732,14 +716,29 @@ def convolve2d(
         convolved = array(local_convolved, is_split=a.split, device=a.device, comm=a.comm)
         return convolved
 
+    # pad signal with zeros
+    pad_array = ((pad_size[0], pad_size[0]), (pad_size[1], pad_size[1]))
+    a = pad(a, pad_array)
+    print(a.comm.rank, "Padd area halo prev", a.larray[-20:, :])
+    print(a.comm.rank, "Padd area halo next", a.larray[0:20, :])
+    # CF: Necessary for convolution2d
+    a.comm.Barrier()
+    # print("lshape map", a.comm.rank, a.lshape_map, v.lshape_map)
     # no batch processing
     if a.is_distributed():
+        if (v.lshape_map[:, a.split] > a.lshape_map[:, a.split]).any():
+            raise ValueError(
+                "Local chunk of filter weight is larger than the local chunks of signal"
+            )
+
         # compute halo size
         halo_size = int(v.lshape_map[0][a.split]) // 2
 
         # fetch halos and store them in a.halo_next/a.halo_prev
         a.get_halo(halo_size)
 
+        print(a.comm.rank, "Halo prev", a.halo_prev)
+        print(a.comm.rank, "Halo next", a.halo_next)
         # apply halos to local array
         signal = a.array_with_halos
     else:
@@ -760,23 +759,16 @@ def convolve2d(
         else:
             target[:, v_pad_size:] = v.larray
         weight = target
+
+        print(v.comm.rank, "v_pad_size", v_pad_size, weight.shape, v.larray.shape)
     else:
         weight = v.larray
 
-    t_v = weight  # stores temporary weight
+    t_v = weight
 
     # make signal and filter weight 4D for Pytorch conv2d function
     signal = signal.reshape(1, 1, signal.shape[-2], signal.shape[-1])
-    weight = weight.reshape(1, 1, weight.shape[0], weight.shape[1])
-
-    # add padding to the borders according to mode
-    pad_array = [pad_size[0], pad_size[0], pad_size[1], pad_size[1]]
-
-    signal = conv_pad(a, 2, signal, pad_array.copy(), boundary, fillvalue)
-
-    # check if a local chunk is smaller than the filter size
-    if (v.lshape_map[:, 0] > signal.shape[2]).any() or (v.lshape_map[:, 1] > signal.shape[3]).any():
-        raise ValueError("Local chunk of filter weight is larger than the local chunks of signal")
+    weight = weight.reshape(1, 1, weight.shape[-2], weight.shape[-1])
 
     if v.is_distributed():
         size = v.comm.size
@@ -785,6 +777,9 @@ def convolve2d(
         # any stride is a subset of stride 1
         if any(s > 1 for s in stride):
             gshape = gshape_stride_1
+
+        # convoluted signal
+        signal_filtered = zeros(gshape, dtype=a.dtype, split=a.split, device=a.device, comm=a.comm)
 
         for r in range(size):
             rec_v = t_v.clone()
@@ -797,56 +792,63 @@ def convolve2d(
             local_signal_filtered = local_signal_filtered[0, 0, :, :]
 
             # if kernel shape along split axis is even we need to get rid of duplicated values
-            if v.comm.rank != 0 and v.lshape_map[0][split_axis] % 2 == 0:
+            if a.is_distributed() and v.comm.rank != 0 and v.lshape_map[0][split_axis] % 2 == 0:
                 if split_axis == 0:
                     local_signal_filtered = local_signal_filtered[1:, :]
                 else:
                     local_signal_filtered = local_signal_filtered[:, 1:]
 
-            # accumulate filtered signal on the fly
-            global_signal_filtered = array(
-                local_signal_filtered, is_split=split_axis, device=a.device, comm=a.comm
-            )
+            # compute offset for local_signal_filtered
+            if r > 0:
+                v_pad_size = v.lshape_map[0][v.split] - v.lshape_map[r, v.split]
+                start_idx = torch.sum(v.lshape_map[:r, split_axis]).item() - v_pad_size
+                if v.comm.rank == 0:
+                    print(v.comm.rank, r, "start_idx", start_idx, v_pad_size)
 
-            # print(v.comm.rank, r, "gsf", global_signal_filtered.larray)
-
-            if r == 0:
-                print(v.comm.rank, "signal split", a.split)
-                # initialize signal_filtered, starting point of slice
-                signal_filtered = zeros(
-                    gshape, dtype=a.dtype, split=a.split, device=a.device, comm=a.comm
-                )
+            else:
                 start_idx = 0
 
+            # if a is distributed, results have to be communicated across ranks
+            if a.is_distributed():
+                filter_results = array(
+                    local_signal_filtered, is_split=a.split, device=a.device, comm=a.comm
+                )
+            else:
+                filter_results = local_signal_filtered
+
+            # apply start_idx
+            if split_axis == 0:
+                filter_results = filter_results[start_idx : start_idx + gshape[0], :]
+            else:
+                filter_results = filter_results[:, start_idx : start_idx + gshape[1]]
+
+            # add results
             try:
-                print(v.comm.rank, r, "Not in Exception", signal_filtered.split)
-
-                if split_axis == 0:
-                    signal_filtered += global_signal_filtered[start_idx : start_idx + gshape[0], :]
+                # print(v.comm.rank, r, "Not in Exception", v.lshape_map)
+                print(
+                    "Add results: ",
+                    v.comm.rank,
+                    r,
+                    gshape,
+                    signal_filtered.shape,
+                    filter_results.shape,
+                    local_signal_filtered.shape,
+                )
+                if a.is_distributed():
+                    signal_filtered += filter_results
                 else:
-                    signal_filtered += global_signal_filtered[:, start_idx : start_idx + gshape[1]]
+                    signal_filtered.larray += filter_results
+
             except (ValueError, TypeError):
-                print(v.comm.rank, r, "In Exception", signal_filtered.split)
-                if split_axis == 0:
-                    signal_filtered = (
-                        signal_filtered
-                        + global_signal_filtered[start_idx : start_idx + gshape[0], :]
-                    )
+                print(v.comm.rank, "In Exception", signal_filtered.split)
+                if a.is_distributed():
+                    signal_filtered = signal_filtered + filter_results
                 else:
-                    signal_filtered = (
-                        signal_filtered
-                        + global_signal_filtered[:, start_idx : start_idx + gshape[1]]
-                    )
+                    signal_filtered.larray = signal_filtered.larray + filter_results
 
-            # next start index
-            if r != size - 1:
-                start_idx += v.lshape_map[r + 1][split_axis].item()
-
-        # any stride is a subset of arrays of stride 1
-        print(v.comm.rank, "before stride", signal_filtered.larray)
         if any(s > 1 for s in stride):
             signal_filtered = signal_filtered[:: stride[0], :: stride[1]]
-        print(v.comm.rank, "after stride", signal_filtered.larray)
+        # print(v.comm.rank, "after stride", signal_filtered.larray)
 
         if a.is_distributed():
             signal_filtered.balance_()
@@ -860,11 +862,9 @@ def convolve2d(
                 local_index = 0
             else:
                 # lshape map does not know about padding, compute pad_offset for last rank
-                pad_offset = pad_size[a.split] if a.comm.rank == a.comm.size - 1 else 0
+                # pad_offset = pad_size[a.split] if a.comm.rank == a.comm.size - 1 else 0
 
-                local_index = (
-                    torch.sum(a.lshape_map[: a.comm.rank, a.split]).item() + pad_offset - halo_size
-                )
+                local_index = torch.sum(a.lshape_map[: a.comm.rank, a.split]).item() - halo_size
                 local_index = local_index % stride[a.split]
 
                 if local_index != 0:
@@ -879,10 +879,19 @@ def convolve2d(
             else:
                 signal = signal[:, :, :, local_index:]
 
-        if signal.shape[-2:] >= weight.shape[-2:]:
+        print(a.comm.rank, "Signal min max", signal.min(), signal.max())
+        # w_start = weight.shape[-1]
+        # if a.comm.rank == 0:
+        #    print(0, "Halo", signal[0,0,-halo_size*2:-halo_size,-w_start-1:-w_start+1].shape,
+        #          signal[0,0,-halo_size*2:-halo_size,-w_start-1:-w_start+1])
+        # if a.comm.rank == 1:
+        #    print(1, "Line 53-54", signal[0,0,0:halo_size,-w_start-1:-w_start+1].shape,
+        #          signal[0,0,0:halo_size,-w_start-1:-w_start+1])
+
+        if all(a_s >= v_s for v_s, a_s in zip(weight.shape[-2:], signal.shape[-2:])):
             # apply torch convolution operator
             signal_filtered = fc.conv2d(signal, weight, stride=stride)
-            # unpack 3D result into 2D
+            # unpack 4D result into 2D
             signal_filtered = signal_filtered[0, 0, :, :]
         else:
             signal_filtered = torch.tensor([[]], device=str(signal.device))
@@ -899,16 +908,23 @@ def convolve2d(
             elif a.split == 1:
                 signal_filtered = signal_filtered[:, 1:]
 
+        print(a.comm.rank, "Signal filtered shape", signal_filtered.shape)
+        # if a.comm.rank == 1:
+        #    print("Line 53: ", signal_filtered[0,-2:])
+        #    print("Line 70: ", signal_filtered[16, -2:])
+
         result = DNDarray(
             signal_filtered.contiguous(),
             gshape,
-            signal_filtered.dtype,
+            a.dtype,
             a.split,
             a.device,
             a.comm,
             balanced=False,
         ).astype(a.dtype.torch_type())
 
-        result.balance_()
+        print(a.comm.rank, "Result shape, before balancing: ", result.lshape_map)
+        if result.is_distributed():
+            result.balance_()
 
         return result

@@ -787,7 +787,6 @@ class TestSignal(TestCase):
     def test_convolve2d_batch_convolutions(self):
         float_dtype = ht.float32 if self.is_mps else ht.float64
 
-        # avoid error for boundary == "replicate"
         if self.comm.size < 5:
             # distributed input along the first axis
             signal = ht.random.randn(10, 100, dtype=float_dtype)
@@ -796,10 +795,10 @@ class TestSignal(TestCase):
 
             # kernel without batch dimensions
             kernel = ht.random.randn(5, 19, dtype=float_dtype)
-            batch_convolved = ht.convolve2d(batch_signal, kernel, mode="valid", boundary="circular")
+            batch_convolved = ht.convolve2d(batch_signal, kernel, mode="valid")
             self.assertTrue(
                 ht.equal(
-                    ht.convolve2d(signal, kernel, mode="valid", boundary="circular"),
+                    ht.convolve2d(signal, kernel, mode="valid"),
                     batch_convolved[0],
                 )
             )
@@ -815,10 +814,10 @@ class TestSignal(TestCase):
             # batch kernel including resplit to signal axis
             batch_kernel = ht.empty((10, 5, 19), dtype=float_dtype, split=1)
             batch_kernel.larray[:] = dis_kernel.larray
-            batch_convolved = ht.convolve2d(batch_signal, batch_kernel, mode="same",boundary="reflect")
+            batch_convolved = ht.convolve2d(batch_signal, batch_kernel, mode="same")
             self.assertTrue(
                 ht.equal(
-                    ht.convolve2d(signal, kernel, mode="same", boundary="reflect"),
+                    ht.convolve2d(signal, kernel, mode="same"),
                     batch_convolved[-1],
                 )
             )
@@ -826,10 +825,10 @@ class TestSignal(TestCase):
             # n-D batch convolution
             batch_signal = ht.empty((4, 5, 3, 10, 100), dtype=float_dtype, split=1)
             batch_signal.larray[:, :, :] = signal.larray
-            batch_convolved = ht.convolve2d(batch_signal, kernel, mode="valid", boundary="replicate")
+            batch_convolved = ht.convolve2d(batch_signal, kernel, mode="valid")
             self.assertTrue(
                 ht.equal(
-                    ht.convolve2d(signal, kernel, mode="valid", boundary="replicate"),
+                    ht.convolve2d(signal, kernel, mode="valid"),
                     batch_convolved[1, 2, 0]
                 )
             )
@@ -837,7 +836,6 @@ class TestSignal(TestCase):
     def test_convolve2d_stride_batch_convolutions(self):
         float_dtype = ht.float32 if self.is_mps else ht.float64
 
-        # avoid error for boundary == "replicate"
         if self.comm.size < 5:
             # distributed input along the first axis
             signal = ht.random.randn(10, 100, dtype=float_dtype)
@@ -858,9 +856,9 @@ class TestSignal(TestCase):
             # distributed kernel including gathering to all ranks
             stride = (2,4)
             dis_kernel = ht.array(kernel, split=0)
-            batch_convolved = ht.convolve2d(batch_signal, dis_kernel, stride=stride, boundary="circular")
+            batch_convolved = ht.convolve2d(batch_signal, dis_kernel, stride=stride)
             self.assertTrue(
-                ht.equal(ht.convolve2d(signal, kernel, stride=stride, boundary="circular"),
+                ht.equal(ht.convolve2d(signal, kernel, stride=stride),
                          batch_convolved[5])
             )
 
@@ -869,10 +867,10 @@ class TestSignal(TestCase):
             batch_kernel = ht.empty((10, 5, 19), dtype=float_dtype, split=1)
             batch_kernel.larray[:] = dis_kernel.larray
             batch_convolved = ht.convolve2d(batch_signal, batch_kernel, mode="full",
-                                          stride=stride, boundary="reflect")
+                                          stride=stride)
             self.assertTrue(
                 ht.equal(
-                    ht.convolve2d(signal, kernel, mode="full", stride=stride, boundary="reflect"),
+                    ht.convolve2d(signal, kernel, mode="full", stride=stride),
                     batch_convolved[-1],
                 )
             )
@@ -881,10 +879,10 @@ class TestSignal(TestCase):
             stride = (4,3)
             batch_signal = ht.empty((4, 5, 3, 10, 100), dtype=float_dtype, split=1)
             batch_signal.larray[:, :, :] = signal.larray
-            batch_convolved = ht.convolve2d(batch_signal, kernel, mode="valid", stride=stride, boundary="replicate")
+            batch_convolved = ht.convolve2d(batch_signal, kernel, mode="valid", stride=stride)
             self.assertTrue(
                 ht.equal(
-                    ht.convolve2d(signal, kernel, mode="valid", stride=stride, boundary="replicate"),
+                    ht.convolve2d(signal, kernel, mode="valid", stride=stride),
                     batch_convolved[1, 2, 0]
                 )
             )
@@ -1056,7 +1054,6 @@ class TestSignal(TestCase):
         ht_dtype = ht.int
 
         np_sig = np.arange(256).reshape((16, 16))
-        np_sig = np_sig[:4,:]
         np_k_odd = np.arange(9).reshape((3, 3))
         full_odd = ht.array(sig.convolve2d(np_sig, np_k_odd)).astype(ht_dtype)
 
@@ -1066,7 +1063,6 @@ class TestSignal(TestCase):
         dis_signal = ht.array(np_sig, split=0).astype(ht_dtype)
         signal = ht.array(np_sig).astype(ht_dtype)
 
-        np_k_odd_fl = np.array([[3,4,5],[6,7,8],[0,1,2]])
         kernel_odd = ht.array(np_k_odd).astype(ht_dtype)
         dis_kernel_odd = ht.array(np_k_odd, split=0).astype(ht_dtype)
 
@@ -1332,7 +1328,7 @@ class TestSignal(TestCase):
         ht_dtype = ht.int
 
         np_sig = np.arange(256).reshape((16, 16))
-        np_k_even = np.ones(4).reshape((2, 2))
+        np_k_even = np.arange(4).reshape((2,2))
         full_even = ht.array(sig.convolve2d(np_sig, np_k_even)).astype(ht_dtype)
 
         mode = "full"
@@ -1350,21 +1346,16 @@ class TestSignal(TestCase):
             if self.comm.size <= 3:
                 if not self.is_mps:
                     # torch convolution does not support int on MPS
-                    print("Dis_signal, kernel_even")
                     conv = ht.convolve2d(dis_signal, kernel_even, stride=stride)
                     gathered = manipulations.resplit(conv, axis=None)
                     self.assertTrue(
                         ht.equal(full_even[::stride[0], ::stride[1]], gathered))
 
-                    print("signal, dis_kernel_even")
                     conv = ht.convolve2d(signal, dis_kernel_even, stride=stride)
-                    print("Finished convolution", conv.shape, conv.lshape_map)
                     gathered = manipulations.resplit(conv, axis=None) # this resplit fails,
-                    print("Finish gathered")
                     self.assertTrue(
                         ht.equal(full_even[::stride[0], ::stride[1]], gathered))
 
-                    print("dis_signal, dis_kernel_even")
                     conv = ht.convolve2d(dis_signal, dis_kernel_even,
                                          stride=stride)
                     gathered = manipulations.resplit(conv, axis=None)
@@ -1372,7 +1363,6 @@ class TestSignal(TestCase):
                         ht.equal(full_even[::stride[0], ::stride[1]], gathered))
 
                 # different data types of input and kernel
-                print("input type differences")
                 conv = ht.convolve2d(dis_signal.astype(ht.float), kernel_even,
                                      stride=stride)
                 gathered = manipulations.resplit(conv, axis=None)
@@ -1398,7 +1388,7 @@ class TestSignal(TestCase):
 
         mode = "valid"
         np_sig = np.arange(256).reshape((16, 16))
-        np_k_even = np.ones(4).reshape((2,2))
+        np_k_even = np.ones(16).reshape((4,4))
         full_even = ht.array(sig.convolve2d(np_sig, np_k_even, mode=mode)).astype(
             ht_dtype)
 
@@ -1412,7 +1402,6 @@ class TestSignal(TestCase):
 
         # avoid kernel larger than signal chunk
         for stride in strides:
-            print(stride)
             if self.comm.size <= 3:
                 if not self.is_mps:
                     # torch convolution does not support int on MPS
@@ -1424,22 +1413,18 @@ class TestSignal(TestCase):
 
                     conv = ht.convolve2d(signal, dis_kernel_even, mode=mode,
                                          stride=stride)
-                    print(conv.comm.rank, "Finished convolution", conv.shape, conv.lshape_map)
 
                     gathered = manipulations.resplit(conv, axis=None)
 
-                    print("Finished gathered") # resplit fails like for full!
                     self.assertTrue(
                         ht.equal(full_even[::stride[0], ::stride[1]], gathered))
 
-                    # print("dis_signal, dis_kernel_even")
-                    # conv = ht.convolve2d(dis_signal, dis_kernel_even, mode=mode,
-                    #                   stride=stride)
-                    # gathered = manipulations.resplit(conv, axis=None)
-                    # self.assertTrue(
-                    #     ht.equal(full_even[::stride[0], ::stride[1]], gathered))
-                    #
-                    # print("signal, dis_kernel_even")
+                    conv = ht.convolve2d(dis_signal, dis_kernel_even, mode=mode,
+                                       stride=stride)
+                    gathered = manipulations.resplit(conv, axis=None)
+                    self.assertTrue(
+                         ht.equal(full_even[::stride[0], ::stride[1]], gathered))
+
 
 
                 # different data types of input and kernel
@@ -1452,18 +1437,18 @@ class TestSignal(TestCase):
                         full_even[::stride[0], ::stride[1]].astype(ht.float),
                         gathered))
 
-                # conv = ht.convolve2d(signal.astype(ht.float), dis_kernel_even,
-                #                      mode=mode,
-                #                      stride=stride)
-                # gathered = manipulations.resplit(conv, axis=None)
-                # self.assertTrue(
-                #     ht.equal(full_even[::stride[0], ::stride[1]], gathered))
-                #
-                # conv = ht.convolve2d(dis_signal.astype(ht.float),
-                #                      dis_kernel_even, mode=mode, stride=stride)
-                # gathered = manipulations.resplit(conv, axis=None)
-                # self.assertTrue(
-                #     ht.equal(full_even[::stride[0], ::stride[1]], gathered))
+                conv = ht.convolve2d(signal.astype(ht.float), dis_kernel_even,
+                                    mode=mode,
+                                    stride=stride)
+                gathered = manipulations.resplit(conv, axis=None)
+                self.assertTrue(
+                    ht.equal(full_even[::stride[0], ::stride[1]], gathered))
+
+                conv = ht.convolve2d(dis_signal.astype(ht.float),
+                                     dis_kernel_even, mode=mode, stride=stride)
+                gathered = manipulations.resplit(conv, axis=None)
+                self.assertTrue(
+                    ht.equal(full_even[::stride[0], ::stride[1]], gathered))
 
     def test_convolve_large_signal_and_kernel_modes(self):
         if self.comm.size <= 3:
@@ -1499,10 +1484,13 @@ class TestSignal(TestCase):
             ht_dtype = ht.float32 if self.is_mps else ht.int32
             np_type = np.float32 if self.is_mps else np.int32
 
-            np_a = np.random.randint(0,1000, size=(140, 250))
-            np_b = np.random.randint(0,3, size=(39, 17))
+            np_a = np.random.randint(0,100, size=(140, 250))
+            np_b = np.random.randint(0,10, size=(39, 17))
+            #np_b = np.arange(585).reshape((39,15))
+
+            # np_b = np.zeros((39,17))
             #np_b = np.ones((39,17))
-            random_stride = tuple(np.random.randint(1, high=100, size=2))
+            random_stride = tuple(np.random.randint(1, high=20, size=2))
             for mode in ["full", "same", "valid"]:
                 strides = [(1,1), random_stride] if mode != "same" else [(1,1)]
                 for stride in strides:
@@ -1512,21 +1500,42 @@ class TestSignal(TestCase):
                     a = ht.array(np_a, split=0, dtype=ht_dtype)
                     b = ht.array(np_b, split=None, dtype=ht_dtype)
                     conv = ht.convolve2d(a, b, mode=mode, stride=stride)
+
+                    r1,r2 = 60,119
+                    a1,a2 = 264,266
+
+                    print("Target shape: ", stride, solution.shape, conv.lshape_map)
+                    #print("Sum Solution, r1: ", solution[:r1,a1:a2].sum())
+                    #print("Sum Convolve, r1: ", int(conv[:r1,a1:a2].sum()))
+
+                    #print("Sum Solution, r2: ", solution[r1:r2, a1:a2].sum())
+                    #print("Sum Convolve, r2: ", int(conv[r1:r2, a1:a2].sum()))
+
+                    #print("Sum Solution, r3: ", solution[r2:, a1:a2].sum())
+                    #print("Sum Convolve, r3: ", int(conv[r2:, a1:a2].sum()))
+
+                    #for jump in range(53, 80, 1):
+                    #    print("Line Solution: ", jump, solution[jump,-2:])
+                    #    print("Line Convolve: ", jump, conv[jump, -2:])
+                    #print("Total Sum Solution: ", solution.sum())
+                    #print("Total sum convolve: ", int(conv.sum()))
+
                     self.assert_array_equal(conv, solution)
 
                     b = ht.array(np_b, split=0, dtype=ht_dtype)
                     conv = ht.convolve2d(a, b, mode=mode, stride=stride)
-                    gathered = manipulations.resplit(conv, axis=None)
-
                     self.assert_array_equal(conv, solution)
 
                     a = ht.array(np_a, split=1, dtype=ht_dtype)
                     b = ht.array(np_b, split=None, dtype=ht_dtype)
                     conv = ht.convolve2d(a, b, mode=mode, stride=stride)
+                    #print("Total Sum Solution: ", solution.sum())
+                    #print("Total sum convolve: ", int(conv.sum()))
                     self.assert_array_equal(conv, solution)
 
                     b = ht.array(np_b, split=1, dtype=ht_dtype)
                     conv = ht.convolve2d(a, b, mode=mode, stride=stride)
+
                     self.assert_array_equal(conv, solution)
 
     def test_convolve_kernel_size_1(self):
