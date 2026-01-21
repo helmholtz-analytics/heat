@@ -4,8 +4,8 @@ on:
   schedule:
     # 4 weeks before March 26
     - cron: '0 9 26 2 *'
-    # 4 weeks before Dec 17
-    - cron: '0 9 19 11 *'
+    # 4 weeks before Sept 24
+    - cron: '0 9 27 8 *'
   workflow_dispatch:
     inputs:
       release_type:
