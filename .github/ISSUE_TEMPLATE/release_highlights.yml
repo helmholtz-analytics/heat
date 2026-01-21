@@ -28,7 +28,6 @@ body:
       description: List significant performance improvements
       placeholder: |
         Example:
-        - 2x speedup in matrix multiplication for large matrices
         - Reduced memory usage in distributed operations
         - Optimized communication patterns
 
