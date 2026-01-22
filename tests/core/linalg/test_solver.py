@@ -136,6 +136,140 @@ class TestSolver(TestCase):
             A = ht.random.randn(10, 10, split=1)
             V, T = ht.lanczos(A, m=3)
 
+    def test_solve(self):
+        torch.manual_seed(42 + ht.communication.MPI_WORLD.rank)
+
+        types = [ht.float32, ht.float64, ht.complex64, ht.complex128]
+        s = ht.communication.MPI_WORLD.size
+        n = s * 2
+        k = s * 3
+
+        A_shapes = [(n, n), (k, n, n), (n, n), (k, n, n), (k, n, n), (n, k, n, n)]
+        b_shapes = [(n,), (k, n), (n, k), (n,), (n, k), (n, k, n)]
+
+        for type_ in types:
+            for A_shape, b_shape in zip(A_shapes, b_shapes):
+                for split in [None] + [i for i in range(len(A_shape) - 2)]:
+                    with self.subTest(f'{type_=} {A_shape=} {b_shape=} {split=}'):
+                        A = ht.random.randn(*A_shape, dtype=type_, split=split)
+                        b = ht.random.randn(*b_shape, dtype=type_, split=split if b_shape[0] == A_shape[0] else None)
+
+                        x = ht.linalg.solve(A, b)
+
+                        try:
+                            _b = A @ x
+                        except NotImplementedError:  # batched matrix-vector not implemented
+                            _x = ht.expand_dims(x, -1)
+                            _b = (A@_x)[..., 0]
+
+                        error = ht.linalg.norm(_b - b)
+                        thresh = 1e4 * ht.finfo(type_).eps
+                        self.assertTrue(error < thresh, f'Error {float(error):.2e} > than threshold of {thresh:.2e}')
+
+                        # test that the solving works with passing output array
+                        y = ht.empty_like(x)
+                        ht.linalg.solve(A, b, out=y)
+                        self.assertTrue(ht.allclose(x, y))
+
+        # test a few additionally allowed splits
+        if ht.communication.MPI_WORLD.size > 1:
+            A = ht.random.randn(s, s, split=None)
+            b = ht.random.randn(s, 2*s, split=1)
+            x = ht.linalg.solve(A, b)
+            error = float(ht.linalg.norm(A@x - b))
+            self.assertTrue(error < 1e-5, f'Error {error}')
+
+            A = ht.random.randn(2*s, s, s, split=None)
+            b = ht.random.randn(2*s, s, 2*s, split=2)
+            x = ht.linalg.solve(A, b)
+            error = float(ht.linalg.norm(A@x - b))
+            self.assertTrue(error < 1e-5, f'Error {error}')
+
+
+        # --- test catching all the things that are not supposed to work ---
+
+        # out argument is used incorrectly
+        A = ht.random.randn(2*s, s, s)
+        b = ht.random.randn(s)
+        out = ht.empty(shape = (3*s, 4*s, 5*s))
+        with self.assertRaises(ValueError):  # out has totally wrong shape
+            ht.linalg.solve(A, b, out=out)
+        out = ht.empty(shape = (2*s, s), split=1)
+        with self.assertRaises(ValueError):  # out is split incorrectly
+            ht.linalg.solve(A, b, out=out)
+        out = ht.empty_like(b)
+        with self.assertRaises(ValueError):  # need to expand out
+            ht.linalg.solve(A, b, out=out)
+        out = torch.zeros(size=(2*s, s))
+        with self.assertRaises(TypeError):  # out has wrong datatype
+            ht.linalg.solve(A, b, out=out)
+
+        # input is torch tensor instead of DNDarray
+        A = torch.ones(size=(s, s))
+        b = ht.ones(s)
+        with self.assertRaises(TypeError):
+            ht.linalg.solve(A, b)
+
+        A = ht.ones((s, s))
+        b = torch.ones(s)
+        with self.assertRaises(TypeError):
+            ht.linalg.solve(A, b)
+
+        # input has wrong shape
+        A = ht.random.randn(2*s, s)
+        b = ht.random.randn(s)
+        with self.assertRaises(RuntimeError):
+            ht.linalg.solve(A, b)
+
+        A = ht.random.randn(s, s)
+        b = ht.random.randn(2*s)
+        with self.assertRaises(ValueError):
+            ht.linalg.solve(A, b)
+
+        A = ht.random.randn(s, s)
+        b = ht.random.randn(4*s, 3*s, 2*s)
+        with self.assertRaises(ValueError):
+            ht.linalg.solve(A, b)
+
+        A = ht.random.randn(s, s)
+        b = ht.random.randn(4*s, 3*s, s)
+        with self.assertRaises(ValueError):
+            ht.linalg.solve(A, b)
+
+        if ht.communication.MPI_WORLD.size > 1:
+            # A is split in non-batched dimension
+            for split in [0, 1]:
+                A = ht.random.randn(s, s, split=split)
+                b = ht.ones(s, split=None)
+                with self.assertRaises(ValueError):
+                    ht.linalg.solve(A, b)
+
+            A = ht.random.randn(2*s, s, s, split=1)
+            b = ht.ones((2*s, s), split=None)
+            with self.assertRaises(ValueError):
+                ht.linalg.solve(A, b)
+
+            # b is split in non-batched dimension
+            A = ht.random.randn(s, s, split=None)
+            b = ht.ones((s,), split=0)
+            with self.assertRaises(ValueError):
+                ht.linalg.solve(A, b)
+
+            A = ht.random.randn(2*s, s, s, split=0)
+            b = ht.ones((2*s, s), split=1)
+            with self.assertRaises(ValueError):
+                ht.linalg.solve(A, b)
+
+            # A and b are split in incompatible fashion
+            A = ht.random.randn(3*s, s, s, split=0)
+            b = ht.ones((s, 2*s), split=1)
+            with self.assertRaises(ValueError):
+                ht.linalg.solve(A, b)
+
+
+
+
+
     def test_solve_triangular(self):
         torch.manual_seed(42)
         tdev = ht.get_device().torch_device

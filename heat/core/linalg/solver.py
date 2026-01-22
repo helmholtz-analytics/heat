@@ -10,7 +10,7 @@ from .. import factories
 
 import torch
 
-__all__ = ["cg", "lanczos", "solve_triangular"]
+__all__ = ["cg", "lanczos", "solve", "solve_triangular"]
 
 
 def cg(A: DNDarray, b: DNDarray, x0: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
@@ -270,6 +270,157 @@ def lanczos(
         V.resplit_(axis=None)
 
     return V, T
+
+
+def solve(A: DNDarray, b: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
+    r"""
+    Computes the solution of a square system of linear equations with a unique solution.
+
+    Letting :math:`\mathbb{K}` be :math:`\mathbb{R}` or :math:`\mathbb{C}`,
+    this function computes the solution :math:`X \in \mathbb{K}^{n \times k}` of the **linear system** associated to
+    :math:`A \in \mathbb{K}^{n \times n}, B \in \mathbb{K}^{n \times k}`, which is defined as
+
+    .. math:: AX = B
+
+    This system of linear equations has one solution if and only if :math:`A` is `invertible`_.
+    This function assumes that :math:`A` is invertible.
+
+    Supports inputs of float, double, cfloat and cdouble dtypes.
+    Also supports batches of matrices, and if the inputs are batches of matrices then
+    the output has the same batch dimensions.
+
+    Letting `*` be zero or more batch dimensions,
+
+    - If :attr:`A` has shape `(*, n, n)` and :attr:`B` has shape `(*, n)` (a batch of vectors) or shape
+      `(*, n, k)` (a batch of matrices or "multiple right-hand sides"), this function returns `X` of shape
+      `(*, n)` or `(*, n, k)` respectively.
+    - Otherwise, if :attr:`A` has shape `(*, n, n)` and  :attr:`B` has shape `(n,)`  or `(n, k)`, :attr:`B`
+      is broadcast to have shape `(*, n)` or `(*, n, k)` respectively.
+      This function then returns the solution of the resulting batch of systems of linear equations.
+
+    .. note::
+        A and b may only be distributed in the batch dimensions. If both are split, they must be split in the same axis.
+
+    .. seealso::
+
+            :func:`torch.linalg.solve` is called under the hood on the local data.
+
+
+    Parameters
+    ----------
+    A : DNDarray
+        Matrix to be inverted of shape `(*, n, n)` where `*` is zero or more batch dimensions
+    b : DNDarray
+        Right-hand side of shape `(*, n)` or  `(*, n, k)` or `(n,)` or `(n, k)`
+    out : DNDarray, optional
+        Output Vector
+
+    Raises
+    ------
+        RuntimeError: if the :attr:`A` matrix is not invertible or any matrix in a batched :attr:`A`
+                      is not invertible.
+
+    Examples::
+
+        >>> A = ht.random.randn(3, 3)
+        >>> b = ht.random.randn(3)
+        >>> x = ht.linalg.solve(A, b)
+        >>> ht.allclose(A @ x, b, atol=1e-5)
+        True
+        >>> A = ht.random.randn(2, 3, 3, split=0)
+        >>> B = ht.random.randn(2, 3, 4, split=0)
+        >>> X = ht.linalg.solve(A, B)
+        >>> X.shape
+        (2, 3, 4)
+        >>> ht.allclose(A @ X, B, atol=1e-5)
+        True
+        >>> A = ht.random.randn(2, 3, 3, split=None)
+        >>> B = ht.random.randn(2, 3, 4, split=2)
+        >>> X = ht.linalg.solve(A, B)
+        >>> X.split
+        2
+        >>> ht.allclose(A @ X, B, atol=1e-5)
+        True
+
+        >>> A = ht.random.randn(2, 3, 3, split=0)
+        >>> b = ht.random.randn(3, 1)
+        >>> x = ht.linalg.solve(A, b) # b is broadcast to size (2, 3, 1)
+        >>> x.shape
+        (2, 3, 1)
+        >>> x.split
+        0
+        >>> ht.allclose((A @ x).resplit_(None), b, atol=1e-5)
+        True
+
+    .. _invertible:
+        https://en.wikipedia.org/wiki/Invertible_matrix#The_invertible_matrix_theorem
+    """
+    if not isinstance(A, DNDarray) or not isinstance(b, DNDarray):
+        raise TypeError(f"A and b need to be of type ht.DNDarray, but were {type(A)}, {type(b)}")
+
+    # figure out which is the non-batched axis in b
+    if b.shape[-1] == A.shape[-1]:
+        b_non_batched_axis = b.ndim - 1
+    elif b.ndim == 1:
+        raise ValueError(f"b has incorrect shape of {b.shape} for A of shape {A.shape}")
+    elif b.shape[-2] == A.shape[-1]:
+        b_non_batched_axis = b.ndim - 2
+    else:
+        raise ValueError(f"b has incorrect shape of {b.shape} for A of shape {A.shape}")
+
+    # raise error if b is distributed in disallowed way
+    if b.is_distributed() and b.split == b_non_batched_axis:
+        raise ValueError(
+            f"b of shape {b.shape} with A of shape {A.shape} is split in {b.split} but may not be distributed in non-batched axis {b_non_batched_axis}"
+        )
+
+    # raise errors if A is distributed in disallowed way
+    if A.is_distributed():
+        if A.split > A.ndim - 3:
+            raise ValueError(
+                f"A of dimension {A.ndim} is split in {A.split} but must not be distributed in the (non-batched) last two axes"
+            )
+        elif A.split != b.split and b.is_distributed():
+            raise ValueError(f"Split of A and b must match, but got {A.split} and {b.split}")
+
+    # figure out what the output vector looks like
+    out_initalization = {"dtype": b.dtype, "device": b.device}
+    if b.shape[:b_non_batched_axis] == A.shape[:-2]:  # no need for expansion
+        out_initalization["shape"] = b.shape
+        out_initalization["split"] = b.split
+        out_initalization["comm"] = b.comm
+    elif b_non_batched_axis == 0 and A.ndim > 2:  # b needs expanding
+        out_initalization["shape"] = A.shape[:-2] + b.shape
+        if A.split is None:
+            out_initalization["split"] = b.split
+            out_initalization["comm"] = b.comm
+        else:
+            out_initalization["split"] = A.split
+            out_initalization["comm"] = A.comm
+    else:
+        raise ValueError(
+            f"Don't know how to batch solve with A of shape {A.shape} and split {A.split} and b of shape {b.shape} and split {b.split}"
+        )
+
+    # set up output vector
+    if out is None:
+        out = factories.empty(**out_initalization)
+    else:
+        if not isinstance(out, DNDarray):
+            raise TypeError(f"out needs to be of type ht.DNDarray, but is {type(out)}")
+        if out.shape != out_initalization["shape"]:
+            raise ValueError(
+                f"Expect out to have shape {out_initalization['shape']} with A of shape {A.shape} but got {out.shape}"
+            )
+        if out.split != out_initalization["split"]:
+            raise ValueError(
+                f"Expect out to be split along {out_initalization['split']} but got {out.split}"
+            )
+
+    # do the actual solving of local matrices in torch
+    torch.linalg.solve(A.larray, b.larray, left=True, out=out.larray)
+
+    return out
 
 
 def solve_triangular(A: DNDarray, b: DNDarray) -> DNDarray:
