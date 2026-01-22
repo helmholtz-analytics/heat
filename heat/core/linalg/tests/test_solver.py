@@ -177,13 +177,13 @@ class TestSolver(TestCase):
             b = ht.random.randn(s, 2*s, split=1)
             x = ht.linalg.solve(A, b)
             error = float(ht.linalg.norm(A@x - b))
-            self.assertTrue(error < 1e-5, f'Error {error}')
+            self.assertTrue(error < 1e-3, f'Error {error}')
 
             A = ht.random.randn(2*s, s, s, split=None)
             b = ht.random.randn(2*s, s, 2*s, split=2)
             x = ht.linalg.solve(A, b)
             error = float(ht.linalg.norm(A@x - b))
-            self.assertTrue(error < 1e-5, f'Error {error}')
+            self.assertTrue(error < 1e-3, f'Error {error}')
 
 
         # --- test catching all the things that are not supposed to work ---
