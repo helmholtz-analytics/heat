@@ -1,71 +1,74 @@
+import os
 import nibabel as nib
 import matplotlib.pyplot as plt
 
 # ============================================================
-# Paths (ABSOLUTE – adjust if needed)
+# Paths (ONLY files that actually exist)
 # ============================================================
 
-BASE = "/Users/marka.k/1900_Image_transformations/heat/heat/datasets"
-
 paths = {
-    "Original":   f"{BASE}/flair.nii.gz",
-    "Identity":   f"{BASE}/mri_identity.nii.gz",
-    "Scaled":     f"{BASE}/mri_scaled.nii.gz",
-    "Rotated":    f"{BASE}/mri_rotated.nii.gz",
-    "Translated": f"{BASE}/mri_translated.nii.gz",
+    "Original": "/Users/marka.k/1900_Image_transformations/heat/heat/datasets/flair.nii.gz",
+    "Rank 0 (identity)": "/Users/marka.k/1900_Image_transformations/heat/mri_rank0_identity.nii.gz",
+    "Rank 1 (translate)": "/Users/marka.k/1900_Image_transformations/heat/mri_rank1_translate_z.nii.gz",
 }
 
 # ============================================================
-# Load volumes
+# Load volumes safely
 # ============================================================
 
 volumes = {}
 for name, path in paths.items():
-    volumes[name] = nib.load(path).get_fdata()
+    if not os.path.exists(path):
+        print(f"[SKIP] {name}: file not found")
+        continue
 
-# Sanity check: all shapes equal
-shapes = {v.shape for v in volumes.values()}
-assert len(shapes) == 1, "Not all volumes have the same shape!"
+    vol = nib.load(path).get_fdata()
+    volumes[name] = vol
+    print(f"[LOAD] {name}: shape={vol.shape}")
 
-D, H, W = next(iter(shapes))
-slice_idx = D // 2
+if not volumes:
+    raise RuntimeError("No volumes loaded")
 
 # ============================================================
-# Create figure
+# Setup figure
 # ============================================================
 
 titles = list(volumes.keys())
 data = list(volumes.values())
+depths = [v.shape[0] for v in data]
+
+slice_indices = [d // 2 for d in depths]  # one index per volume
 
 fig, axes = plt.subplots(1, len(data), figsize=(4 * len(data), 5))
+if len(data) == 1:
+    axes = [axes]
+
 images = []
 
-for ax, title, vol in zip(axes, titles, data):
-    img = ax.imshow(vol[slice_idx], cmap="gray")
-    ax.set_title(title)
+for ax, title, vol, idx in zip(axes, titles, data, slice_indices):
+    img = ax.imshow(vol[idx], cmap="gray")
+    ax.set_title(f"{title}\nslice {idx}")
     ax.axis("off")
     images.append(img)
 
-fig.suptitle(f"Slice {slice_idx}/{D - 1}")
+fig.suptitle("Independent slice scrolling per volume")
 
 # ============================================================
-# Keyboard navigation
+# Keyboard navigation (ALL volumes together)
 # ============================================================
 
 def on_key(event):
-    global slice_idx
+    for i, vol in enumerate(data):
+        if event.key == "up":
+            slice_indices[i] = min(slice_indices[i] + 1, vol.shape[0] - 1)
+        elif event.key == "down":
+            slice_indices[i] = max(slice_indices[i] - 1, 0)
+        else:
+            return
 
-    if event.key == "up":
-        slice_idx = min(slice_idx + 1, D - 1)
-    elif event.key == "down":
-        slice_idx = max(slice_idx - 1, 0)
-    else:
-        return
+        images[i].set_data(vol[slice_indices[i]])
+        axes[i].set_title(f"{titles[i]}\nslice {slice_indices[i]}")
 
-    for img, vol in zip(images, data):
-        img.set_data(vol[slice_idx])
-
-    fig.suptitle(f"Slice {slice_idx}/{D - 1}")
     fig.canvas.draw_idle()
 
 fig.canvas.mpl_connect("key_press_event", on_key)

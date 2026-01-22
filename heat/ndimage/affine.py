@@ -1,37 +1,14 @@
 """
 Affine transformations for N-dimensional Heat arrays.
 
-This module implements backward-warping affine transformations
-(translation, rotation, scaling) for 2D and 3D data stored as
-Heat DNDarrays, using a PyTorch backend.
+Distributed support:
+- identity
+- axis-aligned scaling
+- translation (WITH halos)
 
-The affine matrix M is interpreted as a *forward* transform
-in affine (x, y [, z]) coordinates:
-
-    out = A @ inp + b
-
-where M = [A | b] has shape (ND, ND+1).
-
-Backward warping is used internally for resampling:
-
-    inp = A^{-1} @ (out - b)
-
-Heat uses the following spatial axis conventions:
-- 2D: (H, W)  == (y, x)
-- 3D: (D, H, W) == (z, y, x)
-
-Interpolation and boundary handling:
-- order=0: nearest-neighbor
-- order=1: bilinear (2D only; 3D falls back to nearest)
-- padding modes: 'nearest', 'wrap', 'reflect', 'constant'
-
-Distributed arrays:
-- Distributed inputs are currently gathered, transformed locally,
-  and re-distributed to the original split axis.
-- This is MPI-safe but may incur communication overhead.
-- More advanced distributed strategies are intended for future work.
-
-The public entry point is `affine_transform`.
+Not supported (distributed):
+- rotation
+- shear
 """
 
 import numpy as np
@@ -43,51 +20,13 @@ import heat as ht
 # Helpers
 # ============================================================
 
-
 def _is_identity_affine(M, ND):
-    """
-    Check whether an affine matrix represents the identity transform.
-
-    Parameters
-    ----------
-    M : array-like
-        Affine matrix of shape (ND, ND+1).
-    ND : int
-        Number of spatial dimensions.
-
-    Returns
-    -------
-    bool
-        True if A is the identity matrix and b is zero.
-    """
     A = M[:, :ND]
     b = M[:, ND:]
     return np.allclose(A, np.eye(ND)) and np.allclose(b, 0)
 
 
 def _normalize_input(x, ND):
-    """
-    Normalize a Heat array to the internal sampling layout.
-
-    Converts input arrays to include batch and channel dimensions,
-    producing tensors of shape:
-      - 2D: (N, C, H, W)
-      - 3D: (N, C, D, H, W)
-
-    Parameters
-    ----------
-    x : ht.DNDarray
-        Input array.
-    ND : int
-        Number of spatial dimensions.
-
-    Returns
-    -------
-    torch.Tensor
-        Local torch tensor with batch and channel dimensions.
-    tuple
-        Original shape of the input array.
-    """
     orig_shape = x.shape
     t = x.larray
 
@@ -106,21 +45,6 @@ def _normalize_input(x, ND):
 
 
 def _make_grid(spatial, device):
-    """
-    Construct a coordinate grid in Heat spatial axis order.
-
-    Parameters
-    ----------
-    spatial : tuple
-        Spatial shape (H, W) or (D, H, W).
-    device : torch.device
-        Target device.
-
-    Returns
-    -------
-    torch.Tensor
-        Coordinate grid of shape (ND, *spatial) in Heat order.
-    """
     if len(spatial) == 2:
         H, W = spatial
         y = torch.arange(H, device=device)
@@ -136,316 +60,143 @@ def _make_grid(spatial, device):
         return torch.stack([gz, gy, gx], dim=0)
 
 
-# ============================================================
-# Padding
-# ============================================================
-
-
-def _apply_padding(pix, spatial, mode):
-    """
-    Apply boundary handling to integer pixel coordinates.
-
-    Parameters
-    ----------
-    pix : torch.Tensor
-        Integer pixel indices in Heat order.
-    spatial : tuple
-        Spatial dimensions of the input.
-    mode : str
-        Padding mode ('nearest', 'wrap', 'reflect', 'constant').
-
-    Returns
-    -------
-    torch.Tensor
-        Adjusted pixel coordinates.
-    torch.Tensor
-        Boolean mask indicating valid coordinates (for constant mode).
-    """
-    ND = len(spatial)
-    final = pix.clone()
+def _apply_padding(pix, spatial):
     valid = torch.ones_like(pix[0], dtype=torch.bool)
-
-    for d in range(ND):
-        size = spatial[d]
-        p = pix[d]
-
-        if mode == "constant":
-            ok = (p >= 0) & (p < size)
-            valid &= ok
-            final[d] = p.clamp(0, size - 1)
-        elif mode == "nearest":
-            final[d] = p.clamp(0, size - 1)
-        elif mode == "wrap":
-            final[d] = torch.remainder(p, size)
-        elif mode == "reflect":
-            if size == 1:
-                final[d] = torch.zeros_like(p)
-            else:
-                r = torch.abs(p)
-                r = torch.remainder(r, 2 * size - 2)
-                final[d] = torch.where(r < size, r, 2 * size - 2 - r)
-
-    return final, valid
+    for d in range(len(spatial)):
+        valid &= (pix[d] >= 0) & (pix[d] < spatial[d])
+    return pix, valid
 
 
 # ============================================================
-# Sampling
+# Local affine (non-distributed)
 # ============================================================
 
-
-def _nearest_sample(x, coords, mode, constant_value):
-    """
-    Nearest-neighbor sampling.
-
-    Parameters
-    ----------
-    x : torch.Tensor
-        Input tensor of shape (N, C, ...).
-    coords : torch.Tensor
-        Sampling coordinates in Heat order.
-    mode : str
-        Boundary handling mode.
-    constant_value : float
-        Fill value for constant padding.
-
-    Returns
-    -------
-    torch.Tensor
-        Sampled output tensor.
-    """
-    ND = coords.shape[0]
-    pix = coords.round().long()
-    spatial = x.shape[2:]
-
-    pix_c, valid = _apply_padding(pix, spatial, mode)
-
-    if ND == 2:
-        y, x_ = pix_c
-        out = x[:, :, y, x_]
-    else:
-        z, y, x_ = pix_c
-        out = x[:, :, z, y, x_]
-
-    if mode == "constant":
-        const = torch.full_like(out, constant_value)
-        out = torch.where(valid.unsqueeze(0).unsqueeze(0), out, const)
-
-    return out
-
-
-def _bilinear_sample(x, coords, mode, constant_value):
-    """
-    Bilinear interpolation for 2D inputs.
-
-    For non-2D data, this function falls back to nearest-neighbor sampling.
-    """
-    if coords.shape[0] != 2:
-        return _nearest_sample(x, coords, mode, constant_value)
-
-    y, x_ = coords
-    H, W = x.shape[2], x.shape[3]
-
-    y0 = torch.floor(y).long()
-    x0 = torch.floor(x_).long()
-    y1 = y0 + 1
-    x1 = x0 + 1
-
-    pix = torch.stack([y0, x0])
-    pix_c, valid = _apply_padding(pix, (H, W), mode)
-
-    y0c, x0c = pix_c
-    y1c = y1.clamp(0, H - 1)
-    x1c = x1.clamp(0, W - 1)
-
-    Ia = x[:, :, y0c, x0c]
-    Ib = x[:, :, y0c, x1c]
-    Ic = x[:, :, y1c, x0c]
-    Id = x[:, :, y1c, x1c]
-
-    wy = y - y0.float()
-    wx = x_ - x0.float()
-
-    out = (
-        Ia * (1 - wy) * (1 - wx)
-        + Ib * (1 - wy) * wx
-        + Ic * wy * (1 - wx)
-        + Id * wy * wx
-    )
-
-    if mode == "constant":
-        const = torch.full_like(out, constant_value)
-        out = torch.where(valid.unsqueeze(0).unsqueeze(0), out, const)
-
-    return out
-
-
-# ============================================================
-# Local affine (NO MPI logic)
-# ============================================================
-
-
-def _affine_transform_local(x, M, order, mode, constant_value, expand):
-    """
-    Apply an affine transformation to a local (non-distributed) Heat array.
-
-    Parameters
-    ----------
-    x : ht.DNDarray
-        Local input array (split=None).
-    M : array-like
-        Affine matrix of shape (2,3) or (3,4).
-    order : int
-        Interpolation order.
-    mode : str
-        Boundary handling mode.
-    constant_value : float
-        Fill value for constant padding.
-    expand : bool
-        Whether to expand the output with a leading batch dimension.
-
-    Returns
-    -------
-    ht.DNDarray
-        Transformed array with split=None.
-    """
+def _affine_transform_local(x, M):
     M = np.asarray(M)
-
-    if M.shape == (2, 3):
-        ND = 2
-    elif M.shape == (3, 4):
-        ND = 3
-    else:
-        raise ValueError("M must have shape (2,3) or (3,4)")
-
-    is_identity = _is_identity_affine(M, ND)
+    ND = M.shape[0]
 
     x_local, orig_shape = _normalize_input(x, ND)
     device = x_local.device
 
     A = torch.tensor(M[:, :ND], device=device, dtype=torch.float64)
-    b = torch.tensor(M[:, ND:], device=device, dtype=torch.float64).reshape(ND, 1)
+    b = torch.tensor(M[:, ND], device=device, dtype=torch.float64).reshape(ND, 1)
     A_inv = torch.inverse(A)
 
     spatial = x_local.shape[2:]
-    grid_heat = _make_grid(spatial, device).reshape(ND, -1).double()
+    grid = _make_grid(spatial, device).reshape(ND, -1).double()
 
-    if ND == 2:
-        grid_affine = grid_heat[[1, 0]]
+    # Heat → affine coordinate order
+    if ND == 3:
+        z, y, x_ = grid
+        grid_aff = torch.stack([x_, y, z], dim=0)
     else:
-        z, y, x_ = grid_heat
-        grid_affine = torch.stack([x_, y, z], dim=0)
+        grid_aff = grid[[1, 0]]
 
-    coords_affine = (A_inv @ grid_affine) - (A_inv @ b)
+    src = (A_inv @ grid_aff) - (A_inv @ b)
+    src = src.round().long()
 
-    if ND == 2:
-        coords_heat = coords_affine[[1, 0]].reshape((2, *spatial))
+    # affine → Heat order
+    if ND == 3:
+        x_, y, z = src
+        src = torch.stack([z, y, x_], dim=0)
     else:
-        cx, cy, cz = coords_affine
-        coords_heat = torch.stack(
-            [
-                cz.reshape(spatial),
-                cy.reshape(spatial),
-                cx.reshape(spatial),
-            ],
-            dim=0,
-        )
+        src = src[[1, 0]]
 
-    if order == 0:
-        out = _nearest_sample(x_local, coords_heat, mode, constant_value)
-    else:
-        out = _bilinear_sample(x_local, coords_heat, mode, constant_value)
+    src, valid = _apply_padding(src, spatial)
 
-    out = out.squeeze(0)
+    out = torch.zeros(grid.shape[1], device=device, dtype=x_local.dtype)
+    out[valid] = x_local[0, 0][tuple(src[:, valid])]
+    out = out.reshape(spatial)
 
-    if expand:
-        if out.ndim == ND + 1:
-            out = out.squeeze(0)
-        return ht.array(out, split=None).expand_dims(0)
-
-    if ND == 2:
-        if order == 0 or is_identity:
-            return ht.array(out.squeeze(0).reshape(orig_shape), split=None)
-        return ht.array(out, split=None)
-
-    if is_identity:
-        return ht.array(out.squeeze(0).reshape(orig_shape), split=None)
-
-    return ht.array(out, split=None)
+    return ht.array(out.reshape(orig_shape), split=None)
 
 
 # ============================================================
-# Public API (MPI-safe)
+# Public API (MPI-aware)
 # ============================================================
 
-def affine_transform(x, M, order=0, mode="nearest", constant_value=0.0, expand=False):
+def affine_transform(x, M):
     """
-    Apply an affine transformation to a Heat array.
+    Distributed affine transform with halo-aware translation.
+    """
 
-    Distributed behavior:
-    - If split is non-spatial → transform locally (no communication)
-    - If split is spatial:
-        * translation or axis-aligned scaling → resplit → local transform → resplit back
-        * rotation / shear → NotImplementedError
-    """
-    # ------------------------------------------------------------
-    # Determine spatial dimensionality
-    # ------------------------------------------------------------
     M = np.asarray(M)
-    if M.shape == (2, 3):
-        ND = 2
-    elif M.shape == (3, 4):
-        ND = 3
-    else:
-        raise ValueError("M must have shape (2,3) or (3,4)")
-
-    # Helper predicates
+    ND = M.shape[0]
     A = M[:, :ND]
-    b = M[:, ND:]
+    b = M[:, ND]
 
-    def is_translation():
-        return np.allclose(A, np.eye(ND)) and not np.allclose(b, 0)
+    if not np.allclose(A, np.diag(np.diag(A))):
+        raise NotImplementedError("rotation / shear not supported")
 
-    def is_axis_aligned_scaling():
-        return np.allclose(A, np.diag(np.diag(A)))
+    split = x.split
 
-  
-    if x.split is None:
-        return _affine_transform_local(x, M, order, mode, constant_value, expand)
+    # --------------------------------------------------
+    # Non-distributed case
+    # --------------------------------------------------
+    if split is None:
+        return _affine_transform_local(x, M)
 
-    # Identify spatial axes (last ND axes)
-    spatial_axes = set(range(x.ndim - ND, x.ndim))
+    # --------------------------------------------------
+    # Distributed case
+    # --------------------------------------------------
+    local = x.larray
+    local_shape = local.shape
 
-    # Fast path: split on non-spatial axis → safe
-    if x.split not in spatial_axes:
-            return _affine_transform_local(x, M, order, mode, constant_value, expand)
+    # Heat axis → affine axis mapping
+    if ND == 3:
+        affine_axis = 2 - split
+    else:
+        affine_axis = 1 - split
 
-   
-    if is_translation():
-        # translation along spatial split requires full axis coverage
-        x_tmp = x.resplit(None)
-        y_tmp = _affine_transform_local(
-            x_tmp, M, order, mode, constant_value, expand
-        )
-        return y_tmp.resplit(x.split)
+    shift = int(round(M[affine_axis, -1]))
+    halo = abs(shift)
 
-    if is_axis_aligned_scaling():
-        # scaling still requires a non-spatial axis
-        safe_axes = [ax for ax in range(x.ndim) if ax not in spatial_axes]
-        if not safe_axes:
-            raise NotImplementedError(
-                "Axis-aligned scaling on fully spatial arrays requires "
-                "a non-spatial axis"
-            )
-        safe_axis = safe_axes[0]
-        x_tmp = x.resplit(safe_axis)
-        y_tmp = _affine_transform_local(
-            x_tmp, M, order, mode, constant_value, expand
-        )
-        return y_tmp.resplit(x.split)
+    # --------------------------------------------------
+    # No halo needed
+    # --------------------------------------------------
+    if halo == 0:
+        y_local = _affine_transform_local(
+            ht.array(local, split=None), M
+        ).larray
+        return ht.array(y_local, split=split)
 
+    # --------------------------------------------------
+    # HALO PATH (correct)
+    # --------------------------------------------------
 
-    # Rotation / shear on spatial split → not supported
-    raise NotImplementedError(
-        "Affine transforms with axis mixing (rotation/shear) on spatially "
-        "distributed axes are not supported. Explicit halo exchange is required."
+    # 1. Exchange halos
+    x.get_halo(halo)
+
+    # 2. Get halo tensor
+    x_halo = x.array_with_halos      # torch.Tensor
+    xh = ht.array(x_halo, split=None)
+
+    # 3. Halo-aware sampling
+    device = x_halo.device
+    coords = torch.meshgrid(
+        *[torch.arange(s, device=device) for s in local_shape],
+        indexing="ij"
     )
+    coords = torch.stack(coords).reshape(ND, -1).double()
+
+    A_inv = torch.diag(
+        1.0 / torch.tensor(np.diag(A), device=device)
+    )
+    b_t = torch.tensor(b, device=device).reshape(ND, 1)
+
+    src = (A_inv @ coords) - (A_inv @ b_t)
+    src = src.round().long()
+
+    # 🔴 CRITICAL HALO FIX
+    src[split] += halo
+
+    # Sample from halo tensor
+    valid = torch.ones(src.shape[1], dtype=torch.bool, device=device)
+    for d in range(ND):
+        valid &= (src[d] >= 0) & (src[d] < x_halo.shape[d])
+
+    out = torch.zeros(src.shape[1], device=device, dtype=x_halo.dtype)
+    out[valid] = x_halo[tuple(src[:, valid])]
+    out = out.reshape(local_shape)
+
+    return ht.array(out, split=split)
