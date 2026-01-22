@@ -10,3 +10,4 @@ from .svd import *
 from .polar import *
 from .eigh import *
 from .randomized import *
+from .other import *
