@@ -55,6 +55,7 @@ body:
       label: PyTorch version
       description: What PyTorch version?
       options:
+        - '2.10'
         - 2.9
         - 2.8
         - 2.7
@@ -62,7 +63,6 @@ body:
         - 2.5
         - 2.4
         - 2.3
-        - 2.2
         - other
   - type: textarea
     id: mpi-version
