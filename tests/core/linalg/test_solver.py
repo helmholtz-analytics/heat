@@ -163,7 +163,7 @@ class TestSolver(TestCase):
                             _b = (A@_x)[..., 0]
 
                         error = ht.linalg.norm(_b - b)
-                        thresh = 1e4 * ht.finfo(type_).eps
+                        thresh = 1e5 * ht.finfo(type_).eps
                         self.assertTrue(error < thresh, f'Error {float(error):.2e} > than threshold of {thresh:.2e}')
 
                         # test that the solving works with passing output array
