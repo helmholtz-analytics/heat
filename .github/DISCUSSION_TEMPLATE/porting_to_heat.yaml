@@ -25,17 +25,24 @@ body:
     id: current-base
     attributes:
       label: What is your code currently built on?
-      description: numpy, pytorch, cupy, ...?
+      description: numpy, scipy, pytorch, cupy, ...? Please sketch out what functionality you use from these libraries.
   - type: textarea
     id: current-parallelisation
     attributes:
       label: Is your code currently parallelised?
-      description: Please explain where your code can reasonably run on a range from laptop to supercomputer.
+      description: |
+        Please explain where your code can reasonably run on a range from laptop to supercomputer.
+        If it is parallelised, please explain the parallel distribution.
   - type: textarea
     id: future-parallelisation
     attributes:
       label: How much parallelism do you want in the future?
       description: Do you want to run more efficiently on the hardware that you have or go full Jupiter?
+  - type: textarea
+    id: started-porting
+    attributes:
+      label: Have you already tried porting to heat?
+      description: If so, have you encountered specific issues such as missing features?
   - type: textarea
     id: other
     attributes:
