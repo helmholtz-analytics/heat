@@ -43,9 +43,9 @@ class TestMatrixExp(TestCase):
                         A = ht.random.randn(*shape, dtype=dtype, split=split)
 
                         get = ht.linalg.expm(A)
-                        expect = scipy.linalg.expm(A.resplit(None).larray)
+                        expect = scipy.linalg.expm(A.resplit(None).larray.cpu())
 
-                        self.assertTrue(np.allclose(get.resplit(None).larray, expect))
+                        self.assertTrue(np.allclose(get.resplit(None).larray.cpu(), expect))
 
                         if ht.communication.MPI_WORLD.size > 1 and split is not None:
                             self.assertTrue(get.is_distributed())
