@@ -49,6 +49,8 @@ body:
         - 3.12
         - 3.11
         - '3.10'
+    validations:
+      required: true
   - type: dropdown
     id: pytorch-version
     attributes:
@@ -64,6 +66,8 @@ body:
         - 2.4
         - 2.3
         - other
+    validations:
+      required: true
   - type: textarea
     id: mpi-version
     attributes:
