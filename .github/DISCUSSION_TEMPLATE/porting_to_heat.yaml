@@ -1,0 +1,43 @@
+name: "Porting to heat"
+description: "Discuss if and how to port your code to heat"
+# title: ""
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for your interest in porting your code to heat!
+        In order to help you out, we need some information about what your code does and how it does it.
+        Please have a look at all the data we need before you start filling it in.
+  - type: textarea
+    id: user-code
+    attributes:
+      label: What does your code do?
+      description: Give only a rough description here. Please also supply the name and a link to the repository.
+  - type: textarea
+    id: critical-part
+    attributes:
+      label: What motivates you to switch to heat?
+      description: |
+        Please explain if you run out of memory or want to achieve speedup or any other way in which heat might help.
+        If there is a critical part of your code that is currently the main bottleneck, please explain it briefly.
+  - type: textarea
+    id: current-base
+    attributes:
+      label: What is your code currently built on?
+      description: numpy, pytorch, cupy, ...?
+  - type: textarea
+    id: current-parallelisation
+    attributes:
+      label: Is your code currently parallelised?
+      description: Please explain where your code can reasonably run on a range from laptop to supercomputer.
+  - type: textarea
+    id: future-parallelisation
+    attributes:
+      label: How much parallelism do you want in the future?
+      description: Do you want to run more efficiently on the hardware that you have or go full Jupiter?
+  - type: textarea
+    id: other
+    attributes:
+      label: Anything else you want to say?
+      description: Do you anticipate specific issues? Do you expect this will be super easy? Or do you just want to rant about the weather?
