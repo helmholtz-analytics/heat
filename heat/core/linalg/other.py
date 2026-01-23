@@ -7,7 +7,7 @@ import torch
 import heat as ht
 from ..dndarray import DNDarray
 
-__all__ = ["matrix_exp"]
+__all__ = ["matrix_exp", "expm"]
 
 
 def matrix_exp(A: DNDarray) -> DNDarray:
@@ -57,3 +57,6 @@ def matrix_exp(A: DNDarray) -> DNDarray:
     out = ht.empty_like(A)
     out.larray[...] = torch.linalg.matrix_exp(A.larray)
     return out
+
+
+expm = matrix_exp  # provide alias with name of scipy equivalent

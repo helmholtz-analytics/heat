@@ -1,4 +1,6 @@
 import torch
+import numpy as np
+import scipy
 import heat as ht
 
 from ...tests.test_suites.basic_test import TestCase
@@ -26,6 +28,30 @@ class TestMatrixExp(TestCase):
                             self.assertTrue(get.is_distributed())
                         else:
                             self.assertFalse(get.is_distributed())
+
+
+    def test_against_scipy(self):
+        torch.manual_seed(42)
+
+        size = ht.communication.MPI_WORLD.size * 2
+        shapes = [(size, size), (2*size, size, size), (2*size, 3*size, size, size)]
+        dtypes = [ht.float64, ht.complex128]
+        for shape in shapes:
+            for dtype in dtypes:
+                for split in [None] + [i for i in range(len(shape)-2)]:
+                    with self.subTest(f'{shape=} {dtype=} {split=}'):
+                        A = ht.random.randn(*shape, dtype=dtype, split=split)
+
+                        get = ht.linalg.expm(A)
+                        expect = scipy.linalg.expm(A.resplit(None).larray)
+
+                        self.assertTrue(np.allclose(get.resplit(None).larray, expect))
+
+                        if ht.communication.MPI_WORLD.size > 1 and split is not None:
+                            self.assertTrue(get.is_distributed())
+                        else:
+                            self.assertFalse(get.is_distributed())
+
 
     def test_errors(self):
         A = ht.random.randn(4, 3, split=None)
