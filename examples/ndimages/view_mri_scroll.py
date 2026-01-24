@@ -7,9 +7,9 @@ import matplotlib.pyplot as plt
 # ============================================================
 
 paths = {
-    "Original": "/Users/marka.k/1900_Image_transformations/heat/heat/datasets/flair.nii.gz",
-    "Rank 0 (identity)": "/Users/marka.k/1900_Image_transformations/heat/mri_rank0_identity.nii.gz",
-    "Rank 1 (translate)": "/Users/marka.k/1900_Image_transformations/heat/mri_rank1_translate_z.nii.gz",
+    "Original": "PATH",
+    "Rank 0 (identity)": "PATH",
+    "Rank 1 (translate)": "PATH",
 }
 
 # ============================================================
@@ -46,7 +46,7 @@ if len(data) == 1:
 images = []
 
 for ax, title, vol, idx in zip(axes, titles, data, slice_indices):
-    img = ax.imshow(vol[idx], cmap="gray")
+    img = ax.imshow(vol[idx])
     ax.set_title(f"{title}\nslice {idx}")
     ax.axis("off")
     images.append(img)
