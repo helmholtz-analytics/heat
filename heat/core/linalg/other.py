@@ -6,6 +6,7 @@ import torch
 
 import heat as ht
 from ..dndarray import DNDarray
+from ..sanitation import sanitize_in
 
 __all__ = ["matrix_exp", "expm"]
 
@@ -48,8 +49,8 @@ def matrix_exp(A: DNDarray) -> DNDarray:
           [[7.3891, 0.0000],
            [0.0000, 7.3891]]], dtype=ht.float32, device=cpu:0, split=0)
     """
-    if not isinstance(A, DNDarray):
-        raise TypeError(f"A needs to be of type ht.DNDarray, but was {type(A)}")
+    sanitize_in(A)
+
     if A.is_distributed() and A.split >= A.ndim - 2:
         raise ValueError(
             f"A of shape {A.shape} may only be distributed in batched dimensions but is distributed in {A.split}"
@@ -60,3 +61,4 @@ def matrix_exp(A: DNDarray) -> DNDarray:
 
 
 expm = matrix_exp  # provide alias with name of scipy equivalent
+"""Alias for :py:func:matrix_exp"""
