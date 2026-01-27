@@ -83,23 +83,22 @@ import os
 import socket
 import torch
 
+
 def cuda_info():
 
     host = socket.gethostname()
     pid = os.getpid()
 
     # SLURM metadata (falls back to ? if not available)
-    rank      = os.environ.get("SLURM_PROCID", "?")
-    localid   = os.environ.get("SLURM_LOCALID", "?")
-    nprocs    = os.environ.get("SLURM_NPROCS", "?")
-    visible   = os.environ.get("CUDA_VISIBLE_DEVICES", "?")
-
+    rank = os.environ.get("SLURM_PROCID", "?")
+    localid = os.environ.get("SLURM_LOCALID", "?")
+    nprocs = os.environ.get("SLURM_NPROCS", "?")
+    visible = os.environ.get("CUDA_VISIBLE_DEVICES", "?")
 
     print(
-    f"\n[HOST={host} | PID={pid} | RANK={rank} | LOCALID={localid} | "
-    f"NPROCS={nprocs} | CUDA_VISIBLE={visible}]"
+        f"\n[HOST={host} | PID={pid} | RANK={rank} | LOCALID={localid} | "
+        f"NPROCS={nprocs} | CUDA_VISIBLE={visible}]"
     )
-
 
     print("=== CUDA & GPU Information ===")
     print(f"CUDA available: {torch.cuda.is_available()}")
@@ -116,9 +115,7 @@ def cuda_info():
     print(f"GPU count                   : {gpu_count}")
 
     # Current device
-    num_visible = torch.cuda.device_count()
     current_dev = torch.cuda.current_device()
-    physical_id = visible.split(",")[current_dev]
     print(f"PyTorch device index        : {current_dev}")
     print(f"Current device name         : {torch.cuda.get_device_name(current_dev)}")
 
@@ -134,6 +131,7 @@ def cuda_info():
         )
 
     print()  # spacer
+
 
 if __name__ == "__main__":
     cuda_info()

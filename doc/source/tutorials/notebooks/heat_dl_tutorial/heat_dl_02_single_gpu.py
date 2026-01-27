@@ -93,6 +93,7 @@ import math
 # Utility functions
 # ---------------------------------------------------------
 
+
 def format_seconds(seconds: float) -> str:
     hours = int(seconds // 3600)
     minutes = int((seconds % 3600) // 60)
@@ -106,7 +107,7 @@ def compute_time_stats(times):
     mean_val = sum(times) / len(times)
     if len(times) == 1:
         return mean_val, 0.0
-    variance = sum((t - mean_val)**2 for t in times) / (len(times) - 1)
+    variance = sum((t - mean_val) ** 2 for t in times) / (len(times) - 1)
     std_error = math.sqrt(variance) / math.sqrt(len(times))
     return mean_val, std_error
 
@@ -147,7 +148,7 @@ for step in range(nepochs):
     step_start = time.perf_counter()
 
     pred = model(x)
-    loss = ((pred - y)**2).mean()
+    loss = ((pred - y) ** 2).mean()
 
     optimizer.zero_grad()
     loss.backward()
@@ -159,9 +160,11 @@ for step in range(nepochs):
 
     if step % print_interval == 0 or step == nepochs - 1:
         allocated = torch.cuda.memory_allocated() / 1024**2
-        reserved  = torch.cuda.memory_reserved() / 1024**2
-        print(f"[{step:04d}/{nepochs}] Loss={loss.item():.6f} "
-              f"| Mem alloc={allocated:.1f}MB reserved={reserved:.1f}MB")
+        reserved = torch.cuda.memory_reserved() / 1024**2
+        print(
+            f"[{step:04d}/{nepochs}] Loss={loss.item():.6f} "
+            f"| Mem alloc={allocated:.1f}MB reserved={reserved:.1f}MB"
+        )
 
 train_end = time.perf_counter()
 total_time = train_end - train_start
@@ -172,7 +175,7 @@ total_time = train_end - train_start
 
 mean_step, std_error = compute_time_stats(step_times)
 samples_per_sec = batch_size / mean_step
-flops = (flops_per_step / mean_step)
+flops = flops_per_step / mean_step
 
 print("\n===== Training Summary =====")
 print(f"Batch size:             {batch_size}")

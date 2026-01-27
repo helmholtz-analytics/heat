@@ -67,16 +67,19 @@ End of Q/A Section
 """
 import os
 import torch.distributed as dist
+
 """
 MASTER_ADDR=$(scontrol show hostnames | head -n 1)
 MASTER_ADDR="${MASTER_ADDR}i"
 export MASTER_ADDR=$(nslookup "$MASTER_ADDR" | grep -oP '(?<=Address: ).*')
 export MASTER_PORT=6000
 """
+
+
 def main():
     # Check if we're inside a SLURM environment
     if "SLURM_PROCID" in os.environ and "SLURM_NPROCS" in os.environ:
-        rank       = int(os.environ["SLURM_PROCID"])
+        rank = int(os.environ["SLURM_PROCID"])
         world_size = int(os.environ["SLURM_NPROCS"])
     else:
         # Fallback for local execution
@@ -91,6 +94,7 @@ def main():
         dist.destroy_process_group()
     else:
         print("Distributed not initialized (single-process mode).")
+
 
 if __name__ == "__main__":
     main()
