@@ -20,6 +20,7 @@ import heat as ht
 # Helpers
 # ============================================================
 
+
 def _is_identity_affine(M, ND):
     A = M[:, :ND]
     b = M[:, ND:]
@@ -71,6 +72,7 @@ def _apply_padding(pix, spatial):
 # Local affine (non-distributed)
 # ============================================================
 
+
 def _affine_transform_local(x, M):
     M = np.asarray(M)
     ND = M.shape[0]
@@ -115,11 +117,11 @@ def _affine_transform_local(x, M):
 # Public API (MPI-aware)
 # ============================================================
 
+
 def affine_transform(x, M):
     """
     Distributed affine transform with halo-aware translation.
     """
-
     M = np.asarray(M)
     ND = M.shape[0]
     A = M[:, :ND]
@@ -155,9 +157,7 @@ def affine_transform(x, M):
     # No halo needed
     # --------------------------------------------------
     if halo == 0:
-        y_local = _affine_transform_local(
-            ht.array(local, split=None), M
-        ).larray
+        y_local = _affine_transform_local(ht.array(local, split=None), M).larray
         return ht.array(y_local, split=split)
 
     # --------------------------------------------------
@@ -168,20 +168,15 @@ def affine_transform(x, M):
     x.get_halo(halo)
 
     # 2. Get halo tensor
-    x_halo = x.array_with_halos      # torch.Tensor
+    x_halo = x.array_with_halos  # torch.Tensor
     xh = ht.array(x_halo, split=None)
 
     # 3. Halo-aware sampling
     device = x_halo.device
-    coords = torch.meshgrid(
-        *[torch.arange(s, device=device) for s in local_shape],
-        indexing="ij"
-    )
+    coords = torch.meshgrid(*[torch.arange(s, device=device) for s in local_shape], indexing="ij")
     coords = torch.stack(coords).reshape(ND, -1).double()
 
-    A_inv = torch.diag(
-        1.0 / torch.tensor(np.diag(A), device=device)
-    )
+    A_inv = torch.diag(1.0 / torch.tensor(np.diag(A), device=device))
     b_t = torch.tensor(b, device=device).reshape(ND, 1)
 
     src = (A_inv @ coords) - (A_inv @ b_t)
