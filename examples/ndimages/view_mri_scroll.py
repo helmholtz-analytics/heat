@@ -7,9 +7,8 @@ import matplotlib.pyplot as plt
 # ============================================================
 
 paths = {
-    "Original": "PATH",
-    "Rank 0 (identity)": "PATH",
-    "Rank 1 (translate)": "PATH",
+    "Original": "/Users/marka.k/1900_Image_transformations/heat/heat/datasets/flair.nii.gz",
+
 }
 
 # ============================================================

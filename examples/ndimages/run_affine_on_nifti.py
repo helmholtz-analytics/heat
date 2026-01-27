@@ -1,82 +1,135 @@
-"""
-Distributed affine demo — halo exchange handled INSIDE affine.py.
-
-- Split along Z (axis 0)
-- Translation along Z
-- NO explicit halo exchange here
-- NO global indexing
-- NO cropping
-- Each rank visualizes its OWN strongest local slice
-"""
-
 import numpy as np
-import nibabel as nib
 import matplotlib.pyplot as plt
+import nibabel as nib
 import heat as ht
 from mpi4py import MPI
 
 from heat.ndimage.affine import affine_transform
 
 
+# ============================================================
+# Helpers
+# ============================================================
+
+def canonicalize_to_ZHW(t):
+    """
+    Force tensor to shape (Z, H, W)
+    """
+    while t.ndim > 3:
+        t = t.squeeze(0)
+
+    if t.ndim == 2:
+        t = t.unsqueeze(0)
+
+    if t.ndim != 3:
+        raise RuntimeError(f"Unexpected tensor shape: {t.shape}")
+
+    return t
+
+
+def strongest_slice(vol):
+    """
+    vol: torch.Tensor (Z, H, W)
+    """
+    scores = vol.abs().amax(dim=(1, 2))
+    score, idx = scores.max(dim=0)
+    return int(idx.item()), float(score.item())
+
+
+def apply_affine(x, M):
+    y = affine_transform(x, M, order=0, mode="nearest")
+    y_local = canonicalize_to_ZHW(y.larray)
+    return y_local
+
+
+# ============================================================
+# MAIN
+# ============================================================
+
 def main():
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
 
+    # --------------------------------------------------------
+    # Load MRI on rank 0
+    # --------------------------------------------------------
     if rank == 0:
         nii = nib.load(
-            "PATH"
+            "/Users/marka.k/1900_Image_transformations/heat/heat/datasets/flair.nii.gz"
         )
-        x_np = nii.get_fdata().astype(np.float32)
-        print("Loaded MRI:", x_np.shape)
+        vol = nii.get_fdata().astype(np.float32)
+        print(f"[rank 0] Loaded MRI: {vol.shape}", flush=True)
     else:
-        x_np = None
+        vol = None
 
-    x_np = comm.bcast(x_np, root=0)
+    vol = comm.bcast(vol, root=0)
 
+    # --------------------------------------------------------
+    # Heat array (distributed over Z)
+    # --------------------------------------------------------
+    x = ht.array(vol, split=0)
+    print(f"[rank {rank}] local input shape = {x.larray.shape}", flush=True)
 
-    x = ht.array(x_np, split=0)
-    print(f"[rank {rank}] local input shape = {tuple(x.larray.shape)}")
-    """
-    s = 1
-    ND = 3
-    M = np.eye(ND, ND + 1)
-    M[0, 0] = s   # scale Z
-    """
-    
-    shift = 2          # integer shift along Z
-    ND = 3
+    comm.Barrier()
 
-    M = np.eye(ND, ND + 1)
-    M[0, -1] = shift   # translate along Z
-    
+    # ========================================================
+    # Define affine transforms (SPACE-based)
+    # ========================================================
+    M_identity = np.eye(3, 4, dtype=np.float32)
 
-    y = affine_transform(x, M)
-    y_local = y.larray
-    print(
-    f"[rank {rank}] local nonzero slices:",
-    (y_local.abs().amax(dim=(1,2)) > 1e-3).nonzero().flatten().tolist()
-)
+    M_scale = np.eye(3, 4, dtype=np.float32)
+    M_scale[0, 0] = 1.2
+    M_scale[1, 1] = 1.2
+    M_scale[2, 2] = 1.2
 
-    if y_local.shape[0] == 0:
-        print(f"")
-    else:
-        scores = y_local.abs().amax(dim=(1, 2))
-        best_score, best_idx = scores.max(dim=0)
+    M_translate = np.eye(3, 4, dtype=np.float32)
+    M_translate[0, 3] = 10.0   # +10 in Z (SPACE)
 
-        if best_score.item() < 1e-3:
-            print(f"")
-        else:
-            idx = best_idx.item()
-            plt.figure(figsize=(5, 5))
-            plt.imshow(y_local[idx].cpu().numpy())
-            plt.title(f"rank {rank}, strongest local slice {idx}")
-            plt.axis("off")
-            plt.show()
+    cases = [
+        ("Identity", M_identity),
+        ("Scale ×1.2", M_scale),
+        ("Translate +10 Z", M_translate),
+    ]
+
+    # ========================================================
+    # Apply all transforms
+    # ========================================================
+    results = []
+
+    for name, M in cases:
+        y_local = apply_affine(x, M)
+        idx, score = strongest_slice(y_local)
+
+        print(
+            f"[rank {rank}] {name}: strongest slice idx={idx}, score={score:.3e}",
+            flush=True,
+        )
+
+        results.append((name, y_local, idx, score))
+
+    # ========================================================
+    # Visualization — ONE WINDOW PER RANK
+    # ========================================================
+    fig, axs = plt.subplots(1, 3, figsize=(15, 5))
+    fig.suptitle(f"Rank {rank} — SPACE affine operations", fontsize=14)
+
+    for ax, (name, vol_local, idx, score) in zip(axs, results):
+        if score < 1e-3:
+            ax.set_title(f"{name}\nEMPTY")
+            ax.axis("off")
+            continue
+
+        ax.imshow(vol_local[idx].cpu().numpy(), cmap="gray")
+        ax.set_title(f"{name}\nslice {idx}")
+        ax.axis("off")
+
+    plt.tight_layout()
+    plt.show()
 
     comm.Barrier()
 
     if rank == 0:
-        print("\nDONE — distributed affine demo completed cleanly\n")
+        print("\nDONE — multi-operation SPACE-affine demo completed\n", flush=True)
 
 
 if __name__ == "__main__":
