@@ -1,3 +1,7 @@
+"""
+viewing the original data with scroll mech
+"""
+
 import os
 import nibabel as nib
 import matplotlib.pyplot as plt
@@ -7,7 +11,7 @@ import matplotlib.pyplot as plt
 # ============================================================
 
 paths = {
-    "Original": "/Users/marka.k/1900_Image_transformations/heat/heat/datasets/flair.nii.gz",
+    "Original": "PATH",
 
 }
 

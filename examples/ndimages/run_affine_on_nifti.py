@@ -1,3 +1,7 @@
+"""
+Example for distrubted arrays with 3 operations popup view
+"""
+
 import numpy as np
 import matplotlib.pyplot as plt
 import nibabel as nib
@@ -55,7 +59,7 @@ def main():
     # --------------------------------------------------------
     if rank == 0:
         nii = nib.load(
-            "/Users/marka.k/1900_Image_transformations/heat/heat/datasets/flair.nii.gz"
+            "PATH"
         )
         vol = nii.get_fdata().astype(np.float32)
         print(f"[rank 0] Loaded MRI: {vol.shape}", flush=True)
