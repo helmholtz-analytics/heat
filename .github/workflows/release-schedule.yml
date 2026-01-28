@@ -51,7 +51,7 @@ jobs:
             # Read the variables and format them as major.minor.micro
             VERSION=$(python3 -c "d={}; exec(open('heat/core/version.py').read(), d); print(f'{d[\"major\"]}.{d[\"minor\"]}.{d[\"micro\"]}')")
             echo "version=${VERSION}" >> $GITHUB_OUTPUT
-            
+
             # Determine season based on the current trigger month (Feb for Spring, Aug for Fall)
             MONTH=$(date +%m)
             if [ "$MONTH" == "02" ]; then
