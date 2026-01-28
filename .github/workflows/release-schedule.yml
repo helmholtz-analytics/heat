@@ -88,7 +88,7 @@ jobs:
 
             ### Resources
             - [NEP 29 Documentation](https://numpy.org/neps/nep-0029-deprecation_policy.html)
-            - [Python Release Schedule](https://peps.python.org/pep-0596/)
+            - [Python Release Schedule](https://devguide.python.org/versions/)
             - [NumPy Release Notes](https://numpy.org/news/)
 
             **Due Date:** 4 weeks before release
