@@ -26,14 +26,6 @@ The release process is largely automated with the following schedule:
 - CITATION.cff update
 - PR merge decisions
 - Blog post drafting
-- All open PRs are labeled with `pr-talk` for discussion
-
-#### 2 Weeks Before Release (March 15th / December 15th)
-**Code freeze begins:**
-- Automated code freeze issue is created
-- Only critical bug fixes accepted
-- Release preparation workflow should be triggered
-- All open PRs are labeled and notified of code freeze
 
 #### 1 Week Before Release (March 22nd / December 22nd)
 **Final preparations:**
@@ -46,18 +38,7 @@ The release process is largely automated with the following schedule:
 You can manually trigger these workflows at any time using the workflow dispatch feature in GitHub Actions:
 
 - [Release Schedule Workflow](https://github.com/helmholtz-analytics/heat/actions/workflows/release-schedule.yml)
-- [Code Freeze Workflow](https://github.com/helmholtz-analytics/heat/actions/workflows/release-code-freeze.yml)
 - [Release Notes Finalization](https://github.com/helmholtz-analytics/heat/actions/workflows/release-notes-finalization.yml)
-
-### Labels and Organization
-
-The automated workflow uses several labels to organize release preparation:
-
-- `release-prep` - All automated release preparation issues
-- `pr-talk` - PRs that need discussion for release inclusion
-- `code-freeze-review` - PRs under code freeze review
-- `compliance`, `highlights`, `citation`, `blog-post` - Specific task types
-- `high-priority`, `critical` - Priority levels
 
 ### Integration with Manual Process
 

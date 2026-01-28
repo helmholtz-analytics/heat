@@ -43,7 +43,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
-- name: Determine release version
+      - name: Determine release version
         id: version
         run: |
           if [ "${{ github.event_name }}" == "schedule" ]; then
@@ -99,7 +99,7 @@ jobs:
               repo: context.repo.repo,
               title: `[Release Prep]: NEP 29 Compliance Check for v${version}`,
               body: body,
-              labels: ['release-prep', 'compliance', 'NEP29']
+              labels: ['release-prep']
             });
 
       - name: Create Release Highlights Issue
@@ -136,7 +136,7 @@ jobs:
               repo: context.repo.repo,
               title: `[Release Prep]: Select Highlights for v${version}`,
               body: body,
-              labels: ['release-prep', 'highlights', 'release-notes']
+              labels: ['release-prep']
             });
 
       - name: Create CITATION Update Issue
@@ -172,7 +172,7 @@ jobs:
               repo: context.repo.repo,
               title: `[Release Prep]: Update CITATION.cff for v${version}`,
               body: body,
-              labels: ['release-prep', 'citation', 'documentation']
+              labels: ['release-prep']
             });
 
       - name: Create PR Merge Decision Issue
@@ -194,14 +194,12 @@ jobs:
             - [ ] Identify PRs that should be deferred to next release
             - [ ] Communicate decisions to PR authors
             - [ ] Set appropriate labels on PRs
-            - [ ] Merge approved PRs before code freeze
 
             ### Timeline
             - **Now - 2 weeks before release:** Review and approve PRs for inclusion
-            - **2 weeks before release:** Code freeze for new features
             - **1 week before release:** Only critical bug fixes
 
-            **Due Date:** 2 weeks before release (code freeze)
+            **Due Date:** 2 weeks before release
             **Priority:** High`;
 
             await github.rest.issues.create({
@@ -209,7 +207,7 @@ jobs:
               repo: context.repo.repo,
               title: `[Release Prep]: PR Merge Decisions for v${version}`,
               body: body,
-              labels: ['release-prep', 'pr-review', 'code-freeze']
+              labels: ['release-prep']
             });
 
       - name: Create Blog Post Issue
@@ -254,82 +252,7 @@ jobs:
               repo: context.repo.repo,
               title: `[Release Prep]: Draft Blog Post for v${version}`,
               body: body,
-              labels: ['release-prep', 'blog-post', 'documentation', 'outreach']
-            });
-
-      - name: Add PR Talk Labels
-        uses: actions/github-script@9afe6b66b5f8f48e7651c78b94cbf5e3a8ba2833 # v7.1.0
-        with:
-          script: |
-            // Get all open PRs
-            const { data: prs } = await github.rest.pulls.list({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              state: 'open'
-            });
-
-            // Add "pr-talk" label to all open PRs for release discussion
-            for (const pr of prs) {
-              await github.rest.issues.addLabels({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: pr.number,
-                labels: ['pr-talk']
-              });
-            }
-
-            console.log(`Added 'pr-talk' label to ${prs.length} open PRs`);
-
-  code-freeze-reminder:
-    runs-on: ubuntu-latest
-    if: github.event.inputs.release_type == '2-weeks-before'
-    steps:
-      - name: Harden Runner
-        uses: step-security/harden-runner@ec9f2d5744a09debf3a187a3f4f675c53b671911 # v2.13.0
-        with:
-          egress-policy: audit
-
-      - name: Create Code Freeze Issue
-        uses: actions/github-script@9afe6b66b5f8f48e7651c78b94cbf5e3a8ba2833 # v7.1.0
-        with:
-          script: |
-            const version = '${{ github.event.inputs.release_version }}';
-
-            const body = `## Code Freeze for Heat v${version}
-
-            🚨 **CODE FREEZE IN EFFECT** 🚨
-
-            From now until release, only critical bug fixes will be accepted.
-
-            ### Tasks
-            - [ ] Verify all intended features are merged
-            - [ ] Start release prep workflow
-            - [ ] Begin testing and validation
-            - [ ] Prepare changelog updates
-            - [ ] Update version numbers
-            - [ ] Test installation and distribution
-
-            ### What's Allowed During Code Freeze
-            - ✅ Critical bug fixes
-            - ✅ Documentation improvements
-            - ✅ Test fixes and improvements
-            - ✅ Release preparation tasks
-
-            ### What's NOT Allowed
-            - ❌ New features
-            - ❌ API changes
-            - ❌ Non-critical refactoring
-            - ❌ Dependency updates (unless critical)
-
-            **Duration:** 2 weeks (until release)
-            **Next Milestone:** Release notes draft (1 week before release)`;
-
-            await github.rest.issues.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              title: `[Release Prep]: Code Freeze for v${version}`,
-              body: body,
-              labels: ['release-prep', 'code-freeze', 'high-priority']
+              labels: ['release-prep']
             });
 
   release-notes-reminder:
@@ -351,7 +274,7 @@ jobs:
 
             🏁 **FINAL WEEK BEFORE RELEASE** 🏁
 
-            Time to finalize all release materials and prepare for publication.
+            Finalize all release materials and prepare for publication.
 
             ### Tasks
             - [ ] Finalize changelog draft
@@ -359,7 +282,6 @@ jobs:
             - [ ] Complete blog post review
             - [ ] Prepare release announcement
             - [ ] Test release process
-            - [ ] Coordinate with marketing/communications
             - [ ] Schedule release date and time
             - [ ] Prepare post-release tasks
 
@@ -376,7 +298,6 @@ jobs:
             - [ ] Internal team notification
             - [ ] Community announcement draft
             - [ ] Social media posts prepared
-            - [ ] Documentation deployment planned
 
             **Target Release Date:** 1 week from now
             **Final Review Required By:** 2 days before release`;
@@ -386,5 +307,5 @@ jobs:
               repo: context.repo.repo,
               title: `[Release Prep]: Finalize Release Notes for v${version}`,
               body: body,
-              labels: ['release-prep', 'release-notes', 'final-review', 'high-priority']
+              labels: ['release-prep']
             });
