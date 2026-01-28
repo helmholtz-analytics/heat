@@ -12,8 +12,8 @@ These are instructions for Heat release management, including both automated and
 
 Heat follows a bi-annual release schedule with automated preparation workflows:
 
-- **Spring Release**: Target around Easter (end of March)
-- **Winter Release**: Target around Christmas (end of December)
+- **Spring Release**: Target around the end of March or before the Easter break
+- **Fall Release**: Target around the end of September
 
 ### Automated Timeline
 
@@ -28,14 +28,14 @@ The release process is largely automated with the following schedule:
 - Blog post drafting
 - All open PRs are labeled with `pr-talk` for discussion
 
-#### 2 Weeks Before Release (March 15th / December 15th)
+#### 2 Weeks Before Release
 **Code freeze begins:**
 - Automated code freeze issue is created
 - Only critical bug fixes accepted
 - Release preparation workflow should be triggered
 - All open PRs are labeled and notified of code freeze
 
-#### 1 Week Before Release (March 22nd / December 22nd)
+#### 1 Week Before Release
 **Final preparations:**
 - Release notes finalization issue created
 - Blog post review issue created
