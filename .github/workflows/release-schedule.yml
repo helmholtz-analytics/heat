@@ -43,23 +43,24 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
-      - name: Determine release version
+- name: Determine release version
         id: version
         run: |
           if [ "${{ github.event_name }}" == "schedule" ]; then
-            # Determine version based on current date
+            # Extract version components from heat/core/version.py
+            # Read the variables and format them as major.minor.micro
+            VERSION=$(python3 -c "d={}; exec(open('heat/core/version.py').read(), d); print(f'{d[\"major\"]}.{d[\"minor\"]}.{d[\"micro\"]}')")
+            echo "version=${VERSION}" >> $GITHUB_OUTPUT
+            
+            # Determine season based on the current trigger month (Feb for Spring, Aug for Fall)
             MONTH=$(date +%m)
-            YEAR=$(date +%Y)
-            if [ "$MONTH" == "03" ]; then
-              # Easter release (spring)
-              echo "version=${YEAR}.1.0" >> $GITHUB_OUTPUT
+            if [ "$MONTH" == "02" ]; then
               echo "season=Spring" >> $GITHUB_OUTPUT
-            elif [ "$MONTH" == "12" ]; then
-              # Christmas release (winter)
-              echo "version=${YEAR}.2.0" >> $GITHUB_OUTPUT
-              echo "season=Winter" >> $GITHUB_OUTPUT
+            else
+              echo "season=Fall" >> $GITHUB_OUTPUT
             fi
           else
+            # Fallback to manual input if triggered via workflow_dispatch
             echo "version=${{ github.event.inputs.release_version }}" >> $GITHUB_OUTPUT
             echo "season=Manual" >> $GITHUB_OUTPUT
           fi
