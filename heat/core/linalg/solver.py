@@ -282,10 +282,7 @@ def solve(A: DNDarray, b: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
 
     .. math:: AX = B
 
-    This system of linear equations has one solution if and only if :math:`A` is `invertible`_.
-    This function assumes that :math:`A` is invertible.
-
-    Supports inputs of float, double, cfloat and cdouble dtypes.
+    Supports inputs of integer, float, double, cfloat and cdouble dtypes.
     Also supports batches of matrices, and if the inputs are batches of matrices then
     the output has the same batch dimensions.
 
@@ -299,11 +296,14 @@ def solve(A: DNDarray, b: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
       This function then returns the solution of the resulting batch of systems of linear equations.
 
     .. note::
-        A and b may only be distributed in the batch dimensions. If both are split, they must be split in the same axis.
+        A and b may only be distributed in the batch dimensions. If both are split, they must be split along matching batch axes.
+
+    .. note::
+        If the input is integer, it is cast to float for the solve step and the output is cast back to integer
 
     .. seealso::
 
-            :func:`torch.linalg.solve` is called under the hood on the local data.
+            :func:`torch.linalg.solve` is called under the hood on the local data. This docstring is also heavily inspired by the docstring of this function.
 
 
     Parameters
@@ -314,11 +314,6 @@ def solve(A: DNDarray, b: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
         Right-hand side of shape `(*, n)` or  `(*, n, k)` or `(n,)` or `(n, k)`
     out : DNDarray, optional
         Output Vector
-
-    Raises
-    ------
-        RuntimeError: if the :attr:`A` matrix is not invertible or any matrix in a batched :attr:`A`
-                      is not invertible.
 
     Examples::
 
@@ -351,12 +346,16 @@ def solve(A: DNDarray, b: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
         0
         >>> ht.allclose((A @ x).resplit_(None), b, atol=1e-5)
         True
-
-    .. _invertible:
-        https://en.wikipedia.org/wiki/Invertible_matrix#The_invertible_matrix_theorem
     """
-    if not isinstance(A, DNDarray) or not isinstance(b, DNDarray):
-        raise TypeError(f"A and b need to be of type ht.DNDarray, but were {type(A)}, {type(b)}")
+    ht.sanitize_in(A)
+    ht.sanitize_in(b)
+    out_dtype = ht.types.promote_types(A.dtype, b.dtype)
+
+    # torch doesn't support integer, so we cast to float here if needed
+    if ht.issubdtype(A.dtype, ht.integer):
+        A = A.astype(ht.promote_types(A.dtype, ht.float), copy=True)
+    if ht.issubdtype(b.dtype, ht.integer):
+        b = b.astype(ht.promote_types(b.dtype, ht.float), copy=True)
 
     # figure out which is the non-batched axis in b
     if b.shape[-1] == A.shape[-1]:
@@ -370,21 +369,21 @@ def solve(A: DNDarray, b: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
 
     # raise error if b is distributed in disallowed way
     if b.is_distributed() and b.split == b_non_batched_axis:
-        raise ValueError(
-            f"b of shape {b.shape} with A of shape {A.shape} is split in {b.split} but may not be distributed in non-batched axis {b_non_batched_axis}"
+        raise NotImplementedError(
+            f"b of shape {b.shape} with A of shape {A.shape} is split in {b.split} which is the non-batched axis, but it can only be distributed in batched axes in this implementation. If you require this feature, please open an issue on GitHub."
         )
 
     # raise errors if A is distributed in disallowed way
     if A.is_distributed():
         if A.split > A.ndim - 3:
-            raise ValueError(
-                f"A of dimension {A.ndim} is split in {A.split} but must not be distributed in the (non-batched) last two axes"
+            raise NotImplementedError(
+                f"A of dimension {A.ndim} is split in {A.split} but must not be distributed in the (non-batched) last two axes in this implementation. If you require this feature, please open an issue on GitHub."
             )
         elif A.split != b.split and b.is_distributed():
             raise ValueError(f"Split of A and b must match, but got {A.split} and {b.split}")
 
     # figure out what the output vector looks like
-    out_initalization = {"dtype": b.dtype, "device": b.device}
+    out_initalization = {"dtype": ht.types.promote_types(A.dtype, b.dtype), "device": b.device}
     if b.shape[:b_non_batched_axis] == A.shape[:-2]:  # no need for expansion
         out_initalization["shape"] = b.shape
         out_initalization["split"] = b.split
@@ -405,22 +404,23 @@ def solve(A: DNDarray, b: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     # set up output vector
     if out is None:
         out = factories.empty(**out_initalization)
-    else:
-        if not isinstance(out, DNDarray):
-            raise TypeError(f"out needs to be of type ht.DNDarray, but is {type(out)}")
-        if out.shape != out_initalization["shape"]:
-            raise ValueError(
-                f"Expect out to have shape {out_initalization['shape']} with A of shape {A.shape} but got {out.shape}"
-            )
-        if out.split != out_initalization["split"]:
-            raise ValueError(
-                f"Expect out to be split along {out_initalization['split']} but got {out.split}"
-            )
+
+    ht.sanitize_out(
+        out,
+        output_shape=out_initalization["shape"],
+        output_split=out_initalization["split"],
+        output_device=out_initalization["device"],
+        output_comm=out_initalization["comm"],
+    )
+
+    # if out is integer, we may need to cast to float here
+    if out.dtype != out_initalization["dtype"]:
+        out = out.astype(out_initalization["dtype"], copy=False)
 
     # do the actual solving of local matrices in torch
     torch.linalg.solve(A.larray, b.larray, left=True, out=out.larray)
 
-    return out
+    return out.astype(out_dtype, copy=False)  # cast back to int if needed
 
 
 def solve_triangular(A: DNDarray, b: DNDarray) -> DNDarray:
