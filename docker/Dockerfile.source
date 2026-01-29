@@ -1,4 +1,4 @@
-ARG PYTORCH_IMG=25.07-py3
+ARG PYTORCH_IMG=25.08-py3
 ARG HEAT_BRANCH=main
 
 FROM nvcr.io/nvidia/pytorch:${PYTORCH_IMG} AS base
