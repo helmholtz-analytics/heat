@@ -147,12 +147,12 @@ class TestSolver(TestCase):
         A_shapes = [(n, n), (k, n, n), (n, n), (k, n, n), (k, n, n), (n, k, n, n)]
         b_shapes = [(n,), (k, n), (n, k), (n,), (n, k), (n, k, n)]
 
-        for type_ in types:
+        for dtype in types:
             for A_shape, b_shape in zip(A_shapes, b_shapes):
                 for split in [None] + [i for i in range(len(A_shape) - 2)]:
-                    with self.subTest(f'{type_=} {A_shape=} {b_shape=} {split=}'):
-                        A = ht.random.randn(*A_shape, dtype=type_, split=split)
-                        b = ht.random.randn(*b_shape, dtype=type_, split=split if b_shape[0] == A_shape[0] else None)
+                    with self.subTest(f'{dtype=} {A_shape=} {b_shape=} {split=}'):
+                        A = ht.random.randn(*A_shape, dtype=dtype, split=split)
+                        b = ht.random.randn(*b_shape, dtype=dtype, split=split if b_shape[0] == A_shape[0] else None)
 
                         x = ht.linalg.solve(A, b)
 
@@ -163,7 +163,7 @@ class TestSolver(TestCase):
                             _b = (A@_x)[..., 0]
 
                         error = ht.linalg.norm(_b - b)
-                        thresh = 1e5 * ht.finfo(type_).eps
+                        thresh = 1e5 * ht.finfo(dtype).eps
                         self.assertTrue(error < thresh, f'Error {float(error):.2e} > than threshold of {thresh:.2e}')
 
                         # test that the solving works with passing output array
@@ -185,6 +185,20 @@ class TestSolver(TestCase):
             error = float(ht.linalg.norm(A@x - b))
             self.assertTrue(error < 1e-3, f'Error {error}')
 
+
+        # test separately with ints
+        for dtype in [ht.int8, ht.int16, ht.int32, ht.int64]:
+            with self.subTest(f'{dtype=}'):
+                A = ht.array([[1, 2], [3, 5]], dtype=dtype)
+                b = ht.array([1, 2], dtype=dtype)
+                x = ht.linalg.solve(A, b)
+                self.assertTrue(ht.allclose(A@x, b))
+                self.assertTrue(x.dtype == dtype)
+
+                out = ht.empty_like(x).astype(dtype, copy=False)
+                ht.linalg.solve(A, b, out=out)
+                self.assertTrue(ht.allclose(x, out))
+                self.assertTrue(x.dtype == dtype)
 
         # --- test catching all the things that are not supposed to work ---
 
@@ -241,23 +255,23 @@ class TestSolver(TestCase):
             for split in [0, 1]:
                 A = ht.random.randn(s, s, split=split)
                 b = ht.ones(s, split=None)
-                with self.assertRaises(ValueError):
+                with self.assertRaises(NotImplementedError):
                     ht.linalg.solve(A, b)
 
             A = ht.random.randn(2*s, s, s, split=1)
             b = ht.ones((2*s, s), split=None)
-            with self.assertRaises(ValueError):
+            with self.assertRaises(NotImplementedError):
                 ht.linalg.solve(A, b)
 
             # b is split in non-batched dimension
             A = ht.random.randn(s, s, split=None)
             b = ht.ones((s,), split=0)
-            with self.assertRaises(ValueError):
+            with self.assertRaises(NotImplementedError):
                 ht.linalg.solve(A, b)
 
             A = ht.random.randn(2*s, s, s, split=0)
             b = ht.ones((2*s, s), split=1)
-            with self.assertRaises(ValueError):
+            with self.assertRaises(NotImplementedError):
                 ht.linalg.solve(A, b)
 
             # A and b are split in incompatible fashion
