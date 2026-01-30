@@ -19,7 +19,7 @@ Heat is a distributed tensor framework for high performance data analytics.
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/helmholtz-analytics/heat/badge)](https://securityscorecards.dev/viewer/?uri=github.com/helmholtz-analytics/heat)
 [![OpenSSF Best Practices](https://bestpractices.coreinfrastructure.org/projects/7688/badge)](https://bestpractices.coreinfrastructure.org/projects/7688)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.2531472.svg)](https://doi.org/10.5281/zenodo.2531472)
-[![Benchmarks](https://img.shields.io/badge/Grafana-Benchmarks-2ea44f)](https://57bc8d92-72f2-4869-accd-435ec06365cb.ka.bw-cloud-instance.org:3000/d/adjpqduq9r7k0a/heat-cb?orgId=1)
+[![Benchmarks](https://img.shields.io/badge/Grafana-Benchmarks-2ea44f)](https://930000e0-e69a-4939-912e-89a92316b420.ka.bw-cloud-instance.org/grafana)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![JuRSE Code Pick of the Month](https://img.shields.io/badge/JuRSE_Code_Pick-August_2024-blue)](https://www.fz-juelich.de/en/rse/jurse-community/jurse-code-of-the-month/august-2024)
 
@@ -118,6 +118,7 @@ computational and memory needs of your laptop and desktop.
 ### Parallel I/O
 - h5py
 - netCDF4
+- zarr
 
 ### GPU support
 In order to do computations on your GPU(s):
@@ -132,10 +133,10 @@ On most HPC-systems you will not be able to install/compile MPI or CUDA/ROCm you
 Install the latest version with
 
 ```bash
-pip install heat[hdf5,netcdf]
+pip install heat[hdf5,netcdf,zarr]
 ```
 where the part in brackets is a list of optional dependencies. You can omit
-it, if you do not need HDF5 or NetCDF support.
+it, if you do not need HDF5, NetCDF, or Zarr support.
 
 ## **conda**
 

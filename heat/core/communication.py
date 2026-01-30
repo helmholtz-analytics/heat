@@ -13,8 +13,6 @@ from mpi4py import MPI
 
 from typing import Any, Callable, Optional, List, Tuple, Union
 
-import torch.version
-
 from .stride_tricks import sanitize_axis
 
 from ._config import GPU_AWARE_MPI

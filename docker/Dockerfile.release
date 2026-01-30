@@ -1,5 +1,5 @@
 ARG HEAT_VERSION=latest
-ARG PYTORCH_IMG=25.07-py3
+ARG PYTORCH_IMG=25.08-py3
 
 FROM nvcr.io/nvidia/pytorch:${PYTORCH_IMG} AS base
 COPY ./tzdata.seed /tmp/tzdata.seed

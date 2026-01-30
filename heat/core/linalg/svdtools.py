@@ -49,7 +49,7 @@ def hsvd_rank(
     maxrank : int
         truncation rank. (This parameter corresponds to `n_components` in sci-kit learn's TruncatedSVD.)
     compute_sv : bool, optional
-        compute_sv=True implies that also Sigma and V are computed and returned. The default is False.
+        compute_sv=True implies that also Sigma and V.T are computed and returned. The default is False.
     maxmergedim : int, optional
         maximal size of the concatenation matrices during the merging procedure. The default is None and results in an appropriate choice depending on the size of the local slices of A and maxrank.
         Too small choices for this parameter will result in failure if the maximal size of the concatenation matrices does not allow to merge at least two matrices. Too large choices for this parameter can cause memory errors if the resulting merging problem becomes too large.
@@ -61,7 +61,7 @@ def hsvd_rank(
     Returns
     -------
     (Union[    Tuple[DNDarray, DNDarray, DNDarray, float], Tuple[DNDarray, DNDarray, DNDarray], DNDarray])
-        if compute_sv=True: U, Sigma, V, a-posteriori error estimate for the reconstruction error ||A-U Sigma V^T ||_F / ||A||_F (computed according to [2] along the "true" merging tree).
+        if compute_sv=True: U, Sigma, V.T, a-posteriori error estimate for the reconstruction error ||A-U Sigma V^T ||_F / ||A||_F (computed according to [2] along the "true" merging tree).
         if compute_sv=False: U, a-posteriori error estimate
 
     Notes
@@ -142,7 +142,7 @@ def hsvd_rtol(
         error for the relative error using the true "merging tree" (see output) may be significantly smaller than rtol.
         Prescription of maxrank or maxmergedim (disabled in default) can result in loss of desired precision, but can help to avoid memory issues.
     compute_sv : bool, optional
-        compute_sv=True implies that also Sigma and V are computed and returned. The default is False.
+        compute_sv=True implies that also Sigma and V.T are computed and returned. The default is False.
     no_of_merges : int, optional
         Maximum number of processes to be merged at each step. If no further arguments are provided (see below),
         this completely determines the "merging tree" and may cause memory issues. The default is None and results in a binary merging tree.
@@ -165,7 +165,7 @@ def hsvd_rtol(
     Returns
     -------
     (Union[    Tuple[DNDarray, DNDarray, DNDarray, float], Tuple[DNDarray, DNDarray, DNDarray], DNDarray])
-        if compute_sv=True: U, Sigma, V, a-posteriori error estimate for the reconstruction error ||A-U Sigma V^T ||_F / ||A||_F (computed according to [2] along the "true" merging tree used in the computations).
+        if compute_sv=True: U, Sigma, V.T, a-posteriori error estimate for the reconstruction error ||A-U Sigma V^T ||_F / ||A||_F (computed according to [2] along the "true" merging tree used in the computations).
         if compute_sv=False: U, a-posteriori error estimate
 
     Notes
@@ -251,9 +251,9 @@ def hsvd(
     Tuple[DNDarray, DNDarray, DNDarray, float], Tuple[DNDarray, DNDarray, DNDarray], DNDarray
 ]:
     """
-    Computes an approximate truncated SVD of A utilizing a distributed hiearchical algorithm; see the references.
+    Computes an approximate truncated SVD of A utilizing a distributed hierarchical algorithm; see the references.
     The present function `hsvd` is a low-level routine, provides many options/parameters, but no default values, and is not recommended for usage by non-experts since conflicts
-    arising from inappropriate parameter choice will not be catched. We strongly recommend to use the corresponding high-level functions `hsvd_rank` and `hsvd_rtol` instead.
+    arising from inappropriate parameter choice will not be caught. We strongly recommend to use the corresponding high-level functions `hsvd_rank` and `hsvd_rtol` instead.
 
     Input
     -------
@@ -270,7 +270,7 @@ def hsvd(
     no_of_merges: int, optional
         maximum number of local SVDs to be "merged" at one step
     compute_sv: bool, optional
-        determines whether to compute U, Sigma, V (compute_sv=True) or not (then U only)
+        determines whether to compute U, Sigma, V.T (compute_sv=True) or not (then U only)
     silent: bool, optional
         determines whether to print infos on the computations performed (silent=False)
     warnings_off: bool, optional
@@ -441,10 +441,10 @@ def hsvd(
 
         if transposeflag:
             if compute_sv:
-                return V, sigma, U, rel_error_estimate
-            return V, rel_error_estimate
+                return V, sigma, U.T, rel_error_estimate
+            return V.T, rel_error_estimate
 
-        return U, sigma, V, rel_error_estimate
+        return U, sigma, V.T, rel_error_estimate
 
     return U, rel_error_estimate
 
@@ -514,7 +514,7 @@ def _isvd(
     new_data: DNDarray,
     U_old: DNDarray,
     S_old: DNDarray,
-    V_old: Optional[DNDarray] = None,
+    Vt_old: Optional[DNDarray] = None,
     maxrank: Optional[int] = None,
     old_matrix_size: Optional[int] = None,
     old_rowwise_mean: Optional[DNDarray] = None,
@@ -529,20 +529,20 @@ def _isvd(
     ----------
     new_data: DNDarray
         new data as DNDarray
-    U_old, S_old, V_old: DNDarrays
+    U_old, S_old, Vt_old: DNDarrays
         "old" SVD-factors
-        if no V_old is provided, only U and S are computed (PCA)
+        if no Vt_old is provided, only U and S are computed (PCA)
     maxrank: int, optional
         rank to which new SVD should be truncated
     old_matrix_size: int, optional
-        size of the old matrix; this does not need to be identical to V_old.shape[0] as "old" SVD might have been truncated
+        size of the old matrix; this does not need to be identical to Vt_old.shape[1] as "old" SVD might have been truncated
     old_rowwise_mean: int, optional
         row-wise mean of the old matrix; if not provided, no mean subtraction is performed
     """
     # old SVD is SVD of a matrix of dimension m x n and has rank r
     # new data have shape m x d
     d = new_data.shape[1]
-    n = V_old.shape[0] if V_old is not None else old_matrix_size
+    n = Vt_old.shape[1] if Vt_old is not None else old_matrix_size
     r = S_old.shape[0]
     if maxrank is None:
         maxrank = min(n + d, U_old.shape[0])
@@ -573,34 +573,40 @@ def _isvd(
     P, Rc = qr(new_data)
 
     # prepare one component of "new" V-factor
-    if V_old is not None:
-        V_new = vstack(
+    # this has shape (V_old 0)^T
+    #                (  0   I)
+    if Vt_old is not None:
+        Vt_new = vstack(
             [
-                V_old,
+                Vt_old,
                 factories.zeros(
-                    (d, r),
-                    device=V_old.device,
-                    dtype=V_old.dtype,
-                    split=V_old.split,
-                    comm=V_old.comm,
+                    (d, n),
+                    device=Vt_old.device,
+                    dtype=Vt_old.dtype,
+                    split=Vt_old.split,
+                    comm=Vt_old.comm,
                 ),
             ]
         )
         helper = vstack(
             [
                 factories.zeros(
-                    (n, d),
-                    device=V_old.device,
-                    dtype=V_old.dtype,
-                    split=V_old.split,
-                    comm=V_old.comm,
+                    (r, d),
+                    device=Vt_old.device,
+                    dtype=Vt_old.dtype,
+                    split=Vt_old.split,
+                    comm=Vt_old.comm,
                 ),
                 factories.eye(
-                    d, device=V_old.device, dtype=V_old.dtype, split=V_old.split, comm=V_old.comm
+                    d,
+                    device=Vt_old.device,
+                    dtype=Vt_old.dtype,
+                    split=Vt_old.split,
+                    comm=Vt_old.comm,
                 ),
             ]
         )
-        V_new = hstack([V_new, helper])
+        Vt_new = hstack([Vt_new, helper])
         del helper
 
     # prepare one component of "new" U-factor
@@ -627,21 +633,21 @@ def _isvd(
     innermat = hstack([helper1, helper2])
     del (helper1, helper2)
     # as innermat is small enough to fit into memory of a single process, we can use torch svd
-    u, s, v = svd.svd(innermat.resplit_(None))
+    u, s, vt = svd.svd(innermat.resplit_(None))
     del innermat
 
     # truncate if desired
     if maxrank < s.shape[0]:
         u = u[:, :maxrank]
         s = s[:maxrank]
-        v = v[:, :maxrank]
+        vt = vt[:maxrank, :]
 
     U_new = U_new @ u
-    if V_old is not None:
-        V_new = V_new @ v
+    if Vt_old is not None:
+        Vt_new = vt @ Vt_new
 
-    if V_old is not None:  # use-case: SVD
-        return U_new, s, V_new
+    if Vt_old is not None:  # use-case: SVD
+        return U_new, s, Vt_new
     if old_rowwise_mean is not None:  # use-case PCA
         return U_new, s, new_rowwise_mean
 
@@ -650,7 +656,7 @@ def isvd(
     new_data: DNDarray,
     U_old: DNDarray,
     S_old: DNDarray,
-    V_old: DNDarray,
+    Vt_old: DNDarray,
     maxrank: Optional[int] = None,
 ) -> Tuple[DNDarray, DNDarray, DNDarray]:
     r"""Incremental SVD (iSVD) for the addition of new data to an existing SVD.
@@ -665,8 +671,8 @@ def isvd(
         U-factor of the SVD of the "old" matrix, 2D-array (float32/64). It must hold `U_old.split != 0` if `new_data.split = 1`.
     S_old : DNDarray
         Sigma-factor of the SVD of the "old" matrix, 1D-array (float32/64)
-    V_old : DNDarray
-        V-factor of the SVD of the "old" matrix, 2D-array (float32/64)
+    Vt_old : DNDarray
+        Transpose of V-factor of the SVD of the "old" matrix, 2D-array (float32/64)
     maxrank : int, optional
         truncation rank of the SVD of the extended matrix. The default is None, i.e., no bound on the maximal rank is imposed.
 
@@ -683,22 +689,20 @@ def isvd(
     ----------
     [1] Brand, M. (2006). Fast low-rank modifications of the thin singular value decomposition. Linear algebra and its applications, 415(1), 20-30.
     """
-    # check if new_data, U_old, V_old are 2D DNDarrays and float32/64
+    # check if new_data, U_old, Vt_old are 2D DNDarrays and float32/64
     sanitize_in_nd_realfloating(new_data, "new_data", [2])
     sanitize_in_nd_realfloating(U_old, "U_old", [2])
     sanitize_in_nd_realfloating(S_old, "S_old", [1])
-    sanitize_in_nd_realfloating(V_old, "V_old", [2])
-    # check if number of columns of U_old and V_old match the number of elements in S_old
+    sanitize_in_nd_realfloating(Vt_old, "Vt_old", [2])
+    # check if number of columns of U_old and Vt_old match the number of elements in S_old
     if U_old.shape[1] != S_old.shape[0]:
         raise ValueError(
             "The number of columns of U_old must match the number of elements in S_old."
         )
-    if V_old.shape[1] != S_old.shape[0]:
-        raise ValueError(
-            "The number of columns of V_old must match the number of elements in S_old."
-        )
-    # check if the number of columns of new_data matches the number of rows of U_old and V_old
+    if Vt_old.shape[0] != S_old.shape[0]:
+        raise ValueError("The number of rows of Vt_old must match the number of elements in S_old.")
+    # check if the number of columns of new_data matches the number of rows of U_old and Vt_old
     if new_data.shape[0] != U_old.shape[0]:
         raise ValueError("The number of rows of new_data must match the number of rows of U_old.")
 
-    return _isvd(new_data, U_old, S_old, V_old, maxrank)
+    return _isvd(new_data, U_old, S_old, Vt_old, maxrank)

@@ -23,7 +23,7 @@ def qr(
     r"""
     Calculates the QR decomposition of a 2D ``DNDarray``.
     Factor the matrix ``A`` as *QR*, where ``Q`` is orthonormal and ``R`` is upper-triangular.
-    If ``mode = "reduced``, function returns ``QR(Q=Q, R=R)``, if ``mode = "r"`` function returns ``QR(Q=None, R=R)``
+    If ``mode = "reduced"``, function returns ``QR(Q=Q, R=R)``, if ``mode = "r"`` function returns ``QR(Q=None, R=R)``
 
     This function also works for batches of matrices; in this case, the last two dimensions of the input array are considered as the matrix dimensions.
     The output arrays have the same leading batch dimensions as the input array.

@@ -1,3 +1,44 @@
+# v1.7.0
+
+## Highlights
+
+1) DistributedSampler for efficient data loading and shuffling across multiple nodes with PyTorch
+2) Randomized Symmetric eignevalue decomposition (eigh)
+3) Incremental SVD directly from an HDF5 file
+4) Partial support of the Array API Standard (version: '2020.10'), and API namespace under `x.__array_namespace__(api_version='2020.10')`
+5) Distributed PTP (peak to peak) function
+
+*SVD, PCA, and DMD have been implemented within the project ESAPCA funded by the European Space Agency (ESA). This support is gratefully acknowledged.*
+
+## Changes
+### Features
+* Randomized Symmetric Eigenvalue Decomposition (eigh) by @mrfh92 in https://github.com/helmholtz-analytics/heat/pull/1964
+* Incremental SVD directly from HDF5 file by @LScheib in https://github.com/helmholtz-analytics/heat/pull/2005
+* Distributed Peak to Peak (ptp) function by @ivansherbakov9 in https://github.com/helmholtz-analytics/heat/pull/1954
+* PyTorch compatible DistributedSampler by @Berkant03 in https://githubcom/helmholtz-analytics/heat/pull/1807
+
+### Interoperability
+* Support Pytorch 2.9.1 by @github-actions[bot] in https://github.com/helmholtz-analytics/heat/pull/2001
+* Array API Namespace by @mtar in https://github.com/helmholtz-analytics/heat/pull/1022
+
+### Bug Fixes
+
+* Sturdier MPI+GPU compatibility check by @JuanPedroGHM in https://github.com/helmholtz-analytics/heat/pull/1979
+* Fix handling of zarr groups by @ClaudiaComito in https://github.com/helmholtz-analytics/heat/pull/1990
+* Supporting negative indices for flip operations by @Marc-Jindra in https://github.com/helmholtz-analytics/heat/pull/2014
+* Fixed issue where matrices returned by ```eigh``` were not on the expected device by @GioPede in https://github.com/helmholtz-analytics/heat/pull/2046
+* Fixed issue where matrices returned by ```qr``` were not on the expected device by @GioPede in https://github.com/helmholtz-analytics/heat/pull/2045
+* Dtype is now set correctly when loading and saving hdf5 files by @Marc-Jindra in https://github.com/helmholtz-analytics/heat/pull/2014
+* Fix MPI large count issues when respliting by @JuanPedroGHM in https://github.com/helmholtz-analytics/heat/pull/1973
+* Default GPU+MPI compatibility settings for unknown MPI implementations by @JuanPedroGHM in https://github.com/helmholtz-analytics/heat/pull/2060
+
+
+## Contributors
+@Marc-Jindra, @ClaudiaComito, @JuanPedroGHM, @GioPede, @ivansherbakov9, @LScheib, @Berkant03, @mrfh92, @mtar
+
+#### Acknowledgement and Disclaimer
+*This work is partially carried out under a [programme](https://activities.esa.int/index.php/4000144045) of, and funded by, the European Space Agency. Any view expressed in this repository or related publications can in no way be taken to reflect the official opinion of the European Space Agency.*
+
 # v1.6.0
 ## Highlights
 
