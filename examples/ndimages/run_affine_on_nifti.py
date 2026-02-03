@@ -1,7 +1,3 @@
-"""
-Example for distrubted arrays with 3 operations popup view
-"""
-
 import numpy as np
 import matplotlib.pyplot as plt
 import nibabel as nib
