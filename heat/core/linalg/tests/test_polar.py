@@ -55,7 +55,6 @@ class TestZolopolar(TestCase):
         # split=0, float32, no condition estimate provided, silent mode
         for r in range(1, 9):
             with self.subTest(r=r):
-                ht.random.seed(18112024)
                 A = ht.random.randn(100, 10 * r, split=0, dtype=ht.float32)
                 if (
                     ht.MPI_WORLD.size % r == 0 and ht.MPI_WORLD.size != r
@@ -75,7 +74,6 @@ class TestZolopolar(TestCase):
         self._check_polar(A, U, H, dtypetol)
 
         # case without calculating H
-        ht.random.seed(10122024)
         A = ht.random.randn(100, 10, split=0, dtype=ht.float32)
         U = ht.polar(A, calcH=False)
         U_np = U.numpy()
@@ -88,7 +86,6 @@ class TestZolopolar(TestCase):
         # split=1, float64, condition estimate provided, non-silent mode
         for r in range(1, 9):
             with self.subTest(r=r):
-                ht.random.seed(623)
                 A = ht.random.randn(100, 99, split=1, dtype=ht.float64)
                 if (
                     ht.MPI_WORLD.size % r == 0 and ht.MPI_WORLD.size != r

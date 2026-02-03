@@ -27,7 +27,6 @@ class TestKMeans(TestCase):
         split = 0
         # get some test data
         iris = ht.load("heat/datasets/iris.csv", sep=";", split=split)
-        ht.random.seed(1)
         # fit the clusters
         k = 3
         kmedoid = ht.cluster.KMedoids(n_clusters=k, random_state=1)
