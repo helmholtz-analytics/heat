@@ -8,7 +8,7 @@ import numpy as np
 import torch
 import warnings
 
-from typing import Iterable, Type, List, Callable, Union, Tuple, Sequence, Optional
+from typing import Any, Iterable, Type, List, Callable, Union, Tuple, Sequence, Optional
 
 from .communication import MPI, Communication
 from .dndarray import DNDarray
@@ -207,7 +207,7 @@ def broadcast_to(x: DNDarray, shape: Tuple[int, ...]) -> DNDarray:
     split_tags = [None] * x.ndim
     if x.split is not None:
         split_tags[x.split] = "split"
-        torch_proxy = torch.tensor(torch_proxy, names=split_tags)
+        torch_proxy = torch_proxy.detach().clone().rename_(*split_tags)
         try:
             torch_proxy = torch_proxy.broadcast_to(shape)
         except RuntimeError:
@@ -582,11 +582,11 @@ def concatenate(arrays: Sequence[DNDarray, ...], axis: int = 0) -> DNDarray:
                                 send_slice[arr0.split] = slice(0, send_amt)
                                 keep_slice[arr0.split] = slice(send_amt, t_arr0.shape[axis])
                                 send = arr0.comm.Isend(
-                                    t_arr0[send_slice].clone(),
+                                    t_arr0[tuple(send_slice)].clone(),
                                     dest=pr,
                                     tag=pr + arr0.comm.size + spr,
                                 )
-                                t_arr0 = t_arr0[keep_slice].clone()
+                                t_arr0 = t_arr0[tuple(keep_slice)].clone()
                                 send.Wait()
                     for pr in range(spr):
                         snt = abs((chunk_map[pr, s0] - lshape_map[0, pr, s0]).item())
@@ -627,11 +627,11 @@ def concatenate(arrays: Sequence[DNDarray, ...], axis: int = 0) -> DNDarray:
                                 )
                                 keep_slice[axis] = slice(0, t_arr1.shape[axis] - send_amt)
                                 send = arr1.comm.Isend(
-                                    t_arr1[send_slice].clone(),
+                                    t_arr1[tuple(send_slice)].clone(),
                                     dest=pr,
                                     tag=pr + arr1.comm.size + spr,
                                 )
-                                t_arr1 = t_arr1[keep_slice].clone()
+                                t_arr1 = t_arr1[tuple(keep_slice)].clone()
                                 send.Wait()
                     for pr in range(arr1.comm.size - 1, spr, -1):
                         snt = abs((chunk_map[pr, axis] - lshape_map[1, pr, axis]).item())
@@ -659,13 +659,13 @@ def concatenate(arrays: Sequence[DNDarray, ...], axis: int = 0) -> DNDarray:
                     # the chunk map is adjusted by subtracting what data is already in the correct place (the data from
                     # arr1 is already correctly placed) i.e. the chunk map shows how much data is still needed on each
                     # process, the local
-                    chunk_map[arb_slice] -= lshape_map[tuple([1] + arb_slice)]
+                    chunk_map[tuple(arb_slice)] -= lshape_map[tuple([1] + arb_slice)]
 
                 # after adjusting arr1 need to now select the target data in arr0 on each node with a local slice
                 if arr0.comm.rank == 0:
-                    lcl_slice = [slice(None)] * arr0.ndim
+                    lcl_slice: list[slice[Any, Any, Any]] | Any = [slice(None)] * arr0.ndim
                     lcl_slice[axis] = slice(chunk_map[0, axis].item())
-                    t_arr0 = t_arr0[lcl_slice].clone().squeeze()
+                    t_arr0 = t_arr0[tuple(lcl_slice)].clone().squeeze()
                 ttl = chunk_map[0, axis].item()
                 for en in range(1, arr0.comm.size):
                     sz = chunk_map[en, axis]
@@ -682,7 +682,7 @@ def concatenate(arrays: Sequence[DNDarray, ...], axis: int = 0) -> DNDarray:
                 arb_slice = [None] * len(arr0.shape)
                 for c in range(len(chunk_map)):
                     arb_slice[axis] = c
-                    chunk_map[arb_slice] -= lshape_map[tuple([0] + arb_slice)]
+                    chunk_map[tuple(arb_slice)] -= lshape_map[tuple([0] + arb_slice)]
 
                 # get the desired data in arr1 on each node with a local slice
                 if arr1.comm.rank == arr1.comm.size - 1:
@@ -690,7 +690,7 @@ def concatenate(arrays: Sequence[DNDarray, ...], axis: int = 0) -> DNDarray:
                     lcl_slice[axis] = slice(
                         t_arr1.shape[axis] - chunk_map[-1, axis].item(), t_arr1.shape[axis], 1
                     )
-                    t_arr1 = t_arr1[lcl_slice].clone().squeeze()
+                    t_arr1 = t_arr1[tuple(lcl_slice)].clone().squeeze()
                 ttl = chunk_map[-1, axis].item()
                 for en in range(arr1.comm.size - 2, -1, -1):
                     sz = chunk_map[en, axis]
@@ -1076,7 +1076,7 @@ def flip(a: DNDarray, axis: Union[int, Tuple[int, ...]] = None) -> DNDarray:
     a: DNDarray
         Input array to be flipped
     axis: int or Tuple[int,...]
-        A list of axes to be flipped
+        The axis or sequence of axes to be flipped
 
     See Also
     --------
@@ -1100,7 +1100,11 @@ def flip(a: DNDarray, axis: Union[int, Tuple[int, ...]] = None) -> DNDarray:
 
     # torch.flip only accepts tuples
     if isinstance(axis, int):
-        axis = [axis]
+        axis = (axis,)
+    elif isinstance(axis, list):
+        axis = tuple(axis)
+
+    axis = stride_tricks.sanitize_axis(a.shape, axis)
 
     flipped = torch.flip(a.larray, axis)
 
@@ -2585,6 +2589,12 @@ def sort(a: DNDarray, axis: int = -1, descending: bool = False, out: Optional[DN
     (array([[4, 1]], array([[0, 1]]))
     (array([[3, 2]], array([[1, 0]]))
     """
+    # TODO: Find a better way to ignore specific warnings. This one seems to be related to numpy trying to sort torch tensors. Maybe changing to torch.sort would help?
+    warnings.filterwarnings(
+        "ignore",
+        category=DeprecationWarning,
+        message=r".*__array_wrap__ must accept context and return_scalar arguments.*",
+    )
     stride_tricks.sanitize_axis(a.shape, axis)
 
     if not a.is_distributed() or axis != a.split:
@@ -2682,7 +2692,9 @@ def sort(a: DNDarray, axis: int = -1, descending: bool = False, out: Optional[DN
 
         # Iterate through one layer and send values with alltoallv
         for idx in np.ndindex(local_sorted.shape[1:]):
-            idx_slice = [slice(None)] + [slice(ind, ind + 1) for ind in idx]
+            idx_slice: tuple(slice, ...) = (slice(None),) + tuple(
+                slice(ind, ind + 1) for ind in idx
+            )
 
             send_count = scounts[idx_slice].reshape(-1).tolist()
             send_disp = [0] + list(np.cumsum(send_count[:-1]))
@@ -2704,7 +2716,9 @@ def sort(a: DNDarray, axis: int = -1, descending: bool = False, out: Optional[DN
         send_vec = torch.zeros(local_sorted.shape[1:] + (size, size), dtype=torch.int64)
         target_cumsum = np.cumsum(counts)
         for idx in np.ndindex(local_sorted.shape[1:]):
-            idx_slice = [slice(None)] + [slice(ind, ind + 1) for ind in idx]
+            idx_slice: tuple(slice, ...) = (slice(None),) + tuple(
+                slice(ind, ind + 1) for ind in idx
+            )
             current_counts = partition_matrix[idx_slice].reshape(-1).tolist()
             current_cumsum = list(np.cumsum(current_counts))
             for proc in range(size):
@@ -2757,7 +2771,9 @@ def sort(a: DNDarray, axis: int = -1, descending: bool = False, out: Optional[DN
         second_result = torch.empty_like(local_sorted)
         second_indices = torch.empty_like(second_result)
         for idx in np.ndindex(local_sorted.shape[1:]):
-            idx_slice = [slice(None)] + [slice(ind, ind + 1) for ind in idx]
+            idx_slice: tuple(slice, ...) = (slice(None),) + tuple(
+                slice(ind, ind + 1) for ind in idx
+            )
 
             send_count = send_vec[idx][rank]
             send_disp = [0] + list(np.cumsum(send_count[:-1]))

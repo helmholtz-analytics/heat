@@ -50,10 +50,10 @@ git checkout main
 git pull upstream main
 ```
 
-* Install Heat from the checked out sources with:
+* Install Heat in editable mode from the checked out sources with:
 
 ```
-pip install .[hdf5,netcdf,dev]
+pip install -e .[hdf5,netcdf,dev]
 ```
 
 * The extra `dev` dependency pulls in additional tools to support the enforcement
@@ -149,7 +149,7 @@ If GitHub indicates that the branch of your PR can no longer be merged automatic
 * To measure the test coverage, install [codecov](https://github.com/codecov/codecov-python) and then run:
 
 ```
-mpirun -np <PROCESSES coverage run --source=heat --parallel-mode -m pytest heat/ && \
+mpirun -np <PROCESSES> coverage run --source=heat --parallel-mode -m pytest heat/ && \
     coverage combine && \
     coverage report && \
     coverage xml'
