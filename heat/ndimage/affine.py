@@ -277,12 +277,7 @@ def _bilinear_sample(x, coords, mode, constant_value):
     wy = y - y0.float()
     wx = x_ - x0.float()
 
-    out = (
-        Ia * (1 - wy) * (1 - wx)
-        + Ib * (1 - wy) * wx
-        + Ic * wy * (1 - wx)
-        + Id * wy * wx
-    )
+    out = Ia * (1 - wy) * (1 - wx) + Ib * (1 - wy) * wx + Ic * wy * (1 - wx) + Id * wy * wx
 
     if mode == "constant":
         const = torch.full_like(out, constant_value)
@@ -294,7 +289,6 @@ def _bilinear_sample(x, coords, mode, constant_value):
 # ============================================================
 # Local affine transform (no MPI logic)
 # ============================================================
-
 
 
 def _affine_transform_local(x, M, order, mode, constant_value, expand):
@@ -389,8 +383,7 @@ def _affine_transform_local(x, M, order, mode, constant_value, expand):
 # ============================================================
 # Public API (MPI-safe)
 # ============================================================
-def affine_transform(x, M, order=0, mode="constant",
-                     constant_value=0.0, expand=False):
+def affine_transform(x, M, order=0, mode="constant", constant_value=0.0, expand=False):
     """
     Space-based affine transform for Heat arrays.
 
@@ -404,7 +397,6 @@ def affine_transform(x, M, order=0, mode="constant",
         * halo exchange is NOT implemented yet
         * boundary voxels may be incomplete
     """
-
     M = np.asarray(M)
     if M.shape == (2, 3):
         ND = 2
@@ -425,6 +417,4 @@ def affine_transform(x, M, order=0, mode="constant",
             RuntimeWarning,
         )
 
-    return _affine_transform_local(
-        x, M, order, mode, constant_value, expand
-    )
+    return _affine_transform_local(x, M, order, mode, constant_value, expand)
