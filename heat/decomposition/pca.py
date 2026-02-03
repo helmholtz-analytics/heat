@@ -189,7 +189,7 @@ class PCA(ht.TransformMixin, ht.BaseEstimator):
 
         # compute SVD via "full" SVD
         if self.svd_solver == "full" or not X.is_distributed():
-            _, S, V = ht.linalg.svd(X_centered, full_matrices=False)
+            _, S, Vt = ht.linalg.svd(X_centered, full_matrices=False)
             total_variance = (S**2).sum() / (X.shape[0] - 1)
             if not isinstance(self.n_components_, int):
                 # truncation w.r.t. prescribed bound on explained variance
@@ -204,7 +204,7 @@ class PCA(ht.TransformMixin, ht.BaseEstimator):
                     )
                     + 1
                 )
-            self.components_ = V[:, : self.n_components_].T
+            self.components_ = Vt[: self.n_components_, :]
             self.singular_values_ = S[: self.n_components_]
             self.explained_variance_ = (S**2)[: self.n_components_] / (X.shape[0] - 1)
             self.explained_variance_ratio_ = self.explained_variance_ / total_variance
@@ -218,28 +218,28 @@ class PCA(ht.TransformMixin, ht.BaseEstimator):
             if isinstance(self.n_components_, float):
                 # hierarchical SVD with prescribed upper bound on relative error
                 # note: "upper bound on relative error" (hsvd_rtol) is "1 - lower bound" (PCA)
-                _, S, V, info = ht.linalg.hsvd_rtol(
+                _, S, Vt, info = ht.linalg.hsvd_rtol(
                     X_centered, (1 - self.n_components_) ** 0.5, compute_sv=True, safetyshift=0
                 )
             else:
                 # hierarchical SVD with prescribed, fixed (truncation) rank
-                _, S, V, info = ht.linalg.hsvd_rank(
+                _, S, Vt, info = ht.linalg.hsvd_rank(
                     X_centered, self.n_components_, compute_sv=True, safetyshift=0
                 )
-            self.n_components_ = V.shape[1]
-            self.components_ = V.T
+            self.n_components_ = Vt.shape[0]
+            self.components_ = Vt
             self.total_explained_variance_ratio_ = 1 - info.larray.item() ** 2
 
         else:
             # compute SVD via "randomized" SVD
-            _, S, V = ht.linalg.rsvd(
+            _, S, Vt = ht.linalg.rsvd(
                 X_centered,
                 self.n_components_,
                 n_oversamples=self.n_oversamples,
                 power_iter=self.iterated_power,
             )
-            self.components_ = V.T
-            self.n_components_ = V.shape[1]
+            self.components_ = Vt
+            self.n_components_ = Vt.shape[0]
 
         self.n_samples_ = X.shape[0]
         self.noise_variance_ = None  # not yet implemented
@@ -435,8 +435,8 @@ class IncrementalPCA(ht.TransformMixin, ht.BaseEstimator):
 
             self.mean_ = X.mean(axis=0)
             X_centered = X - self.mean_
-            _, S, V = ht.linalg.svd(X_centered)
-            self.components_ = V[:, : self.n_components_].T
+            _, S, Vt = ht.linalg.svd(X_centered)
+            self.components_ = Vt[: self.n_components_, :]
             self.singular_values_ = S[: self.n_components_]
             self.n_samples_seen_ = X.shape[0]
 
@@ -446,7 +446,7 @@ class IncrementalPCA(ht.TransformMixin, ht.BaseEstimator):
                 X.T,
                 self.components_.T,
                 self.singular_values_,
-                V_old=None,
+                Vt_old=None,
                 maxrank=self.n_components,
                 old_matrix_size=self.n_samples_seen_,
                 old_rowwise_mean=self.mean_,
