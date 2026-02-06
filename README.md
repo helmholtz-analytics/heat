@@ -48,7 +48,7 @@ Heat builds on [PyTorch](https://pytorch.org/) and [mpi4py](https://mpi4py.readt
 With Heat you can:
 - port existing NumPy/SciPy code from single-CPU to multi-node clusters with minimal coding effort;
 - exploit the entire, cumulative RAM of your many nodes for memory-intensive operations and algorithms;
-- run your NumPy/SciPy code on GPUs (CUDA, ROCm, coming up: Apple MPS).
+- run your NumPy/SciPy code on GPUs (CUDA, ROCm, Apple MPS, coming up: Intel XPUs).
 
 For a example that highlights the benefits of multi-node parallelism, hardware acceleration, and how easy this can be done with the help of Heat, see, e.g., our [blog post on trucated SVD of a 200GB data set](https://helmholtz-analytics.github.io/heat/2023/06/16/new-feature-hsvd.html).
 
