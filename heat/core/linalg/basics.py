@@ -1481,7 +1481,7 @@ def matrix_exp(A: DNDarray) -> DNDarray:
 
 
 expm = matrix_exp  # provide alias with name of scipy equivalent
-"""Alias for :py:func:matrix_exp"""
+"""Alias for :py:func:`matrix_exp`"""
 
 
 def norm(
