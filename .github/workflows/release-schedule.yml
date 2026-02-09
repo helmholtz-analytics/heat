@@ -35,7 +35,7 @@ jobs:
     if: github.event_name == 'schedule' || github.event.inputs.release_type == '4-weeks-before'
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@ec9f2d5744a09debf3a187a3f4f675c53b671911 # v2.13.0
+        uses: step-security/harden-runner@5ef0c079ce82195b2a36a210272d6b661572d83e # v2.14.2
         with:
           egress-policy: audit
 
