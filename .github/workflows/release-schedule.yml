@@ -1,0 +1,120 @@
+name: Automated Release Schedule
+
+on:
+  schedule:
+    # 4 weeks before March 26
+    - cron: '0 9 26 2 *'
+    # 4 weeks before Sept 24
+    - cron: '0 9 27 8 *'
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: 'Type of release preparation'
+        required: true
+        default: '4-weeks-before'
+        type: choice
+        options:
+          - '4-weeks-before'
+          - '2-weeks-before' # not used for now
+      release_version:
+        description: 'Target release version (e.g., 1.6.0)'
+        required: true
+        default: 'x.y.z'
+      release_name:
+        description: 'Release name/theme'
+        required: false
+        default: 'Heat'
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  create-release-issues:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event.inputs.release_type == '4-weeks-before'
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@5ef0c079ce82195b2a36a210272d6b661572d83e # v2.14.2
+        with:
+          egress-policy: audit
+
+      - name: Checkout repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+      - name: Determine release version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" == "schedule" ]; then
+            VERSION=$(python3 -c "d={}; exec(open('heat/core/version.py').read(), d); print(f'{d[\"major\"]}.{d[\"minor\"]}.{d[\"micro\"]}')")
+            echo "version=${VERSION}" >> $GITHUB_OUTPUT
+            MONTH=$(date +%m)
+            if [ "$MONTH" == "02" ]; then
+              echo "season=Spring" >> $GITHUB_OUTPUT
+            else
+              echo "season=Fall" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "version=${{ github.event.inputs.release_version }}" >> $GITHUB_OUTPUT
+            echo "season=Manual" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Release Preparation Issues
+        uses: actions/github-script@9afe6b66b5f8f48e7651c78b94cbf5e3a8ba2833 # v7.1.0
+        with:
+          script: |
+            const version = '${{ steps.version.outputs.version }}';
+            const season = '${{ steps.version.outputs.season }}';
+
+            // Fetch milestones to find the one matching the version title
+            const milestones = await github.rest.issues.listMilestones({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open'
+            });
+
+            const targetMilestone = milestones.data.find(m => m.title === version);
+            const milestoneNumber = targetMilestone ? targetMilestone.number : null;
+
+            if (!milestoneNumber) {
+              console.log(`Warning: No open milestone found with title "${version}". Issues will be created without a milestone.`);
+            }
+
+            const issueData = [
+              {
+                title: `[Release Prep]: NEP 29 Compliance Check for v${version}`,
+                body: `## NEP 29 Compliance Check for Heat v${version}\n\nThis issue was automatically created as part of the ${season} release preparation process.\n\n### Tasks\n- [ ] Review current NEP 29 minimum supported versions\n- [ ] Check Python version support in pyproject.toml\n- [ ] Check NumPy version support in requirements\n- [ ] Check PyTorch version support in requirements\n- [ ] Update bug report template with current supported versions\n- [ ] Update CI matrix to test minimum supported versions\n- [ ] Update documentation with supported versions\n- [ ] Verify all dependencies meet NEP 29 requirements\n\n**Due Date:** 4 weeks before release\n**Priority:** High`,
+                labels: ['release-prep']
+              },
+              {
+                title: `[Release Prep]: Select Highlights for v${version}`,
+                body: `## Release Highlights Selection for Heat v${version}\n\nThis issue was automatically created as part of the ${season} release preparation process.\n\n### Tasks\n- [ ] Review all merged PRs since last release\n- [ ] Identify major features from PR labels and descriptions\n- [ ] Contact contributors for feature descriptions\n- [ ] Write draft highlight descriptions\n- [ ] Get team approval for selected highlights\n- [ ] Update CITATION.cff with new contributors\n\n**Due Date:** 3 weeks before release\n**Priority:** High`,
+                labels: ['release-prep']
+              },
+              {
+                title: `[Release Prep]: Update CITATION.cff for v${version}`,
+                body: `## CITATION.cff Update for Heat v${version}\n\nThis issue was automatically created as part of the ${season} release preparation process.\n\n### Tasks\n- [ ] Review all contributors since last release\n- [ ] Identify non-core contributors to add to authors list\n- [ ] Update author names and affiliations if needed\n- [ ] Verify current core team member list\n- [ ] Update version information in preferred-citation\n- [ ] Check repository and documentation URLs are current\n- [ ] Validate CITATION.cff syntax\n- [ ] Test citation file with cffconvert tool\n\n**Due Date:** 3 weeks before release\n**Priority:** Medium`,
+                labels: ['release-prep']
+              },
+              {
+                title: `[Release Prep]: PR Merge Decisions for v${version}`,
+                body: `## PR Merge Decisions for Heat v${version}\n\nThis issue was automatically created as part of the ${season} release preparation process.\n\n### Tasks\n- [ ] List all open PRs targeting main branch\n- [ ] Review PR readiness (tests passing, reviews complete)\n- [ ] Categorize PRs by type (features, bug fixes, etc.)\n- [ ] Identify PRs that must be included in release\n- [ ] Identify PRs that should be deferred to next release\n- [ ] Communicate decisions to PR authors\n- [ ] Set appropriate labels on PRs\n\n**Due Date:** 2 weeks before release\n**Priority:** High`,
+                labels: ['release-prep']
+              },
+              {
+                title: `[Release Prep]: Draft Blog Post for v${version}`,
+                body: `## Blog Post Draft for Heat v${version}\n\nThis issue was automatically created as part of the ${season} release preparation process.\n\n### Tasks\n- [ ] Draft outline with key sections\n- [ ] Write introduction highlighting major themes\n- [ ] Detail major new features with examples\n- [ ] Highlight performance improvements with benchmarks\n- [ ] Acknowledge contributors and community\n- [ ] Include installation and getting started info\n- [ ] Add relevant code examples or screenshots\n- [ ] Select cover figure\n- [ ] Review and edit for clarity and accuracy\n- [ ] Get team review and approval\n- [ ] Schedule publication timing\n\n**Due Date:** 1 week before release\n**Priority:** Medium`,
+                labels: ['release-prep']
+              }
+            ];
+
+            for (const issue of issueData) {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: issue.title,
+                body: issue.body,
+                labels: issue.labels,
+                milestone: milestoneNumber
+              });
+            }
