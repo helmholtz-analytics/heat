@@ -5,6 +5,39 @@ from ...tests.test_suites.basic_test import TestCase
 
 
 class TestTallSkinnySVD(TestCase):
+    def test_numpy_API_compatibility(self):
+        full_matrices = False
+
+        for shape, split in zip(['tall_skinny', 'short_fat', 'square'][::-1], [0, 1, 0], strict=True):
+            with self.subTest(shape=shape):
+                # prepare data
+                if shape == 'tall_skinny':
+                    Xn = np.random.randn(ht.MPI_WORLD.size * 10 + 3, 10)
+                elif shape == 'short_fat':
+                    Xn = np.random.randn(10, ht.MPI_WORLD.size * 10 + 3)
+                else:
+                    Xn = np.random.randn(ht.MPI_WORLD.size * 10, ht.MPI_WORLD.size * 10)
+                Xn = ht.comm.bcast(Xn, root=0)
+
+                # do SVD in numpy
+                Un, Sn, Vhn = np.linalg.svd(Xn, full_matrices=full_matrices)
+
+                # repeat SVD in heat
+                X = ht.array(Xn, split=split)
+                U, S, Vh = ht.linalg.svd(X, full_matrices=full_matrices)
+
+                # test that the global in- and output are the same
+                X_glob = X.resplit(None).larray.cpu()
+                U_glob = U.resplit(None).larray.cpu()
+                S_glob = S.resplit(None).larray.cpu()
+                Vh_glob = Vh.resplit(None).larray.cpu()
+
+                self.assertTrue(np.allclose(X_glob, Xn))
+                self.assertTrue(np.allclose(S_glob, Sn))
+                self.assertTupleEqual(U.shape, Un.shape)
+                self.assertTupleEqual(Vh.shape, Vhn.shape)
+                self.assertTrue(np.allclose(U_glob @ np.diag(S_glob) @ Vh_glob, Un @ np.diag(Sn) @ Vhn))
+
     def test_tallskinny_split0(self):
         if self.is_mps:
             dtypes = [ht.float32]
@@ -15,20 +48,20 @@ class TestTallSkinnySVD(TestCase):
                 tol = 1e-5 if dtype == ht.float32 else 1e-10
                 X = ht.random.randn(ht.MPI_WORLD.size * 10 + 3, 10, split=0, dtype=dtype)
                 if n_merge == 0:
-                    U, S, V = ht.linalg.svd(X, qr_procs_to_merge=n_merge)
+                    U, S, Vt = ht.linalg.svd(X, qr_procs_to_merge=n_merge)
                 else:
-                    U, S, V = ht.linalg.svd(X)
+                    U, S, Vt = ht.linalg.svd(X)
                 if ht.MPI_WORLD.size > 1:
                     self.assertTrue(U.split == 0)
                 self.assertTrue(S.split is None)
-                self.assertTrue(V.split is None)
+                self.assertTrue(Vt.split is None)
                 self.assertTrue(
                     ht.allclose(U.T @ U, ht.eye(U.shape[1], dtype=dtype), rtol=tol, atol=tol)
                 )
                 self.assertTrue(
-                    ht.allclose(V.T @ V, ht.eye(V.shape[1], dtype=dtype), rtol=tol, atol=tol)
+                    ht.allclose(Vt @ Vt.T, ht.eye(Vt.shape[1], dtype=dtype), rtol=tol, atol=tol)
                 )
-                self.assertTrue(ht.allclose(U @ ht.diag(S) @ V.T, X, rtol=tol, atol=tol))
+                self.assertTrue(ht.allclose(U @ ht.diag(S) @ Vt, X, rtol=tol, atol=tol))
                 self.assertTrue(ht.all(S >= 0))
 
     def test_shortfat_split1(self):
@@ -39,18 +72,18 @@ class TestTallSkinnySVD(TestCase):
         for dtype in dtypes:
             tol = 1e-5 if dtype == ht.float32 else 1e-10
             X = ht.random.randn(10, ht.MPI_WORLD.size * 10 + 3, split=1, dtype=dtype)
-            U, S, V = ht.linalg.svd(X)
+            U, S, Vt = ht.linalg.svd(X)
             self.assertTrue(U.split is None)
             self.assertTrue(S.split is None)
             if ht.MPI_WORLD.size > 1:
-                self.assertTrue(V.split == 0)
+                self.assertTrue(Vt.split == 1)
             self.assertTrue(
                 ht.allclose(U.T @ U, ht.eye(U.shape[1], dtype=dtype), rtol=tol, atol=tol)
             )
             self.assertTrue(
-                ht.allclose(V.T @ V, ht.eye(V.shape[1], dtype=dtype), rtol=tol, atol=tol)
+                ht.allclose(Vt @ Vt.T, ht.eye(Vt.shape[0], dtype=dtype), rtol=tol, atol=tol)
             )
-            self.assertTrue(ht.allclose(U @ ht.diag(S) @ V.T, X, rtol=tol, atol=tol))
+            self.assertTrue(ht.allclose(U @ ht.diag(S) @ Vt, X, rtol=tol, atol=tol))
             self.assertTrue(ht.all(S >= 0))
 
     def test_singvals_only(self):
@@ -115,9 +148,9 @@ class TestZoloSVD(TestCase):
                         X = ht.random.randn(*shape, split=split, dtype=dtype)
                         if split is not None and ht.MPI_WORLD.size > 1:
                             with self.assertWarns(UserWarning):
-                                U, S, V = ht.linalg.svd(X)
+                                U, S, Vt = ht.linalg.svd(X)
                         else:
-                            U, S, V = ht.linalg.svd(X)
+                            U, S, Vt = ht.linalg.svd(X)
                         self.assertTrue(
                             ht.allclose(
                                 U.T @ U, ht.eye(U.shape[1], dtype=dtype), rtol=tol, atol=tol
@@ -125,10 +158,10 @@ class TestZoloSVD(TestCase):
                         )
                         self.assertTrue(
                             ht.allclose(
-                                V.T @ V, ht.eye(V.shape[1], dtype=dtype), rtol=tol, atol=tol
+                                Vt @ Vt.T, ht.eye(Vt.shape[0], dtype=dtype), rtol=tol, atol=tol
                             )
                         )
-                        self.assertTrue(ht.allclose(U @ ht.diag(S) @ V.T, X, rtol=tol, atol=tol))
+                        self.assertTrue(ht.allclose(U @ ht.diag(S) @ Vt, X, rtol=tol, atol=tol))
                         self.assertTrue(ht.all(S >= 0))
 
     def test_options_full_svd(self):
@@ -137,7 +170,7 @@ class TestZoloSVD(TestCase):
         S = ht.linalg.svd(X, compute_uv=False)
 
         # prescribed r_max_zolopd
-        U, S, V = ht.linalg.svd(X, r_max_zolopd=1)
+        U, S, Vt = ht.linalg.svd(X, r_max_zolopd=1)
 
         # catch error if r_max_zolopd is not provided properly
         if X.is_distributed():
