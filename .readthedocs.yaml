@@ -5,7 +5,6 @@
 # Required
 version: 2
 
-# Set the version of Python and other tools you might need
 build:
   os: ubuntu-22.04
   tools:
@@ -14,23 +13,31 @@ build:
     - pandoc
     - libopenmpi-dev
 
-  # Custom build jobs to control when the build runs
   jobs:
+    # Ensure we have the full history so git diff actually works
+    post_checkout:
+      - git fetch --unshallow || true
+    
     pre_build:
       - |
-        # Only perform this check for Pull Requests (external builds)
         if [ "$READTHEDOCS_VERSION_TYPE" = "external" ]; then
-          # Check for changes in docs, source code, or config files.
-          # If no matches are found, exit with code 18 to cancel the build gracefully.
-          git diff --name-only $READTHEDOCS_GIT_COMMIT_HASH_BASE $READTHEDOCS_GIT_COMMIT_HASH | grep -q -e '^doc/' -e '^heat/' -e '^examples/' -e '^tutorials/' -e '^pyproject\.toml' -e '^\.readthedocs\.yaml' || exit 18
+          # Fallback: if BASE is empty, compare against HEAD~1
+          BASE_COMMIT=${READTHEDOCS_GIT_COMMIT_HASH_BASE:-"HEAD~1"}
+          
+          echo "Comparing $BASE_COMMIT against $READTHEDOCS_GIT_COMMIT_HASH"
+          
+          git diff --name-only "$BASE_COMMIT" "$READTHEDOCS_GIT_COMMIT_HASH" | grep -q -e '^doc/' -e '^heat/' -e '^examples/' -e '^tutorials/' -e '^pyproject\.toml' -e '^\.readthedocs\.yaml'
+          
+          # If grep failed to find a match (exit code 1), then exit with 18
+          if [ $? -eq 1 ]; then
+            echo "No relevant changes found. Skipping build."
+            exit 18
+          fi
         fi
 
-# Build documentation in the docs/ directory with Sphinx
 sphinx:
   configuration: doc/source/conf.py
 
-# We recommend specifying your dependencies to enable reproducible builds:
-# https://docs.readthedocs.io/en/stable/guides/reproducible-builds.html
 python:
   install:
     - method: pip
