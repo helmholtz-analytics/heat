@@ -14,11 +14,11 @@ jobs:
       pull-requests: write
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        uses: step-security/harden-runner@5ef0c079ce82195b2a36a210272d6b661572d83e # v2.14.2
         with:
           egress-policy: audit
 
-      - uses: actions/stale@5f858e3efba33a5ca4407a664cc011ad407f2008 # v10.1.0
+      - uses: actions/stale@997185467fa4f803885201cee163a9f38240193d # v10.1.1
         with:
           days-before-issue-stale: 60
           days-before-issue-close: 60
@@ -31,3 +31,5 @@ jobs:
           stale-pr-message: "This pull request is stale because it has been open for 60 days with no activity."
           close-pr-message: "This pull request was closed because it has been inactive for 60 days since being marked as stale."
           repo-token: ${{ secrets.GITHUB_TOKEN }}
+          exempt-issue-labels: "epic,discussion,good first issue,RFC,student project"
+          exempt-pr-labels: "epic,discussion,good first issue,RFC,student project"
