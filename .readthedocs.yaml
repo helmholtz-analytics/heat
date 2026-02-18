@@ -20,7 +20,7 @@ build:
       - |
         # Only perform this check for Pull Requests (external builds)
         if [ "$READTHEDOCS_VERSION_TYPE" = "external" ]; then
-          # Check for changes in docs, source code, or config files. 
+          # Check for changes in docs, source code, or config files.
           # If no matches are found, exit with code 18 to cancel the build gracefully.
           git diff --name-only $READTHEDOCS_GIT_COMMIT_HASH_BASE $READTHEDOCS_GIT_COMMIT_HASH | grep -q -e '^doc/' -e '^heat/' -e '^examples/' -e '^tutorials/' -e '^pyproject\.toml' -e '^\.readthedocs\.yaml' || exit 18
         fi
