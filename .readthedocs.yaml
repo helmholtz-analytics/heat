@@ -14,23 +14,11 @@ build:
     - pandoc
     - libopenmpi-dev
 
-  jobs:
+jobs:
     pre_build:
       - |
-        # Only perform this check for Pull Requests (external builds)
         if [ "$READTHEDOCS_VERSION_TYPE" = "external" ]; then
-          # Check for changes in:
-          # 1. doc/
-          # 2. heat/
-          # 3. examples/ or tutorials/
-          # 4. Config files
-          git diff --name-only $READTHEDOCS_GIT_COMMIT_HASH_BASE $READTHEDOCS_GIT_COMMIT_HASH | grep -q \
-            -e '^doc/' \
-            -e '^heat/' \
-            -e '^examples/' \
-            -e '^tutorials/' \
-            -e '^pyproject\.toml' \
-            -e '^\.readthedocs\.yaml' || exit 18
+          git diff --name-only $READTHEDOCS_GIT_COMMIT_HASH_BASE $READTHEDOCS_GIT_COMMIT_HASH | grep -q -e '^doc/' -e '^heat/' -e '^examples/' -e '^tutorials/' -e '^pyproject\.toml' -e '^\.readthedocs\.yaml' || exit 18
         fi
 
 # Build documentation in the docs/ directory with Sphinx
