@@ -14,6 +14,28 @@ build:
     - pandoc
     - libopenmpi-dev
 
+  jobs:
+    # Ensure we have the full history so git diff actually works
+    post_checkout:
+      - git fetch --unshallow || true
+
+    pre_build:
+      - |
+        if [ "$READTHEDOCS_VERSION_TYPE" = "external" ]; then
+          # Fallback: if BASE is empty, compare against HEAD~1
+          BASE_COMMIT=${READTHEDOCS_GIT_COMMIT_HASH_BASE:-"HEAD~1"}
+
+          echo "Comparing $BASE_COMMIT against $READTHEDOCS_GIT_COMMIT_HASH"
+
+          git diff --name-only "$BASE_COMMIT" "$READTHEDOCS_GIT_COMMIT_HASH" | grep -q -e '^doc/' -e '^heat/' -e '^examples/' -e '^tutorials/' -e '^pyproject\.toml' -e '^\.readthedocs\.yaml'
+
+          # If grep failed to find a match (exit code 1), then exit with 18
+          if [ $? -eq 1 ]; then
+            echo "No relevant changes found. Skipping build."
+            exit 18
+          fi
+        fi
+
 # Build documentation in the docs/ directory with Sphinx
 sphinx:
   configuration: doc/source/conf.py
@@ -22,7 +44,7 @@ sphinx:
 # https://docs.readthedocs.io/en/stable/guides/reproducible-builds.html
 python:
   install:
-  - method: pip
-    path: .
-    extra_requirements:
-    - docs
+    - method: pip
+      path: .
+      extra_requirements:
+        - docs
