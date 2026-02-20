@@ -21,10 +21,10 @@ from .types import (
     canonical_heat_type,
     heat_type_is_inexact,
     heat_type_is_exact,
+    heat_type_is_complexfloating,
     heat_type_of,
     datatype,
     can_cast,
-    _complexfloating,
 )
 
 
@@ -724,7 +724,7 @@ def copysign_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     dtypes = dtype1, dtype2 = (heat_type_of(t1), heat_type_of(t2))
 
     for dt in dtypes:
-        if heat_type_is_exact(dt) or dt in _complexfloating:
+        if heat_type_is_exact(dt) or heat_type_is_complexfloating(dt):
             raise TypeError(
                 "Operation is only supported for inputs whose elements are floats and are not "
                 + f"complex. But your inputs have the datatypes {dtype1} and {dtype2}."

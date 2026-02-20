@@ -1555,7 +1555,7 @@ def percentile(
 
     # sanitize input data
     sanitation.sanitize_in(x)
-    if x.dtype in types._complexfloating:
+    if types.heat_type_is_complexfloating(x.dtype):
         raise TypeError("Percentile is not supported for complex data types.")
 
     # sanitize q, keep track of size of percentile dim
