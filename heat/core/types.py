@@ -1,11 +1,12 @@
 """
-implementations of the different dtypes supported in heat and the
+implementations of the different dtypes supported in heat
 """
 
 from __future__ import annotations
 
 import builtins
 import collections
+from functools import cache
 import numpy as np
 import torch
 
@@ -36,6 +37,8 @@ __all__ = [
     "long",
     "uint8",
     "ubyte",
+    "float16",
+    "half",
     "float32",
     "float",
     "float_",
@@ -79,10 +82,15 @@ class datatype:
                     - unsignedinteger (uintxx)(kind=B, u) \n
                         - uint8, ubyte
                 - floating (floatxx) (kind=f) \n
+                    - float16, half \n
                     - float32, float, float_ \n
                     - float64, double (double)
             - flexible (currently unused, placeholder for characters) \n
     """
+
+    _can_be_cast_safely_to = []
+    _can_be_cast_intuitively_to = []  # types that cannot be cast safely, but only intuitively
+    mappings = []  # things that map to this datatype
 
     def __new__(
         cls,
@@ -156,11 +164,102 @@ class datatype:
         """
         return NotImplemented
 
+    @classmethod
+    def can_cast_to(
+        cls,
+        to,
+        casting: str = "intuitive",
+    ) -> bool:
+        """
+        Returns True if cast between this datatype and `to`-datatype can occur according to the casting rule. If `to` is a scalar or array
+        scalar, also returns True if the scalar value can be cast without overflow or truncation to an integer.
+
+        Parameters
+        ----------
+        to : Union[str, Type[datatype], Any]
+            Target type to cast to.
+        casting: str, optional
+            options: {"no", "safe", "same_kind", "unsafe", "intuitive"}, optional
+            Controls the way the cast is evaluated
+                * "no" the types may not be cast, i.e. they need to be identical
+                * "safe" allows only casts that can preserve values with complete precision
+                * "same_kind" safe casts are possible and down_casts within the same type family, e.g. int32 -> int8
+                * "unsafe" means any conversion can be performed, i.e. this casting is always possible
+                * "intuitive" allows all of the casts of safe plus casting from int32 to float32
+
+
+        Raises
+        ------
+        TypeError
+            If the types are not understood or casting is not a string
+        ValueError
+            If the casting rule is not understood
+
+        Examples
+        --------
+        >>> ht.int32.can_cast_to(ht.int64)
+        True
+        >>> ht.int64.can_cast_to(ht.float64)
+        True
+        >>> ht.int16.can_cast_to(ht.int8)
+        False
+        >>> ht.int16.can_cast_to(1)
+        True
+        >>> ht.int16.can_cast_to("f4")
+        True
+        >>> ht.int64.can_cast_to("i2", casting="safe")
+        False
+        """
+        if not isinstance(casting, str):
+            raise TypeError(f"expected string, found {type(casting)}")
+
+        try:
+            type_to = canonical_heat_type(to)
+        except TypeError:
+            type_to = heat_type_of(to)
+
+        name_type_to = type_to.__name__
+
+        if casting == "no":
+            return type_to == cls
+        elif casting == "unsafe":
+            return True
+        elif casting == "same_kind":
+            for base_type in [floating, integer, complex, bool]:
+                if issubdtype(type_to, base_type) and issubdtype(cls, base_type):
+                    return True
+            return False
+        elif casting == "intuitive":
+            return (
+                name_type_to in cls._can_be_cast_safely_to
+                or name_type_to in cls._can_be_cast_intuitively_to
+            )
+        elif casting == "safe":
+            return name_type_to in cls._can_be_cast_safely_to
+        else:
+            cast_kinds = ["no", "unsafe", "safe", "same_kind", "intuitive"]
+            raise ValueError(f"casting must be one of {cast_kinds}, not {casting}")
+
 
 class bool(datatype):
     """
     The boolean datatype in Heat
     """
+
+    _can_be_cast_safely_to = [
+        "bool",
+        "uint8",
+        "int8",
+        "int16",
+        "int32",
+        "int64",
+        "float16",
+        "float32",
+        "float64",
+        "complex64",
+        "complex128",
+    ]
+    mappings = ["bool_", "?", np.bool_, torch.bool, builtins.bool]
 
     @classmethod
     def torch_type(cls) -> torch.dtype:
@@ -206,6 +305,19 @@ class int8(signedinteger):
     8 bit signed integer datatype
     """
 
+    _can_be_cast_safely_to = [
+        "int8",
+        "int16",
+        "int32",
+        "int64",
+        "float16",
+        "float32",
+        "float64",
+        "complex64",
+        "complex128",
+    ]
+    mappings = ["b", "i1", np.int8, torch.int8]
+
     @classmethod
     def torch_type(cls) -> torch.dtype:
         """
@@ -225,6 +337,18 @@ class int16(signedinteger):
     """
     16 bit signed integer datatype
     """
+
+    _can_be_cast_safely_to = [
+        "int16",
+        "int32",
+        "int64",
+        "float32",
+        "float64",
+        "complex64",
+        "complex128",
+    ]
+    _can_be_cast_intuitively_to = ["float16"]
+    mappings = ["h", "i2", np.int16, torch.int16]
 
     @classmethod
     def torch_type(cls) -> torch.dtype:
@@ -246,6 +370,10 @@ class int32(signedinteger):
     32 bit signed integer datatype
     """
 
+    _can_be_cast_safely_to = ["int32", "int64", "float64", "complex128"]
+    _can_be_cast_intuitively_to = ["float32", "complex64"]
+    mappings = ["i", "i4", np.int32, torch.int32, builtins.int]
+
     @classmethod
     def torch_type(cls) -> torch.dtype:
         """
@@ -265,6 +393,9 @@ class int64(signedinteger):
     """
     64 bit signed integer datatype
     """
+
+    _can_be_cast_safely_to = ["int64", "float64", "complex128"]
+    mappings = ["l", "i8", np.int64, torch.int64]
 
     @classmethod
     def torch_type(cls) -> torch.dtype:
@@ -294,6 +425,19 @@ class uint8(unsignedinteger):
     8 bit unsigned integer datatype
     """
 
+    _can_be_cast_safely_to = [
+        "uint8",
+        "int16",
+        "int32",
+        "int64",
+        "float16",
+        "float32",
+        "float64",
+        "complex64",
+        "complex128",
+    ]
+    mappings = ["B", "u", "u1", np.uint8, torch.uint8]
+
     @classmethod
     def torch_type(cls) -> torch.dtype:
         """
@@ -317,10 +461,47 @@ class floating(number):
     pass
 
 
+class float16(floating):
+    """
+    The 16 bit floating point datatype
+    """
+
+    _can_be_cast_safely_to = [
+        "float16",
+        "float32",
+        "float64",
+        "complex64",
+        "complex128",
+    ]
+    mappings = ["f2", np.float16, torch.float16]
+
+    @classmethod
+    def torch_type(cls) -> torch.dtype:
+        """
+        Torch Datatype
+        """
+        return torch.float16
+
+    @classmethod
+    def char(cls) -> str:
+        """
+        Datatype short-hand name
+        """
+        return "f2"
+
+
 class float32(floating):
     """
     The 32 bit floating point datatype
     """
+
+    _can_be_cast_safely_to = [
+        "float32",
+        "float64",
+        "complex64",
+        "complex128",
+    ]
+    mappings = ["f", "f4", np.float32, torch.float32, builtins.float]
 
     @classmethod
     def torch_type(cls) -> torch.dtype:
@@ -341,6 +522,12 @@ class float64(floating):
     """
     The 64 bit floating point datatype
     """
+
+    _can_be_cast_safely_to = [
+        "float64",
+        "complex128",
+    ]
+    mappings = ["d", "f8", np.float64, torch.float64]
 
     @classmethod
     def torch_type(cls) -> torch.dtype:
@@ -370,13 +557,17 @@ class complex(number):
     The general complex datatype class.
     """
 
-    pass
-
 
 class complex64(complex):
     """
     The complex 64 bit datatype. Both real and imaginary are 32 bit floating point
     """
+
+    _can_be_cast_safely_to = [
+        "complex64",
+        "complex128",
+    ]
+    mappings = ["F", "c8", np.complex64, torch.complex64, builtins.complex]
 
     @classmethod
     def torch_type(cls):
@@ -397,6 +588,11 @@ class complex128(complex):
     """
     The complex 128 bit datatype. Both real and imaginary are 64 bit floating point
     """
+
+    _can_be_cast_safely_to = [
+        "complex128",
+    ]
+    mappings = ["D", "c16", np.complex128, torch.complex128]
 
     @classmethod
     def torch_type(cls):
@@ -421,6 +617,7 @@ short = int16
 int = int32
 int_ = int32
 long = int64
+half = float16
 float = float32
 float_ = float32
 double = float64
@@ -428,69 +625,16 @@ cfloat = complex64
 csingle = complex64
 cdouble = complex128
 
-_complexfloating = (complex64, complex128)
 
-_inexact = (
-    # float16,
-    float32,
-    float64,
-    *_complexfloating,
-)
+@cache
+def __get_all_heat_types():
+    def all_subclasses(cls):
+        return set(cls.__subclasses__()).union(
+            {g for s in cls.__subclasses__() for g in all_subclasses(s)}
+        )
 
-_exact = (uint8, int8, int16, int32, int64)
-
-# type mappings for type strings and builtins types
-__type_mappings = {
-    # type strings
-    "?": bool,
-    "B": uint8,
-    "b": int8,
-    "h": int16,
-    "i": int32,
-    "l": int64,
-    "f": float32,
-    "d": float64,
-    "F": complex64,
-    "D": complex128,
-    "b1": bool,
-    "u": uint8,
-    "u1": uint8,
-    "i1": int8,
-    "i2": int16,
-    "i4": int32,
-    "i8": int64,
-    "f4": float32,
-    "f8": float64,
-    "c8": complex64,
-    "c16": complex128,
-    # numpy types
-    np.bool_: bool,
-    np.uint8: uint8,
-    np.int8: int8,
-    np.int16: int16,
-    np.int32: int32,
-    np.int64: int64,
-    np.float32: float32,
-    np.float64: float64,
-    np.complex64: complex64,
-    np.complex128: complex128,
-    # torch types
-    torch.bool: bool,
-    torch.uint8: uint8,
-    torch.int8: int8,
-    torch.int16: int16,
-    torch.int32: int32,
-    torch.int64: int64,
-    torch.float32: float32,
-    torch.float64: float64,
-    torch.complex64: complex64,
-    torch.complex128: complex128,
-    # builtins
-    builtins.bool: bool,
-    builtins.int: int32,
-    builtins.float: float32,
-    builtins.complex: complex64,
-}
+    type_related_classes = all_subclasses(datatype)
+    return [me for me in type_related_classes if len(me.__subclasses__()) == 0]
 
 
 def canonical_heat_type(a_type: Union[str, Type[datatype], Any]) -> Type[datatype]:
@@ -500,7 +644,7 @@ def canonical_heat_type(a_type: Union[str, Type[datatype], Any]) -> Type[datatyp
     Parameters
     ----------
     a_type : type, str, datatype
-        A description for the type. It may be a a Python builtin type, string or an HeAT type already.
+        A description for the type. It may be a Python builtin type, string or an HeAT type already.
         In the three former cases the according mapped type is looked up, in the latter the type is simply returned.
 
     Raises
@@ -519,10 +663,15 @@ def canonical_heat_type(a_type: Union[str, Type[datatype], Any]) -> Type[datatyp
     a_type = getattr(a_type, "type", a_type)
 
     # try to look the corresponding type up
-    try:
-        return __type_mappings[a_type]
-    except KeyError:
-        raise TypeError(f"data type {a_type} is not understood")
+    all_types = __get_all_heat_types()
+    for type_ in all_types:
+        try:
+            if a_type in type_.mappings:
+                return type_
+        except ValueError:
+            # this particular type_ cannot interpret a_type, try next candidate
+            continue
+    raise TypeError(f"data type {a_type} is not understood")
 
 
 def heat_type_is_exact(ht_dtype: Type[datatype]) -> bool:
@@ -534,19 +683,19 @@ def heat_type_is_exact(ht_dtype: Type[datatype]) -> bool:
     ht_dtype: Type[datatype]
         HeAT type to check
     """
-    return ht_dtype in _exact
+    return issubdtype(ht_dtype, integer)
 
 
 def heat_type_is_inexact(ht_dtype: Type[datatype]) -> bool:
     """
-    Check if HeAT type is an inexact type, i.e floating point type. True if ht_dtype is a float, False otherwise
+    Check if HeAT type is an inexact type, i.e floating point type. True if ht_dtype is a float or complex, False otherwise
 
     Parameters
     ----------
     ht_dtype: Type[datatype]
         HeAT type to check
     """
-    return ht_dtype in _inexact
+    return issubdtype(ht_dtype, floating) or issubdtype(ht_dtype, complex)
 
 
 def heat_type_is_realfloating(ht_dtype: Type[datatype]) -> bool:
@@ -580,7 +729,11 @@ def heat_type_is_complexfloating(ht_dtype: Type[datatype]) -> bool:
     out: bool
         True if ht_dtype is a complex float, False otherwise
     """
-    return ht_dtype in _complexfloating
+    try:
+        ht_dtype = canonical_heat_type(ht_dtype)
+    except TypeError:
+        ht_dtype = heat_type_of(ht_dtype)
+    return issubclass(ht_dtype, complex)
 
 
 def heat_type_of(
@@ -622,73 +775,6 @@ def heat_type_of(
         raise TypeError(f"data type of {obj} is not understood")
 
 
-# type code assignment
-__type_codes = collections.OrderedDict(
-    [
-        (bool, 0),
-        (uint8, 1),
-        (int8, 2),
-        (int16, 3),
-        (int32, 4),
-        (int64, 5),
-        (float32, 6),
-        (float64, 7),
-        (complex64, 8),
-        (complex128, 9),
-    ]
-)
-
-# safe cast table
-__safe_cast = [
-    # bool  uint8  int8   int16  int32  int64  float32 float64 complex64 complex128
-    [True, True, True, True, True, True, True, True, True, True],  # bool
-    [False, True, False, True, True, True, True, True, True, True],  # uint8
-    [False, False, True, True, True, True, True, True, True, True],  # int8
-    [False, False, False, True, True, True, True, True, True, True],  # int16
-    [False, False, False, False, True, True, False, True, False, True],  # int32
-    [False, False, False, False, False, True, False, True, False, True],  # int64
-    [False, False, False, False, False, False, True, True, True, True],  # float32
-    [False, False, False, False, False, False, False, True, False, True],  # float64
-    [False, False, False, False, False, False, False, False, True, True],  # complex64
-    [False, False, False, False, False, False, False, False, False, True],  # complex128
-]
-
-# intuitive cast table
-__intuitive_cast = [
-    # bool  uint8  int8   int16  int32  int64  float32 float64 complex64 complex128
-    [True, True, True, True, True, True, True, True, True, True],  # bool
-    [False, True, False, True, True, True, True, True, True, True],  # uint8
-    [False, False, True, True, True, True, True, True, True, True],  # int8
-    [False, False, False, True, True, True, True, True, True, True],  # int16
-    [False, False, False, False, True, True, True, True, True, True],  # int32
-    [False, False, False, False, False, True, False, True, False, True],  # int64
-    [False, False, False, False, False, False, True, True, True, True],  # float32
-    [False, False, False, False, False, False, False, True, False, True],  # float64
-    [False, False, False, False, False, False, False, False, True, True],  # complex64
-    [False, False, False, False, False, False, False, False, False, True],  # complex128
-]
-
-
-# same kind table
-__same_kind = [
-    # bool  uint8  int8   int16  int32  int64  float32 float64 complex64 complex128
-    [True, False, False, False, False, False, False, False, False, False],  # bool
-    [False, True, True, True, True, True, False, False, False, False],  # uint8
-    [False, True, True, True, True, True, False, False, False, False],  # int8
-    [False, True, True, True, True, True, False, False, False, False],  # int16
-    [False, True, True, True, True, True, False, False, False, False],  # int32
-    [False, True, True, True, True, True, False, False, False, False],  # int64
-    [False, False, False, False, False, False, True, True, False, False],  # float32
-    [False, False, False, False, False, False, True, True, False, False],  # float64
-    [False, False, False, False, False, False, False, False, True, True],  # complex64
-    [False, False, False, False, False, False, False, False, True, True],  # complex128
-]
-
-
-# static list of possible casting methods
-__cast_kinds = ["no", "safe", "same_kind", "unsafe", "intuitive"]
-
-
 def can_cast(
     from_: Union[str, Type[datatype], Any],
     to: Union[str, Type[datatype], Any],
@@ -717,9 +803,7 @@ def can_cast(
     Raises
     ------
     TypeError
-        If the types are not understood or casting is not a string
-    ValueError
-        If the casting rule is not understood
+        If the types are not understood
 
     Examples
     --------
@@ -742,44 +826,18 @@ def can_cast(
     >>> ht.can_cast("i8", "i4", "unsafe")
     True
     """
-    if not isinstance(casting, str):
-        raise TypeError(f"expected string, found {type(casting)}")
-    if casting not in __cast_kinds:
-        raise ValueError(f"casting must be one of {str(__cast_kinds)[1:-1]}")
-
     # obtain the types codes of the canonical HeAT types
     try:
-        typecode_from = __type_codes[canonical_heat_type(from_)]
+        type_from = canonical_heat_type(from_)
     except TypeError:
-        typecode_from = __type_codes[heat_type_of(from_)]
-    typecode_to = __type_codes[canonical_heat_type(to)]
+        type_from = heat_type_of(from_)
 
-    # unsafe casting allows everything
-    if casting == "unsafe":
-        return True
+    try:
+        type_to = canonical_heat_type(to)
+    except TypeError:
+        type_to = heat_type_of(to)
 
-    # types have to match exactly
-    elif casting == "no":
-        return typecode_from == typecode_to
-
-    # safe casting or same_kind
-    can_safe_cast = __safe_cast[typecode_from][typecode_to]
-    if casting == "safe":
-        return can_safe_cast
-    can_intuitive_cast = __intuitive_cast[typecode_from][typecode_to]
-    if casting == "intuitive":
-        return can_intuitive_cast
-    return can_safe_cast or __same_kind[typecode_from][typecode_to]
-
-
-# compute possible type promotions dynamically
-__type_promotions = [[None] * len(row) for row in __same_kind]
-for i, operand_a in enumerate(__type_codes.keys()):
-    for j, operand_b in enumerate(__type_codes.keys()):
-        for target in __type_codes.keys():
-            if can_cast(operand_a, target) and can_cast(operand_b, target):
-                __type_promotions[i][j] = target
-                break
+    return type_from.can_cast_to(type_to, casting=casting)
 
 
 def iscomplex(x: dndarray.DNDarray) -> dndarray.DNDarray:
@@ -798,7 +856,7 @@ def iscomplex(x: dndarray.DNDarray) -> dndarray.DNDarray:
     """
     sanitation.sanitize_in(x)
 
-    if issubclass(x.dtype, _complexfloating):
+    if heat_type_is_complexfloating(canonical_heat_type(x.dtype)):
         return x.imag != 0
     else:
         return factories.zeros(x.shape, bool, split=x.split, device=x.device, comm=x.comm)
@@ -880,10 +938,25 @@ def promote_types(
     >>> ht.promote_types("i8", "f4")
     <class 'heat.core.types.float64'>
     """
-    typecode_type1 = __type_codes[canonical_heat_type(type1)]
-    typecode_type2 = __type_codes[canonical_heat_type(type2)]
+    heat_type1 = canonical_heat_type(type1)
+    heat_type2 = canonical_heat_type(type2)
 
-    return __type_promotions[typecode_type1][typecode_type2]
+    # get all options the types can be cast to intuitively
+    options_1 = heat_type1._can_be_cast_safely_to + heat_type1._can_be_cast_intuitively_to
+    options_2 = heat_type2._can_be_cast_safely_to + heat_type2._can_be_cast_intuitively_to
+
+    # get the types both types can be cast to intuitively
+    shared = [me for me in options_1 if me in options_2]
+    if len(shared) == 0:
+        raise Exception(
+            f"Cannot find type that {heat_type1} and {heat_type2} can both be cast to intuitively. Please report this bug to the developers."
+        )
+
+    # get the sizes in bits
+    sizes = [np.int32(me[len(me.rstrip("0123456789")) :]) if me != "bool" else 1 for me in shared]
+
+    # return shared datatype with the smallest size
+    return [me for me in __get_all_heat_types() if me.__name__ == shared[np.argmin(sizes)]][0]
 
 
 def result_type(
@@ -946,18 +1019,28 @@ def result_type(
                 return promote_types(type1, type2), prec1
 
             # check if parent type is identical and decide by precedence
-            for sclass in (bool, integer, floating, complex):
-                if issubdtype(type1, sclass) and issubdtype(type2, sclass):
-                    if prec1 < prec2:
-                        return type1, min(prec1, prec2)
-                    else:
-                        return type2, min(prec1, prec2)
+            if can_cast(type1, type2, casting="same_kind"):
+                if prec1 < prec2:
+                    return type1, min(prec1, prec2)
+                else:
+                    return type2, min(prec1, prec2)
 
             # different parent type: bool < int < float < complex
-            tc1 = __type_codes[type1]
-            tc2 = __type_codes[type2]
+            dtype_priority_order = [bool, integer, floating, complex]
+            try:
+                dtype_priority1 = [
+                    issubdtype(type1, dtype) for dtype in dtype_priority_order
+                ].index(True)
+            except ValueError:
+                return type2, prec2
+            try:
+                dtype_priority2 = [
+                    issubdtype(type2, dtype) for dtype in dtype_priority_order
+                ].index(True)
+            except ValueError:
+                return type1, prec1
 
-            if tc1 < tc2:
+            if dtype_priority1 < dtype_priority2:
                 return type2, min(prec1, prec2)
             else:
                 return type1, min(prec1, prec2)
@@ -1010,7 +1093,7 @@ class finfo:
             # If given type is not heat type
             pass
 
-        if dtype not in _inexact:
+        if not heat_type_is_inexact(dtype):
             raise TypeError(f"Data type {dtype} not inexact, not supported")
 
         return super(finfo, cls).__new__(cls)._init(dtype)
@@ -1056,7 +1139,7 @@ class iinfo:
             # If given type is not heat type
             pass
 
-        if dtype not in _exact:
+        if not heat_type_is_exact(dtype):
             raise TypeError(f"Data type {dtype} not exact, not supported")
 
         return super(iinfo, cls).__new__(cls)._init(dtype)

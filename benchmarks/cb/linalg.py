@@ -54,6 +54,50 @@ def zolopd_split1(A):
     U, H = ht.linalg.polar(A)
 
 
+@monitor()
+def eigh_split0(A):
+    H, Lambda = ht.linalg.eigh(A)
+
+
+@monitor()
+def eigh_split1(A):
+    H, Lambda = ht.linalg.eigh(A)
+
+
+@monitor()
+def svd_ts(a):
+    svd = ht.linalg.svd(a)
+
+
+@monitor()
+def svd_zolo_split0(a):
+    svd = ht.linalg.svd(a)
+
+
+@monitor()
+def svd_zolo_split1(a):
+    svd = ht.linalg.svd(a)
+
+
+@monitor()
+def randomized_svd_split0(a, r):
+    svd = ht.linalg.rsvd(a, r)
+
+
+@monitor()
+def randomized_svd_split1(a, r):
+    svd = ht.linalg.rsvd(a, r)
+
+@monitor()
+def randomized_eigh_split0(A, r):
+    H, Lambda = ht.linalg.reigh(A, r)
+
+
+@monitor()
+def randomized_eigh_split1(A, r):
+    H, Lambda = ht.linalg.reigh(A, r)
+
+
 def run_linalg_benchmarks():
     n = 3000
     a = ht.random.random((n, n), split=0)
@@ -102,4 +146,49 @@ def run_linalg_benchmarks():
 
     A = ht.random.random((n, n), split=1)
     zolopd_split1(A)
+    del A
+
+    n = 1000
+    A = ht.random.random((n, n), split=0)
+    A += A.T.resplit_(0)
+    eigh_split0(A)
+    del A
+
+    A = ht.random.random((n, n), split=1)
+    A += A.T.resplit_(1)
+    eigh_split1(A)
+    del A
+
+    n = int((4000000 // MPI.COMM_WORLD.size) ** 0.5)
+    m = MPI.COMM_WORLD.size * n
+    a_0 = ht.random.random((m, n), split=0)
+    svd_ts(a_0)
+    del a_0
+
+    n = 1000
+    A = ht.random.random((n, n), split=0)
+    svd_zolo_split0(A)
+    del A
+
+    A = ht.random.random((n, n), split=1)
+    svd_zolo_split1(A)
+    del A
+
+    A = ht.random.random((500 * MPI.COMM_WORLD.Get_size(), 1000), split=0)
+    randomized_svd_split0(A, 10)
+    del A
+
+    A = ht.random.random((1000, 500 * MPI.COMM_WORLD.Get_size()), split=1)
+    randomized_svd_split1(A, 10)
+    del A
+
+    n = 1000
+    A = ht.random.random((n, n), split=0)
+    A += A.T.resplit_(0)
+    randomized_eigh_split0(A, 10)
+    del A
+
+    A = ht.random.random((n, n), split=1)
+    A += A.T.resplit_(1)
+    randomized_eigh_split1(A, 10)
     del A

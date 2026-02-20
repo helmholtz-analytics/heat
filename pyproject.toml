@@ -48,7 +48,7 @@ requires-python = ">=3.10"
 
 dependencies = [
     "mpi4py>=3.0.0",
-    "torch~=2.0,<2.8.0",
+    "torch~=2.0,<2.10.1",
     "torchvision~=0.15",
     "scipy~=1.14",
 ]
@@ -57,15 +57,16 @@ dependencies = [
 ## IO Modules
 hdf5 = ["h5py>=2.8.0"]
 netcdf = ["netCDF4>=1.5.6"]
-zarr = ["zarr<3.0.9"]
+zarr = ["zarr"]
 
 ## Examples and tutorial
 examples = [
-    "scikit-learn~=0.24",
+    "scikit-learn",
     "matplotlib~=3.1",
     "jupyter",
     "ipyparallel",
-    "pillow"
+    "pillow",
+    "h5py>=2.8.0",
 ]
 
 dev = [

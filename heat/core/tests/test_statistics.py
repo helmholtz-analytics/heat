@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+import os
 
 from itertools import combinations
 from scipy import stats as ss
@@ -8,9 +9,16 @@ import heat as ht
 from .test_suites.basic_test import TestCase
 
 
+def get_dataset_path(dataset_name):
+    return os.path.join(os.path.dirname(ht.__file__), f"datasets/{dataset_name}")
+
+
 class TestStatistics(TestCase):
+
+    def setUp(self) -> None:
+        ht.random.set_state(('Threefry', 42, 0))
+
     def test_argmax(self):
-        torch.manual_seed(1)
         data = ht.random.randn(3, 4, 5)
 
         # 3D local tensor, major axis
@@ -102,7 +110,6 @@ class TestStatistics(TestCase):
             ht.argmax(data, axis=0, out=output)
 
     def test_argmin(self):
-        torch.manual_seed(1)
         data = ht.random.randn(3, 4, 5)
 
         # 3D local tensor, no axis
@@ -417,11 +424,11 @@ class TestStatistics(TestCase):
             actual = ht.array([[1, -1], [-1, 1]], split=0)
             self.assertTrue(ht.equal(cov, actual))
 
-        data = np.loadtxt("heat/datasets/iris.csv", delimiter=";")
+        data = np.loadtxt(get_dataset_path('iris.csv'), delimiter=";")
         np_cov = np.cov(data[:, 0], data[:, 1:3], rowvar=False).astype(np_dtype)
 
         # split = None tests
-        htdata = ht.load("heat/datasets/iris.csv", sep=";", split=None)
+        htdata = ht.load(get_dataset_path('iris.csv'), sep=";", split=None)
         ht_cov = ht.cov(htdata[:, 0], htdata[:, 1:3], rowvar=False)
         comp = ht.array(np_cov, dtype=dtype)
         self.assertTrue(ht.allclose(comp - ht_cov, 0, atol=1e-4))
@@ -439,10 +446,10 @@ class TestStatistics(TestCase):
         self.assertTrue(ht.allclose(ht.array(np_cov, dtype=dtype) - ht_cov, 0, atol=1e-4))
 
         # split = 0 tests
-        data = np.loadtxt("heat/datasets/iris.csv", delimiter=";")
+        data = np.loadtxt(get_dataset_path('iris.csv'), delimiter=";")
         np_cov = np.cov(data[:, 0], data[:, 1:3], rowvar=False).astype(np_dtype)
 
-        htdata = ht.load("heat/datasets/iris.csv", sep=";", split=0)
+        htdata = ht.load(get_dataset_path('iris.csv'), sep=";", split=0)
         ht_cov = ht.cov(htdata[:, 0], htdata[:, 1:3], rowvar=False)
         comp = ht.array(np_cov, dtype=ht.float)
         self.assertTrue(ht.allclose(comp - ht_cov, 0, atol=1e-4))
@@ -461,18 +468,18 @@ class TestStatistics(TestCase):
 
         if 1 < x.comm.size < 5:
             # split 1 tests
-            htdata = ht.load("heat/datasets/iris.csv", sep=";", split=1)
+            htdata = ht.load(get_dataset_path('iris.csv'), sep=";", split=1)
             np_cov = np.cov(data, rowvar=False).astype(np_dtype)
             ht_cov = ht.cov(htdata, rowvar=False)
             self.assertTrue(ht.allclose(ht.array(np_cov, dtype=dtype), ht_cov, atol=1e-4))
 
             np_cov = np.cov(data, data, rowvar=True).astype(np_dtype)
 
-            htdata = ht.load("heat/datasets/iris.csv", sep=";", split=0)
+            htdata = ht.load(get_dataset_path('iris.csv'), sep=";", split=0)
             ht_cov = ht.cov(htdata, htdata, rowvar=True)
             self.assertTrue(ht.allclose(ht.array(np_cov, dtype=dtype), ht_cov, atol=1e-4))
 
-            htdata = ht.load("heat/datasets/iris.csv", sep=";", split=0)
+            htdata = ht.load(get_dataset_path('iris.csv'), sep=";", split=0)
             with self.assertRaises(RuntimeError):
                 ht.cov(htdata[1:], rowvar=False)
             with self.assertRaises(RuntimeError):
@@ -832,7 +839,6 @@ class TestStatistics(TestCase):
         self.assertTrue((maximum.larray == torch.max(comparison1, comparison2)).all())
 
         # check maximum over float elements of split 3d tensors
-        torch.manual_seed(1)
         random_volume_1 = ht.random.randn(6, 3, 3, split=0)
         random_volume_2 = ht.random.randn(6, 1, 3, split=0)
         maximum_volume = ht.maximum(random_volume_1, random_volume_2)
@@ -979,7 +985,7 @@ class TestStatistics(TestCase):
         # values for the iris dataset mean measured by libreoffice calc
         ax0 = ht.array([5.84333333333333, 3.054, 3.75866666666667, 1.19866666666667])
         for sp in [None, 0, 1]:
-            iris = ht.load("heat/datasets/iris.csv", sep=";", split=sp)
+            iris = ht.load(get_dataset_path('iris.csv'), sep=";", split=sp)
             self.assertTrue(ht.allclose(ht.mean(iris), 3.46366666666667))
             self.assertTrue(ht.allclose(ht.mean(iris, axis=0), ax0))
 
@@ -1096,7 +1102,6 @@ class TestStatistics(TestCase):
         self.assertTrue((minimum.larray == torch.min(comparison1, comparison2)).all())
 
         # check minimum over float elements of split 3d tensors
-        torch.manual_seed(1)
         random_volume_1 = ht.random.randn(6, 3, 3, split=0)
         random_volume_2 = ht.random.randn(6, 1, 3, split=0)
         minimum_volume = ht.minimum(random_volume_1, random_volume_2)
@@ -1327,6 +1332,75 @@ class TestStatistics(TestCase):
         with self.assertRaises(ValueError):
             ht.percentile(X, q, axis=axis, sketched=True, sketch_size=10)
 
+    def test_ptp(self):
+        # argument errors
+        x = ht.zeros((2, 3, 4))
+        with self.assertRaises((ValueError, IndexError)):
+            ht.ptp(x, axis=10)
+        with self.assertRaises(TypeError):
+            ht.ptp(x, axis="01")
+        with self.assertRaises(TypeError):
+            ht.ptp(x, axis=(0, "10"))
+
+        # simple deterministic example
+        a = ht.array([[1, 2, 3],
+                      [4, 5, 6],
+                      [7, 8, 9],
+                      [10, 11, 12]])
+        self.assertEqual(ht.ptp(a), 11)
+        self.assertEqual(a.ptp(), 11)
+
+        # helper to check split of result
+        def __split_calc(ht_split, axis):
+            sp = ht_split if axis > ht_split else ht_split - 1
+            if axis == ht_split:
+                sp = None
+            return sp
+
+        # 1D: comparison with NumPy and invariance to split
+        v = ht.random.rand(50)
+        v_np = v.copy().numpy()
+        self.assertEqual(ht.ptp(v), np.ptp(v_np))
+
+        v = ht.resplit(v, 0)
+        self.assertEqual(ht.ptp(v), np.ptp(v_np))
+
+        # 2D float (take into account mps as in other tests)
+        dtype = ht.float32 if self.is_mps else ht.float64
+        X = ht.random.rand(50, 30, dtype=dtype)
+        X_np = X.copy().numpy()
+
+        # without axis
+        self.assertAlmostEqual(ht.ptp(X) - np.ptp(X_np), 0.0, places=5)
+
+        # along axes and for different splits
+        for split in (0, 1):
+            Xs = ht.resplit(X, split)
+            for ax in (0, 1):
+                expected = ht.array(np.ptp(X_np, axis=ax), dtype=Xs.dtype)
+                got = ht.ptp(Xs, axis=ax)
+                self.assertTrue(ht.allclose(got, expected, atol=1e-5))
+                self.assertEqual(got.split, __split_calc(Xs.split, ax))
+
+        # keepdims: only shape is checked (different splits are not important)
+        kd0 = ht.ptp(X, axis=0, keepdims=True)
+        kd1 = ht.ptp(X, axis=1, keepdims=True)
+        self.assertEqual(kd0.shape, (1, 30))
+        self.assertEqual(kd1.shape, (50, 1))
+
+        # out buffer: correct shape, return the same object, values match
+        Xs = ht.resplit(X, 0)
+        out = ht.empty((30,), dtype=Xs.dtype, split=None)
+        res = ht.ptp(Xs, axis=0, out=out)
+        self.assertIs(res, out)
+        self.assertTrue(ht.allclose(out, ht.ptp(Xs, axis=0)))
+
+        # integer input: correct value and dtype retention
+        b = ht.arange(-3, 5, dtype=ht.int64) # range [-3..4]
+        r = ht.ptp(b)
+        self.assertEqual(r, 7) # 4 - (-3) = 7
+        self.assertEqual(r.dtype, b.dtype)
+
     def test_skew(self):
         x = ht.zeros((2, 3, 4))
         with self.assertRaises(ValueError):
@@ -1520,5 +1594,5 @@ class TestStatistics(TestCase):
 
         # values for the iris dataset var measured by libreoffice calc
         for sp in [None, 0, 1]:
-            iris = ht.load("heat/datasets/iris.csv", sep=";", split=sp)
+            iris = ht.load(get_dataset_path('iris.csv'), sep=";", split=sp)
             self.assertTrue(ht.allclose(ht.var(iris, bessel=True), 3.90318519755147))

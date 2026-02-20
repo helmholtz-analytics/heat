@@ -8,3 +8,5 @@ from .qr import *
 from .svdtools import *
 from .svd import *
 from .polar import *
+from .eigh import *
+from .randomized import *

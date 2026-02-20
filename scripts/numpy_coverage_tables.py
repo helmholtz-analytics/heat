@@ -226,32 +226,6 @@ numpy_functions.append(numpy_binary_operations)
 headers[str(len(headers))] = "NumPy Binary Operations"
 
 numpy_io_operations = [
-    # numpy.load
-    # numpy.save
-    # numpy.savez_compressed
-    # numpy.loadtxt
-    # numpy.savez
-    # numpy.savetxt
-    # numpy.genfromtxt
-    # numpy.fromregex
-    # numpy.fromstring
-    # numpy.ndarray.tofile
-    # numpy.ndarray.tolist
-    # numpy.array2string
-    # numpy.array_repr
-    # numpy.array_str
-    # numpy.format_float_positional
-    # numpy.format_float_scientific
-    # numpy.memmap
-    # numpy.lib.format.open_memmap
-    # numpy.set_printoptions
-    # numpy.get_printoptions
-    # numpy.set_string_function
-    # numpy.printoptions
-    # numpy.binary_repr
-    # numpy.base_repr
-    # numpy.DataSource
-    # numpy.lib.format
     "load",
     "save",
     "savez",
@@ -283,36 +257,6 @@ numpy_functions.append(numpy_io_operations)
 headers[str(len(headers))] = "NumPy IO Operations"
 
 numpy_linalg_operations = [
-    # numpy.dot
-    # numpy.linalg.multi_dot
-    # numpy.vdot
-    # numpy.inner
-    # numpy.outer
-    # numpy.matmul
-    # numpy.tensordot
-    # numpy.einsum
-    # numpy.einsum_path
-    # numpy.linalg.matrix_power
-    # numpy.kron
-    # numpy.linalg.cholesky
-    # numpy.linalg.qr
-    # numpy.linalg.svd
-    # numpy.linalg.eig
-    # numpy.linalg.eigh
-    # numpy.linalg.eigvals
-    # numpy.linalg.eigvalsh
-    # numpy.linalg.norm
-    # numpy.linalg.cond
-    # numpy.linalg.det
-    # numpy.linalg.matrix_rank
-    # numpy.linalg.slogdet
-    # numpy.trace
-    # numpy.linalg.solve
-    # numpy.linalg.tensorsolve
-    # numpy.linalg.lstsq
-    # numpy.linalg.inv
-    # numpy.linalg.pinv
-    # numpy.linalg.tensorinv
     "dot",
     "linalg.multi_dot",
     "vdot",
@@ -348,34 +292,6 @@ numpy_functions.append(numpy_linalg_operations)
 headers[str(len(headers))] = "NumPy LinAlg Operations"
 
 numpy_logic_operations = [
-    # numpy.all
-    # numpy.any
-    # numpy.isinf
-    # numpy.isfinite
-    # numpy.isnan
-    # numpy.isnat
-    # numpy.isneginf
-    # numpy.isposinf
-    # numpy.iscomplex
-    # numpy.iscomplexobj
-    # numpy.isfortran
-    # numpy.isreal
-    # numpy.isrealobj
-    # numpy.isscalar
-    # numpy.logical_and
-    # numpy.logical_or
-    # numpy.logical_not
-    # numpy.logical_xor
-    # numpy.allclose
-    # numpy.isclose
-    # numpy.array_equal
-    # numpy.array_equiv
-    # numpy.greater
-    # numpy.greater_equal
-    # numpy.less
-    # numpy.less_equal
-    # numpy.equal
-    # numpy.not_equal
     "all",
     "any",
     "isfinite",
@@ -409,24 +325,6 @@ numpy_functions.append(numpy_logic_operations)
 headers[str(len(headers))] = "NumPy Logic Functions"
 
 numpy_sorting_operations = [
-    # numpy.sort
-    # numpy.lexsort
-    # numpy.argsort
-    # numpy.ndarray.sort
-    # numpy.sort_complex
-    # numpy.partition
-    # numpy.argpartition
-    # numpy.argmax
-    # numpy.nanargmax
-    # numpy.argmin
-    # numpy.nanargmin
-    # numpy.argwhere
-    # numpy.nonzero
-    # numpy.flatnonzero
-    # numpy.where
-    # numpy.searchsorted
-    # numpy.extract
-    # numpy.count_nonzero
     "sort",
     "lexsort",
     "argsort",
@@ -450,29 +348,6 @@ numpy_functions.append(numpy_sorting_operations)
 headers[str(len(headers))] = "NumPy Sorting Operations"
 
 numpy_statistics_operations = [
-    # numpy.ptp
-    # numpy.percentile
-    # numpy.nanpercentile
-    # numpy.quantile
-    # numpy.nanquantile
-    # numpy.median
-    # numpy.average
-    # numpy.mean
-    # numpy.std
-    # numpy.var
-    # numpy.nanmedian
-    # numpy.nanmean
-    # numpy.nanstd
-    # numpy.nanvar
-    # numpy.corrcoef
-    # numpy.correlate
-    # numpy.cov
-    # numpy.histogram
-    # numpy.histogram2d
-    # numpy.histogramdd
-    # numpy.bincount
-    # numpy.histogram_bin_edges
-    # numpy.digitize
     "ptp",
     "percentile",
     "nanpercentile",
@@ -502,20 +377,6 @@ headers[str(len(headers))] = "NumPy Statistical Operations"
 
 # numpy random operations
 numpy_random_operations = [
-    # numpy.random.rand
-    # numpy.random.randn
-    # numpy.random.randint
-    # numpy.random.random_integers
-    # numpy.random.random_sample
-    # numpy.random.ranf
-    # numpy.random.sample
-    # numpy.random.choice
-    # numpy.random.bytes
-    # numpy.random.shuffle
-    # numpy.random.permutation
-    # numpy.random.seed
-    # numpy.random.get_state
-    # numpy.random.set_state
     "random.rand",
     "random.randn",
     "random.randint",
@@ -533,6 +394,47 @@ numpy_random_operations = [
 ]
 numpy_functions.append(numpy_random_operations)
 headers[str(len(headers))] = "NumPy Random Operations"
+
+# numpy fft operations
+numpy_fft_operations = [
+    "fft.fft",
+    "fft.ifft",
+    "fft.fft2",
+    "fft.ifft2",
+    "fft.fftn",
+    "fft.ifftn",
+    "fft.rfft",
+    "fft.irfft",
+    "fft.fftshift",
+    "fft.ifftshift",
+]
+numpy_functions.append(numpy_fft_operations)
+headers[str(len(headers))] = "NumPy FFT Operations"
+
+# numpy masked array operations
+numpy_masked_array_operations = [
+    "ma.masked_array",
+    "ma.masked_where",
+    "ma.fix_invalid",
+    "ma.is_masked",
+    "ma.mean",
+    "ma.median",
+    "ma.std",
+    "ma.var",
+    "ma.sum",
+    "ma.min",
+    "ma.max",
+    "ma.ptp",
+    "ma.count",
+    "ma.any",
+    "ma.all",
+    "ma.masked_equal",
+    "ma.masked_greater",
+    "ma.masked_less",
+    "ma.notmasked_contiguous",
+]
+numpy_functions.append(numpy_masked_array_operations)
+headers[str(len(headers))] = "NumPy Masked Array Operations"
 
 # initialize markdown file
 # open the file in write mode
@@ -558,20 +460,23 @@ for i, function_list in enumerate(numpy_functions):
 
     # Check if functions exist in the heat library and create table rows
     for func_name in function_list:
-        if (
-            hasattr(heat, func_name)
+        if (hasattr(heat, func_name)
             or hasattr(heat.linalg, func_name.replace("linalg.", ""))
             or hasattr(heat.random, func_name.replace("random.", ""))
+            or (hasattr(heat, "fft") and hasattr(heat.fft, func_name.replace("fft.", "")))
+            or (hasattr(heat, "ma") and hasattr(heat.ma, func_name.replace("ma.", "")))
         ):
             support_status = "✅"  # Green checkmark for supported functions
         else:
             support_status = "❌"  # Red cross for unsupported functions
 
-        table_row = f"| {func_name} | {support_status} |"
+        # Create the issue URL and add it to the row
+        issue_url = f"https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+{func_name}"
+        table_row = f"| {func_name} | {support_status} | [Search]({issue_url}) |"
         table_rows.append(table_row)
 
-    # Create the Markdown table header
-    table_header = f"| {headers[str(i)]} | Heat |\n|---|---|\n"
+    # Define header
+    table_header = f"| {headers[str(i)]} | Heat | Issues |\n|---|---|---|\n"
 
     # Combine the header and table rows
     markdown_table = table_header + "\n".join(table_rows)
@@ -581,3 +486,35 @@ for i, function_list in enumerate(numpy_functions):
     # Print the Markdown table
     f.write(markdown_table)
     f.write("\n")
+
+
+# for i, function_list in enumerate(numpy_functions):
+#     f.write(f"## {headers[str(i)]}\n")
+#     # Initialize a list to store the rows of the Markdown table
+#     table_rows = []
+
+#     # Check if functions exist in the heat library and create table rows
+#     for func_name in function_list:
+#         if (
+#             hasattr(heat, func_name)
+#             or hasattr(heat.linalg, func_name.replace("linalg.", ""))
+#             or hasattr(heat.random, func_name.replace("random.", ""))
+#         ):
+#             support_status = "✅"  # Green checkmark for supported functions
+#         else:
+#             support_status = "❌"  # Red cross for unsupported functions
+
+#         table_row = f"| {func_name} | {support_status} |"
+#         table_rows.append(table_row)
+
+#     # Create the Markdown table header
+#     table_header = f"| {headers[str(i)]} | Heat |\n|---|---|\n"
+
+#     # Combine the header and table rows
+#     markdown_table = table_header + "\n".join(table_rows)
+
+#     # write link to table of contents
+#     f.write("[Back to Table of Contents](#table-of-contents)\n\n")
+#     # Print the Markdown table
+#     f.write(markdown_table)
+#     f.write("\n")

@@ -363,19 +363,16 @@ class TestLinalgBasics(TestCase):
         self.assertEqual(ainv.device, a.device)
         self.assertTupleEqual(ainv.shape, a.shape)
         self.assertTrue(ht.allclose(ainv, ares, atol=atol))
-
-        ht.random.seed(42)
         a = ht.random.random((20, 20), dtype=dtype, split=1)
         ainv = ht.linalg.inv(a)
         i = ht.eye(a.shape, split=1, dtype=a.dtype)
         # loss of precision in distributed floating-point ops
         self.assertTrue(ht.allclose(a @ ainv, i, atol=1e-5 if self.is_mps else atol))
 
-        ht.random.seed(42)
         a = ht.random.random((20, 20), dtype=dtype, split=0)
         ainv = ht.linalg.inv(a)
         i = ht.eye(a.shape, split=0, dtype=a.dtype)
-        print(f"Local result of rank {a.comm.Get_rank()}: {(a @ ainv).larray}")
+        # print(f"Local result of rank {a.comm.Get_rank()}: {(a @ ainv).larray}")
         self.assertTrue(ht.allclose(a @ ainv, i, atol=1e-5 if self.is_mps else atol * 1e2))
 
         with self.assertRaises(RuntimeError):

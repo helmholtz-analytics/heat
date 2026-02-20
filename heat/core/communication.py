@@ -12,9 +12,10 @@ import warnings
 from mpi4py import MPI
 
 from typing import Any, Callable, Optional, List, Tuple, Union
+
 from .stride_tricks import sanitize_axis
 
-from ._config import CUDA_AWARE_MPI
+from ._config import GPU_AWARE_MPI
 
 
 class MPIRequest:
@@ -57,7 +58,7 @@ class MPIRequest:
         if self.tensor is not None and isinstance(self.tensor, torch.Tensor):
             if self.permutation is not None:
                 self.recvbuf = self.recvbuf.permute(self.permutation)
-        if self.tensor is not None and self.tensor.is_cuda and not CUDA_AWARE_MPI:
+        if self.tensor is not None and self.tensor.is_cuda and not GPU_AWARE_MPI:
             self.tensor.copy_(self.recvbuf)
 
     def __getattr__(self, name: str) -> Callable:
@@ -130,6 +131,24 @@ class MPICommunication(Communication):
         torch.complex64: MPI.COMPLEX,
         torch.complex128: MPI.DOUBLE_COMPLEX,
     }
+
+    __mpi_dtype2ctype = {
+        torch.bool: ctypes.c_bool,
+        torch.uint8: ctypes.c_uint8,
+        torch.int8: ctypes.c_int8,
+        torch.int16: ctypes.c_int16,
+        torch.int32: ctypes.c_int32,
+        torch.int64: ctypes.c_int64,
+        torch.float32: ctypes.c_float,
+        torch.float64: ctypes.c_double,
+        torch.complex64: ctypes.c_double,
+        torch.complex128: ctypes.c_longdouble,
+    }
+
+    # Check for newer types:
+    for type_str in ["uint16", "uint32", "uint64"]:
+        if hasattr(torch, type_str):
+            __mpi_dtype2ctype[getattr(torch, type_str)] = getattr(ctypes, f"c_{type_str}")
 
     def __init__(self, handle=MPI.COMM_WORLD):
         self.handle = handle
@@ -248,6 +267,53 @@ class MPICommunication(Communication):
         return cls.__mpi_type_mappings[dtype]
 
     @classmethod
+    def _handle_large_count(cls, mpi_type: MPI.Datatype, elements: int) -> Tuple[MPI.Datatype, int]:
+        """
+        Handles large counts for MPI data types by creating vector types to circumvent the MAX_INT limit on certain MPI implementations.
+
+        Parameters
+        ----------
+        mpi_type : MPI.Datatype
+            The base MPI data type
+        elements : int
+            The total number of elements to be sent
+
+        Returns
+        -------
+        Tuple[MPI.Datatype, int]
+            A tuple containing the constructed MPI data type and the count (always 1 in this case)
+
+        Raises
+        ------
+        ValueError
+            If the tensor is too large to be handled
+
+        Notes
+        -----
+        Uses vector type to get around the MAX_INT limit on certain MPI implementations
+        This is at the moment only applied when sending contiguous data, as the construction of data types to get around non-contiguous data naturally aliviates the problem to a certain extent.
+        Thanks to: J. R. Hammond, A. Schäfer and R. Latham, "To INT_MAX... and Beyond! Exploring Large-Count Support in MPI," 2014 Workshop on Exascale MPI at Supercomputing Conference, New Orleans, LA, USA, 2014, pp. 1-8
+        """
+        new_count = elements // cls.COUNT_LIMIT
+        left_over = elements % cls.COUNT_LIMIT
+
+        if new_count > cls.COUNT_LIMIT:
+            raise ValueError("Tensor is too large")
+        vector_type = mpi_type.Create_vector(new_count, cls.COUNT_LIMIT, cls.COUNT_LIMIT)
+        if left_over > 0:
+            left_over_mpi_type = mpi_type.Create_contiguous(left_over).Commit()
+            _, old_type_extent = mpi_type.Get_extent()
+            disp = cls.COUNT_LIMIT * new_count * old_type_extent
+            struct_type = mpi_type.Create_struct(
+                [1, 1], [0, disp], [vector_type, left_over_mpi_type]
+            ).Commit()
+            vector_type.Free()
+            left_over_mpi_type.Free()
+            return struct_type, 1
+        else:
+            return vector_type, 1
+
+    @classmethod
     def mpi_type_and_elements_of(
         cls,
         obj: Union[DNDarray, torch.Tensor],
@@ -282,30 +348,8 @@ class MPICommunication(Communication):
         if is_contiguous:
             if counts is None:
                 if elements > cls.COUNT_LIMIT:
-                    # Uses vector type to get around the MAX_INT limit on certain MPI implementations
-                    # This is at the moment only applied when sending contiguous data, as the construction of data types to get around non-contiguous data naturally aliviates the problem to a certain extent.
-                    # Thanks to: J. R. Hammond, A. Schäfer and R. Latham, "To INT_MAX... and Beyond! Exploring Large-Count Support in MPI," 2014 Workshop on Exascale MPI at Supercomputing Conference, New Orleans, LA, USA, 2014, pp. 1-8, doi: 10.1109/ExaMPI.2014.5. keywords: {Vectors;Standards;Libraries;Optimization;Context;Memory management;Open area test sites},
+                    return cls._handle_large_count(mpi_type, elements)
 
-                    new_count = elements // cls.COUNT_LIMIT
-                    left_over = elements % cls.COUNT_LIMIT
-
-                    if new_count > cls.COUNT_LIMIT:
-                        raise ValueError("Tensor is too large")
-                    vector_type = mpi_type.Create_vector(
-                        new_count, cls.COUNT_LIMIT, cls.COUNT_LIMIT
-                    )
-                    if left_over > 0:
-                        left_over_mpi_type = mpi_type.Create_contiguous(left_over).Commit()
-                        _, old_type_extent = mpi_type.Get_extent()
-                        disp = cls.COUNT_LIMIT * new_count * old_type_extent
-                        struct_type = mpi_type.Create_struct(
-                            [1, 1], [0, disp], [vector_type, left_over_mpi_type]
-                        ).Commit()
-                        vector_type.Free()
-                        left_over_mpi_type.Free()
-                        return struct_type, 1
-                    else:
-                        return vector_type, 1
                 else:
                     return mpi_type, elements
             factor = np.prod(obj.shape[1:], dtype=np.int32)
@@ -388,6 +432,17 @@ class MPICommunication(Communication):
             # non-contiguous 1D tensor. Squeezing it puts the memory back to where it should be
             obj.squeeze_(-1)
         return [mpi_mem, elements, mpi_type]
+
+    def _moveToCompDevice(self, x: torch.Tensor, func: Callable | None) -> torch.Tensor:
+        """Moves the torch tensor to the relevant device, in case the function is not compatible with the MPI+GPU library."""
+        if x.is_cuda:
+            if GPU_AWARE_MPI:
+                torch.cuda.synchronize(x.device)
+                return x
+            else:
+                return x.cpu()
+        else:
+            return x
 
     def alltoall_sendbuffer(
         self, obj: torch.Tensor
@@ -534,7 +589,7 @@ class MPICommunication(Communication):
         if not isinstance(buf, torch.Tensor):
             return MPIRequest(self.handle.Irecv(buf, source, tag))
 
-        rbuf = buf if CUDA_AWARE_MPI else buf.cpu()
+        rbuf = self._moveToCompDevice(buf, self.handle.Irecv)
         return MPIRequest(self.handle.Irecv(self.as_buffer(rbuf), source, tag), None, rbuf, buf)
 
     Irecv.__doc__ = MPI.Comm.Irecv.__doc__
@@ -565,10 +620,10 @@ class MPICommunication(Communication):
         if not isinstance(buf, torch.Tensor):
             return self.handle.Recv(buf, source, tag, status)
 
-        rbuf = buf if CUDA_AWARE_MPI else buf.cpu()
+        rbuf = self._moveToCompDevice(buf, self.handle.Recv)
         ret = self.handle.Recv(self.as_buffer(rbuf), source, tag, status)
 
-        if isinstance(buf, torch.Tensor) and buf.is_cuda and not CUDA_AWARE_MPI:
+        if isinstance(buf, torch.Tensor) and buf.is_cuda and not GPU_AWARE_MPI:
             buf.copy_(rbuf)
         return ret
 
@@ -597,7 +652,8 @@ class MPICommunication(Communication):
             return func(buf, dest, tag), None
 
         # in case of GPUs, the memory has to be copied to host memory if CUDA-aware MPI is not supported
-        sbuf = buf if CUDA_AWARE_MPI else buf.cpu()
+        sbuf = self._moveToCompDevice(buf, func)
+
         return func(self.as_buffer(sbuf), dest, tag), sbuf
 
     def Bsend(self, buf: Union[DNDarray, torch.Tensor, Any], dest: int, tag: int = 0):
@@ -765,7 +821,7 @@ class MPICommunication(Communication):
         if not isinstance(buf, torch.Tensor):
             return func(buf, root), None, None, None
 
-        srbuf = buf if CUDA_AWARE_MPI else buf.cpu()
+        srbuf = self._moveToCompDevice(buf, func)
 
         return func(self.as_buffer(srbuf), root), srbuf, srbuf, buf
 
@@ -781,7 +837,7 @@ class MPICommunication(Communication):
             Rank of the root process, that broadcasts the message
         """
         ret, sbuf, rbuf, buf = self.__broadcast_like(self.handle.Bcast, buf, root)
-        if buf is not None and isinstance(buf, torch.Tensor) and buf.is_cuda and not CUDA_AWARE_MPI:
+        if buf is not None and isinstance(buf, torch.Tensor) and buf.is_cuda and not GPU_AWARE_MPI:
             buf.copy_(rbuf)
         return ret
 
@@ -826,22 +882,7 @@ class MPICommunication(Communication):
             # MPI.MINLOC.handle: torch.argmin, Not supported, seems to be an invalid inplace operation
             # MPI.MAXLOC.handle: torch.argmax
         }
-        mpiDtype2Ctype = {
-            torch.bool: ctypes.c_bool,
-            torch.uint8: ctypes.c_uint8,
-            torch.uint16: ctypes.c_uint16,
-            torch.uint32: ctypes.c_uint32,
-            torch.uint64: ctypes.c_uint64,
-            torch.int8: ctypes.c_int8,
-            torch.int16: ctypes.c_int16,
-            torch.int32: ctypes.c_int32,
-            torch.int64: ctypes.c_int64,
-            torch.float32: ctypes.c_float,
-            torch.float64: ctypes.c_double,
-            torch.complex64: ctypes.c_double,
-            torch.complex128: ctypes.c_longdouble,
-        }
-        ctype_size = mpiDtype2Ctype[dtype]
+        ctype_size = self.__mpi_dtype2ctype[dtype]
         torch_op = mpiOp2torch[operation.handle]
 
         def op(sendbuf: MPI.memory, recvbuf: MPI.memory, datatype):
@@ -859,6 +900,60 @@ class MPICommunication(Communication):
         op = MPI.Op.Create(op)
 
         return op
+
+    def _minmax_op(
+        self,
+        dtype: torch.dtype,
+        total_count: int,
+        shape: Tuple[int],
+        stride: Tuple[int],
+        offset: int = 0,
+    ) -> Callable[[MPI.memory, MPI.memory, MPI.Datatype], None]:
+        """
+        Create an MPI.Op for elementwise min/max combine of a packed buffer [mins; maxs].
+
+        Parameters
+        ----------
+        dtype: torch.dtype
+            torch.dtype of underlying elements
+        total_count: int
+            Number of elements per mins OR per max (so recv buffer has 2*total_count elements)
+        shape: Tuple[int]
+            Shape of the packed buffer that the MPI callback will operate on.
+            This describes the logical shape of the concatenated buffer [mins; maxs]
+        stride: Tuple[int]
+            Stride (in elements) of the packed buffer's storage, matching the layout
+        offset: int, optional
+            Storage offset (if needed), default 0
+        """
+        ctype = self.__mpi_dtype2ctype[dtype]
+
+        def op(sendbuf: MPI.memory, recvbuf: MPI.memory, datatype):
+            # build C arrays directly at the addresses (no try/except here)
+            send_arr = (ctype * (2 * total_count + offset)).from_address(sendbuf.address)
+            recv_arr = (ctype * (2 * total_count + offset)).from_address(recvbuf.address)
+
+            # create torch views (count=2*total_count, offset=offset)
+            send_tensor = torch.as_strided(
+                torch.frombuffer(send_arr, dtype=dtype, count=2 * total_count, offset=offset),
+                shape,
+                stride,
+            )
+            recv_tensor = torch.as_strided(
+                torch.frombuffer(recv_arr, dtype=dtype, count=2 * total_count, offset=offset),
+                shape,
+                stride,
+            )
+
+            # reshape to (2, total_count)
+            send_tensor = send_tensor.view(2, total_count)
+            recv_tensor = recv_tensor.view(2, total_count)
+
+            # combine: mins = min(row0s), maxs = max(row1s)
+            torch.minimum(send_tensor[0], recv_tensor[0], out=recv_tensor[0])
+            torch.maximum(send_tensor[1], recv_tensor[1], out=recv_tensor[1])
+
+        return MPI.Op.Create(op, commute=True)
 
     def __reduce_like(
         self,
@@ -938,22 +1033,27 @@ class MPICommunication(Communication):
                             tmp.storage(), tmp.storage_offset(), size=tmp.shape, stride=tmp.stride()
                         )
 
+        derived_op_flag = False
         if isinstance(recvbuf, torch.Tensor):
             # Datatype and count shall be derived from the recv buffer, and applied to both, as they should match after the last code block
             buf = recvbuf
-            rbuf = recvbuf if CUDA_AWARE_MPI else recvbuf.cpu()
+            rbuf = self._moveToCompDevice(buf, func)
             recvbuf: Tuple[MPI.memory, int, MPI.Datatype] = self.as_buffer(rbuf, is_contiguous=True)
             if not recvbuf[2].is_predefined:
                 # If using a derived datatype, we need to define the reduce operation to be able to handle the it.
                 derived_op = self.__derived_op(rbuf, recvbuf[2], op)
                 op = derived_op
+                derived_op_flag = True
 
         if isinstance(sendbuf, torch.Tensor):
-            sbuf = sendbuf if CUDA_AWARE_MPI else sendbuf.cpu()
+            sbuf = self._moveToCompDevice(sendbuf, func)
             sendbuf = (self.as_mpi_memory(sbuf), recvbuf[1], recvbuf[2])
 
         # perform the actual reduction operation
-        return func(sendbuf, recvbuf, op, *args, **kwargs), sbuf, rbuf, buf
+        result = func(sendbuf, recvbuf, op, *args, **kwargs)
+        if derived_op_flag:
+            op.Free()
+        return result, sbuf, rbuf, buf
 
     def Allreduce(
         self,
@@ -974,7 +1074,7 @@ class MPICommunication(Communication):
             The operation to perform upon reduction
         """
         ret, sbuf, rbuf, buf = self.__reduce_like(self.handle.Allreduce, sendbuf, recvbuf, op)
-        if buf is not None and isinstance(buf, torch.Tensor) and buf.is_cuda and not CUDA_AWARE_MPI:
+        if buf is not None and isinstance(buf, torch.Tensor) and buf.is_cuda and not GPU_AWARE_MPI:
             buf.copy_(rbuf)
         return ret
 
@@ -999,7 +1099,7 @@ class MPICommunication(Communication):
             The operation to perform upon reduction
         """
         ret, sbuf, rbuf, buf = self.__reduce_like(self.handle.Exscan, sendbuf, recvbuf, op)
-        if buf is not None and isinstance(buf, torch.Tensor) and buf.is_cuda and not CUDA_AWARE_MPI:
+        if buf is not None and isinstance(buf, torch.Tensor) and buf.is_cuda and not GPU_AWARE_MPI:
             buf.copy_(rbuf)
         return ret
 
@@ -1118,7 +1218,7 @@ class MPICommunication(Communication):
             Rank of the root process
         """
         ret, sbuf, rbuf, buf = self.__reduce_like(self.handle.Reduce, sendbuf, recvbuf, op, root)
-        if buf is not None and isinstance(buf, torch.Tensor) and buf.is_cuda and not CUDA_AWARE_MPI:
+        if buf is not None and isinstance(buf, torch.Tensor) and buf.is_cuda and not GPU_AWARE_MPI:
             buf.copy_(rbuf)
         return ret
 
@@ -1143,7 +1243,7 @@ class MPICommunication(Communication):
             The operation to perform upon reduction
         """
         ret, sbuf, rbuf, buf = self.__reduce_like(self.handle.Scan, sendbuf, recvbuf, op)
-        if buf is not None and isinstance(buf, torch.Tensor) and buf.is_cuda and not CUDA_AWARE_MPI:
+        if buf is not None and isinstance(buf, torch.Tensor) and buf.is_cuda and not GPU_AWARE_MPI:
             buf.copy_(rbuf)
         return ret
 
@@ -1213,23 +1313,24 @@ class MPICommunication(Communication):
         else:
             recv_axis_permutation = None
 
-        sbuf = sendbuf if CUDA_AWARE_MPI or not isinstance(sendbuf, torch.Tensor) else sendbuf.cpu()
-        rbuf = recvbuf if CUDA_AWARE_MPI or not isinstance(recvbuf, torch.Tensor) else recvbuf.cpu()
-
-        # prepare buffer objects
-        if sendbuf is MPI.IN_PLACE or not isinstance(sendbuf, torch.Tensor):
-            mpi_sendbuf = sbuf
-        else:
+        if isinstance(sendbuf, torch.Tensor):
+            sbuf = self._moveToCompDevice(sendbuf, func)
             mpi_sendbuf = self.as_buffer(sbuf, send_counts, send_displs, sbuf_is_contiguous)
             if send_counts is not None:
                 mpi_sendbuf[1] = mpi_sendbuf[1][0][self.rank]
-
-        if recvbuf is MPI.IN_PLACE or not isinstance(recvbuf, torch.Tensor):
-            mpi_recvbuf = rbuf
         else:
+            sbuf = sendbuf
+            mpi_sendbuf = sendbuf
+
+        if isinstance(recvbuf, torch.Tensor):
+            rbuf = self._moveToCompDevice(recvbuf, func)
             mpi_recvbuf = self.as_buffer(rbuf, recv_counts, recv_displs, rbuf_is_contiguous)
             if recv_counts is None:
                 mpi_recvbuf[1] //= self.size
+        else:
+            rbuf = recvbuf
+            mpi_recvbuf = recvbuf
+
         # perform the scatter operation
         print(
             self.handle.Get_rank(),
@@ -1284,7 +1385,7 @@ class MPICommunication(Communication):
         )
         if buf is not None and isinstance(buf, torch.Tensor) and permutation is not None:
             rbuf = rbuf.permute(permutation)
-        if isinstance(buf, torch.Tensor) and buf.is_cuda and not CUDA_AWARE_MPI:
+        if isinstance(buf, torch.Tensor) and buf.is_cuda and not GPU_AWARE_MPI:
             buf.copy_(rbuf)
         return ret
 
@@ -1313,7 +1414,7 @@ class MPICommunication(Communication):
         )
         if buf is not None and isinstance(buf, torch.Tensor) and permutation is not None:
             rbuf = rbuf.permute(permutation)
-        if isinstance(buf, torch.Tensor) and buf.is_cuda and not CUDA_AWARE_MPI:
+        if isinstance(buf, torch.Tensor) and buf.is_cuda and not GPU_AWARE_MPI:
             buf.copy_(rbuf)
         return ret
 
@@ -1444,20 +1545,12 @@ class MPICommunication(Communication):
             recvbuf = recvbuf.permute(*recv_axis_permutation)
 
             # prepare buffer objects
-            sbuf = (
-                sendbuf
-                if CUDA_AWARE_MPI or not isinstance(sendbuf, torch.Tensor)
-                else sendbuf.cpu()
-            )
+            sbuf = self._moveToCompDevice(sendbuf, func)
             mpi_sendbuf = self.as_buffer(sbuf, send_counts, send_displs)
             if send_counts is None:
                 mpi_sendbuf[1] //= self.size
 
-            rbuf = (
-                recvbuf
-                if CUDA_AWARE_MPI or not isinstance(recvbuf, torch.Tensor)
-                else recvbuf.cpu()
-            )
+            rbuf = self._moveToCompDevice(recvbuf, func)
             mpi_recvbuf = self.as_buffer(rbuf, recv_counts, recv_displs)
             if recv_counts is None:
                 mpi_recvbuf[1] //= self.size
@@ -1488,16 +1581,8 @@ class MPICommunication(Communication):
             recvbuf = recvbuf.permute(*axis_permutation)
 
             # prepare buffer objects
-            sbuf = (
-                sendbuf
-                if CUDA_AWARE_MPI or not isinstance(sendbuf, torch.Tensor)
-                else sendbuf.cpu()
-            )
-            rbuf = (
-                recvbuf
-                if CUDA_AWARE_MPI or not isinstance(recvbuf, torch.Tensor)
-                else recvbuf.cpu()
-            )
+            sbuf = self._moveToCompDevice(sendbuf, func)
+            rbuf = self._moveToCompDevice(recvbuf, func)
             mpi_sendbuf = self.alltoall_sendbuffer(sbuf)
             mpi_recvbuf = self.alltoall_recvbuffer(rbuf)
 
@@ -1537,7 +1622,7 @@ class MPICommunication(Communication):
         )
         if buf is not None and isinstance(buf, torch.Tensor) and permutation is not None:
             rbuf = rbuf.permute(permutation)
-        if isinstance(buf, torch.Tensor) and buf.is_cuda and not CUDA_AWARE_MPI:
+        if isinstance(buf, torch.Tensor) and buf.is_cuda and not GPU_AWARE_MPI:
             buf.copy_(rbuf)
         return ret
 
@@ -1573,7 +1658,7 @@ class MPICommunication(Communication):
         )
         if buf is not None and isinstance(buf, torch.Tensor) and permutation is not None:
             rbuf = rbuf.permute(permutation)
-        if isinstance(buf, torch.Tensor) and buf.is_cuda and not CUDA_AWARE_MPI:
+        if isinstance(buf, torch.Tensor) and buf.is_cuda and not GPU_AWARE_MPI:
             buf.copy_(rbuf)
         return ret
 
@@ -1597,7 +1682,7 @@ class MPICommunication(Communication):
         """
         # Unpack sendbuffer information
         sendbuf_tensor, (send_counts, send_displs), subarray_params_list = sendbuf
-        sendbuf = sendbuf_tensor if CUDA_AWARE_MPI else sendbuf_tensor.cpu()
+        sendbuf = self._moveToCompDevice(sendbuf_tensor, self.handle.Alltoallw)
 
         is_contiguous = sendbuf.is_contiguous()
         stride = sendbuf.stride()
@@ -1611,7 +1696,12 @@ class MPICommunication(Communication):
             lshape, subsizes, substarts = subarray_params
 
             if np.all(np.array(subsizes) > 0):
-                if is_contiguous:
+                if (
+                    is_contiguous
+                    and np.all(np.array(lshape) < self.COUNT_LIMIT)
+                    and np.all(np.array(subsizes) < self.COUNT_LIMIT)
+                    and np.all(np.array(substarts) < self.COUNT_LIMIT)
+                ):
                     # Commit the source subarray datatypes
                     # Subarray parameters are calculated based on the work by Dalcin et al. (https://arxiv.org/abs/1804.09536)
                     subarray_type = send_datatype.Create_subarray(
@@ -1619,21 +1709,20 @@ class MPICommunication(Communication):
                     ).Commit()
                     source_subarray_types.append(subarray_type)
                 else:
-                    # Create recursive vector datatype
-                    source_subarray_types.append(
-                        self._create_recursive_vectortype(
-                            send_datatype, stride, subsizes, substarts
-                        )
+                    custom_datatype = self._create_recursive_vectortype(
+                        send_datatype, stride, subsizes, substarts
                     )
-                    send_counts[idx] = subsizes[0]
+                    source_subarray_types.append(custom_datatype)
+                    send_counts[idx] = 1 if len(subsizes) == 2 and stride[-1] == 1 else subsizes[0]
             else:
                 send_counts[idx] = 0
                 source_subarray_types.append(MPI.INT)
 
         # Unpack recvbuf information
         recvbuf_tensor, (recv_counts, recv_displs), subarray_params_list = recvbuf
-        recvbuf = recvbuf_tensor if CUDA_AWARE_MPI else recvbuf_tensor.cpu()
-        recvbuf_ptr, _, recv_datatype = self.as_buffer(recvbuf)
+        recvbuf = self._moveToCompDevice(recvbuf_tensor, self.handle.Alltoallw)
+        recvbuf_ptr = self.as_mpi_memory(recvbuf)
+        recv_datatype = self.mpi_type_of(recvbuf.dtype)
 
         # Commit the receive subarray datatypes
         target_subarray_types = []
@@ -1641,11 +1730,24 @@ class MPICommunication(Communication):
             lshape, subsizes, substarts = subarray_params
 
             if np.all(np.array(subsizes) > 0):
-                target_subarray_types.append(
-                    recv_datatype.Create_subarray(
-                        lshape, subsizes, substarts, order=MPI.ORDER_C
-                    ).Commit()
-                )
+                if (
+                    np.all(np.array(lshape) < self.COUNT_LIMIT)
+                    and np.all(np.array(subsizes) < self.COUNT_LIMIT)
+                    and np.all(np.array(substarts) < self.COUNT_LIMIT)
+                ):
+                    target_subarray_types.append(
+                        recv_datatype.Create_subarray(
+                            lshape, subsizes, substarts, order=MPI.ORDER_C
+                        ).Commit()
+                    )
+                else:
+                    custom_datatype = self._create_recursive_vectortype(
+                        recv_datatype, recvbuf.stride(), subsizes, substarts
+                    )
+                    target_subarray_types.append(custom_datatype)
+                    recv_counts[idx] = (
+                        1 if len(subsizes) == 2 and recvbuf.stride()[-1] == 1 else subsizes[0]
+                    )
             else:
                 recv_counts[idx] = 0
                 target_subarray_types.append(MPI.INT)
@@ -1660,7 +1762,7 @@ class MPICommunication(Communication):
         if (
             isinstance(recvbuf_tensor, torch.Tensor)
             and recvbuf_tensor.is_cuda
-            and not CUDA_AWARE_MPI
+            and not GPU_AWARE_MPI
         ):
             recvbuf_tensor.copy_(recvbuf)
         else:
@@ -1682,7 +1784,7 @@ class MPICommunication(Communication):
         tensor_stride: Tuple[int],
         subarray_sizes: List[int],
         start: List[int],
-    ):
+    ) -> MPI.Datatype:
         """
         Create a recursive vector to handle non-contiguous tensor data. The created datatype will be a recursively defined vector datatype that will enable the collection of  non-contiguous tensor data in the specified subarray sizes.
 
@@ -1717,8 +1819,13 @@ class MPICommunication(Communication):
         while i > 0:
             current_stride = tensor_stride[i]
             current_size = subarray_sizes[i]
+
             # Define vector out of previous datatype with stride equals to current stride
-            if i == len(tensor_stride) - 1 and current_stride == 1:
+            if (
+                i == len(tensor_stride) - 1
+                and current_stride == 1
+                and tensor_stride[i - 1] < self.COUNT_LIMIT
+            ):
                 i -= 1
                 # Define vector out of previous datatype with stride equals to current stride
                 current_stride = tensor_stride[i]
@@ -1887,9 +1994,12 @@ class MPICommunication(Communication):
             recv_axis_permutation[0], recv_axis_permutation[recv_axis] = recv_axis, 0
             recvbuf = recvbuf.permute(*recv_axis_permutation)
 
-        # prepare buffer objects
-        sbuf = sendbuf if CUDA_AWARE_MPI or not isinstance(sendbuf, torch.Tensor) else sendbuf.cpu()
-        rbuf = recvbuf if CUDA_AWARE_MPI or not isinstance(recvbuf, torch.Tensor) else recvbuf.cpu()
+        sbuf = (
+            self._moveToCompDevice(sendbuf, func) if isinstance(sendbuf, torch.Tensor) else sendbuf
+        )
+        rbuf = (
+            self._moveToCompDevice(recvbuf, func) if isinstance(recvbuf, torch.Tensor) else recvbuf
+        )
 
         if sendbuf is not MPI.IN_PLACE:
             mpi_sendbuf = self.as_buffer(sbuf, send_counts, send_displs)
@@ -1897,6 +2007,7 @@ class MPICommunication(Communication):
                 mpi_sendbuf[1] //= send_factor
         else:
             mpi_sendbuf = sbuf
+
         if recvbuf is not MPI.IN_PLACE:
             mpi_recvbuf = self.as_buffer(rbuf, recv_counts, recv_displs)
             if recv_counts is None:
@@ -1943,7 +2054,7 @@ class MPICommunication(Communication):
         )
         if buf is not None and isinstance(buf, torch.Tensor) and permutation is not None:
             rbuf = rbuf.permute(permutation)
-        if isinstance(buf, torch.Tensor) and buf.is_cuda and not CUDA_AWARE_MPI:
+        if isinstance(buf, torch.Tensor) and buf.is_cuda and not GPU_AWARE_MPI:
             buf.copy_(rbuf)
         return ret
 
@@ -1978,7 +2089,7 @@ class MPICommunication(Communication):
         )
         if buf is not None and isinstance(buf, torch.Tensor) and permutation is not None:
             rbuf = rbuf.permute(permutation)
-        if isinstance(buf, torch.Tensor) and buf.is_cuda and not CUDA_AWARE_MPI:
+        if isinstance(buf, torch.Tensor) and buf.is_cuda and not GPU_AWARE_MPI:
             buf.copy_(rbuf)
         return ret
 
@@ -2132,8 +2243,15 @@ class MPICommunication(Communication):
         recvbuf = recvbuf.permute(*recv_axis_permutation)
 
         # prepare buffer objects
-        sbuf = sendbuf if CUDA_AWARE_MPI or not isinstance(sendbuf, torch.Tensor) else sendbuf.cpu()
-        rbuf = recvbuf if CUDA_AWARE_MPI or not isinstance(recvbuf, torch.Tensor) else recvbuf.cpu()
+        if isinstance(sendbuf, torch.Tensor):
+            sbuf = self._moveToCompDevice(sendbuf, func)
+        else:
+            sbuf = sendbuf
+
+        if isinstance(recvbuf, torch.Tensor):
+            rbuf = self._moveToCompDevice(recvbuf, func)
+        else:
+            rbuf = recvbuf
 
         if sendbuf is not MPI.IN_PLACE:
             mpi_sendbuf = self.as_buffer(sbuf, send_counts, send_displs)
@@ -2263,7 +2381,7 @@ class MPICommunication(Communication):
         )
         if buf is not None and isinstance(buf, torch.Tensor) and permutation is not None:
             rbuf = rbuf.permute(permutation)
-        if isinstance(buf, torch.Tensor) and buf.is_cuda and not CUDA_AWARE_MPI:
+        if isinstance(buf, torch.Tensor) and buf.is_cuda and not GPU_AWARE_MPI:
             buf.copy_(rbuf)
         return ret
 
@@ -2304,7 +2422,7 @@ class MPICommunication(Communication):
         )
         if buf is not None and isinstance(buf, torch.Tensor) and permutation is not None:
             rbuf = rbuf.permute(permutation)
-        if isinstance(buf, torch.Tensor) and buf.is_cuda and not CUDA_AWARE_MPI:
+        if isinstance(buf, torch.Tensor) and buf.is_cuda and not GPU_AWARE_MPI:
             buf.copy_(rbuf)
         return ret
 
