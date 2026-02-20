@@ -775,6 +775,7 @@ def convolve2d(
         # convoluted signal
         signal_filtered = zeros(gshape, dtype=a.dtype, split=a.split, device=a.device, comm=a.comm)
 
+        print(a.comm.rank, "Created signal filtered", signal_filtered.device)
         for r in range(size):
             rec_v = t_v.clone()
             v.comm.Bcast(rec_v, root=r)
@@ -782,6 +783,7 @@ def convolve2d(
 
             # apply torch convolution operator
             local_signal_filtered = fc.conv2d(signal, t_v1, stride=1)
+            print(r, a.comm.rank, "Created local signal filtered", local_signal_filtered.device)
             # unpack 3D result into 2D
             local_signal_filtered = local_signal_filtered[0, 0, :, :]
 
@@ -796,9 +798,6 @@ def convolve2d(
             if r > 0:
                 v_pad_size = v.lshape_map[0][v.split] - v.lshape_map[r, v.split]
                 start_idx = torch.sum(v.lshape_map[:r, split_axis]).item() - v_pad_size
-                if v.comm.rank == 0:
-                    print(v.comm.rank, r, "start_idx", start_idx, v_pad_size)
-
             else:
                 start_idx = 0
 
@@ -809,6 +808,8 @@ def convolve2d(
                 )
             else:
                 filter_results = local_signal_filtered
+
+            print(r, a.comm.rank, "Created Filter results", filter_results.device)
 
             # apply start_idx
             if split_axis == 0:
