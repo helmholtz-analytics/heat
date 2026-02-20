@@ -23,6 +23,15 @@ class TestIndexing(TestCase):
         a[nz] = 10.0
         self.assertEqual(ht.all(a[nz] == 10), 1)
 
+        # edge case: single non-zero element
+        for split in [None, 1]:
+            a = ht.zeros((4, 3), dtype=ht.bool, split=split)
+            a[1, 2] = True
+            nz = ht.indexing.nonzero(a)
+            self.assertEqual(nz.gshape, (1, 2))
+            self.assertTrue(ht.allclose(a[nz], a[a]))
+
+
     def test_where(self):
         # cases to test
         # no x and y
