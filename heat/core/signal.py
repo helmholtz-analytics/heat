@@ -719,11 +719,7 @@ def convolve2d(
     # pad signal with zeros
     pad_array = ((pad_size[0], pad_size[0]), (pad_size[1], pad_size[1]))
     a = pad(a, pad_array)
-    print(a.comm.rank, "Padd area halo prev", a.larray[-20:, :])
-    print(a.comm.rank, "Padd area halo next", a.larray[0:20, :])
-    # CF: Necessary for convolution2d
-    a.comm.Barrier()
-    # print("lshape map", a.comm.rank, a.lshape_map, v.lshape_map)
+
     # no batch processing
     if a.is_distributed():
         if (v.lshape_map[:, a.split] > a.lshape_map[:, a.split]).any():
@@ -736,9 +732,9 @@ def convolve2d(
 
         # fetch halos and store them in a.halo_next/a.halo_prev
         a.get_halo(halo_size)
+        # CF: Necessary for convolution2d
+        a.comm.Barrier()
 
-        print(a.comm.rank, "Halo prev", a.halo_prev)
-        print(a.comm.rank, "Halo next", a.halo_next)
         # apply halos to local array
         signal = a.array_with_halos
     else:
@@ -759,8 +755,6 @@ def convolve2d(
         else:
             target[:, v_pad_size:] = v.larray
         weight = target
-
-        print(v.comm.rank, "v_pad_size", v_pad_size, weight.shape, v.larray.shape)
     else:
         weight = v.larray
 
@@ -824,16 +818,6 @@ def convolve2d(
 
             # add results
             try:
-                # print(v.comm.rank, r, "Not in Exception", v.lshape_map)
-                print(
-                    "Add results: ",
-                    v.comm.rank,
-                    r,
-                    gshape,
-                    signal_filtered.shape,
-                    filter_results.shape,
-                    local_signal_filtered.shape,
-                )
                 if a.is_distributed():
                     signal_filtered += filter_results
                 else:
@@ -848,7 +832,6 @@ def convolve2d(
 
         if any(s > 1 for s in stride):
             signal_filtered = signal_filtered[:: stride[0], :: stride[1]]
-        # print(v.comm.rank, "after stride", signal_filtered.larray)
 
         if a.is_distributed():
             signal_filtered.balance_()
@@ -879,15 +862,6 @@ def convolve2d(
             else:
                 signal = signal[:, :, :, local_index:]
 
-        print(a.comm.rank, "Signal min max", signal.min(), signal.max())
-        # w_start = weight.shape[-1]
-        # if a.comm.rank == 0:
-        #    print(0, "Halo", signal[0,0,-halo_size*2:-halo_size,-w_start-1:-w_start+1].shape,
-        #          signal[0,0,-halo_size*2:-halo_size,-w_start-1:-w_start+1])
-        # if a.comm.rank == 1:
-        #    print(1, "Line 53-54", signal[0,0,0:halo_size,-w_start-1:-w_start+1].shape,
-        #          signal[0,0,0:halo_size,-w_start-1:-w_start+1])
-
         if all(a_s >= v_s for v_s, a_s in zip(weight.shape[-2:], signal.shape[-2:])):
             # apply torch convolution operator
             signal_filtered = fc.conv2d(signal, weight, stride=stride)
@@ -908,11 +882,6 @@ def convolve2d(
             elif a.split == 1:
                 signal_filtered = signal_filtered[:, 1:]
 
-        print(a.comm.rank, "Signal filtered shape", signal_filtered.shape)
-        # if a.comm.rank == 1:
-        #    print("Line 53: ", signal_filtered[0,-2:])
-        #    print("Line 70: ", signal_filtered[16, -2:])
-
         result = DNDarray(
             signal_filtered.contiguous(),
             gshape,
@@ -923,7 +892,6 @@ def convolve2d(
             balanced=False,
         ).astype(a.dtype.torch_type())
 
-        print(a.comm.rank, "Result shape, before balancing: ", result.lshape_map)
         if result.is_distributed():
             result.balance_()
 
