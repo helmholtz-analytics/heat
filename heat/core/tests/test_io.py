@@ -1092,7 +1092,7 @@ class TestIO(TestCase):
                 self.assertTrue(ht_array_split1.dtype == ht.types.canonical_heat_type(dtype))
 
             # test wildcard loading with dtype conversion
-            print("DEBUGGING: test loading with wildcard and dtype conversion")            
+            print("DEBUGGING: test loading with wildcard and dtype conversion")
             with self.subTest(dtype=dtype, split="dtype_conversion"):
                 # only for non-complex dtypes
                 if not np.issubdtype(dtype, np.complexfloating):
