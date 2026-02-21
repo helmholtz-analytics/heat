@@ -65,7 +65,7 @@ class TestIO(TestCase):
                 pass
 
             try:
-                shutil.rmtree(self.HDF5_MULTIPLE_FOLDER)
+                shutil.rmtree(self.HDF5_MULTIPLE_FOLDER, ignore_errors=True)
             except FileNotFoundError:
                 pass
 
@@ -75,7 +75,6 @@ class TestIO(TestCase):
             except FileNotFoundError:
                 pass
 
-        ht.MPI_WORLD.Barrier()
         if ht.io.supports_zarr():
             if ht.MPI_WORLD.rank == 0:
                 for file in [
@@ -85,7 +84,7 @@ class TestIO(TestCase):
                     self.ZARR_NESTED_PATH,
                 ]:
                     try:
-                        shutil.rmtree(file)
+                        shutil.rmtree(file, ignore_errors=True)
                     except FileNotFoundError:
                         pass
 
