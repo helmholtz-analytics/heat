@@ -1041,7 +1041,6 @@ class TestIO(TestCase):
 
         ht.MPI_WORLD.Barrier()
         for dtype in np_testing_types:
-            print(f"dtype {dtype}")
             global_data_shape = (num_chunks * 10, num_chunks * 5, 7)
             global_data = np.arange(np.prod(global_data_shape), dtype=dtype).reshape(global_data_shape)
             if self.comm.rank == 0:
