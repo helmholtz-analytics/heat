@@ -6,6 +6,8 @@ on:
       - main
     paths:
       - 'heat/**'
+      - 'pyproject.toml' 
+      - '.github/workflows/ci_full.yaml'
 
 jobs:
   full_matrix_test:
