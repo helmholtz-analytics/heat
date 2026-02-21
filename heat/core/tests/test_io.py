@@ -990,6 +990,8 @@ class TestIO(TestCase):
 
         import zarr
 
+        ht.MPI_WORLD.Barrier()
+
         # Write out a nested Zarr store
         original_data = np.arange(np.prod(self.ZARR_SHAPE)).reshape(self.ZARR_SHAPE)
         nested_group_name = "MAIN_0"
@@ -1027,7 +1029,6 @@ class TestIO(TestCase):
                 self.assertTrue(np.array_equal(ht_tensor_kw.numpy(), original_data))
 
         ht.MPI_WORLD.Barrier()
-
         # test loading with wildcard
         num_chunks = self.comm.size * 2 + 1
         if self.comm.size > 3:
