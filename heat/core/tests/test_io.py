@@ -65,7 +65,7 @@ class TestIO(TestCase):
                 pass
 
             try:
-                shutil.rmtree(self.HDF5_MULTIPLE_FOLDER, ignore_errors=True)
+                shutil.rmtree(self.HDF5_MULTIPLE_FOLDER)
             except FileNotFoundError:
                 pass
 
@@ -84,7 +84,7 @@ class TestIO(TestCase):
                     self.ZARR_NESTED_PATH,
                 ]:
                     try:
-                        shutil.rmtree(file, ignore_errors=True)
+                        shutil.rmtree(file)
                     except FileNotFoundError:
                         pass
 
