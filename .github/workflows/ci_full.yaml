@@ -1,12 +1,14 @@
-name: ci
+name: ci_full
 
 on:
-  pull_request_review:
-    types: [submitted]
+  push:
+    branches:
+      - main
+    paths:
+      - 'heat/**'
 
 jobs:
-  approved:
-    if: github.event.review.state == 'approved'
+  full_matrix_test:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -50,7 +52,6 @@ jobs:
           - py-version: '3.10'
             install-options: '.[hdf5,netcdf,pandas,zarr]'
 
-
     name: Python ${{ matrix.py-version }} with ${{ matrix.pytorch-version }}; options ${{ matrix.install-options }}
     steps:
       - name: Harden Runner
@@ -60,15 +61,18 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
       - name: Setup MPI
         uses: mpi4py/setup-mpi@3969f247e8fceef153418744f9d9ee6fdaeda29f # v1.2.0
         with:
           mpi: ${{ matrix.mpi }}
+
       - name: Use Python ${{ matrix.py-version }}
         uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
         with:
           python-version: ${{ matrix.py-version }}
           architecture: x64
+
       - name: Test
         run: |
           pip install pytest
