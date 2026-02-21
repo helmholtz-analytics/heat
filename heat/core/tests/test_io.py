@@ -997,7 +997,7 @@ class TestIO(TestCase):
         nested_group_name = "MAIN_0"
         array_name = "DATA"
         variable_path = f"{nested_group_name}/{array_name}"
-        print("DEBUGGING: writing out nested zarr store")
+
         if ht.MPI_WORLD.rank == 0:
             root = zarr.open_group(self.ZARR_NESTED_PATH, mode="w")
             main_0 = root.create_group(nested_group_name)
@@ -1011,9 +1011,7 @@ class TestIO(TestCase):
         ht.MPI_WORLD.Barrier()
 
         # Test loading using both positional and keyword arguments for different splits
-        print("DEBUGGING: test loading args kwargs")
         for split in [None, 0, 1]:
-            print(f"DEBUGGING: split {split}")
             # Test with positional argument
             with self.subTest(split=split, arg_type="positional"):
                 ht_tensor_pos = ht.load(self.ZARR_NESTED_PATH, variable_path, split=split)
@@ -1031,7 +1029,6 @@ class TestIO(TestCase):
                 self.assertTrue(np.array_equal(ht_tensor_kw.numpy(), original_data))
 
         ht.MPI_WORLD.Barrier()
-        print("DEBUGGING: test loading with wildcard")
         # test loading with wildcard
         num_chunks = self.comm.size * 2 + 1
         if self.comm.size > 3:
@@ -1075,7 +1072,6 @@ class TestIO(TestCase):
             ht.MPI_WORLD.Barrier()
 
             # test wildcard loading for split=0
-            print("DEBUGGING: test loading with wildcard and split 0")
             with self.subTest(dtype=dtype, split=0):
                 ht_array_split0 = ht.load(self.ZARR_OUT_PATH, variable="CHUNK_*_SPLIT0/DATA", split=0, device=self.device)
                 self.assertIsInstance(ht_array_split0, ht.DNDarray)
@@ -1085,7 +1081,6 @@ class TestIO(TestCase):
                 self.assertTrue(ht_array_split0.dtype == ht.types.canonical_heat_type(dtype))
 
             # test wildcard loading for split=1
-            print("DEBUGGING: test loading with wildcard and split 1")
             with self.subTest(dtype=dtype, split=1):
                 ht_array_split1 = ht.load(self.ZARR_OUT_PATH, variable="CHUNK_*_SPLIT1/DATA", split=1, device=self.device)
                 self.assertIsInstance(ht_array_split1, ht.DNDarray)
@@ -1094,7 +1089,6 @@ class TestIO(TestCase):
                 self.assertTrue(ht_array_split1.dtype == ht.types.canonical_heat_type(dtype))
 
             # test wildcard loading with dtype conversion
-            print("DEBUGGING: test loading with wildcard and dtype conversion")
             with self.subTest(dtype=dtype, split="dtype_conversion"):
                 # only for non-complex dtypes
                 if not np.issubdtype(dtype, np.complexfloating):
