@@ -74,7 +74,7 @@ class TestIO(TestCase):
                 os.remove(self.NETCDF_OUT_PATH)
             except FileNotFoundError:
                 pass
-        
+
         ht.MPI_WORLD.Barrier()
         if ht.io.supports_zarr():
             if ht.MPI_WORLD.rank == 0:
