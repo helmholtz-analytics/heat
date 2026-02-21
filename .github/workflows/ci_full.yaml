@@ -6,7 +6,7 @@ on:
       - main
     paths:
       - 'heat/**'
-      - 'pyproject.toml' 
+      - 'pyproject.toml'
       - '.github/workflows/ci_full.yaml'
 
 jobs:
