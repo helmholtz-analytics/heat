@@ -991,7 +991,7 @@ class TestIO(TestCase):
         import zarr
 
         ht.MPI_WORLD.Barrier()
-        
+
         # Write out a nested Zarr store
         original_data = np.arange(np.prod(self.ZARR_SHAPE)).reshape(self.ZARR_SHAPE)
         nested_group_name = "MAIN_0"
