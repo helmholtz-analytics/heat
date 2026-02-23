@@ -8,8 +8,10 @@ import os
 
 from ..signal import conv_input_check, conv_batchprocessing_check, conv_pad
 
-ht.use_device(os.environ["HEAT_DEVICE"] if os.environ["HEAT_DEVICE"] else "cpu")
-
+if os.environ["HEAT_DEVICE"]:
+    device = os.environ["HEAT_DEVICE"]
+else:
+    device = "cpu"
 class TestSignal(TestCase):
     @classmethod
     def setUpClass(cls):
@@ -935,15 +937,16 @@ class TestSignal(TestCase):
 
     def test_convolve2d_kernel_odd_modes(self):
         ht_dtype = ht.int
+
         np_sig = np.arange(256).reshape((16, 16))
         np_k_odd = np.arange(9).reshape((3, 3))
-        full_odd = ht.array(sig.convolve2d(np_sig, np_k_odd))
+        full_odd = ht.array(sig.convolve2d(np_sig, np_k_odd), device=device).astype(ht_dtype)
 
-        dis_signal = ht.array(np_sig, split=0).astype(ht_dtype)
+        dis_signal = ht.array(np_sig, split=0, device=device).astype(ht_dtype)
         signal = ht.array(np_sig).astype(ht_dtype)
 
-        kernel_odd = ht.array(np_k_odd).astype(ht_dtype)
-        dis_kernel_odd = ht.array(np_k_odd, split=0).astype(ht_dtype)
+        kernel_odd = ht.array(np_k_odd, device=device).astype(ht_dtype)
+        dis_kernel_odd = ht.array(np_k_odd, split=0, device=device).astype(ht_dtype)
 
         #avoid kernel larger than signal chunk
         if self.comm.size <= 3:
@@ -1056,16 +1059,16 @@ class TestSignal(TestCase):
 
         np_sig = np.arange(256).reshape((16, 16))
         np_k_odd = np.arange(9).reshape((3, 3))
-        full_odd = ht.array(sig.convolve2d(np_sig, np_k_odd)).astype(ht_dtype)
+        full_odd = ht.array(sig.convolve2d(np_sig, np_k_odd), device=device).astype(ht_dtype)
 
         mode = "full"
         strides = [(1,2), (2,1), (2,2)]
 
-        dis_signal = ht.array(np_sig, split=0).astype(ht_dtype)
+        dis_signal = ht.array(np_sig, split=0, device=device).astype(ht_dtype)
         signal = ht.array(np_sig).astype(ht_dtype)
 
-        kernel_odd = ht.array(np_k_odd).astype(ht_dtype)
-        dis_kernel_odd = ht.array(np_k_odd, split=0).astype(ht_dtype)
+        kernel_odd = ht.array(np_k_odd, device=device).astype(ht_dtype)
+        dis_kernel_odd = ht.array(np_k_odd, split=0, device=device).astype(ht_dtype)
 
         # avoid kernel larger than signal chunk
         for stride in strides:
