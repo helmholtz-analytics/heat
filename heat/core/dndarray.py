@@ -88,13 +88,12 @@ class DNDarray:
 
         # check for inconsistencies between local and global arrays
         assert str(array.device) == device.torch_device
-        assert self.ndim >= array.ndim, (
+        assert self.ndim == array.ndim, (
             f"Local dimension {array.ndim} exceeds global dimension {self.ndim}!"
         )
-        if self.ndim == array.ndim:
-            assert all([gshape[i] >= array.shape[i] for i in range(self.ndim)]), (
-                f"Local shape {array.shape} is larger than global shape {gshape}"
-            )
+        assert all([gshape[i] >= array.shape[i] for i in range(self.ndim)]), (
+            f"Local shape {array.shape} is larger than global shape {gshape}"
+        )
         assert dtype == types.canonical_heat_type(array.dtype), (
             f"Local datatype {array.dtype} is incompatible with global datatype {dtype}"
         )
