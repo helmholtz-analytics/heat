@@ -12,6 +12,8 @@ if os.environ["HEAT_DEVICE"]:
     device = os.environ["HEAT_DEVICE"]
 else:
     device = "cpu"
+
+print(device)
 class TestSignal(TestCase):
     @classmethod
     def setUpClass(cls):
@@ -936,6 +938,7 @@ class TestSignal(TestCase):
                 self.assertTrue(ht.equal(full_odd.astype(ht.float), gathered))
 
     def test_convolve2d_kernel_odd_modes(self):
+        device = "gpu"
         ht_dtype = ht.int
 
         np_sig = np.arange(256).reshape((16, 16))
@@ -943,7 +946,7 @@ class TestSignal(TestCase):
         full_odd = ht.array(sig.convolve2d(np_sig, np_k_odd), device=device).astype(ht_dtype)
 
         dis_signal = ht.array(np_sig, split=0, device=device).astype(ht_dtype)
-        signal = ht.array(np_sig).astype(ht_dtype)
+        signal = ht.array(np_sig, device=device).astype(ht_dtype)
 
         kernel_odd = ht.array(np_k_odd, device=device).astype(ht_dtype)
         dis_kernel_odd = ht.array(np_k_odd, split=0, device=device).astype(ht_dtype)
