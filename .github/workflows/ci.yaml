@@ -2,7 +2,7 @@ name: ci
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
+  push:
 
 jobs:
   approved:
@@ -52,5 +52,5 @@ jobs:
           pip install pytest
           pip install ${{ matrix.pytorch-version }} ${{ matrix.install-options }} --extra-index-url https://download.pytorch.org/whl/cpu
           # use pytest -vv -x for debugging
-          mpirun -n 3 pytest heat/
+          pytest heat/
           mpirun -n 4 pytest heat/
