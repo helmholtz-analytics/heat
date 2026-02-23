@@ -41,14 +41,14 @@ git remote add upstream https://github.com/helmholtz-analytics/heat.git
     * `upstream`, which refers to the main Heat repository
     * `origin`, which refers to your personal fork of Heat
 
-#### Developing Contributions
-
-* Pull the latest changes from upstream:
+* Your fork is entirely independent of the main repository and you are responsible to keep the two synchronized yourself. Therefore, regularly fetch the changes in the main / upstream repository and update all relevant branches by merging the main branch of the upstream repository:
 
 ```
-git checkout main
-git pull upstream main
+git fetch upstream
+git merge upstream/main
 ```
+
+#### Installing the source code
 
 * Install Heat in editable mode from the checked out sources with:
 
@@ -65,7 +65,18 @@ also install the pre-commit hook with
 pre-commit install
 ````
 
-* **NEW** As of Aug 2023, as soon as an issue is assigned, a branch is created and its name is posted in a comment under the original issue. **Do adopt this branch** for your development, it is guaranteed to have the correct source branch - `release/...` for bug fixes, `main` for new features, docs updates, etc.
+#### Developing Contributions
+
+* Create a new branch specifically for your feature. This should be up-to-date with the main branch of the upstream repository:
+
+```
+git checkout main
+git fetch upstream
+git merge upstream/main
+git checkout -b my_feature
+```
+
+Remember to regularly merge upstream changes into your development branch to ensure a smooth merging process!
 
 * Commit locally as you progress:
 
@@ -79,13 +90,23 @@ Use a properly formatted commit message, write tests that fail before your chang
 
 #### Publishing your Contributions
 
-* Before publishing your changes, you might want to rebase to the main branch and tidy up your list of commits, keeping only the most relevant ones and "fixing up" the others. This is done with interactive rebase or `git rebase -i`. Here's an excellent [tutorial](https://www.atlassian.com/git/tutorials/merging-vs-rebasing). This should only be done **before** pushing anything to the remote repository!
+* Before publishing your changes, you might want to rebase to the main branch and tidy up your list of commits, keeping only the most relevant ones and "fixing up" the others. This is done with interactive rebase or `git rebase -i`. Here's an excellent [tutorial](https://www.atlassian.com/git/tutorials/merging-vs-rebasing). This should only be done **before** pushing anything to the remote repository! If this is too complicated at this point, don't worry. You can simply squash and merge to a new merge branch:
+
+```
+git checkout main
+git fetch upstream
+git merge upstream_main
+git checkout -b merge_my_feature
+git merge --squash my_feature
+```
 
 * Push your changes back to your fork on GitHub:
 
 ```
-git push origin features/123-boolean-operators
+git push
 ```
+
+This may promt you to specify where you want to push, just follow the instructions given by git.
 
 * Enter your GitHub username and password (advanced users can remove this step by connecting to GitHub with SSH.
 
@@ -94,6 +115,8 @@ git push origin features/123-boolean-operators
 * If your commit introduces a new feature or changes functionality, **please explain your changes and the thinking behind them**. This greatly simplifies the review process. For bug fixes, documentation updates, etc., this is generally not necessary, though if you do not get any reaction, do feel free to ask for a review.
 
 * Phrase the PR title as a changelog message and make sure the PR is properly tagged ('enhancement', 'bug', 'ci/cd', 'chore', 'documentation').
+
+* Please keep in mind that the PR will be reviewed before it can be merged as explained in the following section. If you want your PR to be merged quickly, you need to make it easy to review. This means, first and foremost, keeping a small diff. Before starting the PR, consider if you can split it into smaller PRs that can be quickly reviewed and merged. Think of assembling furniture. The building process is made a lot easier when the parts needed for the doors are separate from the parts needed for the rest and you can assemble both individually and then later merge them together.
 
 #### Review Process
 
@@ -129,7 +152,7 @@ If GitHub indicates that the branch of your PR can no longer be merged automatic
 
 ## Stylistic Guidelines
 
-* Set up your editor to follow [PEP 8](https://www.python.org/dev/peps/pep-0008/) (remove trailing white space, no tabs, etc.).
+* Set up your editor to follow [PEP 8](https://www.python.org/dev/peps/pep-0008/) (remove trailing white space, no tabs, etc.). Adding a spellchecker to your editor is really handy, too!
 
 * Use the following import conventions:
     * `import heat as ht`
