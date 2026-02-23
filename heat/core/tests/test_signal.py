@@ -8,6 +8,7 @@ import os
 
 from ..signal import conv_input_check, conv_batchprocessing_check, conv_pad
 
+ht.use_device(os.environ["HEAT_DEVICE"] if os.environ["HEAT_DEVICE"] else "cpu")
 
 class TestSignal(TestCase):
     @classmethod
