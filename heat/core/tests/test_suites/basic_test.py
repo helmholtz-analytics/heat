@@ -19,6 +19,7 @@ class TestCase(unittest.TestCase):
     envar: Optional[str] = None
 
     def setUp(self) -> None:
+        ht.MPI_WORLD.Barrier()
         seed(42)
 
     @classmethod
