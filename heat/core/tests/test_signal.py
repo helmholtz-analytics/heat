@@ -1477,8 +1477,8 @@ class TestSignal(TestCase):
             ht_dtype = ht.int32 if ht.get_device() == ht.cpu else ht.float32
             np_dtype = np.int32 if ht.get_device() == ht.cpu else np.float32
 
-            np_a = np.random.randint(0,100, size=(140, 250))
-            np_b = np.random.randint(0,10, size=(39, 17))
+            np_a = np.random.randint(0,100, size=(140, 250)).astype(np_dtype)
+            np_b = np.random.randint(0,10, size=(39, 17)).astype(np_dtype)
             #np_b = np.arange(585).reshape((39,15))
 
             # np_b = np.zeros((39,17))
@@ -1487,7 +1487,7 @@ class TestSignal(TestCase):
             for mode in ["full", "same", "valid"]:
                 strides = [(1,1), random_stride] if mode != "same" else [(1,1)]
                 for stride in strides:
-                    sc_conv = sig.convolve2d(np_a, np_b, mode=mode).astype(np_dtype)
+                    sc_conv = sig.convolve2d(np_a, np_b, mode=mode)
                     solution = sc_conv[::stride[0], ::stride[1]]
 
                     a = ht.array(np_a, split=0, dtype=ht_dtype)

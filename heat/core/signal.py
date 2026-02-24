@@ -722,8 +722,6 @@ def convolve2d(
 
         # fetch halos and store them in a.halo_next/a.halo_prev
         a.get_halo(halo_size)
-        # CF: Necessary for convolution2d
-        a.comm.Barrier()
 
         # apply halos to local array
         signal = a.array_with_halos
