@@ -1451,7 +1451,7 @@ class TestSignal(TestCase):
             np_b = np.random.randint(1000, size=1543)
             # torch convolution does not support int on MPS
             ht_dtype = ht.float32 if self.is_mps else ht.int32
-            np_type = np.float32 if self.is_mps else np.int32
+            np_dtype = np.float32 if self.is_mps else np.int32
             random_stride = np.random.randint(1, high=len(np_a), size=1)[0]
 
             for mode in ["full", "same", "valid"]:
@@ -1459,7 +1459,7 @@ class TestSignal(TestCase):
                 for stride in strides:
                     # solution
                     np_conv = np.convolve(np_a, np_b, mode=mode)
-                    solution = np_conv[::stride].astype(np_type)
+                    solution = np_conv[::stride].astype(np_dtype)
 
                     # test
                     a = ht.array(np_a, split=0, dtype=ht_dtype)
@@ -1487,7 +1487,7 @@ class TestSignal(TestCase):
             for mode in ["full", "same", "valid"]:
                 strides = [(1,1), random_stride] if mode != "same" else [(1,1)]
                 for stride in strides:
-                    sc_conv = sig.convolve2d(np_a, np_b, mode=mode).astype(np_type)
+                    sc_conv = sig.convolve2d(np_a, np_b, mode=mode).astype(np_dtype)
                     solution = sc_conv[::stride[0], ::stride[1]]
 
                     a = ht.array(np_a, split=0, dtype=ht_dtype)
