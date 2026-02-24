@@ -1119,6 +1119,8 @@ class TestIO(TestCase):
             with self.assertRaises(FileNotFoundError):
                 test = ht.load(self.ZARR_OUT_PATH, variable="NONEXSISTENT_CHUNK_*_SPLIT0/DATA", split=0)
 
+            ht.MPI_WORLD.Barrier()
+
     def test_load_zarr_slice(self):
         if not ht.io.supports_zarr():
             self.skipTest("Requires zarr")
