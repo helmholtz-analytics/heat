@@ -5,7 +5,7 @@ import numpy as np
 
 from .communication import MPI
 from .dndarray import DNDarray
-from .types import promote_types, float32, float64
+from .types import promote_types, float16, float32, float64
 from .manipulations import pad, flip
 from .factories import array, zeros
 import torch.nn.functional as fc
@@ -128,6 +128,8 @@ def conv_input_check(a, v, stride, mode, convolution_dim=1):
     3. Determine the promoted data type for 'a' and 'v' based on their existing data types. Convert 'a' and 'v' to this
        promoted data type to ensure consistent data types.
 
+    4. Check if data type is supported in torch given the the device
+
     4. Check if filter is smaller or equal signal, flip if necessary
 
     5. Check mode and check mode "same" against even sized kernels
@@ -173,6 +175,24 @@ def conv_input_check(a, v, stride, mode, convolution_dim=1):
     if a.larray.is_mps and promoted_type == float64:
         # cannot cast to float64 on MPS
         promoted_type = float32
+
+    # Determine if the promoted type is supported by torch.nn.functional.conv
+    if promoted_type.char()[0] not in ["f", "i"]:
+        raise TypeError(
+            f"Data type supported for convolution. Signal type {a.dtype}, Kernel type {v.dtype}, Promoted type {promoted_type}"
+        )
+    elif (promoted_type not in [float16, float32]) and a.larray.is_mps:
+        raise TypeError(
+            f"Only float16 and float32 are supported for convolutions on MPS systems. Signal type {a.dtype}, Kernel type {v.dtype}, Promoted type {promoted_type}"
+        )
+    elif (
+        (promoted_type not in [float16, float32, float64])
+        and (convolution_dim > 1)
+        and ("gpu" in [a.device.device_type, v.device.device_type])
+    ):
+        raise TypeError(
+            f"Only floating point operations supported for nD-convolutions on GPU where n>1. For integer convolutions use CPU. Signal type {a.dtype}, Kernel type {v.dtype}, Promoted type {promoted_type}"
+        )
 
     a = a.astype(promoted_type)
     v = v.astype(promoted_type)

@@ -52,7 +52,54 @@ class TestSignal(TestCase):
                     kernel_even = kernel_even.reshape((conv_dim, -1))
                 conv_input_check(dis_signal, kernel_even, stride, "invalid", conv_dim)
 
-    def test_conv_input_check_scaler(self):
+    def test_conv_input_check_detailed_dtype(self):
+        signal = ht.arange(0, 16, split=0).astype(ht.int)
+        kernel = ht.ones(3)
+
+        mode = "full"
+        def get_signal_kernel(dtype, conv_dim):
+            if conv_dim == 2:
+                signal = ht.arange(0, 16, split=0).astype(dtype).reshape(4,4)
+                kernel = ht.array([[1,1,1]]).astype(dtype)
+            else:
+                signal = ht.arange(0, 16, split=0).astype(dtype)
+                kernel = ht.ones(3).astype(dtype)
+            return signal, kernel
+
+        for conv_dim in [1, 2]:
+            if conv_dim == 1:
+                stride = 1
+            elif conv_dim == 2:
+                stride = (1,1)
+
+            # check for any type except float and integer
+            for dtype in [ht.bool, ht.complex64, ht.uint8]:
+                signal, kernel = get_signal_kernel(dtype, conv_dim)
+
+                with self.assertRaises(TypeError):
+                    conv_input_check(signal, kernel, stride, mode, conv_dim)
+
+            # integer not supported for mps and gpu conv2d, int only possible for conv1d on gpu
+            for dtype in [ht.int8, ht.int16, ht.int32, ht.int64]:
+                signal, kernel = get_signal_kernel(dtype, conv_dim)
+
+                if self.is_mps:
+                    with self.assertRaises(TypeError):
+                        conv_input_check(signal, kernel, stride, mode, conv_dim)
+                elif "gpu" in ht.get_device().device_type:
+                    with self.assertRaises(TypeError):
+                        conv_input_check(signal, kernel, stride, mode, conv_dim)
+
+            # float should always pass
+            for dtype in [ht.float16, ht.float32, ht.float64]:
+                signal, kernel = get_signal_kernel(dtype, conv_dim)
+
+                try:
+                    conv_input_check(signal, kernel, stride, mode, conv_dim)
+                except TypeError:
+                    assert False
+
+    def test_conv_input_check_scalar(self):
         a = 1
         v = 2
         mode = "full"
