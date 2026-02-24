@@ -44,25 +44,18 @@ def conv_pad(a, convolution_dim, signal, pad, boundary, fillvalue):
     # check if more than one rank is involved
 
     if a.is_distributed() and a.comm.size > 1:
-        # print(a.comm.rank, "check more than one rank")
         dim_split = a.split - a.ndim
 
         if boundary == "reflect" and dim_split >= -1 * convolution_dim:
-            # print("check boundary reflect error")
-            # print("Condition 1a:", pad[2*dim_split])
-            # print("Condition 1b:", lshape_map[0, split])
             if (pad[2 * dim_split] >= a.lshape_map[0, a.split]) or (
                 pad[2 * dim_split + 1] >= a.lshape_map[-1, a.split]
             ):
-                # print("I caused a value error in boundary reflect")
                 raise ValueError(
                     "Local chunk needs to be larger than padding for boundary mode reflect"
                 )
-            # print("no value error in boundary reflect")
         # check if split along a convolution dimension
 
         if dim_split >= -1 * convolution_dim:
-            # print(a.comm.rank, "split along convolution dim")
             if boundary == "circular":
                 raise ValueError(
                     "Circular boundary for distributed signals in padding dimensions is currently not supported."
@@ -77,18 +70,15 @@ def conv_pad(a, convolution_dim, signal, pad, boundary, fillvalue):
                 pad[2 * dim_split + 1] = 0
                 pad[2 * dim_split] = 0
 
-    # print(a.comm.rank, "pad", pad)
     # rearrange pad for torch
     if convolution_dim == 2:
         pad = [pad[-2], pad[-1], pad[-4], pad[-3]]
     elif convolution_dim == 3:
         pad = [pad[-2], pad[-1], pad[-4], pad[-3], pad[-6], pad[-5]]
-    # print(a.comm.rank, "rearranged pad", pad)
 
     if boundary == "constant":
         signal = fc.pad(signal, pad, mode=boundary, value=fillvalue)
     elif boundary in ("circular", "reflect", "replicate"):
-        print(a.comm.rank, "boundary not constant")
         signal = fc.pad(signal, pad, mode=boundary)
     else:
         raise ValueError(
@@ -775,7 +765,6 @@ def convolve2d(
         # convoluted signal
         signal_filtered = zeros(gshape, dtype=a.dtype, split=a.split, device=a.device, comm=a.comm)
 
-        print(a.comm.rank, "Created signal filtered", signal_filtered.device)
         for r in range(size):
             rec_v = t_v.clone()
             v.comm.Bcast(rec_v, root=r)
@@ -783,7 +772,7 @@ def convolve2d(
 
             # apply torch convolution operator
             local_signal_filtered = fc.conv2d(signal, t_v1, stride=1)
-            print(r, a.comm.rank, "Created local signal filtered", local_signal_filtered.device)
+
             # unpack 3D result into 2D
             local_signal_filtered = local_signal_filtered[0, 0, :, :]
 
@@ -797,7 +786,7 @@ def convolve2d(
             # compute offset for local_signal_filtered
             if r > 0:
                 v_pad_size = v.lshape_map[0][v.split] - v.lshape_map[r, v.split]
-                start_idx = torch.sum(v.lshape_map[:r, split_axis]).item() - v_pad_size
+                start_idx = int(torch.sum(v.lshape_map[:r, split_axis]).item() - v_pad_size)
             else:
                 start_idx = 0
 
@@ -808,8 +797,6 @@ def convolve2d(
                 )
             else:
                 filter_results = local_signal_filtered
-
-            print(r, a.comm.rank, "Created Filter results", filter_results.device)
 
             # apply start_idx
             if split_axis == 0:
@@ -825,7 +812,6 @@ def convolve2d(
                     signal_filtered.larray += filter_results
 
             except (ValueError, TypeError):
-                print(v.comm.rank, "In Exception", signal_filtered.split)
                 if a.is_distributed():
                     signal_filtered = signal_filtered + filter_results
                 else:

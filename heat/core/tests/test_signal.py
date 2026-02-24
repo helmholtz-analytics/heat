@@ -8,12 +8,6 @@ import os
 
 from ..signal import conv_input_check, conv_batchprocessing_check, conv_pad
 
-if os.environ["HEAT_DEVICE"]:
-    device = os.environ["HEAT_DEVICE"]
-else:
-    device = "cpu"
-
-print(device)
 class TestSignal(TestCase):
     @classmethod
     def setUpClass(cls):
@@ -445,10 +439,7 @@ class TestSignal(TestCase):
             else:
                 self.assertTrue(padded_signal.shape[0] == local_signal.squeeze().shape[0])
 
-        print("Start 2d")
         local_signal = signal2d.larray
-        print(local_signal.shape)
-        print(signal2d.lshape_map) # SOmehow communication problem with lshape map?
         padded_signal = conv_pad(signal2d, 2, local_signal, padding, boundary, 0)[:,0:1,:,:].squeeze()
 
         if self.comm.size == 1:
@@ -459,17 +450,13 @@ class TestSignal(TestCase):
                 ht.equal(padded_signal[-2:, -1:],
                          manipulations.flip(signal2d[:,0:1,:,:].squeeze()[-3:-1, -2:-1], [0, 1])))
         else:
-            print("in else")
             local_signal = local_signal[:,0:1,:,:]
             if self.comm.rank == 0:
-                print("In ", self.comm.rank)
-                print(padded_signal.squeeze().shape, local_signal.squeeze().shape)
                 self.assertTrue(
                     torch.equal(padded_signal[:2, :1], torch.flip(local_signal.squeeze()[1:3, 1:2], [0, 1])))
                 self.assertTrue(padded_signal.shape[0] == local_signal.squeeze().shape[0] + 1 * 2)
                 self.assertTrue(padded_signal.shape[1] == local_signal.squeeze().shape[1] + 2 * 1)
             elif self.comm.rank == self.comm.size - 1:
-                print("In ", self.comm.rank)
                 self.assertTrue(torch.equal(padded_signal[-2:, -1:],
                                 torch.flip(local_signal.squeeze()[-3:-1, -2:-1], [0, 1])))
                 self.assertTrue(padded_signal.shape[0] == local_signal.squeeze().shape[0] + 1 * 2)
@@ -938,25 +925,24 @@ class TestSignal(TestCase):
                 self.assertTrue(ht.equal(full_odd.astype(ht.float), gathered))
 
     def test_convolve2d_kernel_odd_modes(self):
-        device = "gpu"
         ht_dtype = ht.int
 
         np_sig = np.arange(256).reshape((16, 16))
         np_k_odd = np.arange(9).reshape((3, 3))
-        full_odd = ht.array(sig.convolve2d(np_sig, np_k_odd), device=device).astype(ht_dtype)
+        full_odd = ht.array(sig.convolve2d(np_sig, np_k_odd)).astype(ht_dtype)
 
-        dis_signal = ht.array(np_sig, split=0, device=device).astype(ht_dtype)
-        signal = ht.array(np_sig, device=device).astype(ht_dtype)
+        dis_signal = ht.array(np_sig, split=0).astype(ht_dtype)
+        signal = ht.array(np_sig).astype(ht_dtype)
 
-        kernel_odd = ht.array(np_k_odd, device=device).astype(ht_dtype)
-        dis_kernel_odd = ht.array(np_k_odd, split=0, device=device).astype(ht_dtype)
+        kernel_odd = ht.array(np_k_odd).astype(ht_dtype)
+        dis_kernel_odd = ht.array(np_k_odd, split=0).astype(ht_dtype)
 
         #avoid kernel larger than signal chunk
         if self.comm.size <= 3:
             modes = ["full", "same", "valid"]
             for i, mode in enumerate(modes):
                 # odd kernel size
-                if not self.is_mps:
+                if ht.get_device() == ht.cpu:
                     # torch convolution does not support int on MPS
                     conv = ht.convolve2d(dis_signal, kernel_odd, mode=mode)
                     gathered = manipulations.resplit(conv, axis=None)
@@ -1062,21 +1048,21 @@ class TestSignal(TestCase):
 
         np_sig = np.arange(256).reshape((16, 16))
         np_k_odd = np.arange(9).reshape((3, 3))
-        full_odd = ht.array(sig.convolve2d(np_sig, np_k_odd), device=device).astype(ht_dtype)
+        full_odd = ht.array(sig.convolve2d(np_sig, np_k_odd)).astype(ht_dtype)
 
         mode = "full"
         strides = [(1,2), (2,1), (2,2)]
 
-        dis_signal = ht.array(np_sig, split=0, device=device).astype(ht_dtype)
+        dis_signal = ht.array(np_sig, split=0).astype(ht_dtype)
         signal = ht.array(np_sig).astype(ht_dtype)
 
-        kernel_odd = ht.array(np_k_odd, device=device).astype(ht_dtype)
-        dis_kernel_odd = ht.array(np_k_odd, split=0, device=device).astype(ht_dtype)
+        kernel_odd = ht.array(np_k_odd).astype(ht_dtype)
+        dis_kernel_odd = ht.array(np_k_odd, split=0).astype(ht_dtype)
 
         # avoid kernel larger than signal chunk
         for stride in strides:
             if self.comm.size <= 3:
-                if not self.is_mps:
+                if ht.get_device() == ht.cpu:
                     # torch convolution does not support int on MPS
                     conv = ht.convolve2d(dis_signal, kernel_odd, stride=stride)
                     gathered = manipulations.resplit(conv, axis=None)
@@ -1128,7 +1114,7 @@ class TestSignal(TestCase):
         # avoid kernel larger than signal chunk
         for stride in strides:
             if self.comm.size <= 3:
-                if not self.is_mps:
+                if ht.get_device() == ht.cpu:
                     # torch convolution does not support int on MPS
                     conv = ht.convolve2d(dis_signal, kernel_odd, mode=mode, stride=stride)
                     gathered = manipulations.resplit(conv, axis=None)
@@ -1351,7 +1337,7 @@ class TestSignal(TestCase):
         # avoid kernel larger than signal chunk
         for stride in strides:
             if self.comm.size <= 3:
-                if not self.is_mps:
+                if ht.get_device() == ht.cpu:
                     # torch convolution does not support int on MPS
                     conv = ht.convolve2d(dis_signal, kernel_even, stride=stride)
                     gathered = manipulations.resplit(conv, axis=None)
@@ -1410,7 +1396,7 @@ class TestSignal(TestCase):
         # avoid kernel larger than signal chunk
         for stride in strides:
             if self.comm.size <= 3:
-                if not self.is_mps:
+                if ht.get_device() == ht.cpu:
                     # torch convolution does not support int on MPS
                     conv = ht.convolve2d(dis_signal, kernel_even, mode=mode,
                                          stride=stride)
@@ -1507,26 +1493,6 @@ class TestSignal(TestCase):
                     a = ht.array(np_a, split=0, dtype=ht_dtype)
                     b = ht.array(np_b, split=None, dtype=ht_dtype)
                     conv = ht.convolve2d(a, b, mode=mode, stride=stride)
-
-                    r1,r2 = 60,119
-                    a1,a2 = 264,266
-
-                    print("Target shape: ", stride, solution.shape, conv.lshape_map)
-                    #print("Sum Solution, r1: ", solution[:r1,a1:a2].sum())
-                    #print("Sum Convolve, r1: ", int(conv[:r1,a1:a2].sum()))
-
-                    #print("Sum Solution, r2: ", solution[r1:r2, a1:a2].sum())
-                    #print("Sum Convolve, r2: ", int(conv[r1:r2, a1:a2].sum()))
-
-                    #print("Sum Solution, r3: ", solution[r2:, a1:a2].sum())
-                    #print("Sum Convolve, r3: ", int(conv[r2:, a1:a2].sum()))
-
-                    #for jump in range(53, 80, 1):
-                    #    print("Line Solution: ", jump, solution[jump,-2:])
-                    #    print("Line Convolve: ", jump, conv[jump, -2:])
-                    #print("Total Sum Solution: ", solution.sum())
-                    #print("Total sum convolve: ", int(conv.sum()))
-
                     self.assert_array_equal(conv, solution)
 
                     b = ht.array(np_b, split=0, dtype=ht_dtype)
@@ -1536,13 +1502,10 @@ class TestSignal(TestCase):
                     a = ht.array(np_a, split=1, dtype=ht_dtype)
                     b = ht.array(np_b, split=None, dtype=ht_dtype)
                     conv = ht.convolve2d(a, b, mode=mode, stride=stride)
-                    #print("Total Sum Solution: ", solution.sum())
-                    #print("Total sum convolve: ", int(conv.sum()))
                     self.assert_array_equal(conv, solution)
 
                     b = ht.array(np_b, split=1, dtype=ht_dtype)
                     conv = ht.convolve2d(a, b, mode=mode, stride=stride)
-
                     self.assert_array_equal(conv, solution)
 
     def test_convolve_kernel_size_1(self):
@@ -1573,6 +1536,6 @@ class TestSignal(TestCase):
             conv = ht.convolve2d(alt_signal, kernel, stride=(stride,stride))
             self.assertTrue(ht.equal(signal[::stride, ::stride], conv))
 
-            if not self.is_mps:
+            if ht.get_device() == ht.cpu:
                 conv = ht.convolve2d(1,5,stride=(stride,stride))
                 self.assertTrue(ht.equal(ht.array([[5]]), conv))
