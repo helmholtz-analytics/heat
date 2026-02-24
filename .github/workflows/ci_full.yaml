@@ -23,7 +23,7 @@ jobs:
           - '3.13'
           - '3.14'
         mpi: [ 'openmpi' ]
-        install-options: [ '.', '.[hdf5,netcdf,pandas,zarr]' ]
+        install-options: [ '.', '.[hdf5,netcdf,zarr]' ]
         pytorch-version:
           - 'torch==2.3.1 torchvision==0.18.1 torchaudio==2.3.1'
           - 'torch==2.4.1 torchvision==0.19.1 torchaudio==2.4.1'
@@ -53,7 +53,7 @@ jobs:
           - py-version: '3.13'
             pytorch-version: 'torch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1'
           - py-version: '3.10'
-            install-options: '.[hdf5,netcdf,pandas,zarr]'
+            install-options: '.[hdf5,netcdf,zarr]'
 
     name: Python ${{ matrix.py-version }} with ${{ matrix.pytorch-version }}; options ${{ matrix.install-options }}
     steps:
