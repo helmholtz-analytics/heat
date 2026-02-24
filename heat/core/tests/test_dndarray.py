@@ -303,6 +303,7 @@ class TestDNDarray(TestCase):
 
         halo_size = 50
         data.get_halo(halo_size)
+        array_with_halos = data.array_with_halos
 
         rank = data.comm.rank
         lshape_map = data.lshape_map
@@ -313,7 +314,7 @@ class TestDNDarray(TestCase):
                 data_np[displacements[rank] - halo_size : displacements[rank], :],
                 device=data.device.torch_device,
             )
-            self.assertTrue(torch.all(data.halo_prev == expected_prev))
+            self.assertTrue(torch.all(array_with_halos[:halo_size, :] == expected_prev))
         else:
             self.assertIsNone(data.halo_prev)
 
@@ -322,7 +323,7 @@ class TestDNDarray(TestCase):
                 data_np[displacements[rank + 1] : displacements[rank + 1] + halo_size, :],
                 device=data.device.torch_device,
             )
-            self.assertTrue(torch.all(data.halo_next == expected_next))
+            self.assertTrue(torch.all(array_with_halos[-halo_size:, :] == expected_next))
         else:
             self.assertIsNone(data.halo_next)
 
@@ -331,7 +332,7 @@ class TestDNDarray(TestCase):
             expected_rows += halo_size
         if data.halo_next is not None:
             expected_rows += halo_size
-        self.assertEqual(data.array_with_halos.shape, (expected_rows, cols))
+        self.assertEqual(array_with_halos.shape, (expected_rows, cols))
 
         # Large split=1 array
         rows, cols = 500, 1000 * size
@@ -340,6 +341,7 @@ class TestDNDarray(TestCase):
 
         halo_size = 100
         data.get_halo(halo_size)
+        array_with_halos = data.array_with_halos
 
         rank = data.comm.rank
         lshape_map = data.lshape_map
@@ -350,7 +352,7 @@ class TestDNDarray(TestCase):
                 data_np[:, displacements[rank] - halo_size : displacements[rank]],
                 device=data.device.torch_device,
             )
-            self.assertTrue(torch.all(data.halo_prev == expected_prev))
+            self.assertTrue(torch.all(array_with_halos[:, :halo_size] == expected_prev))
         else:
             self.assertIsNone(data.halo_prev)
 
@@ -359,7 +361,7 @@ class TestDNDarray(TestCase):
                 data_np[:, displacements[rank + 1] : displacements[rank + 1] + halo_size],
                 device=data.device.torch_device,
             )
-            self.assertTrue(torch.all(data.halo_next == expected_next))
+            self.assertTrue(torch.all(array_with_halos[:, -halo_size:] == expected_next))
         else:
             self.assertIsNone(data.halo_next)
 
@@ -368,7 +370,7 @@ class TestDNDarray(TestCase):
             expected_cols += halo_size
         if data.halo_next is not None:
             expected_cols += halo_size
-        self.assertEqual(data.array_with_halos.shape, (rows, expected_cols))
+        self.assertEqual(array_with_halos.shape, (rows, expected_cols))
 
     def test_array(self):
         # undistributed case
