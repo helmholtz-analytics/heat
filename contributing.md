@@ -95,7 +95,7 @@ Use a properly formatted commit message, write tests that fail before your chang
 ```
 git checkout main
 git fetch upstream
-git merge upstream_main
+git merge upstream/main
 git checkout -b merge_my_feature
 git merge --squash my_feature
 ```
