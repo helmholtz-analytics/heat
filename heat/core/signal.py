@@ -2,8 +2,8 @@
 
 import torch
 import numpy as np
+from typing import Union
 
-from .communication import MPI
 from .dndarray import DNDarray
 from .types import promote_types, float16, float32, float64
 from .manipulations import pad, flip
@@ -13,7 +13,13 @@ import torch.nn.functional as fc
 __all__ = ["convolve", "convolve2d"]
 
 
-def conv_input_check(a, v, stride, mode, convolution_dim=1):
+def conv_input_check(
+    a: DNDarray,
+    v: DNDarray,
+    stride: Union[int, tuple[int, int]],
+    mode: str,
+    convolution_dim: int = 1,
+) -> tuple[DNDarray, DNDarray]:
     """
     Check and preprocess input data.
 
@@ -40,6 +46,11 @@ def conv_input_check(a, v, stride, mode, convolution_dim=1):
     TypeError
         If 'a' or 'v' have unsupported data types.
 
+    ValueError
+        If 'v' is larger than 'a' in only one dimension for convolutions other than 1D
+        If mode not supported
+        If mode==same and stride > 1
+
     Description
     -----------
     This function takes two inputs, 'a' (signal data) and 'v' (filter mask), and performs the following checks and
@@ -55,13 +66,13 @@ def conv_input_check(a, v, stride, mode, convolution_dim=1):
 
     4. Check if data type is supported in torch given the device
 
-    4. Check if filter is smaller or equal signal, flip if necessary
+    5. Check if filter is smaller or equal signal, flip if necessary
 
-    5. Check mode and check mode "same" against even sized kernels
+    6. Check mode and check mode "same" against even sized kernels
 
-    6. Check stride for negative entries and against mode
+    7. Check stride for negative entries and against mode
 
-    7. Return a tuple containing the processed 'a' and 'v'.
+    8. Return a tuple containing the processed 'a' and 'v'.
     """
     # Check if 'a' is a scalar and convert to a DNDarray if necessary
     if np.isscalar(a):
@@ -159,8 +170,25 @@ def conv_input_check(a, v, stride, mode, convolution_dim=1):
     return a, v
 
 
-def conv_batchprocessing_check(a, v, convolution_dim):
-    # assess whether to perform batch processing, default is False (no batch processing)
+def conv_batchprocessing_check(a: DNDarray, v: DNDarray, convolution_dim: int) -> bool:
+    """
+    Check if batch proccessing applies, default is False (no batch processing)
+
+    Parameters
+    ----------
+    a : scalar, array_like, DNDarray
+        Input signal data.
+    v : scalar, array_like, DNDarray
+        Input filter mask.
+    convolution_dim : int
+        Number of dimension along which convolution will be applied, affects what input_check looks for. Default 1
+
+    Returns
+    -------
+    bool
+        Boolean if batch processing applies
+
+    """
     batch_processing = False
     if a.ndim > convolution_dim:
         # batch processing requires 1D filter OR matching batch dimensions for signal and filter
@@ -501,7 +529,7 @@ def convolve2d(
     v: DNDarray,
     mode: str = "full",
     stride: tuple[int, int] = (1, 1),
-):
+) -> DNDarray:
     """
     Returns the discrete, linear convolution of two two-dimensional HeAT tensors.
 
@@ -510,9 +538,9 @@ def convolve2d(
     Parameters
     ----------
     a : scalar, array_like, DNDarray
-        Two-dimensional signal
+        Two-dimensional signal, float precision required on gpu
     v : scalar, array_like, DNDarray
-        Two-dimensional filter mask.
+        Two-dimensional filter mask. float precision required on gpu
     mode : {'full', 'valid', 'same'}, optional
         'full':
           By default, mode is 'full'. This returns the convolution at
@@ -533,7 +561,7 @@ def convolve2d(
 
     Returns
     -------
-    out : ht.tensor
+    out : DNDarray
         Discrete, linear convolution of 'a' and 'v',  balanced
 
     Note : If the filter weight is larger
@@ -548,8 +576,8 @@ def convolve2d(
               [9., 9., 9.],
               [9., 9., 9.]], dtype=ht.float32, device=cpu:0, split=None)
 
-    >>> a = ht.ones((5, 5), split=1)
-    >>> v = ht.ones((3, 3), split=1)
+    >>> a = ht.ones((5, 5), split=1))
+    >>> v = ht.ones((3, 3), split=1))
     >>> ht.convolve2d(a, v)
     DNDarray([[1., 2., 3., 3., 3., 2., 1.],
               [2., 4., 6., 6., 6., 4., 2.],
@@ -558,6 +586,18 @@ def convolve2d(
               [3., 6., 9., 9., 9., 6., 3.],
               [2., 4., 6., 6., 6., 4., 2.],
               [1., 2., 3., 3., 3., 2., 1.]], dtype=ht.float32, device=cpu:0, split=1)
+
+    >>> a = ht.ones((5, 5), split=0)).astype(ht.float)
+    >>> v = ht.ones((3, 3), split=0)).astype(ht.float)
+    >>> stride = (1, 2)
+    >>> ht.convolve2d(a, v, stride=stride)
+    DNDarray([[1., 3., 3., 1.],
+              [2., 6., 6., 2.],
+              [3., 9., 9., 3.],
+              [3., 9., 9., 3.],
+              [3., 9., 9., 3.],
+              [2., 6., 6., 2.],
+              [1., 3., 3., 1.]], dtype=ht.float32, device=cpu:0, split=0)
     """
     # check type and size of input
     a, v = conv_input_check(a, v, stride, mode, 2)
