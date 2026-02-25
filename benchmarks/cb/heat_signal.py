@@ -90,13 +90,13 @@ def create_signal_kernel(conv_dim, split_signal, split_kernel):
     signal = ht.random.random((n_s,), split=split_signal)
     kernel = ht.random.random_integer(0, 2, (n_k,), split=split_kernel)
     if conv_dim == 2:
-        n_s_1 = n_s / 1000
-        n_s_2 = n_s / n_s_2
-        signal = signal.reshape((n_s_1, n_s_2))
+        n_s_1 = n_s // 1000
+        n_s_2 = n_s // n_s_1
+        signal = ht.reshape(signal, (n_s_1, n_s_2))
 
-        n_k_1 = n_k / 101
-        n_k_2 = n_k / n_k_2
-        kernel = kernel.reshape((n_k_1, n_k_2))
+        n_k_1 = n_k // 101
+        n_k_2 = n_k // n_k_1
+        kernel = ht.reshape(kernel, (n_k_1, n_k_2))
 
         stride = (stride, stride)
 
@@ -112,13 +112,13 @@ def create_signal_kernel_batch(conv_dim):
     kernel = ht.random.random_integer(0, 1, (n_b, n_k), split=0)
 
     if conv_dim == 2:
-        n_s_1 = n_s / 250
-        n_s_2 = n_s / n_s_1
-        signal = signal.reshape((n_b,n_s_1, n_s_2))
+        n_s_1 = n_s // 250
+        n_s_2 = n_s // n_s_1
+        signal = ht.reshape(signal, (n_b,n_s_1, n_s_2))
 
-        n_k_1 = n_k / 25
-        n_k_2 = n_k / n_k_1
-        kernel = kernel.reshape((n_b, n_k_1, n_k_2))
+        n_k_1 = n_k // 25
+        n_k_2 = n_k // n_k_1
+        kernel = ht.reshape(kernel, (n_b, n_k_1, n_k_2))
 
         stride = (stride, stride)
 
@@ -164,7 +164,7 @@ def run_signal_benchmarks():
         del signal, kernel
 
         # batch processing
-        signal, kernel, stride = create_signal_kernel(conv_dim)
+        signal, kernel, stride = create_signal_kernel_batch(conv_dim)
 
         if conv_dim == 1:
             convolution_batch_processing(signal, kernel)
