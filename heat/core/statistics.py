@@ -1084,12 +1084,8 @@ def median(
 
 
 DNDarray.median: Callable[[DNDarray, int, bool, bool, float], DNDarray] = (
-    lambda x,
-    axis=None,
-    keepdims=False,
-    sketched=False,
-    sketch_size=1.0 / MPI.COMM_WORLD.size: median(
-        x, axis, keepdims, sketched=sketched, sketch_size=sketch_size
+    lambda x, axis=None, keepdims=False, sketched=False, sketch_size=1.0 / MPI.COMM_WORLD.size: (
+        median(x, axis, keepdims, sketched=sketched, sketch_size=sketch_size)
     )
 )
 DNDarray.median.__doc__ = median.__doc__
@@ -1960,8 +1956,8 @@ def skew(x: DNDarray, axis: int = None, unbiased: bool = True) -> DNDarray:
         return __moment_w_axis(__torch_skew, x, axis, None, unbiased)
 
 
-DNDarray.skew: Callable[[DNDarray, int, bool], DNDarray] = (
-    lambda self, axis=None, unbiased=True: skew(self, axis, unbiased)
+DNDarray.skew: Callable[[DNDarray, int, bool], DNDarray] = lambda self, axis=None, unbiased=True: (
+    skew(self, axis, unbiased)
 )
 DNDarray.skew.__doc__ = skew.__doc__
 
