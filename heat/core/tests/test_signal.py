@@ -48,8 +48,8 @@ class TestSignal(TestCase):
                     )
             with self.assertRaises(ValueError):
                 if conv_dim == 2:
-                    dis_signal = dis_signal.reshape((conv_dim, -1))
-                    kernel_even = kernel_even.reshape((conv_dim, -1))
+                    dis_signal = dis_signal.reshape((conv_dim, -1)).astype(ht.float)
+                    kernel_even = kernel_even.reshape((conv_dim, -1)).astype(ht.float)
                 conv_input_check(dis_signal, kernel_even, stride, "invalid", conv_dim)
 
     def test_conv_input_check_detailed_dtype(self):

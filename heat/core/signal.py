@@ -128,7 +128,7 @@ def conv_input_check(a, v, stride, mode, convolution_dim=1):
     3. Determine the promoted data type for 'a' and 'v' based on their existing data types. Convert 'a' and 'v' to this
        promoted data type to ensure consistent data types.
 
-    4. Check if data type is supported in torch given the the device
+    4. Check if data type is supported in torch given the device
 
     4. Check if filter is smaller or equal signal, flip if necessary
 
