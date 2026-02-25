@@ -4,4 +4,4 @@ allowed_patterns:
 
 fileignoreconfig:
 - filename: .github/workflows/ci.yaml
-  checksum: 21742dd65c71511dee2a0067b012e665dbfd40fe479c1edc33603030bd46582a
+  checksum: e52ea6620a04bb70383a82ddeeec891ca8928e216023c65d405cb78c9d6b7daf
