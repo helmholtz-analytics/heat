@@ -1,3 +1,7 @@
 threshold: medium
 allowed_patterns:
 - 'uses: [A-Za-z-\/]+@[\w\d]+'
+
+fileignoreconfig:
+- filename: .github/workflows/ci.yaml
+  checksum: 21742dd65c71511dee2a0067b012e665dbfd40fe479c1edc33603030bd46582a
