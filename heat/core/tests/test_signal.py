@@ -1491,7 +1491,7 @@ class TestSignal(TestCase):
                     ht.equal(full_even[::stride[0], ::stride[1]], gathered))
 
     def test_convolve_large_signal_and_kernel_modes(self):
-        if self.comm.size <= 3:
+        if self.comm.size <= 4:
             # prep
             np.random.seed(12)
             np_a = np.random.randint(1000, size=4418)
@@ -1519,12 +1519,12 @@ class TestSignal(TestCase):
                     self.assert_array_equal(conv, solution)
 
     def test_convolve2d_large_signal_and_kernel_modes(self):
-        if self.comm.size <= 3:
+        if self.comm.size <= 4:
             np.random.seed(12)
             ht_dtype = ht.int32 if ht.get_device() == ht.cpu else ht.float32
             np_dtype = np.int32 if ht.get_device() == ht.cpu else np.float32
 
-            np_a = np.random.randint(0,100, size=(140, 250)).astype(np_dtype)
+            np_a = np.random.randint(0,100, size=(734, 680)).astype(np_dtype)
             np_b = np.random.randint(0,10, size=(39, 17)).astype(np_dtype)
             #np_b = np.arange(585).reshape((39,15))
 
@@ -1584,5 +1584,5 @@ class TestSignal(TestCase):
             self.assertTrue(ht.equal(signal[::stride, ::stride], conv))
 
             if not self.is_mps:
-                conv = ht.convolve2d(1,5,stride=(stride,stride))
+                conv = ht.convolve2d(float(1),float(5),stride=(stride,stride))
                 self.assertTrue(ht.equal(ht.array([[5]]), conv))
