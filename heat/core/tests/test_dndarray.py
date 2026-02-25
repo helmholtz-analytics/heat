@@ -26,212 +26,351 @@ class TestDNDarray(TestCase):
             ht.equal(int16_tensor & int16_vector, ht.bitwise_and(int16_tensor, int16_vector))
         )
 
-    def test_gethalo(self):
-        data_np = np.array([[1, 2, 3, 4, 5, 6], [7, 8, 9, 10, 11, 12]])
+    def test_gethalo_split1_random(self):
+        """Test get_halo with randomly generated data split along axis 1."""
+        rows, cols = 4, 6 * max(ht.MPI_WORLD.size, 2)
+        data_np = np.arange(rows * cols).reshape((rows, cols))
         data = ht.array(data_np, split=1)
 
-        if data.comm.size == 2:
-            halo_next = torch.tensor(np.array([[4, 5], [10, 11]]), device=data.device.torch_device)
-            halo_prev = torch.tensor(np.array([[2, 3], [8, 9]]), device=data.device.torch_device)
+        if not data.is_distributed():
+            return
 
-            data.get_halo(2)
+        halo_size = min(2, data.lshape[1])
+        data.get_halo(halo_size)
 
-            data_with_halos = data.array_with_halos
-            self.assertEqual(data_with_halos.shape, (2, 5))
+        rank = data.comm.rank
+        displacements = data.counts_displs()[1]
 
-            if data.comm.rank == 0:
-                self.assertTrue(torch.equal(data.halo_next, halo_next))
-                self.assertEqual(data.halo_prev, None)
-            if data.comm.rank == 1:
-                self.assertTrue(torch.equal(data.halo_prev, halo_prev))
-                self.assertEqual(data.halo_next, None)
-
-            self.assertEqual(data.array_with_halos.shape, (2, 5))
-            # exception on wrong argument type in get_halo
-            with self.assertRaises(TypeError):
-                data.get_halo("wrong_type")
-            # exception on wrong argument in get_halo
-            with self.assertRaises(ValueError):
-                data.get_halo(-99)
-            # exception for too large halos
-            with self.assertRaises(ValueError):
-                data.get_halo(4)
-
-            data_np = np.array([[1.0, 2.0, 3.0, 4.0, 5.0, 6.0], [7.0, 8.0, 9.0, 10.0, 11.0, 12.0]])
-            data = ht.array(data_np, split=1)
-
-            halo_next = torch.tensor(
-                np.array([[4.0, 5.0], [10.0, 11.0]]), device=data.device.torch_device
+        # Compute expected halos from the full numpy array
+        if rank != 0:
+            prev_start = displacements[rank] - halo_size
+            expected_prev = torch.tensor(
+                data_np[:, prev_start : displacements[rank]], device=data.device.torch_device
             )
-            halo_prev = torch.tensor(
-                np.array([[2.0, 3.0], [8.0, 9.0]]), device=data.device.torch_device
+            self.assertTrue(torch.all(data.halo_prev == expected_prev))
+        else:
+            self.assertIsNone(data.halo_prev)
+
+        if rank != data.comm.size - 1:
+            next_end = displacements[rank + 1] + halo_size
+            expected_next = torch.tensor(
+                data_np[:, displacements[rank + 1] : next_end], device=data.device.torch_device
             )
+            self.assertTrue(torch.all(data.halo_next == expected_next))
+        else:
+            self.assertIsNone(data.halo_next)
 
-            data.get_halo(2)
+        # Verify array_with_halos shape
+        expected_cols = data.lshape[1]
+        if data.halo_prev is not None:
+            expected_cols += halo_size
+        if data.halo_next is not None:
+            expected_cols += halo_size
+        self.assertEqual(data.array_with_halos.shape, (rows, expected_cols))
 
-            if data.comm.rank == 0:
-                self.assertTrue(np.isclose(((data.halo_next - halo_next) ** 2).mean().item(), 0.0))
-                self.assertEqual(data.halo_prev, None)
-            if data.comm.rank == 1:
-                self.assertTrue(np.isclose(((data.halo_prev - halo_prev) ** 2).mean().item(), 0.0))
-                self.assertEqual(data.halo_next, None)
+    def test_gethalo_split0_random(self):
+        """Test get_halo with randomly generated data split along axis 0."""
+        rows, cols = 6 * max(ht.MPI_WORLD.size, 2), 4
+        data_np = np.arange(rows * cols).reshape((rows, cols))
+        data = ht.array(data_np, split=0)
 
-            data = ht.ones((10, 2), split=0)
+        if not data.is_distributed():
+            return
 
-            halo_next = torch.tensor(
-                np.array([[1.0, 1.0], [1.0, 1.0]]), device=data.device.torch_device
+        halo_size = min(2, data.lshape[0])
+        data.get_halo(halo_size)
+
+        rank = data.comm.rank
+        displacements = data.counts_displs()[1]
+
+        if rank != 0:
+            prev_start = displacements[rank] - halo_size
+            expected_prev = torch.tensor(
+                data_np[prev_start : displacements[rank], :], device=data.device.torch_device
             )
-            halo_prev = torch.tensor(
-                np.array([[1.0, 1.0], [1.0, 1.0]]), device=data.device.torch_device
+            self.assertTrue(torch.all(data.halo_prev == expected_prev))
+        else:
+            self.assertIsNone(data.halo_prev)
+
+        if rank != data.comm.size - 1:
+            next_end = displacements[rank + 1] + halo_size
+            expected_next = torch.tensor(
+                data_np[displacements[rank + 1] : next_end, :], device=data.device.torch_device
             )
+            self.assertTrue(torch.all(data.halo_next == expected_next))
+        else:
+            self.assertIsNone(data.halo_next)
 
-            data.get_halo(2)
+        expected_rows = data.lshape[0]
+        if data.halo_prev is not None:
+            expected_rows += halo_size
+        if data.halo_next is not None:
+            expected_rows += halo_size
+        self.assertEqual(data.array_with_halos.shape, (expected_rows, cols))
 
-            if data.comm.rank == 0:
-                self.assertTrue(np.isclose(((data.halo_next - halo_next) ** 2).mean().item(), 0.0))
-                self.assertEqual(data.halo_prev, None)
-            if data.comm.rank == 1:
-                self.assertTrue(np.isclose(((data.halo_prev - halo_prev) ** 2).mean().item(), 0.0))
-                self.assertEqual(data.halo_next, None)
+    def test_gethalo_float_random(self):
+        """Test get_halo with randomly generated float data."""
+        rows, cols = 3, 8 * max(ht.MPI_WORLD.size, 2)
+        data_np = np.arange(rows * cols).reshape((rows, cols)).astype(np.float64)
+        data = ht.array(data_np, split=1)
 
-        if data.comm.size == 3:
-            halo_1 = torch.tensor(np.array([[2], [8]]), device=data.device.torch_device)
-            halo_2 = torch.tensor(np.array([[3], [9]]), device=data.device.torch_device)
-            halo_3 = torch.tensor(np.array([[4], [10]]), device=data.device.torch_device)
-            halo_4 = torch.tensor(np.array([[5], [11]]), device=data.device.torch_device)
-            data.get_halo(1)
-            data_with_halos = data.array_with_halos
+        if not data.is_distributed():
+            return
 
-            if data.comm.rank == 0:
-                self.assertTrue(torch.equal(data.halo_next, halo_2))
-                self.assertEqual(data.halo_prev, None)
-                self.assertEqual(data_with_halos.shape, (2, 3))
-            if data.comm.rank == 1:
-                self.assertTrue(torch.equal(data.halo_prev, halo_1))
-                self.assertTrue(torch.equal(data.halo_next, halo_4))
-                self.assertEqual(data_with_halos.shape, (2, 4))
-            if data.comm.rank == 2:
-                self.assertEqual(data.halo_next, None)
-                self.assertTrue(torch.equal(data.halo_prev, halo_3))
-                self.assertEqual(data_with_halos.shape, (2, 3))
-            # exception on wrong argument type in get_halo
-            with self.assertRaises(TypeError):
-                data.get_halo("wrong_type")
-            # exception on wrong argument in get_halo
-            with self.assertRaises(ValueError):
-                data.get_halo(-99)
-            # exception for too large halos
-            with self.assertRaises(ValueError):
-                data.get_halo(4)
-            # test no data on process
-            data_np = np.arange(2 * 12).reshape(2, 12)
-            data = ht.array(data_np, split=0)
-            data.get_halo(1)
+        halo_size = 2
+        data.get_halo(halo_size)
 
-            data_with_halos = data.array_with_halos
+        rank = data.comm.rank
+        lshape_map = data.lshape_map
+        populated_ranks = torch.nonzero(lshape_map[:, 1]).squeeze().tolist()
+        if not isinstance(populated_ranks, list):
+            populated_ranks = [populated_ranks]
 
-            if data.comm.rank == 0:
-                self.assertTrue(data.halo_prev is None)
-                self.assertTrue(data.halo_next is not None)
-                self.assertEqual(data_with_halos.shape, (2, 12))
-            if data.comm.rank == 1:
-                self.assertTrue(data.halo_prev is not None)
-                self.assertTrue(data.halo_next is None)
-                self.assertEqual(data_with_halos.shape, (2, 12))
-            if data.comm.rank == 2:
-                self.assertTrue(data.halo_prev is None)
-                self.assertTrue(data.halo_next is None)
-                self.assertEqual(data_with_halos.shape, (0, 12))
+        first_rank = populated_ranks[0]
+        last_rank = populated_ranks[-1]
 
-            data = data.reshape((12, 2), new_split=1)
-            data.get_halo(1)
-
-            data_with_halos = data.array_with_halos
-
-            if data.comm.rank == 0:
-                self.assertTrue(data.halo_prev is None)
-                self.assertTrue(data.halo_next is not None)
-                self.assertEqual(data_with_halos.shape, (12, 2))
-            if data.comm.rank == 1:
-                self.assertTrue(data.halo_prev is not None)
-                self.assertTrue(data.halo_next is None)
-                self.assertEqual(data_with_halos.shape, (12, 2))
-            if data.comm.rank == 2:
-                self.assertTrue(data.halo_prev is None)
-                self.assertTrue(data.halo_next is None)
-                self.assertEqual(data_with_halos.shape, (12, 0))
-
-        # test halo of imbalanced dndarray
-        if data.comm.size > 2:
-            # test for split=0
-            t_data = torch.arange(
-                5 * data.comm.rank, dtype=torch.float64, device=data.larray.device
-            ).reshape(data.comm.rank, 5)
-            if data.comm.rank > 0:
-                prev_data = torch.arange(
-                    5 * (data.comm.rank - 1), dtype=torch.float64, device=data.larray.device
-                ).reshape(data.comm.rank - 1, 5)
-            if data.comm.rank < data.comm.size - 1:
-                next_data = torch.arange(
-                    5 * (data.comm.rank + 1), dtype=torch.float64, device=data.larray.device
-                ).reshape(data.comm.rank + 1, 5)
-            data = ht.array(t_data, is_split=0)
-            data.get_halo(1)
-            data_with_halos = data.array_with_halos
-            if data.comm.rank == 0:
-                prev_halo = None
-                next_halo = None
-                new_split_size = 0
-            elif data.comm.rank == 1:
-                prev_halo = None
-                next_halo = next_data[0]
-                new_split_size = data.larray.shape[0] + 1
-            elif data.comm.rank == data.comm.size - 1:
-                prev_halo = prev_data[-1]
-                next_halo = None
-                new_split_size = data.larray.shape[0] + 1
+        if rank in populated_ranks:
+            offsets = [0] + torch.cumsum(lshape_map[:, 1], dim=0).tolist()
+            if rank != first_rank:
+                expected_prev = torch.tensor(
+                    data_np[:, offsets[rank] - halo_size : offsets[rank]],
+                    device=data.device.torch_device,
+                )
+                self.assertTrue(
+                    np.isclose(((data.halo_prev - expected_prev) ** 2).mean().item(), 0.0)
+                )
             else:
-                prev_halo = prev_data[-1]
-                next_halo = next_data[0]
-                new_split_size = data.larray.shape[0] + 2
-            self.assertEqual(data_with_halos.shape, (new_split_size, 5))
-            self.assertTrue(data.halo_prev is prev_halo or (data.halo_prev == prev_halo).all())
-            self.assertTrue(data.halo_next is next_halo or (data.halo_next == next_halo).all())
+                self.assertIsNone(data.halo_prev)
 
-            # test for split=1
-            t_data = torch.arange(
-                5 * data.comm.rank, dtype=torch.float64, device=data.larray.device
+            if rank != last_rank:
+                expected_next = torch.tensor(
+                    data_np[:, offsets[rank + 1] : offsets[rank + 1] + halo_size],
+                    device=data.device.torch_device,
+                )
+                self.assertTrue(
+                    np.isclose(((data.halo_next - expected_next) ** 2).mean().item(), 0.0)
+                )
+            else:
+                self.assertIsNone(data.halo_next)
+
+    def test_gethalo_no_data_on_process(self):
+        """Test get_halo when some processes have no local data."""
+        if ht.MPI_WORLD.size < 3:
+            return
+
+        data_np = np.arange(2 * 12).reshape(2, 12)
+        data = ht.array(data_np, split=0)
+        data.get_halo(1)
+
+        data_with_halos = data.array_with_halos
+
+        if data.comm.rank == 0:
+            self.assertIsNone(data.halo_prev)
+            self.assertIsNotNone(data.halo_next)
+            self.assertEqual(data_with_halos.shape, (2, 12))
+        if data.comm.rank == 1:
+            self.assertIsNotNone(data.halo_prev)
+            self.assertIsNone(data.halo_next)
+            self.assertEqual(data_with_halos.shape, (2, 12))
+        if data.comm.rank == 2:
+            self.assertIsNone(data.halo_prev)
+            self.assertIsNone(data.halo_next)
+            self.assertEqual(data_with_halos.shape, (0, 12))
+
+        # Also test with split=1 via reshape
+        data = ht.array(data_np, split=0).reshape((12, 2), new_split=1)
+        data.get_halo(1)
+
+        data_with_halos = data.array_with_halos
+
+        if data.comm.rank == 0:
+            self.assertIsNone(data.halo_prev)
+            self.assertIsNotNone(data.halo_next)
+            self.assertEqual(data_with_halos.shape, (12, 2))
+        if data.comm.rank == 1:
+            self.assertIsNotNone(data.halo_prev)
+            self.assertIsNone(data.halo_next)
+            self.assertEqual(data_with_halos.shape, (12, 2))
+        if data.comm.rank == 2:
+            self.assertIsNone(data.halo_prev)
+            self.assertIsNone(data.halo_next)
+            self.assertEqual(data_with_halos.shape, (12, 0))
+
+    def test_gethalo_imbalanced(self):
+        """Test get_halo with imbalanced data distribution across processes."""
+        if ht.MPI_WORLD.size < 3:
+            return
+
+        device = ht.get_device()
+        rank = ht.MPI_WORLD.rank
+        size = ht.MPI_WORLD.size
+
+        # test for split=0
+        t_data = torch.arange(
+            5 * rank, dtype=torch.float64, device=device.torch_device
+        ).reshape(rank, 5)
+        if rank > 0:
+            prev_data = torch.arange(
+                5 * (rank - 1), dtype=torch.float64, device=device.torch_device
+            ).reshape(rank - 1, 5)
+        if rank < size - 1:
+            next_data = torch.arange(
+                5 * (rank + 1), dtype=torch.float64, device=device.torch_device
+            ).reshape(rank + 1, 5)
+        data = ht.array(t_data, is_split=0)
+        data.get_halo(1)
+        data_with_halos = data.array_with_halos
+        if rank == 0:
+            prev_halo = None
+            next_halo = None
+            new_split_size = 0
+        elif rank == 1:
+            prev_halo = None
+            next_halo = next_data[0]
+            new_split_size = data.larray.shape[0] + 1
+        elif rank == size - 1:
+            prev_halo = prev_data[-1]
+            next_halo = None
+            new_split_size = data.larray.shape[0] + 1
+        else:
+            prev_halo = prev_data[-1]
+            next_halo = next_data[0]
+            new_split_size = data.larray.shape[0] + 2
+        self.assertEqual(data_with_halos.shape, (new_split_size, 5))
+        self.assertTrue(data.halo_prev is prev_halo or (data.halo_prev == prev_halo).all())
+        self.assertTrue(data.halo_next is next_halo or (data.halo_next == next_halo).all())
+
+        # test for split=1
+        t_data = torch.arange(
+            5 * rank, dtype=torch.float64, device=device.torch_device
+        ).reshape(5, -1)
+        if rank > 0:
+            prev_data = torch.arange(
+                5 * (rank - 1), dtype=torch.float64, device=device.torch_device
             ).reshape(5, -1)
-            if data.comm.rank > 0:
-                prev_data = torch.arange(
-                    5 * (data.comm.rank - 1), dtype=torch.float64, device=data.larray.device
-                ).reshape(5, -1)
-            if data.comm.rank < data.comm.size - 1:
-                next_data = torch.arange(
-                    5 * (data.comm.rank + 1), dtype=torch.float64, device=data.larray.device
-                ).reshape(5, -1)
-            data = ht.array(t_data, is_split=1)
-            data.get_halo(1)
-            data_with_halos = data.array_with_halos
-            if data.comm.rank == 0:
-                prev_halo = None
-                next_halo = None
-                new_split_size = 0
-            elif data.comm.rank == 1:
-                prev_halo = None
-                next_halo = next_data[:, 0].unsqueeze_(1)
-                new_split_size = data.larray.shape[1] + 1
-            elif data.comm.rank == data.comm.size - 1:
-                prev_halo = prev_data[:, -1].unsqueeze_(1)
-                next_halo = None
-                new_split_size = data.larray.shape[1] + 1
-            else:
-                prev_halo = prev_data[:, -1].unsqueeze_(1)
-                next_halo = next_data[:, 0].unsqueeze_(1)
-                new_split_size = data.larray.shape[1] + 2
-            self.assertEqual(data_with_halos.shape, (5, new_split_size))
-            self.assertTrue(data.halo_prev is prev_halo or (data.halo_prev == prev_halo).all())
-            self.assertTrue(data.halo_next is next_halo or (data.halo_next == next_halo).all())
+        if rank < size - 1:
+            next_data = torch.arange(
+                5 * (rank + 1), dtype=torch.float64, device=device.torch_device
+            ).reshape(5, -1)
+        data = ht.array(t_data, is_split=1)
+        data.get_halo(1)
+        data_with_halos = data.array_with_halos
+        if rank == 0:
+            prev_halo = None
+            next_halo = None
+            new_split_size = 0
+        elif rank == 1:
+            prev_halo = None
+            next_halo = next_data[:, 0].unsqueeze_(1)
+            new_split_size = data.larray.shape[1] + 1
+        elif rank == size - 1:
+            prev_halo = prev_data[:, -1].unsqueeze_(1)
+            next_halo = None
+            new_split_size = data.larray.shape[1] + 1
+        else:
+            prev_halo = prev_data[:, -1].unsqueeze_(1)
+            next_halo = next_data[:, 0].unsqueeze_(1)
+            new_split_size = data.larray.shape[1] + 2
+        self.assertEqual(data_with_halos.shape, (5, new_split_size))
+        self.assertTrue(data.halo_prev is prev_halo or (data.halo_prev == prev_halo).all())
+        self.assertTrue(data.halo_next is next_halo or (data.halo_next == next_halo).all())
+
+    def test_gethalo_errors(self):
+        """Test that get_halo raises proper exceptions for invalid arguments."""
+        data = ht.random.rand(4, 12, split=1)
+
+        # exception on wrong argument type
+        with self.assertRaises(TypeError):
+            data.get_halo("wrong_type")
+        # exception on negative halo size
+        with self.assertRaises(ValueError):
+            data.get_halo(-99)
+        # exception for halo larger than local chunk size
+        if data.is_distributed():
+            with self.assertRaises(ValueError):
+                data.get_halo(data.lshape[1] + 1)
+
+    def test_gethalo_large_array(self):
+        """Test get_halo with very large arrays and large halo sizes."""
+        size = ht.MPI_WORLD.size
+        if size < 2:
+            return
+
+        # Large split=0 array
+        rows, cols = 1000 * size, 500
+        data_np = np.arange(rows * cols, dtype=np.int32).reshape(rows, cols)
+        data = ht.array(data_np, split=0)
+
+        halo_size = 50
+        data.get_halo(halo_size)
+        array_with_halos = data.array_with_halos
+
+        rank = data.comm.rank
+        lshape_map = data.lshape_map
+        displacements = data.counts_displs()[1]
+
+        if rank != 0:
+            expected_prev = torch.tensor(
+                data_np[displacements[rank] - halo_size : displacements[rank], :],
+                device=data.device.torch_device,
+            )
+            self.assertTrue(torch.all(array_with_halos[:halo_size, :] == expected_prev))
+        else:
+            self.assertIsNone(data.halo_prev)
+
+        if rank != data.comm.size - 1:
+            expected_next = torch.tensor(
+                data_np[displacements[rank + 1] : displacements[rank + 1] + halo_size, :],
+                device=data.device.torch_device,
+            )
+            self.assertTrue(torch.all(array_with_halos[-halo_size:, :] == expected_next))
+        else:
+            self.assertIsNone(data.halo_next)
+
+        expected_rows = data.lshape[0]
+        if data.halo_prev is not None:
+            expected_rows += halo_size
+        if data.halo_next is not None:
+            expected_rows += halo_size
+        self.assertEqual(array_with_halos.shape, (expected_rows, cols))
+
+        # Large split=1 array
+        rows, cols = 500, 1000 * size
+        data_np = np.arange(rows * cols, dtype=np.int32).reshape(rows, cols)
+        data = ht.array(data_np, split=1)
+
+        halo_size = 100
+        data.get_halo(halo_size)
+        array_with_halos = data.array_with_halos
+
+        rank = data.comm.rank
+        lshape_map = data.lshape_map
+        displacements = data.counts_displs()[1]
+
+        if rank != 0:
+            expected_prev = torch.tensor(
+                data_np[:, displacements[rank] - halo_size : displacements[rank]],
+                device=data.device.torch_device,
+            )
+            self.assertTrue(torch.all(array_with_halos[:, :halo_size] == expected_prev))
+        else:
+            self.assertIsNone(data.halo_prev)
+
+        if rank != data.comm.size - 1:
+            expected_next = torch.tensor(
+                data_np[:, displacements[rank + 1] : displacements[rank + 1] + halo_size],
+                device=data.device.torch_device,
+            )
+            self.assertTrue(torch.all(array_with_halos[:, -halo_size:] == expected_next))
+        else:
+            self.assertIsNone(data.halo_next)
+
+        expected_cols = data.lshape[1]
+        if data.halo_prev is not None:
+            expected_cols += halo_size
+        if data.halo_next is not None:
+            expected_cols += halo_size
+        self.assertEqual(array_with_halos.shape, (rows, expected_cols))
 
     def test_array(self):
         # undistributed case

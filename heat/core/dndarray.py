@@ -442,9 +442,9 @@ class DNDarray:
             # exchange data with next populated process
             if prev:
                 if rank != last_rank:
-                    self.comm.Isend(a_next, next_rank)
+                    req_list.append(self.comm.Isend(a_next, next_rank))
                 if rank != first_rank:
-                    res_prev = torch.zeros(
+                    res_prev = torch.empty(
                         a_prev.size(), dtype=a_prev.dtype, device=self.device.torch_device
                     )
                     req_list.append(self.comm.Irecv(res_prev, source=prev_rank))
@@ -453,7 +453,7 @@ class DNDarray:
                 if rank != first_rank:
                     req_list.append(self.comm.Isend(a_prev, prev_rank))
                 if rank != last_rank:
-                    res_next = torch.zeros(
+                    res_next = torch.empty(
                         a_next.size(), dtype=a_next.dtype, device=self.device.torch_device
                     )
                     req_list.append(self.comm.Irecv(res_next, source=next_rank))
