@@ -6,7 +6,7 @@ import scipy.signal as sig
 from .test_suites.basic_test import TestCase
 import os
 
-from ..signal import conv_input_check, conv_batchprocessing_check, conv_pad
+from ..signal import conv_input_check, conv_batchprocessing_check
 
 class TestSignal(TestCase):
     @classmethod
