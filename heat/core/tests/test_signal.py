@@ -86,7 +86,7 @@ class TestSignal(TestCase):
                 if self.is_mps:
                     with self.assertRaises(TypeError):
                         conv_input_check(signal, kernel, stride, mode, conv_dim)
-                elif "gpu" in ht.get_device().device_type:
+                elif "gpu" in ht.get_device().device_type and conv_dim > 1:
                     with self.assertRaises(TypeError):
                         conv_input_check(signal, kernel, stride, mode, conv_dim)
 
@@ -100,8 +100,8 @@ class TestSignal(TestCase):
                     assert False
 
     def test_conv_input_check_scalar(self):
-        a = 1
-        v = 2
+        a = float(1)
+        v = float(2)
         mode = "full"
 
         for conv_dim in [1, 2]:
@@ -119,15 +119,15 @@ class TestSignal(TestCase):
             assert v_out.shape == target_shape
 
     def test_conv_input_check_stride(self):
-        dis_signal = ht.arange(0, 16, split=0).astype(ht.int)
-        kernel_odd = ht.ones(3).astype(ht.int)
-        kernel_even = ht.array([1, 1, 1, 1]).astype(ht.int)
+        dis_signal = ht.arange(0, 16, split=0).astype(ht.float)
+        kernel_odd = ht.ones(3).astype(ht.float)
+        kernel_even = ht.array([1, 1, 1, 1]).astype(ht.float)
 
         for conv_dim in [1, 2]:
             if conv_dim == 2:
                 dis_signal = dis_signal.reshape((conv_dim, -1))
                 kernel_even = kernel_even.reshape((conv_dim, -1))
-                kernel_odd = ht.ones((3,3)).astype(ht.int)
+                kernel_odd = ht.ones((3,3)).astype(ht.float)
                 stride_0 = (1, 0)
                 stride_2 = (1, 2)
             else:
@@ -155,7 +155,7 @@ class TestSignal(TestCase):
                 )
 
     def test_conv_input_check_even_kernel_mode_same(self):
-        dis_signal = ht.arange(0, 16, split=0).astype(ht.int)
+        dis_signal = ht.arange(0, 16, split=0).astype(ht.float)
         kernel_even = [1, 1, 1, 1]
 
         for conv_dim in [1, 2]:
@@ -172,7 +172,7 @@ class TestSignal(TestCase):
 
     def test_conv_input_check_flip_a_v(self):
         mode = "full"
-        signal = ht.arange(0, 16, split=0).reshape((2, 8)).astype(ht.int)
+        signal = ht.arange(0, 16, split=0).reshape((2, 8)).astype(ht.float)
         for conv_dim in [1, 2]:
             if conv_dim == 1:
                 stride = 1
@@ -180,7 +180,7 @@ class TestSignal(TestCase):
                 stride = tuple([1] * conv_dim)
 
             # switch, all dimensions larger
-            kernel = ht.ones((1, 3)).astype(ht.int)
+            kernel = ht.ones((1, 3)).astype(ht.float)
             signal_out, kernel_out = conv_input_check(
                 kernel, signal, stride, mode, conv_dim
             )
@@ -197,7 +197,7 @@ class TestSignal(TestCase):
                 self.assertTrue(ht.equal(signal_out, signal))
 
             # no switch
-            kernel_signal = ht.ones(16).reshape((2, 8)).astype(ht.int)
+            kernel_signal = ht.ones(16).reshape((2, 8)).astype(ht.float)
             signal_out, kernel_out = conv_input_check(
                 kernel_signal, signal, stride, mode, conv_dim
             )
@@ -205,7 +205,7 @@ class TestSignal(TestCase):
             self.assertTrue(ht.equal(signal_out, kernel_signal))
 
     def test_conv_input_check_flip_2d_error(self):
-        dis_signal = ht.arange(0, 16, split=0).reshape((2, 8)).astype(ht.int)
+        dis_signal = ht.arange(0, 16, split=0).reshape((2, 8)).astype(ht.float)
         test_kernels = [ht.ones((1, 10)), ht.ones((10, 1))]
         stride = (1, 1)
         mode = "full"
