@@ -1495,7 +1495,7 @@ class TestSignal(TestCase):
             # prep
             np.random.seed(12)
             np_a = np.random.randint(1000, size=4418)
-            np_b = np.random.randint(1000, size=1543)
+            np_b = np.random.randint(1000, size=913)
             # torch convolution does not support int on MPS
             ht_dtype = ht.float32 if self.is_mps else ht.int32
             np_dtype = np.float32 if self.is_mps else np.int32
