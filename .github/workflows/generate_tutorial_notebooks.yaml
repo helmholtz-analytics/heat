@@ -1,0 +1,52 @@
+name: Generate tutorial notebooks
+
+on: push
+
+jobs:
+  generate_notebooks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    name: Generate Notebooks
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@5ef0c079ce82195b2a36a210272d6b661572d83e # v2.14.2
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup MPI
+        uses: mpi4py/setup-mpi@3969f247e8fceef153418744f9d9ee6fdaeda29f # v1.2.0
+        with:
+          mpi: openmpi
+
+      - name: Setup Python
+        uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
+        with:
+          python-version: 3.13
+          architecture: x64
+
+      - name: Install heat and jupytext
+        run: |
+          pip install '.[hdf5,netcdf,pandas,zarr]'
+          pip install jupytext notebook jupyter_client
+
+      - name: Install Jupyter kernel
+        run: python -m ipykernel install --name heat_kernel --user
+
+      - name: Run and convert python files
+        run: |
+          mkdir -p ./tutorials/notebooks
+          find ./tutorials/scripts/ -maxdepth 1 -type f -name "*.py" | while read -r file; do
+            base="$(basename "$file" .py)"
+            echo "Running $file and converting to ./tutorials/notebooks/${base}.ipynb"
+            mpirun -np 2 python "$file"
+            mpirun -np 2 jupytext --to ipynb --execute $file -o ./tutorials/notebooks/${base}.ipynb
+          done
+
+      - name: Upload notebooks
+        uses: actions/upload-artifact@v4
+        with:
+          name: Tutorial_Notebooks
+          path: ./tutorials/notebooks/
