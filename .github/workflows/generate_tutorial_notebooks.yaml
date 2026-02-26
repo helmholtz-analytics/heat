@@ -21,16 +21,18 @@ jobs:
         with:
           mpi: openmpi
 
-      - name: Use Python 3.13
+      - name: Setup Python
         uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
         with:
           python-version: 3.13
           architecture: x64
 
-      - name: Test
+      - name: Install heat and jupytext
         run: |
+          pip install '.[hdf5,netcdf,pandas,zarr]'
           pip install jupytext
-      - name: Run each .py file individually
+
+      - name: Run and convert python files
         run: |
           set -e
           find ./tutorials/scripts/ -maxdepth 1 -type f -name "*.py" | while read -r file; do
