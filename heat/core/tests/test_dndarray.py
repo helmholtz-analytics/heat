@@ -26,14 +26,14 @@ class TestDNDarray(TestCase):
             ht.equal(int16_tensor & int16_vector, ht.bitwise_and(int16_tensor, int16_vector))
         )
 
-    def test_gethalo_split1_random(self):
-        """Test get_halo with randomly generated data split along axis 1."""
+    def test_gethalo_split1(self):
+        """Test get_halo with data split along axis 1."""
         rows, cols = 4, 6 * max(ht.MPI_WORLD.size, 2)
         data_np = np.arange(rows * cols).reshape((rows, cols))
         data = ht.array(data_np, split=1)
 
         if not data.is_distributed():
-            return
+            self.skipTest("Need data to be distributed")
 
         halo_size = min(2, data.lshape[1])
         data.get_halo(halo_size)
@@ -68,14 +68,14 @@ class TestDNDarray(TestCase):
             expected_cols += halo_size
         self.assertEqual(data.array_with_halos.shape, (rows, expected_cols))
 
-    def test_gethalo_split0_random(self):
-        """Test get_halo with randomly generated data split along axis 0."""
+    def test_gethalo_split0(self):
+        """Test get_halo with data split along axis 0."""
         rows, cols = 6 * max(ht.MPI_WORLD.size, 2), 4
         data_np = np.arange(rows * cols).reshape((rows, cols))
         data = ht.array(data_np, split=0)
 
         if not data.is_distributed():
-            return
+            self.skipTest("Need data to be distributed")
 
         halo_size = min(2, data.lshape[0])
         data.get_halo(halo_size)
@@ -156,7 +156,7 @@ class TestDNDarray(TestCase):
     def test_gethalo_no_data_on_process(self):
         """Test get_halo when some processes have no local data."""
         if ht.MPI_WORLD.size < 3:
-            return
+            self.skipTest("Need at least 3 processes")
 
         data_np = np.arange(2 * 12).reshape(2, 12)
         data = ht.array(data_np, split=0)
