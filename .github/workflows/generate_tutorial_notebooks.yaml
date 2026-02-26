@@ -30,13 +30,12 @@ jobs:
       - name: Test
         run: |
           pip install jupytext
-          python tutorials/interoperability.py
       - name: Run each .py file individually
         run: |
           set -e
-          find ../tutorials/scripts/ -maxdepth 1 -type f -name "*.py" | while read -r file; do
+          find ./tutorials/scripts/ -maxdepth 1 -type f -name "*.py" | while read -r file; do
             base="$(basename "$file" .py)"
-            echo "Running $file and converting to ${base}.ipynb"
+            echo "Running $file and converting to tutorials/notebooks/${base}.ipynb"
             mpirun -np 2 python "$file"
             mpirun -np 2 jupytext --to ipynb --execute $file -o tutorials/notebooks/${base}.ipynb
           done
