@@ -436,7 +436,6 @@ class DNDarray:
             a_next = self.__prephalo(-halo_size, None)
             res_prev = None
             res_next = None
-
             req_list = []
 
             # exchange data with next populated process
