@@ -32,7 +32,7 @@ jobs:
           pip install '.[hdf5,netcdf,pandas,zarr]'
           pip install jupytext notebook jupyter_client
 
-      - name: Install jupyter kernel
+      - name: Install Jupyter kernel
         run: python -m ipykernel install --name heat_kernel --user
 
       - name: Run and convert python files
@@ -40,7 +40,7 @@ jobs:
           set -e
           find ./tutorials/scripts/ -maxdepth 1 -type f -name "*.py" | while read -r file; do
             base="$(basename "$file" .py)"
-            echo "Running $file and converting to tutorials/notebooks/${base}.ipynb"
+            echo "Running $file and converting to ./tutorials/notebooks/${base}.ipynb"
             mpirun -np 2 python "$file"
-            mpirun -np 2 jupytext --to ipynb --execute $file -o tutorials/notebooks/${base}.ipynb
+            mpirun -np 2 jupytext --to ipynb --execute $file -o ./tutorials/notebooks/${base}.ipynb
           done
