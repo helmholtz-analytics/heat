@@ -37,10 +37,16 @@ jobs:
 
       - name: Run and convert python files
         run: |
-          mkdir -p .tutorials/notebooks
+          mkdir -p ./tutorials/notebooks
           find ./tutorials/scripts/ -maxdepth 1 -type f -name "*.py" | while read -r file; do
             base="$(basename "$file" .py)"
             echo "Running $file and converting to ./tutorials/notebooks/${base}.ipynb"
             mpirun -np 2 python "$file"
             mpirun -np 2 jupytext --to ipynb --execute $file -o ./tutorials/notebooks/${base}.ipynb
           done
+
+      - name: Upload notebooks
+        uses: actions/upload-artifact@v4
+        with:
+          name: Tutorial_Notebooks
+          path: ./tutorials/notebooks/
