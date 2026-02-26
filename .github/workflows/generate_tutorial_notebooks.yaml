@@ -30,7 +30,7 @@ jobs:
       - name: Install heat and jupytext
         run: |
           pip install '.[hdf5,netcdf,pandas,zarr]'
-          pip install jupytext
+          pip install jupytext notebook jupyter_client
 
       - name: Run and convert python files
         run: |
