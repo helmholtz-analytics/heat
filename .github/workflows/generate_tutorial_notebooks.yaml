@@ -1,0 +1,42 @@
+name: Generate tutorial notebooks
+
+on: push
+
+jobs:
+  generate_notebooks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    name: Setup
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout
+
+      - name: Setup MPI
+        uses: mpi4py/setup-mpi
+        with:
+          mpi: openmpi
+
+      - name: Use Python ${{ matrix.py-version }}
+        uses: actions/setup-python
+        with:
+          python-version: ${{ matrix.py-version }}
+          architecture: x64
+
+      - name: Test
+        run: |
+          pip install jupytext
+          python tutorials/interoperability.py
+      - name: Run each .py file individually
+        run: |
+          set -e
+          find ./tutorials/scripts/ -maxdepth 1 -type f -name "*.py" | while read -r file; do
+            base="$(basename "$file" .py)"
+            echo "Running $file and converting to ${base}.ipynb"
+            mpirun -np 2 python "$file"
+            mpirun -np 2 jupytext --to ipynb --execute $file -o tutorials/notebooks/${base}.ipynb
+          done
