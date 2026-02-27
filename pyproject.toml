@@ -179,3 +179,8 @@ convention = "numpy"
 
 [tool.ruff.format]
 docstring-code-format = true
+
+[tool.pytest.ini_options]
+markers = [
+    "mpi: tests that require mpirun / MPI execution",
+]
