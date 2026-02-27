@@ -3848,15 +3848,16 @@ def _axis2axisResplit(
 
 
 DNDarray._axis2axisResplit = (
-    lambda self,
-    comm,
-    source_larray,
-    source_split,
-    source_tiles,
-    target_larray,
-    target_split,
-    target_tile: _axis2axisResplit(
-        comm, source_larray, source_split, source_tiles, target_larray, target_split, target_tile
+    lambda self, comm, source_larray, source_split, source_tiles, target_larray, target_split, target_tile: (
+        _axis2axisResplit(
+            comm,
+            source_larray,
+            source_split,
+            source_tiles,
+            target_larray,
+            target_split,
+            target_tile,
+        )
     )
 )
 DNDarray._axis2axisResplit.__doc__ = _axis2axisResplit.__doc__
