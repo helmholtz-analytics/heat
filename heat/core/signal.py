@@ -692,8 +692,9 @@ def convolve2d(
         return convolved
 
     # pad signal with zeros
-    pad_array = ((pad_size[0], pad_size[0]), (pad_size[1], pad_size[1]))
-    a = pad(a, pad_array)
+    if not mode == "valid":
+        pad_array = ((pad_size[0], pad_size[0]), (pad_size[1], pad_size[1]))
+        a = pad(a, pad_array)
 
     # no batch processing
     if a.is_distributed():
