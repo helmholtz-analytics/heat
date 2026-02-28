@@ -141,9 +141,11 @@ class KMedoids(_KCluster):
             # increment the iteration count
             self._n_iter += 1
             # determine the centroids
+
             matching_centroids = self._assign_to_cluster(x)
 
             # update the centroids
+
             new_cluster_centers = self._update_centroids(x, matching_centroids)
 
             # check whether centroid movement has converged

@@ -301,6 +301,8 @@ class TestLinalgBasics(TestCase):
         self.assertTupleEqual(ainv.shape, a.shape)
         self.assertTrue(ht.allclose(ainv, ares, atol=1e-6))
 
+        # distributed
+        #        ares = ht.array([[2.0, 2, 1], [3, 4, 1], [0, 1, -1]], split=0)
         a = ht.array([[5.0, -3, 2], [-3, 2, -1], [-3, 2, -2]], split=0)
         ainv = ht.linalg.inv(a)
         self.assertEqual(ainv.split, a.split)
@@ -565,6 +567,7 @@ class TestLinalgBasics(TestCase):
             self.assertEqual(ret00.shape, (n, k))
             self.assertEqual(ret00.dtype, ht.float)
             self.assertEqual(ret00.split, 0)
+
 
             # splits 1 None
             a = ht.ones((n, m), split=1)
