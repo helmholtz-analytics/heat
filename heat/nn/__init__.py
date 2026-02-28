@@ -7,12 +7,12 @@ It contains data parallel specific nn modules. It also includes all of the modul
 import sys
 import torch
 import unittest
-
 from . import functional
 
 
 if sys.version_info.minor >= 7:
     from .data_parallel import *
+    from .batchnorm import *
 
     functional.__getattr__ = functional.func_getattr
 
@@ -31,25 +31,27 @@ if sys.version_info.minor >= 7:
                 raise AttributeError(f"module {name} not implemented in Torch or Heat")
 
 else:
+    from . import batchnorm
     from . import data_parallel
     from . import tests
 
-    class Wrapper(object):
-        """
-        Wrapper to handle the dynamic calling of torch.nn modules in the heat namespace
-        """
-
-        def __init__(self, wrapped):  # noqa: D107
+    class _Wrapper(object):
+        def __init__(self, wrapped):  # noqa: D101
+            """
+            Wrapper to handle the dynamic calling of torch.nn modules in the heat namespace
+            """
             self.wrapped = wrapped
             self.torch_all = torch.nn.modules.__all__
             self.data_parallel_all = data_parallel.__all__
+            self.bn_all = batchnorm.__all__
 
         def __getattr__(self, name):
-            """
-            When a function is called for the heat.nn module it will attempt to run the heat nn module with that
-            name, then, if there is no such heat nn module, it will attempt to get the torch nn module of that name.
-            """
-            if name in self.torch_all:
+            if name in self.bn_all:
+                return batchnorm.__getattribute__(name)
+            elif name in self.torch_all:
+                # When a function is called for the heat.nn module it will attempt to run the heat
+                # nn module with that name, then, if there is no such heat nn module,
+                # it will attempt to get the torch nn module of that name.
                 return torch.nn.__getattribute__(name)
             elif name == "functional":
                 return functional
@@ -63,4 +65,4 @@ else:
                 except AttributeError:
                     raise AttributeError(f"module '{name}' not implemented in Torch or Heat")
 
-    sys.modules[__name__] = Wrapper(sys.modules[__name__])
+    sys.modules[__name__] = _Wrapper(sys.modules[__name__])
