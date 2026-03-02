@@ -404,12 +404,12 @@ class DNDarray:
             raise TypeError(
                 f"halo_size needs to be of Python type integer, {type(halo_size)} given"
             )
-        if halo_size < 0:
+        if halo_size < 1:
             raise ValueError(
                 f"halo_size needs to be a positive Python integer, {type(halo_size)} given"
             )
 
-        if self.is_distributed() and halo_size > 0:
+        if self.is_distributed():
             # gather lshapes
             lshape_map = self.lshape_map
             rank = self.comm.rank
