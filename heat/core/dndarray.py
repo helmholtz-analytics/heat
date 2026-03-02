@@ -387,7 +387,7 @@ class DNDarray:
 
         return self.__array[tuple(ix)].clone()
 
-    def get_halo(self, halo_size: int, prev: bool = True, next: bool = True) -> torch.Tensor:
+    def get_halo(self, halo_size: int, prev: bool = True, next: bool = True):
         """
         Fetch halos of size ``halo_size`` from neighboring ranks and save them in ``self.halo_next/self.halo_prev``.
 
@@ -404,12 +404,12 @@ class DNDarray:
             raise TypeError(
                 f"halo_size needs to be of Python type integer, {type(halo_size)} given"
             )
-        if halo_size < 1:
+        if halo_size < 0:
             raise ValueError(
-                f"halo_size needs to be a positive Python integer, {type(halo_size)} given"
+                f"halo_size needs to be a non-negative Python integer, {halo_size} given"
             )
 
-        if self.is_distributed():
+        if self.is_distributed() and halo_size > 0:
             # gather lshapes
             lshape_map = self.lshape_map
             rank = self.comm.rank
