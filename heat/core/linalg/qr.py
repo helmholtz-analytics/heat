@@ -10,7 +10,6 @@ from ..dndarray import DNDarray
 from ..manipulations import concatenate
 from .. import factories
 from .. import communication
-from ..types import issubdtype, floating, complex
 
 __all__ = ["qr"]
 
@@ -93,10 +92,6 @@ def qr(
         )
     if procs_to_merge == 0:
         procs_to_merge = A.comm.size
-    if not issubdtype(A.dtype, floating) and not issubdtype(A.dtype, complex):
-        raise TypeError(
-            f"QR decomposition is only implemented for floating point or complex numbers, not {A.dtype}"
-        )
 
     QR = collections.namedtuple("QR", "Q, R")
 
@@ -107,7 +102,13 @@ def qr(
 
     if not A.is_distributed() or A.split < A.ndim - 2:
         # handle the case of a single process or split=None: just PyTorch QR
-        Q, R = single_proc_qr(A.larray, mode=mode)
+        try:
+            Q, R = single_proc_qr(A.larray, mode=mode)
+        except NotImplementedError as E:
+            raise NotImplementedError(
+                f"`heat.linalg.qr` relies on `torch.linalg.qr`, which is not implemented for dtype {A.dtype}"
+            ) from E
+
         R = factories.array(R, is_split=A.split, device=A.device)
         if mode == "reduced":
             Q = factories.array(Q, is_split=A.split, device=A.device)
