@@ -60,7 +60,7 @@ jobs:
           fi
 
       - name: Create Release Preparation Issues
-        uses: actions/github-script@9afe6b66b5f8f48e7651c78b94cbf5e3a8ba2833 # v7.1.0
+        uses: actions/github-script@v8
         with:
           script: |
             const version = '${{ steps.version.outputs.version }}';
