@@ -1,6 +1,7 @@
 import os
 import heat as ht
 
+from pathlib import Path
 from tests.test_suites.basic_test import TestCase
 
 
@@ -28,12 +29,13 @@ class TestLasso(TestCase):
 
         def test_lasso(self):
             # ToDo: add additional tests
+            data_path = Path(ht.__file__).parent / "datasets"
             # get some test data
             X = ht.load_hdf5(
-                os.path.join(os.getcwd(), "heat/datasets/diabetes.h5"), dataset="x", split=0
+                str(data_path / "diabetes.h5"), dataset="x", split=0
             )
             y = ht.load_hdf5(
-                os.path.join(os.getcwd(), "heat/datasets/diabetes.h5"), dataset="y", split=0
+                str(data_path / "diabetes.h5"), dataset="y", split=0
             )
 
             # normalize dataset
