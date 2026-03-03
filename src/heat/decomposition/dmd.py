@@ -67,6 +67,9 @@ class DMD(ht.RegressionMixin, ht.BaseEstimator):
     -----
     We follow the "exact DMD" method as described in [1], Sect. 2.2.
 
+    Please note that "rank" in the context of SVD always refers to the number of singular values/vectors to compute (i.e., "rank" refers to the mathematical rank
+    of a matrix). This is completely different from the notion of "(MPI-)rank", i.e., the ID given to a process, in a parallel MPI-application.
+
     References
     ----------
     [1] J. L. Proctor, S. L. Brunton, and J. N. Kutz, "Dynamic Mode Decomposition with Control," SIAM Journal on Applied Dynamical Systems, vol. 15, no. 1, pp. 142-161, 2016.
@@ -155,7 +158,7 @@ class DMD(ht.RegressionMixin, ht.BaseEstimator):
             )
         # first step of DMD: compute the SVD of the input data from first to second last time step
         if self.svd_solver == "full" or not X.is_distributed():
-            U, S, V = ht.linalg.svd(
+            U, S, Vt = ht.linalg.svd(
                 X[:, :-1] if X.split == 0 else X[:, :-1].balance(), full_matrices=False
             )
             if self.svd_tol is not None:
@@ -172,13 +175,13 @@ class DMD(ht.RegressionMixin, ht.BaseEstimator):
                 # no truncation
                 self.n_modes_ = S.shape[0]
             self.rom_basis_ = U[:, : self.n_modes_]
-            V = V[:, : self.n_modes_]
+            Vt = Vt[: self.n_modes_, :]
             S = S[: self.n_modes_]
         # compute SVD via "hierarchical" SVD
         elif self.svd_solver == "hierarchical":
             if self.svd_tol is not None:
                 # hierarchical SVD with prescribed upper bound on relative error
-                U, S, V, _ = ht.linalg.hsvd_rtol(
+                U, S, Vt, _ = ht.linalg.hsvd_rtol(
                     X[:, :-1] if X.split == 0 else X[:, :-1].balance(),
                     self.svd_tol,
                     compute_sv=True,
@@ -186,7 +189,7 @@ class DMD(ht.RegressionMixin, ht.BaseEstimator):
                 )
             else:
                 # hierarchical SVD with prescribed, fixed rank
-                U, S, V, _ = ht.linalg.hsvd_rank(
+                U, S, Vt, _ = ht.linalg.hsvd_rank(
                     X[:, :-1] if X.split == 0 else X[:, :-1].balance(),
                     self.svd_rank,
                     compute_sv=True,
@@ -196,22 +199,22 @@ class DMD(ht.RegressionMixin, ht.BaseEstimator):
             self.n_modes_ = U.shape[1]
         else:
             # compute SVD via "randomized" SVD
-            U, S, V = ht.linalg.rsvd(
+            U, S, Vt = ht.linalg.rsvd(
                 X[:, :-1] if X.split == 0 else X[:, :-1].balance_(),
                 self.svd_rank,
             )
             self.rom_basis_ = U
             self.n_modes_ = U.shape[1]
         # second step of DMD: compute the reduced order model transfer matrix
-        # we need to assume that the the transfer matrix of the ROM is small enough to fit into memory of one process
+        # we need to assume that the transfer matrix of the ROM is small enough to fit into memory of one process
         if X.split == 0 or X.split is None:
             # if split axis of the input data is 0, using X[:,1:] does not result in un-balancedness and corresponding problems in matmul
-            self.rom_transfer_matrix_ = self.rom_basis_.T @ X[:, 1:] @ V / S
+            self.rom_transfer_matrix_ = self.rom_basis_.T @ X[:, 1:] @ Vt.T / S
         else:
             # if input is split along columns, X[:,1:] will be un-balanced and cause problems in matmul
             Xplus = X[:, 1:]
             Xplus.balance_()
-            self.rom_transfer_matrix_ = self.rom_basis_.T @ Xplus @ V / S
+            self.rom_transfer_matrix_ = self.rom_basis_.T @ Xplus @ Vt.T / S
 
         self.rom_transfer_matrix_.resplit_(None)
         # third step of DMD: compute the reduced order model eigenvalues and eigenmodes
@@ -393,6 +396,9 @@ class DMDc(ht.RegressionMixin, ht.BaseEstimator):
     In the case that svd_rank is prescribed, the rank of the SVD of the full system matrix is set to svd_rank + n_control_features; cf. https://github.com/dynamicslab/pykoopman
     for the same approach.
 
+    Please note that "rank" in the context of SVD always refers to the number of singular values/vectors to compute (i.e., "rank" refers to the mathematical rank
+    of a matrix). This is completely different from the notion of "(MPI-)rank", i.e., the ID given to a process, in a parallel MPI-application.
+
     References
     ----------
     [1] J. L. Proctor, S. L. Brunton, and J. N. Kutz, "Dynamic Mode Decomposition with Control," SIAM Journal on Applied Dynamical Systems, vol. 15, no. 1, pp. 142-161, 2016.
@@ -507,8 +513,8 @@ class DMDc(ht.RegressionMixin, ht.BaseEstimator):
         # first step of DMDc: compute the SVD of the input data from first to second last time step
         # as well as of the full system matrix
         if self.svd_solver == "full" or not X.is_distributed():
-            U, S, V = ht.linalg.svd(Xplus, full_matrices=False)
-            Utilde, Stilde, Vtilde = ht.linalg.svd(Omega, full_matrices=False)
+            U, S, Vt = ht.linalg.svd(Xplus, full_matrices=False)
+            Utilde, Stilde, Vttilde = ht.linalg.svd(Omega, full_matrices=False)
             if self.svd_tol is not None:
                 # truncation w.r.t. prescribed bound on explained variance
                 # determine svd_rank accordingly
@@ -533,9 +539,9 @@ class DMDc(ht.RegressionMixin, ht.BaseEstimator):
                 self.n_modes_system = Stilde.shape[0]
 
             self.rom_basis_ = U[:, : self.n_modes_]
-            V = V[:, : self.n_modes_]
+            Vt = Vt[: self.n_modes_, :]
             S = S[: self.n_modes_]
-            Vtilde = Vtilde[:, : self.n_modes_system_]
+            Vttilde = Vttilde[: self.n_modes_system_, :]
             Stilde = Stilde[: self.n_modes_system_]
             Utilde1 = Utilde[: X.shape[0], : self.n_modes_system_]
             Utilde2 = Utilde[X.shape[0] :, : self.n_modes_system_]
@@ -543,13 +549,13 @@ class DMDc(ht.RegressionMixin, ht.BaseEstimator):
         elif self.svd_solver == "hierarchical":
             if self.svd_tol is not None:
                 # hierarchical SVD with prescribed upper bound on relative error
-                U, S, V, _ = ht.linalg.hsvd_rtol(
+                U, S, Vt, _ = ht.linalg.hsvd_rtol(
                     Xplus,
                     self.svd_tol,
                     compute_sv=True,
                     safetyshift=5,
                 )
-                Utilde, Stilde, Vtilde, _ = ht.linalg.hsvd_rtol(
+                Utilde, Stilde, Vttilde, _ = ht.linalg.hsvd_rtol(
                     Omega,
                     self.svd_tol,
                     compute_sv=True,
@@ -557,13 +563,13 @@ class DMDc(ht.RegressionMixin, ht.BaseEstimator):
                 )
             else:
                 # hierarchical SVD with prescribed, fixed rank
-                U, S, V, _ = ht.linalg.hsvd_rank(
+                U, S, Vt, _ = ht.linalg.hsvd_rank(
                     Xplus,
                     self.svd_rank,
                     compute_sv=True,
                     safetyshift=5,
                 )
-                Utilde, Stilde, Vtilde, _ = ht.linalg.hsvd_rank(
+                Utilde, Stilde, Vttilde, _ = ht.linalg.hsvd_rank(
                     Omega,
                     self.svd_rank + C.shape[0],
                     compute_sv=True,
@@ -576,11 +582,11 @@ class DMDc(ht.RegressionMixin, ht.BaseEstimator):
             Utilde2 = Utilde[X.shape[0] :, :]
         else:
             # compute SVD via "randomized" SVD
-            U, S, V = ht.linalg.rsvd(
+            U, S, Vt = ht.linalg.rsvd(
                 Xplus,
                 self.svd_rank,
             )
-            Utilde, Stilde, Vtilde = ht.linalg.rsvd(
+            Utilde, Stilde, Vttilde = ht.linalg.rsvd(
                 Omega,
                 self.svd_rank + C.shape[0],
             )
@@ -593,6 +599,7 @@ class DMDc(ht.RegressionMixin, ht.BaseEstimator):
         # ensure that everything is balanced for the following steps
         Utilde2.balance_()
         Utilde1.balance_()
+        Vtilde = Vttilde.T
         Vtilde.balance_()
         if Utilde2.split is not None and Utilde2.shape[Utilde2.split] < Utilde2.comm.size:
             Utilde2.resplit_((Utilde2.split + 1) % 2)

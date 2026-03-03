@@ -34,7 +34,7 @@ body:
       description: What version of Heat are you running?
       options:
         - main (development branch)
-        - 1.5.x
+        - 1.7.x
         - other
     validations:
       required: true
@@ -44,24 +44,30 @@ body:
       label: Python version
       description: What Python version?
       options:
+        - 3.14
         - 3.13
         - 3.12
         - 3.11
         - '3.10'
+    validations:
+      required: true
   - type: dropdown
     id: pytorch-version
     attributes:
       label: PyTorch version
       description: What PyTorch version?
       options:
+        - '2.10'
+        - 2.9
+        - 2.8
         - 2.7
         - 2.6
         - 2.5
         - 2.4
         - 2.3
-        - 2.2
-        - 2.1
-        - '2.0'
+        - other
+    validations:
+      required: true
   - type: textarea
     id: mpi-version
     attributes:
