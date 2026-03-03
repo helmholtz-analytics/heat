@@ -56,4 +56,4 @@ jobs:
           pip install ${{ matrix.pytorch-version }} ${{ matrix.install-options }} --extra-index-url https://download.pytorch.org/whl/cpu
           # use pytest -vv -x for debugging
           pytest heat/
-          mpirun -n 4 pytest -vv heat/
+          mpirun -n 4 pytest -vv
