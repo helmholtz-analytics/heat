@@ -35,7 +35,7 @@ jobs:
     if: github.event_name == 'schedule' || github.event.inputs.release_type == '4-weeks-before'
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@5ef0c079ce82195b2a36a210272d6b661572d83e # v2.14.2
+        uses: step-security/harden-runner@a90bcbc6539c36a85cdfeb73f7e2f433735f215b # v2.15.0
         with:
           egress-policy: audit
 
@@ -60,7 +60,7 @@ jobs:
           fi
 
       - name: Create Release Preparation Issues
-        uses: actions/github-script@9afe6b66b5f8f48e7651c78b94cbf5e3a8ba2833 # v7.1.0
+        uses: actions/github-script@v8
         with:
           script: |
             const version = '${{ steps.version.outputs.version }}';
