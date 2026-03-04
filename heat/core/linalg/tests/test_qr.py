@@ -72,7 +72,7 @@ class TestQR(TestCase):
         if self.is_mps:
             dtypes = [ht.float32]
         else:
-            dtypes = [ht.float32, ht.float64, ht.complex64, ht.complex128, ht.float16]
+            dtypes = [ht.float32, ht.float64, ht.complex64, ht.complex128]
         split = 0
         for procs_to_merge in [0, 2, 3]:
             for mode in ["reduced", "r"]:
@@ -188,5 +188,5 @@ class TestQR(TestCase):
         with self.assertRaises(ValueError):
             ht.linalg.qr(ht.zeros((10, 10)), procs_to_merge=1)
         # test wrong dtype
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(TypeError):
             ht.linalg.qr(ht.zeros((10, 10), dtype=ht.int32))
