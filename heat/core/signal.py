@@ -3,9 +3,10 @@
 import torch
 import numpy as np
 from typing import Union
+import warnings
 
 from .dndarray import DNDarray
-from .types import promote_types, float16, float32, float64
+from .types import promote_types, issubdtype, integer, floating, float64, float32
 from .manipulations import pad, flip
 from .factories import array, zeros
 import torch.nn.functional as fc
@@ -108,28 +109,24 @@ def conv_input_check(
 
     # Determine the promoted data type for 'a' and 'v' and convert them to this data type
     promoted_type = promote_types(a.dtype, v.dtype)
-    if a.larray.is_mps and promoted_type == float64:
-        # cannot cast to float64 on MPS
-        promoted_type = float32
 
-    # Determine if the promoted type is supported by torch.nn.functional.conv
-    if promoted_type.char()[0] not in ["f", "i"]:
+    # promoted_type must be of integer or floating for convolution
+    if not (issubdtype(promoted_type, integer) or issubdtype(promoted_type, floating)):
         raise TypeError(
             f"Data type supported for convolution. Signal type {a.dtype}, Kernel type {v.dtype}, Promoted type {promoted_type}"
         )
-    elif (promoted_type not in [float16, float32]) and a.larray.is_mps:
-        raise TypeError(
-            f"Only float16 and float32 are supported for convolutions on MPS systems. Signal type {a.dtype}, Kernel type {v.dtype}, Promoted type {promoted_type}"
-        )
-    elif (
-        (promoted_type not in [float16, float32, float64])
-        and (convolution_dim > 1)
-        and ("gpu" in [a.device.device_type, v.device.device_type])
-    ):
-        raise TypeError(
-            f"Only floating point operations supported for nD-convolutions on GPU where n>1. For integer convolutions use CPU. Signal type {a.dtype}, Kernel type {v.dtype}, Promoted type {promoted_type}"
+
+    # cast to float32 if on mps or cuda in certain circumstances
+    if a.larray.is_mps and promoted_type == float64:
+        # cannot cast to float64 on MPS
+        promoted_type = float32
+    elif a.larray.is_cuda and not issubdtype(promoted_type, floating):
+        promoted_type = promote_types(promoted_type, float32)
+        warnings.warn(
+            f"Only floating operations supported on CUDA. Signal and kernel will be cast to {promoted_type}"
         )
 
+    # cast
     a = a.astype(promoted_type)
     v = v.astype(promoted_type)
 
