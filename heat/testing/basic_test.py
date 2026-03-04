@@ -10,6 +10,7 @@ import heat as ht
 from heat.core import MPI, MPICommunication, dndarray, factories, types, Device
 from heat.core.random import seed
 
+
 # TODO adapt for GPU once this is working properly
 class TestCase(unittest.TestCase):
     __comm = MPICommunication()
@@ -68,7 +69,6 @@ class TestCase(unittest.TestCase):
     def comm(self) -> MPICommunication:
         return self.__comm
 
-
     def get_rank(self) -> Optional[int]:
         return self.comm.rank
 
@@ -85,7 +85,13 @@ class TestCase(unittest.TestCase):
             cls._hostnames = list(set(cls.__comm.handle.allgather(host)))
         return cls._hostnames
 
-    def assert_array_equal(self, heat_array: ht.DNDarray, expected_array: Union[np.ndarray,torch.Tensor], rtol:float=1e-5, atol:float=1e-08) -> None:
+    def assert_array_equal(
+        self,
+        heat_array: ht.DNDarray,
+        expected_array: Union[np.ndarray, torch.Tensor],
+        rtol: float = 1e-5,
+        atol: float = 1e-08,
+    ) -> None:
         """
         Check if the heat_array is equivalent to the expected_array. Therefore first the split heat_array is compared to
         the corresponding expected_array slice locally and second the heat_array is combined and fully compared with the
@@ -161,15 +167,15 @@ class TestCase(unittest.TestCase):
 
     def assert_func_equal(
         self,
-        shape: Union[tuple[Any, ...],list[Any]],
+        shape: Union[tuple[Any, ...], list[Any]],
         heat_func: Callable[..., Any],
         numpy_func: Callable[..., Any],
-        distributed_result: bool=True,
-        heat_args: Optional[dict[str, Any]]=None,
-        numpy_args:Optional[dict[str, Any]]=None,
-        data_types: tuple[type,...]=(np.int32, np.int64, np.float32, np.float64),
-        low:int=-10000,
-        high:int=10000,
+        distributed_result: bool = True,
+        heat_args: Optional[dict[str, Any]] = None,
+        numpy_args: Optional[dict[str, Any]] = None,
+        data_types: tuple[type, ...] = (np.int32, np.int64, np.float32, np.float64),
+        low: int = -10000,
+        high: int = 10000,
     ) -> None:
         """
         This function will create random tensors of the given shape with different data types.
@@ -242,12 +248,12 @@ class TestCase(unittest.TestCase):
 
     def assert_func_equal_for_tensor(
         self,
-        tensor: Union[np.ndarray,torch.Tensor],
+        tensor: Union[np.ndarray, torch.Tensor],
         heat_func: Callable[..., Any],
         numpy_func: Callable[..., Any],
-        heat_args:Optional[dict[str,Any]]=None,
-        numpy_args:Optional[dict[str,Any]]=None,
-        distributed_result:bool=True,
+        heat_args: Optional[dict[str, Any]] = None,
+        numpy_args: Optional[dict[str, Any]] = None,
+        distributed_result: bool = True,
     ) -> None:
         """
         This function tests if the heat function and the numpy function create the equal result on the given tensor.
@@ -348,7 +354,13 @@ class TestCase(unittest.TestCase):
         else:
             raise ValueError(f"expected order to be 'C' or 'F', but was {order}")
 
-    def __create_random_np_array(self, shape: Union[list[Any],tuple[Any]], dtype:type=np.float32, low:int=-10000, high:int=10000) -> np.ndarray:
+    def __create_random_np_array(
+        self,
+        shape: Union[list[Any], tuple[Any]],
+        dtype: type = np.float32,
+        low: int = -10000,
+        high: int = 10000,
+    ) -> np.ndarray:
         """
         Creates a random array based on the input parameters.
         The used seed will be printed to stdout for debugging purposes.
