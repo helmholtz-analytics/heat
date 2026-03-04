@@ -296,7 +296,7 @@ def array(
     # figure out device
     if device is None:
         try:
-            device = obj.torche_device
+            device = obj.device
         except AttributeError:
             device = None
 

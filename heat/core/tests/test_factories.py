@@ -400,6 +400,17 @@ class TestFactories(TestCase):
                 dim = self.get_rank() + 1
                 ht.array([[0] * dim] * dim, is_split=0)
 
+        # test implicit device selection
+        for device in ['cpu', 'gpu', 'mps']:
+            try:
+                a = ht.zeros(1, device=device)
+            except (AssertionError, RuntimeError):
+                continue
+            b = ht.array(a)
+            self.assertEqual(a.device, b.device)
+            c = ht.array(a, device='cpu')
+            self.assertEqual(str(c.device)[:3], 'cpu')
+
     def test_asarray(self):
         # same heat array
         arr = ht.array([1, 2])
