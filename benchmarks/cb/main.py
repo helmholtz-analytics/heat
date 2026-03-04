@@ -32,4 +32,3 @@ run_signal_benchmarks()
 print("Signal finished")
 run_regression_benchmarks()
 print("Regression finished")
-
