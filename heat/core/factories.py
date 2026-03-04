@@ -293,7 +293,18 @@ def array(
         dtype = types.canonical_heat_type(dtype)
         torch_dtype = dtype.torch_type()
 
-    # sanitize device
+    # figure out device
+    if device is None:
+        try:
+            device = obj.torche_device
+        except AttributeError:
+            device = None
+
+        try:
+            device = devices.sanitize_device(device)
+        except ValueError:
+            device = None
+
     if device is not None:
         device = devices.sanitize_device(device)
 
