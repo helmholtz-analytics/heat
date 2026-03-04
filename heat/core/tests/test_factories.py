@@ -404,7 +404,7 @@ class TestFactories(TestCase):
         for device in ['cpu', 'gpu', 'mps']:
             try:
                 a = ht.zeros(1, device=device)
-            except (AssertionError, RuntimeError):
+            except (AssertionError, RuntimeError, ValueError):
                 continue
             b = ht.array(a)
             self.assertEqual(a.device, b.device)

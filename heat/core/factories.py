@@ -293,7 +293,7 @@ def array(
         dtype = types.canonical_heat_type(dtype)
         torch_dtype = dtype.torch_type()
 
-    # figure out device
+    # infer device
     if device is None:
         try:
             device = obj.device
