@@ -10,6 +10,7 @@ from ..dndarray import DNDarray
 from ..manipulations import concatenate
 from .. import factories
 from .. import communication
+from ..types import float32, float64, complex64, complex128
 
 __all__ = ["qr"]
 
@@ -93,6 +94,17 @@ def qr(
     if procs_to_merge == 0:
         procs_to_merge = A.comm.size
 
+    if A.dtype not in [float32, float64, complex64, complex128]:
+        try:
+            torch.linalg.qr(A.larray)
+        except (NotImplementedError, RuntimeError) as E:
+            raise TypeError(
+                f"Array 'A' must have datatype of float32, float64, complex64, or complex128, but has {A.dtype}"
+            ) from E
+        raise NotImplementedError(
+            f"`heat.linalg.qr` is not implemented for dtype {A.dtype}, but is supported by torch. Please open an issue on GitHub to get this implemented"
+        )
+
     QR = collections.namedtuple("QR", "Q, R")
 
     if A.ndim == 3:
@@ -102,12 +114,7 @@ def qr(
 
     if not A.is_distributed() or A.split < A.ndim - 2:
         # handle the case of a single process or split=None: just PyTorch QR
-        try:
-            Q, R = single_proc_qr(A.larray, mode=mode)
-        except NotImplementedError as E:
-            raise NotImplementedError(
-                f"`heat.linalg.qr` relies on `torch.linalg.qr`, which is not implemented for dtype {A.dtype}"
-            ) from E
+        Q, R = single_proc_qr(A.larray, mode=mode)
 
         R = factories.array(R, is_split=A.split, device=A.device)
         if mode == "reduced":
