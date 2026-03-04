@@ -6,15 +6,17 @@ from typing import Union
 import warnings
 
 from .dndarray import DNDarray
-from .types import promote_types, issubdtype, integer, floating, float64, float32
+from .types import promote_types, heat_type_is_exact, heat_type_is_realfloating, issubdtype
+from .types import unsignedinteger, float64, float32
 from .manipulations import pad, flip
 from .factories import array, zeros
+from .sanitation import sanitize_in_min_max_nd
 import torch.nn.functional as fc
 
 __all__ = ["convolve", "convolve2d"]
 
 
-def conv_input_check(
+def _sanitize_conv_input(
     a: DNDarray,
     v: DNDarray,
     stride: Union[int, tuple[int, int]],
@@ -102,16 +104,16 @@ def conv_input_check(
             raise TypeError(f"non-supported type for filter: {type(v)}")
 
     # Check if sufficient number of dimensions available
-    if a.ndim < convolution_dim or v.ndim < convolution_dim:
-        raise ValueError(
-            f"{convolution_dim}D-convolution requires at least {convolution_dim}-dimensional input. Signal: {a.shape}, Filter: {v.shape}"
-        )
+    sanitize_in_min_max_nd(a, convolution_dim)
+    sanitize_in_min_max_nd(v, convolution_dim)
 
     # Determine the promoted data type for 'a' and 'v' and convert them to this data type
     promoted_type = promote_types(a.dtype, v.dtype)
 
     # promoted_type must be of integer or floating for convolution
-    if not (issubdtype(promoted_type, integer) or issubdtype(promoted_type, floating)):
+    if not (
+        heat_type_is_exact(promoted_type) or heat_type_is_realfloating(promoted_type)
+    ) or issubdtype(promoted_type, unsignedinteger):
         raise TypeError(
             f"Data type supported for convolution. Signal type {a.dtype}, Kernel type {v.dtype}, Promoted type {promoted_type}"
         )
@@ -120,7 +122,7 @@ def conv_input_check(
     if a.larray.is_mps and promoted_type == float64:
         # cannot cast to float64 on MPS
         promoted_type = float32
-    elif a.larray.is_cuda and not issubdtype(promoted_type, floating):
+    elif a.larray.is_cuda and not heat_type_is_realfloating(promoted_type):
         promoted_type = promote_types(promoted_type, float32)
         warnings.warn(
             f"Only floating operations supported on CUDA. Signal and kernel will be cast to {promoted_type}"
@@ -167,7 +169,7 @@ def conv_input_check(
     return a, v
 
 
-def conv_batchprocessing_check(a: DNDarray, v: DNDarray, convolution_dim: int) -> bool:
+def _conv_batchprocessing_check(a: DNDarray, v: DNDarray, convolution_dim: int) -> bool:
     """
     Check if batch proccessing applies, default is False (no batch processing)
 
@@ -309,10 +311,10 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full", stride: int = 1) -> D
             [  0.,  40.,  81.,  83.,  85.,  87.,  44.],
             [  0.,   0.,  45.,  46.,  47.,  48.,  49.]], dtype=ht.float64, device=cpu:0, split=0)
     """
-    a, v = conv_input_check(a, v, stride, mode, 1)
+    a, v = _sanitize_conv_input(a, v, stride, mode, 1)
 
     # assess whether to perform batch processing, default is False (no batch processing)
-    batch_processing = conv_batchprocessing_check(a, v, 1)
+    batch_processing = _conv_batchprocessing_check(a, v, 1)
 
     if batch_processing and a.is_distributed() and v.is_distributed():
         if v.ndim == 1:
@@ -597,10 +599,10 @@ def convolve2d(
               [1., 3., 3., 1.]], dtype=ht.float32, device=cpu:0, split=0)
     """
     # check type and size of input
-    a, v = conv_input_check(a, v, stride, mode, 2)
+    a, v = _sanitize_conv_input(a, v, stride, mode, 2)
 
     # assess whether to perform batch processing, default is False (no batch processing)
-    batch_processing = conv_batchprocessing_check(a, v, 2)
+    batch_processing = _conv_batchprocessing_check(a, v, 2)
 
     if a.is_distributed() and v.is_distributed():
         if batch_processing and v.ndim == 2:
