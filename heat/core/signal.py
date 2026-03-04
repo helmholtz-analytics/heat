@@ -122,10 +122,14 @@ def _sanitize_conv_input(
     if a.larray.is_mps and promoted_type == float64:
         # cannot cast to float64 on MPS
         promoted_type = float32
+        warnings.warn(
+            f"Promoted type float64 is not supported on MPS. Signal and kernel will be cast to {promoted_type} instead."
+        )
     elif a.larray.is_cuda and not heat_type_is_realfloating(promoted_type):
         promoted_type = promote_types(promoted_type, float32)
         warnings.warn(
-            f"Only floating operations supported on CUDA. Signal and kernel will be cast to {promoted_type}"
+            f"Only floating operations supported on CUDA. Signal and kernel will be cast to {promoted_type}",
+            RuntimeWarning,
         )
 
     # cast

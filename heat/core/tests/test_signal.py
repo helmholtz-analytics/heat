@@ -79,17 +79,6 @@ class TestSignal(TestCase):
                 with self.assertRaises(TypeError):
                     _sanitize_conv_input(signal, kernel, stride, mode, conv_dim)
 
-            # integer not supported for mps and gpu conv2d, int only possible for conv1d on gpu
-            for dtype in [ht.int8, ht.int16, ht.int32, ht.int64]:
-                signal, kernel = get_signal_kernel(dtype, conv_dim)
-
-                if self.is_mps:
-                    with self.assertRaises(TypeError):
-                        _sanitize_conv_input(signal, kernel, stride, mode, conv_dim)
-                elif "gpu" in ht.get_device().device_type and conv_dim > 1:
-                    with self.assertRaises(TypeError):
-                        _sanitize_conv_input(signal, kernel, stride, mode, conv_dim)
-
             # float should always pass
             for dtype in [ht.float16, ht.float32, ht.float64]:
                 signal, kernel = get_signal_kernel(dtype, conv_dim)
@@ -98,6 +87,24 @@ class TestSignal(TestCase):
                     _sanitize_conv_input(signal, kernel, stride, mode, conv_dim)
                 except TypeError:
                     assert False
+
+            # pure integer convolutions not supported for mps and gpu conv2d, int only possible for conv1d on gpu
+            for dtype in [ht.int8, ht.int16, ht.int32, ht.int64]:
+                signal, kernel = get_signal_kernel(dtype, conv_dim)
+
+                if self.is_mps:
+                    with self.assertRaises(TypeError):
+                        _sanitize_conv_input(signal, kernel, stride, mode, conv_dim)
+                elif signal.larray.is_cuda or kernel.larray.is_cuda:
+                    with self.assertWarns(RuntimeWarning):
+                        _sanitize_conv_input(signal, kernel, stride, mode, conv_dim)
+
+            # float64 not supported on mps
+            if self.is_mps:
+                signal, kernel = get_signal_kernel(ht.int64, conv_dim)
+                kernel = kernel.astype(ht.float32)
+                with self.assertWarns(RuntimeWarning):
+                    _sanitize_conv_input(signal, kernel, stride, mode, conv_dim)
 
     def test_sanitize_conv_input_scalar(self):
         a = float(1)
