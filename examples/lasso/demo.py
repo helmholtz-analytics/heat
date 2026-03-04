@@ -10,15 +10,11 @@ import heat.regression.lasso as lasso
 
 import plotfkt
 
-import pkg_resources
-
 # read scikit diabetes data set
 diabetes = datasets.load_diabetes()
 
 # load diabetes dataset from hdf5 file
-diabetes_path = pkg_resources.resource_filename(
-    pkg_resources.Requirement.parse("heat"), "heat/datasets/diabetes.h5"
-)
+diabetes_path = f'{os.path.dirname(ht.__file__)}/datasets/diabetes.h5'
 
 X = ht.load_hdf5(diabetes_path, dataset="x", split=0)
 y = ht.load_hdf5(diabetes_path, dataset="y", split=0)

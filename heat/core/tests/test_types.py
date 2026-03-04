@@ -92,6 +92,11 @@ class TestTypes(TestCase):
     def test_floating(self):
         self.assert_non_instantiable_heat_type(ht.floating)
 
+    def test_float16(self):
+        self.assert_is_instantiable_heat_type(ht.float16, torch.float16)
+        self.assert_is_instantiable_heat_type(ht.half, torch.float16)
+        self.assertEqual(ht.float16.char(), "f2")
+
     def test_float32(self):
         self.assert_is_instantiable_heat_type(ht.float32, torch.float32)
         self.assert_is_instantiable_heat_type(ht.float, torch.float32)
@@ -195,6 +200,8 @@ class TestTypeConversion(TestCase):
         self.assertFalse(ht.can_cast(ht.uint8, ht.int16, casting="no"))
         self.assertFalse(ht.can_cast(ht.uint8, ht.int8, casting="no"))
         self.assertFalse(ht.can_cast(ht.float64, ht.bool, casting="no"))
+        self.assertTrue(ht.can_cast(ht.float16, ht.float16, casting="no"))
+        self.assertTrue(ht.can_cast(ht.float16, 'f2', casting="no"))
         self.assertTrue(ht.can_cast(1.0, ht.float32, casting="no"))
         self.assertFalse(ht.can_cast(zeros_array, ht.float32, casting="no"))
 
@@ -212,7 +219,7 @@ class TestTypeConversion(TestCase):
         self.assertTrue(ht.can_cast(ht.uint8, ht.int8, casting="same_kind"))
         self.assertFalse(ht.can_cast(ht.float64, ht.bool, casting="same_kind"))
         self.assertTrue(ht.can_cast(1.0, ht.float32, casting="same_kind"))
-        self.assertTrue(ht.can_cast(zeros_array, ht.float32, casting="same_kind"))
+        self.assertFalse(ht.can_cast(zeros_array, ht.float32, casting="same_kind"))
 
         # casting - 'unsafe'
         self.assertTrue(ht.can_cast(ht.uint8, ht.uint8, casting="unsafe"))
@@ -327,12 +334,16 @@ class TestTypeConversion(TestCase):
         self.assertEqual(ht.promote_types("f4", ht.float), ht.float32)
         self.assertEqual(ht.promote_types(ht.bool_, "?"), ht.bool)
         self.assertEqual(ht.promote_types(ht.float32, ht.complex64), ht.complex64)
+        self.assertEqual(ht.promote_types(ht.float16, ht.int16), ht.float16)
+        self.assertEqual(ht.promote_types(ht.float16, ht.int32), ht.float32)
 
         # exceptions
         with self.assertRaises(TypeError):
             ht.promote_types(1, "?")
         with self.assertRaises(TypeError):
             ht.promote_types(ht.float32, "hello world")
+        with self.assertRaises(Exception):
+            ht.promote_types(ht.float, ht.types.flexible)
 
     def test_result_type(self):
         self.assertEqual(ht.result_type(1), ht.int32)
@@ -342,6 +353,7 @@ class TestTypeConversion(TestCase):
         self.assertEqual(ht.result_type(1.0, ht.array(1, dtype=ht.int32)), ht.float32)
         self.assertEqual(ht.result_type(ht.uint8, ht.int8), ht.int16)
         self.assertEqual(ht.result_type("b", "f4"), ht.float32)
+        self.assertEqual(ht.result_type("f2", "f4", ht.int8), ht.float32)
         if not self.is_mps:
             self.assertEqual(ht.result_type(ht.array([1], dtype=ht.float64), "f4"), ht.float64)
             self.assertEqual(
