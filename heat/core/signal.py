@@ -371,12 +371,6 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full", stride: int = 1) -> D
         # add batch dimension to signal
         local_a = local_a.unsqueeze(0)
 
-        # cast to single-precision float if on GPU
-        if local_a.is_cuda:
-            float_type = torch.promote_types(local_a.dtype, torch.float32)
-            local_a = local_a.to(float_type)
-            local_v = local_v.to(float_type)
-
         # apply torch convolution operator if local signal isn't empty
         if torch.prod(torch.tensor(local_a.shape, device=local_a.device)) > 0:
             local_convolved = fc.conv1d(
@@ -445,13 +439,6 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full", stride: int = 1) -> D
     # make signal and filter weight 3D for Pytorch conv1d function
     signal = signal.reshape(1, 1, signal.shape[0])
     weight = weight.reshape(1, 1, weight.shape[0])
-
-    # cast to float if on GPU
-    if signal.is_cuda:
-        float_type = promote_types(signal.dtype, torch.float32).torch_type()
-        signal = signal.to(float_type)
-        weight = weight.to(float_type)
-        t_v = t_v.to(float_type)
 
     if v.is_distributed():
         size = v.comm.size
@@ -670,12 +657,6 @@ def convolve2d(
 
         # add batch dimension to signal
         local_a = local_a.unsqueeze(0)
-
-        # cast to single-precision float if on GPU
-        if local_a.is_cuda:
-            float_type = torch.promote_types(local_a.dtype, torch.float32)
-            local_a = local_a.to(float_type)
-            local_v = local_v.to(float_type)
 
         # apply torch convolution operator if local signal isn't empty, add zero padding
         if torch.prod(torch.tensor(local_a.shape, device=local_a.device)) > 0:
