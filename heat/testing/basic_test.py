@@ -1,3 +1,5 @@
+"""Module for TestCases used for heat"""
+
 import os
 import platform
 import unittest
@@ -13,6 +15,8 @@ from heat.core.random import seed
 
 # TODO adapt for GPU once this is working properly
 class TestCase(unittest.TestCase):
+    """Helper functions for unit tests"""
+
     __comm = MPICommunication()
     device: Device = ht.cpu
     _hostnames: Optional[list[str]] = None
@@ -20,6 +24,7 @@ class TestCase(unittest.TestCase):
     envar: Optional[str] = None
 
     def setUp(self) -> None:
+        """Sets initial RNG seed for testing"""
         seed(42)
 
     @classmethod
@@ -67,16 +72,20 @@ class TestCase(unittest.TestCase):
 
     @property
     def comm(self) -> MPICommunication:
+        """Returns the MPI communicator"""
         return self.__comm
 
     def get_rank(self) -> Optional[int]:
+        """Returns the MPI rank"""
         return self.comm.rank
 
     def get_size(self) -> Optional[int]:
+        """Returns the MPI size"""
         return self.comm.size
 
     @classmethod
     def get_hostnames(cls) -> list[str]:
+        """Returns the name of the host machine(s)."""
         if not cls._hostnames:
             if platform.system() == "Windows":
                 host = platform.uname().node
@@ -104,6 +113,10 @@ class TestCase(unittest.TestCase):
             The heat array which should be checked.
         expected_array: numpy.ndarray or torch.Tensor
             The array against which the heat_array should be checked.
+        rtol: float
+            The relative tolerance parameter.
+        atol: float
+            The absolute tolerance parameter.
 
         Raises
         ------
@@ -178,7 +191,7 @@ class TestCase(unittest.TestCase):
         high: int = 10000,
     ) -> None:
         """
-        This function will create random tensors of the given shape with different data types.
+        Creates random tensors of the given shape with different data types.
         All of these tensors will be tested with `ht.assert_func_equal_for_tensor`.
 
         Parameters
@@ -256,7 +269,7 @@ class TestCase(unittest.TestCase):
         distributed_result: bool = True,
     ) -> None:
         """
-        This function tests if the heat function and the numpy function create the equal result on the given tensor.
+        Tests if the heat function and the numpy function create the equal result on the given tensor.
 
         Parameters
         ----------
@@ -342,7 +355,10 @@ class TestCase(unittest.TestCase):
 
         Parameters
         ----------
-        order: str, 'C' for C-like (row-major), 'F' for Fortran-like (column-major) memory layout.
+        tensor: DNDarray
+            The input array.
+        order: str
+            'C' for C-like (row-major), 'F' for Fortran-like (column-major) memory layout.
         """
         stride = tensor.larray.stride()
         row_major = all(np.diff(list(stride)) <= 0)
@@ -378,7 +394,7 @@ class TestCase(unittest.TestCase):
         low: int, optional
             In case dtype is an integer type, this is the lower bound for the random values.
             Default is -10000
-        low: int, optional
+        high: int, optional
             In case dtype is an integer type, this is the upper bound for the random values.
             Default is 10000
 
