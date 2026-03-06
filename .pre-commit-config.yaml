@@ -39,6 +39,11 @@ repos:
       - id: "validate-cff"
         args:
           - "--verbose"
+  - repo: https://github.com/kynan/nbstripout
+    rev: 0.8.1
+    hooks:
+      - id: nbstripout
+        args: ['--keep-output']
   - repo: https://github.com/thoughtworks/talisman
     rev: 'v1.37.0'  # Update me!
     hooks:
