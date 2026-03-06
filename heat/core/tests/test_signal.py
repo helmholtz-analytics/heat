@@ -417,6 +417,12 @@ class TestSignal(TestCase):
             )
         )
 
+        # empty ranks
+        if self.comm.size > 1:
+            batch_signal_part = batch_signal[:2, :]
+            batch_convolved = ht.convolve(batch_signal_part, kernel, mode="valid")
+            self.assertTrue(ht.equal(ht.convolve(signal, kernel, mode="valid"), batch_convolved[0]))
+
         # distributed kernel including gathering to all ranks
         stride = 142
         dis_kernel = ht.array(kernel, split=0)
@@ -470,7 +476,7 @@ class TestSignal(TestCase):
             )
 
             # empty ranks
-            if self.comm.rank > 2:
+            if self.comm.size > 1:
                 batch_signal_part = batch_signal[:2, :, :]
                 batch_convolved = ht.convolve2d(batch_signal_part, kernel, mode="valid")
                 self.assertTrue(ht.equal(ht.convolve2d(signal, kernel, mode="valid"), batch_convolved[0]))
