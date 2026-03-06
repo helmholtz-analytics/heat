@@ -2,13 +2,20 @@ import heat as ht
 import torch
 import unittest
 
+from pathlib import Path
+
 
 @unittest.skipIf(torch.cuda.is_available() and torch.version.hip, "not supported for HIP")
 class TestPartialDataset(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.HDF5_PATH = str(Path(ht.__file__).parent / "datasets" / "iris.h5")
+
     @unittest.skipUnless(ht.supports_hdf5(), "Requires HDF5")
     def test_partial_h5_dataset(self):
         # load h5 data and get the total shape
-        full_data = ht.load("heat/datasets/iris.h5", dataset="data", split=None)
+        full_data = ht.load(self.HDF5_PATH, dataset="data", split=None)
         target_shape = full_data.shape
 
         class TestDataset(ht.utils.data.partial_dataset.PartialH5Dataset):
@@ -20,7 +27,7 @@ class TestPartialDataset(unittest.TestCase):
             def __getitem__(self, item):
                 return self.data[item]
 
-        partial_dset = TestDataset("heat/datasets/iris.h5", full_data.comm, 30, 20)
+        partial_dset = TestDataset(self.HDF5_PATH, full_data.comm, 30, 20)
         dl = ht.utils.data.DataLoader(dataset=partial_dset, batch_size=7)
         first_epoch = None
         second_epoch = None
@@ -46,7 +53,7 @@ class TestPartialDataset(unittest.TestCase):
             self.assertTrue(elems >= (target_shape[0] - 7) // full_data.comm.size)
         self.assertFalse(torch.allclose(first_epoch, second_epoch))
 
-        partial_dset = TestDataset("heat/datasets/iris.h5", full_data.comm, 30, 20, True)
+        partial_dset = TestDataset(self.HDF5_PATH, full_data.comm, 30, 20, True)
         dl = ht.utils.data.DataLoader(
             dataset=partial_dset,
             batch_size=7,

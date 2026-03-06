@@ -5,11 +5,17 @@ import heat as ht
 import numpy as np
 import torch
 
+from pathlib import Path
 from heat.utils.data.spherical import create_spherical_dataset
 from heat.testing.basic_test import TestCase
 
 
 class TestKMedians(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.CSV_PATH = str(Path(ht.__file__).parent / "datasets" / "iris.csv")
+
     def test_clusterer(self):
         kmedian = ht.cluster.KMedians()
         self.assertTrue(ht.is_estimator(kmedian))
@@ -31,7 +37,7 @@ class TestKMedians(TestCase):
     def test_fit_iris_unsplit(self):
         split = 0
         # get some test data
-        iris = ht.load("heat/datasets/iris.csv", sep=";", split=split)
+        iris = ht.load(self.CSV_PATH, sep=";", split=split)
 
         # fit the clusters
         k = 3
@@ -59,7 +65,7 @@ class TestKMedians(TestCase):
 
     def test_exceptions(self):
         # get some test data
-        iris_split = ht.load("heat/datasets/iris.csv", sep=";", split=1)
+        iris_split = ht.load(self.CSV_PATH, sep=";", split=1)
 
         # build a clusterer
         k = 3

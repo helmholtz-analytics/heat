@@ -1,11 +1,17 @@
 import unittest
 import heat as ht
 
+from pathlib import Path
 from heat.utils.data.spherical import create_spherical_dataset
 from heat.testing.basic_test import TestCase
 
 
 class TestKMeans(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.CSV_PATH = str(Path(ht.__file__).parent / "datasets" / "iris.csv")
+
     def test_clusterer(self):
         kmedoid = ht.cluster.KMedoids()
         self.assertTrue(ht.is_estimator(kmedoid))
@@ -26,7 +32,7 @@ class TestKMeans(TestCase):
     def test_fit_iris_unsplit(self):
         split = 0
         # get some test data
-        iris = ht.load("heat/datasets/iris.csv", sep=";", split=split)
+        iris = ht.load(self.CSV_PATH, sep=";", split=split)
         # fit the clusters
         k = 3
         kmedoid = ht.cluster.KMedoids(n_clusters=k, random_state=1)
@@ -51,7 +57,7 @@ class TestKMeans(TestCase):
 
     def test_exceptions(self):
         # get some test data
-        iris_split = ht.load("heat/datasets/iris.csv", sep=";", split=1)
+        iris_split = ht.load(self.CSV_PATH, sep=";", split=1)
 
         # build a clusterer
         k = 3
@@ -65,7 +71,7 @@ class TestKMeans(TestCase):
             kmedoid = ht.cluster.KMedoids(n_clusters=k, init="random_number")
             kmedoid.fit(iris_split)
 
-        iris_split = ht.load("heat/datasets/iris.csv", sep=";", split=0)
+        iris_split = ht.load(self.CSV_PATH, sep=";", split=0)
         with self.assertRaises(ValueError):
             kmedoid = ht.cluster.KMedoids(n_clusters=k, init="batchparallel")
             kmedoid.fit(iris_split)

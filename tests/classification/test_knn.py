@@ -1,14 +1,20 @@
 import unittest
 import heat as ht
 
+from pathlib import Path
 from heat.classification.kneighborsclassifier import KNeighborsClassifier
 from heat.testing.basic_test import TestCase
 
 
 class TestKNN(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.HDF5_PATH = str(Path(ht.__file__).parent / "datasets" / "iris.h5")
+
     @unittest.skipUnless(ht.supports_hdf5(), "Requires HDF5")
     def test_split_none(self):
-        x = ht.load_hdf5("heat/datasets/iris.h5", dataset="data")
+        x = ht.load_hdf5(self.HDF5_PATH, dataset="data")
 
         # generate keys for the iris.h5 dataset
         y = ht.zeros(150, dtype=ht.int64)
@@ -26,7 +32,7 @@ class TestKNN(TestCase):
 
     @unittest.skipUnless(ht.supports_hdf5(), "Requires HDF5")
     def test_split_zero(self):
-        x = ht.load_hdf5("heat/datasets/iris.h5", dataset="data", split=0)
+        x = ht.load_hdf5(self.HDF5_PATH, dataset="data", split=0)
 
         # generate keys for the iris.h5 dataset
         y = ht.zeros(150, dtype=ht.int64)
@@ -72,7 +78,7 @@ class TestKNN(TestCase):
     def test_fit_one_hot(
         self,
     ):
-        x = ht.load_hdf5("heat/datasets/iris.h5", dataset="data")
+        x = ht.load_hdf5(self.HDF5_PATH, dataset="data")
 
         labels = ht.zeros(150, dtype=ht.int64, split=0)
         labels[50:100] = 1

@@ -4,6 +4,7 @@ import numpy as np
 import torch
 import heat as ht
 
+from pathlib import Path
 from heat.testing.basic_test import TestCase
 
 
@@ -212,6 +213,11 @@ class TestPCA(TestCase):
 
 
 class TestIncrementalPCA(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.HDF5_PATH = str(Path(ht.__file__).parent / "datasets" / "iris.h5")
+
     def test_incrementalpca_setup(self):
         pca = ht.decomposition.IncrementalPCA(n_components=2)
 
@@ -337,7 +343,7 @@ class TestIncrementalPCA(TestCase):
         if not ht.io.supports_hdf5():
             return
         """Test the fit method with HDF5 files."""
-        path = os.path.join(os.getcwd(), "heat/datasets/iris.h5")
+        path = self.HDF5_PATH
         dataset_name = "data"
 
         pca = ht.decomposition.IncrementalPCA(n_components=5)
@@ -363,7 +369,7 @@ class TestIncrementalPCA(TestCase):
 
     def test_incrementalpca_fit_catch_wrong_inputs(self):
         """Test error handling in the fit method."""
-        path_h5 = os.path.join(os.getcwd(), "heat/datasets/iris.h5")
+        path_h5 = self.HDF5_PATH
         dataset_name = "data"
 
         # test when HDF5 support is not available

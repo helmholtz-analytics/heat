@@ -2,6 +2,8 @@ import numpy as np
 import torch
 
 import heat as ht
+
+from pathlib import Path
 from heat.testing.basic_test import TestCase
 
 pytorch_major_version = int(torch.__version__.split(".")[0])
@@ -10,7 +12,7 @@ pytorch_major_version = int(torch.__version__.split(".")[0])
 class TestDNDarray(TestCase):
     @classmethod
     def setUpClass(cls):
-        super(TestDNDarray, cls).setUpClass()
+        super().setUpClass()
         N = ht.MPI_WORLD.size
         cls.reference_tensor = ht.zeros((N, N + 1, 2 * N))
 
@@ -482,8 +484,8 @@ class TestDNDarray(TestCase):
         data = data[:, 40:70].balance()
         self.assertTrue(data.is_balanced())
 
-        data = np.loadtxt("heat/datasets/iris.csv", delimiter=";")
-        htdata = ht.load("heat/datasets/iris.csv", sep=";", split=0)
+        data = np.loadtxt(str(Path(ht.__file__).parent / "datasets" / "iris.csv"), delimiter=";")
+        htdata = ht.load(str(Path(ht.__file__).parent / "datasets" / "iris.csv"), sep=";", split=0)
         self.assertTrue(
             ht.equal(htdata, ht.array(data.astype(np.float32), split=0, dtype=ht.float))
         )

@@ -4,11 +4,17 @@ import numpy as np
 import torch
 import heat as ht
 
+from pathlib import Path
 from heat.utils.data.spherical import create_spherical_dataset
 from heat.testing.basic_test import TestCase
 
 
 class TestKMeans(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.CSV_PATH = str(Path(ht.__file__).parent / "datasets" / "iris.csv")
+
     def test_clusterer(self):
         kmeans = ht.cluster.KMeans()
         self.assertTrue(ht.is_estimator(kmeans))
@@ -31,7 +37,7 @@ class TestKMeans(TestCase):
         oversampling=10
         for split in [None, 0]:
             # get some test data
-            iris = ht.load("heat/datasets/iris.csv", sep=";", split=split)
+            iris = ht.load(self.CSV_PATH, sep=";", split=split)
 
             # fit the clusters
             k = 3
@@ -50,7 +56,7 @@ class TestKMeans(TestCase):
             self.assertIsInstance(kmeans.cluster_centers_, ht.DNDarray)
             self.assertEqual(kmeans.cluster_centers_.shape, (k, iris.shape[1]))
 
-        iris = ht.load("heat/datasets/iris.csv", sep=";", split=0)
+        iris = ht.load(self.CSV_PATH, sep=";", split=0)
         # same test with init=batchparallel
         kmeans = ht.cluster.KMeans(n_clusters=k, init="batchparallel")
         kmeans.fit(iris, oversampling=oversampling)
@@ -61,7 +67,7 @@ class TestKMeans(TestCase):
 
     def test_exceptions(self):
         # get some test data
-        iris_split = ht.load("heat/datasets/iris.csv", sep=";", split=1)
+        iris_split = ht.load(self.CSV_PATH, sep=";", split=1)
 
         # build a clusterer
         k = 3

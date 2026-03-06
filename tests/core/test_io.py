@@ -10,6 +10,8 @@ import fnmatch
 import unittest
 
 import heat as ht
+
+from tempfile import TemporaryDirectory
 from heat.testing.basic_test import TestCase
 
 
@@ -17,18 +19,19 @@ class TestIO(TestCase):
     @classmethod
     def setUpClass(cls):
         super(TestIO, cls).setUpClass()
+
         pwd = os.getcwd()
-        cls.HDF5_PATH = os.path.join(os.getcwd(), "heat/datasets/iris.h5")
+        cls.HDF5_PATH = str(Path(ht.__file__).parent / "datasets" / "iris.h5")
         cls.HDF5_OUT_PATH = pwd + "/test.h5"
         cls.HDF5_DATASET = "data"
 
-        cls.NETCDF_PATH = os.path.join(os.getcwd(), "heat/datasets/iris.nc")
+        cls.NETCDF_PATH = str(Path(ht.__file__).parent / "datasets" / "iris.nc")
         cls.NETCDF_OUT_PATH = pwd + "/test.nc"
         cls.NETCDF_VARIABLE = "data"
         cls.NETCDF_DIMENSION = "data"
 
         # load comparison data from csv
-        cls.CSV_PATH = os.path.join(os.getcwd(), "heat/datasets/iris.csv")
+        cls.CSV_PATH = str(Path(ht.__file__).parent / "datasets" / "iris.csv")
         cls.CSV_OUT_PATH = pwd + "/test.csv"
         cls.IRIS = (
             torch.from_numpy(np.loadtxt(cls.CSV_PATH, delimiter=";"))
@@ -52,6 +55,11 @@ class TestIO(TestCase):
         cls.HDF5_MULTIPLE_FILE_PREFIX = "data_"
         cls.HDF5_MULTIPLE_FILE_ENDING = ".h5"
         cls.HDF5_MULTIPLE_DATASET = "data"
+
+    def setUp(self):
+        super().setUp()
+
+        self.temp_path = Path(self.enterContext(TemporaryDirectory(dir=os.getcwd())))
 
     def tearDown(self):
         # synchronize all processes
@@ -791,15 +799,15 @@ class TestIO(TestCase):
         data = ht.arange(1)
 
         with self.assertRaises(TypeError):
-            ht.save_netcdf(1, self.NETCDF_PATH, self.NETCDF_VARIABLE)
+            ht.save_netcdf(1, self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE)
         with self.assertRaises(TypeError):
             ht.save_netcdf(data, 1, self.NETCDF_VARIABLE)
         with self.assertRaises(TypeError):
-            ht.save_netcdf(data, self.NETCDF_PATH, 1)
+            ht.save_netcdf(data, self.NETCDF_OUT_PATH, 1)
         with self.assertRaises(TypeError):
-            ht.save_netcdf(data, self.NETCDF_PATH, self.NETCDF_VARIABLE, dimension_names=1)
+            ht.save_netcdf(data, self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE, dimension_names=1)
         with self.assertRaises(ValueError):
-            ht.save_netcdf(data, self.NETCDF_PATH, self.NETCDF_VARIABLE, dimension_names=["a", "b"])
+            ht.save_netcdf(data, self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE, dimension_names=["a", "b"])
 
     # def test_remove_folder(self):
     # ht.MPI_WORLD.Barrier()
@@ -814,12 +822,12 @@ class TestIO(TestCase):
             crea_array = []
             for i in range(0, ht.MPI_WORLD.size * 5):
                 x = np.random.randint(1000, size=(random.randint(0, 30), 6, 11))
-                np.save(os.path.join(os.getcwd(), "heat/datasets", "int_data") + str(i), x)
+                np.save(str(self.temp_path / "int_data") + str(i), x)
                 crea_array.append(x)
             int_array = np.concatenate(crea_array)
         ht.MPI_WORLD.Barrier()
         load_array = ht.load_npy_from_path(
-            os.path.join(os.getcwd(), "heat/datasets"), dtype=ht.int32, split=0
+            str(self.temp_path), dtype=ht.int32, split=0
         )
         load_array_npy = load_array.numpy()
 
@@ -827,9 +835,9 @@ class TestIO(TestCase):
         self.assertEqual(load_array.dtype, ht.int32)
         if ht.MPI_WORLD.rank == 0:
             self.assertTrue((load_array_npy == int_array).all)
-            for file in os.listdir(os.path.join(os.getcwd(), "heat/datasets")):
+            for file in os.listdir(str(self.temp_path)):
                 if fnmatch.fnmatch(file, "*.npy"):
-                    os.remove(os.path.join(os.getcwd(), "heat/datasets", file))
+                    os.remove(str(self.temp_path / file))
 
     def test_load_npy_float(self):
         # testing for float arrays and split dimension other than 0
@@ -837,7 +845,7 @@ class TestIO(TestCase):
             crea_array = []
             for i in range(0, ht.MPI_WORLD.size * 5 + 1):
                 x = np.random.rand(2, random.randint(1, 10), 11)
-                np.save(os.path.join(os.getcwd(), "heat/datasets", "float_data") + str(i), x)
+                np.save(str(self.temp_path / "float_data") + str(i), x)
                 crea_array.append(x)
             float_array = np.concatenate(crea_array, 1)
         ht.MPI_WORLD.Barrier()
@@ -845,7 +853,7 @@ class TestIO(TestCase):
         if not self.is_mps:
             # float64 not supported in MPS
             load_array = ht.load_npy_from_path(
-                os.path.join(os.getcwd(), "heat/datasets"), dtype=ht.float64, split=1
+                str(self.temp_path), dtype=ht.float64, split=1
             )
             load_array_npy = load_array.numpy()
             self.assertIsInstance(load_array, ht.DNDarray)
@@ -853,9 +861,9 @@ class TestIO(TestCase):
             if ht.MPI_WORLD.rank == 0:
                 self.assertTrue((load_array_npy == float_array).all)
         if ht.MPI_WORLD.rank == 0:
-            for file in os.listdir(os.path.join(os.getcwd(), "heat/datasets")):
+            for file in os.listdir(str(self.temp_path)):
                 if fnmatch.fnmatch(file, "*.npy"):
-                    os.remove(os.path.join(os.getcwd(), "heat/datasets", file))
+                    os.remove(str(self.temp_path / file))
 
     def test_load_npy_exception(self):
         with self.assertRaises(TypeError):
@@ -1304,7 +1312,6 @@ class TestIO(TestCase):
 
         for axis, slices in test_cases:
             with self.subTest(axis=axis, slices=slices):
-                HDF5_PATH = os.path.join(os.getcwd(), "heat/datasets/iris.h5")
                 HDF5_DATASET = "data"
                 expect_error = False
                 for s in slices:
@@ -1315,13 +1322,13 @@ class TestIO(TestCase):
                 if expect_error:
                     with self.assertRaises(ValueError):
                         sliced_iris = ht.load_hdf5(
-                            HDF5_PATH, HDF5_DATASET, split=axis, slices=slices
+                            self.HDF5_PATH, HDF5_DATASET, split=axis, slices=slices
                         )
                 else:
-                    original_iris = ht.load_hdf5(HDF5_PATH, HDF5_DATASET, split=axis)
+                    original_iris = ht.load_hdf5(self.HDF5_PATH, HDF5_DATASET, split=axis)
                     tmp_slices = tuple(slice(None) if s is None else s for s in slices)
                     expected_iris = original_iris[tmp_slices]
-                    sliced_iris = ht.load_hdf5(HDF5_PATH, HDF5_DATASET, split=axis, slices=slices)
+                    sliced_iris = ht.load_hdf5(self.HDF5_PATH, HDF5_DATASET, split=axis, slices=slices)
                     self.assertTrue(ht.equal(sliced_iris, expected_iris))
 
     def test_load_multiple_hdf5_even(self):

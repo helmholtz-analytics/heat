@@ -4,10 +4,16 @@ import unittest
 import heat as ht
 import torch
 
+from pathlib import Path
 from heat.testing.basic_test import TestCase
 
 
 class TestSpectral(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.CSV_PATH = str(Path(ht.__file__).parent / "datasets" / "iris.csv")
+
     def test_clusterer(self):
         spectral = ht.cluster.Spectral()
         self.assertTrue(ht.is_estimator(spectral))
@@ -43,7 +49,7 @@ class TestSpectral(TestCase):
         # skip on MPS, matmul on ComplexFloat not supported as of PyTorch 2.5
         if not self.is_mps:
             # get some test data
-            iris = ht.load("heat/datasets/iris.csv", sep=";", split=0)
+            iris = ht.load(self.CSV_PATH, sep=";", split=0)
             lanczosniter = 10
             reighrank = 10
             # fit the clusters
@@ -95,7 +101,7 @@ class TestSpectral(TestCase):
             with self.assertRaises(NotImplementedError):
                 spectral = ht.cluster.Spectral(metric="ahalanobis", lanczos_n_iter=2)
 
-            iris_split = ht.load("heat/datasets/iris.csv", sep=";", split=1)
+            iris_split = ht.load(self.CSV_PATH, sep=";", split=1)
             spectral = ht.cluster.Spectral(eigen_solver="lanczos", lanczos_n_iter=20)
             with self.assertRaises(NotImplementedError):
                 spectral.fit(iris_split)

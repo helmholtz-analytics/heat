@@ -1,10 +1,16 @@
 import os
 import heat as ht
 
+from pathlib import Path
 from heat.testing.basic_test import TestCase
 
 
 class TestLasso(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.HDF5_PATH = str(Path(ht.__file__).parent / "datasets" / "diabetes.h5")
+
     def test_regressor(self):
         lasso = ht.regression.Lasso()
         self.assertTrue(ht.is_estimator(lasso))
@@ -30,10 +36,10 @@ class TestLasso(TestCase):
             # ToDo: add additional tests
             # get some test data
             X = ht.load_hdf5(
-                os.path.join(os.getcwd(), "heat/datasets/diabetes.h5"), dataset="x", split=0
+                self.HDF5_PATH, dataset="x", split=0
             )
             y = ht.load_hdf5(
-                os.path.join(os.getcwd(), "heat/datasets/diabetes.h5"), dataset="y", split=0
+                self.HDF5_PATH, dataset="y", split=0
             )
 
             # normalize dataset

@@ -1,7 +1,8 @@
 import numpy as np
 import torch
-
 import heat as ht
+
+from pathlib import Path
 from heat.testing.basic_test import TestCase
 
 
@@ -27,11 +28,12 @@ class TestGaussianNB(TestCase):
         else:
             dtype = ht.float64
         # load sklearn train/test sets and resulting probabilities
-        X_train = ht.load("heat/datasets/iris_X_train.csv", sep=";", dtype=dtype)
-        X_test = ht.load("heat/datasets/iris_X_test.csv", sep=";", dtype=dtype)
-        y_train = ht.load("heat/datasets/iris_y_train.csv", sep=";", dtype=ht.int64).squeeze()
-        y_test = ht.load("heat/datasets/iris_y_test.csv", sep=";", dtype=ht.int64).squeeze()
-        y_pred_proba_sklearn = ht.load("heat/datasets/iris_y_pred_proba.csv", sep=";", dtype=dtype)
+        data_path = Path(ht.__file__).parent / "datasets"
+        X_train = ht.load(str(data_path / "iris_X_train.csv"), sep=";", dtype=dtype)
+        X_test = ht.load(str(data_path / "iris_X_test.csv"), sep=";", dtype=dtype)
+        y_train = ht.load(str(data_path / "iris_y_train.csv"), sep=";", dtype=ht.int64).squeeze()
+        y_test = ht.load(str(data_path / "iris_y_test.csv"), sep=";", dtype=ht.int64).squeeze()
+        y_pred_proba_sklearn = ht.load(str(data_path / "iris_y_pred_proba.csv"), sep=";", dtype=dtype)
 
         # test ht.GaussianNB
         from heat.naive_bayes import GaussianNB
