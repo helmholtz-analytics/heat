@@ -74,9 +74,15 @@ jobs:
           python-version: ${{ matrix.py-version }}
           architecture: x64
 
-      - name: Test
+      - name: Install heat
         run: |
           pip install pytest
           pip install ${{ matrix.pytorch-version }} ${{ matrix.install-options }} --extra-index-url https://download.pytorch.org/whl/cpu
+
+      - name: Run tests with 3 tasks
+        run: |
           mpirun -n 3 pytest heat/
+
+      - name: Run tests with 4 tasks
+        run: |
           mpirun -n 4 pytest heat/
