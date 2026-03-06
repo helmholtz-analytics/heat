@@ -102,7 +102,7 @@ def qr(
                 f"Array 'A' must have datatype of float32, float64, complex64, or complex128, but has {A.dtype}"
             ) from E
         raise NotImplementedError(
-            f"`heat.linalg.qr` is not implemented for dtype {A.dtype}, but is supported by torch. Please open an issue on GitHub to get this implemented"
+            f"`heat.linalg.qr` is not implemented for dtype {A.dtype}. Please open an issue on GitHub to get this implemented"
         )
 
     QR = collections.namedtuple("QR", "Q, R")
