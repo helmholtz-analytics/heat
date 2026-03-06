@@ -823,7 +823,9 @@ def convolve2d(
             # unpack 4D result into 2D
             signal_filtered = signal_filtered[0, 0, :, :]
         else:
-            signal_filtered = torch.tensor([[]], device=str(signal.device))
+            empty_shape = list(signal.shape[-2:])
+            empty_shape[a.split] = 0
+            signal_filtered = torch.empty(tuple(empty_shape), device=str(signal.device))
 
         # if kernel shape along split axis is even we need to get rid of duplicated values
         if (
