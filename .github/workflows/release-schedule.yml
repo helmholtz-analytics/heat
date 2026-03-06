@@ -35,7 +35,7 @@ jobs:
     if: github.event_name == 'schedule' || github.event.inputs.release_type == '4-weeks-before'
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@5ef0c079ce82195b2a36a210272d6b661572d83e # v2.14.2
+        uses: step-security/harden-runner@a90bcbc6539c36a85cdfeb73f7e2f433735f215b # v2.15.0
         with:
           egress-policy: audit
 
@@ -60,7 +60,7 @@ jobs:
           fi
 
       - name: Create Release Preparation Issues
-        uses: actions/github-script@9afe6b66b5f8f48e7651c78b94cbf5e3a8ba2833 # v7.1.0
+        uses: actions/github-script@v8
         with:
           script: |
             const version = '${{ steps.version.outputs.version }}';
@@ -82,8 +82,8 @@ jobs:
 
             const issueData = [
               {
-                title: `[Release Prep]: NEP 29 Compliance Check for v${version}`,
-                body: `## NEP 29 Compliance Check for Heat v${version}\n\nThis issue was automatically created as part of the ${season} release preparation process.\n\n### Tasks\n- [ ] Review current NEP 29 minimum supported versions\n- [ ] Check Python version support in pyproject.toml\n- [ ] Check NumPy version support in requirements\n- [ ] Check PyTorch version support in requirements\n- [ ] Update bug report template with current supported versions\n- [ ] Update CI matrix to test minimum supported versions\n- [ ] Update documentation with supported versions\n- [ ] Verify all dependencies meet NEP 29 requirements\n\n**Due Date:** 4 weeks before release\n**Priority:** High`,
+                title: `[Release Prep]: Spec 0 Compliance Check for v${version}`,
+                body: `## Spec 0 Compliance Check for Heat v${version}\n\nThis issue was automatically created as part of the ${season} release preparation process.\n\n### Tasks\n- [ ] Review current [Spec 0](https://scientific-python.org/specs/spec-0000/) minimum supported versions\n- [ ] Check Python version support in pyproject.toml\n- [ ] Check NumPy version support in requirements\n- [ ] Check PyTorch version support in requirements\n- [ ] Update bug report template with current supported versions\n- [ ] Update CI matrix to test minimum supported versions\n- [ ] Update documentation with supported versions\n- [ ] Verify all dependencies meet Spec 0 requirements\n\n**Due Date:** 4 weeks before release\n**Priority:** High`,
                 labels: ['release-prep']
               },
               {
