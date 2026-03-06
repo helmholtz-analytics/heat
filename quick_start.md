@@ -58,7 +58,7 @@ See [our docker README](https://github.com/helmholtz-analytics/heat/tree/main/do
 In your terminal, test your setup with the [`heat_test.py`](https://github.com/helmholtz-analytics/heat/blob/main/scripts/heat_test.py) script:
 
 ```
-mpirun -n 2 python heat_test.py
+mpirun -n 2 python scripts/heat_test.py
 ```
 
 It should print something like this:
