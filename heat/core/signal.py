@@ -425,7 +425,8 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full", stride: int = 1) -> D
 
     # flip filter for convolution as Pytorch conv1d computes correlations
     v = flip(v, [0])
-    if v.larray.shape != v.lshape_map[0]:
+
+    if v.larray.shape[0] != v.lshape_map[0, 0]:
         # pads weights if input kernel is uneven
         target = torch.zeros(v.lshape_map[0][0], dtype=v.larray.dtype, device=v.larray.device)
         pad_size = v.lshape_map[0][0] - v.larray.shape[0]

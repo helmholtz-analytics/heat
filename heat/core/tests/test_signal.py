@@ -352,7 +352,6 @@ class TestSignal(TestCase):
     def assert_convolution_stride(self, signal, kernel, mode, stride, solution):
         conv = ht.convolve(signal, kernel, mode=mode, stride=stride)
         gathered = manipulations.resplit(conv, axis=None)
-        print(solution.shape, gathered.shape)
         self.assertTrue(ht.equal(solution, gathered))
 
     def test_convolve_batch_convolutions(self):
@@ -886,12 +885,10 @@ class TestSignal(TestCase):
 
         kernel_even = ht.array(np_k_even).astype(ht_dtype)
         dis_kernel_even = ht.array(np_k_even, split=0).astype(ht_dtype)
-        print("dis_signal", dis_signal.shape)
         # avoid kernel larger than signal chunk
         for stride in strides:
             for mode in ["full", "valid"]:
                 solution = ht.array(sig.convolve2d(np_sig, np_k_even, mode=mode)).astype(ht_dtype)
-                print(f"Start {mode} with stride {stride}")
                 if self.comm.size <= 3:
                     if ht.get_device() == ht.cpu:
                         # torch convolution does not support int on MPS
@@ -899,22 +896,17 @@ class TestSignal(TestCase):
                         gathered = manipulations.resplit(conv, axis=None)
                         self.assertTrue(
                             ht.equal(solution[::stride[0], ::stride[1]], gathered))
-                        print("Done dis_signal")
 
                         conv = ht.convolve2d(signal, dis_kernel_even, mode=mode, stride=stride)
                         gathered = manipulations.resplit(conv, axis=None) # this resplit fails,
                         self.assertTrue(
                             ht.equal(solution[::stride[0], ::stride[1]], gathered))
-                        print("Done dis_kernel")
 
                         conv = ht.convolve2d(dis_signal, dis_kernel_even, mode=mode,
                                              stride=stride)
-                        print("after conv")
                         gathered = manipulations.resplit(conv, axis=None)
-                        print("after gather")
                         self.assertTrue(
                             ht.equal(solution[::stride[0], ::stride[1]], gathered))
-                        print("Done dis_both")
 
                     # different data types of input and kernel
                     conv = ht.convolve2d(dis_signal.astype(ht.float), kernel_even, mode=mode,
