@@ -1331,8 +1331,9 @@ class MPICommunication(Communication):
             rbuf = recvbuf
             mpi_recvbuf = recvbuf
 
-        # perform the scatter operation
+        # perform the scatter operation<
         exit_code = func(mpi_sendbuf, mpi_recvbuf, **kwargs)
+
         return exit_code, sbuf, rbuf, original_recvbuf, recv_axis_permutation
 
     def Allgather(
