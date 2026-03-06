@@ -81,5 +81,5 @@ jobs:
         run: |
           pip install pytest
           pip install ${{ matrix.pytorch-version }} ${{ matrix.install-options }} --extra-index-url https://download.pytorch.org/whl/cpu
-          mpirun -n 3 pytest tests/
-          mpirun -n 4 pytest tests/
+          mpirun -n 3 pytest
+          mpirun -n 4 pytest
