@@ -812,8 +812,7 @@ class TestIO(TestCase):
     #     pass
 
     def test_load_npy_int(self):
-        #with TemporaryDirectory(dir=os.getcwd()) as temp_dir:
-        temp_path = Path.cwd() #temp_dir
+        temp_path = Path.cwd()
         # testing for int arrays
         if ht.MPI_WORLD.rank == 0:
             crea_array = []
@@ -837,8 +836,7 @@ class TestIO(TestCase):
                     os.remove(str(temp_path / file))
 
     def test_load_npy_float(self):
-        #with TemporaryDirectory(dir=os.getcwd()) as temp_dir:
-        temp_path = Path.cwd() #temp_dir
+        temp_path = Path.cwd()
         # testing for float arrays and split dimension other than 0
         if ht.MPI_WORLD.rank == 0:
             crea_array = []
