@@ -10,17 +10,18 @@ permissions:
   contents: read
 
 jobs:
-  debug_info:
-    runs-on: ubuntu-latest
-    if: ${{ secrets.BENCH_PIPE_TRIGGER == '' }}
-    steps:
-      - run: echo "Secret BENCH_PIPE_TRIGGER must be set in order to trigger CI on Helmholtz Cloud"
 
   trigger-benchmark:
     name: Trigger Benchmarks
     runs-on: ubuntu-latest
-    if: ${{ secrets.BENCH_PIPE_TRIGGER != '' }}
     steps:
+      - name: Exit if secret is missing
+        run: |
+          if [ -z "${{ secrets.BENCH_PIPE_TRIGGER }}" ]; then
+            echo "Secret BENCH_PIPE_TRIGGER not set, skipping job."
+            exit 0
+          fi
+
       - name: Harden Runner
         uses: step-security/harden-runner@a90bcbc6539c36a85cdfeb73f7e2f433735f215b # v2.15.0
         with:
