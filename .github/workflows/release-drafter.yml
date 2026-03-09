@@ -7,12 +7,18 @@ permissions:
   contents: read
 
 jobs:
+  debug_info:
+    runs-on: ubuntu-latest
+    if: ${{ secrets.GITHUB_TOKEN == '' }}
+    steps:
+      - run: echo "Secret GITHUB_TOKEN must be set in order to run this workflow"
+
   update_release_draft:
     permissions:
       contents: write  # for release-drafter/release-drafter to create a github release
       pull-requests: write  # for release-drafter/release-drafter to add label to PR
     runs-on: ubuntu-latest
-    if: ${{ !github.event.repository.fork }}
+    if: ${{ secrets.GITHUB_TOKEN != '' }}
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@a90bcbc6539c36a85cdfeb73f7e2f433735f215b # v2.15.0

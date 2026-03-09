@@ -11,8 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     if: >
       github.event.workflow_run.event == 'pull_request' &&
-      github.event.workflow_run.conclusion == 'success' &&
-      ${{ !github.event.repository.fork }}
+      github.event.workflow_run.conclusion == 'success'
     outputs:
       PR_NR: ${{ steps.step1.outputs.test }}
     steps:
@@ -51,6 +50,7 @@ jobs:
   push:
     needs: upload
     runs-on: ubuntu-latest
+    if: ${{ !github.event.repository.fork }}
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@a90bcbc6539c36a85cdfeb73f7e2f433735f215b # v2.15.0

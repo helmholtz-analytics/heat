@@ -10,9 +10,15 @@ permissions:
   contents: read
 
 jobs:
+  debug_info:
+    runs-on: ubuntu-latest
+    if: ${{ secrets.CB_PIPELINE == '' }}
+    steps:
+      - run: echo "Secret CB_PIPELINE must be set in order to trigger CI on Helmholtz Cloud"
+
   starter:
     runs-on: ubuntu-latest
-    if: ${{ !github.event.repository.fork }}
+    if: ${{ secrets.CB_PIPELINE != '' }}
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@a90bcbc6539c36a85cdfeb73f7e2f433735f215b # v2.15.0
@@ -22,6 +28,7 @@ jobs:
       - name: Get branch names
         id: branch-names
         uses: tj-actions/branch-names@5250492686b253f06fa55861556d1027b067aeb5 # v9.0.2
+
       - name: 'start test'
         run: |
          curl -s -X POST \

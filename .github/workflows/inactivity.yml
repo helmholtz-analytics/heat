@@ -9,7 +9,6 @@ permissions:
 jobs:
   close-issues:
     runs-on: ubuntu-latest
-    if: ${{ !github.event.repository.fork }}
     permissions:
       issues: write
       pull-requests: write

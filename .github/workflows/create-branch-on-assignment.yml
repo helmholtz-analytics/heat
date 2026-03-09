@@ -9,7 +9,6 @@ on:
 jobs:
   create_issue_branch_job:
     runs-on: ubuntu-latest
-    if: ${{ !github.event.repository.fork }}
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@a90bcbc6539c36a85cdfeb73f7e2f433735f215b # v2.15.0

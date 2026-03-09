@@ -6,7 +6,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    if: ${{ !github.event.repository.fork }}
     strategy:
       matrix:
         python-version: ['3.11', '3.12', '3.13', '3.14']
