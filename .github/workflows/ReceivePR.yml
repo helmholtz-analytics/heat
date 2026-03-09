@@ -8,7 +8,7 @@ on:
 
 jobs:
   build:
-    if: ${{ !startsWith(github.head_ref, 'support/') && (github.event.pull_request.draft == false)}}
+    if: ${{ !startsWith(github.head_ref, 'support/') && (github.event.pull_request.draft == false) }}
     runs-on: ubuntu-latest
 
     steps:
