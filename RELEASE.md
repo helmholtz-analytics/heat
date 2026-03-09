@@ -1,11 +1,48 @@
 # Releasing a new Heat version
 
-These are basic instructions for internal use. Will be expanded as the need arises.
+These are instructions for Heat release management, including both automated and manual processes.
 
 ### Table of Contents
+- [Automated Release Schedule](#automated-release-schedule)
 - [Major or minor release](#major-or-minor-release)
 - [Patch release](#patch-release)
 - [conda-forge build](#conda-forge-build)
+
+## Automated Release Schedule
+
+Heat follows a bi-annual release schedule with automated preparation workflows:
+
+- **Spring Release**: Target around the end of March or before the Easter break
+- **Fall Release**: Target around the end of September
+
+### Automated Timeline
+
+The release process is largely automated with the following schedule:
+
+#### 4 Weeks Before Release (March 1st / December 1st)
+**Automated workflows create issues for:**
+- NEP 29 compliance check and bug report template update
+- Release highlights selection
+- CITATION.cff update
+- PR merge decisions
+- Blog post drafting
+
+#### 1 Week Before Release
+**Final preparations:**
+- Release notes finalization issue created
+- Blog post review issue created
+- All release materials should be complete
+
+### Manual Override
+
+You can manually trigger these workflows at any time using the workflow dispatch feature in GitHub Actions:
+
+- [Release Schedule Workflow](https://github.com/helmholtz-analytics/heat/actions/workflows/release-schedule.yml)
+- [Release Notes Finalization](https://github.com/helmholtz-analytics/heat/actions/workflows/release-notes-finalization.yml)
+
+### Integration with Manual Process
+
+The automated workflow handles the **preparation phase** of releases. The actual release creation, testing, and publication remain manual processes that require human oversight and follow the existing procedures below.
 
 ### Major or minor release
 
@@ -17,6 +54,7 @@ In the following, we assume we are about to release Heat v1.5.0.
 
 - You need [PyPi](https://pypi.org/), [Test.PyPi](https://test.pypi.org/) account
 - All intended PRs are merged, all tests have passed, and the `main` branch is ready for release.
+- **If following automated schedule**: All automated issues have been addressed (NEP 29 compliance, highlights selected, CITATION updated, etc.)
 
 **Create Pre-release Branch**
 
@@ -53,7 +91,7 @@ Go to the main repo page, and then to releases (right panel). There should be a 
 
   - Go to the GitHub repo's [Releases](https://github.com/helmholtz-analytics/heat/releases) page.
   - The release notes draft is automated. Click on Edit Draft
-  - Select the new tag: v1.5.0. Modify Target branch: `release/1.5.x`
+  - Select the new tag: v1.5.0. Modify Target branch: `stable`
   - Edit release notes as needed (see older releases)
   - Click on Save **but do not publish yet**
 
@@ -83,6 +121,7 @@ Go to the main repo page, and then to releases (right panel). There should be a 
 
 11. Go back to the Release Notes draft and publish them. The new release is out!
 
+  - Attach the tar and wheel file genereated on step 8 in the dist folder.
   - Make sure the CHANGELOG.md got updated, if not, call @JuanPedroGHM.
   - Check our [Zenodo page](https://zenodo.org/doi/10.5281/zenodo.2531472) to make sure a DOI was created for the release.
 

@@ -40,6 +40,7 @@ __all__ = [
     "min",
     "minimum",
     "percentile",
+    "ptp",
     "skew",
     "std",
     "var",
@@ -61,6 +62,8 @@ def argmax(
         By default, the index is into the flattened array, otherwise along the specified axis.
     out : DNDarray, optional.
         If provided, the result will be inserted into this array. It should be of the appropriate shape and dtype.
+    **kwargs
+        Extra keyword arguments
 
     Examples
     --------
@@ -138,6 +141,8 @@ def argmin(
         By default, the index is into the flattened array, otherwise along the specified axis.
     out : DNDarray, optional
         Issue #100 If provided, the result will be inserted into this array. It should be of the appropriate shape and dtype.
+    **kwargs
+        Extra keyword arguments
 
     Examples
     --------
@@ -247,17 +252,17 @@ def average(
 
     Examples
     --------
-    >>> data = ht.arange(1,5, dtype=float)
+    >>> data = ht.arange(1, 5, dtype=float)
     >>> data
     DNDarray([1., 2., 3., 4.], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.average(data)
     DNDarray(2.5000, dtype=ht.float32, device=cpu:0, split=None)
-    >>> ht.average(ht.arange(1,11, dtype=float), weights=ht.arange(10,0,-1))
+    >>> ht.average(ht.arange(1, 11, dtype=float), weights=ht.arange(10, 0, -1))
     DNDarray([4.], dtype=ht.float64, device=cpu:0, split=None)
     >>> data = ht.array([[0, 1],
                          [2, 3],
                         [4, 5]], dtype=float, split=1)
-    >>> weights = ht.array([1./4, 3./4])
+    >>> weights = ht.array([1.0 / 4, 3.0 / 4])
     >>> ht.average(data, axis=1, weights=weights)
     DNDarray([0.7500, 2.7500, 4.7500], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.average(data, weights=weights)
@@ -293,7 +298,7 @@ def average(
             wgt_lshape = tuple(
                 weights.lshape[0] if dim == axis else 1 for dim in list(range(x.ndim))
             )
-            wgt_slice = [slice(None) if dim == axis else 0 for dim in list(range(x.ndim))]
+            wgt_slice = tuple(slice(None) if dim == axis else 0 for dim in list(range(x.ndim)))
             wgt_split = None if weights.split is None else axis
             wgt = torch.empty(
                 wgt_lshape, dtype=weights.dtype.torch_type(), device=x.device.torch_device
@@ -593,11 +598,11 @@ def digitize(x: DNDarray, bins: Union[DNDarray, torch.Tensor], right: bool = Fal
 
     Examples
     --------
-    >>> x = ht.array([1.2, 10.0, 12.4, 15.5, 20.])
+    >>> x = ht.array([1.2, 10.0, 12.4, 15.5, 20.0])
     >>> bins = ht.array([0, 5, 10, 15, 20])
-    >>> ht.digitize(x,bins,right=True)
+    >>> ht.digitize(x, bins, right=True)
     DNDarray([1, 2, 3, 4, 4], dtype=ht.int64, device=cpu:0, split=None)
-    >>> ht.digitize(x,bins,right=False)
+    >>> ht.digitize(x, bins, right=False)
     DNDarray([1, 3, 3, 4, 5], dtype=ht.int64, device=cpu:0, split=None)
     """
     if isinstance(bins, DNDarray):
@@ -654,7 +659,7 @@ def histc(
 
     Examples
     --------
-    >>> ht.histc(ht.array([1., 2, 1]), bins=4, min=0, max=3)
+    >>> ht.histc(ht.array([1.0, 2, 1]), bins=4, min=0, max=3)
     DNDarray([0., 2., 1., 0.], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.histc(ht.arange(10, dtype=ht.float64, split=0), bins=10)
     DNDarray([1., 1., 1., 1., 1., 1., 1., 1., 1., 1.], dtype=ht.float64, device=cpu:0, split=None)
@@ -867,7 +872,7 @@ def maximum(x1: DNDarray, x2: DNDarray, out: Optional[DNDarray] = None) -> DNDar
     imaginary parts being ``NaN``. The net effect is that NaNs are propagated.
 
     Parameters
-    -----------
+    ----------
     x1 : DNDarray
             The first array containing the elements to be compared.
     x2 : DNDarray
@@ -877,7 +882,7 @@ def maximum(x1: DNDarray, x2: DNDarray, out: Optional[DNDarray] = None) -> DNDar
         If not provided or ``None``, a freshly-allocated array is returned.
 
     Examples
-    ---------
+    --------
     >>> import heat as ht
     >>> a = ht.random.randn(3, 4)
     >>> a
@@ -932,12 +937,12 @@ def mean(x: DNDarray, axis: Optional[Union[int, Tuple[int, ...]]] = None) -> DND
 
     Examples
     --------
-    >>> a = ht.random.randn(1,3)
+    >>> a = ht.random.randn(1, 3)
     >>> a
     DNDarray([[-0.1164,  1.0446, -0.4093]], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.mean(a)
     DNDarray(0.1730, dtype=ht.float32, device=cpu:0, split=None)
-    >>> a = ht.random.randn(4,4)
+    >>> a = ht.random.randn(4, 4)
     >>> a
     DNDarray([[-1.0585,  0.7541, -1.1011,  0.5009],
               [-1.3575,  0.3344,  0.4506,  0.7379],
@@ -947,13 +952,13 @@ def mean(x: DNDarray, axis: Optional[Union[int, Tuple[int, ...]]] = None) -> DND
     DNDarray([-0.2262,  0.0413, -0.8328, -0.2619], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.mean(a, 0)
     DNDarray([-0.5392, -0.1655, -0.7539,  0.1791], dtype=ht.float32, device=cpu:0, split=None)
-    >>> a = ht.random.randn(4,4)
+    >>> a = ht.random.randn(4, 4)
     >>> a
     DNDarray([[-0.1441,  0.5016,  0.8907,  0.6318],
               [-1.1690, -1.2657,  1.4840, -0.1014],
               [ 0.4133,  1.4168,  1.3499,  1.0340],
               [-0.9236, -0.7535, -0.2466, -0.9703]], dtype=ht.float32, device=cpu:0, split=None)
-    >>> ht.mean(a, (0,1))
+    >>> ht.mean(a, (0, 1))
     DNDarray(0.1342, dtype=ht.float32, device=cpu:0, split=None)
     """
 
@@ -1079,8 +1084,8 @@ def median(
 
 
 DNDarray.median: Callable[[DNDarray, int, bool, bool, float], DNDarray] = (
-    lambda x, axis=None, keepdims=False, sketched=False, sketch_size=1.0 / MPI.COMM_WORLD.size: median(
-        x, axis, keepdims, sketched=sketched, sketch_size=sketch_size
+    lambda x, axis=None, keepdims=False, sketched=False, sketch_size=1.0 / MPI.COMM_WORLD.size: (
+        median(x, axis, keepdims, sketched=sketched, sketch_size=sketch_size)
     )
 )
 DNDarray.median.__doc__ = median.__doc__
@@ -1229,7 +1234,7 @@ def minimum(x1: DNDarray, x2: DNDarray, out: Optional[DNDarray] = None) -> DNDar
     imaginary parts being ``NaN``. The net effect is that NaNs are propagated.
 
     Parameters
-    -----------
+    ----------
     x1 : DNDarray
         The first array containing the elements to be compared.
     x2 : DNDarray
@@ -1239,31 +1244,31 @@ def minimum(x1: DNDarray, x2: DNDarray, out: Optional[DNDarray] = None) -> DNDar
         If not provided or ``None``, a freshly-allocated array is returned.
 
     Examples
-    ---------
+    --------
     >>> import heat as ht
-    >>> a = ht.random.randn(3,4)
+    >>> a = ht.random.randn(3, 4)
     >>> a
     DNDarray([[-0.5462,  0.0079,  1.2828,  1.4980],
               [ 0.6503, -1.1069,  1.2131,  1.4003],
               [-0.3203, -0.2318,  1.0388,  0.4439]], dtype=ht.float32, device=cpu:0, split=None)
-    >>> b = ht.random.randn(3,4)
+    >>> b = ht.random.randn(3, 4)
     >>> b
     DNDarray([[ 1.8505,  2.3055, -0.2825, -1.4718],
               [-0.3684,  1.6866, -0.8570, -0.4779],
               [ 1.0532,  0.3775, -0.8669, -1.7275]], dtype=ht.float32, device=cpu:0, split=None)
-    >>> ht.minimum(a,b)
+    >>> ht.minimum(a, b)
     DNDarray([[-0.5462,  0.0079, -0.2825, -1.4718],
               [-0.3684, -1.1069, -0.8570, -0.4779],
               [-0.3203, -0.2318, -0.8669, -1.7275]], dtype=ht.float32, device=cpu:0, split=None)
-    >>> c = ht.random.randn(1,4)
+    >>> c = ht.random.randn(1, 4)
     >>> c
     DNDarray([[-1.4358,  1.2914, -0.6042, -1.4009]], dtype=ht.float32, device=cpu:0, split=None)
-    >>> ht.minimum(a,c)
+    >>> ht.minimum(a, c)
     DNDarray([[-1.4358,  0.0079, -0.6042, -1.4009],
               [-1.4358, -1.1069, -0.6042, -1.4009],
               [-1.4358, -0.2318, -0.6042, -1.4009]], dtype=ht.float32, device=cpu:0, split=None)
-    >>> d = ht.random.randn(3,4,5)
-    >>> ht.minimum(a,d)
+    >>> d = ht.random.randn(3, 4, 5)
+    >>> ht.minimum(a, d)
     ValueError: operands could not be broadcast, input shapes (3, 4) (3, 4, 5)
     """
     return _operations.__binary_op(torch.min, x1, x2, out)
@@ -1546,7 +1551,7 @@ def percentile(
 
     # sanitize input data
     sanitation.sanitize_in(x)
-    if x.dtype in types._complexfloating:
+    if types.heat_type_is_complexfloating(x.dtype):
         raise TypeError("Percentile is not supported for complex data types.")
 
     # sanitize q, keep track of size of percentile dim
@@ -1731,6 +1736,187 @@ def percentile(
     return percentile
 
 
+def ptp(
+    x: DNDarray,
+    axis: Optional[Union[int, Tuple[int, ...]]] = None,
+    out: Optional[DNDarray] = None,
+    keepdims: bool = False,
+) -> DNDarray:
+    """
+    Range of values (maximum - minimum) along a given axis.
+
+    Parameters
+    ----------
+    x : ht.DNDarray
+        Input array.
+    axis : None or int or Tuple[int,...], optional
+        Axis or axes along which to operate. By default, flattened input is used.
+        If this is a tuple of ints, the ptp is selected over multiple axes,
+        instead of a single axis or all the axes as before.
+    out : DNDarray, optional
+        Output array to place the result.
+    keepdims : bool, optional
+        If this is set to ``True``, the axes which are reduced are left in the result as dimensions with size one.
+
+    Returns
+    -------
+    ptp : ht.DNDarray
+        An array with the same shape as `x`, with the specified axis removed. If `keepdims` is True, the reduced axes are left in the result as dimensions with size one.
+
+    Examples
+    --------
+    >>> a = ht.array([[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]], dtype=ht.float32)
+    >>> ht.ptp(a)
+    DNDarray([11.], dtype=ht.float32, device=cpu:0, split=None)
+    >>> ht.ptp(a, axis=0)
+    DNDarray([9., 9., 9.], dtype=ht.float32, device=cpu:0, split=None)
+    >>> ht.ptp(a, axis=1)
+    DNDarray([2., 2., 2., 2.], dtype=ht.float32, device=cpu:0, split=None)
+    """
+
+    def local_minmax(t, dim=None, **kwargs):
+        mins = torch.amin(t, dim=dim, **kwargs)
+        maxs = torch.amax(t, dim=dim, **kwargs)
+
+        # If scalar (0-D), make it 1-D so torch.cat works
+        if mins.ndim == 0:
+            mins = mins.reshape(1)
+            maxs = maxs.reshape(1)
+
+        return torch.cat((mins, maxs), dim=0)
+
+    lshape = tuple(x.larray.shape)
+    ndim = len(lshape)
+    axis_sanitized = stride_tricks.sanitize_axis(x.shape, axis)
+
+    if axis_sanitized is None:
+        reduced_shape = tuple(1 for _ in lshape)  # keepdim=True => ones for all dims
+    else:
+        axes = (axis_sanitized,) if isinstance(axis_sanitized, int) else tuple(axis_sanitized)
+        # normalize negative axes
+        axes = tuple(a if a >= 0 else a + ndim for a in axes)
+        rs = list(lshape)
+        for a in axes:
+            rs[a] = 1
+        reduced_shape = tuple(rs)
+
+    total_count = int(np.prod(reduced_shape))
+    if total_count == 0:
+        raise RuntimeError(
+            f"ptp: unexpected local reduced size 0 (x.larray.shape={x.larray.shape}, axis={axis})"
+        )
+
+    # packed shape: double first axis
+    packed_shape = list(reduced_shape)
+    packed_shape[0] = packed_shape[0] * 2
+    packed_shape = tuple(packed_shape)
+
+    # contig stride helper
+    def contig_stride(shape):
+        if not shape:
+            return ()
+        s = [0] * len(shape)
+        s[-1] = 1
+        for i in range(len(shape) - 2, -1, -1):
+            s[i] = s[i + 1] * shape[i + 1]
+        return tuple(s)
+
+    packed_stride = contig_stride(packed_shape)
+    # dtype: take from x.larray (do not cast earlier)
+    preview_dtype = x.larray.dtype
+
+    comm = x.comm
+
+    # Create a dtype/size-specific MPI.Op via the communicator's factory
+    # The communicator must provide `_minmax_op(dtype, total_count, shape, stride, offset=0)`
+    op = comm._minmax_op(preview_dtype, total_count, packed_shape, packed_stride, offset=0)
+
+    # Run the global reduction with the freshly created op and always free it afterwards
+    try:
+        packed = _operations.__reduce_op(x, local_minmax, op, axis=axis, keepdims=True)
+    finally:
+        try:
+            op.Free()
+        except Exception:
+            pass
+
+    # Unpack global mins and maxs
+    mins_t, maxs_t = packed.larray.chunk(2, dim=0)
+    y = maxs_t - mins_t
+
+    # Compute correct split for the result (based on original x.split and axis)
+    if axis is None or isinstance(axis, tuple):
+        split = None
+    else:
+        if x.split is not None:
+            if axis < x.split:
+                split = x.split - 1
+            elif axis > x.split:
+                split = x.split
+            else:
+                split = None
+        else:
+            split = None
+
+    # Handle keepdims: remove reduced dims when requested
+    if not keepdims:
+        if axis is None:
+            y = y.reshape(())
+            split = None
+        else:
+            axes = axis if isinstance(axis, tuple) else (axis,)
+            for ax in sorted(axes, reverse=True):
+                y = y.squeeze(ax)
+
+    # Compute global output shape (gshape) from x.gshape, axis and keepdims
+    def _compute_gshape(gshape_in, axis, keepdims):
+        if axis is None:
+            return tuple(1 for _ in gshape_in) if keepdims else ()
+        axes = axis if isinstance(axis, tuple) else (axis,)
+        axes = tuple(a if a >= 0 else a + len(gshape_in) for a in axes)
+        if keepdims:
+            gs = list(gshape_in)
+            for a in axes:
+                gs[a] = 1
+            return tuple(gs)
+        else:
+            return tuple(gshape_in[i] for i in range(len(gshape_in)) if i not in axes)
+
+    gshape = _compute_gshape(x.gshape, axis, keepdims)
+
+    # If user provided an out buffer, write into it (sanitization does shape/split checks)
+    if out is not None:
+        sanitation.sanitize_out(out, gshape, split, x.device)
+        out._DNDarray__array = y
+        return out
+
+    # Return new DNDarray: use gshape (global shape), not local y.shape
+    return DNDarray(
+        y,
+        gshape,
+        packed.dtype,
+        split=split,
+        device=packed.device,
+        comm=packed.comm,
+        balanced=packed.balanced,
+    )
+
+
+def _ptp(
+    x: DNDarray,
+    axis: Optional[Union[int, Tuple[int, ...]]] = None,
+    out: Optional[DNDarray] = None,
+    keepdims: bool = False,
+) -> DNDarray:
+    return ptp(x, axis, out, keepdims)
+
+
+DNDarray.ptp: Callable[
+    [DNDarray, Optional[Union[int, Tuple[int, ...]]], Optional[DNDarray], bool], DNDarray
+] = _ptp
+DNDarray.ptp.__doc__ = ptp.__doc__
+
+
 def skew(x: DNDarray, axis: int = None, unbiased: bool = True) -> DNDarray:
     """
     Compute the sample skewness of a data set.
@@ -1770,8 +1956,8 @@ def skew(x: DNDarray, axis: int = None, unbiased: bool = True) -> DNDarray:
         return __moment_w_axis(__torch_skew, x, axis, None, unbiased)
 
 
-DNDarray.skew: Callable[[DNDarray, int, bool], DNDarray] = (
-    lambda self, axis=None, unbiased=True: skew(self, axis, unbiased)
+DNDarray.skew: Callable[[DNDarray, int, bool], DNDarray] = lambda self, axis=None, unbiased=True: (
+    skew(self, axis, unbiased)
 )
 DNDarray.skew.__doc__ = skew.__doc__
 
@@ -1794,6 +1980,8 @@ def std(
         Delta Degrees of Freedom: the denominator implicitely used in the calculation is N - ddof, where N
         represents the number of elements. If ``ddof=1``, the Bessel correction will be applied.
         Setting ``ddof>1`` raises a ``NotImplementedError``.
+    **kwargs
+        Extra keyword arguments
 
     Examples
     --------
@@ -1802,7 +1990,7 @@ def std(
     DNDarray([[ 0.5714,  0.0048, -0.2942]], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.std(a)
     DNDarray(0.3590, dtype=ht.float32, device=cpu:0, split=None)
-    >>> a = ht.random.randn(4,4)
+    >>> a = ht.random.randn(4, 4)
     >>> a
     DNDarray([[ 0.8488,  1.2225,  1.2498, -1.4592],
               [-0.5820, -0.3928,  0.1509, -0.0174],
@@ -1934,6 +2122,9 @@ def var(
         Delta Degrees of Freedom: the denominator implicitely used in the calculation is N - ddof, where N
         represents the number of elements. If ``ddof=1``, the Bessel correction will be applied.
         Setting ``ddof>1`` raises a ``NotImplementedError``.
+    **kwargs
+        Extra keyword arguments
+
 
     Notes
     -----
@@ -1953,14 +2144,14 @@ def var(
 
     Examples
     --------
-    >>> a = ht.random.randn(1,3)
+    >>> a = ht.random.randn(1, 3)
     >>> a
     DNDarray([[-2.3589, -0.2073,  0.8806]], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.var(a)
     DNDarray(1.8119, dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.var(a, ddof=1)
     DNDarray(2.7179, dtype=ht.float32, device=cpu:0, split=None)
-    >>> a = ht.random.randn(4,4)
+    >>> a = ht.random.randn(4, 4)
     >>> a
     DNDarray([[-0.8523, -1.4982, -0.5848, -0.2554],
               [ 0.8458, -0.3125, -0.2430,  1.9016],

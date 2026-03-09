@@ -19,7 +19,7 @@ Heat is a distributed tensor framework for high performance data analytics.
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/helmholtz-analytics/heat/badge)](https://securityscorecards.dev/viewer/?uri=github.com/helmholtz-analytics/heat)
 [![OpenSSF Best Practices](https://bestpractices.coreinfrastructure.org/projects/7688/badge)](https://bestpractices.coreinfrastructure.org/projects/7688)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.2531472.svg)](https://doi.org/10.5281/zenodo.2531472)
-[![Benchmarks](https://img.shields.io/badge/Grafana-Benchmarks-2ea44f)](https://57bc8d92-72f2-4869-accd-435ec06365cb.ka.bw-cloud-instance.org:3000/d/adjpqduq9r7k0a/heat-cb?orgId=1)
+[![Benchmarks](https://img.shields.io/badge/Grafana-Benchmarks-2ea44f)](https://930000e0-e69a-4939-912e-89a92316b420.ka.bw-cloud-instance.org/grafana)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![JuRSE Code Pick of the Month](https://img.shields.io/badge/JuRSE_Code_Pick-August_2024-blue)](https://www.fz-juelich.de/en/rse/jurse-community/jurse-code-of-the-month/august-2024)
 
@@ -110,7 +110,7 @@ computational and memory needs of your laptop and desktop.
 ## Requirements
 
 ### Basics
-- python >= 3.9
+- python >= 3.10
 - MPI (OpenMPI, MPICH, Intel MPI, etc.)
 - mpi4py >= 3.0.0
 - pytorch >= 2.0.0
@@ -118,6 +118,7 @@ computational and memory needs of your laptop and desktop.
 ### Parallel I/O
 - h5py
 - netCDF4
+- zarr
 
 ### GPU support
 In order to do computations on your GPU(s):
@@ -132,10 +133,10 @@ On most HPC-systems you will not be able to install/compile MPI or CUDA/ROCm you
 Install the latest version with
 
 ```bash
-pip install heat[hdf5,netcdf]
+pip install heat[hdf5,netcdf,zarr]
 ```
 where the part in brackets is a list of optional dependencies. You can omit
-it, if you do not need HDF5 or NetCDF support.
+it, if you do not need HDF5, NetCDF, or Zarr support.
 
 ## **conda**
 
@@ -184,35 +185,66 @@ Heat is distributed under the MIT license, see our
 
 <!-- If you find Heat helpful for your research, please mention it in your publications. You can cite: -->
 
-Please do mention Heat in your publications if it helped your research. You can cite:
+If Heat contributed to a publication, please cite our main paper.
 
-* Götz, M., Debus, C., Coquelin, D., Krajsek, K., Comito, C., Knechtges, P., Hagemeier, B., Tarnawa, M., Hanselmann, S., Siggel, S., Basermann, A. & Streit, A. (2020). HeAT - a Distributed and GPU-accelerated Tensor Framework for Data Analytics. In 2020 IEEE International Conference on Big Data (Big Data) (pp. 276-287). IEEE, DOI: 10.1109/BigData50022.2020.9378050.
+**Preferred Citation:**
 
-```
+Götz, M., Debus, C., Coquelin, D., et al. (2020). HeAT - a Distributed and GPU-accelerated Tensor Framework for Data Analytics. In *2020 IEEE International Conference on Big Data (Big Data)* (pp. 276-287). IEEE. DOI: 10.1109/BigData50022.2020.9378050.
+
+```bibtex
 @inproceedings{heat2020,
     title={{HeAT -- a Distributed and GPU-accelerated Tensor Framework for Data Analytics}},
-    author={
-      Markus Götz and
-      Charlotte Debus and
-      Daniel Coquelin and
-      Kai Krajsek and
-      Claudia Comito and
-      Philipp Knechtges and
-      Björn Hagemeier and
-      Michael Tarnawa and
-      Simon Hanselmann and
-      Martin Siggel and
-      Achim Basermann and
-      Achim Streit
-    },
+    author={Markus Götz and Charlotte Debus and Daniel Coquelin and Kai Krajsek and Claudia Comito and Philipp Knechtges and Björn Hagemeier and Michael Tarnawa and Simon Hanselmann and Martin Siggel and Achim Basermann and Achim Streit},
     booktitle={2020 IEEE International Conference on Big Data (Big Data)},
     year={2020},
     pages={276-287},
-    month={December},
     publisher={IEEE},
     doi={10.1109/BigData50022.2020.9378050}
 }
 ```
+
+### Other Relevant Publications
+
+**For the RSE perspective and latest benchmarks:**
+
+Hoppe, F., et al. (2025). *Engineering a large-scale data analytics and array computing library for research: Heat*. Electronic Communications of the EASST, 83.
+
+```bibtex
+@article{heat2025rse,
+  title={Engineering a large-scale data analytics and array computing library for research: Heat},
+  volume={83},
+  url={[https://eceasst.org/index.php/eceasst/article/view/2626](https://eceasst.org/index.php/eceasst/article/view/2626)},
+  DOI={10.14279/eceasst.v83.2626},
+  journal={Electronic Communications of the EASST},
+  author={Hoppe, Fabian and Gutiérrez Hermosillo Muriedas, Juan Pedro and Tarnawa, Michael and Knechtges, Philipp and Hagemeier, Björn and Krajsek, Kai and Rüttgers, Alexander and Götz, Markus and Comito, Claudia},
+  year={2025}
+}
+```
+
+**For the neural networks module (DASO):**
+
+Coquelin, D., et al. (2022). *Accelerating neural network training with distributed asynchronous and selective optimization (DASO)*. J Big Data 9, 14.
+
+```bibtex
+@Article{DASO2022,
+    author={Coquelin, Daniel and Debus, Charlotte and G{\"o}tz, Markus and von der Lehr, Fabrice and Kahn, James and Siggel, Martin and Streit, Achim},
+    title={Accelerating neural network training with distributed asynchronous and selective optimization (DASO)},
+    journal={Journal of Big Data},
+    year={2022},
+    volume={9},
+    number={1},
+    pages={14},
+    doi={10.1186/s40537-021-00556-1}
+}
+```
+
+
+**For specific software versions:**
+Please use the [Zenodo DOI]([10.5281/zenodo.2531472](https://doi.org/10.5281/zenodo.2531472).) provided with each release.
+
+
+
+
 # FAQ
 Work in progress...
 

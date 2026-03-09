@@ -63,7 +63,7 @@ def create_clusters(
     The clusters are of the same size (quantitatively) and distributed evenly over the processes, unless cluster_weight is specified.
 
     Parameters
-    ------------
+    ----------
     n_samples: int
         Number of overall samples
     n_features: int
@@ -146,7 +146,7 @@ def create_clusters(
         for k in range(n_clusters)
     ]
     local_data = torch.cat(local_data, dim=0)
-    rand_perm = torch.randperm(local_shape[0])
+    rand_perm = torch.randperm(local_shape[0], device=device.torch_device)
     local_data = local_data[rand_perm, :]
     data = ht.DNDarray(
         local_data,

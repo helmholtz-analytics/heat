@@ -7,7 +7,7 @@ import math
 import torch
 from typing import Tuple, Union
 from heat.core.dndarray import DNDarray
-from heat.core.linalg import eigh
+from heat.core.linalg import reigh
 
 
 class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
@@ -18,8 +18,10 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
     ----------
     n_clusters : int, default=8
         Number of clusters to fit
-    eigen_solver : str, default='zolotarev'
-        Eigenvalue decomposition strategy to use. Supported: 'lanczos', 'zolotarev'.
+    eigen_solver : str, default='randomized'
+        The eigenvalue decomposition strategy to use.
+            - 'lanczos' : Use Lanczos iterations to reduce the Laplacian matrix size before applying the torch eigenvalue solver.
+            - 'randomized' : Use a randomized algorithm to compute the approximate eigenvalues and eigenvectors.
     n_components : int, default=None
         Number of components to use for the embedding. If None, n_clusters is used
     random_state : int, default=None
@@ -40,8 +42,18 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
     boundary : str
         How to interpret threshold: 'upper', 'lower'
         Ignored for laplacian='fully_connected'
-    n_lanczos : int, default=300
-        number of Lanczos iterations for Eigenvalue decomposition. Ignored if eigen_solver='zolotarev'.
+    reigh_rank : int
+        number of samples for randomized eigenvalue decomposition. Only used if eigen_solver='randomized'.
+        It must hold reigh_rank >= n_clusters. If n_clusters is None (automatic selection of number of clusters),
+        reigh_rank gives an upper bound on the number of clusters that can be found. Therefore, reigh_rank should
+        be set high enough to capture the expected number of clusters in that case.
+    reigh_n_oversamples : int
+        number of oversamples for randomized eigenvalue decomposition. Only used if eigen_solver='randomized'. Default is 10.
+    reigh_power_iter : int
+        number of power iterations for randomized eigenvalue decomposition. Only used if eigen_solver='randomized'. Default is 0.
+        Consider increasing this value if the eigen-spectrum of the Laplacian decays slowly.
+    lanczos_n_iter : int
+        number of Lanczos iterations for Eigenvalue decomposition. Only used if eigen_solver='lanczos'. Default is 300.
     assign_labels: str, default='kmeans'
          The strategy to use to assign labels in the embedding space.
     **params: dict
@@ -50,8 +62,8 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
 
     def __init__(
         self,
-        n_clusters: int = 8,
-        eigen_solver: str = "zolotarev",
+        n_clusters: int = None,
+        eigen_solver: str = "randomized",
         n_components: int = None,
         random_state: Union[int, None] = None,
         gamma: float = 1.0,
@@ -59,7 +71,10 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
         laplacian: str = "fully_connected",
         threshold: float = 1.0,
         boundary: str = "upper",
-        n_lanczos: int = 300,
+        reigh_rank: int = 100,
+        reigh_n_oversamples: int = 10,
+        reigh_power_iter: int = 0,
+        lanczos_n_iter: int = 300,
         assign_labels: str = "kmeans",
         **params,
     ):
@@ -74,8 +89,21 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
         self.laplacian = laplacian
         self.threshold = threshold
         self.boundary = boundary
-        self.n_lanczos = n_lanczos
+        self.lanczos_n_iter = lanczos_n_iter
         self.assign_labels = assign_labels
+        self.eigen_solver = eigen_solver
+        self.reigh_n_oversamples = reigh_n_oversamples
+        self.reigh_power_iter = reigh_power_iter
+        self.reigh_rank = reigh_rank
+
+        if eigen_solver not in ["lanczos", "randomized"]:
+            raise NotImplementedError(
+                f"Currently only 'lanczos' and 'randomized' eigen_solver are supported, but got '{eigen_solver}' as input."
+            )
+        if eigen_solver == "randomized" and reigh_rank < (
+            n_clusters if n_clusters is not None else 1
+        ):
+            raise ValueError("reigh_rank must be at least equal to n_clusters")
 
         if affinity == "rbf":
             sig = math.sqrt(1 / (2 * gamma))
@@ -141,7 +169,7 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
         self,
         x: DNDarray,
         n_components: int = 8,
-        eigen_solver: str = "zolotarev",
+        eigen_solver: str = "randomized",
         norm_laplacian: bool = True,
         drop_first: bool = True,
     ) -> Tuple[DNDarray, DNDarray]:
@@ -155,12 +183,12 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
         n_components : int, default=8
             Number of components to use for the embedding
         eigen_solver : str
-            Eigenvalue decomposition strategy to use. Default is 'zolotarev' (see documentation in :func:`heat.linalg.polar`).
+            Eigenvalue decomposition strategy to use. Default is 'randomized' (see documentation in :func:`heat.linalg.reigh`).
             TODO: add 'lanczos' as an option, maybe a default torch option for smaller (non-distr) datasets?
         norm_laplacian : bool, default=True
             Whether to use the normalized Laplacian
         drop_first : bool, default=True
-            Whether to drop the first component (the smallest eigenvalue)
+            Whether to drop the the smallest eigenvalue and corresponding eigenvector.
 
         See Also
         --------
@@ -174,28 +202,42 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
         are real. TODO: check if this is still correct
         """
         L = self._laplacian.construct(x)
-        # 3. Eigenvalue and -vector calculation
-        if eigen_solver == "zolotarev":
+
+        # Eigenvalue and -vector calculation
+        if eigen_solver == "randomized":
             L = self.__set_diag(L, 1, norm_laplacian)  # TODO should it be a method?
             # extract the diagonal
             dd = L.diagonal()
-            # we skip multiplying by -1 as we are not using ARPACK
+            # unlike in sklearn, we skip multiplying by -1 as we are not using ARPACK
             # keeping comment below as historical record for now
             ####
             # # We are computing the opposite of the laplacian inplace so as
             # # to spare a memory allocation of a possibly very large array
             # L *= -1
             ####
-            # compute the Zolo-PD eigenvalue decomposition
-            _, diffusion_map = eigh(L)
-            # ht.linalg.eigh returns the eigenvalues in descending order
-            # select the first n_components, no need to reverse order
-            embedding = diffusion_map.T[:n_components]
+            # compute the randomized eigenvalue decomposition
+            # ht.linalg.reigh returns the eigenvalues in descending order
+            eval, evec = reigh(
+                L,
+                n_eigenvalues=self.reigh_rank,
+                n_oversamples=self.reigh_n_oversamples,
+                power_iter=self.reigh_power_iter,
+            )
+            # Set n_clusters to spectral gap, if it is not defined by the user
+            if self.n_clusters is None:
+                diff = eval[1:] - eval[:-1]
+                tmp = ht.argmax(diff).item()
+                self.n_clusters = tmp + 1
+            # select the first n_components
+            embedding = evec.T[:n_components]
             if norm_laplacian:
                 # REVERT FROM DIVISION TO MULTIPLICATION
                 # (user requirement, see https://codebase.helmholtz.cloud/helmholtz-analytics/SCIMES/-/blob/master/scimes/old_spectral_embedding.py?ref_type=heads#L62)
                 # TODO: generalize / adapt to current scikit-learn
                 embedding = embedding * dd
+            # Drop smallest component if requested
+            if drop_first:
+                embedding = embedding[:-1]
 
         #  Lanczos Algorithm
         elif eigen_solver == "lanczos":
@@ -206,9 +248,10 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
                 split=0,
                 device=L.device,
             )
-            V, T = ht.lanczos(L, self.n_lanczos, v0)
+            V, T = ht.lanczos(L, self.lanczos_n_iter, v0)
 
-            # 4. Calculate and Sort Eigenvalues and Eigenvectors of tridiagonal matrix T
+            # Calculate and sort eigenvalues and eigenvectors of tridiagonal matrix T
+            # T is non-distributed
             eval, evec = torch.linalg.eig(T.larray)
 
             # If x is an Eigenvector of T, then y = V@x is the corresponding Eigenvector of L
@@ -219,20 +262,21 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
             eigenvectors = ht.matmul(V, ht.array(evec))
             # transpose to have the eigenvectors as rows
             eigenvectors = eigenvectors.T
-            embedding = eigenvectors[:n_components].real
             # Set n_clusters to spectral gap, if it is not defined by the user
             if self.n_clusters is None:
                 diff = eval[1:] - eval[:-1]
                 tmp = torch.argmax(diff).item()
                 self.n_clusters = tmp + 1
+            # n_components = n_clusters if not specified
+            embedding = eigenvectors[:n_components].real
+            # Drop smallest component if requested
+            if drop_first:
+                embedding = embedding[1:]
         else:
             raise NotImplementedError(
                 f"Eigenvalue decomposition method {eigen_solver} is not supported. Supported methods are 'zolotarev' and 'lanczos'."
             )
-        # 5. Drop first component if requested
-        if drop_first:
-            embedding = embedding[1:]
-        # 6. Return the embedding transposed back to original shape
+        # Return the embedding transposed back to original shape
         return embedding.T
 
     def fit(self, x: DNDarray):
@@ -253,12 +297,12 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
         --------
         :func:`__spectral_embedding`
         """
-        # 1. input sanitation
+        # input sanitation
         if not isinstance(x, DNDarray):
             raise ValueError(f"input needs to be a ht.DNDarray, but was {type(x)}")
         if x.is_distributed() and x.split != 0:
             raise NotImplementedError(f"Distribution along axis {x.split} is not supported yet.")
-        # 2. Embed Dataset into lower-dimensional Eigenvector space
+        # Embed dataset into lower-dimensional eigenvector space
         components = self.__spectral_embedding(
             x, n_components=self.n_components, eigen_solver=self.eigen_solver
         )

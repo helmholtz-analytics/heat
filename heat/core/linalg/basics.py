@@ -36,6 +36,8 @@ __all__ = [
     "inv",
     "matmul",
     "matrix_norm",
+    "matrix_exp",
+    "expm",
     "norm",
     "outer",
     "projection",
@@ -91,7 +93,7 @@ def condest(
         If `algorithm="randomized"` the number of random samples to use can be specified under the key "nsamples"; default is 10.
 
     Notes
-    ----------
+    -----
     The "randomized" algorithm follows the approach described in [1]; note that in the paper actually the condition number w.r.t. the Frobenius norm is estimated.
     However, this yields an upper bound for the condition number w.r.t. the l2-norm as well.
 
@@ -262,7 +264,7 @@ def cross(
     if a_2d and b_2d:
         z_slice = [slice(None, None, None)] * ret.ndim
         z_slice[axisc] = -1
-        ret = ret[z_slice]
+        ret = ret[tuple(z_slice)]
     else:
         output_shape = output_shape[:axis] + (3,) + output_shape[axis:]
 
@@ -288,7 +290,7 @@ def det(a: DNDarray) -> DNDarray:
 
     Examples
     --------
-    >>> a = ht.array([[-2,-1,2],[2,1,4],[-3,3,-1]])
+    >>> a = ht.array([[-2, -1, 2], [2, 1, 4], [-3, 3, -1]])
     >>> ht.linalg.det(a)
     DNDarray(54., dtype=ht.float64, device=cpu:0, split=None)
     """
@@ -442,7 +444,7 @@ def inv(a: DNDarray) -> DNDarray:
 
     Examples
     --------
-    >>> a = ht.array([[1., 2], [2, 3]])
+    >>> a = ht.array([[1.0, 2], [2, 3]])
     >>> ht.linalg.inv(a)
     DNDarray([[-3.,  2.],
               [ 2., -1.]], dtype=ht.float32, device=cpu:0, split=None)
@@ -548,7 +550,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
     Batched inputs (with batch dimensions being leading dimensions) are allowed; see also the Notes below.
 
     Parameters
-    -----------
+    ----------
     a : DNDarray
         matrix :math:`L \\times P` or vector :math:`P` or batch of matrices: :math:`B_1 \\times ... \\times B_k \\times L \\times P`
     b : DNDarray
@@ -558,13 +560,13 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
         Default is ``False``. If ``True``, if both are not split then ``a`` will be distributed in-place along axis 0.
 
     Notes
-    -----------
+    -----
     - For batched inputs, batch dimensions must coincide and if one matrix is split along a batch axis the other must be split along the same axis.
     - If ``a`` or ``b`` is a vector the result will also be a vector.
     - We recommend to avoid the particular split combinations ``1``-``0``, ``None``-``0``, and ``1``-``None`` (for ``a.split``-``b.split``) due to their comparably high memory consumption, if possible. Applying ``DNDarray.resplit_`` or ``heat.resplit`` on one of the two factors before calling ``matmul`` in these situations might improve performance of your code / might avoid memory bottlenecks.
 
     References
-    -----------
+    ----------
     [1] R. Gu, et al., "Improving Execution Concurrency of Large-scale Matrix Multiplication on
     Distributed Data-parallel Platforms," IEEE Transactions on Parallel and Distributed Systems,
     vol 28, no. 9. 2017. \n
@@ -573,7 +575,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
     Workshops (IPDPSW), Vancouver, BC, 2018, pp. 877-882.
 
     Examples
-    -----------
+    --------
     >>> a = ht.ones((n, m), split=1)
     >>> a[0] = ht.arange(1, m + 1)
     >>> a[:, -1] = ht.arange(1, n + 1).larray
@@ -1360,9 +1362,9 @@ def matrix_norm(
 
     Examples
     --------
-    >>> ht.matrix_norm(ht.array([[1,2],[3,4]]))
+    >>> ht.matrix_norm(ht.array([[1, 2], [3, 4]]))
     DNDarray([[5.4772]], dtype=ht.float64, device=cpu:0, split=None)
-    >>> ht.matrix_norm(ht.array([[1,2],[3,4]]), keepdims=True, ord=-1)
+    >>> ht.matrix_norm(ht.array([[1, 2], [3, 4]]), keepdims=True, ord=-1)
     DNDarray([[4.]], dtype=ht.float64, device=cpu:0, split=None)
     """
     sanitation.sanitize_in(x)
@@ -1427,6 +1429,59 @@ def matrix_norm(
         raise NotImplementedError("The nuclear norm can't be computed yet.")
     else:
         raise ValueError("Invalid norm order for matrices.")
+
+
+def matrix_exp(A: DNDarray) -> DNDarray:
+    r"""
+    Computes the matrix exponential of a square matrix.
+
+    Letting :math:`\mathbb{K}` be :math:`\mathbb{R}` or :math:`\mathbb{C}`,
+    this function computes the **matrix exponential** of :math:`A \in \mathbb{K}^{n \times n}`, which is defined as
+
+    .. math::
+        \mathrm{matrix\_exp}(A) = \sum_{k=0}^\infty \frac{1}{k!}A^k \in \mathbb{K}^{n \times n}.
+
+    If the matrix :math:`A` has eigenvalues :math:`\lambda_i \in \mathbb{C}`,
+    the matrix :math:`\mathrm{matrix\_exp}(A)` has eigenvalues :math:`e^{\lambda_i} \in \mathbb{C}`.
+
+    Supports input of bfloat16, float, double, cfloat and cdouble dtypes.
+    Also supports batches of matrices, and if :attr:`A` is a batch of matrices then
+    the output has the same batch dimensions.
+
+    .. note::
+         A may only be distributed in the batch dimensions.
+
+    .. seealso::
+             :func:`torch.linalg.matrix_exp` is called under the hood on the local data.
+
+    Args:
+        A (DNDarray): DNDarray of shape `(*, n, n)` where `*` is zero or more batch dimensions.
+
+    Example::
+
+        >>> A = ht.empty((2, 2, 2), split=0)
+        >>> A[0, :, :] = ht.eye((2, 2))
+        >>> A[1, :, :] = 2 * ht.eye((2, 2))
+        >>> ht.linalg.matrix_exp(A)
+        DNDarray([[[2.7183, 0.0000],
+           [0.0000, 2.7183]],
+
+          [[7.3891, 0.0000],
+           [0.0000, 7.3891]]], dtype=ht.float32, device=cpu:0, split=0)
+    """
+    sanitation.sanitize_in(A)
+
+    if A.is_distributed() and A.split >= A.ndim - 2:
+        raise ValueError(
+            f"A of shape {A.shape} may only be distributed in batched dimensions but is distributed in {A.split}"
+        )
+    out = factories.empty_like(A)
+    out.larray[...] = torch.linalg.matrix_exp(A.larray)
+    return out
+
+
+expm = matrix_exp  # provide alias with name of scipy equivalent
+"""Alias for :py:func:`matrix_exp`"""
 
 
 def norm(
@@ -1506,9 +1561,9 @@ def norm(
     DNDarray(7.7460, dtype=ht.float32, device=cpu:0, split=None)
     >>> LA.norm(b)
     DNDarray(7.7460, dtype=ht.float32, device=cpu:0, split=None)
-    >>> LA.norm(b, ord='fro')
+    >>> LA.norm(b, ord="fro")
     DNDarray(7.7460, dtype=ht.float32, device=cpu:0, split=None)
-    >>> LA.norm(a, float('inf'))
+    >>> LA.norm(a, float("inf"))
     DNDarray([4.], dtype=ht.float32, device=cpu:0, split=None)
     >>> LA.norm(b, ht.inf)
     DNDarray([9.], dtype=ht.float32, device=cpu:0, split=None)
@@ -1540,8 +1595,8 @@ def norm(
     DNDarray([3.7417, 4.2426], dtype=ht.float64, device=cpu:0, split=None)
     >>> LA.norm(c, axis=1, ord=1)
     DNDarray([6., 6.], dtype=ht.float64, device=cpu:0, split=None)
-    >>> m = ht.arange(8).reshape(2,2,2)
-    >>> LA.norm(m, axis=(1,2))
+    >>> m = ht.arange(8).reshape(2, 2, 2)
+    >>> LA.norm(m, axis=(1, 2))
     DNDarray([ 3.7417, 11.2250], dtype=ht.float32, device=cpu:0, split=None)
     >>> LA.norm(m[0, :, :]), LA.norm(m[1, :, :])
     (DNDarray(3.7417, dtype=ht.float32, device=cpu:0, split=None), DNDarray(11.2250, dtype=ht.float32, device=cpu:0, split=None))
@@ -1748,7 +1803,7 @@ def outer(
             t_outer_slice[0] = local_slice[0]
         t_outer = torch.zeros(t_outer_shape, dtype=t_outer_dtype, device=t_a.device)
         if lshape_map[rank] != 0:
-            t_outer[t_outer_slice] = torch.einsum("i,j->ij", t_a, t_b)
+            t_outer[tuple(t_outer_slice)] = torch.einsum("i,j->ij", t_a, t_b)
 
         # Ring: fill in missing slices of outer product
         # allocate memory for traveling data
@@ -1784,7 +1839,7 @@ def outer(
                     a.gshape, a.split, rank=actual_origin, w_size=size
                 )
                 t_outer_slice[0] = remote_slice[0]
-            t_outer[t_outer_slice] = torch.einsum("i,j->ij", t_a, t_b)
+            t_outer[tuple(t_outer_slice)] = torch.einsum("i,j->ij", t_a, t_b)
     else:
         # outer product, all local
         t_outer = torch.einsum("i,j->ij", t_a, t_b)
@@ -2453,11 +2508,11 @@ def vdot(x1: DNDarray, x2: DNDarray) -> DNDarray:
 
     Examples
     --------
-    >>> a = ht.array([1+1j, 2+2j])
-    >>> b = ht.array([1+2j, 3+4j])
-    >>> ht.vdot(a,b)
+    >>> a = ht.array([1 + 1j, 2 + 2j])
+    >>> b = ht.array([1 + 2j, 3 + 4j])
+    >>> ht.vdot(a, b)
     DNDarray([(17+3j)], dtype=ht.complex64, device=cpu:0, split=None)
-    >>> ht.vdot(b,a)
+    >>> ht.vdot(b, a)
     DNDarray([(17-3j)], dtype=ht.complex64, device=cpu:0, split=None)
     """
     x1 = manipulations.flatten(x1)
@@ -2490,7 +2545,7 @@ def vecdot(
 
     Examples
     --------
-    >>> ht.vecdot(ht.full((3,3,3),3), ht.ones((3,3)), axis=0)
+    >>> ht.vecdot(ht.full((3, 3, 3), 3), ht.ones((3, 3)), axis=0)
     DNDarray([[9., 9., 9.],
               [9., 9., 9.],
               [9., 9., 9.]], dtype=ht.float32, device=cpu:0, split=None)
@@ -2557,9 +2612,9 @@ def vector_norm(
 
     Examples
     --------
-    >>> ht.vector_norm(ht.array([1,2,3,4]))
+    >>> ht.vector_norm(ht.array([1, 2, 3, 4]))
     DNDarray([5.4772], dtype=ht.float64, device=cpu:0, split=None)
-    >>> ht.vector_norm(ht.array([[1,2],[3,4]]), axis=0, ord=1)
+    >>> ht.vector_norm(ht.array([[1, 2], [3, 4]]), axis=0, ord=1)
     DNDarray([[4., 6.]], dtype=ht.float64, device=cpu:0, split=None)
     """
     sanitation.sanitize_in(x)

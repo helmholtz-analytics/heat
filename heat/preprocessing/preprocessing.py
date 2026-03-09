@@ -443,7 +443,7 @@ class MaxAbsScaler(ht.TransformMixin, ht.BaseEstimator):
 
 class RobustScaler(ht.TransformMixin, ht.BaseEstimator):
     """
-    This scaler transforms the features of a given data set making use of statistics
+    Scales the features of a given data set making use of statistics
     that are robust to outliers: it removes the median and scales the data according to
     the quantile range (defaults to IQR: Interquartile Range); this routine is similar
     to ``sklearn.preprocessing.RobustScaler``.
