@@ -50,10 +50,10 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
     reigh_n_oversamples : int, default: 10
         number of oversamples for randomized eigenvalue decomposition. Only used if ``eigen_solver``='randomized'. Default is 10.
     reigh_power_iter : int, default: 0
-        number of power iterations for randomized eigenvalue decomposition. Only used if eigen_solver='randomized'. 
+        number of power iterations for randomized eigenvalue decomposition. Only used if eigen_solver='randomized'.
         Consider increasing this value if the eigen-spectrum of the Laplacian decays slowly.
     lanczos_n_iter : int, default: 300
-        number of Lanczos iterations for Eigenvalue decomposition. Only used if eigen_solver='lanczos'. 
+        number of Lanczos iterations for Eigenvalue decomposition. Only used if eigen_solver='lanczos'.
     assign_labels: str, default='kmeans'
          The strategy to use to assign labels in the embedding space.
     **params: dict
