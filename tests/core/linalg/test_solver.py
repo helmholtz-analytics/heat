@@ -280,6 +280,15 @@ class TestSolver(TestCase):
             with self.assertRaises(ValueError):
                 ht.linalg.solve(A, b)
 
+        # make sure we catch errors on all tasks if any local problem is non-invertible
+        A = ht.random.randn(ht.comm.size, s, s, split=0)
+        b = ht.ones((ht.comm.size, s), split=0)
+        if ht.comm.rank == 0:
+            A.larray[...] = 0
+        with self.assertRaises(RuntimeError):
+            ht.linalg.solve(A, b)
+
+
 
 
 
