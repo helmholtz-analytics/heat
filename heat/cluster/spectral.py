@@ -172,7 +172,7 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
         eigen_solver: str = "randomized",
         norm_laplacian: bool = True,
         drop_first: bool = True,
-    ) -> Tuple[DNDarray, DNDarray]:
+    ) -> DNDarray:
         """
         Returns the embedding (eigenvectors) of the graph's Laplacian matrix.
 
