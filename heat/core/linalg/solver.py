@@ -418,7 +418,15 @@ def solve(A: DNDarray, b: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
         out = out.astype(out_initalization["dtype"], copy=False)
 
     # do the actual solving of local matrices in torch
-    torch.linalg.solve(A.larray, b.larray, left=True, out=out.larray)
+    try:
+        torch.linalg.solve(A.larray, b.larray, left=True, out=out.larray)
+        error_msg = ""
+    except torch._C._LinAlgError as e:
+        error_msg = str(e)
+
+    global_error_msg = [error_msg for error_msg in ht.comm.allgather(error_msg) if error_msg != ""]
+    if len(global_error_msg):
+        raise RuntimeError(*global_error_msg)
 
     return out.astype(out_dtype, copy=False)  # cast back to int if needed
 
