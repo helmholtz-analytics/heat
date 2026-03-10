@@ -193,11 +193,6 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
         --------
         :func:`heat.linalg.lanczos`
         :func:`heat.linalg.reigh`
-
-        Notes
-        -----
-        The imaginary part of the eigenvalues is discarded, as the Laplacian matrix is symmetric and the eigenvectors
-        are real. TODO: check if this is still correct
         """
         L = self._laplacian.construct(x)
 
@@ -267,6 +262,10 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
                 tmp = torch.argmax(diff).item()
                 self.n_clusters = tmp + 1
             # n_components = n_clusters if not specified
+            if n_components is None:
+                n_components = self.n_clusters
+            # the Laplacian is symmetric and the eigenvectors are real
+            # TODO: check the returned order of evec, eval here
             embedding = eigenvectors[:n_components].real
             # Drop smallest component if requested
             if drop_first:
