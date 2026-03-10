@@ -209,13 +209,6 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
             L = self.__set_diag(L, 1, norm_laplacian)
             # extract the diagonal
             dd = L.diagonal()
-            # unlike in sklearn, we skip multiplying by -1 as we are not using ARPACK
-            # keeping comment below as historical record for now
-            ####
-            # # We are computing the opposite of the laplacian inplace so as
-            # # to spare a memory allocation of a possibly very large array
-            # L *= -1
-            ####
             # compute the randomized eigenvalue decomposition
             # NB:  ht.linalg.reigh returns the eigenvalues in descending order
             eval, evec = reigh(
