@@ -233,10 +233,7 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
             # select the largest n_components
             embedding = evec.T[:n_components]
             if norm_laplacian:
-                # REVERT FROM DIVISION TO MULTIPLICATION
-                # (user requirement, see https://codebase.helmholtz.cloud/helmholtz-analytics/SCIMES/-/blob/master/scimes/old_spectral_embedding.py?ref_type=heads#L62)
-                # TODO: generalize / adapt to current scikit-learn
-                embedding = embedding * dd
+                embedding = embedding / dd
             # Drop smallest component if requested
             if drop_first:
                 embedding = embedding[:-1]
