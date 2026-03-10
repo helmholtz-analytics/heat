@@ -209,7 +209,7 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
             L = self.__set_diag(L, 1, norm_laplacian)
             # extract the diagonal
             dd = L.diagonal()
-            
+
             # assess n_components = n_clusters if not specified by user
             if self.n_clusters is None:
                 # set n_clusters to spectral gap
@@ -220,7 +220,7 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
                 n_components = self.n_clusters
             if drop_first:
                 n_components += 1
-                
+
             # compute the randomized eigenvalue decomposition
             # NB:  ht.linalg.reigh returns the eigenvalues in descending order
             eval, evec = reigh(
