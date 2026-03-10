@@ -273,7 +273,7 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
                 embedding = embedding[1:]
         else:
             raise NotImplementedError(
-                f"Eigenvalue decomposition method {eigen_solver} is not supported. Supported methods are 'zolotarev' and 'lanczos'."
+                f"Eigenvalue decomposition method {eigen_solver} is not supported. Supported methods are 'randomized' and 'lanczos'."
             )
         # Return the embedding transposed back to original shape
         return embedding.T
