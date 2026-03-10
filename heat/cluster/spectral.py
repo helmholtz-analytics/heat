@@ -208,7 +208,7 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
 
         # Eigenvalue and -vector calculation
         if eigen_solver == "randomized":
-            L = self.__set_diag(L, 1, norm_laplacian)  
+            L = self.__set_diag(L, 1, norm_laplacian)
             # extract the diagonal
             dd = L.diagonal()
             # unlike in sklearn, we skip multiplying by -1 as we are not using ARPACK
