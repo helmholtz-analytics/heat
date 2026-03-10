@@ -184,7 +184,6 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
             Number of components to use for the embedding. If ``n_components`` is None, it will be set to ``SpectralClustering.n_clusters``.
         eigen_solver : str, default: `randomized`
             Eigenvalue decomposition strategy to use.
-            TODO: add 'lanczos' as an option, maybe a default torch option for smaller (non-distr) datasets?
         norm_laplacian : bool, default=True
             Whether to use the normalized Laplacian
         drop_first : bool, default=True
