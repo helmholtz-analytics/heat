@@ -209,6 +209,18 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
             L = self.__set_diag(L, 1, norm_laplacian)
             # extract the diagonal
             dd = L.diagonal()
+            
+            # assess n_components = n_clusters if not specified by user
+            if self.n_clusters is None:
+                # set n_clusters to spectral gap
+                diff = eval[1:] - eval[:-1]
+                tmp = ht.argmax(diff).item()
+                self.n_clusters = tmp + 1
+            if n_components is None:
+                n_components = self.n_clusters
+            if drop_first:
+                n_components += 1
+                
             # compute the randomized eigenvalue decomposition
             # NB:  ht.linalg.reigh returns the eigenvalues in descending order
             eval, evec = reigh(
@@ -217,11 +229,7 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
                 n_oversamples=self.reigh_n_oversamples,
                 power_iter=self.reigh_power_iter,
             )
-            # Set n_clusters to spectral gap, if it is not defined by the user
-            if self.n_clusters is None:
-                diff = eval[1:] - eval[:-1]
-                tmp = ht.argmax(diff).item()
-                self.n_clusters = tmp + 1
+
             # select the largest n_components
             embedding = evec.T[:n_components]
             if norm_laplacian:
