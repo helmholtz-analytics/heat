@@ -12,26 +12,26 @@ from heat.core.linalg import reigh
 
 class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
     """
-    Spectral clustering of large memory-distributed datasets.
+    Spectral clustering of large memory-distributed arrays.
 
     Attributes
     ----------
-    n_clusters : int, default=8
+    n_clusters : int, optional
         Number of clusters to fit
     eigen_solver : str, default='randomized'
         The eigenvalue decomposition strategy to use.
-            - 'lanczos' : Use Lanczos iterations to reduce the Laplacian matrix size before applying the torch eigenvalue solver.
             - 'randomized' : Use a randomized algorithm to compute the approximate eigenvalues and eigenvectors.
-    n_components : int, default=None
-        Number of components to use for the embedding. If None, n_clusters is used
-    random_state : int, default=None
+            - 'lanczos' : Use Lanczos iterations to reduce the Laplacian matrix size before applying the torch eigenvalue solver.
+    n_components : int, optional
+        Number of components to use for the embedding. If None, it is set to ``n_clusters``
+    random_state : int, optional
         Random seed for reproducibility. If None, no random seed is set.
     gamma : float, default=1.0
         Kernel coefficient sigma for 'rbf', ignored for affinity='euclidean'
     affinity : str, default='rbf'
         How to construct the similarity (affinity) matrix.
             - 'rbf' : construct the similarity matrix using a radial basis function (RBF) kernel.
-            - 'euclidean' : construct the similarity matrix as only euclidean distance.
+            - 'euclidean' : construct the similarity matrix as euclidean distance.
             - 'precomputed' : interpret ``X`` as precomputed affinity matrix.
     laplacian : str, default='fully_connected'
         How to calculate the graph laplacian (affinity)
@@ -42,18 +42,18 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
     boundary : str
         How to interpret threshold: 'upper', 'lower'
         Ignored for laplacian='fully_connected'
-    reigh_rank : int
+    reigh_rank : int, default: 100
         number of samples for randomized eigenvalue decomposition. Only used if eigen_solver='randomized'.
-        It must hold reigh_rank >= n_clusters. If n_clusters is None (automatic selection of number of clusters),
-        reigh_rank gives an upper bound on the number of clusters that can be found. Therefore, reigh_rank should
+        It must hold :math:`reigh_rank >= n_clusters`. If ``n_clusters`` is None (automatic selection of number of clusters),
+        ``reigh_rank`` gives an upper bound on the number of clusters that can be found. Therefore, reigh_rank should
         be set high enough to capture the expected number of clusters in that case.
-    reigh_n_oversamples : int
-        number of oversamples for randomized eigenvalue decomposition. Only used if eigen_solver='randomized'. Default is 10.
-    reigh_power_iter : int
-        number of power iterations for randomized eigenvalue decomposition. Only used if eigen_solver='randomized'. Default is 0.
+    reigh_n_oversamples : int, default: 10
+        number of oversamples for randomized eigenvalue decomposition. Only used if ``eigen_solver``='randomized'. Default is 10.
+    reigh_power_iter : int, default: 0
+        number of power iterations for randomized eigenvalue decomposition. Only used if eigen_solver='randomized'. 
         Consider increasing this value if the eigen-spectrum of the Laplacian decays slowly.
-    lanczos_n_iter : int
-        number of Lanczos iterations for Eigenvalue decomposition. Only used if eigen_solver='lanczos'. Default is 300.
+    lanczos_n_iter : int, default: 300
+        number of Lanczos iterations for Eigenvalue decomposition. Only used if eigen_solver='lanczos'. 
     assign_labels: str, default='kmeans'
          The strategy to use to assign labels in the embedding space.
     **params: dict
@@ -62,9 +62,9 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
 
     def __init__(
         self,
-        n_clusters: int = None,
+        n_clusters: Union[int, None] = None,
         eigen_solver: str = "randomized",
-        n_components: int = None,
+        n_components: Union[int, None] = None,
         random_state: Union[int, None] = None,
         gamma: float = 1.0,
         affinity: str = "rbf",
