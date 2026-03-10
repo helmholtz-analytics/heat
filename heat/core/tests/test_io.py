@@ -885,7 +885,7 @@ class TestIO(TestCase):
         if ht.MPI_WORLD.rank == 0:
             nplist = []
             npdroplist = []
-            os.mkdir(csv_path)
+            os.makedirs(csv_path, exist_ok=True)
             for i in range(0, ht.MPI_WORLD.size * 5 + 1):
                 a = np.random.randint(100, size=(5))
                 b = np.random.randint(100, size=(5))
