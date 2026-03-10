@@ -193,7 +193,6 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
         --------
         :func:`heat.linalg.lanczos`
         :func:`heat.linalg.reigh`
-        :func:`heat.linalg.polar`
 
         Notes
         -----
