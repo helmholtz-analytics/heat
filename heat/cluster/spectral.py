@@ -231,7 +231,7 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
                 diff = eval[1:] - eval[:-1]
                 tmp = ht.argmax(diff).item()
                 self.n_clusters = tmp + 1
-            # select the first n_components
+            # select the largest n_components
             embedding = evec.T[:n_components]
             if norm_laplacian:
                 # REVERT FROM DIVISION TO MULTIPLICATION
