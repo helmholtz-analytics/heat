@@ -208,7 +208,7 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
 
         # Eigenvalue and -vector calculation
         if eigen_solver == "randomized":
-            L = self.__set_diag(L, 1, norm_laplacian)  # TODO should it be a method?
+            L = self.__set_diag(L, 1, norm_laplacian)  
             # extract the diagonal
             dd = L.diagonal()
             # unlike in sklearn, we skip multiplying by -1 as we are not using ARPACK
@@ -219,7 +219,7 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
             # L *= -1
             ####
             # compute the randomized eigenvalue decomposition
-            # ht.linalg.reigh returns the eigenvalues in descending order
+            # NB:  ht.linalg.reigh returns the eigenvalues in descending order
             eval, evec = reigh(
                 L,
                 n_eigenvalues=self.reigh_rank,
