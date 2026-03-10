@@ -168,7 +168,7 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
     def __spectral_embedding(
         self,
         x: DNDarray,
-        n_components: int = 8,
+        n_components: Union[int, None] = None,
         eigen_solver: str = "randomized",
         norm_laplacian: bool = True,
         drop_first: bool = True,
@@ -180,10 +180,10 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
         ----------
         x : DNDarray
             Sample Matrix for which the embedding should be calculated
-        n_components : int, default=8
-            Number of components to use for the embedding
-        eigen_solver : str
-            Eigenvalue decomposition strategy to use. Default is 'randomized' (see documentation in :func:`heat.linalg.reigh`).
+        n_components : int, optional
+            Number of components to use for the embedding. If ``n_components`` is None, it will be set to ``SpectralClustering.n_clusters``.
+        eigen_solver : str, default: `randomized`
+            Eigenvalue decomposition strategy to use.
             TODO: add 'lanczos' as an option, maybe a default torch option for smaller (non-distr) datasets?
         norm_laplacian : bool, default=True
             Whether to use the normalized Laplacian
@@ -193,7 +193,7 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
         See Also
         --------
         :func:`heat.linalg.lanczos`
-        :func:`heat.linalg.eigh`
+        :func:`heat.linalg.reigh`
         :func:`heat.linalg.polar`
 
         Notes
@@ -202,6 +202,9 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
         are real. TODO: check if this is still correct
         """
         L = self._laplacian.construct(x)
+
+        # After sklearn.manifold._spectral_embedding.py
+        # https://github.com/scikit-learn/scikit-learn/blob/main/sklearn/manifold/_spectral_embedding.py#L295
 
         # Eigenvalue and -vector calculation
         if eigen_solver == "randomized":
