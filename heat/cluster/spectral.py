@@ -213,7 +213,7 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
             # NB:  ht.linalg.reigh returns the eigenvalues in descending order
             eval, evec = reigh(
                 L,
-                n_eigenvalues=self.reigh_rank,
+                n_eigenvalues=n_components,
                 n_oversamples=self.reigh_n_oversamples,
                 power_iter=self.reigh_power_iter,
             )
