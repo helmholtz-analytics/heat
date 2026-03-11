@@ -136,6 +136,10 @@ class Lasso(ht.RegressionMixin, ht.BaseEstimator):
             raise ValueError(f"y.ndim must <= 2, currently: {y.ndim}")
         if x.ndim != 2:
             raise ValueError(f"X.ndim must == 2, currently: {x.ndim}")
+        if x.is_distributed() and x.split != 0:
+            raise NotImplementedError(
+                f"Distribution along the feature axis is not supported, currently x.split = {x.split}, expected x.split = 0"
+            )
 
         if len(y.shape) == 1:
             y = ht.expand_dims(y, axis=1)
