@@ -81,8 +81,8 @@ jobs:
 
       - name: Run tests with 3 tasks
         run: |
-          mpirun -n 3 pytest heat/
+          mpirun -n 3 pytest
 
       - name: Run tests with 4 tasks
         run: |
-          mpirun -n 4 pytest heat/
+          mpirun -n 4 pytest

@@ -55,8 +55,8 @@ jobs:
       - name: Run serial tests
         run: |
           # use pytest -vv -x for debugging
-          pytest heat/
+          pytest
 
       - name: Run parallel tests
         run: |
-          mpirun -n 4 pytest -vv heat/
+          mpirun -n 4 pytest -vv
