@@ -87,7 +87,7 @@ def _subspaceiteration(
                 X,
                 randn(
                     X.shape[0],
-                    X.shape[0] - X.shape[1],
+                    max(1, X.shape[0] - X.shape[1]),
                     dtype=X.dtype,
                     device=X.device,
                     comm=X.comm,
