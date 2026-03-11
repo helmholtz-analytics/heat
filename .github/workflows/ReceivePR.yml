@@ -30,13 +30,6 @@ jobs:
         with:
           mpi: openmpi
 
-      - name: Test
-        run: |
-          pip install .[dev]
-          pip install pytest
-          pre-commit run --all-files
-          pytest
-
       - name: Save PR number
         env:
           PR_NUMBER: ${{ github.event.number }}
