@@ -404,3 +404,18 @@ class TestTypeConversion(TestCase):
 
         with self.assertRaises(TypeError):
             ht.iinfo("int16")
+
+class TestTypeFunctions(TestCase):
+    def test_heat_type_is_realfloating(self):
+        for dtype in getattr(ht.types, '__get_all_heat_types')():
+            if dtype in [ht.float16, ht.float32, ht.float64]:
+                self.assertTrue(ht.types.heat_type_is_realfloating(dtype))
+            else:
+                self.assertFalse(ht.types.heat_type_is_realfloating(dtype))
+
+    def test_heat_type_is_complexfloating(self):
+        for dtype in getattr(ht.types, '__get_all_heat_types')():
+            if dtype in [ht.complex64, ht.complex128]:
+                self.assertTrue(ht.types.heat_type_is_complexfloating(dtype))
+            else:
+                self.assertFalse(ht.types.heat_type_is_complexfloating(dtype))
