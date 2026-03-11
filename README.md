@@ -73,6 +73,8 @@ Check out our [features](#features) and the [Heat API Reference](https://heat.re
 
 # Getting Started
 
+If you want to try Heat without any installations, [test in your browser](https://hub.nfdi-jupyter.de/v2/gh/brownbaerchen/heat/jupyter4nfdi?labpath=tutorials%2FJupyter4NFDI_landing_notebook.ipynb&system=deNBI-Cloud&flavor=m1&localstoragepath=%2Fhome%2Fjovyan%2Fwork)
+
 Go to [Quick Start](quick_start.md) for a quick overview. For more details, see [Installation](#installation).
 
 **You can test your setup** by running the [`heat_test.py`](https://github.com/helmholtz-analytics/heat/blob/main/scripts/heat_test.py) script:
