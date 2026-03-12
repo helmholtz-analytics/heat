@@ -891,7 +891,7 @@ class TestIO(TestCase):
         else:
             csv_path = None
 
-        csv_path = ht.MPI_WORLD.bcast(csv_path)
+        csv_path = ht.MPI_WORLD.bcast(csv_path, root=0)
 
         if ht.MPI_WORLD.rank == 0:
             nplist = []
