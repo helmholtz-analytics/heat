@@ -886,11 +886,16 @@ class TestIO(TestCase):
 
         import pandas as pd
 
-        csv_path = os.path.join(os.getcwd(), "heat/datasets/csv_tests")
+        if ht.MPI_WORLD.rank == 0:
+            csv_path = tempfile.mkdtemp(dir='./')
+        else:
+            csv_path = None
+
+        csv_path = ht.MPI_WORLD.bcast(csv_path, root=0)
+
         if ht.MPI_WORLD.rank == 0:
             nplist = []
             npdroplist = []
-            os.mkdir(csv_path)
             for i in range(0, ht.MPI_WORLD.size * 5 + 1):
                 a = np.random.randint(100, size=(5))
                 b = np.random.randint(100, size=(5))
