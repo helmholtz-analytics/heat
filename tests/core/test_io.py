@@ -886,7 +886,12 @@ class TestIO(TestCase):
 
         import pandas as pd
 
-        csv_path = ht.comm.bcast(tempfile.mkdtemp())
+        if ht.MPI_WORLD.rank == 0:
+            csv_path = tempfile.mkdtemp(dir='./')
+        else:
+            csv_path = None
+
+        csv_path = ht.MPI_WORLD.bcast(csv_path)
 
         if ht.MPI_WORLD.rank == 0:
             nplist = []
