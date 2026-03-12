@@ -1,10 +1,16 @@
 import os
 import heat as ht
 
-from heat.core.tests.test_suites.basic_test import TestCase
+from pathlib import Path
+from heat.testing.basic_test import TestCase
 
 
 class TestLasso(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.HDF5_PATH = str(Path(ht.__file__).parent / "datasets" / "diabetes.h5")
+
     def test_regressor(self):
         lasso = ht.regression.Lasso()
         self.assertTrue(ht.is_estimator(lasso))
@@ -30,16 +36,16 @@ class TestLasso(TestCase):
             # ToDo: add additional tests
             # get some test data
             X = ht.load_hdf5(
-                os.path.join(os.getcwd(), "heat/datasets/diabetes.h5"), dataset="x", split=0
+                self.HDF5_PATH, dataset="x", split=0
             )
             y = ht.load_hdf5(
-                os.path.join(os.getcwd(), "heat/datasets/diabetes.h5"), dataset="y", split=0
+                self.HDF5_PATH, dataset="y", split=0
             )
 
             # normalize dataset
             X = X / ht.sqrt((ht.mean(X**2, axis=0)))
             m, n = X.shape
-            # Heat lasso instance
+            # HeAT lasso instance
             estimator = ht.regression.lasso.Lasso(max_iter=100, tol=None)
             # check whether the results are correct
             self.assertEqual(estimator.lam, 0.1)
@@ -65,12 +71,11 @@ class TestLasso(TestCase):
             self.assertIsInstance(yest, ht.DNDarray)
             self.assertEqual(yest.shape, (m, 1))
 
-            # test exceptions
-            # test wrong input shapes
             with self.assertRaises(ValueError):
                 estimator.fit(X, ht.zeros((3, 3, 3)))
             with self.assertRaises(ValueError):
                 estimator.fit(ht.zeros((3, 3, 3)), ht.zeros((3, 3)))
+
             #test unsupported split
             with self.assertRaises(NotImplementedError):
                 estimator.fit(ht.zeros((3, 3), split=1), ht.zeros((3, 3), split=1))
