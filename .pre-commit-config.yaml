@@ -45,3 +45,19 @@ repos:
       # both pre-commit and pre-push supported
       # -   id: talisman-push
       - id: talisman-commit
+
+  - repo: local
+    hooks:
+      - id: check-test-inits
+        name: check-test-inits
+        entry: bash -c '
+          TEST_DIR="heat/tests";
+          MISSING=$(find "$TEST_DIR" -type d -not -path "*/__pycache__*" -exec test ! -e {}/__init__.py \; -print);
+          if [ -n "$MISSING" ]; then
+            echo "ERROR Missing __init__.py in test directories:";
+            echo "$MISSING";
+            exit 1;
+          fi'
+        language: system
+        files: ^heat/tests/
+        pass_filenames: false
