@@ -65,7 +65,12 @@ class TestLasso(TestCase):
             self.assertIsInstance(yest, ht.DNDarray)
             self.assertEqual(yest.shape, (m, 1))
 
+            # test exceptions
+            # test wrong input shapes
             with self.assertRaises(ValueError):
                 estimator.fit(X, ht.zeros((3, 3, 3)))
             with self.assertRaises(ValueError):
                 estimator.fit(ht.zeros((3, 3, 3)), ht.zeros((3, 3)))
+            #test unsupported split
+            with self.assertRaises(NotImplementedError):
+                estimator.fit(ht.zeros((3, 3), split=1), ht.zeros((3, 3), split=1))
