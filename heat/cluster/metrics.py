@@ -1,6 +1,7 @@
 import heat as ht
 import numpy as np
 
+
 # Checks
 def check_number_of_labels(n_labels, n_samples):
     """Check that number of labels are valid.
@@ -18,11 +19,8 @@ def check_number_of_labels(n_labels, n_samples):
             "Number of labels is %d. Valid values are 2 to n_samples - 1 (inclusive)" % n_labels
         )
 
-def check_X_y(
-    X,
-    y,
-    accept_sparse=False
-):
+
+def check_X_y(X, y, accept_sparse=False):
     """Input validation for standard estimators.
 
     Parameters
@@ -41,9 +39,6 @@ def check_X_y(
     y_converted : object
         The converted and validated y.
     """
-
-
-
     X = check_array(
         X,
         accept_sparse=accept_sparse,
@@ -80,16 +75,16 @@ def _check_y(y):
             raise ValueError("y should be a 1D array or a column vector.")
 
     if y is None:
-        raise ValueError(
-            f" requires y to be passed, but the target y is None"
-        )
+        raise ValueError(" requires y to be passed, but the target y is None")
 
     return y
 
 
 def check_consistent_length(X, y):
     if X.shape[0] != y.shape[0]:
-        raise ValueError(f"Found input variables with inconsistent numbers of samples: [{X.shape[0]}, {y.shape[0]}]")
+        raise ValueError(
+            f"Found input variables with inconsistent numbers of samples: [{X.shape[0]}, {y.shape[0]}]"
+        )
 
     # ensure split axis is the same
     if X.split != y.split:
@@ -97,7 +92,9 @@ def check_consistent_length(X, y):
 
     # Check if local chunks match
     if X.lshape[0] != y.lshape[0]:
-        raise ValueError("Local shapes of X and y do not match. Ensure they are partitioned identically.")
+        raise ValueError(
+            "Local shapes of X and y do not match. Ensure they are partitioned identically."
+        )
 
 
 def check_random_state(seed):
@@ -113,7 +110,9 @@ def check_random_state(seed):
 
 # Functions
 def silhouette_samples(X, labels, *, metric="euclidean", **kwds):
-    X, labels = check_X_y(X, labels, accept_sparse=["csr"]) # think about accept_sparse, i have no idea what it is and what csr means
+    X, labels = check_X_y(
+        X, labels, accept_sparse=["csr"]
+    )  # think about accept_sparse, i have no idea what it is and what csr means
 
     X_distributed = ht.array(X, split=0)
     labels_distributed = ht.array(labels, split=0)
@@ -145,14 +144,14 @@ def silhouette_samples(X, labels, *, metric="euclidean", **kwds):
     check_number_of_labels(n_labels, n_samples)
 
     rank = X_distributed.comm.rank
-    '''
+    """
     print(f"[{rank}] labels_encoded (Local RAM): {labels_encoded.larray}")
     print(f"[{rank}] labels_distributed (Local RAM): {labels_distributed.larray}")
     print(f"[{rank}] unique_labels (Local RAM): {unique_labels.larray}")
     print(f"[{rank}] n_labels: {n_labels}")
     print(f"[{rank}] n_samples: {n_samples}")
     print(f"[{rank}] labels_freqs (Local RAM): {labels_freqs.larray}")
-    '''
+    """
 
     if metric == "precomputed":
         D = X_distributed
@@ -198,14 +197,16 @@ def silhouette_samples(X, labels, *, metric="euclidean", **kwds):
 
     return sil_samples
 
-def silhouette_score(
-    X, labels, *, metric="euclidean", sample_size=None, random_state=None, **kwds):
-    if sample_size is not None:
-        X, labels = check_X_y(X, labels, accept_sparse=["csc", "csr"]) # same as silhouette_samples
-        random_state = check_random_state(random_state)
-        indices = random_state.permutation(X.shape[0])[:sample_size] #selecs a subset of random samples, but all ranks need same indices
 
-        if metric == "precomputed": #precomputed means here distance matrix for some reason?
+def silhouette_score(X, labels, *, metric="euclidean", sample_size=None, random_state=None, **kwds):
+    if sample_size is not None:
+        X, labels = check_X_y(X, labels, accept_sparse=["csc", "csr"])  # same as silhouette_samples
+        random_state = check_random_state(random_state)
+        indices = random_state.permutation(X.shape[0])[
+            :sample_size
+        ]  # selecs a subset of random samples, but all ranks need same indices
+
+        if metric == "precomputed":  # precomputed means here distance matrix for some reason?
             X, labels = X[indices].T[indices].T, labels[indices]
         else:
             X, labels = X[indices], labels[indices]
