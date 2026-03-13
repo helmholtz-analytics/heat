@@ -33,8 +33,9 @@ jobs:
       - name: Test
         run: |
           pip install .[dev]
+          pip install pytest
           pre-commit run --all-files
-          python -m unittest
+          pytest
 
       - name: Save PR number
         env:

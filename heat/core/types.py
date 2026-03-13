@@ -712,7 +712,7 @@ def heat_type_is_realfloating(ht_dtype: Type[datatype]) -> bool:
     out: bool
         True if ht_dtype is a real float, False otherwise
     """
-    return ht_dtype in (float32, float64)
+    return issubclass(ht_dtype, floating)
 
 
 def heat_type_is_complexfloating(ht_dtype: Type[datatype]) -> bool:
