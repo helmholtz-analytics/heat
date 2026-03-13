@@ -48,9 +48,11 @@ def test_minimal_silhouette():
 
     res_np = ht_res.numpy()
 
+    sk_results = sk_silhouette(X_np, labels_np)
 
     print(f"Labels: {labels_np}")
     print(f"HeAT Results: {res_np}")
+    print(f"SK Results: {sk_results}")
 
         # Expected value for i=0 (Cluster 0)
         # a = dist((0,0), (1,1)) = 1.414
@@ -65,4 +67,4 @@ def test_minimal_silhouette():
 
 if __name__ == "__main__":
     test_silhouette_implementation()
-    #test_minimal_silhouette()
+    test_minimal_silhouette()
