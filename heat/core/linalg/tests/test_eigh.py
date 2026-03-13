@@ -24,7 +24,6 @@ class TestEigh(TestCase):
         # test with default values
         splits = [None, 0, 1]
         dtypes = [ht.float32, ht.float64]
-        i = 0
         for split in splits:
             for dtype in dtypes:
                 with self.subTest(split=split, dtype=dtype):
@@ -32,7 +31,13 @@ class TestEigh(TestCase):
                     X = X + X.T.resplit_(X.split)
                     Lambda, H = ht.linalg.eigh(X)
                     self._check_eigh_result(X, Lambda, H)
-                    i += 1
+
+        # test edge case discussed in #2171
+        if ht.comm.size == 2:  # with some communicator sizes this fails, see Issue #2093
+            X = ht.ones((32, 32), split=0, dtype=ht.float64)
+            X = X + X.T.resplit_(X.split)
+            Lambda, H = ht.linalg.eigh(X)
+            self._check_eigh_result(X, Lambda, H)
 
     def test_eigh_options(self):
         # test non-default options
