@@ -10,7 +10,7 @@ from ..dndarray import DNDarray
 from ..manipulations import concatenate
 from .. import factories
 from .. import communication
-from ..types import float32, float64
+from ..types import float32, float64, complex64, complex128
 
 __all__ = ["qr"]
 
@@ -23,7 +23,7 @@ def qr(
     r"""
     Calculates the QR decomposition of a 2D ``DNDarray``.
     Factor the matrix ``A`` as *QR*, where ``Q`` is orthonormal and ``R`` is upper-triangular.
-    If ``mode = "reduced``, function returns ``QR(Q=Q, R=R)``, if ``mode = "r"`` function returns ``QR(Q=None, R=R)``
+    If ``mode = "reduced"``, function returns ``QR(Q=Q, R=R)``, if ``mode = "r"`` function returns ``QR(Q=None, R=R)``
 
     This function also works for batches of matrices; in this case, the last two dimensions of the input array are considered as the matrix dimensions.
     The output arrays have the same leading batch dimensions as the input array.
@@ -31,7 +31,7 @@ def qr(
     Parameters
     ----------
     A : DNDarray of shape (M, N), of shape (...,M,N) in the batched case
-        Array which will be decomposed. So far only arrays with datatype float32 or float64 are supported
+        Array which will be decomposed.
     mode : str, optional
         default "reduced" returns Q and R with dimensions (M, min(M,N)) and (min(M,N), N). Potential batch dimensions are not modified.
         "r" returns only R, with dimensions (min(M,N), N).
@@ -94,8 +94,16 @@ def qr(
     if procs_to_merge == 0:
         procs_to_merge = A.comm.size
 
-    if A.dtype not in [float32, float64]:
-        raise TypeError(f"Array 'A' must have a datatype of float32 or float64, but has {A.dtype}")
+    if A.dtype not in [float32, float64, complex64, complex128]:
+        try:
+            torch.linalg.qr(A.larray)
+        except (NotImplementedError, RuntimeError) as E:
+            raise TypeError(
+                f"Array 'A' must have datatype of float32, float64, complex64, or complex128, but has {A.dtype}"
+            ) from E
+        raise NotImplementedError(
+            f"`heat.linalg.qr` is not implemented for dtype {A.dtype}. Please open an issue on GitHub to get this implemented"
+        )
 
     QR = collections.namedtuple("QR", "Q, R")
 
@@ -107,6 +115,7 @@ def qr(
     if not A.is_distributed() or A.split < A.ndim - 2:
         # handle the case of a single process or split=None: just PyTorch QR
         Q, R = single_proc_qr(A.larray, mode=mode)
+
         R = factories.array(R, is_split=A.split, device=A.device)
         if mode == "reduced":
             Q = factories.array(Q, is_split=A.split, device=A.device)
@@ -179,7 +188,7 @@ def qr(
 
             if A.comm.rank > i:
                 # subtract the contribution of the current block of columns from the remaining columns
-                R_loc = torch.transpose(Q_buf, -2, -1) @ A_columns
+                R_loc = torch.transpose(torch.conj(Q_buf), -2, -1) @ A_columns
                 A_columns -= Q_buf @ R_loc
                 r_size = R.larray[..., R_shapes[i] : R_shapes[i + 1], :].shape[-2]
                 R.larray[..., R_shapes[i] : R_shapes[i + 1], :] = R_loc[..., :r_size, :]
@@ -228,7 +237,7 @@ def qr(
                     R.larray[..., :, column_idx[k] : column_idx[k + 1]] *= 0
                 if k < len(column_idx) - 2:
                     coeffs = (
-                        torch.transpose(Qnew.larray, -2, -1)
+                        torch.transpose(torch.conj(Qnew.larray), -2, -1)
                         @ A_copy.larray[..., :, column_idx[k + 1] :]
                     )
                     R.comm.Allreduce(communication.MPI.IN_PLACE, coeffs)

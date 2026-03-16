@@ -15,11 +15,12 @@ Heat is a distributed tensor framework for high performance data analytics.
 [![PyPI Version](https://img.shields.io/pypi/v/heat)](https://pypi.org/project/heat/)
 [![Downloads](https://pepy.tech/badge/heat)](https://pepy.tech/project/heat)
 [![Anaconda-Server Badge](https://anaconda.org/conda-forge/heat/badges/version.svg)](https://anaconda.org/conda-forge/heat)
+[![SPEC 0 — Minimum Supported Dependencies](https://img.shields.io/badge/SPEC-0-green?labelColor=%23004811&color=%235CA038)](https://scientific-python.org/specs/spec-0000/)
 [![fair-software.eu](https://img.shields.io/badge/fair--software.eu-%E2%97%8F%20%20%E2%97%8F%20%20%E2%97%8F%20%20%E2%97%8F%20%20%E2%97%8F-green)](https://fair-software.eu)
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/helmholtz-analytics/heat/badge)](https://securityscorecards.dev/viewer/?uri=github.com/helmholtz-analytics/heat)
 [![OpenSSF Best Practices](https://bestpractices.coreinfrastructure.org/projects/7688/badge)](https://bestpractices.coreinfrastructure.org/projects/7688)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.2531472.svg)](https://doi.org/10.5281/zenodo.2531472)
-[![Benchmarks](https://img.shields.io/badge/Grafana-Benchmarks-2ea44f)](https://57bc8d92-72f2-4869-accd-435ec06365cb.ka.bw-cloud-instance.org:3000/d/adjpqduq9r7k0a/heat-cb?orgId=1)
+[![Benchmarks](https://img.shields.io/badge/Grafana-Benchmarks-2ea44f)](https://930000e0-e69a-4939-912e-89a92316b420.ka.bw-cloud-instance.org/grafana)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![JuRSE Code Pick of the Month](https://img.shields.io/badge/JuRSE_Code_Pick-August_2024-blue)](https://www.fz-juelich.de/en/rse/jurse-community/jurse-code-of-the-month/august-2024)
 
@@ -110,14 +111,15 @@ computational and memory needs of your laptop and desktop.
 ## Requirements
 
 ### Basics
-- python >= 3.10
+- python >= 3.11
 - MPI (OpenMPI, MPICH, Intel MPI, etc.)
-- mpi4py >= 3.0.0
-- pytorch >= 2.0.0
+- mpi4py >= 3.1
+- pytorch >= 2.3
 
 ### Parallel I/O
 - h5py
 - netCDF4
+- zarr
 
 ### GPU support
 In order to do computations on your GPU(s):
@@ -132,10 +134,10 @@ On most HPC-systems you will not be able to install/compile MPI or CUDA/ROCm you
 Install the latest version with
 
 ```bash
-pip install heat[hdf5,netcdf]
+pip install heat[hdf5,netcdf,zarr]
 ```
 where the part in brackets is a list of optional dependencies. You can omit
-it, if you do not need HDF5 or NetCDF support.
+it, if you do not need HDF5, NetCDF, or Zarr support.
 
 ## **conda**
 

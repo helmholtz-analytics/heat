@@ -298,7 +298,7 @@ def average(
             wgt_lshape = tuple(
                 weights.lshape[0] if dim == axis else 1 for dim in list(range(x.ndim))
             )
-            wgt_slice = [slice(None) if dim == axis else 0 for dim in list(range(x.ndim))]
+            wgt_slice = tuple(slice(None) if dim == axis else 0 for dim in list(range(x.ndim)))
             wgt_split = None if weights.split is None else axis
             wgt = torch.empty(
                 wgt_lshape, dtype=weights.dtype.torch_type(), device=x.device.torch_device
@@ -1084,12 +1084,8 @@ def median(
 
 
 DNDarray.median: Callable[[DNDarray, int, bool, bool, float], DNDarray] = (
-    lambda x,
-    axis=None,
-    keepdims=False,
-    sketched=False,
-    sketch_size=1.0 / MPI.COMM_WORLD.size: median(
-        x, axis, keepdims, sketched=sketched, sketch_size=sketch_size
+    lambda x, axis=None, keepdims=False, sketched=False, sketch_size=1.0 / MPI.COMM_WORLD.size: (
+        median(x, axis, keepdims, sketched=sketched, sketch_size=sketch_size)
     )
 )
 DNDarray.median.__doc__ = median.__doc__
@@ -1555,7 +1551,7 @@ def percentile(
 
     # sanitize input data
     sanitation.sanitize_in(x)
-    if x.dtype in types._complexfloating:
+    if types.heat_type_is_complexfloating(x.dtype):
         raise TypeError("Percentile is not supported for complex data types.")
 
     # sanitize q, keep track of size of percentile dim
@@ -1960,8 +1956,8 @@ def skew(x: DNDarray, axis: int = None, unbiased: bool = True) -> DNDarray:
         return __moment_w_axis(__torch_skew, x, axis, None, unbiased)
 
 
-DNDarray.skew: Callable[[DNDarray, int, bool], DNDarray] = (
-    lambda self, axis=None, unbiased=True: skew(self, axis, unbiased)
+DNDarray.skew: Callable[[DNDarray, int, bool], DNDarray] = lambda self, axis=None, unbiased=True: (
+    skew(self, axis, unbiased)
 )
 DNDarray.skew.__doc__ = skew.__doc__
 

@@ -385,9 +385,9 @@ class DNDarray:
         except IndexError:
             print("Indices out of bound")
 
-        return self.__array[ix].clone()
+        return self.__array[tuple(ix)].clone()
 
-    def get_halo(self, halo_size: int, prev: bool = True, next: bool = True) -> torch.Tensor:
+    def get_halo(self, halo_size: int, prev: bool = True, next: bool = True):
         """
         Fetch halos of size ``halo_size`` from neighboring ranks and save them in ``self.halo_next/self.halo_prev``.
 
@@ -406,7 +406,7 @@ class DNDarray:
             )
         if halo_size < 0:
             raise ValueError(
-                f"halo_size needs to be a positive Python integer, {type(halo_size)} given"
+                f"halo_size needs to be a non-negative Python integer, {halo_size} given"
             )
 
         if self.is_distributed() and halo_size > 0:
@@ -436,15 +436,14 @@ class DNDarray:
             a_next = self.__prephalo(-halo_size, None)
             res_prev = None
             res_next = None
-
             req_list = []
 
             # exchange data with next populated process
             if prev:
                 if rank != last_rank:
-                    self.comm.Isend(a_next, next_rank)
+                    req_list.append(self.comm.Isend(a_next, next_rank))
                 if rank != first_rank:
-                    res_prev = torch.zeros(
+                    res_prev = torch.empty(
                         a_prev.size(), dtype=a_prev.dtype, device=self.device.torch_device
                     )
                     req_list.append(self.comm.Irecv(res_prev, source=prev_rank))
@@ -453,7 +452,7 @@ class DNDarray:
                 if rank != first_rank:
                     req_list.append(self.comm.Isend(a_prev, prev_rank))
                 if rank != last_rank:
-                    res_next = torch.zeros(
+                    res_next = torch.empty(
                         a_next.size(), dtype=a_next.dtype, device=self.device.torch_device
                     )
                     req_list.append(self.comm.Irecv(res_next, source=next_rank))
@@ -1455,9 +1454,9 @@ class DNDarray:
             if snd_pr > rcv_pr:  # data passed to a lower rank (off the top)
                 send_slice[self.split] = slice(0, send_amt)
                 keep_slice[self.split] = slice(send_amt, self.lshape[self.split])
-            data = self.__array[send_slice].clone()
+            data = self.__array[tuple(send_slice)].clone()
             self.comm.Send(data, dest=rcv_pr, tag=685)
-            self.__array = self.__array[keep_slice]
+            self.__array = self.__array[tuple(keep_slice)]
         if rank == rcv_pr:
             shp = list(self.gshape)
             shp[self.split] = send_amt
@@ -1789,7 +1788,7 @@ class DNDarray:
                         loc_key[self.split] = slice(key_start_l, key_stop_l, key_step)
 
                         gout_full = torch.tensor(
-                            self_proxy[loc_key].shape, device=self.device.torch_device
+                            self_proxy[tuple(loc_key)].shape, device=self.device.torch_device
                         )
                         target_reshape_map[r] = gout_full
                     local_keys.append(loc_key)

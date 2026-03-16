@@ -586,7 +586,7 @@ else:
                [16, 17],
                [18, 19]]
 
-        >>> sliced = ht.load_hdf5("other_data.h5", dataset="DATA", split=0, slices=slice(8))
+        >>> sliced = ht.load_hdf5("other_data.h5", dataset="DATA", split=0, slices=[slice(8)])
         >>> sliced.shape
         [0/2] (8,2)
         [1/2] (8,2)
@@ -604,7 +604,9 @@ else:
                [14, 15],
                [16, 17]]
 
-        >>> sliced = ht.load_hdf5('other_data.h5', dataset='DATA', split=0, slices=(slice(2,8), slice(0,1))
+        >>> sliced = ht.load_hdf5(
+        ...     "other_data.h5", dataset="DATA", split=0, slices=[slice(2, 8), slice(0, 1)]
+        ... )
         >>> sliced.shape
         [0/2] (6,1)
         [1/2] (6,1)
@@ -1645,6 +1647,10 @@ else:
             proxy_shape = (1,) * target_ndims.item()
             split = sanitize_axis(proxy_shape, axis=split)
 
+            # prepare sorted list of all heat datatypes to convert them to integer for communication with MPI
+            all_heat_type_names = [dtype.__name__ for dtype in types.__get_all_heat_types()]
+            all_heat_type_names.sort()
+
             # concatenate locally
             if len(local_tensors) >= 1:
                 if len(local_tensors) == 1:
@@ -1652,7 +1658,9 @@ else:
                 else:
                     local_tensor = torch.cat(local_tensors, dim=split if split is not None else 0)
                 empty_ranks = torch.tensor([0], dtype=torch.int32)
-                ht_type_code = types.__type_codes[types.canonical_heat_type(local_tensor.dtype)]
+                ht_type_code = all_heat_type_names.index(
+                    types.canonical_heat_type(local_tensor.dtype).__name__
+                )
             else:
                 # no local tensors i.e. no data assigned to rank
                 local_tensor = torch.empty((0,))
@@ -1679,15 +1687,13 @@ else:
                 target_shapes = torch.zeros(
                     (dummy_array.comm.size, target_ndims.item() + 1), dtype=torch.int64
                 )
+
                 dummy_array.comm.Allgather(target_shape, target_shapes)
                 if local_tensor.numel() == 0:
                     ht_type_code = target_shapes[0, -1].item()
                     target_shape = target_shapes[0, :-1].clone()
                     target_shape[split] = 0
-                    for dtype, dtype_code in types.__type_codes.items():
-                        if dtype_code == ht_type_code:
-                            ht_type = dtype
-                            break
+                    ht_type = getattr(types, all_heat_type_names[ht_type_code])
                     local_tensor = torch.empty(
                         tuple(target_shape.tolist()), dtype=ht_type.torch_type()
                     )
