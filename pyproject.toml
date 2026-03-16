@@ -48,7 +48,7 @@ requires-python = ">=3.10"
 
 dependencies = [
     "mpi4py>=3.0.0",
-    "torch~=2.0,<2.10",
+    "torch~=2.0,<2.10.1",
     "torchvision~=0.15",
     "scipy~=1.14",
 ]

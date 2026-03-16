@@ -12,6 +12,7 @@
 
 
 import sys
+
 sys.path.append("./hpc_pytorch_loader")
 from datasets.memmap.memmap_converter import MemmapConverter
 from utils.utils import ResizeAndConvert
@@ -23,7 +24,7 @@ dataset = CIFAR10(
     root="./data",
     train=True,
     download=True,
-    transform=ResizeAndConvert((32, 32), "RGB")
+    transform=ResizeAndConvert((32, 32), "RGB"),
 )
 
 # Initialize the converter
@@ -34,7 +35,7 @@ converter = MemmapConverter(
     batch_size=1000,
     num_workers=4,
     shape=(32, 32),
-    im_mode="RGB"
+    im_mode="RGB",
 )
 
 # Convert the dataset

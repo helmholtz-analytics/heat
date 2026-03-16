@@ -23,18 +23,16 @@ import sys
 import time
 import warnings
 import mpi4py
-from mpi4py import MPI
 import torch
-import torch.backends.cudnn as cudnn
 import torch.distributed as dist
 from torch import nn, optim
-from torch.utils.data import Dataset, DataLoader, TensorDataset
+from torch.utils.data import DataLoader, TensorDataset
 import torch.utils.data
 import torch.utils.data.distributed
 import torchvision
-import torchvision.datasets as datasets
 import torchvision.transforms as transforms
 import heat as ht
+
 warnings.filterwarnings("ignore", category=ResourceWarning)
 
 """
@@ -45,6 +43,7 @@ MASTER_ADDR="${MASTER_ADDR}i"
 export MASTER_ADDR=$(nslookup "$MASTER_ADDR" | grep -oP '(?<=Address: ).*')
 export MASTER_PORT=6000
 """
+
 
 # --------------------------------------------
 # Simple CNN for CIFAR-10
@@ -57,12 +56,10 @@ class CIFAR10Model(nn.Module):
             nn.ReLU(),
             nn.Conv2d(32, 64, 3, padding=1),
             nn.ReLU(),
-            nn.MaxPool2d(2),       # 64 x 16 x 16
-
+            nn.MaxPool2d(2),  # 64 x 16 x 16
             nn.Conv2d(64, 128, 3, padding=1),
             nn.ReLU(),
-            nn.MaxPool2d(2),       # 128 x 8 x 8
-
+            nn.MaxPool2d(2),  # 128 x 8 x 8
             nn.Flatten(),
             nn.Linear(128 * 8 * 8, 256),
             nn.ReLU(),
@@ -85,7 +82,7 @@ def load_cifar10_shard_cpu(rank, world_size):
     dataset = torchvision.datasets.CIFAR10(
         root="./data",
         train=True,
-        download=False,   # only rank 0 actually downloads
+        download=False,  # only rank 0 actually downloads
         transform=transform,
     )
     # Make sure all ranks see the files
@@ -101,11 +98,11 @@ def load_cifar10_shard_cpu(rank, world_size):
     labels = []
 
     for i in range(start, end):
-        img, lbl = dataset[i]         # img: Tensor [3,32,32] on CPU
+        img, lbl = dataset[i]  # img: Tensor [3,32,32] on CPU
         images.append(img)
         labels.append(lbl)
 
-    x_local = torch.stack(images, dim=0)           # [N_local, 3,32,32] on CPU
+    x_local = torch.stack(images, dim=0)  # [N_local, 3,32,32] on CPU
     y_local = torch.tensor(labels, dtype=torch.long)  # [N_local] on CPU
 
     # Ensure even number of samples for 1/2 splitting
@@ -115,8 +112,6 @@ def load_cifar10_shard_cpu(rank, world_size):
         y_local = y_local[:-1]
 
     return x_local, y_local
-
-
 
 
 def heat_ring_shuffle_cpu(local_x, local_y):
@@ -174,7 +169,6 @@ def heat_ring_shuffle_cpu(local_x, local_y):
     new_y = torch.cat([keep_y, recv_y], dim=0)
 
     return new_x, new_y
-
 
 
 # --------------------------------------------
@@ -235,18 +229,16 @@ def heat_ring_shuffle_cpu_21(local_x, local_y):
 def train(rank, world_size, local_rank):
     # Initialize PyTorch distributed with MPI backend
 
-
     dist.init_process_group("nccl", rank=rank, world_size=world_size)
     assert dist.get_rank() == rank
     assert dist.get_world_size() == world_size
     assert ht.comm.rank == rank
     assert ht.comm.size == world_size
 
-
     # Load CIFAR-10 shard into CPU memory
     local_x_cpu, local_y_cpu = load_cifar10_shard_cpu(rank, world_size)
 
-    slice_size=1000
+    slice_size = 1000
     # Ensure slice_size is even (required by 1/2 splitting)
     if slice_size % 2 != 0:
         slice_size -= 1
@@ -254,7 +246,6 @@ def train(rank, world_size, local_rank):
     local_x_cpu = local_x_cpu[:slice_size].clone()
     local_y_cpu = local_y_cpu[:slice_size].clone()
     # Build model & DDP
-
 
     torch.cuda.set_device(local_rank)
     device = torch.device(f"cuda:{local_rank}")
@@ -267,7 +258,6 @@ def train(rank, world_size, local_rank):
     epochs = 5
     batch_size = 128
 
-
     for epoch in range(epochs):
         # Build DataLoader over CPU tensors
         dataset = TensorDataset(local_x_cpu, local_y_cpu)
@@ -278,8 +268,6 @@ def train(rank, world_size, local_rank):
         )
         print("epoch: ", epoch)
         model.train()
-
-
 
         for xb_cpu, yb_cpu in loader:
             # Move batch CPU -> GPU
@@ -292,14 +280,12 @@ def train(rank, world_size, local_rank):
             loss.backward()
             optimizer.step()
 
-
-
         # -------------------------------
         # CPU-side round-robin shuffle
         # -------------------------------
-        print('mean_before_shuffle: ', epoch, local_rank,local_x_cpu.mean())
+        print("mean_before_shuffle: ", epoch, local_rank, local_x_cpu.mean())
         local_x_cpu, local_y_cpu = heat_ring_shuffle_cpu(local_x_cpu, local_y_cpu)
-        print('mean_after_shuffle: ', epoch, local_rank, local_x_cpu.mean())
+        print("mean_after_shuffle: ", epoch, local_rank, local_x_cpu.mean())
         # Ensure all ranks finish shuffle before next epoch
         dist.barrier()
 
@@ -311,7 +297,7 @@ def train(rank, world_size, local_rank):
 # --------------------------------------------
 def main():
     world_size = int(os.environ["SLURM_NPROCS"])
-    rank       = int(os.environ["SLURM_PROCID"])
+    rank = int(os.environ["SLURM_PROCID"])
     local_rank = int(os.environ["SLURM_LOCALID"])
 
     train(rank, world_size, local_rank)

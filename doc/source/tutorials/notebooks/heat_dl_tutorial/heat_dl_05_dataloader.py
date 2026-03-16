@@ -40,13 +40,16 @@ Q7: Why do we use non_blocking=True when loading to GPU?
 
 ====================================================================================================
 """
+
 import os
 import time
 import torch
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 import warnings
+
 warnings.filterwarnings("ignore")
+
 
 def benchmark_loader(root, batch_size=256, num_workers=8, warmup=1, measure_batches=3):
     print("=" * 100)
@@ -54,11 +57,13 @@ def benchmark_loader(root, batch_size=256, num_workers=8, warmup=1, measure_batc
     print("=" * 100)
 
     # 1. Standard ImageNet transforms (random crop + flip)
-    transform = transforms.Compose([
-        transforms.RandomResizedCrop(224),
-        transforms.RandomHorizontalFlip(),
-        transforms.ToTensor(),
-    ])
+    transform = transforms.Compose(
+        [
+            transforms.RandomResizedCrop(224),
+            transforms.RandomHorizontalFlip(),
+            transforms.ToTensor(),
+        ]
+    )
 
     # 2. ImageFolder dataset
     dataset = datasets.ImageFolder(os.path.join(root, "train"), transform=transform)
@@ -85,8 +90,6 @@ def benchmark_loader(root, batch_size=256, num_workers=8, warmup=1, measure_batc
         batch = next(it)
         batch_size_actual = batch[0].shape[0]
         total_images += batch_size_actual
-
-
 
     duration = time.time() - start
 

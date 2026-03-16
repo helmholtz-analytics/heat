@@ -51,6 +51,7 @@ Q12: What happens if one rank crashes during training?
 
 ====================================================================================================
 """
+
 import os
 import sys
 import torch
@@ -67,8 +68,6 @@ import statistics
 import math
 
 
-
-
 # ---- Utility: format seconds ---------------------------------------------------------------------
 def format_seconds(seconds):
     m, s = divmod(seconds, 60)
@@ -80,6 +79,7 @@ def format_seconds(seconds):
 # 1. Random CIFAR-shaped Dataset
 # --------------------------------------------------------------------------------------------------
 
+
 class RandomData(Dataset):
     def __init__(self, length=50000, num_classes=10):
         self.length = length
@@ -89,10 +89,9 @@ class RandomData(Dataset):
         return self.length
 
     def __getitem__(self, idx):
-        img = torch.randn(3, 32, 32)                   # random image
-        label = torch.randint(0, self.num_classes, ()) # random label
+        img = torch.randn(3, 32, 32)  # random image
+        label = torch.randint(0, self.num_classes, ())  # random label
         return img, label
-
 
 
 class TinyNet(nn.Module):
@@ -101,17 +100,13 @@ class TinyNet(nn.Module):
         self.conv = nn.Sequential(
             nn.Conv2d(3, 32, kernel_size=3, padding=1),
             nn.ReLU(),
-            nn.MaxPool2d(2),      # 32×16×16
-
+            nn.MaxPool2d(2),  # 32×16×16
             nn.Conv2d(32, 64, kernel_size=3, padding=1),
             nn.ReLU(),
-            nn.MaxPool2d(2),      # 64×8×8
+            nn.MaxPool2d(2),  # 64×8×8
         )
         self.classifier = nn.Sequential(
-            nn.Flatten(),
-            nn.Linear(64 * 8 * 8, 256),
-            nn.ReLU(),
-            nn.Linear(256, 10)
+            nn.Flatten(), nn.Linear(64 * 8 * 8, 256), nn.ReLU(), nn.Linear(256, 10)
         )
 
     def forward(self, x):
@@ -134,7 +129,7 @@ def main():
     args = parser.parse_args()
 
     # CPU info
-    cpus = os.sched_getaffinity(0)   # 0 = current process
+    cpus = os.sched_getaffinity(0)  # 0 = current process
     print("CPU affinity:", cpus)
     print("As list:", list(cpus))
 
@@ -164,7 +159,9 @@ def main():
     device = torch.device(f"cuda:{selected_device}")
 
     if rank == 1:
-        print(f"Second process (RANK=1) sees {num_visible} GPUs using cuda:{selected_device}")
+        print(
+            f"Second process (RANK=1) sees {num_visible} GPUs using cuda:{selected_device}"
+        )
 
     dist.init_process_group(backend="nccl", rank=rank, world_size=world_size)
 
@@ -173,8 +170,6 @@ def main():
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.SGD(model.parameters(), lr=0.01)
 
-
-
     # ----------------------------------------------------------------------------------------------
     # DATA SOURCE: CIFAR-10 or Fake
     # ----------------------------------------------------------------------------------------------
@@ -182,15 +177,18 @@ def main():
         if rank == 0:
             print("[Info] Using CIFAR-10 dataset.")
 
-        transform = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Normalize((0.4914, 0.4822, 0.4465),
-                             (0.2023, 0.1994, 0.2010))
-        ])
+        transform = transforms.Compose(
+            [
+                transforms.ToTensor(),
+                transforms.Normalize(
+                    (0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)
+                ),
+            ]
+        )
 
         trainset = torchvision.datasets.CIFAR10(
-            root="./data", train=True, download=True, transform=transform)
-
+            root="./data", train=True, download=True, transform=transform
+        )
 
     else:
         if rank == 0:
@@ -198,11 +196,14 @@ def main():
 
         trainset = RandomData(length=50000)
 
-
     train_sampler = DistributedSampler(trainset, num_replicas=world_size, rank=rank)
 
     trainloader = DataLoader(
-        trainset, batch_size=args.batch_size, sampler=train_sampler, num_workers=args.num_workers)
+        trainset,
+        batch_size=args.batch_size,
+        sampler=train_sampler,
+        num_workers=args.num_workers,
+    )
     #
     dist.barrier()
     # ----------------------------------------------------------------------------------------------
@@ -215,8 +216,8 @@ def main():
     start_time = time.time()
     t0 = time.time()
 
-
     from torch.profiler import profile, record_function, ProfilerActivity
+
     with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA]) as prof:
         # ------------------------------------------------------------------------------------------
         # 4. Training Loop
@@ -239,19 +240,16 @@ def main():
 
                 running_loss += loss.item()
 
-
             epoch_times.append(time.time() - t0)
 
             print(
-                  f"[Rank {local_rank}] Epoch {epoch+1}: "
-                  f"loss = {running_loss / len(trainloader):.4f}"
+                f"[Rank {local_rank}] Epoch {epoch+1}: "
+                f"loss = {running_loss / len(trainloader):.4f}"
             )
-
 
     dist.barrier()
     # ----------------------------------------------------------------------------------------------
     if rank == 0:
-
 
         vals = epoch_times[1:]
         mean_epoch = statistics.mean(vals)
@@ -265,6 +263,7 @@ def main():
 
     if rank == 0:
         print("Training complete.")
+
 
 # --------------------------------------------------------------------------------------------------
 if __name__ == "__main__":
