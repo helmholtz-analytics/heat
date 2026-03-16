@@ -34,7 +34,7 @@ class TestManipulations(TestCase):
         ]
 
     def test_to_sparse_csr(self):
-        A = ht.array(self.arr, split=0)
+        A = ht.array(self.arr, split=0, device=self.device)
         B = A.to_sparse_csr()
 
         indptr_B = [0, 2, 2, 3, 5, 6]
@@ -53,7 +53,7 @@ class TestManipulations(TestCase):
         self.assertEqual(B.dtype, A.dtype)
 
     def test_to_sparse_csc(self):
-        A = ht.array(self.arr, split=1)
+        A = ht.array(self.arr, split=1, device=self.device)
         B = A.to_sparse_csc()
 
         indptr_B = [0, 1, 2, 3, 4, 6]
@@ -86,7 +86,7 @@ class TestManipulations(TestCase):
         )
         heat_sparse_csr = ht.sparse.sparse_csr_matrix(ref_torch_sparse_csr)
 
-        ref_dense_array = ht.array(self.arr)
+        ref_dense_array = ht.array(self.arr, device=self.device)
 
         dense_array = heat_sparse_csr.todense()
 
@@ -108,7 +108,7 @@ class TestManipulations(TestCase):
         heat_sparse_csr = ht.sparse.sparse_csr_matrix(ref_torch_sparse_csr, split=0)
 
         dense_array = heat_sparse_csr.todense()
-        ref_dense_array = ht.array(ref_dense_array, split=0)
+        ref_dense_array = ht.array(ref_dense_array, split=0, device=self.device)
 
         self.assertTrue(ht.equal(ref_dense_array, dense_array))
         self.assertEqual(dense_array.split, 0)
@@ -147,7 +147,7 @@ class TestManipulations(TestCase):
         )
         heat_sparse_csc = ht.sparse.sparse_csc_matrix(ref_torch_sparse_csc)
 
-        ref_dense_array = ht.array(self.arr, device=heat_sparse_csc.device)
+        ref_dense_array = ht.array(self.arr, device=self.device)
 
         dense_array = heat_sparse_csc.todense()
 
@@ -170,7 +170,7 @@ class TestManipulations(TestCase):
         heat_sparse_csc = ht.sparse.sparse_csc_matrix(ref_torch_sparse_csc, split=1)
 
         dense_array = heat_sparse_csc.todense()
-        ref_dense_array = ht.array(ref_dense_array, split=1)
+        ref_dense_array = ht.array(ref_dense_array, split=1, device=self.device)
 
         self.assertTrue(ht.equal(ref_dense_array, dense_array))
         self.assertEqual(dense_array.split, 1)

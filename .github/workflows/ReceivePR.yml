@@ -2,7 +2,7 @@ name: Receive PR
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review, edited]
+    types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - 'heat/**'
 
