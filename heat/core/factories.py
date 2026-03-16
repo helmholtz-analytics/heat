@@ -293,6 +293,10 @@ def array(
         dtype = types.canonical_heat_type(dtype)
         torch_dtype = dtype.torch_type()
 
+    # use device of obj if obj is a torch tensor
+    if device is None and isinstance(obj, torch.Tensor):
+        device = obj.device.type
+
     # sanitize device
     if device is not None:
         device = devices.sanitize_device(device)
