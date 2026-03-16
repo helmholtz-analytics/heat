@@ -147,10 +147,11 @@ class TestManipulations(TestCase):
         )
         heat_sparse_csc = ht.sparse.sparse_csc_matrix(ref_torch_sparse_csc)
 
-        ref_dense_array = ht.array(self.arr)
+        ref_dense_array = ht.array(self.arr, device=heat_sparse_csc.device)
 
         dense_array = heat_sparse_csc.todense()
 
+        self.assertEqual(dense_array.device, ref_dense_array.device)
         self.assertTrue(ht.equal(ref_dense_array, dense_array))
         self.assertEqual(dense_array.split, None)
         self.assertEqual(dense_array.dtype, heat_sparse_csc.dtype)
