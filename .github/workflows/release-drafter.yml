@@ -7,12 +7,20 @@ permissions:
   contents: read
 
 jobs:
+
   update_release_draft:
     permissions:
       contents: write  # for release-drafter/release-drafter to create a github release
       pull-requests: write  # for release-drafter/release-drafter to add label to PR
     runs-on: ubuntu-latest
     steps:
+      - name: Exit if secret is missing
+        run: |
+          if [ -z "${{ secrets.GITHUB_TOKEN }}" ]; then
+            echo "Secret GITHUB_TOKEN not set, skipping job."
+            exit 0
+          fi
+
       - name: Harden Runner
         uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc # v2.15.1
         with:
