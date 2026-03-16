@@ -406,7 +406,7 @@ class TestFactories(TestCase):
             with self.subTest(f'{device=}'):
                 try:
                     a_torch = torch.zeros(4, device=device)
-                except (AssertionError, NotImplementedError):
+                except (RuntimeError, AssertionError, NotImplementedError):
                     print(f'{device=} is not available')
                     continue
 
