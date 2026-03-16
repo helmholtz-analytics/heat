@@ -1,12 +1,12 @@
-name: "Porting to heat"
-description: "Discuss if and how to port your code to heat"
+name: "Using Heat as backend"
+description: "Discuss if and how to use heat as a backend for your code"
 # title: ""
 
 body:
   - type: markdown
     attributes:
       value: |
-        Thanks for your interest in porting your code to heat!
+        Thanks for your interest in using Heat as a backend for your code!
         In order to help you out, we need some information about what your code does and how it does it.
         Please have a look at all the data we need before you start filling it in.
   - type: textarea
@@ -41,7 +41,7 @@ body:
   - type: textarea
     id: started-porting
     attributes:
-      label: Have you already tried porting to heat?
+      label: Have you already tried using heat?
       description: If so, have you encountered specific issues such as missing features?
   - type: textarea
     id: other
