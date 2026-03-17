@@ -32,8 +32,28 @@ Heat is a distributed tensor framework built on **PyTorch** and **mpi4py**. It p
 * **Hardware-agnostic:** Supports CPUs and GPUs (CUDA, ROCm, Apple MPS).
 * **Efficient scaling:** Exploit the entire, cumulative RAM of your cluster for memory-intensive operations.
 
+### Requirements
+* **Python:** >= 3.11
+* **MPI:** OpenMPI, MPICH, or Intel MPI
+* **Frameworks:** mpi4py >= 3.1, pytorch >= 2.3
+
+### Installation
+```bash
+# Via pip (with optional I/O support)
+pip install heat[hdf5,netcdf,zarr]
+
+# Via conda-forge
+conda install -c conda-forge heat
+
+# Via easybuild (for HPC systems)
+eb heat-<version>.eb --robot
+
+# Via spack (for HPC systems)
+spack install py-heat
+```
+
 ### Distributed Example
-Heat handles inter-node communication automatically. Define how your data is partitioned across the cluster using the `split` attribute. Push computations to your GPUs with the `device` attribute. Heat will take care of the rest, ensuring efficient data movement and synchronization across nodes.
+Heat handles inter-node communication automatically. Define how your data is partitioned across the cluster using the [`DNDarray.split`](https://heat.readthedocs.io/en/stable/autoapi/heat/core/dndarray/index.html) attribute. Push computations to your GPUs with the [`DNDarray.device`](https://heat.readthedocs.io/en/stable/autoapi/heat/core/dndarray/index.html) attribute. Heat will take care of the rest, ensuring efficient data movement and synchronization across nodes.
 
 Here an example from our [Linear Algebra tutorial](https://github.com/helmholtz-analytics/heat/tree/main/doc/source/tutorials/notebooks/Linear_Algebra.ipynb):
 
@@ -70,25 +90,6 @@ srun --nodes=2 --ntasks-per-node=2 --gpus-per-node=2 python my_script.py
 
 </details>
 
-### Requirements
-* **Python:** >= 3.11
-* **MPI:** OpenMPI, MPICH, or Intel MPI
-* **Frameworks:** mpi4py >= 3.1, pytorch >= 2.3
-
-### Installation
-```bash
-# Via pip (with optional I/O support)
-pip install heat[hdf5,netcdf,zarr]
-
-# Via conda-forge
-conda install -c conda-forge heat
-
-# Via easybuild (for HPC systems)
-eb heat-<version>.eb --robot
-
-# Via spack (for HPC systems)
-spack install py-heat
-```
 
 ### Contributing
 We welcome contributions from the community. Please see our [Contribution Guidelines](contributing.md) and the [Code of Conduct](CODE_OF_CONDUCT.md).

@@ -39,23 +39,22 @@ All contributions must start with an [Issue](https://github.com/helmholtz-analyt
 * **Assignment:** Before writing code, pick an issue and comment to let the maintainers know you are interested. **Wait for assignment**; a bot will create a dedicated branch for you once you are assigned.
 
 ## Environment Setup
-To ensure consistency across the project, we use a unified technical setup.
 
-Follow the [New Contributors section of the Quick Start](quick_start.md#new-contributors) to set up your environment and install the mandatory `pre-commit` hooks.
+Follow the [New Contributors](quick_start.md#new-contributors) section of the Quick Start to set up your environment and install the mandatory `pre-commit` hooks.
 
 ## Developing & Testing
 * **Branching:** Use the specific branch created for you by the project bot.
-* **Testing:** Heat is a distributed framework; all code must be verified in parallel. Run the suite with: `mpirun -n <PROCESSES> python -m unittest`.
+* **Testing:** Heat is a distributed framework; all code must be verified in parallel. You can run the suite e.g. with: `mpirun -n <PROCESSES> python -m unittest`.
 * **Commits:** We prefer a clean, logical history. Use `git rebase -i main` to tidy your commits before pushing.
 
 ## Stylistic Guidelines
 * **Python Standards:** The pre-commit hook will enforce [PEP 8](https://www.python.org/dev/peps/pep-0008/) compliance.
 * **Imports:** Use `import heat as ht` and `import numpy as np`.
-* **Documentation:** All functions must follow the [Heat docstring standard](https://github.com/helmholtz-analytics/heat/blob/main/doc/source/documentation_howto.rst).
+* **Documentation:** All functions must follow the [Heat docstring standard](https://heat.readthedocs.io/en/stable/documentation_howto.html).
 
 ## LLM and AI Usage
 
-We embrace the use of LLMs only if they save our time, where `total_time = development_time + review_time`.
+We embrace the use of LLMs only if they save us time, where `total_time = development_time + review_time`.
 
 ### Instructions for AI and Contributors
 If you are using an LLM to generate or review code for Heat, be aware of the following project-specific limitations:
