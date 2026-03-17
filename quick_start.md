@@ -38,6 +38,12 @@ Heat provides configurations for common HPC software stack managers. Refer to th
 
 - Spack: Use `spack install py-heat`.
 
+- On JSC systems, Heat is available as a module:
+
+```bash
+module load GCC OpenMPI heat
+```
+
 #### Docker
 
 See our [docker README](./docker/README.md).
