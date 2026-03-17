@@ -870,7 +870,7 @@ class TestIO(TestCase):
         with self.assertRaises(ValueError):
             ht.load_npy_from_path(path="heat", dtype=ht.int64, split=0)
         if ht.MPI_WORLD.size > 1:
-            path, _ = self.get_tmpdir()
+            path, tmpdir = self.get_tmpdir()
             if ht.MPI_WORLD.rank == 0:
                 x = np.random.rand(2, random.randint(1, 10), 11)
                 np.save(os.path.join(path, "float_data"), x)
@@ -884,7 +884,7 @@ class TestIO(TestCase):
 
         import pandas as pd
 
-        csv_path, _ = self.get_tmpdir()
+        csv_path, tmpdir = self.get_tmpdir()
 
         if ht.MPI_WORLD.rank == 0:
             nplist = []
@@ -942,7 +942,7 @@ class TestIO(TestCase):
         with self.assertRaises(ValueError):
             ht.load_csv_from_folder(path="heat", dtype=ht.int64, split=0)
         if ht.MPI_WORLD.size > 1:
-            path, _ = self.get_tmpdir()
+            path, tmpdir = self.get_tmpdir()
             if ht.MPI_WORLD.rank == 0:
                 df = pd.DataFrame({"A": [0, 0, 0]})  # noqa F821
                 df.to_csv(
