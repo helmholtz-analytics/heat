@@ -21,16 +21,54 @@
 # Heat
 **High-performance data analytics in Python, at scale.**
 
-[PyPI](https://pypi.org/project/heat/) | [Docs](https://heat.readthedocs.io/) | [Tutorials](https://github.com/helmholtz-analytics/heat/tree/main/tutorialdoc/source/tutorials/notebooks)
+[Getting Started](quick_start.md) | [Tutorials](https://github.com/helmholtz-analytics/heat/tree/main/doc/source/tutorials/notebooks) | [Docs](https://heat.readthedocs.io/) | [Contributing](contributing.md)
 
 ---
 
 ### Why Heat?
-Heat is a distributed tensor framework built on **PyTorch** and **mpi4py**. It provides highly optimized algorithms and data structures for tensor computations using CPUs, GPUs (CUDA/ROCm), and distributed cluster systems. It is designed to handle "Big Data" challenges that exceed the memory and computational limits of a single machine.
+Heat is a distributed tensor framework built on **PyTorch** and **mpi4py**. It provides highly optimized algorithms and data structures for tensor computations using CPUs, GPUs (CUDA/ROCm), and distributed cluster systems. It is designed to handle **massive arrays** that exceed the memory and computational limits of a single machine.
 
 * **Seamless integration:** Port existing NumPy/SciPy code to multi-node clusters with minimal effort.
 * **Hardware-agnostic:** Supports CPUs and GPUs (CUDA, ROCm, Apple MPS).
 * **Efficient scaling:** Exploit the entire, cumulative RAM of your cluster for memory-intensive operations.
+
+### Distributed Example
+Heat handles inter-node communication automatically. Define how your data is partitioned across the cluster using the `split` attribute. Push computations to your GPUs with the `device` attribute. Heat will take care of the rest, ensuring efficient data movement and synchronization across nodes.
+
+Here an example from our [Linear Algebra tutorial](https://github.com/helmholtz-analytics/heat/tree/main/doc/source/tutorials/notebooks/Linear_Algebra.ipynb):
+
+<details>
+<summary><b>View Distributed Example (mpirun / srun)</b></summary>
+
+**1. Create your script (`my_script.py`):**
+
+```python
+import heat as ht
+
+split_A=0
+split_B=1
+M = 10000
+N = 10000
+K = 10000
+A = ht.random.randn(M, N, split=split_A, device="gpu")
+B = ht.random.randn(N, K, split=split_B, device="gpu")
+C = ht.matmul(A, B)
+print(C)
+
+```
+**2. Run with MPI:**
+
+On your laptop, e.g. with OpenMPI:
+```bash
+mpirun -np 4 python my_script.py
+```
+On an HPC cluster with SLURM:
+```bash
+srun --nodes=2 --ntasks-per-node=2 --gpus-per-node=2 python my_script.py
+```
+
+
+</details>
 
 ### Requirements
 * **Python:** >= 3.11
