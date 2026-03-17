@@ -425,7 +425,7 @@ class TestCase(unittest.TestCase):
 
     def get_tmpdir(self):
         """
-        Create a temporary directory in the directory the current working directory.
+        Create a temporary directory in the current working directory.
         When running with multiple tasks, only rank 0 creates and destroys the directory, but the path is communicated across all ranks.
         The directory is cleaned up / deleted when the variable tmpdir is garbage collected on rank 0.
 
