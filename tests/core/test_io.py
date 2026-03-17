@@ -886,12 +886,7 @@ class TestIO(TestCase):
 
         import pandas as pd
 
-        if ht.MPI_WORLD.rank == 0:
-            csv_path = tempfile.mkdtemp(dir='./')
-        else:
-            csv_path = None
-
-        csv_path = ht.MPI_WORLD.bcast(csv_path, root=0)
+        csv_path, _ = self.get_tmpdir()
 
         if ht.MPI_WORLD.rank == 0:
             nplist = []
@@ -933,7 +928,6 @@ class TestIO(TestCase):
         if ht.MPI_WORLD.rank == 0:
             self.assertTrue((load_array_npy == nparray).all)
             self.assertTrue((load_func_array_npy == npdroparray).all)
-            shutil.rmtree(csv_path)
 
     def test_load_multiple_csv_exception(self):
         if not ht.io.supports_pandas():
@@ -950,20 +944,18 @@ class TestIO(TestCase):
         with self.assertRaises(ValueError):
             ht.load_csv_from_folder(path="heat", dtype=ht.int64, split=0)
         if ht.MPI_WORLD.size > 1:
+            path, _ = self.get_tmpdir()
             if ht.MPI_WORLD.rank == 0:
-                os.mkdir(os.path.join(os.getcwd(), "heat/datasets/csv_tests"))
                 df = pd.DataFrame({"A": [0, 0, 0]})  # noqa F821
                 df.to_csv(
-                    (os.path.join(os.getcwd(), "heat/datasets/csv_tests", "fail.csv")),
+                    (os.path.join(os.getcwd(), path, "fail.csv")),
                     index=False,
                 )
             ht.MPI_WORLD.Barrier()
 
             with self.assertRaises(RuntimeError):
-                ht.load_csv_from_folder("heat/datasets/csv_tests", dtype=ht.int64, split=0)
+                ht.load_csv_from_folder(path, dtype=ht.int64, split=0)
             ht.MPI_WORLD.Barrier()
-            if ht.MPI_WORLD.rank == 0:
-                shutil.rmtree(os.path.join(os.getcwd(), "heat/datasets/csv_tests"))
 
     def test_load_zarr(self):
         if not ht.io.supports_zarr():

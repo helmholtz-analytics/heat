@@ -3,6 +3,7 @@
 import os
 import platform
 import unittest
+import tempfile
 
 import numpy as np
 import torch
@@ -421,3 +422,26 @@ class TestCase(unittest.TestCase):
             )
         array = array.astype(dtype)
         return array
+
+    def get_tmpdir(self):
+        """
+        Create a temporary directory in the directory the current working directory.
+        When running with multiple tasks, only rank 0 creates and destroys the directory, but the path is communicated across all ranks.
+        The directory is cleaned up / deleted when the variable tmpdir is garbage collected on rank 0.
+
+        Returns
+        -------
+        path : str
+            Path to the temporary directory
+        tmpdir : object or None
+            On rank 0: A Python object administering the temporary directory, on other ranks, None.
+        """
+        if ht.MPI_WORLD.rank == 0:
+            tmpdir = tempfile.TemporaryDirectory(dir="./")
+            path = tmpdir.name
+        else:
+            tmpdir = None
+            path = None
+
+        path = ht.MPI_WORLD.bcast(path, root=0)
+        return path, tmpdir  # need to return tmpdir here so that its not cleaned up at this point
