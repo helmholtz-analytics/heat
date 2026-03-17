@@ -444,4 +444,5 @@ class TestCase(unittest.TestCase):
             path = None
 
         path = ht.MPI_WORLD.bcast(path, root=0)
+        ht.comm.Barrier()
         return path, tmpdir  # need to return tmpdir here so that its not cleaned up at this point

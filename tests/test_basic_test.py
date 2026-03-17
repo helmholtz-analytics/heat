@@ -95,8 +95,8 @@ class TestBasicTest(TestCase):
 
         # test directory creation
         path, tmpdir = self.get_tmpdir()
-        assert os.path.exists(path)
-        assert os.path.isdir(path)
+        assert os.path.exists(path), f'No directory at {path}'
+        assert os.path.isdir(path), f'No directory at {path}'
 
         # test cleanup
         del tmpdir
