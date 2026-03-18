@@ -3,18 +3,16 @@ Functions relating to indices of items within DNDarrays, i.e. `where()`
 """
 
 import torch
-from typing import List, Dict, Any, TypeVar, Union, Tuple, Sequence
 
 from .communication import MPI
 from .dndarray import DNDarray
-from . import sanitation
 from . import types
 from . import manipulations
 
 __all__ = ["nonzero", "where"]
 
 
-def nonzero(x: DNDarray) -> Tuple[DNDarray, ...]:
+def nonzero(x: DNDarray) -> tuple[DNDarray, ...]:
     """
     Return a Tuple of :class:`~heat.core.dndarray.DNDarray`s, one for each dimension of ``x``,
     containing the indices of the non-zero elements in that dimension. If ``x`` is split then
@@ -62,7 +60,7 @@ def nonzero(x: DNDarray) -> Tuple[DNDarray, ...]:
         lcl_nonzero = torch.nonzero(input=local_x, as_tuple=True)
         # bookkeeping for final DNDarray construct
         nonzero_size = lcl_nonzero[0].shape[0]
-        output_split = None if x.split is None else 0
+        output_split = None
         output_balanced = True
     else:
         lcl_nonzero = torch.nonzero(input=local_x, as_tuple=False)
@@ -97,12 +95,13 @@ def nonzero(x: DNDarray) -> Tuple[DNDarray, ...]:
             # return indices as tuple of columns
             lcl_nonzero = lcl_nonzero.split(1, dim=1)
             output_balanced = False
+
         nonzero_size = nonzero_size.item()
+        output_split = 0
 
     # return global_nonzero as tuple of DNDarrays
     global_nonzero = list(lcl_nonzero)
     output_shape = (nonzero_size,)
-    output_split = 0
     for i, nz_tensor in enumerate(global_nonzero):
         if nz_tensor.ndim > 1:
             # extra dimension in distributed case from usage of torch.split()
@@ -128,8 +127,8 @@ DNDarray.nonzero.__doc__ = nonzero.__doc__
 
 def where(
     cond: DNDarray,
-    x: Union[None, int, float, DNDarray] = None,
-    y: Union[None, int, float, DNDarray] = None,
+    x: None | int | float | DNDarray = None,
+    y: None | int | float | DNDarray = None,
 ) -> DNDarray:
     """
     Return a :class:`~heat.core.dndarray.DNDarray` containing elements chosen from ``x`` or ``y`` depending on condition.
@@ -168,20 +167,52 @@ def where(
               [ 0,  2, -1],
               [ 0,  3, -1]], dtype=ht.int64, device=cpu:0, split=None)
     """
+    # ---- binary where(cond, x, y) branch ------------------------------------
     if cond.split is not None and (isinstance(x, DNDarray) or isinstance(y, DNDarray)):
         if (isinstance(x, DNDarray) and cond.split != x.split) or (
             isinstance(y, DNDarray) and cond.split != y.split
         ):
-            if len(y.shape) >= 1 and y.shape[0] > 1:
+            # Only raise if the "other" array has a meaningful first dimension.
+            if isinstance(y, DNDarray) and len(y.shape) >= 1 and y.shape[0] > 1:
                 raise NotImplementedError("binary op not implemented for different split axes")
+
     if isinstance(x, (DNDarray, int, float)) and isinstance(y, (DNDarray, int, float)):
+        # Simple elementwise selection using arithmetic:
+        # cond == 0 -> take y, cond == 1 -> take x
         for var in [x, y]:
             if isinstance(var, int):
                 var = float(var)
         return cond.dtype(cond == 0) * y + cond * x
+
+    # ---- where(cond) "indices only" branch ----------------------------------
     elif x is None and y is None:
-        return nonzero(cond)
+        # General rule: delegate to nonzero(cond), and only wrap into a 2-D
+        # coordinate matrix in the special distributed case where the array
+        # is split along a non-zero axis.
+        nz = nonzero(cond)  # tuple of DNDarrays, one per dimension
+
+        # 1) Non-distributed: behave exactly like ht.nonzero(cond)
+        if cond.split is None:
+            return nz
+
+        # 2) Distributed along axis 0: keep the legacy tuple-of-indices API.
+        #    This is relied upon in several parts of the code base (e.g. KMeans).
+        if cond.split == 0:
+            return nz
+
+        # 3) Distributed along a non-zero axis (split > 0)
+        coords = manipulations.stack(nz, axis=1)
+        coords = coords.astype(types.int64, copy=False)
+
+        # Ensure indices are split along axis 0 for stable distributed behavior
+        if coords.split is None:
+            coords.resplit_(0)
+
+        return coords
+
+    # ---- invalid combinations ----------------------------------------------
     else:
         raise TypeError(
-            f"either both or neither x and y must be given and both must be DNDarrays or numerical scalars({type(x)}, {type(y)})"
+            "either both or neither x and y must be given and both must be "
+            f"DNDarrays or numerical scalars (got {type(x)}, {type(y)})"
         )

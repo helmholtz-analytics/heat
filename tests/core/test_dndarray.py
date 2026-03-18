@@ -1537,7 +1537,7 @@ class TestDNDarray(TestCase):
         x_split0 = ht.zeros(27, split=0).reshape(3, 3, 3)
         key = -2
         x_split0[key] = ht.arange(3)
-        self.assertTrue((x_split0[key].larray == torch.arange(3)).all())
+        self.assertTrue((x_split0[key] == ht.arange(3, device=x_split0.device)).all().item())
         self.assertTrue(x_split0[key].dtype == ht.float32)
         self.assertTrue(x_split0.split == 0)
         # 3D, distributed split, != 0
@@ -1761,9 +1761,9 @@ class TestDNDarray(TestCase):
         y_copy[ht.array([0, 2, 4]), 1:3] = value
         self.assertTrue((y_copy[ht.array([0, 2, 4]), 1:3] == value).all().item())
 
+
         x = ht.arange(10 * 20 * 30).reshape(10, 20, 30)
         x.resplit_(1)
-        # ind_array = ht.random.randint(0, 20, (2, 3, 4), dtype=ht.int64)
         ind_array = ht.array(
             torch.tensor(
                 [
@@ -1773,19 +1773,8 @@ class TestDNDarray(TestCase):
             ),
             dtype=ht.int64,
         )
-        print("DEBUGGING: ind_array", ind_array.larray)
-        print("DEBUGGING: before setitem: x[..., ind_array, :]", x[..., ind_array, :].larray.shape)
         value = ht.ones((1, 2, 3, 4, 1))
         x[..., ind_array, :] = value
-        print(
-            "DEBUGGING: after setitem x[..., ind_array, :]",
-            x[..., ind_array, :].lshape,
-            x[..., ind_array, :].split,
-        )
-        print(
-            "DEBUGGING: x[..., ind_array, :] != value",
-            (x[..., ind_array, :] != value).nonzero()[0].shape,
-        )
         self.assertTrue((x[..., ind_array, :] == value).all().item())
 
         # boolean mask, local
@@ -1816,26 +1805,23 @@ class TestDNDarray(TestCase):
         arr_split2[mask_split2] = value[mask]
         self.assertTrue((arr_split2[mask_split2] == value[mask]).all().item())
 
-        # TODO: incorporate following in setitem/getitem tests
-        # # 3D non-contiguous resplit testing (Column mayor ordering)
-        # torch_array = torch.arange(100, device=self.device.torch_device).reshape((10, 5, 2))
-        # heat_array = ht.array(torch_array, split=2, order="F")
-        # heat_array.resplit_(axis=1)
-        # res = np.arange(100).reshape(10, 5, 2)
-        # self.assertTrue(ht.array(res).device == heat_array.device)
-        # self.assertTrue(ht.all(heat_array == ht.array(res)))
-        # self.assertEqual(heat_array.split, 1)
+        # 3D non-contiguous resplit testing (Column mayor ordering)
+        torch_array = torch.arange(100, device=self.device.torch_device).reshape((10, 5, 2))
+        heat_array = ht.array(torch_array, split=2, order="F")
+        heat_array.resplit_(axis=1)
+        res = np.arange(100).reshape(10, 5, 2)
+        self.assertTrue(ht.array(res).device == heat_array.device)
+        self.assertTrue(ht.all(heat_array == ht.array(res)))
+        self.assertEqual(heat_array.split, 1)
 
-        # # 4D non-contiguous resplit testing (from transpose
-        # torch_array = torch.arange(5 * 4 * 3 * 6, device=self.device.torch_device).reshape(
-        #     5, 4, 3, 6
-        # )
-        # res = torch_array.cpu().numpy().transpose((3, 1, 2, 0))
-        # heat_array = ht.array(torch_array, split=2).transpose((3, 1, 2, 0))
-        # heat_array.resplit_(axis=1)
-        # self.assertTrue(ht.array(res).device == heat_array.device)
-        # self.assertTrue(ht.all(heat_array == ht.array(res)))
-        # self.assertEqual(heat_array.split, 1)
+        # 4D non-contiguous resplit testing (from transpose
+        torch_array = torch.arange(5 * 4 * 3 * 6, device=self.device.torch_device).reshape(5, 4, 3, 6)
+        res = torch_array.cpu().numpy().transpose((3, 1, 2, 0))
+        heat_array = ht.array(torch_array, split=2).transpose((3, 1, 2, 0))
+        heat_array.resplit_(axis=1)
+        self.assertTrue(ht.array(res).device == heat_array.device)
+        self.assertTrue(ht.all(heat_array == ht.array(res)))
+        self.assertEqual(heat_array.split, 1)
 
         # tests for bug #825
         a = ht.ones((102, 102), split=0)
@@ -1858,420 +1844,422 @@ class TestDNDarray(TestCase):
         a[1:-1, :20] = setting
         self.assertTrue(ht.all(a[1:-1, :20] == 0).item())
 
-    #     # set and get single value
-    #     a = ht.zeros((13, 5), split=0)
-    #     # set value on one node
-    #     a[10, np.array(0)] = 1
-    #     self.assertEqual(a[10, 0], 1)
-    #     self.assertEqual(a[10, 0].dtype, ht.float32)
+        # set and get single value
+        a = ht.zeros((13, 5), split=0)
+        # set value on one node
+        a[10, np.array(0)] = 1
+        self.assertEqual(a[10, 0], 1)
+        self.assertEqual(a[10, 0].dtype, ht.float32)
 
-    #     a = ht.zeros((13, 5), split=0)
-    #     a[10] = 1
-    #     b = a[torch.tensor(10)]
-    #     self.assertTrue((b == 1).all())
-    #     self.assertEqual(b.dtype, ht.float32)
-    #     self.assertEqual(b.gshape, (5,))
+        a = ht.zeros((13, 5), split=0)
+        a[10] = 1
+        b = a[torch.tensor(10)]
+        self.assertTrue((b == 1).all())
+        self.assertEqual(b.dtype, ht.float32)
+        self.assertEqual(b.gshape, (5,))
 
-    #     a = ht.zeros((13, 5), split=0)
-    #     a[-1] = 1
-    #     b = a[-1]
-    #     self.assertTrue((b == 1).all())
-    #     self.assertEqual(b.dtype, ht.float32)
-    #     self.assertEqual(b.gshape, (5,))
+        a = ht.zeros((13, 5), split=0)
+        a[-1] = 1
+        b = a[-1]
+        self.assertTrue((b == 1).all())
+        self.assertEqual(b.dtype, ht.float32)
+        self.assertEqual(b.gshape, (5,))
 
-    #     # slice in 1st dim only on 1 node
-    #     a = ht.zeros((13, 5), split=0)
-    #     a[1:4] = 1
-    #     self.assertTrue((a[1:4] == 1).all())
-    #     self.assertEqual(a[1:4].gshape, (3, 5))
-    #     self.assertEqual(a[1:4].split, 0)
-    #     self.assertEqual(a[1:4].dtype, ht.float32)
-    #     if a.comm.size == 2:
-    #         if a.comm.rank == 0:
-    #             self.assertEqual(a[1:4].lshape, (3, 5))
-    #         else:
-    #             self.assertEqual(a[1:4].lshape, (0, 5))
+    # slice in 1st dim only on 1 node
+        a = ht.zeros((13, 5), split=0)
+        a[1:4] = 1
+        self.assertTrue((a[1:4] == 1).all())
+        self.assertEqual(a[1:4].gshape, (3, 5))
+        self.assertEqual(a[1:4].split, 0)
+        self.assertEqual(a[1:4].dtype, ht.float32)
+        if a.comm.size == 2:
+            if a.comm.rank == 0:
+                self.assertEqual(a[1:4].lshape, (3, 5))
+            else:
+                self.assertEqual(a[1:4].lshape, (0, 5))
 
-    #     a = ht.zeros((13, 5), split=0)
-    #     a[1:2] = 1
-    #     self.assertTrue((a[1:2] == 1).all())
-    #     self.assertEqual(a[1:2].gshape, (1, 5))
-    #     self.assertEqual(a[1:2].split, 0)
-    #     self.assertEqual(a[1:2].dtype, ht.float32)
-    #     if a.comm.size == 2:
-    #         if a.comm.rank == 0:
-    #             self.assertEqual(a[1:2].lshape, (1, 5))
-    #         else:
-    #             self.assertEqual(a[1:2].lshape, (0, 5))
+        a = ht.zeros((13, 5), split=0)
+        a[1:2] = 1
+        self.assertTrue((a[1:2] == 1).all())
+        self.assertEqual(a[1:2].gshape, (1, 5))
+        self.assertEqual(a[1:2].split, 0)
+        self.assertEqual(a[1:2].dtype, ht.float32)
+        if a.comm.size == 2:
+            if a.comm.rank == 0:
+                self.assertEqual(a[1:2].lshape, (1, 5))
+            else:
+                self.assertEqual(a[1:2].lshape, (0, 5))
 
-    #     # slice in 1st dim only on 1 node w/ singular second dim
-    #     a = ht.zeros((13, 5), split=0)
-    #     a[1:4, 1] = 1
-    #     b = a[1:4, np.int64(1)]
-    #     self.assertTrue((b == 1).all())
-    #     self.assertEqual(b.gshape, (3,))
-    #     self.assertEqual(b.split, 0)
-    #     self.assertEqual(b.dtype, ht.float32)
-    #     if a.comm.size == 2:
-    #         if a.comm.rank == 0:
-    #             self.assertEqual(b.lshape, (3,))
-    #         else:
-    #             self.assertEqual(b.lshape, (0,))
+        # slice in 1st dim only on 1 node w/ singular second dim
+        a = ht.zeros((13, 5), split=0)
+        a[1:4, 1] = 1
+        b = a[1:4, np.int64(1)]
+        self.assertTrue((b == 1).all())
+        self.assertEqual(b.gshape, (3,))
+        self.assertEqual(b.split, 0)
+        self.assertEqual(b.dtype, ht.float32)
+        if a.comm.size == 2:
+            if a.comm.rank == 0:
+                self.assertEqual(b.lshape, (3,))
+            else:
+                self.assertEqual(b.lshape, (0,))
 
-    #     # slice in 1st dim across both nodes (2 node case) w/ singular second dim
-    #     a = ht.zeros((13, 5), split=0)
-    #     a[1:11, 1] = 1
-    #     self.assertTrue((a[1:11, 1] == 1).all())
-    #     self.assertEqual(a[1:11, 1].gshape, (10,))
-    #     self.assertEqual(a[1:11, torch.tensor(1)].split, 0)
-    #     self.assertEqual(a[1:11, 1].dtype, ht.float32)
-    #     if a.comm.size == 2:
-    #         if a.comm.rank == 1:
-    #             self.assertEqual(a[1:11, 1].lshape, (4,))
-    #         if a.comm.rank == 0:
-    #             self.assertEqual(a[1:11, 1].lshape, (6,))
+        # slice in 1st dim across both nodes (2 node case) w/ singular second dim
+        a = ht.zeros((13, 5), split=0)
+        a[1:11, 1] = 1
+        self.assertTrue((a[1:11, 1] == 1).all())
+        self.assertEqual(a[1:11, 1].gshape, (10,))
+        self.assertEqual(a[1:11, torch.tensor(1)].split, 0)
+        self.assertEqual(a[1:11, 1].dtype, ht.float32)
+        if a.comm.size == 2:
+            if a.comm.rank == 1:
+                self.assertEqual(a[1:11, 1].lshape, (4,))
+            if a.comm.rank == 0:
+                self.assertEqual(a[1:11, 1].lshape, (6,))
 
-    #     # slice in 1st dim across 1 node (2nd) w/ singular second dim
-    #     c = ht.zeros((13, 5), split=0)
-    #     c[8:12, ht.array(1)] = 1
-    #     b = c[8:12, np.int64(1)]
-    #     self.assertTrue((b == 1).all())
-    #     self.assertEqual(b.gshape, (4,))
-    #     self.assertEqual(b.split, 0)
-    #     self.assertEqual(b.dtype, ht.float32)
-    #     if a.comm.size == 2:
-    #         if a.comm.rank == 1:
-    #             self.assertEqual(b.lshape, (4,))
-    #         if a.comm.rank == 0:
-    #             self.assertEqual(b.lshape, (0,))
+        # slice in 1st dim across 1 node (2nd) w/ singular second dim
+        c = ht.zeros((13, 5), split=0)
+        c[8:12, ht.array(1)] = 1
+        b = c[8:12, np.int64(1)]
+        self.assertTrue((b == 1).all())
+        self.assertEqual(b.gshape, (4,))
+        self.assertEqual(b.split, 0)
+        self.assertEqual(b.dtype, ht.float32)
+        if a.comm.size == 2:
+            if a.comm.rank == 1:
+                self.assertEqual(b.lshape, (4,))
+            if a.comm.rank == 0:
+                self.assertEqual(b.lshape, (0,))
 
-    #     # slice in both directions
-    #     a = ht.zeros((13, 5), split=0)
-    #     a[3:13, 2:5:2] = 1
-    #     self.assertTrue((a[3:13, 2:5:2] == 1).all())
-    #     self.assertEqual(a[3:13, 2:5:2].gshape, (10, 2))
-    #     self.assertEqual(a[3:13, 2:5:2].split, 0)
-    #     self.assertEqual(a[3:13, 2:5:2].dtype, ht.float32)
-    #     if a.comm.size == 2:
-    #         if a.comm.rank == 1:
-    #             self.assertEqual(a[3:13, 2:5:2].lshape, (6, 2))
-    #         if a.comm.rank == 0:
-    #             self.assertEqual(a[3:13, 2:5:2].lshape, (4, 2))
+        # slice in both directions
+        a = ht.zeros((13, 5), split=0)
+        a[3:13, 2:5:2] = 1
+        self.assertTrue((a[3:13, 2:5:2] == 1).all())
+        self.assertEqual(a[3:13, 2:5:2].gshape, (10, 2))
+        self.assertEqual(a[3:13, 2:5:2].split, 0)
+        self.assertEqual(a[3:13, 2:5:2].dtype, ht.float32)
+        if a.comm.size == 2:
+            if a.comm.rank == 1:
+                self.assertEqual(a[3:13, 2:5:2].lshape, (6, 2))
+            if a.comm.rank == 0:
+                self.assertEqual(a[3:13, 2:5:2].lshape, (4, 2))
 
-    #     # setting with heat tensor
-    #     a = ht.zeros((4, 5), split=0)
-    #     a[1, 0:4] = ht.arange(4)
-    #     # if a.comm.size == 2:
-    #     for c, i in enumerate(range(4)):
-    #         self.assertEqual(a[1, c], i)
+        # setting with heat tensor
+        a = ht.zeros((4, 5), split=0)
+        a[1, 0:4] = ht.arange(4)
+        # if a.comm.size == 2:
+        for c, i in enumerate(range(4)):
+            self.assertEqual(a[1, c], i)
 
-    # # setting with heat tensor
-    # a = ht.zeros((4, 5), split=0)
-    # if self.is_mps:
-    #     a[1, 0:4] = ht.arange(4, dtype=a.dtype)
-    # else:
-    #     a[1, 0:4] = ht.arange(4)
-    # # if a.comm.size == 2:
-    # for c, i in enumerate(range(4)):
-    #     self.assertEqual(a[1, c], i)
+        # setting with heat tensor
+        a = ht.zeros((4, 5), split=0)
+        if self.is_mps:
+            a[1, 0:4] = ht.arange(4, dtype=a.dtype)
+        else:
+            a[1, 0:4] = ht.arange(4)
+        # if a.comm.size == 2:
+        for c, i in enumerate(range(4)):
+            self.assertEqual(a[1, c], i)
 
-    # # setting with torch tensor
-    # a = ht.zeros((4, 5), split=0)
-    # if self.is_mps:
-    #     a[1, 0:4] = torch.arange(4, dtype=a.larray.dtype, device=self.device.torch_device)
-    # else:
-    #     a[1, 0:4] = torch.arange(4, device=self.device.torch_device)
-    # # if a.comm.size == 2:
-    # for c, i in enumerate(range(4)):
-    #     self.assertEqual(a[1, c], i)
+        # setting with torch tensor
+        a = ht.zeros((4, 5), split=0)
+        if self.is_mps:
+            a[1, 0:4] = torch.arange(4, dtype=a.larray.dtype, device=self.device.torch_device)
+        else:
+            a[1, 0:4] = torch.arange(4, device=self.device.torch_device)
+        # if a.comm.size == 2:
+        for c, i in enumerate(range(4)):
+            self.assertEqual(a[1, c], i)
 
-    #     a = ht.zeros((13, 5), split=1)
-    #     # # set value on one node
-    #     a[10, 0] = 1
-    #     self.assertEqual(a[10, 0], 1)
-    #     self.assertEqual(a[10, 0].dtype, ht.float32)
+        a = ht.zeros((13, 5), split=1)
+        # set value on one node
+        a[10, 0] = 1
+        self.assertEqual(a[10, 0], 1)
+        self.assertEqual(a[10, 0].dtype, ht.float32)
 
-    #     # slice in 1st dim only on 1 node
-    #     a = ht.zeros((13, 5), split=1)
-    #     a[1:4] = 1
-    #     self.assertTrue((a[1:4] == 1).all())
-    #     self.assertEqual(a[1:4].gshape, (3, 5))
-    #     self.assertEqual(a[1:4].split, 1)
-    #     self.assertEqual(a[1:4].dtype, ht.float32)
-    #     if a.comm.size == 2:
-    #         if a.comm.rank == 0:
-    #             self.assertEqual(a[1:4].lshape, (3, 3))
-    #         if a.comm.rank == 1:
-    #             self.assertEqual(a[1:4].lshape, (3, 2))
+        # slice in 1st dim only on 1 node
+        a = ht.zeros((13, 5), split=1)
+        a[1:4] = 1
+        self.assertTrue((a[1:4] == 1).all())
+        self.assertEqual(a[1:4].gshape, (3, 5))
+        self.assertEqual(a[1:4].split, 1)
+        self.assertEqual(a[1:4].dtype, ht.float32)
+        if a.comm.size == 2:
+            if a.comm.rank == 0:
+                self.assertEqual(a[1:4].lshape, (3, 3))
+            if a.comm.rank == 1:
+                self.assertEqual(a[1:4].lshape, (3, 2))
 
-    #     # slice in 1st dim only on 1 node w/ singular second dim
-    #     a = ht.zeros((13, 5), split=1)
-    #     a[1:4, 1] = 1
-    #     self.assertTrue((a[1:4, 1] == 1).all())
-    #     self.assertEqual(a[1:4, 1].gshape, (3,))
-    #     self.assertEqual(a[1:4, 1].split, None)
-    #     self.assertEqual(a[1:4, 1].dtype, ht.float32)
-    #     if a.comm.size == 2:
-    #         if a.comm.rank == 0:
-    #             self.assertEqual(a[1:4, 1].lshape, (3,))
-    #         if a.comm.rank == 1:
-    #             self.assertEqual(a[1:4, 1].lshape, (3,))
+        # slice in 1st dim only on 1 node w/ singular second dim
+        a = ht.zeros((13, 5), split=1)
+        a[1:4, 1] = 1
+        self.assertTrue((a[1:4, 1] == 1).all())
+        self.assertEqual(a[1:4, 1].gshape, (3,))
+        self.assertEqual(a[1:4, 1].split, None)
+        self.assertEqual(a[1:4, 1].dtype, ht.float32)
+        if a.comm.size == 2:
+            if a.comm.rank == 0:
+                self.assertEqual(a[1:4, 1].lshape, (3,))
+            if a.comm.rank == 1:
+                self.assertEqual(a[1:4, 1].lshape, (3,))
 
-    #     # slice in 2st dim across both nodes (2 node case) w/ singular fist dim
-    #     a = ht.zeros((13, 5), split=1)
-    #     a[11, 1:5] = 1
-    #     self.assertTrue((a[11, 1:5] == 1).all())
-    #     self.assertEqual(a[11, 1:5].gshape, (4,))
-    #     self.assertEqual(a[11, 1:5].split, 0)
-    #     self.assertEqual(a[11, 1:5].dtype, ht.float32)
-    #     if a.comm.size == 2:
-    #         if a.comm.rank == 1:
-    #             self.assertEqual(a[11, 1:5].lshape, (2,))
-    #         if a.comm.rank == 0:
-    #             self.assertEqual(a[11, 1:5].lshape, (2,))
+        # slice in 2st dim across both nodes (2 node case) w/ singular fist dim
+        a = ht.zeros((13, 5), split=1)
+        a[11, 1:5] = 1
+        self.assertTrue((a[11, 1:5] == 1).all())
+        self.assertEqual(a[11, 1:5].gshape, (4,))
+        self.assertEqual(a[11, 1:5].split, 0)
+        self.assertEqual(a[11, 1:5].dtype, ht.float32)
+        if a.comm.size == 2:
+            if a.comm.rank == 1:
+                self.assertEqual(a[11, 1:5].lshape, (2,))
+            if a.comm.rank == 0:
+                self.assertEqual(a[11, 1:5].lshape, (2,))
 
-    #     # slice in 1st dim across 1 node (2nd) w/ singular second dim
-    #     a = ht.zeros((13, 5), split=1)
-    #     a[8:12, 1] = 1
-    #     self.assertTrue((a[8:12, 1] == 1).all())
-    #     self.assertEqual(a[8:12, 1].gshape, (4,))
-    #     self.assertEqual(a[8:12, 1].split, None)
-    #     self.assertEqual(a[8:12, 1].dtype, ht.float32)
-    #     if a.comm.size == 2:
-    #         if a.comm.rank == 0:
-    #             self.assertEqual(a[8:12, 1].lshape, (4,))
-    #         if a.comm.rank == 1:
-    #             self.assertEqual(a[8:12, 1].lshape, (4,))
+        # slice in 1st dim across 1 node (2nd) w/ singular second dim
+        a = ht.zeros((13, 5), split=1)
+        a[8:12, 1] = 1
+        self.assertTrue((a[8:12, 1] == 1).all())
+        self.assertEqual(a[8:12, 1].gshape, (4,))
+        self.assertEqual(a[8:12, 1].split, None)
+        self.assertEqual(a[8:12, 1].dtype, ht.float32)
+        if a.comm.size == 2:
+            if a.comm.rank == 0:
+                self.assertEqual(a[8:12, 1].lshape, (4,))
+            if a.comm.rank == 1:
+                self.assertEqual(a[8:12, 1].lshape, (4,))
 
-    #     # slice in both directions
-    #     a = ht.zeros((13, 5), split=1)
-    #     a[3:13, 2::2] = 1
-    #     self.assertTrue((a[3:13, 2:5:2] == 1).all())
-    #     self.assertEqual(a[3:13, 2:5:2].gshape, (10, 2))
-    #     self.assertEqual(a[3:13, 2:5:2].split, 1)
-    #     self.assertEqual(a[3:13, 2:5:2].dtype, ht.float32)
-    #     if a.comm.size == 2:
-    #         if a.comm.rank == 1:
-    #             self.assertEqual(a[3:13, 2:5:2].lshape, (10, 1))
-    #         if a.comm.rank == 0:
-    #             self.assertEqual(a[3:13, 2:5:2].lshape, (10, 1))
+        # slice in both directions
+        a = ht.zeros((13, 5), split=1)
+        a[3:13, 2::2] = 1
+        self.assertTrue((a[3:13, 2:5:2] == 1).all())
+        self.assertEqual(a[3:13, 2:5:2].gshape, (10, 2))
+        self.assertEqual(a[3:13, 2:5:2].split, 1)
+        self.assertEqual(a[3:13, 2:5:2].dtype, ht.float32)
+        if a.comm.size == 2:
+            if a.comm.rank == 1:
+                self.assertEqual(a[3:13, 2:5:2].lshape, (10, 1))
+            if a.comm.rank == 0:
+                self.assertEqual(a[3:13, 2:5:2].lshape, (10, 1))
 
-    #     a = ht.zeros((13, 5), split=1)
-    #     a[..., 2::2] = 1
-    #     self.assertTrue((a[:, 2:5:2] == 1).all())
-    #     self.assertEqual(a[..., 2:5:2].gshape, (13, 2))
-    #     self.assertEqual(a[..., 2:5:2].split, 1)
-    #     self.assertEqual(a[..., 2:5:2].dtype, ht.float32)
-    #     if a.comm.size == 2:
-    #         if a.comm.rank == 1:
-    #             self.assertEqual(a[..., 2:5:2].lshape, (13, 1))
-    #         if a.comm.rank == 0:
-    #             self.assertEqual(a[:, 2:5:2].lshape, (13, 1))
+        a = ht.zeros((13, 5), split=1)
+        a[..., 2::2] = 1
+        self.assertTrue((a[:, 2:5:2] == 1).all())
+        self.assertEqual(a[..., 2:5:2].gshape, (13, 2))
+        self.assertEqual(a[..., 2:5:2].split, 1)
+        self.assertEqual(a[..., 2:5:2].dtype, ht.float32)
+        if a.comm.size == 2:
+            if a.comm.rank == 1:
+                self.assertEqual(a[..., 2:5:2].lshape, (13, 1))
+            if a.comm.rank == 0:
+                self.assertEqual(a[:, 2:5:2].lshape, (13, 1))
 
-    #     # setting with heat tensor
-    #     a = ht.zeros((4, 5), split=1)
-    #     a[1, 0:4] = ht.arange(4)
-    #     for c, i in enumerate(range(4)):
-    #         b = a[1, c]
-    #         if b.larray.numel() > 0:
-    #             self.assertEqual(b.item(), i)
+        # setting with heat tensor
+        a = ht.zeros((4, 5), split=1)
+        a[1, 0:4] = ht.arange(4)
+        for c, i in enumerate(range(4)):
+            b = a[1, c]
+            if b.larray.numel() > 0:
+                self.assertEqual(b.item(), i)
 
-    # # setting with heat tensor
-    # a = ht.zeros((4, 5), split=1)
-    # if self.is_mps:
-    #     a[1, 0:4] = ht.arange(4, dtype=a.dtype)
-    # else:
-    #     a[1, 0:4] = ht.arange(4)
-    # for c, i in enumerate(range(4)):
-    #     b = a[1, c]
-    #     if b.larray.numel() > 0:
-    #         self.assertEqual(b.item(), i)
+        # setting with heat tensor
+        a = ht.zeros((4, 5), split=1)
+        if self.is_mps:
+            a[1, 0:4] = ht.arange(4, dtype=a.dtype)
+        else:
+            a[1, 0:4] = ht.arange(4)
+        for c, i in enumerate(range(4)):
+            b = a[1, c]
+            if b.larray.numel() > 0:
+                self.assertEqual(b.item(), i)
 
-    # # setting with torch tensor
-    # a = ht.zeros((4, 5), split=1)
-    # if a.device.torch_device.startswith("mps"):
-    #     a[1, 0:4] = torch.arange(4, dtype=a.larray.dtype, device=self.device.torch_device)
-    # else:
-    #     a[1, 0:4] = torch.arange(4, device=self.device.torch_device)
-    # for c, i in enumerate(range(4)):
-    #     self.assertEqual(a[1, c], i)
+        # setting with torch tensor
+        a = ht.zeros((4, 5), split=1)
+        if a.device.torch_device.startswith("mps"):
+            a[1, 0:4] = torch.arange(4, dtype=a.larray.dtype, device=self.device.torch_device)
+        else:
+            a[1, 0:4] = torch.arange(4, device=self.device.torch_device)
+        for c, i in enumerate(range(4)):
+            self.assertEqual(a[1, c], i)
 
-    #     a = ht.zeros((13, 5, 7), split=2)
-    #     # # set value on one node
-    #     a[10, ...] = 1
-    #     self.assertEqual(a[10, ...].dtype, ht.float32)
-    #     self.assertEqual(a[10, ...].gshape, (5, 7))
-    #     if a.comm.size == 2:
-    #         if a.comm.rank == 0:
-    #             self.assertEqual(a[10, ...].lshape, (5, 4))
-    #         if a.comm.rank == 1:
-    #             self.assertEqual(a[10, ...].lshape, (5, 3))
+        a = ht.zeros((13, 5, 7), split=2)
+        # # set value on one node
+        a[10, ...] = 1
+        self.assertEqual(a[10, ...].dtype, ht.float32)
+        self.assertEqual(a[10, ...].gshape, (5, 7))
+        if a.comm.size == 2:
+            if a.comm.rank == 0:
+                self.assertEqual(a[10, ...].lshape, (5, 4))
+            if a.comm.rank == 1:
+                self.assertEqual(a[10, ...].lshape, (5, 3))
 
-    #     a = ht.zeros((13, 5, 8), split=2)
-    #     # # set value on one node
-    #     a[10, 0, 0] = 1
-    #     self.assertEqual(a[10, 0, 0], 1)
-    #     self.assertEqual(a[10, 0, 0].dtype, ht.float32)
+        a = ht.zeros((13, 5, 8), split=2)
+        # # set value on one node
+        a[10, 0, 0] = 1
+        self.assertEqual(a[10, 0, 0], 1)
+        self.assertEqual(a[10, 0, 0].dtype, ht.float32)
 
-    #     # # slice in 1st dim only on 1 node
-    #     a = ht.zeros((13, 5, 7), split=2)
-    #     a[1:4] = 1
-    #     self.assertTrue((a[1:4] == 1).all())
-    #     self.assertEqual(a[1:4].gshape, (3, 5, 7))
-    #     self.assertEqual(a[1:4].split, 2)
-    #     self.assertEqual(a[1:4].dtype, ht.float32)
-    #     if a.comm.size == 2:
-    #         if a.comm.rank == 0:
-    #             self.assertEqual(a[1:4].lshape, (3, 5, 4))
-    #         if a.comm.rank == 1:
-    #             self.assertEqual(a[1:4].lshape, (3, 5, 3))
+        # # slice in 1st dim only on 1 node
+        a = ht.zeros((13, 5, 7), split=2)
+        a[1:4] = 1
+        self.assertTrue((a[1:4] == 1).all())
+        self.assertEqual(a[1:4].gshape, (3, 5, 7))
+        self.assertEqual(a[1:4].split, 2)
+        self.assertEqual(a[1:4].dtype, ht.float32)
+        if a.comm.size == 2:
+            if a.comm.rank == 0:
+                self.assertEqual(a[1:4].lshape, (3, 5, 4))
+            if a.comm.rank == 1:
+                self.assertEqual(a[1:4].lshape, (3, 5, 3))
 
-    #     # slice in 1st dim only on 1 node w/ singular second dim
-    #     a = ht.zeros((13, 5, 7), split=2)
-    #     a[1:4, 1, :] = 1
-    #     self.assertTrue((a[1:4, 1, :] == 1).all())
-    #     self.assertEqual(a[1:4, 1, :].gshape, (3, 7))
-    #     if a.comm.size == 2:
-    #         self.assertEqual(a[1:4, 1, :].split, 1)
-    #         self.assertEqual(a[1:4, 1, :].dtype, ht.float32)
-    #         if a.comm.rank == 0:
-    #             self.assertEqual(a[1:4, 1, :].lshape, (3, 4))
-    #         if a.comm.rank == 1:
-    #             self.assertEqual(a[1:4, 1, :].lshape, (3, 3))
+        # slice in 1st dim only on 1 node w/ singular second dim
+        a = ht.zeros((13, 5, 7), split=2)
+        a[1:4, 1, :] = 1
+        self.assertTrue((a[1:4, 1, :] == 1).all())
+        self.assertEqual(a[1:4, 1, :].gshape, (3, 7))
+        if a.comm.size == 2:
+            self.assertEqual(a[1:4, 1, :].split, 1)
+            self.assertEqual(a[1:4, 1, :].dtype, ht.float32)
+            if a.comm.rank == 0:
+                self.assertEqual(a[1:4, 1, :].lshape, (3, 4))
+            if a.comm.rank == 1:
+                self.assertEqual(a[1:4, 1, :].lshape, (3, 3))
 
-    #     # slice in both directions
-    #     a = ht.zeros((13, 5, 7), split=2)
-    #     a[3:13, 2:5:2, 1:7:3] = 1
-    #     self.assertTrue((a[3:13, 2:5:2, 1:7:3] == 1).all())
-    #     self.assertEqual(a[3:13, 2:5:2, 1:7:3].split, 2)
-    #     self.assertEqual(a[3:13, 2:5:2, 1:7:3].dtype, ht.float32)
-    #     self.assertEqual(a[3:13, 2:5:2, 1:7:3].gshape, (10, 2, 2))
-    #     if a.comm.size == 2:
-    #         out = ht.ones((4, 5, 5), split=1)
-    #         self.assertEqual(out[0].gshape, (5, 5))
-    #         if a.comm.rank == 1:
-    #             self.assertEqual(a[3:13, 2:5:2, 1:7:3].lshape, (10, 2, 1))
-    #             self.assertEqual(out[0].lshape, (2, 5))
-    #         if a.comm.rank == 0:
-    #             self.assertEqual(a[3:13, 2:5:2, 1:7:3].lshape, (10, 2, 1))
-    #             self.assertEqual(out[0].lshape, (3, 5))
+        # slice in both directions
+        a = ht.zeros((13, 5, 7), split=2)
+        a[3:13, 2:5:2, 1:7:3] = 1
+        self.assertTrue((a[3:13, 2:5:2, 1:7:3] == 1).all())
+        self.assertEqual(a[3:13, 2:5:2, 1:7:3].split, 2)
+        self.assertEqual(a[3:13, 2:5:2, 1:7:3].dtype, ht.float32)
+        self.assertEqual(a[3:13, 2:5:2, 1:7:3].gshape, (10, 2, 2))
+        if a.comm.size == 2:
+            out = ht.ones((4, 5, 5), split=1)
+            self.assertEqual(out[0].gshape, (5, 5))
+            if a.comm.rank == 1:
+                self.assertEqual(a[3:13, 2:5:2, 1:7:3].lshape, (10, 2, 1))
+                self.assertEqual(out[0].lshape, (2, 5))
+            if a.comm.rank == 0:
+                self.assertEqual(a[3:13, 2:5:2, 1:7:3].lshape, (10, 2, 1))
+                self.assertEqual(out[0].lshape, (3, 5))
 
-    #     a = ht.ones((4, 5), split=0).tril()
-    #     a[0] = [6, 6, 6, 6, 6]
-    #     self.assertTrue((a[0] == 6).all())
+        a = ht.ones((4, 5), split=0).tril()
+        a[0] = [6, 6, 6, 6, 6]
+        self.assertTrue((a[0] == 6).all())
 
-    #     a = ht.ones((4, 5), split=0).tril()
-    #     a[0] = (6, 6, 6, 6, 6)
-    #     self.assertTrue((a[0] == 6).all())
+        a = ht.ones((4, 5), split=0).tril()
+        a[0] = (6, 6, 6, 6, 6)
+        self.assertTrue((a[0] == 6).all())
 
-    #     a = ht.ones((4, 5), split=0).tril()
-    #     a[0] = np.array([6, 6, 6, 6, 6])
-    #     self.assertTrue((a[0] == 6).all())
+        a = ht.ones((4, 5), split=0).tril()
+        a[0] = np.array([6, 6, 6, 6, 6])
+        self.assertTrue((a[0] == 6).all())
 
-    #     a = ht.ones((4, 5), split=0).tril()
-    #     a[0] = ht.array([6, 6, 6, 6, 6])
-    #     self.assertTrue((a[ht.array((0,))] == 6).all())
+        a = ht.ones((4, 5), split=0).tril()
+        a[0] = ht.array([6, 6, 6, 6, 6])
+        self.assertTrue((a[ht.array((0,))] == 6).all())
 
-    #     a = ht.ones((4, 5), split=0).tril()
-    #     a[0] = ht.array([6, 6, 6, 6, 6])
-    #     self.assertTrue((a[ht.array((0,))] == 6).all())
+        a = ht.ones((4, 5), split=0).tril()
+        a[0] = ht.array([6, 6, 6, 6, 6])
+        self.assertTrue((a[ht.array((0,))] == 6).all())
 
-    #     # ======================= indexing with bools =================================
-    #     split = None
-    #     arr = ht.random.random((20, 20)).resplit(split)
-    #     np_arr = arr.numpy()
-    #     np_key = np_arr < 0.5
-    #     ht_key = ht.array(np_key, split=split)
-    #     arr[ht_key] = 10.0
-    #     np_arr[np_key] = 10.0
-    #     self.assertTrue(np.all(arr.numpy() == np_arr))
-    #     self.assertTrue(ht.all(arr[ht_key] == 10.0))
+        # ======================= indexing with bools =================================
+        split = None
+        arr = ht.random.random((20, 20)).resplit(split)
+        np_arr = arr.numpy()
+        np_key = np_arr < 0.5
+        ht_key = ht.array(np_key, split=split)
+        arr[ht_key] = 10.0
+        np_arr[np_key] = 10.0
+        self.assertTrue(np.all(arr.numpy() == np_arr))
+        self.assertTrue(ht.all(arr[ht_key] == 10.0))
 
-    #     split = 0
-    #     arr = ht.random.random((20, 20)).resplit(split)
-    #     np_arr = arr.numpy()
-    #     np_key = (np_arr < 0.5)[0]
-    #     ht_key = ht.array(np_key, split=split)
-    #     arr[ht_key] = 10.0
-    #     np_arr[np_key] = 10.0
-    #     self.assertTrue(np.all(arr.numpy() == np_arr))
-    #     self.assertTrue(ht.all(arr[ht_key] == 10.0))
+        split = 0
+        arr = ht.random.random((20, 20)).resplit(split)
+        np_arr = arr.numpy()
+        np_key = (np_arr < 0.5)[0]
+        ht_key = ht.array(np_key, split=split)
+        arr[ht_key] = 10.0
+        np_arr[np_key] = 10.0
+        self.assertTrue(np.all(arr.numpy() == np_arr))
+        self.assertTrue(ht.all(arr[ht_key] == 10.0))
 
-    #     # key -> tuple(ht.bool, int)
-    #     split = 0
-    #     arr = ht.random.random((20, 20)).resplit(split)
-    #     np_arr = arr.numpy()
-    #     np_key = (np_arr < 0.5)[0]
-    #     ht_key = ht.array(np_key, split=split)
-    #     arr[ht_key, 4] = 10.0
-    #     np_arr[np_key, 4] = 10.0
-    #     self.assertTrue(np.all(arr.numpy() == np_arr))
-    #     self.assertTrue(ht.all(arr[ht_key, 4] == 10.0))
+        # key -> tuple(ht.bool, int)
+        split = 0
+        arr = ht.random.random((20, 20)).resplit(split)
+        np_arr = arr.numpy()
+        np_key = (np_arr < 0.5)[0]
+        ht_key = ht.array(np_key, split=split)
+        arr[ht_key, 4] = 10.0
+        np_arr[np_key, 4] = 10.0
+        #print(f"\n\n\n arr.numpy(): {arr.numpy()}, np_arr: {np_arr}\n\n\n ")
+        print(f"\n\n\n arr[ht_key, 4] : {arr[ht_key, 4] }\n\n\n ")
+        self.assertTrue(np.all(arr.numpy() == np_arr))
+        self.assertTrue(ht.all(arr[ht_key, 4] == 10.0))
 
-    #     # key -> tuple(torch.bool, int)
-    #     split = 0
-    #     arr = ht.random.random((20, 20)).resplit(split)
-    #     np_arr = arr.numpy()
-    #     np_key = (np_arr < 0.5)[0]
-    #     t_key = torch.tensor(np_key, device=arr.larray.device)
-    #     arr[t_key, 4] = 10.0
-    #     np_arr[np_key, 4] = 10.0
-    #     self.assertTrue(np.all(arr.numpy() == np_arr))
-    #     self.assertTrue(ht.all(arr[t_key, 4] == 10.0))
+        # key -> tuple(torch.bool, int)
+        split = 0
+        arr = ht.random.random((20, 20)).resplit(split)
+        np_arr = arr.numpy()
+        np_key = (np_arr < 0.5)[0]
+        t_key = torch.tensor(np_key, device=arr.larray.device)
+        arr[t_key, 4] = 10.0
+        np_arr[np_key, 4] = 10.0
+        self.assertTrue(np.all(arr.numpy() == np_arr))
+        self.assertTrue(ht.all(arr[t_key, 4] == 10.0))
 
-    #     # key -> torch.bool
-    #     split = 0
-    #     arr = ht.random.random((20, 20)).resplit(split)
-    #     np_arr = arr.numpy()
-    #     np_key = (np_arr < 0.5)[0]
-    #     t_key = torch.tensor(np_key, device=arr.larray.device)
-    #     arr[t_key] = 10.0
-    #     np_arr[np_key] = 10.0
-    #     self.assertTrue(np.all(arr.numpy() == np_arr))
-    #     self.assertTrue(ht.all(arr[t_key] == 10.0))
+        # key -> torch.bool
+        split = 0
+        arr = ht.random.random((20, 20)).resplit(split)
+        np_arr = arr.numpy()
+        np_key = (np_arr < 0.5)[0]
+        t_key = torch.tensor(np_key, device=arr.larray.device)
+        arr[t_key] = 10.0
+        np_arr[np_key] = 10.0
+        self.assertTrue(np.all(arr.numpy() == np_arr))
+        self.assertTrue(ht.all(arr[t_key] == 10.0))
 
-    #     split = 1
-    #     arr = ht.random.random((20, 20, 10)).resplit(split)
-    #     np_arr = arr.numpy()
-    #     np_key = np_arr < 0.5
-    #     ht_key = ht.array(np_key, split=split)
-    #     arr[ht_key] = 10.0
-    #     np_arr[np_key] = 10.0
-    #     self.assertTrue(np.all(arr.numpy() == np_arr))
-    #     self.assertTrue(ht.all(arr[ht_key] == 10.0))
+        split = 1
+        arr = ht.random.random((20, 20, 10)).resplit(split)
+        np_arr = arr.numpy()
+        np_key = np_arr < 0.5
+        ht_key = ht.array(np_key, split=split)
+        arr[ht_key] = 10.0
+        np_arr[np_key] = 10.0
+        self.assertTrue(np.all(arr.numpy() == np_arr))
+        self.assertTrue(ht.all(arr[ht_key] == 10.0))
 
-    #     split = 2
-    #     arr = ht.random.random((15, 20, 20)).resplit(split)
-    #     np_arr = arr.numpy()
-    #     np_key = np_arr < 0.5
-    #     ht_key = ht.array(np_key, split=split)
-    #     arr[ht_key] = 10.0
-    #     np_arr[np_key] = 10.0
-    #     self.assertTrue(np.all(arr.numpy() == np_arr))
-    #     self.assertTrue(ht.all(arr[ht_key] == 10.0))
+        split = 2
+        arr = ht.random.random((15, 20, 20)).resplit(split)
+        np_arr = arr.numpy()
+        np_key = np_arr < 0.5
+        ht_key = ht.array(np_key, split=split)
+        arr[ht_key] = 10.0
+        np_arr[np_key] = 10.0
+        self.assertTrue(np.all(arr.numpy() == np_arr))
+        self.assertTrue(ht.all(arr[ht_key] == 10.0))
 
-    #     with self.assertRaises(ValueError):
-    #         a[..., ...]
-    #     with self.assertRaises(ValueError):
-    #         a[..., ...] = 1
-    #     if a.comm.size > 1:
-    #         with self.assertRaises(ValueError):
-    #             x = ht.ones((10, 10), split=0)
-    #             setting = ht.zeros((8, 8), split=1)
-    #             x[1:-1, 1:-1] = setting
+        with self.assertRaises(ValueError):
+            a[..., ...]
+        with self.assertRaises(ValueError):
+            a[..., ...] = 1
+        if a.comm.size > 1:
+            with self.assertRaises(RuntimeError):
+                x = ht.ones((10, 10), split=0)
+                setting = ht.zeros((8, 8), split=1)
+                x[1:-1, 1:-1] = setting
 
-    #     for split in [None, 0, 1, 2]:
-    #         for new_dim in [0, 1, 2]:
-    #             for add in [np.newaxis, None]:
-    #                 arr = ht.ones((4, 3, 2), split=split, dtype=ht.int32)
-    #                 check = torch.ones((4, 3, 2), dtype=torch.int32)
-    #                 idx = [slice(None), slice(None), slice(None)]
-    #                 idx[new_dim] = add
-    #                 idx = tuple(idx)
-    #                 arr = arr[idx]
-    #                 check = check[idx]
-    #                 self.assertTrue(arr.shape == check.shape)
-    #                 self.assertTrue(arr.lshape[new_dim] == 1)
+        for split in [None, 0, 1, 2]:
+            for new_dim in [0, 1, 2]:
+                for add in [np.newaxis, None]:
+                    arr = ht.ones((4, 3, 2), split=split, dtype=ht.int32)
+                    check = torch.ones((4, 3, 2), dtype=torch.int32)
+                    idx = [slice(None), slice(None), slice(None)]
+                    idx[new_dim] = add
+                    idx = tuple(idx)
+                    arr = arr[idx]
+                    check = check[idx]
+                    self.assertTrue(arr.shape == check.shape)
+                    self.assertTrue(arr.lshape[new_dim] == 1)
 
     def test_size_gnumel(self):
         a = ht.zeros((10, 10, 10), split=None)
@@ -2503,7 +2491,9 @@ class TestDNDarray(TestCase):
         # Case 2: split=0 (split on the indexed dimension)
         arr_ht_s0 = ht.array(arr_np, split=0)
         mask_ht_s0 = ht.array(mask_np, split=0)
+
         result_ht_s0 = arr_ht_s0[mask_ht_s0]
+
         self.assert_array_equal(result_ht_s0, result_np)
         self.assertEqual(result_ht_s0.split, 0)
         self.assertEqual(result_ht_s0.gshape, (5, 2))
@@ -2514,6 +2504,7 @@ class TestDNDarray(TestCase):
         mask_ht_sNone = ht.array(mask_np, split=None)
         result_ht_s1 = arr_ht_s1[mask_ht_sNone]
         self.assert_array_equal(result_ht_s1, result_np)
+        print(f"result_ht_s1.split: {result_ht_s1.split}")
         self.assertEqual(result_ht_s1.split, 1)
         self.assertEqual(result_ht_s1.gshape, (5, 2))
 

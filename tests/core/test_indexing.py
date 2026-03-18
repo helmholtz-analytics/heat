@@ -33,6 +33,10 @@ class TestIndexing(TestCase):
             self.assertEqual(nz.gshape, (1, 2))
             self.assertTrue(ht.allclose(a[nz], a[a]))
 
+        # attribute error
+        a = a.numpy()
+        with self.assertRaises(TypeError):
+            ht.nonzero(a)
 
     def test_where(self):
         # cases to test
@@ -40,9 +44,10 @@ class TestIndexing(TestCase):
         a = ht.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]], split=None)
         cond = a > 3
         wh = ht.where(cond)
-        self.assertEqual(wh.gshape, (6, 2))
-        self.assertEqual(wh.dtype, ht.int64)
-        self.assertEqual(wh.split, None)
+        self.assertEqual(len(wh), 2)
+        self.assertEqual(wh[0].gshape[0], 6)
+        self.assertEqual(wh[0].dtype, ht.int64)
+        self.assertEqual(wh[0].split, None)
         # split
         a = ht.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]], split=1)
         cond = a > 3
