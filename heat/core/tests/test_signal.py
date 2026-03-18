@@ -811,26 +811,30 @@ class TestSignal(TestCase):
             modes = ["full", "valid"]
             for mode in modes:
 
-                conv = ht.convolve2d(dis_signal, kernel_even, mode=mode)
-                gathered = manipulations.resplit(conv, axis=None)
-                if mode == "full":
-                    self.assertTrue(ht.equal(full_even, gathered))
-                else:
-                    self.assertTrue(ht.equal(full_even[3:-3, 3:-3], gathered))
+                for split_dim in [0,1]:
+                    dis_signal = manipulations.resplit(dis_signal, axis=split_dim)
+                    dis_kernel_even = manipulations.resplit(dis_kernel_even, axis=split_dim)
 
-                conv = ht.convolve2d(dis_signal, dis_kernel_even, mode=mode)
-                gathered = manipulations.resplit(conv, axis=None)
-                if mode == "full":
-                    self.assertTrue(ht.equal(full_even, gathered))
-                else:
-                    self.assertTrue(ht.equal(full_even[3:-3, 3:-3], gathered))
+                    conv = ht.convolve2d(dis_signal, kernel_even, mode=mode)
+                    gathered = manipulations.resplit(conv, axis=None)
+                    if mode == "full":
+                        self.assertTrue(ht.equal(full_even, gathered))
+                    else:
+                        self.assertTrue(ht.equal(full_even[3:-3, 3:-3], gathered))
 
-                conv = ht.convolve2d(signal, dis_kernel_even, mode=mode)
-                gathered = manipulations.resplit(conv, axis=None)
-                if mode == "full":
-                    self.assertTrue(ht.equal(full_even, gathered))
-                else:
-                    self.assertTrue(ht.equal(full_even[3:-3, 3:-3], gathered))
+                    conv = ht.convolve2d(dis_signal, dis_kernel_even, mode=mode)
+                    gathered = manipulations.resplit(conv, axis=None)
+                    if mode == "full":
+                        self.assertTrue(ht.equal(full_even, gathered))
+                    else:
+                        self.assertTrue(ht.equal(full_even[3:-3, 3:-3], gathered))
+
+                    conv = ht.convolve2d(signal, dis_kernel_even, mode=mode)
+                    gathered = manipulations.resplit(conv, axis=None)
+                    if mode == "full":
+                        self.assertTrue(ht.equal(full_even, gathered))
+                    else:
+                        self.assertTrue(ht.equal(full_even[3:-3, 3:-3], gathered))
 
     def test_convolve_stride_kernel_even_modes(self):
         ht_dtype = ht.int
