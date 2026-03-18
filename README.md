@@ -76,7 +76,7 @@ Check out our [features](#features) and the [Heat API Reference](https://heat.re
 If you want to try Heat without any installations, test in your browser on [Jupyter4NFDI](https://nfdi-jupyter.de).
 
 
-[![NFDI](https://nfdi-jupyter.de/images/nfdi_badge.svg)](https://hub.nfdi-jupyter.de/v2/gh/brownbaerchen/heat/jupyter4nfdi?labpath=tutorials%2FJupyter4NFDI_landing_notebook.ipynb&system=deNBI-Cloud&flavor=l1&localstoragepath=%2Fhome%2Fjovyan%2Fwork)
+[![Jupyter4NFDI](https://nfdi-jupyter.de/images/jupyter4nfdi_badge.svg)](https://hub.nfdi-jupyter.de/v2/gh/brownbaerchen/heat/jupyter4nfdi?labpath=tutorials%2FJupyter4NFDI_landing_notebook.ipynb&system=deNBI-Cloud&flavor=l1&localstoragepath=%2Fhome%2Fjovyan%2Fwork)
 
 Go to [Quick Start](quick_start.md) for a quick overview. For more details, see [Installation](#installation).
 
