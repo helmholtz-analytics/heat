@@ -541,7 +541,13 @@ class DNDarray:
         casted_array = self.__array.type(dtype.torch_type())
         if copy:
             return DNDarray(
-                casted_array, self.shape, dtype, self.split, self.device, self.comm, self.balanced
+                casted_array,
+                gshape=self.shape,
+                dtype=dtype,
+                split=self.split,
+                device=self.device,
+                comm=self.comm,
+                balanced=self.balanced,
             )
 
         self.__array = casted_array
