@@ -10,10 +10,18 @@ permissions:
   contents: read
 
 jobs:
+
   trigger-benchmark:
     name: Trigger Benchmarks
     runs-on: ubuntu-latest
     steps:
+      - name: Exit if secret is missing
+        run: |
+          if [ -z "${{ secrets.BENCH_PIPE_TRIGGER }}" ]; then
+            echo "Secret BENCH_PIPE_TRIGGER not set, skipping job."
+            exit 0
+          fi
+
       - name: Harden Runner
         uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc # v2.15.1
         with:
