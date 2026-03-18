@@ -16,7 +16,6 @@ __all__ = ["nonzero", "where"]
 
 def nonzero(x: DNDarray) -> Tuple[DNDarray, ...]:
     """
-    TODO: UPDATE DOCS!
     Return a Tuple of :class:`~heat.core.dndarray.DNDarray`s, one for each dimension of ``x``,
     containing the indices of the non-zero elements in that dimension. If ``x`` is split then
     the result is split in the 0th dimension. However, this :class:`~heat.core.dndarray.DNDarray`
