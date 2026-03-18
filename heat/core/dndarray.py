@@ -64,10 +64,10 @@ class DNDarray:
         array: torch.Tensor,
         gshape: tuple[int, ...],
         dtype: datatype,
+        split: int | None,
         device: Device,
         comm: Communication,
         balanced: bool,
-        split: int | None,
     ):
         self.__array = array
         self.__gshape = gshape
@@ -1565,6 +1565,7 @@ class DNDarray:
 
         original_split = self.split
 
+        # TODO: what does this do and why here?
         def _normalize_index_component(comp):
             if isinstance(comp, DNDarray):
                 if comp.dtype in (ht_bool, ht_uint8):
