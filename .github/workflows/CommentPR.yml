@@ -50,6 +50,7 @@ jobs:
   push:
     needs: upload
     runs-on: ubuntu-latest
+    if: ${{ !github.event.repository.fork }}
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc # v2.15.1
