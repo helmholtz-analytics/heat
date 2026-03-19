@@ -15,6 +15,7 @@ Heat is a distributed tensor framework for high performance data analytics.
 [![PyPI Version](https://img.shields.io/pypi/v/heat)](https://pypi.org/project/heat/)
 [![Downloads](https://pepy.tech/badge/heat)](https://pepy.tech/project/heat)
 [![Anaconda-Server Badge](https://anaconda.org/conda-forge/heat/badges/version.svg)](https://anaconda.org/conda-forge/heat)
+[![SPEC 0 — Minimum Supported Dependencies](https://img.shields.io/badge/SPEC-0-green?labelColor=%23004811&color=%235CA038)](https://scientific-python.org/specs/spec-0000/)
 [![fair-software.eu](https://img.shields.io/badge/fair--software.eu-%E2%97%8F%20%20%E2%97%8F%20%20%E2%97%8F%20%20%E2%97%8F%20%20%E2%97%8F-green)](https://fair-software.eu)
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/helmholtz-analytics/heat/badge)](https://securityscorecards.dev/viewer/?uri=github.com/helmholtz-analytics/heat)
 [![OpenSSF Best Practices](https://bestpractices.coreinfrastructure.org/projects/7688/badge)](https://bestpractices.coreinfrastructure.org/projects/7688)
@@ -48,7 +49,7 @@ Heat builds on [PyTorch](https://pytorch.org/) and [mpi4py](https://mpi4py.readt
 With Heat you can:
 - port existing NumPy/SciPy code from single-CPU to multi-node clusters with minimal coding effort;
 - exploit the entire, cumulative RAM of your many nodes for memory-intensive operations and algorithms;
-- run your NumPy/SciPy code on GPUs (CUDA, ROCm, coming up: Apple MPS).
+- run your NumPy/SciPy code on GPUs (CUDA, ROCm, Apple MPS, coming up: Intel XPUs).
 
 For a example that highlights the benefits of multi-node parallelism, hardware acceleration, and how easy this can be done with the help of Heat, see, e.g., our [blog post on trucated SVD of a 200GB data set](https://helmholtz-analytics.github.io/heat/2023/06/16/new-feature-hsvd.html).
 
@@ -110,10 +111,10 @@ computational and memory needs of your laptop and desktop.
 ## Requirements
 
 ### Basics
-- python >= 3.10
+- python >= 3.11
 - MPI (OpenMPI, MPICH, Intel MPI, etc.)
-- mpi4py >= 3.0.0
-- pytorch >= 2.0.0
+- mpi4py >= 3.1
+- pytorch >= 2.3
 
 ### Parallel I/O
 - h5py
