@@ -141,8 +141,10 @@ def arange(
     else:
         data = torch.arange(start, stop, step, device=device.torch_device)
         data = data.type(htype.torch_type())
-
-    return DNDarray(data, gshape, htype, split, device, comm, balanced)
+    print("DeBUGGING: device = ", device)
+    return DNDarray(
+        data, gshape=gshape, dtype=htype, split=split, device=device, comm=comm, balanced=balanced
+    )
 
 
 def array(
@@ -476,7 +478,15 @@ def array(
         if gmatch != comm.size:
             balanced = False
 
-    return DNDarray(obj, tuple(gshape), dtype, split, device, comm, balanced)
+    return DNDarray(
+        obj,
+        gshape=tuple(gshape),
+        dtype=dtype,
+        split=split,
+        device=device,
+        comm=comm,
+        balanced=balanced,
+    )
 
 
 def asarray(
@@ -721,7 +731,13 @@ def eye(
     data = sanitize_memory_layout(data, order=order)
 
     return DNDarray(
-        data, gshape, types.canonical_heat_type(data.dtype), split, device, comm, balanced
+        data,
+        gshape=gshape,
+        dtype=types.canonical_heat_type(data.dtype),
+        split=split,
+        device=device,
+        comm=comm,
+        balanced=balanced,
     )
 
 
@@ -776,7 +792,9 @@ def __factory(
     data = local_factory(local_shape, dtype=dtype.torch_type(), device=device.torch_device)
     data = sanitize_memory_layout(data, order=order)
 
-    return DNDarray(data, shape, dtype, split, device, comm, balanced=True)
+    return DNDarray(
+        data, gshape=shape, dtype=dtype, split=split, device=device, comm=comm, balanced=True
+    )
 
 
 def __factory_like(
@@ -1000,7 +1018,13 @@ def __from_partition_dict_helper(parted: dict, comm: Communication):
     balanced = all(x[0][0] == x[1][0] for x in expected.values())
 
     ret = DNDarray(
-        data, gshape, htype, split, devices.sanitize_device(None), sanitize_comm(comm), balanced
+        data,
+        gshape=gshape,
+        dtype=htype,
+        split=split,
+        device=devices.sanitize_device(None),
+        comm=sanitize_comm(comm),
+        balanced=balanced,
     )
     ret.__partitions_dict__ = parted
 
@@ -1203,7 +1227,13 @@ def linspace(
 
     # construct the resulting global tensor
     ht_tensor = DNDarray(
-        data, gshape, types.canonical_heat_type(data.dtype), split, device, comm, balanced
+        data,
+        gshape=gshape,
+        dtype=types.canonical_heat_type(data.dtype),
+        split=split,
+        device=device,
+        comm=comm,
+        balanced=balanced,
     )
 
     if retstep:

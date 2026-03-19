@@ -2347,12 +2347,12 @@ def transpose(a: DNDarray, axes: Optional[List[int]] = None) -> DNDarray:
 
         return DNDarray(
             transposed_data,
-            transposed_shape,
-            a.dtype,
-            transposed_split,
-            a.device,
-            a.comm,
-            a.balanced,
+            gshape=transposed_shape,
+            dtype=a.dtype,
+            split=transposed_split,
+            device=a.device,
+            comm=a.comm,
+            balanced=a.balanced,
         )
     # if not possible re- raise any torch exception as ValueError
     except (RuntimeError, IndexError) as exception:
