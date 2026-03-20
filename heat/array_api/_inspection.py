@@ -45,21 +45,20 @@ def default_dtypes(*, device=None):
     if not isinstance(device, ht_devices.Device):
         raise ValueError(f"Device not understood: {device}")
 
-    if device == ht_devices.cpu:
+    if "mps" in device.torch_device:
         return {
             "real floating": float32,
             "complex floating": complex64,
-            "integral": int64,
-            "indexing": int64,
+            "integral": int32,
+            "indexing": int32,
         }
 
-    if device == ht_devices.gpu:
-        return {
-            "real floating": float32,
-            "complex floating": complex64,
-            "integral": int64,
-            "indexing": int64,
-        }
+    return {
+        "real floating": float32,
+        "complex floating": complex64,
+        "integral": int64,
+        "indexing": int64,
+    }
 
     raise ValueError(f"Unsupported device: {device}")
 
@@ -79,6 +78,56 @@ def dtypes(*, device=None, kind=None):
 
     if not isinstance(device, ht_devices.Device):
         raise ValueError(f"Device not understood: {device}")
+
+    if "mps" in device.torch_device:
+        if kind is None:
+            return {
+                "bool": bool,
+                "int8": int8,
+                "int16": int16,
+                "int32": int32,
+                "uint8": uint8,
+                "float32": float32,
+                "complex64": complex64,
+            }
+        if kind == "bool":
+            return {
+                "bool": bool,
+            }
+        if kind == "signed integer":
+            return {
+                "int8": int8,
+                "int16": int16,
+                "int32": int32,
+            }
+        if kind == "unsigned integer":
+            return {
+                "uint8": uint8,
+            }
+        if kind == "integral":
+            return {
+                "int8": int8,
+                "int16": int16,
+                "int32": int32,
+                "uint8": uint8,
+            }
+        if kind == "real floating":
+            return {
+                "float32": float32,
+            }
+        if kind == "complex floating":
+            return {
+                "complex64": complex64,
+            }
+        if kind == "numeric":
+            return {
+                "int8": int8,
+                "int16": int16,
+                "int32": int32,
+                "uint8": uint8,
+                "float32": float32,
+                "complex64": complex64,
+            }
 
     if kind is None:
         return {
