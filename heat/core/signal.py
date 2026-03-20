@@ -524,7 +524,9 @@ def convolve2d(
     """
     Returns the discrete, linear convolution of two two-dimensional HeAT tensors.
 
-    Missing: Add batch option, change two last two dimensions are convolved
+    Recommendation:
+    For better memory consumption, it is recommended to pad the array before running the convolution in mode "valid"
+
 
     Parameters
     ----------
