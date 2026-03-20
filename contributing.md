@@ -47,10 +47,10 @@ Follow the [New Contributors](quick_start.md#new-contributors) section of the Qu
 If you add new functionality, you also have to add a test for this.
 Keep in mind that that the code must run on diverse hardware including GPUs. Don't worry if you don't have the resources to test on all necessary devices, this will happen in the continuous integration pipeline once you open the pull request and potential failures can be fixed at that time.
 * **Stay synchronized:** Make sure to keep your local repository / fork synchronized with the upstream main! Regularly run `git fetch upstream; git merge upstream` if working on your fork or `git pull; git merge main` if working directly on the main repository. This way you can resolve merge conflicts early on and save a lot of work later.
-* 
+*
 
 * **Review process:** All contributions by anyone, including the maintainers must be reviewed before being merged. In order to ensure a smooth merge process, please make your PR easy to review by (1) coding expressively with well chosen names or comments (2) describing the changes you are proposing in sufficient detail and (3) keeping the diff as small as possible, potentially by splitting up the PR if it contains multiple separable features.
- 
+
 *Thank you for your time!* Open source codes like Heat rely on your contributions and we appreciate your effort!
 
 ## Stylistic Guidelines
