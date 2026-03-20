@@ -25,27 +25,33 @@ graph TD
 
     J --> L(["Check out your branch and start coding!"])
     K --> L
-    L --> M["Test locally with `mpirun -n PROCESSES`"]
+    L --> M["Test locally with various numbers of tasks using `mpirun -n <PROCESSES> pytest`"]
     M --> N["Commit and push to your branch"]
     N --> O["Create (Draft) Pull Request and let maintainers know"]
-    O --> P["Check for failures in CI (tests, code coverage)"]
 
     class A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P heatStyle;
 ```
 
 ## Getting Started
-All contributions must start with an [Issue](https://github.com/helmholtz-analytics/heat/issues/new/choose).
+The best way to start a contribution is to open an [Issue](https://github.com/helmholtz-analytics/heat/issues/new/choose). This way, the maintainers can give you some pointers before you start and hopefully save you some time.
 
-* **Assignment:** Before writing code, pick an issue and comment to let the maintainers know you are interested. **Wait for assignment**; a bot will create a dedicated branch for you once you are assigned.
+Don't hesitate to reach out, for instance by creating a draft PR if you need help with anything!
 
 ## Environment Setup
 
 Follow the [New Contributors](quick_start.md#new-contributors) section of the Quick Start to set up your environment and install the mandatory `pre-commit` hooks.
 
 ## Developing & Testing
-* **Branching:** Use the specific branch created for you by the project bot.
+* **Branching:** For any new development, create a new branch from the latest main or, if applicable and possible, use the specific branch created for you by the project bot.
 * **Testing:** Heat is a distributed framework; all code must be verified in parallel. You can run the suite e.g. with: `mpirun -n <PROCESSES> python -m unittest`.
-* **Commits:** We prefer a clean, logical history. Use `git rebase -i main` to tidy your commits before pushing.
+If you add new functionality, you also have to add a test for this.
+Keep in mind that that the code must run on diverse hardware including GPUs. Don't worry if you don't have the resources to test on all necessary devices, this will happen in the continuous integration pipeline once you open the pull request and potential failures can be fixed at that time.
+* **Stay synchronized:** Make sure to keep your local repository / fork synchronized with the upstream main! Regularly run `git fetch upstream; git merge upstream` if working on your fork or `git pull; git merge main` if working directly on the main repository. This way you can resolve merge conflicts early on and save a lot of work later.
+* 
+
+* **Review process:** All contributions by anyone, including the maintainers must be reviewed before being merged. In order to ensure a smooth merge process, please make your PR easy to review by (1) coding expressively with well chosen names or comments (2) describing the changes you are proposing in sufficient detail and (3) keeping the diff as small as possible, potentially by splitting up the PR if it contains multiple separable features.
+ 
+*Thank you for your time!* Open source codes like Heat rely on your contributions and we appreciate your effort!
 
 ## Stylistic Guidelines
 * **Python Standards:** The pre-commit hook will enforce [PEP 8](https://www.python.org/dev/peps/pep-0008/) compliance.

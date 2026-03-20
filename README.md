@@ -91,7 +91,7 @@ srun --nodes=2 --ntasks-per-node=2 --gpus-per-node=2 python my_script.py
 </details>
 
 
-### Contributing
+### Contributing and Support
 We welcome contributions from the community. Please see our [Contribution Guidelines](contributing.md) and the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 For bug reports, feature requests, or general questions, please use [GitHub Issues](https://github.com/helmholtz-analytics/heat/issues) or [Discussions](https://github.com/helmholtz-analytics/heat/discussions).
