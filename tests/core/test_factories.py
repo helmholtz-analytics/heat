@@ -851,6 +851,11 @@ class TestFactories(TestCase):
         with self.assertRaises(ValueError):
             ht.logspace(-5, 3, num=-1)
 
+    def test_pytorch_meshgrid_compatibility(self):
+        x = torch.ones(4)
+        torch.meshgrid(x, x, indexing='ij')
+        torch.meshgrid(x, x, indexing='xy')
+
     def test_meshgrid(self):
         # arrays < 2
         self.assertEqual(ht.meshgrid(), [])
