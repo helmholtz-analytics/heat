@@ -5,7 +5,7 @@ This guide provides instructions for setting up Heat as a user or a contributor.
 ## Prerequisites
 Before installation, ensure your system meets the hardware and software requirements (Python, MPI, and PyTorch versions) specified in the [README Requirements section](README.md#requirements).
 
-## New Users
+## New users
 
 ### Package managers (conda, mamba, pixi, etc.)
 The Heat conda-forge build includes all necessary dependencies, including OpenMPI.
@@ -66,13 +66,13 @@ indicating that the tensor was successfully split across the two processes.
 
 ----
 
-## New Contributors
+## New contributors
 
-### Development Environment Setup
+### Development environment setup
 
 Contributors should install Heat in editable mode to ensure code changes are reflected immediately. Use one of the following methods to establish a development environment.
 
-#### Method A: Automated Dependency Management (Conda / Mamba / Pixi)
+#### Method A: automated dependency management (conda / mamba / pixi)
 
 For automated handling of MPI and CUDA/ROCm toolkits.
 
@@ -92,7 +92,7 @@ conda activate heat_dev
 pip install -e '.[hdf5, netcdf, zarr, dev]'
 ```
 
-#### Method B: Manual Dependency Management (pip)
+#### Method B: manual dependency management (pip)
 
 Prerequisite: a functional MPI installation already exists on your system.
 
@@ -111,6 +111,13 @@ source heat_dev/bin/activate
 pip install -e '.[hdf5, netcdf, zarr, dev]'
 ```
 
+### Repository syncing
+If you cloned a fork, add the main repository as remote for synchronizing in the future using:
+
+```bash
+git remote add upstream https://github.com/helmholtz-analytics/heat.git
+```
+
 ### Quality Control
 
 Install pre-commit hooks to enforce coding standards locally before pushing changes:
@@ -118,6 +125,7 @@ Install pre-commit hooks to enforce coding standards locally before pushing chan
 ```bash
 pre-commit install
 ```
+
 
 ## All set!
 
