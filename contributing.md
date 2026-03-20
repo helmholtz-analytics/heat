@@ -1,179 +1,120 @@
-## Contributing to Heat
+# Contributing to Heat
 
-Thank you for your interest in contributing to Heat, we really appreciate your time and effort!
+Thank you for your interest in contributing. To maintain project quality and support our distributed (no pun intended!) team, please follow this structured workflow.
 
- * If you want to report a bug, or propose a new feature, you can file an [Issue](https://github.com/helmholtz-analytics/heat/issues/new/choose).
- * You can also get in touch with us on [Mattermost](https://mattermost.hzdr.de/signup_user_complete/?id=3sixwk9okpbzpjyfrhen5jpqfo). You can sign up with your GitHub credentials. Once you log in, you can introduce yourself on the `Town Square` channel.
- * To set up your environment for Heat development, follow these [instructions](README.md#Hacking).
- * We strongly recommend getting in touch with the core developers, either here on GitHub (by filing and/or commenting on an Issue) or on [Mattermost](https://mattermost.hzdr.de/signup_user_complete/?id=3sixwk9okpbzpjyfrhen5jpqfo), before starting to work on a contribution. We are a small team and it's good to know who is currently working on what.
- * Our git workflow is described in a lot of detail [below](#developing-contributions).
- * **TL;DR for experts:** (Also check out [Quick Start](quick_start.md#new-contributors))
+---
 
- 1. `git add`, `pre-commit run --all-files` and `git commit` as needed;
- 2. `git rebase -i main` to rebase and tidy up your commits;
- 3. `git push` to publish to the remote repository.
+## Contribution Workflow
 
-*The following is based on the SciPy community's [Contributing to NumPy](https://numpy.org/doc/stable/dev/) guidelines.*
+```mermaid
+graph TD
+    %% Define Brand Style
+    classDef heatStyle fill:#FFE9D6,stroke:#F07E26,stroke-width:2px,color:#56656B;
+    A(["Found a bug?"]) --> B["Write an Issue"]
+    C(["Need functionality?"]) --> B
+    D["Want to contribute code?"] --> E["Comment on Issue and wait for assignment"]
+    E --> F[["Branch created on assignment"]]
 
-#### Getting the Source Code
+    F -- "Core team / Students (Internal)" --> G["Clone Main Repository"]
+    F -- "External Contributors" --> H["Fork & Clone your Fork"]
 
-* Go to [https://github.com/helmholtz-analytics/heat/](https://github.com/helmholtz-analytics/heat/) and click on the “fork” button to create your own copy of the project.
+    G --> I{"Environment Setup"}
+    H --> I
+    I -- "Conda / Mamba" --> J[/See Quick Start: Method A/]
+    I -- "Standard Pip" --> K[/See Quick Start: Method B/]
 
-* Clone the repository to your computer by running:
+    J --> L(["Check out your branch and start coding!"])
+    K --> L
+    L --> M["Test locally with various numbers of tasks using `mpirun -n <PROCESSES> pytest`"]
+    M --> N["Commit and push to your branch"]
+    N --> O["Create (Draft) Pull Request and let maintainers know"]
 
-```
-git clone https://github.com/<YOUR-USERNAME>/heat.git
-```
-
-* Change your working directory to the cloned repository:
-
-```
-cd heat
-```
-
-* Add the original Heat repository as your upstream:
-
-```
-git remote add upstream https://github.com/helmholtz-analytics/heat.git
+    class A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P heatStyle;
 ```
 
-* Now, `git remote -v` will show two remote repositories named:
-    * `upstream`, which refers to the main Heat repository
-    * `origin`, which refers to your personal fork of Heat
+## Getting Started
+The best way to start a contribution is to open an [Issue](https://github.com/helmholtz-analytics/heat/issues/new/choose). This way, the maintainers can give you some pointers before you start and hopefully save you some time.
 
-* Your fork is entirely independent of the main repository and you are responsible to keep the two synchronized yourself. Therefore, regularly fetch the changes in the main / upstream repository and update all relevant branches by merging the main branch of the upstream repository:
+Don't hesitate to reach out, for instance by creating a draft PR if you need help with anything!
 
-```
-git fetch upstream
-git merge upstream/main
-```
+## Environment Setup
 
-#### Installing the source code
+Follow the [New Contributors](quick_start.md#new-contributors) section of the Quick Start to set up your environment and install the mandatory `pre-commit` hooks.
 
-* Install Heat in editable mode from the checked out sources with:
+## Developing & Testing
+* **Branching:** For any new development, create a new branch from the latest main or, if applicable and possible, use the specific branch created for you by the project bot.
+* **Testing:** Heat is a distributed framework; all code must be verified in parallel. You can run the suite e.g. with: `mpirun -n <PROCESSES> python -m unittest`.
+If you add new functionality, you also have to add a test for this.
+Keep in mind that that the code must run on diverse hardware including GPUs. Don't worry if you don't have the resources to test on all necessary devices, this will happen in the continuous integration pipeline once you open the pull request and potential failures can be fixed at that time.
+* **Stay synchronized:** Make sure to keep your local repository / fork synchronized with the upstream main! Regularly run `git fetch upstream; git merge upstream` if working on your fork or `git pull; git merge main` if working directly on the main repository. This way you can resolve merge conflicts early on and save a lot of work later.
+*
 
-```
-pip install -e .[hdf5,netcdf,dev]
-```
+* **Review process:** All contributions by anyone, including the maintainers must be reviewed before being merged. In order to ensure a smooth merge process, please make your PR easy to review by (1) coding expressively with well chosen names or comments (2) describing the changes you are proposing in sufficient detail and (3) keeping the diff as small as possible, potentially by splitting up the PR if it contains multiple separable features.
 
-* The extra `dev` dependency pulls in additional tools to support the enforcement
-of coding conventions ([Black](https://github.com/psf/black)) and to support a
-pre-commit hook to do the same. In order to fully use this framework, please
-also install the pre-commit hook with
-
-```
-pre-commit install
-````
-
-#### Developing Contributions
-
-* Create a new branch specifically for your feature. This should be up-to-date with the main branch of the upstream repository:
-
-```
-git checkout main
-git fetch upstream
-git merge upstream/main
-git checkout -b my_feature
-```
-
-Remember to regularly merge upstream changes into your development branch to ensure a smooth merging process!
-
-* Commit locally as you progress:
-
-```
-git add
-pre-commit run --all-files
-git commit
-```
-
-Use a properly formatted commit message, write tests that fail before your change and pass afterward, run all the tests locally and in parallel for different process counts (`mpirun -np <PROCESSES>`). Be sure to document any changed behavior in docstrings, keeping to Heat's [docstring standard](https://github.com/helmholtz-analytics/heat/blob/main/doc/source/documentation_howto.rst).
-
-#### Publishing your Contributions
-
-* Before publishing your changes, you might want to rebase to the main branch and tidy up your list of commits, keeping only the most relevant ones and "fixing up" the others. This is done with interactive rebase or `git rebase -i`. Here's an excellent [tutorial](https://www.atlassian.com/git/tutorials/merging-vs-rebasing). This should only be done **before** pushing anything to the remote repository! If this is too complicated at this point, don't worry. You can simply squash and merge to a new merge branch:
-
-```
-git checkout main
-git fetch upstream
-git merge upstream/main
-git checkout -b merge_my_feature
-git merge --squash my_feature
-```
-
-* Push your changes back to your fork on GitHub:
-
-```
-git push
-```
-
-This may promt you to specify where you want to push, just follow the instructions given by git.
-
-* Enter your GitHub username and password (advanced users can remove this step by connecting to GitHub with SSH.
-
-* Go to GitHub. The new branch will show up with a green Pull Request button. Make sure the title and message are clear, concise, and self-explanatory. Then click the button to submit it.
-
-* If your commit introduces a new feature or changes functionality, **please explain your changes and the thinking behind them**. This greatly simplifies the review process. For bug fixes, documentation updates, etc., this is generally not necessary, though if you do not get any reaction, do feel free to ask for a review.
-
-* Phrase the PR title as a changelog message and make sure the PR is properly tagged ('enhancement', 'bug', 'ci/cd', 'chore', 'documentation').
-
-* Please keep in mind that the PR will be reviewed before it can be merged as explained in the following section. If you want your PR to be merged quickly, you need to make it easy to review. This means, first and foremost, keeping a small diff. Before starting the PR, consider if you can split it into smaller PRs that can be quickly reviewed and merged. Think of assembling furniture. The building process is made a lot easier when the parts needed for the doors are separate from the parts needed for the rest and you can assemble both individually and then later merge them together.
-
-#### Review Process
-
-* Reviewers (the other developers and interested community members) will write inline and/or general comments on your Pull Request (PR) to help you improve its implementation, documentation, and style. Every single developer working on the project has their code reviewed, and we’ve come to see it as a friendly conversation from which we all learn and the overall code quality benefits. Therefore, please don’t let the review discourage you from contributing: its only aim is to improve the quality of the project, not to criticize (we are, after all, very grateful for the time you’re donating!).
-
-* To update your PR, make your changes on your local repository, commit, run tests, and push to your fork. As soon as those changes are pushed up (to the same branch as before) the PR will update automatically. If you have no idea how to fix the test failures, you may push your changes anyway and ask for help in a PR comment.
-
-* Various continuous integration (CI) services are triggered after each PR update to build the code, run unit tests, measure code coverage, and check the coding style of your branch. The CI tests must pass before your PR can be merged. If CI fails, you can find out why by clicking on the “failed” icon (red cross) and inspecting the build and test log. To avoid overuse and waste of this resource, test your work locally before committing.
-
-* There might also be a "failed" red cross, if the test coverage (i.e. the test code lines) is not high enough. There might be good reasons for this that should be properly described in the PR message. In most cases however, a sufficient test coverage should be achieved through adequate unit tests.
-
-* A PR must be approved by at least one core team member before merging. Approval means the core team member has carefully reviewed the changes, and the PR is ready for merging.
-
-* If the PR relates to any issues, you can add the text `#<ISSUE-NUMBER>` to insert a link to the original issue and/or another PR. Please do so for all relevant topics known to you.
-
-#### Document Changes
-
-* Make sure to reflect changes in the code in the functions docstring and possible description in the general documentation.
-
-* If your change introduces a deprecation, make sure to discuss this first on GitHub and what the appropriate deprecation strategy is.
-
-#### Divergence between upstream/main and your feature branch
-
-If GitHub indicates that the branch of your PR can no longer be merged automatically, you have to incorporate changes that have been made since you started into your branch. Our recommended way to do this is to rebase on `main`.
-
-## Guidelines
-
-* All code should have tests (see test coverage below for more details).
-
-* All code should be documented in accordance with Heat's [docstring standard](https://github.com/helmholtz-analytics/heat/blob/main/doc/source/documentation_howto.rst).
-
-* No changes are ever merged without review and approval by a core team member. Feel free to ping us on the PR if you get no response to your pull request within a week.
+*Thank you for your time!* Open source codes like Heat rely on your contributions and we appreciate your effort!
 
 ## Stylistic Guidelines
+* **Python Standards:** The pre-commit hook will enforce [PEP 8](https://www.python.org/dev/peps/pep-0008/) compliance.
+* **Imports:** Use `import heat as ht` and `import numpy as np`.
+* **Documentation:** All functions must follow the [Heat docstring standard](https://heat.readthedocs.io/en/stable/documentation_howto.html).
 
-* Set up your editor to follow [PEP 8](https://www.python.org/dev/peps/pep-0008/) (remove trailing white space, no tabs, etc.). Adding a spellchecker to your editor is really handy, too!
+## LLM and AI Usage
 
-* Use the following import conventions:
-    * `import heat as ht`
-    * `import numpy as np`
-    * Have Python standard library and third-party dependencies imported before Heat modules.
+We embrace the use of LLMs only if they save us time, where `total_time = development_time + review_time`.
 
-* Sort functions alphabetically in files (leading underscores are ignored).
+### Instructions for AI and Contributors
+If you are using an LLM to generate or review code for Heat, be aware of the following project-specific limitations:
 
-* Expose only necessary functions to modules via the `__all__` variable.
+* **Distributed logic:** LLMs consistently struggle with memory-distributed algorithms and MPI communication primitives. Make sure the correctness tests (result comparison to equivalent numpy, scipy, scikit-learn functionality) pass in parallel as well, not just on a single process.
+* **Kernel implementation:** Do not reimplement kernels from scratch. Heat is designed to rely on **PyTorch's optimized kernels**; AI suggestions that attempt to bypass PyTorch are usually inefficient and will be rejected.
+* **Incremental reviews:** When using an LLM to incorporate PR review feedback, make sure the model does not rewrite entire functions from scratch. "Total rewrites" make follow-up reviews excruciating.
 
-## Test Coverage
+But also:
+* **Go for it!** LLMs are great for things like:
+    * Code vectorization and refactoring
+    * Documentation and docstring generation
+    * Understanding and explaining the existing codebase
+    * Drafting tests, etc.
+    * creating flowcharts and diagrams to illustrate concepts, like this one:
 
-* Pull requests (PRs) that modify code should either have new tests, or modify existing tests to fail before the PR and pass afterwards. You should run the tests before pushing a PR.
+```mermaid
+    graph TD
+    %% Define Brand Style
+    classDef heatStyle fill:#FFE9D6,stroke:#F07E26,stroke-width:2px,color:#56656B;
+    classDef automation fill:#56656B,stroke:#56656B,stroke-width:2px,color:#FFFFFF;
 
-* Tests for a module should ideally cover all code in that module, i.e., statement coverage should be at 100%.
+    Start(["Using an LLM for Heat?"]) --> Choice{Task Type}
 
-* To measure the test coverage, install [codecov](https://github.com/codecov/codecov-python) and then run:
+    %% The "Go For It" Path
+    Choice -- "Refactoring / Docs / Tests" --> Good["Go for it!"]
+    Good --> G1["Vectorization & Refactoring"]
+    Good --> G2["Docstring Generation"]
+    Good --> G3["Drafting Unit Tests"]
+    Good --> G4["Explaining Codebase"]
 
+    %% The "Caution" Path
+    Choice -- "New Logic / PR Reviews" --> Caution["Exercise Caution"]
+    Caution --> C1[["Distributed & MPI Logic"]]
+    Caution --> C2[["Process-local Pytorch ops"]]
+    Caution --> C3[["Incremental Reviews"]]
+
+    %% Constraints
+    C1 --> R1["Verify results in parallel vs. NumPy/SciPy"]
+    C2 --> R2["Do NOT reimplement ops in pure Python, use PyTorch optimized kernels!"]
+    C3 --> R3["Avoid 'Total Rewrites' after receiving feedback"]
+
+    %% Conclusion
+    R1 & R2 & R3 & G1 & G2 & G3 & G4 --> Final(["Verify & Push"])
+
+    %% Apply Classes
+    class Start,Choice,Good,Caution,G1,G2,G3,G4,C1,C2,C3,R1,R2,R3,Final heatStyle;
+    class C1,C2,C3 automation;
 ```
-mpirun -np <PROCESSES> coverage run --source=heat --parallel-mode -m pytest heat/ && \
-    coverage combine && \
-    coverage report && \
-    coverage xml'
-```
+
+## Next Steps
+
+Once your PR is open, monitor the CI status. If the red cross appears, check the logs to resolve failures before requesting a final manual review. Notably:
+
+- `codebase` CI runs on CUDA and ROCm runners and checks for test failures on CPU and GPU, and code coverage.
+
+- the `codecov` CI  will fail if the coverage drops below the required threshold.
