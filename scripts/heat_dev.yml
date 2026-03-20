@@ -18,5 +18,3 @@ dependencies:
   - pre-commit
   - ruff
   - mypy
-  - pytest
-  - coverage
