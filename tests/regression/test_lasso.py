@@ -51,7 +51,7 @@ class TestLasso(TestCase):
             # normalize dataset
             X = X / ht.sqrt((ht.mean(X**2, axis=0)))
             m, n = X.shape
-            # HeAT lasso instance
+            # Heat lasso instance
             estimator = ht.regression.lasso.Lasso(max_iter=100, tol=None)
             # check whether the results are correct
             self.assertEqual(estimator.lam, 0.1)
@@ -76,6 +76,19 @@ class TestLasso(TestCase):
             # check whether the results are correct
             self.assertIsInstance(yest, ht.DNDarray)
             self.assertEqual(yest.shape, (m, 1))
+
+            # test with user defined step size
+            estimator = ht.regression.lasso.Lasso(max_iter=100, tol=None, step_size=0.01)
+            estimator.fit(X, y)
+
+            # check whether the results are correct
+            self.assertEqual(estimator.lam, 0.1)
+            self.assertIsInstance(estimator.theta, ht.DNDarray)
+            self.assertEqual(estimator.n_iter, 100)
+            self.assertEqual(estimator.max_iter, 100)
+            self.assertEqual(estimator.coef_.shape, (n - 1, 1))
+            self.assertEqual(estimator.intercept_.shape, (1,))
+
 
             with self.assertRaises(ValueError):
                 estimator.fit(X, ht.zeros((3, 3, 3)))
