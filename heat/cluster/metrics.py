@@ -114,36 +114,41 @@ def silhouette_samples(X, labels, *, metric="euclidean", **kwds):
         X, labels, accept_sparse=["csr"]
     )  # think about accept_sparse, i have no idea what it is and what csr means
 
-    X_distributed = ht.array(X, split=0)
-    labels_distributed = ht.array(labels, split=0)
+    ht.sanitize_in(X)
+    ht.sanitize_in(labels)
+
+    #X_distributed = ht.array(X, split=0)
+    #labels_distributed = ht.array(labels, split=0)
+
+
+
 
     if metric == "precomputed":
         error_msg = ValueError(
             "The precomputed distance matrix contains non-zero elements on the diagonal"
         )
         # mb write a function to fill diag with 0, like np.fill_diagonal(X, 0)
-        diag_elements = ht.diag(X_distributed)
+        diag_elements = ht.diag(X)
 
-        if X_distributed.dtype.kind == "f":
-            atol = ht.finfo(X_distributed.dtype).eps * 100  # tolerance based on machine accuracy
+        atol = ht.finfo(X.dtype).eps * 100  # tolerance based on machine accuracy
 
-            if ht.any(ht.abs(diag_elements) > atol):
-                raise error_msg
+        if ht.any(ht.abs(diag_elements) > atol):
+            raise error_msg
         elif ht.any(diag_elements != 0):  # integral dtype
             raise error_msg
 
     unique_labels, labels_encoded = ht.unique(
-        labels_distributed, return_inverse=True
+        labels, return_inverse=True
     )  # f.e. labels = [10, 30, 20, 10], then unique_labels = [10,20,30] and labels_encoded = [0, 2, 1, 0]
     unique_labels.resplit_(None)
     labels_encoded.resplit(None)
     labels_freqs = ht.bincount(labels_encoded)
     labels_freqs.resplit_(None)
-    n_samples = labels_distributed.shape[0]
+    n_samples = labels.shape[0]
     n_labels = unique_labels.shape[0]
     check_number_of_labels(n_labels, n_samples)
 
-    rank = X_distributed.comm.rank
+    rank = X.comm.rank
     """
     print(f"[{rank}] labels_encoded (Local RAM): {labels_encoded.larray}")
     print(f"[{rank}] labels_distributed (Local RAM): {labels_distributed.larray}")
@@ -154,13 +159,13 @@ def silhouette_samples(X, labels, *, metric="euclidean", **kwds):
     """
 
     if metric == "precomputed":
-        D = X_distributed
+        D = X
     else:
-        D = ht.spatial.cdist(X_distributed, X_distributed)
+        D = ht.spatial.cdist(X, X)
 
     # a(i) calculation
     a_mask = ht.reshape(labels_encoded, (1, -1)) == ht.reshape(
-        labels_distributed, (-1, 1)
+        labels, (-1, 1)
     )  # reshape((-1,1)) transposes labels_encoded
     a_mask = a_mask.astype(ht.float32)
 
@@ -175,7 +180,7 @@ def silhouette_samples(X, labels, *, metric="euclidean", **kwds):
     a = ht.div(a_clust_dists, ht.array(denominator_a, split=0))
 
     # b(i) calculation
-    b_mask = ht.reshape(labels_distributed, (-1, 1)) == ht.reshape(unique_labels, (1, -1))
+    b_mask = ht.reshape(labels, (-1, 1)) == ht.reshape(unique_labels, (1, -1))
     full_b_mask = (labels_encoded.reshape((-1, 1)) == unique_labels.reshape((1, -1))).astype(
         ht.float32
     )
