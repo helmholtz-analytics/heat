@@ -95,10 +95,8 @@ copybutton_prompt_is_regexp = True
 html_show_sourcelink = True
 
 # The suffix(es) of source filenames.
-# You can specify multiple suffix as a list of string:
+# You can specify multiple suffix as a list of string or a dict:
 #
-# source_suffix = ['.rst', '.md']
-#source_suffix = ".rst"
 source_suffix = {
     '.rst': 'restructuredtext',
     '.md': 'markdown',
