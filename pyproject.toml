@@ -91,6 +91,8 @@ docs = [
     "nbsphinx",
     "sphinx-autobuild",
     "sphinx-copybutton",
+    "myst-parser",
+    "sphinxcontrib-mermaid",
 ]
 
 [project.scripts]
