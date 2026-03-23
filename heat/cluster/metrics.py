@@ -117,11 +117,8 @@ def silhouette_samples(X, labels, *, metric="euclidean", **kwds):
     ht.sanitize_in(X)
     ht.sanitize_in(labels)
 
-    #X_distributed = ht.array(X, split=0)
-    #labels_distributed = ht.array(labels, split=0)
-
-
-
+    # X_distributed = ht.array(X, split=0)
+    # labels_distributed = ht.array(labels, split=0)
 
     if metric == "precomputed":
         error_msg = ValueError(
