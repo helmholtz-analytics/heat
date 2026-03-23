@@ -23,7 +23,7 @@ def test_silhouette_implementation():
     # Comparison
 
     ht_results_np = ht_results.resplit(None).numpy()
-    
+
     assert np.allclose(sk_results, ht_results, atol=1e-5), f'Max diff between Heat and scipy: np.max(np.abs(sk_results - ht_results_np))'
 
     # Single sample in a cluster
