@@ -31,8 +31,7 @@ def test_silhouette_implementation():
     X_edge = np.random.rand(4, n_features)
 
     res_edge = silhouette_samples(ht.array(X_edge), ht.array(labels_edge))
-    if res_edge[3] == 0:
-        print("✅ Edge Case Passed: Single-sample cluster correctly assigned 0.0")
+    assert res_edge[3] == 0:
 
 
 def test_minimal_silhouette():
