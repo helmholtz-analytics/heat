@@ -1,4 +1,4 @@
-# Heat Quick Start
+# Quick Start
 
 This guide provides instructions for setting up Heat as a user or a contributor.
 
