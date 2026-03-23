@@ -400,6 +400,23 @@ class TestFactories(TestCase):
                 dim = self.get_rank() + 1
                 ht.array([[0] * dim] * dim, is_split=0)
 
+    def test_array_implicit_device_selection(self):
+        # test implicit device selection
+        for device in ['cpu', 'cuda', 'mps']:
+            with self.subTest(f'{device=}'):
+                try:
+                    a_torch = torch.zeros(4, device=device)
+                except (RuntimeError, AssertionError, NotImplementedError):
+                    print(f'{device=} is not available')
+                    continue
+
+                a = ht.array(a_torch)
+                self.assertEqual(a.device, ht.devices.sanitize_device(a_torch.device.type))
+                b = ht.array(a)
+                self.assertEqual(a.device, b.device)
+                c = ht.array(a, device='cpu')
+                self.assertEqual(str(c.device)[:3], 'cpu')
+
     def test_asarray(self):
         # same heat array
         arr = ht.array([1, 2])
