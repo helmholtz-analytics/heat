@@ -1,3 +1,17 @@
 threshold: medium
 allowed_patterns:
 - 'uses: [A-Za-z-\/]+@[\w\d]+'
+fileignoreconfig:
+- filename: doc/source/tutorials/notebooks/setup/setup_jsc_perun.sh
+  checksum: de60b13f4cd1c64f30742c4b569b370b40b223176459bb49852ce0ccb8c0b3b0
+- filename: doc/source/tutorials/notebooks/Linear_algebra.ipynb
+  checksum: 61a4e864c10af62d3f77852e7c75501fbe1f79b556a06ffd3fdee81390768883
+- filename: doc/source/tutorials/notebooks/Basics.ipynb
+  checksum: f4abccfbf312c3190b9c42f30a877c2ab980a0a09f11ee4abc9fee69ee07b56f
+- filename: doc/source/tutorials/notebooks/Clustering_and_PCA.ipynb
+  checksum: 90f8cfddfee323429060d4d915a9134d1a4498eecba154d9e3e739f2ffaf9760
+- filename: doc/source/tutorials/notebooks/Loading_preprocessing.ipynb
+  checksum: 43173b52659c786a1af116d93ff5479a16e4cf1544bd77e77830651b8d6f074c
+- filename: doc/source/tutorials/notebooks/DMD.ipynb
+  checksum: bc1475ce1feae80e13d30cfba5a4f126fd8cadfccd0043a7e6024ee137cc7862
+version: "1.0"
