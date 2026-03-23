@@ -52,6 +52,11 @@ eb heat-<version>.eb --robot
 spack install py-heat
 ```
 
+If you want to try Heat without any installations, test in your browser on [Jupyter4NFDI](https://nfdi-jupyter.de).
+
+[![Jupyter4NFDI](https://nfdi-jupyter.de/images/jupyter4nfdi_badge.svg)](https://hub.nfdi-jupyter.de/v2/gh/helmholtz-analytics/heat/jupyter4nfdi?labpath=tutorials%2FJupyter4NFDI_landing_notebook.ipynb&system=deNBI-Cloud&flavor=l1&localstoragepath=%2Fhome%2Fjovyan%2Fwork)
+
+
 ### Distributed Example
 Heat handles inter-node communication automatically. Define how your data is partitioned across the cluster using the [`DNDarray.split`](https://heat.readthedocs.io/en/stable/autoapi/heat/core/dndarray/index.html) attribute. Push computations to your GPUs with the [`DNDarray.device`](https://heat.readthedocs.io/en/stable/autoapi/heat/core/dndarray/index.html) attribute. Heat will take care of the rest, ensuring efficient data movement and synchronization across nodes.
 
