@@ -21,7 +21,7 @@
 # Heat
 **High-performance data analytics in Python, at scale.**
 
-[Getting Started](quick_start.md) | [Tutorials](https://github.com/helmholtz-analytics/heat/tree/main/doc/source/tutorials/notebooks) | [Docs](https://heat.readthedocs.io/) | [Contributing](contributing.md)
+[Getting Started](quick_start.md) | [Tutorials](https://github.com/helmholtz-analytics/heat/tree/main/doc/source/tutorials/notebooks) | [Docs](https://heat.readthedocs.io/) | [Contributing](CONTRIBUTING.md)
 
 ---
 
@@ -92,7 +92,7 @@ srun --nodes=2 --ntasks-per-node=2 --gpus-per-node=2 python my_script.py
 
 
 ### Contributing and Support
-We welcome contributions from the community. Please see our [Contribution Guidelines](contributing.md) and the [Code of Conduct](CODE_OF_CONDUCT.md).
+We welcome contributions from the community. Please see our [Contribution Guidelines](CONTRIBUTING.md) and the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 For bug reports, feature requests, or general questions, please use [GitHub Issues](https://github.com/helmholtz-analytics/heat/issues) or [Discussions](https://github.com/helmholtz-analytics/heat/discussions).
 
