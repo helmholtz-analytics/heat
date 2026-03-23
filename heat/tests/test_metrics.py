@@ -24,14 +24,14 @@ def test_silhouette_implementation():
 
     ht_results_np = ht_results.resplit(None).numpy()
 
-    assert np.allclose(sk_results, ht_results, atol=1e-5), f'Max diff between Heat and scipy: np.max(np.abs(sk_results - ht_results_np))'
+    assert np.allclose(sk_results, ht_results_np, atol=1e-5), f'Max diff between Heat and scipy: np.max(np.abs(sk_results - ht_results_np))'
 
     # Single sample in a cluster
     labels_edge = np.array([0, 0, 0, 1])
     X_edge = np.random.rand(4, n_features)
 
     res_edge = silhouette_samples(ht.array(X_edge), ht.array(labels_edge))
-    assert res_edge[3] == 0:
+    assert res_edge[3] == 0
 
 
 def test_minimal_silhouette():
@@ -53,7 +53,7 @@ def test_minimal_silhouette():
         # b = dist((0,0), (10,10)) = 14.14
         # sil = (14.14 - 1.414) / 14.14 = 0.9
 
-assert res_np[0] > 0.8, f"Point 0 is {res_np[0]:.4f}"
+    assert res_np[0] > 0.8, f"Point 0 is {res_np[0]:.4f}"
 
 
 if __name__ == "__main__":
