@@ -20,6 +20,7 @@ Release: |release|
    case_studies
    documentation_howto
    CONTRIBUTING
+   CODE_OF_CONDUCT
 
 Also visit us on `GitHub <https://github.com/helmholtz-analytics/heat>`_ for more examples, docs, code and contributions.
 
