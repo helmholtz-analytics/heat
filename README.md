@@ -99,7 +99,7 @@ For bug reports, feature requests, or general questions, please use [GitHub Issu
 ### Citations
 Citations are essential for the sustainability of this project. If Heat supports your work, please cite our main paper:
 
-Götz, M., et al. (2020). HeAT - a Distributed and GPU-accelerated Tensor Framework for Data Analytics. In *2020 IEEE International Conference on Big Data (Big Data)* (pp. 276-287). IEEE. DOI: 10.1109/BigData50022.2020.9378050.
+Götz, M., et al. (2020). HeAT - a Distributed and GPU-accelerated Tensor Framework for Data Analytics. In *2020 IEEE International Conference on Big Data (Big Data)* (pp. 276-287). IEEE. DOI: [10.1109/BigData50022.2020.9378050](https://doi.org/10.1109/BigData50022.2020.9378050).
 
 <details>
 <summary>BibTeX</summary>
