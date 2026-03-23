@@ -1,5 +1,5 @@
 Tutorials
-==============
+=========
 
 .. toctree::
     :hidden:
