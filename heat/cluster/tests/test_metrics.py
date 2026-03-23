@@ -53,10 +53,7 @@ def test_minimal_silhouette():
         # b = dist((0,0), (10,10)) = 14.14
         # sil = (14.14 - 1.414) / 14.14 = 0.9
 
-    if res_np[0] > 0.8:
-        print(f"✅ Success! Point 0 is {res_np[0]:.4f}")
-    else:
-        print(f"❌ Failure! Point 0 is {res_np[0]:.4f}")
+assert res_np[0] > 0.8, f"Point 0 is {res_np[0]:.4f}"
 
 
 if __name__ == "__main__":
