@@ -298,9 +298,6 @@ def solve(A: DNDarray, b: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     .. note::
         A and b may only be distributed in the batch dimensions. If both are split, they must be split along matching batch axes.
 
-    .. note::
-        If the input is integer, it is cast to float for the solve step and the output is cast back to integer
-
     .. seealso::
 
             :func:`torch.linalg.solve` is called under the hood on the local data. This docstring is also heavily inspired by the docstring of this function.
@@ -428,7 +425,7 @@ def solve(A: DNDarray, b: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     if len(global_error_msg):
         raise RuntimeError(*global_error_msg)
 
-    return out.astype(out_dtype, copy=False)  # cast back to int if needed
+    return out
 
 
 def solve_triangular(A: DNDarray, b: DNDarray) -> DNDarray:
