@@ -1,5 +1,4 @@
 import numpy as np
-import torch
 import scipy.signal as sig
 
 import heat as ht
@@ -888,7 +887,7 @@ class TestSignal(TestCase):
                             ht.equal(solution[::stride[0], ::stride[1]], gathered))
 
                         conv = ht.convolve2d(signal, dis_kernel_even, mode=mode, stride=stride)
-                        gathered = manipulations.resplit(conv, axis=None) # this resplit fails,
+                        gathered = manipulations.resplit(conv, axis=None)
                         self.assertTrue(
                             ht.equal(solution[::stride[0], ::stride[1]], gathered))
 
@@ -956,10 +955,7 @@ class TestSignal(TestCase):
 
             np_a = np.random.randint(0,100, size=(734, 680)).astype(np_dtype)
             np_b = np.random.randint(0,10, size=(39, 17)).astype(np_dtype)
-            #np_b = np.arange(585).reshape((39,15))
 
-            # np_b = np.zeros((39,17))
-            #np_b = np.ones((39,17))
             random_stride = tuple(np.random.randint(1, high=20, size=2))
             for mode in ["full", "same", "valid"]:
                 strides = [(1,1), random_stride] if mode != "same" else [(1,1)]
