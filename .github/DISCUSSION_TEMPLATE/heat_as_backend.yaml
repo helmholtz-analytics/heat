@@ -39,6 +39,11 @@ body:
       label: How much parallelism do you want in the future?
       description: Do you want to run more efficiently on the hardware that you have or go full Jupiter?
   - type: textarea
+    id: future-devices
+    attributes:
+      label: What devices do you want to run on?
+      description: CPU, NVIDIA GPU, AMD GPU, ...
+  - type: textarea
     id: started-porting
     attributes:
       label: Have you already tried using heat?
