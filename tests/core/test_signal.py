@@ -1,13 +1,11 @@
 import numpy as np
 import torch
-import unittest
+import scipy.signal as sig
+
 import heat as ht
 from heat import manipulations
-import scipy.signal as sig
-from .test_suites.basic_test import TestCase
-import os
-
-from ..signal import _sanitize_conv_input, _conv_batchprocessing_check
+from heat.testing.basic_test import TestCase
+from heat.core.signal import _sanitize_conv_input, _conv_batchprocessing_check
 
 class TestSignal(TestCase):
     @classmethod
