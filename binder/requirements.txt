@@ -1,4 +1,7 @@
-mpi4py
+python>=3.13
 openmpi
+mpi4py
+h5py
 ipyparallel
 heat
+perun
