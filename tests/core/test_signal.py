@@ -400,9 +400,11 @@ class TestSignal(TestCase):
 
         # distributed input along the first axis
         stride = 123
+        signal = ht.random.randn(1000, dtype=float_dtype)
         batch_signal = ht.empty((10, 1000), dtype=float_dtype, split=0)
         batch_signal.larray[:] = signal.larray
 
+        kernel = ht.random.randn(19, dtype=float_dtype)
         batch_convolved = ht.convolve(batch_signal, kernel, mode="valid", stride=stride)
         self.assertTrue(
             ht.equal(ht.convolve(signal, kernel, mode="valid", stride=stride), batch_convolved[0])
