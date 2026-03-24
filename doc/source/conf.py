@@ -45,6 +45,8 @@ extensions = [
     "sphinx.ext.mathjax",
     "sphinx_copybutton",
     "nbsphinx",
+    "myst_parser",
+    "sphinxcontrib.mermaid",
 ]
 
 # Document Python Code
@@ -93,10 +95,15 @@ copybutton_prompt_is_regexp = True
 html_show_sourcelink = True
 
 # The suffix(es) of source filenames.
-# You can specify multiple suffix as a list of string:
+# You can specify multiple suffix as a list of string or a dict:
 #
-# source_suffix = ['.rst', '.md']
-source_suffix = ".rst"
+source_suffix = {
+    '.rst': 'restructuredtext',
+    '.md': 'markdown',
+}
+
+# interpreting mermaid flowcharts
+myst_fence_as_directive = ["mermaid"]
 
 # The encoding of source files.
 #
