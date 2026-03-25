@@ -443,7 +443,7 @@ class TestSignal(TestCase):
         )
 
     def test_convolve2d_batch_convolutions(self):
-        float_dtype = ht.float32
+        float_dtype = ht.float32 if self.is_mps else ht.float64
 
         if self.comm.size < 5:
             # distributed input along the first axis
