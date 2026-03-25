@@ -51,6 +51,7 @@ dependencies = [
     "torch~=2.3,<2.10.1",
     "torchvision~=0.18",
     "scipy~=1.14",
+    "scikit-learn~=1.6",
 ]
 
 [project.optional-dependencies]
