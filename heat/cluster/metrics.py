@@ -2,6 +2,9 @@ import heat as ht
 import numpy as np
 
 
+BORDER_LENGTH = 1e6  # value determines when array will be transformed to heat array
+
+
 # Checks
 def check_number_of_labels(n_labels, n_samples):
     """Check that number of labels are valid.
@@ -20,7 +23,7 @@ def check_number_of_labels(n_labels, n_samples):
         )
 
 
-def check_X_y(X, y, accept_sparse=False):
+def check_X_y(X, y, accept_sparse=False, metric="euclidean"):
     """Input validation for standard estimators.
 
     Parameters
@@ -39,11 +42,7 @@ def check_X_y(X, y, accept_sparse=False):
     y_converted : object
         The converted and validated y.
     """
-    X = check_array(
-        X,
-        accept_sparse=accept_sparse,
-        input_name="X",
-    )
+    X = check_array(X, accept_sparse=accept_sparse, input_name="X", metric=metric)
 
     y = _check_y(y)
 
@@ -52,20 +51,35 @@ def check_X_y(X, y, accept_sparse=False):
     return X, y
 
 
-def check_array(X, accept_sparse=False, input_name="X"):
-    if not isinstance(X, ht.DNDarray):
-        # Convert to heat array
-        X = ht.array(X, split=0)
+def check_array(X, accept_sparse=False, input_name="X", metric="euclidean"):
+    # Convert to heat array if input big enough --> overhead acceptable if array big enough
+    if X.shape[0] > BORDER_LENGTH or X.shape[1] > BORDER_LENGTH:
+        if not isinstance(X, ht.DNDarray):
+            X = ht.array(X, split=0)
 
     if not accept_sparse and X.is_sparse:
         raise TypeError(f"{input_name} is sparse, but sparse input is not accepted.")
 
+    if metric == "precomputed":
+        error_msg = ValueError(
+            "The precomputed distance matrix contains non-zero elements on the diagonal"
+        )
+        # mb write a function to fill diag with 0, like np.fill_diagonal(X, 0)
+        diag_elements = ht.diag(X)
+
+        atol = ht.finfo(X.dtype).eps * 100  # tolerance based on machine accuracy
+
+        if ht.any(ht.abs(diag_elements) > atol):
+            raise error_msg
+        elif ht.any(diag_elements != 0):  # integral dtype
+            raise error_msg
     return X
 
 
 def _check_y(y):
-    if not isinstance(y, ht.DNDarray):
-        y = ht.array(y, split=0)
+    if y.shape[0] > BORDER_LENGTH:
+        if not isinstance(y, ht.DNDarray):
+            y = ht.array(y, split=0)
 
     # need 1D labels
     if len(y.shape) > 1:
@@ -86,26 +100,15 @@ def check_consistent_length(X, y):
             f"Found input variables with inconsistent numbers of samples: [{X.shape[0]}, {y.shape[0]}]"
         )
 
-    # ensure split axis is the same
-    if X.split != y.split:
-        y.resplit_(X.split)
-
-    # Check if local chunks match
-    if X.lshape[0] != y.lshape[0]:
-        raise ValueError(
-            "Local shapes of X and y do not match. Ensure they are partitioned identically."
-        )
-
-
-def check_random_state(seed):
-    if seed is None:
-        return ht.random
-
-    if isinstance(seed, (int, np.integer)):
-        ht.random.seed(int(seed))
-        return ht.random
-
-    raise ValueError(f"Type {type(seed)} cannot be used to seed ht.random")
+    if isinstance(X, ht.DNDarray) and isinstance(y, ht.DNDarray):
+        # ensure split axis is the same
+        if X.split != y.split:
+            y.resplit_(X.split)
+        # Check if local chunks match
+        if X.lshape[0] != y.lshape[0]:
+            raise ValueError(
+                "Local shapes of X and y do not match. Ensure they are partitioned identically."
+            )
 
 
 # Functions
@@ -160,50 +163,22 @@ def silhouette_samples(X, labels, *, metric="euclidean", **kwds):
     >>> ht.cluster.silhouette_samples(X, labels)
     DNDarray([0.7452, 0.7836, 0.7452, 0.7836], dtype=ht.float64, device=cpu:0, split=0)
     """
-    X, labels = check_X_y(
-        X, labels, accept_sparse=["csr"]
-    )  # think about accept_sparse, i have no idea what it is and what csr means
+    # Sanitation and checks
+    X, labels = check_X_y(X, labels, accept_sparse=["csr"], metric=metric)
 
     ht.sanitize_in(X)
     ht.sanitize_in(labels)
-
-    # X_distributed = ht.array(X, split=0)
-    # labels_distributed = ht.array(labels, split=0)
-
-    if metric == "precomputed":
-        error_msg = ValueError(
-            "The precomputed distance matrix contains non-zero elements on the diagonal"
-        )
-        # mb write a function to fill diag with 0, like np.fill_diagonal(X, 0)
-        diag_elements = ht.diag(X)
-
-        atol = ht.finfo(X.dtype).eps * 100  # tolerance based on machine accuracy
-
-        if ht.any(ht.abs(diag_elements) > atol):
-            raise error_msg
-        elif ht.any(diag_elements != 0):  # integral dtype
-            raise error_msg
 
     unique_labels, labels_encoded = ht.unique(
         labels, return_inverse=True
     )  # f.e. labels = [10, 30, 20, 10], then unique_labels = [10,20,30] and labels_encoded = [0, 2, 1, 0]
     unique_labels.resplit_(None)
-    labels_encoded.resplit(None)
+    # labels_encoded.resplit(None)
     labels_freqs = ht.bincount(labels_encoded)
-    labels_freqs.resplit_(None)
+    # labels_freqs.resplit_(None)
     n_samples = labels.shape[0]
     n_labels = unique_labels.shape[0]
     check_number_of_labels(n_labels, n_samples)
-
-    rank = X.comm.rank
-    """
-    print(f"[{rank}] labels_encoded (Local RAM): {labels_encoded.larray}")
-    print(f"[{rank}] labels_distributed (Local RAM): {labels_distributed.larray}")
-    print(f"[{rank}] unique_labels (Local RAM): {unique_labels.larray}")
-    print(f"[{rank}] n_labels: {n_labels}")
-    print(f"[{rank}] n_samples: {n_samples}")
-    print(f"[{rank}] labels_freqs (Local RAM): {labels_freqs.larray}")
-    """
 
     if metric == "precomputed":
         D = X
@@ -218,13 +193,14 @@ def silhouette_samples(X, labels, *, metric="euclidean", **kwds):
 
     a_clust_dists = ht.sum(ht.mul(D, a_mask), axis=1)
     denominator_a = labels_freqs.larray[labels_encoded.larray] - 1
+    denominator_a = ht.array(denominator_a, split=0)
     denominator_a = ht.where(
-        ht.array(denominator_a, split=0).astype(ht.float32) > 0,
-        ht.array(denominator_a, split=0),
+        denominator_a.astype(ht.float32) > 0,
+        denominator_a,
         1.0,
     )
 
-    a = ht.div(a_clust_dists, ht.array(denominator_a, split=0))
+    a = ht.div(a_clust_dists, denominator_a)
 
     # b(i) calculation
     b_mask = ht.reshape(labels, (-1, 1)) == ht.reshape(unique_labels, (1, -1))
@@ -233,9 +209,10 @@ def silhouette_samples(X, labels, *, metric="euclidean", **kwds):
     )
 
     b_clust_dists = ht.matmul(D, full_b_mask)
-    labels_freqs.resplit_(None)
+
+    # labels_freqs.resplit_(None)
     denominator_b = labels_freqs.astype(ht.float32)
-    denominator_b.resplit_(None)
+    # denominator_b.resplit_(None)
     b_clust_means = b_clust_dists / denominator_b
 
     # we want neighbor cluster, so set the distance to points in own cluster to infinity
@@ -300,7 +277,8 @@ def silhouette_score(X, labels, *, metric="euclidean", sample_size=None, random_
     """
     if sample_size is not None:
         X, labels = check_X_y(X, labels, accept_sparse=["csc", "csr"])  # same as silhouette_samples
-        random_state = check_random_state(random_state)
+        if random_state is not None:
+            ht.random.seed(random_state)
         indices = random_state.permutation(X.shape[0])[
             :sample_size
         ]  # selecs a subset of random samples, but all ranks need same indices
