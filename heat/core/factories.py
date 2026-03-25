@@ -1286,7 +1286,7 @@ def meshgrid(*arrays: Sequence[DNDarray], indexing: str = "xy") -> List[DNDarray
     ----------
     arrays : Sequence[ DNDarray ]
         one-dimensional arrays representing grid coordinates. If exactly one vector is distributed, the returned matrices will
-        be distributed along the axis equal to the index of this vector in the input list.
+        reflect this distribution.
     indexing : str, optional
         Cartesian ‘xy’ or matrix ‘ij’ indexing of output. It is ignored if zero or one one-dimensional arrays are provided. Default: 'xy' .
 
@@ -1303,15 +1303,33 @@ def meshgrid(*arrays: Sequence[DNDarray], indexing: str = "xy") -> List[DNDarray
     >>> y = ht.arange(3)
     >>> xx, yy = ht.meshgrid(x, y)
     >>> xx
-    DNDarray([[0, 1, 2, 3],
+    DNDarray(MPI-rank: 0, Shape: [3, 4], Split: None, Local Shape: (3, 4), Device: cpu:0, Dtype: int32, Data:
+         [[0, 1, 2, 3],
           [0, 1, 2, 3],
-          [0, 1, 2, 3]], dtype=ht.int32, device=cpu:0, split=None)
+          [0, 1, 2, 3]])
     >>> yy
-    DNDarray([[0, 0, 0, 0],
+    DNDarray(MPI-rank: 0, Shape: [3, 4], Split: None, Local Shape: (3, 4), Device: cpu:0, Dtype: int32, Data:
+         [[0, 0, 0, 0],
           [1, 1, 1, 1],
-          [2, 2, 2, 2]], dtype=ht.int32, device=cpu:0, split=None)
+          [2, 2, 2, 2]])
+
+    >>> x = ht.arange(4, split=0)
+    >>> xx, yy = ht.meshgrid(x, y)
+    >>> xx
+    DNDarray(MPI-rank: 0, Shape: [3, 4], Split: 1, Local Shape: (3, 4), Device: cpu:0, Dtype: int32, Data:
+         [[0, 1, 2, 3],
+          [0, 1, 2, 3],
+          [0, 1, 2, 3]])
+
+    >>> xx, yy = ht.meshgrid(x, y, indexing="ij")
+    >>> xx
+    DNDarray(MPI-rank: 0, Shape: (4, 3), Split: 0, Local Shape: (4, 3), Device: cpu:0, Dtype: int32, Data:
+         [[0, 0, 0],
+          [1, 1, 1],
+          [2, 2, 2],
+          [3, 3, 3]])
     """
-    splitted = None
+    split = None
 
     if indexing not in ["xy", "ij"]:
         raise ValueError("Valid values for `indexing` are 'xy' and 'ij'.")
@@ -1324,35 +1342,27 @@ def meshgrid(*arrays: Sequence[DNDarray], indexing: str = "xy") -> List[DNDarray
     for idx, array in enumerate(arrays):
         sanitize_in(array)
         if array.split is not None:
-            if splitted is not None:
-                raise ValueError("split != None are not supported.")
-            splitted = idx
+            if split is not None:
+                raise ValueError("Only one input array can be distributed!")
+            split = idx
 
-    # pytorch does not support the indexing keyword: switch vectors
-    if indexing == "xy" and len(arrays) > 1:
-        arrays[0], arrays[1] = arrays[1], arrays[0]
-        if splitted == 0:
-            arrays[0] = arrays[0].resplit(0)
-            arrays[1] = arrays[1].resplit(None)
-        elif splitted == 1:
-            arrays[0] = arrays[0].resplit(None)
-            arrays[1] = arrays[1].resplit(0)
-
-    grids = torch.meshgrid(*(array.larray for array in arrays))
-
-    # pytorch does not support indexing keyword: switch back
-    if indexing == "xy" and len(arrays) > 1:
-        grids = list(grids)
-        grids[0], grids[1] = grids[1], grids[0]
+    grids = torch.meshgrid(*(array.larray for array in arrays), indexing=indexing)
 
     shape = tuple(array.size for array in arrays)
+    if indexing == "xy" and len(shape) > 1:
+        shape = list(shape)
+        shape[0], shape[1] = shape[1], shape[0]
+        if split == 0:
+            split = 1
+        elif split == 1:
+            split = 0
 
     return [
         DNDarray(
             array=grid,
             gshape=shape,
             dtype=types.heat_type_of(grid),
-            split=splitted,
+            split=split,
             device=devices.sanitize_device(grid.device.type),
             comm=sanitize_comm(None),
             balanced=True,
