@@ -1,3 +1,28 @@
+# v1.8.0 - Heat v1.8.0
+## Changes
+
+- #2192 [Backport stable] Fix bug in  (by @[github-actions[bot]](https://github.com/apps/github-actions))
+- #2188 [Backport stable] [pre-commit.ci] pre-commit autoupdate (by @[github-actions[bot]](https://github.com/apps/github-actions))
+- #2158 [Backport stable] Fix: Missing sync for sent messages in  (by @[github-actions[bot]](https://github.com/apps/github-actions))
+- #2161 [Backport stable] [pre-commit.ci] pre-commit autoupdate (by @[github-actions[bot]](https://github.com/apps/github-actions))
+- #2162 [Backport stable] Remove  files from repository once and for all (by @[github-actions[bot]](https://github.com/apps/github-actions))
+- #2153 [Backport stable] [pre-commit.ci] pre-commit autoupdate (by @[github-actions[bot]](https://github.com/apps/github-actions))
+- #2100 [Backport stable] Adapted SVD API to match numpy API (by @[github-actions[bot]](https://github.com/apps/github-actions))
+- #2124 [Backport stable] [pre-commit.ci] pre-commit autoupdate (by @[github-actions[bot]](https://github.com/apps/github-actions))
+- #2106 [Backport stable] Print contents of array in  (by @[github-actions[bot]](https://github.com/apps/github-actions))
+- #2103 [Backport stable] Using same random values on all MPI tasks in  (by @[github-actions[bot]](https://github.com/apps/github-actions))
+- #2104 [Backport stable] Removed version restriction for scikit-learn in  dependencies (by @[github-actions[bot]](https://github.com/apps/github-actions))
+- #2119 [Backport stable] Support PyTorch 2.10.0 (by @[github-actions[bot]](https://github.com/apps/github-actions))
+- #2110 [Backport stable] [pre-commit.ci] pre-commit autoupdate (by @[github-actions[bot]](https://github.com/apps/github-actions))
+- #2102 [Backport stable] [pre-commit.ci] pre-commit autoupdate (by @[github-actions[bot]](https://github.com/apps/github-actions))
+- #2099 [Backport stable] Remove updating dependency versions when installing heat in CI (by @[github-actions[bot]](https://github.com/apps/github-actions))
+- #2081 [Backport stable] [pre-commit.ci] pre-commit autoupdate (by @[github-actions[bot]](https://github.com/apps/github-actions))
+
+## Contributors
+
+@brownbaerchen, @github-actions[bot], @pre-commit-ci[bot] and [github-actions[bot]](https://github.com/apps/github-actions)
+
+
 # v1.7.0
 
 ## Highlights
