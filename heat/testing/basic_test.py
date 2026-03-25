@@ -13,6 +13,7 @@ import heat as ht
 from heat.core import MPI, MPICommunication, dndarray, factories, types, Device
 from heat.core.random import seed
 
+
 # TODO adapt for GPU once this is working properly
 class TestCase(unittest.TestCase):
     """Helper functions for unit tests"""
