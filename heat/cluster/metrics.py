@@ -110,6 +110,56 @@ def check_random_state(seed):
 
 # Functions
 def silhouette_samples(X, labels, *, metric="euclidean", **kwds):
+    """
+    Compute the Silhouette Coefficient for each sample.
+
+    The Silhouette Coefficient is a measure of how similar an object is to its own cluster
+    (cohesion) compared to other clusters (separation).
+    The best value is 1 and the worst value is -1. Values near 0 indicate overlapping clusters.
+
+    * The score is 0 for clusters with only a single sample.
+    * The calculation involves computing the mean intra-cluster distance (a) and
+      the mean nearest-cluster distance (b) for each sample.
+
+    Parameters
+    ----------
+    X : DNDarray
+        An array of pairwise distances between samples, or a feature array.
+        If `metric='precomputed'`, X is assumed to be a distance matrix.
+    labels : DNDarray
+        Labels for each sample.
+    metric : str, optional
+        The metric to use when calculating distance between instances in a feature array.
+        If metric is "precomputed", X is assumed to be a distance matrix.
+        Default is "euclidean".
+    **kwds : optional
+        Additional keyword arguments are ignored (reserved for compatibility).
+
+    Notes
+    -----
+    The Silhouette Coefficient $s(i)$ for a single sample is defined as:
+    $$s(i) = \frac{b(i) - a(i)}{\\max(a(i), b(i))}$$
+    where $a(i)$ is the mean distance to other samples in the same cluster and $b(i)$
+    is the mean distance to samples in the nearest neighbor cluster.
+
+    Raises
+    ------
+    ValueError
+        If the number of labels is 1 or equal to the number of samples.
+        If `metric='precomputed'` and the diagonal contains non-zero elements.
+
+    See Also
+    --------
+    silhouette_score : Average silhouette coefficient over all samples.
+
+    Examples
+    --------
+    >>> import heat as ht
+    >>> X = ht.array([[1, 2], [1, 1], [4, 4], [4, 5]], split=0)
+    >>> labels = ht.array([0, 0, 1, 1], split=0)
+    >>> ht.cluster.silhouette_samples(X, labels)
+    DNDarray([0.7452, 0.7836, 0.7452, 0.7836], dtype=ht.float64, device=cpu:0, split=0)
+    """
     X, labels = check_X_y(
         X, labels, accept_sparse=["csr"]
     )  # think about accept_sparse, i have no idea what it is and what csr means
@@ -201,6 +251,53 @@ def silhouette_samples(X, labels, *, metric="euclidean", **kwds):
 
 
 def silhouette_score(X, labels, *, metric="euclidean", sample_size=None, random_state=None, **kwds):
+    r"""
+    Compute the mean Silhouette Coefficient of all samples.
+
+    The Silhouette Coefficient is calculated using the mean intra-cluster distance (a)
+    and the mean nearest-cluster distance (b) for each sample. The Silhouette
+    Coefficient for a sample is $(b - a) / \max(a, b)$.
+
+    * This function returns the average of `silhouette_samples`.
+    * To clarify, $b$ is the distance between a sample and the nearest cluster that
+      the sample is not a part of.
+
+    Parameters
+    ----------
+    X : DNDarray
+        An array of pairwise distances between samples, or a feature array.
+    labels : DNDarray
+        Labels for each sample.
+    metric : str, optional
+        The metric to use when calculating distance between instances in a feature array.
+        If metric is "precomputed", X is assumed to be a distance matrix.
+        Default is "euclidean".
+    sample_size : int, optional
+        The size of the sample to use when computing the Silhouette Coefficient on a random subset of the data.
+        If ``sample_size is None``, no sampling is used.
+    random_state : int, optional
+        Determines random number generation for selecting a subset of samples.
+        Used when `sample_size` is not `None`.
+    **kwds : optional
+        Additional keyword arguments passed to `silhouette_samples`.
+
+    Notes
+    -----
+    The best value is 1 and the worst value is -1. Values near 0 indicate
+    overlapping clusters.
+
+    See Also
+    --------
+    silhouette_samples : Silhouette Coefficient for each individual sample.
+
+    Examples
+    --------
+    >>> import heat as ht
+    >>> X = ht.array([[1, 2], [1, 1], [4, 4], [4, 5]], split=0)
+    >>> labels = ht.array([0, 0, 1, 1], split=0)
+    >>> ht.cluster.silhouette_score(X, labels)
+    0.76439
+    """
     if sample_size is not None:
         X, labels = check_X_y(X, labels, accept_sparse=["csc", "csr"])  # same as silhouette_samples
         random_state = check_random_state(random_state)
