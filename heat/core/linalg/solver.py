@@ -346,7 +346,6 @@ def solve(A: DNDarray, b: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     """
     ht.sanitize_in(A)
     ht.sanitize_in(b)
-    out_dtype = ht.types.promote_types(A.dtype, b.dtype)
 
     # torch doesn't support integer, so we cast to float here if needed
     if ht.issubdtype(A.dtype, ht.integer):
