@@ -1,3 +1,7 @@
+"""
+Cluster metrics for the HeAT library.
+"""
+
 import heat as ht
 import numpy as np
 
@@ -7,15 +11,21 @@ BORDER_LENGTH = 1e6  # value determines when array will be transformed to heat a
 
 # Checks
 def check_number_of_labels(n_labels, n_samples):
-    """Check that number of labels are valid.
+    """
+    Check that number of labels are valid.
 
     Parameters
     ----------
     n_labels : int
         Number of labels.
-
     n_samples : int
         Number of samples.
+
+    Examples
+    --------
+    >>> check_number_of_labels(2, 5)
+    >>> check_number_of_labels(1, 5)
+    ValueError: Number of labels is 1. Valid values are 2 to n_samples - 1 (inclusive)
     """
     if not 1 < n_labels < n_samples:
         raise ValueError(
@@ -24,23 +34,35 @@ def check_number_of_labels(n_labels, n_samples):
 
 
 def check_X_y(X, y, accept_sparse=False, metric="euclidean"):
-    """Input validation for standard estimators.
+    """
+    Input validation for standard estimators.
 
     Parameters
     ----------
     X : {DNDarray, list, sparse matrix}
         Input data.
-
     y : {DNDarray, list, sparse matrix}
         Labels.
+    accept_sparse : bool, optional
+        Whether to accept sparse matrix input. Default is False.
+    metric : str, optional
+        The metric to use for validation. Default is "euclidean".
 
     Returns
     -------
-    X_converted : object
+    X : DNDarray
         The converted and validated X.
-
-    y_converted : object
+    y : DNDarray
         The converted and validated y.
+
+    Examples
+    --------
+    >>> import heat as ht
+    >>> X = ht.array([[1, 2], [3, 4]], dtype=ht.float)
+    >>> y = ht.array([0, 1])
+    >>> check_X_y(X, y)
+    (DNDarray([[1., 2.], [3., 4.]], dtype=ht.float32, device=cpu:0, split=None),
+     DNDarray([0, 1], dtype=ht.int64, device=cpu:0, split=None))
     """
     X = check_array(X, accept_sparse=accept_sparse, input_name="X", metric=metric)
 
@@ -52,6 +74,40 @@ def check_X_y(X, y, accept_sparse=False, metric="euclidean"):
 
 
 def check_array(X, accept_sparse=False, input_name="X", metric="euclidean"):
+    """
+    Input validation for a single array-like object.
+    Converts input to a distributed HeAT DNDarray if dimensions exceed BORDER_LENGTH.
+
+    Parameters
+    ----------
+    X : {DNDarray, array-like, sparse matrix}
+        The input data to check.
+    accept_sparse : bool, optional
+        Whether to accept sparse matrix input. Default is False.
+    input_name : str, optional
+        The name of the input variable to use in error messages. Default is "X".
+    metric : str, optional
+        The metric to use. Default is "euclidean".
+
+    Returns
+    -------
+    X : DNDarray
+        The validated and potentially converted HeAT DNDarray.
+
+    Raises
+    ------
+    TypeError
+        If the input is sparse but `accept_sparse` is False.
+    ValueError
+        If `metric="precomputed"` and the diagonal contains non-zero elements.
+
+    Examples
+    --------
+    >>> import heat as ht
+    >>> X = [[0, 1], [1, 0]]
+    >>> check_array(X, metric="precomputed")
+    DNDarray([[0., 1.], [1., 0.]], dtype=ht.float32, device=cpu:0, split=0)
+    """
     # Convert to heat array if input big enough --> overhead acceptable if array big enough
     if X.shape[0] > BORDER_LENGTH or X.shape[1] > BORDER_LENGTH:
         if not isinstance(X, ht.DNDarray):
@@ -77,6 +133,32 @@ def check_array(X, accept_sparse=False, input_name="X", metric="euclidean"):
 
 
 def _check_y(y):
+    """
+    Standard validation of labels
+    Ensures y is a 1D DNDarray and handles reshaping of column vectors.
+
+    Parameters
+    ----------
+    y : {DNDarray, array-like}
+        The target values (labels).
+
+    Returns
+    -------
+    y : DNDarray
+        The validated and potentially converted HeAT DNDarray in 1D
+
+    Raises
+    ------
+    ValueError
+        If y is None or cannot be squeezed into a 1D representation.
+
+    Examples
+    --------
+    >>> import heat as ht
+    >>> y = ht.array([[1], [2], [3]])
+    >>> _check_y(y)
+    DNDarray([1, 2, 3], dtype=ht.int64, device=cpu:0, split=0)
+    """
     if y.shape[0] > BORDER_LENGTH:
         if not isinstance(y, ht.DNDarray):
             y = ht.array(y, split=0)
@@ -95,6 +177,31 @@ def _check_y(y):
 
 
 def check_consistent_length(X, y):
+    """
+    Check that X and y have a consistent number of samples (rows).
+    For distributed DNDarrays, it ensures identical split axes and local chunk sizes.
+
+    Parameters
+    ----------
+    X : DNDarray
+        Input data.
+    y : DNDarray
+        Labels
+
+    Raises
+    ------
+    ValueError
+        If the global sample counts differ or if local distributed chunks
+        are not aligned.
+
+    Examples
+    --------
+    >>> import heat as ht
+    >>> X = ht.zeros((10, 2), split=0)
+    >>> y = ht.ones((10,), split=None)
+    >>> check_consistent_length(X, y)
+    # y is silently resplit to match X.split=0
+    """
     if X.shape[0] != y.shape[0]:
         raise ValueError(
             f"Found input variables with inconsistent numbers of samples: [{X.shape[0]}, {y.shape[0]}]"

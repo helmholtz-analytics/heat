@@ -1,8 +1,9 @@
 import heat as ht
 import numpy as np
 from sklearn.metrics import silhouette_samples as sk_silhouette
+from sklearn.metrics import silhouette_score as sk_silhouette_score
 from sklearn.datasets import make_blobs
-from heat.cluster.metrics import silhouette_samples
+from heat.cluster.metrics import silhouette_samples, silhouette_score
 
 
 def test_silhouette_implementation():
@@ -38,7 +39,11 @@ def test_minimal_silhouette():
     X_np = np.array([[0, 0], [10, 10], [20, 20], [1, 1]], dtype=np.float32)
     labels_np = np.array([0, 2, 1, 0], dtype=np.int32)
 
-    ht_res = silhouette_samples(X_np, labels_np)
+    # HeAT values
+    X_ht = ht.array(X_np, split=0)
+    labels_ht = ht.array(labels_np, split=0)
+
+    ht_res = silhouette_samples(X_ht, labels_ht)
 
     res_np = ht_res.numpy()
 
