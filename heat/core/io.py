@@ -1687,7 +1687,6 @@ else:
                 target_shapes = torch.zeros(
                     (dummy_array.comm.size, target_ndims.item() + 1), dtype=torch.int64
                 )
-
                 dummy_array.comm.Allgather(target_shape, target_shapes)
                 if local_tensor.numel() == 0:
                     ht_type_code = target_shapes[0, -1].item()
