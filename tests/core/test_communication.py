@@ -11,8 +11,6 @@ from heat.testing.basic_test import TestCase
 envar = os.getenv("HEAT_TEST_USE_DEVICE", "cpu")
 is_mps = envar == "gpu" and platform.machine() == "arm64"
 
-envar = os.getenv("HEAT_TEST_USE_DEVICE", "cpu")
-is_mps = envar == "gpu" and platform.machine() == "arm64"
 
 @unittest.skipIf(is_mps, "Distribution not supported on Apple MPS")
 class TestCommunication(TestCase):

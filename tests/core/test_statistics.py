@@ -13,10 +13,6 @@ def get_dataset_path(dataset_name):
     return os.path.join(os.path.dirname(ht.__file__), f"datasets/{dataset_name}")
 
 
-def get_dataset_path(dataset_name):
-    return os.path.join(os.path.dirname(ht.__file__), f"datasets/{dataset_name}")
-
-
 class TestStatistics(TestCase):
 
     def setUp(self) -> None:

@@ -11,9 +11,6 @@ from heat.testing.basic_test import TestCase
 envar = os.getenv("HEAT_TEST_USE_DEVICE", "cpu")
 is_mps = envar == "gpu" and platform.system() == "Darwin"
 
-envar = os.getenv("HEAT_TEST_USE_DEVICE", "cpu")
-is_mps = envar == "gpu" and platform.system() == "Darwin"
-
 
 class TestRandom_Batchparallel(TestCase):
     def test_default(self):
