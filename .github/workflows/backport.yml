@@ -5,20 +5,21 @@ on:
 permissions:
   contents: write # so it can comment
   pull-requests: write # so it can create pull requests
+
 jobs:
   backport:
     name: Backport pull request
     runs-on: ubuntu-latest
     # Don't run on closed unmerged pull requests
-    if: github.event.pull_request.merged
+    if: github.event.pull_request.merged && ${{ !github.event.repository.fork }}
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
         with:
           egress-policy: audit
 
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Create backport pull requests
-        uses: korthout/backport-action@d07416681cab29bf2661702f925f020aaa962997 # v3.4.1
+        uses: korthout/backport-action@4aaf0e03a94ff0a619c9a511b61aeb42adea5b02 # v4.2.0
         with:
           merge_commits: 'skip'

@@ -1,77 +1,62 @@
 name: ci
 
 on:
-  pull_request_review:
-    types: [submitted]
+  push:
+    branches-ignore:
+      - main
+      - dependabot/**
 
 jobs:
-  approved:
-    if: github.event.review.state == 'approved'
+  tests:
     runs-on: ubuntu-latest
+    timeout-minutes: 120
     strategy:
       fail-fast: false
       matrix:
         py-version:
-          - '3.10'
-          - '3.11'
-          - '3.12'
-          - '3.13'
-          - '3.14'
+          - '3.11' # Oldest supported
+          - '3.14' # Latest stable
         mpi: [ 'openmpi' ]
         install-options: [ '.', '.[hdf5,netcdf,pandas,zarr]' ]
         pytorch-version:
-          - 'torch==2.3.1 torchvision==0.18.1 torchaudio==2.3.1'
-          - 'torch==2.4.1 torchvision==0.19.1 torchaudio==2.4.1'
-          - 'torch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1'
-          - 'torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0'
-          - 'torch==2.7.1 torchvision==0.22.1 torchaudio==2.7.1'
-          - 'torch==2.8.0 torchvision==0.23.0 torchaudio==2.8.0'
-          - 'torch==2.9.1 torchvision==0.24.1 torchaudio==2.9.1'
-          - 'torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0'
+          - 'torch==2.3.1 torchvision==0.18.1 torchaudio==2.3.1'   # Oldest supported
+          - 'torch==2.9.1 torchvision==0.24.1 torchaudio==2.9.1'   # JSC Stage 2026
+          - 'torch==2.11.0 torchvision==0.26.0 torchaudio==2.11.0' # Latest stable
         exclude:
           - py-version: '3.14'
             pytorch-version: 'torch==2.3.1 torchvision==0.18.1 torchaudio==2.3.1'
-          - py-version: '3.14'
-            pytorch-version: 'torch==2.4.1 torchvision==0.19.1 torchaudio==2.4.1'
-          - py-version: '3.14'
-            pytorch-version: 'torch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1'
-          - py-version: '3.14'
-            pytorch-version: 'torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0'
-          - py-version: '3.14'
-            pytorch-version: 'torch==2.7.1 torchvision==0.22.1 torchaudio==2.7.1'
-          - py-version: '3.14'
-            pytorch-version: 'torch==2.8.0 torchvision==0.23.0 torchaudio==2.8.0'
-          - py-version: '3.13'
-            pytorch-version: 'torch==2.3.1 torchvision==0.18.1 torchaudio==2.3.1'
-          - py-version: '3.13'
-            pytorch-version: 'torch==2.4.1 torchvision==0.19.1 torchaudio==2.4.1'
-          - py-version: '3.13'
-            pytorch-version: 'torch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1'
-          - py-version: '3.10'
-            install-options: '.[hdf5,netcdf,pandas,zarr]'
-
 
     name: Python ${{ matrix.py-version }} with ${{ matrix.pytorch-version }}; options ${{ matrix.install-options }}
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
         with:
           egress-policy: audit
 
       - name: Checkout
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
       - name: Setup MPI
         uses: mpi4py/setup-mpi@3969f247e8fceef153418744f9d9ee6fdaeda29f # v1.2.0
         with:
           mpi: ${{ matrix.mpi }}
+
       - name: Use Python ${{ matrix.py-version }}
         uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
         with:
           python-version: ${{ matrix.py-version }}
           architecture: x64
-      - name: Test
+
+      - name: Install heat
         run: |
           pip install pytest
           pip install ${{ matrix.pytorch-version }} ${{ matrix.install-options }} --extra-index-url https://download.pytorch.org/whl/cpu
-          mpirun -n 3 pytest heat/
-          mpirun -n 4 pytest heat/
+
+      - name: Run serial tests
+        run: |
+          # use pytest -vv -x for debugging
+          pytest
+
+      - name: Run parallel tests
+        run: |
+          mpirun -n 4 pytest -vv
