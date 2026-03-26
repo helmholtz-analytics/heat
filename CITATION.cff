@@ -7,31 +7,21 @@ message: 'If you use this software, please cite it as below.'
 type: software
 authors:
 # release highlights
-  - family-names: Palazoglu
-    given-names: Berkant
-  - family-names: Hoppe
-    given-names: Fabian
-  - family-names: Scheib
-    given-names: Lukas
-  - family-names: Tarnawa
-    given-names: Michael
-# active contributors in alphabetic order
-  - family-names: Akdag
-    given-names: Hakan
+  - family-names: Saupe
+    given-names: Thomas
   - family-names: Comito
     given-names: Claudia
+  - family-names: Tarnawa
+    given-names: Michael
   - family-names: Gutiérrez Hermosillo Muriedas
     given-names: Juan Pedro
-  - family-names: Hees
-    given-names: Jörn
-  - family-names: Jindra
-    given-names: Marc
-  - family-names: Korten
-    given-names: Till
+# active contributors in alphabetic order
   - family-names: Krajsek
     given-names: Kai
-  - family-names: Lemmen
-    given-names: Jonas
+#  - family-names: Akdag
+#    given-names: Hakan
+#  - family-names: Jindra
+#    given-names: Marc
 # historic core team
   - family-names: Coquelin
     given-names: Daniel
