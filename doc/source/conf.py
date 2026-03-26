@@ -440,4 +440,5 @@ myst_heading_anchors = 3
 myst_enable_extensions = [
     "relative_images", # Ensures images in root are found via symlinks
     "substitution",    # Allows using global variables in MD files
+    "mermaid",        # Enables Mermaid diagrams in Markdown
 ]
