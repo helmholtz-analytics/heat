@@ -21,7 +21,7 @@
 # Heat
 **High-performance data analytics in Python, at scale.**
 
-[Getting Started](./quick_start) | [Tutorials](https://github.com/helmholtz-analytics/heat/tree/main/doc/source/tutorials/notebooks) | [Docs](https://heat.readthedocs.io/) | [Contributing](./CONTRIBUTING)
+[Getting Started](./quick_start.md) | [Tutorials](https://github.com/helmholtz-analytics/heat/tree/main/doc/source/tutorials/notebooks) | [Docs](https://heat.readthedocs.io/) | [Contributing](./CONTRIBUTING.md)
 
 ---
 
