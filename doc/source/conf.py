@@ -429,3 +429,15 @@ nbsphinx_thumbnails = {
     # "tutorials/notebooks/5_clustering": "_static/images/tutorial_split_dndarray.svg",
     "tutorials/notebooks/6_profiling": "_static/images/perun_logo.svg",
 }
+
+# -- MyST Parser configuration -------------------------------------------
+
+# This allows MyST to treat relative Markdown links (e.g., [Text](file.md))
+# as internal cross-references to other documentation pages.
+myst_heading_anchors = 3
+
+# Optional: Enable additional MyST features for better SSOT handling
+myst_enable_extensions = [
+    "relative_images", # Ensures images in root are found via symlinks
+    "substitution",    # Allows using global variables in MD files
+]
