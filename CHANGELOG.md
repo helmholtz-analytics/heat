@@ -41,21 +41,21 @@ We are grateful to our community of users, students, open-source contributors, t
 ### <a name="v1.8.0-interoperability">Interoperability
 * Support PyTorch 2.11.0 by @github-actions[bot] in [PR #2224](https://github.com/helmholtz-analytics/heat/pull/2224)
 * Support PyTorch 2.10.0 by @github-actions[bot] in [PR #2112](https://github.com/helmholtz-analytics/heat/pull/2112)
-* Add pandas as optional dependency by @JuanPedroGHM in [PR #2150](https://github.com/helmholtz-analytics/heat/pull/2150)
+* Add pandas as optional dependency by @brownbaerchen in [PR #2149](https://github.com/helmholtz-analytics/heat/pull/2149)
 * Adapted SVD API to match NumPy API by @brownbaerchen in [PR #2089](https://github.com/helmholtz-analytics/heat/pull/2089)
 
 ### <a name="v1.8.0-bug-fixes">Bug Fixes
-* Fix: Missing sync for sent messages in `get_halo` by @brownbaerchen in [PR #2152](https://github.com/helmholtz-analytics/heat/pull/2152)
-* Fix bug in `Heat.indexing.nonzero` by @ClaudiaComito in [PR #2139](https://github.com/helmholtz-analytics/heat/pull/2139)
-* Fix `test_io` deadlock and cleaner CI matrix by @brownbaerchen in [PR #2145](https://github.com/helmholtz-analytics/heat/pull/2145)
+* Fix: Missing sync for sent messages in `get_halo` by @JuanPedroGHM in [PR #2150](https://github.com/helmholtz-analytics/heat/pull/2150)
+* Fix bug in `Heat.indexing.nonzero` by @brownbaerchen in [PR #2138](https://github.com/helmholtz-analytics/heat/pull/2138)
+* Fix `test_io` deadlock and leaner CI matrix by @ClaudiaComito in [PR #2139](https://github.com/helmholtz-analytics/heat/pull/2139)
 * Pass indexing directly to torch in `meshgrid` by @brownbaerchen in [PR #2211](https://github.com/helmholtz-analytics/heat/pull/2211)
 * Consistent random values across MPI tasks in `test_statistics.py` by @brownbaerchen in [PR #2090](https://github.com/helmholtz-analytics/heat/pull/2090)
 
 ### <a name="v1.8.0-docs-maintenance">Documentation & Maintenance
 * SSOT for ReadTheDocs and GitHub documentation by @ClaudiaComito in [PR #2215](https://github.com/helmholtz-analytics/heat/pull/2215)
-* Update README and sync with Quick Start by @ClaudiaComito in [PR #2202](https://github.com/helmholtz-analytics/heat/pull/2202)
+* Update README and sync with Quick Start by @ClaudiaComito in [PR #2208](https://github.com/helmholtz-analytics/heat/pull/2208)
 * Reorganize tests to new directory structure by @mtar in [PR #2172](https://github.com/helmholtz-analytics/heat/pull/2172)
-* Fix CI on forks and enable runs on draft PRs by @brownbaerchen in [PR #2159](https://github.com/helmholtz-analytics/heat/pull/2159)
+* Fix CI on forks and enable runs on draft PRs by @brownbaerchen in [PR #2152](https://github.com/helmholtz-analytics/heat/pull/2152)
 
 ## <a name="v1.8.0-contributors">Contributors
 @brownbaerchen, @ClaudiaComito, @mtar, @JuanPedroGHM
