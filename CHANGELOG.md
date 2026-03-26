@@ -14,7 +14,9 @@
 
 ## <a name="v1.8.0-overview">Overview
 
-This release expands support of fundamental linear algebra solvers, including **matrix exponential** and **linear system solving**, to massive memory-distributed arrays. We added support for **complex-valued QR decomposition**. We have also introduced the **float16** data type to support memory-efficient workflows and ensured seamless integration with the latest deep learning frameworks by supporting **PyTorch 2.10.0 and 2.11.0**.
+This release expands support of fundamental linear algebra solvers to massive memory-distributed arrays, including **matrix exponential** and **linear system solving**. We added support for **complex-valued QR decomposition**. We have also introduced the **float16** data type to support memory-efficient workflows and ensured seamless integration with the latest deep learning frameworks by supporting **PyTorch 2.10.0 and 2.11.0**.
+
+We have completely overhauled our [Jupyter Notebooks tutorials](https://github.com/helmholtz-analytics/heat/blob/main/doc/source/tutorials/notebooks/README.md), check them out to get started with Heat on local machines or high-performance computing clusters.
 
 Furthermore, this version streamlines our developer experience with a "Single Source of Truth" (SSOT) documentation strategy and improved CI stability for community forks.
 
@@ -52,6 +54,7 @@ We are grateful to our community of users, students, open-source contributors, t
 * Consistent random values across MPI tasks in `test_statistics.py` by @brownbaerchen in [PR #2090](https://github.com/helmholtz-analytics/heat/pull/2090)
 
 ### <a name="v1.8.0-docs-maintenance">Documentation & Maintenance
+* Major tutorials update by @ClaudiaComito, @mrfh92, @JuanPedroGHM, @krajsek, in [PR #2031](https://github.com/helmholtz-analytics/heat/pull/2031)
 * SSOT for ReadTheDocs and GitHub documentation by @ClaudiaComito in [PR #2215](https://github.com/helmholtz-analytics/heat/pull/2215)
 * Update README and sync with Quick Start by @ClaudiaComito in [PR #2208](https://github.com/helmholtz-analytics/heat/pull/2208)
 * Reorganize tests to new directory structure by @mtar in [PR #2172](https://github.com/helmholtz-analytics/heat/pull/2172)
