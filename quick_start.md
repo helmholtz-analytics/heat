@@ -126,4 +126,4 @@ pre-commit install
 
 ## All set!
 
-For more details on our workflow, see our [contributing guidelines](./CONTRIBUTING). We look forward to your contributions!
+For more details on our workflow, see our [contributing guidelines](https://heat.readthedocs.io/en/stable/CONTRIBUTING.html). We look forward to your contributions!
