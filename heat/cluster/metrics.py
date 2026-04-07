@@ -235,7 +235,7 @@ def silhouette_samples(X, labels, *, metric="euclidean", **kwds):
     ----------
     X : DNDarray
         An array of pairwise distances between samples, or a feature array.
-        If `metric='precomputed'`, X is assumed to be a distance matrix.
+        If `metric='precomputed'`, X is assumed to be a distance matrix and a feature array otherwise.
     labels : DNDarray
         Labels for each sample.
     metric : str, optional
