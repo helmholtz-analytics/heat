@@ -21,7 +21,7 @@
 # Heat
 **High-performance data analytics in Python, at scale.**
 
-[Getting Started](./quick_start) | [Tutorials](https://github.com/helmholtz-analytics/heat/tree/main/doc/source/tutorials/notebooks) | [Docs](https://heat.readthedocs.io/) | [Contributing](./CONTRIBUTING)
+[Getting Started](https://heat.readthedocs.io/en/stable/quick_start.html) | [Tutorials](https://github.com/helmholtz-analytics/heat/tree/main/doc/source/tutorials/notebooks) | [Docs](https://heat.readthedocs.io/) | [Contributing](https://heat.readthedocs.io/en/stable/CONTRIBUTING.html)
 
 ---
 
@@ -92,7 +92,7 @@ srun --nodes=2 --ntasks-per-node=2 --gpus-per-node=2 python my_script.py
 
 
 ### Contributing and Support
-We welcome contributions from the community. Please see our [Contribution Guidelines](./CONTRIBUTING) and the [Code of Conduct](./CODE_OF_CONDUCT).
+We welcome contributions from the community. Please see our [Contribution Guidelines](https://heat.readthedocs.io/en/stable/CONTRIBUTING.html) and the [Code of Conduct](https://heat.readthedocs.io/en/stable/CODE_OF_CONDUCT.html).
 
 For bug reports, feature requests, or general questions, please use [GitHub Issues](https://github.com/helmholtz-analytics/heat/issues) or [Discussions](https://github.com/helmholtz-analytics/heat/discussions).
 
@@ -122,4 +122,4 @@ Götz, M., et al. (2020). HeAT - a Distributed and GPU-accelerated Tensor Framew
 This work was funded by the **Helmholtz Association Initiative and Networking Fund** (Project **ZT-I-0003**, "Helmholtz Analytics Framework"); the **Helmholtz AI** platform grant; the **European Space Agency (ESA)** (Programme [4000144045](https://activities.esa.int/index.php/4000144045)); the **Helmholtz Association Science Serve call 2025** (Project **DB002891**, [HeatHub](https://hifis.net/announcement/2026/01/08/scienceserve-awardees/)); the Google Summer of Code 2022 program.
 
 ### License
-Heat is distributed under the **MIT license**. See the [LICENSE](./LICENSE) file for details.
+Heat is distributed under the **MIT license**. See the [LICENSE](https://github.com/helmholtz-analytics/heat/blob/main/LICENSE) file for details.
