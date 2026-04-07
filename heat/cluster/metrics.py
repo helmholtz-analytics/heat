@@ -223,7 +223,7 @@ def silhouette_samples(X, labels, *, metric="euclidean", **kwds):
     """
     Compute the Silhouette Coefficient for each sample.
 
-    The Silhouette Coefficient is a measure of how similar an object is to its own cluster
+    The Silhouette Coefficient is a measure of how close an object is to its own cluster
     (cohesion) compared to other clusters (separation).
     The best value is 1 and the worst value is -1. Values near 0 indicate overlapping clusters.
 
