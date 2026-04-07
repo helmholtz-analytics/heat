@@ -223,7 +223,7 @@ def silhouette_samples(X, labels, *, metric="euclidean", **kwds):
     """
     Compute the Silhouette Coefficient for each sample.
 
-    The Silhouette Coefficient is a measure of how similar an object is to its own cluster
+    The Silhouette Coefficient is a measure of how close an object is to its own cluster
     (cohesion) compared to other clusters (separation).
     The best value is 1 and the worst value is -1. Values near 0 indicate overlapping clusters.
 
@@ -235,7 +235,7 @@ def silhouette_samples(X, labels, *, metric="euclidean", **kwds):
     ----------
     X : DNDarray
         An array of pairwise distances between samples, or a feature array.
-        If `metric='precomputed'`, X is assumed to be a distance matrix.
+        If `metric='precomputed'`, X is assumed to be a distance matrix and a feature array otherwise.
     labels : DNDarray
         Labels for each sample.
     metric : str, optional
@@ -390,9 +390,9 @@ def silhouette_score(X, labels, *, metric="euclidean", sample_size=None, random_
             ht.random.seed(None)
         indices = random_state.permutation(X.shape[0])[
             :sample_size
-        ]  # selecs a subset of random samples, but all ranks need same indices
+        ]  # selects a subset of random samples, but all ranks need same indices
 
-        if metric == "precomputed":  # precomputed means here distance matrix for some reason?
+        if metric == "precomputed":  # input is distance matrix
             X, labels = X[indices].T[indices].T, labels[indices]
         else:
             X, labels = X[indices], labels[indices]

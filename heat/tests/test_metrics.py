@@ -15,7 +15,7 @@ def test_silhouette_implementation():
     # Reference values from Scikit-Learn
     sk_results = sk_silhouette(X_np, labels_np)
 
-    # HeAT values
+    # Heat values
     X_ht = ht.array(X_np, split=0)
     labels_ht = ht.array(labels_np, split=0)
 
@@ -25,7 +25,7 @@ def test_silhouette_implementation():
 
     ht_results_np = ht_results.resplit(None).numpy()
 
-    assert np.allclose(sk_results, ht_results_np, atol=1e-5), f'Max diff between Heat and scipy: np.max(np.abs(sk_results - ht_results_np))'
+    assert np.allclose(sk_results, ht_results_np, atol=1e-9), f'Max diff between Heat and scipy: np.max(np.abs(sk_results - ht_results_np))'
 
     print(f"Labels: {labels_np}")
     print(f"HeAT Results: {ht_results}")
