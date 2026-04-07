@@ -1,0 +1,197 @@
+{
+    "@context": "https://w3id.org/codemeta/3.0",
+    "type": "SoftwareSourceCode",
+    "author": [
+        {
+            "@id": "https://orcid.org/0000-0002-2233-1041",
+            "@type": "Person",
+            "email": "markus.goetz@kit.edu",
+            "familyName": "Götz",
+            "givenName": "Markus",
+            "affiliation": {
+                "@type": "Organization",
+                "name": "Karlsruher Institut für Technologie (KIT)"
+            }
+        },
+        {
+            "@id": "_:author_2",
+            "@type": "Person",
+            "email": "charlotte.debus@kit.edu",
+            "familyName": "Debus",
+            "givenName": "Charlotte",
+            "affiliation": {
+                "@type": "Organization",
+                "name": "Karlsruher Institut für Technologie (KIT)"
+            }
+        },
+        {
+            "@id": "https://orcid.org/0000-0001-8552-5153",
+            "@type": "Person",
+            "email": "daniel.coquelin@kit.edu",
+            "familyName": "Coquelin",
+            "givenName": "Daniel",
+            "affiliation": {
+                "@type": "Organization",
+                "name": "Karlsruher Institut für Technologie (KIT)"
+            }
+        },
+        {
+            "@id": "_:author_4",
+            "@type": "Person",
+            "email": "k.krajsek@fz-juelich.de",
+            "familyName": "Krajsek",
+            "givenName": "Kai",
+            "affiliation": {
+                "@type": "Organization",
+                "name": "Forschungszentrum Jülich (FZJ)"
+            }
+        },
+        {
+            "@id": "_:author_5",
+            "@type": "Person",
+            "email": "c.comito@fz-juelich.de",
+            "familyName": "Comito",
+            "givenName": "Claudia",
+            "affiliation": {
+                "@type": "Organization",
+                "name": "Forschungszentrum Jülich (FZJ)"
+            }
+        },
+        {
+            "@id": "_:author_6",
+            "@type": "Person",
+            "email": "philipp.knechtges@dlr.de",
+            "familyName": "Knechtges",
+            "givenName": "Philipp",
+            "affiliation": {
+                "@type": "Organization",
+                "name": "Deutsches Zentrum für Luft- und Raumfahrt (DLR)"
+            }
+        },
+        {
+            "@id": "_:author_7",
+            "@type": "Person",
+            "email": "b.hagemeier@fz-juelich.de",
+            "familyName": "Hagemeier",
+            "givenName": "Björn",
+            "affiliation": {
+                "@type": "Organization",
+                "name": "Forschungszentrum Jülich (FZJ)"
+            }
+        },
+        {
+            "@id": "_:author_8",
+            "@type": "Person",
+            "email": "martin.siggel@dlr.de",
+            "familyName": "Siggel",
+            "givenName": "Martin",
+            "affiliation": {
+                "@type": "Organization",
+                "name": "Deutsches Zentrum für Luft- und Raumfahrt (DLR)"
+            }
+        },
+        {
+            "@id": "_:author_9",
+            "@type": "Person",
+            "email": "achim.basermann@dlr.de",
+            "familyName": "Basermann",
+            "givenName": "Achim",
+            "affiliation": {
+                "@type": "Organization",
+                "name": "Deutsches Zentrum für Luft- und Raumfahrt (DLR)"
+            }
+        },
+        {
+            "@id": "https://orcid.org/0000-0002-5065-469X",
+            "@type": "Person",
+            "email": "achim.streit@kit.de",
+            "familyName": "Streit",
+            "givenName": "Achim",
+            "affiliation": {
+                "@type": "Organization",
+                "name": "Karlsruher Institut für Technologie (KIT)"
+            }
+        }
+    ],
+    "contributor": [
+        {
+            "@id": "_:contributor_1",
+            "@type": "Person",
+            "email": "t.baumann@fz-juelich.de",
+            "familyName": "Saupe",
+            "givenName": "Thomas",
+            "affiliation": {
+                "@type": "Organization",
+                "name": "Forschungszentrum Jülich (FZJ)"
+            }
+        },
+        {
+            "@id": "_:contributor_2",
+            "@type": "Person",
+            "email": "m.tarnawa@fz-juelich.de",
+            "familyName": "Tarnawa",
+            "givenName": "Michael",
+            "affiliation": {
+                "@type": "Organization",
+                "name": "Forschungszentrum Jülich (FZJ)"
+            }
+        },
+        {
+            "@id": "_:contributor_3",
+            "@type": "Person",
+            "email": "f.hoppe@dlr.de",
+            "familyName": "Hoppe",
+            "givenName": "Fabian",
+            "affiliation": {
+                "@type": "Organization",
+                "name": "Deutsches Zentrum für Luft- und Raumfahrt (DLR)"
+            }
+        },
+        {
+            "@id": "_:contributor_4",
+            "@type": "Person",
+            "email": "juan.muriedas@kit.edu",
+            "familyName": "Gutiérrez Hermosillo Muriedas",
+            "givenName": "Juan Pedro",
+            "affiliation": {
+                "@type": "Organization",
+                "name": "Karlsruher Institut für Technologie (KIT)"
+            }
+        },
+        {
+            "@id": "_:contributor_5",
+            "@type": "Person",
+            "email": "hakan.akdag@dlr.de",
+            "familyName": "Akdag",
+            "givenName": "Hakan",
+            "affiliation": {
+                "@type": "Organization",
+                "name": "Deutsches Zentrum für Luft- und Raumfahrt (DLR)"
+            }
+        }
+    ],
+    "description": "The Helmholtz Analytics Toolkit (Heat) is a powerful Python library for massively-parallel HPC. Its hardware-agnostic design, based on PyTorch and MPI, enables seamless scaling on Nvidia, AMD, and ARM architectures, excelling where task-parallel frameworks show limitations.",
+    "keywords": [
+        "python",
+        "data science",
+        "data analytics",
+        "machine learning",
+        "deep learning",
+        "parallel computing",
+        "high-performance computing",
+        "multi-GPU",
+        "scientific computing"
+    ],
+    "license": "https://spdx.org/licenses/MIT",
+    "name": "HeAT",
+    "programmingLanguage": "Python 3",
+    "relatedLink": "https://heat.readthedocs.io/",
+    "softwareRequirements": [
+        "https://pypi.org/project/mpi4py/",
+        "https://pypi.org/project/torch/",
+        "https://pypi.org/project/torchvision/",
+        "https://pypi.org/project/scipy/"
+    ],
+    "version": "1.8.0",
+    "issueTracker": "https://github.com/helmholtz-analytics/heat/issues"
+}
