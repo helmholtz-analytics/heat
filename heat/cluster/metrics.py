@@ -395,3 +395,29 @@ def silhouette_score(X, labels, *, metric="euclidean", sample_size=None, random_
         else:
             X, labels = X[indices], labels[indices]
     return float(ht.mean(silhouette_samples(X, labels, metric=metric, **kwds)))
+
+
+def calinski_harabasz_score(X, labels, n_labels):
+    if n_labels == 1:
+        return 0.0  # case with only one cluster
+
+    X, labels = check_X_y(X, labels, accept_sparse=["csr"])
+
+    ht.sanitize_in(X)
+    ht.sanitize_in(labels)
+
+    n_samples = X.shape[0]
+
+    extra_disp, intra_disp = 0.0, 0.0
+    mean = ht.mean(X, axis=0)
+    for k in range(n_labels):
+        cluster_k = X[labels == k]
+        mean_k = ht.mean(cluster_k, axis=0)
+        extra_disp += cluster_k.shape[0] * ht.sum((mean_k - mean) ** 2)
+        intra_disp += ht.sum((cluster_k - mean_k) ** 2)
+
+    return float(
+        1.0
+        if intra_disp == 0.0
+        else extra_disp * (n_samples - n_labels) / (intra_disp * (n_labels - 1.0))
+    )
