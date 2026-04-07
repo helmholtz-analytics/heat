@@ -388,7 +388,7 @@ def silhouette_score(X, labels, *, metric="euclidean", sample_size=None, random_
             ht.random.seed(random_state)
         indices = random_state.permutation(X.shape[0])[
             :sample_size
-        ]  # selecs a subset of random samples, but all ranks need same indices
+        ]  # selects a subset of random samples, but all ranks need same indices
 
         if metric == "precomputed":  # input is distance matrix
             X, labels = X[indices].T[indices].T, labels[indices]
