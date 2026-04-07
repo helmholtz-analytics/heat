@@ -48,7 +48,7 @@ requires-python = ">=3.11"
 
 dependencies = [
     "mpi4py>=3.1",
-    "torch~=2.3,<2.10.1",
+    "torch~=2.3,<2.11.1",
     "torchvision~=0.18",
     "scipy~=1.14",
 ]
@@ -91,6 +91,8 @@ docs = [
     "nbsphinx",
     "sphinx-autobuild",
     "sphinx-copybutton",
+    "myst-parser",
+    "sphinxcontrib-mermaid",
 ]
 
 [project.scripts]

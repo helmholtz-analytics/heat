@@ -1,9 +1,6 @@
-# Heat Quick Start
+# Quick Start
 
 This guide provides instructions for setting up Heat as a user or a contributor.
-
-## Prerequisites
-Before installation, ensure your system meets the hardware and software requirements (Python, MPI, and PyTorch versions) specified in the [README Requirements section](README.md#requirements).
 
 ## New users
 
@@ -18,7 +15,7 @@ conda install -c conda-forge heat
 
 ### Standard Python (pip)
 
-Ensure an MPI implementation is installed on your system. Heat is typically tested against OpenMPI.
+The PyPI build includes all Python dependencies. It requires an MPI implementation to be installed on your system. Heat is typically tested against OpenMPI.
 
 ```bash
 python -m venv heat_env
@@ -46,7 +43,7 @@ module load GCC OpenMPI heat
 
 #### Docker
 
-See our [docker README](./docker/README.md).
+See our [docker README](https://github.com/helmholtz-analytics/heat/blob/main/docker/README.md) on GitHub.
 
 #### Verification
 
@@ -129,4 +126,4 @@ pre-commit install
 
 ## All set!
 
-For more details on our workflow, see our [contributing guidelines](CONTRIBUTING.md). We look forward to your contributions!
+For more details on our workflow, see our [contributing guidelines](https://heat.readthedocs.io/en/stable/CONTRIBUTING.html). We look forward to your contributions!
