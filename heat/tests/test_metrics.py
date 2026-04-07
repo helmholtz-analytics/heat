@@ -15,7 +15,7 @@ def test_silhouette_implementation():
     # Reference values from Scikit-Learn
     sk_results = sk_silhouette(X_np, labels_np)
 
-    # HeAT values
+    # Heat values
     X_ht = ht.array(X_np, split=0)
     labels_ht = ht.array(labels_np, split=0)
 
