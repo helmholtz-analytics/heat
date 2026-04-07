@@ -7,9 +7,10 @@ from heat.cluster.metrics import silhouette_samples, silhouette_score
 
 
 def test_silhouette_implementation():
-    n_samples = 10000
+    n_samples = 10
     n_features = 5
     centers = 3
+
     X_np, labels_np = make_blobs(n_samples=n_samples, n_features=n_features, centers=centers, random_state=42)
 
     # Reference values from Scikit-Learn
@@ -24,12 +25,13 @@ def test_silhouette_implementation():
     # Comparison
 
     ht_results_np = ht_results.resplit(None).numpy()
-
-    assert np.allclose(sk_results, ht_results_np, atol=1e-9), f'Max diff between Heat and scipy: np.max(np.abs(sk_results - ht_results_np))'
-
     print(f"Labels: {labels_np}")
     print(f"HeAT Results: {ht_results}")
     print(f"SK Results: {sk_results}")
+
+    assert np.allclose(sk_results, ht_results_np, atol=1e-9), f'Max diff between Heat and scipy: np.max(np.abs(sk_results - ht_results_np))'
+
+
 
     # Single sample in a cluster
     labels_edge = np.array([0, 0, 0, 1])

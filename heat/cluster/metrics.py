@@ -64,6 +64,9 @@ def check_X_y(X, y, accept_sparse=False, metric="euclidean"):
     (DNDarray([[1., 2.], [3., 4.]], dtype=ht.float32, device=cpu:0, split=None),
      DNDarray([0, 1], dtype=ht.int64, device=cpu:0, split=None))
     """
+    ht.sanitize_in(X)
+    ht.sanitize_in(y)
+
     X = check_array(X, accept_sparse=accept_sparse, input_name="X", metric=metric)
 
     y = _check_y(y)
@@ -273,18 +276,14 @@ def silhouette_samples(X, labels, *, metric="euclidean", **kwds):
     # Sanitation and checks
     X, labels = check_X_y(X, labels, accept_sparse=["csr"], metric=metric)
 
-    ht.sanitize_in(X)
-    ht.sanitize_in(labels)
-
     unique_labels, labels_encoded = ht.unique(
         labels, return_inverse=True
     )  # f.e. labels = [10, 30, 20, 10], then unique_labels = [10,20,30] and labels_encoded = [0, 2, 1, 0]
     unique_labels.resplit_(None)
-    # labels_encoded.resplit(None)
     labels_freqs = ht.bincount(labels_encoded)
-    # labels_freqs.resplit_(None)
     n_samples = labels.shape[0]
     n_labels = unique_labels.shape[0]
+
     check_number_of_labels(n_labels, n_samples)
 
     if metric == "precomputed":
@@ -296,13 +295,12 @@ def silhouette_samples(X, labels, *, metric="euclidean", **kwds):
     a_mask = ht.reshape(labels_encoded, (1, -1)) == ht.reshape(
         labels, (-1, 1)
     )  # reshape((-1,1)) transposes labels_encoded
-    a_mask = a_mask.astype(ht.float32)
+    a_mask = a_mask
 
     a_clust_dists = ht.sum(ht.mul(D, a_mask), axis=1)
-    denominator_a = labels_freqs.larray[labels_encoded.larray] - 1
-    denominator_a = ht.array(denominator_a, split=0)
+    denominator_a = labels_freqs[labels_encoded] - 1
     denominator_a = ht.where(
-        denominator_a.astype(ht.float32) > 0,
+        denominator_a > 0,
         denominator_a,
         1.0,
     )
@@ -317,10 +315,8 @@ def silhouette_samples(X, labels, *, metric="euclidean", **kwds):
 
     b_clust_dists = ht.matmul(D, full_b_mask)
 
-    # labels_freqs.resplit_(None)
-    denominator_b = labels_freqs.astype(ht.float32)
-    # denominator_b.resplit_(None)
-    b_clust_means = b_clust_dists / denominator_b
+    denominator_b = labels_freqs
+    b_clust_means = ht.div(b_clust_dists, denominator_b)
 
     # we want neighbor cluster, so set the distance to points in own cluster to infinity
     b_clust_means.larray[b_mask.larray > 0] = float("inf")
