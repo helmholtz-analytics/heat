@@ -75,3 +75,7 @@ class TestLasso(TestCase):
                 estimator.fit(X, ht.zeros((3, 3, 3)))
             with self.assertRaises(ValueError):
                 estimator.fit(ht.zeros((3, 3, 3)), ht.zeros((3, 3)))
+
+            #test unsupported split
+            with self.assertRaises(NotImplementedError):
+                estimator.fit(ht.zeros((3, 3), split=1), ht.zeros((3, 3), split=1))

@@ -4,8 +4,6 @@
 
 ---
 
-Heat is a distributed tensor framework for high performance data analytics.
-
 # Project Status
 
 [![CPU/CUDA/ROCm tests](https://codebase.helmholtz.cloud/helmholtz-analytics/ci/badges/heat/base/pipeline.svg)](https://codebase.helmholtz.cloud/helmholtz-analytics/ci/-/commits/heat/base)
@@ -14,258 +12,114 @@ Heat is a distributed tensor framework for high performance data analytics.
 [![license: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![PyPI Version](https://img.shields.io/pypi/v/heat)](https://pypi.org/project/heat/)
 [![Downloads](https://pepy.tech/badge/heat)](https://pepy.tech/project/heat)
-[![Anaconda-Server Badge](https://anaconda.org/conda-forge/heat/badges/version.svg)](https://anaconda.org/conda-forge/heat)
-[![SPEC 0 — Minimum Supported Dependencies](https://img.shields.io/badge/SPEC-0-green?labelColor=%23004811&color=%235CA038)](https://scientific-python.org/specs/spec-0000/)
-[![fair-software.eu](https://img.shields.io/badge/fair--software.eu-%E2%97%8F%20%20%E2%97%8F%20%20%E2%97%8F%20%20%E2%97%8F%20%20%E2%97%8F-green)](https://fair-software.eu)
+[![conda-forge](https://img.shields.io/conda/vn/conda-forge/heat.svg)](https://anaconda.org/channels/conda-forge/packages/heat/overview)
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/helmholtz-analytics/heat/badge)](https://securityscorecards.dev/viewer/?uri=github.com/helmholtz-analytics/heat)
 [![OpenSSF Best Practices](https://bestpractices.coreinfrastructure.org/projects/7688/badge)](https://bestpractices.coreinfrastructure.org/projects/7688)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.2531472.svg)](https://doi.org/10.5281/zenodo.2531472)
 [![Benchmarks](https://img.shields.io/badge/Grafana-Benchmarks-2ea44f)](https://930000e0-e69a-4939-912e-89a92316b420.ka.bw-cloud-instance.org/grafana)
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
-[![JuRSE Code Pick of the Month](https://img.shields.io/badge/JuRSE_Code_Pick-August_2024-blue)](https://www.fz-juelich.de/en/rse/jurse-community/jurse-code-of-the-month/august-2024)
 
-# Table of Contents
-  - [What is Heat for?](#what-is-heat-for)
-  - [Features](#features)
-  - [Getting Started](#getting-started)
-  - [Installation](#installation)
-    - [Requirements](#requirements)
-    - [pip](#pip)
-    - [conda](#conda)
-  - [Support Channels](#support-channels)
-  - [Contribution guidelines](#contribution-guidelines)
-    - [Resources](#resources)
-  - [License](#license)
-  - [Citing Heat](#citing-heat)
-  - [FAQ](#faq)
-  - [Acknowledgements](#acknowledgements)
+# Heat
+**High-performance data analytics in Python, at scale.**
 
-
-# What is Heat for?
-
-Heat builds on [PyTorch](https://pytorch.org/) and [mpi4py](https://mpi4py.readthedocs.io) to provide high-performance computing infrastructure for memory-intensive applications within the NumPy/SciPy ecosystem.
-
-
-With Heat you can:
-- port existing NumPy/SciPy code from single-CPU to multi-node clusters with minimal coding effort;
-- exploit the entire, cumulative RAM of your many nodes for memory-intensive operations and algorithms;
-- run your NumPy/SciPy code on GPUs (CUDA, ROCm, coming up: Apple MPS).
-
-For a example that highlights the benefits of multi-node parallelism, hardware acceleration, and how easy this can be done with the help of Heat, see, e.g., our [blog post on trucated SVD of a 200GB data set](https://helmholtz-analytics.github.io/heat/2023/06/16/new-feature-hsvd.html).
-
-Check out our [coverage tables](coverage_tables.md) to see which NumPy, SciPy, scikit-learn functions are already supported.
-
- If you need a functionality that is not yet supported:
-  - [search existing issues](https://github.com/helmholtz-analytics/heat/issues) and make sure to leave a comment if someone else already requested it;
-  - [open a new issue](https://github.com/helmholtz-analytics/heat/issues/new/choose).
-
-
-Check out our [features](#features) and the [Heat API Reference](https://heat.readthedocs.io/en/latest/autoapi/index.html) for a complete list of functionalities.
-
-# Features
-
-* High-performance n-dimensional arrays
-* CPU, GPU, and distributed computation using MPI
-* Powerful data analytics and machine learning methods
-* Seamless integration with the NumPy/SciPy ecosystem
-* Python array API (work in progress)
-
-
-# Getting Started
-
-Go to [Quick Start](quick_start.md) for a quick overview. For more details, see [Installation](#installation).
-
-**You can test your setup** by running the [`heat_test.py`](https://github.com/helmholtz-analytics/heat/blob/main/scripts/heat_test.py) script:
-
-```shell
-mpirun -n 2 python heat_test.py
-```
-
-It should print something like this:
-
-```shell
-x is distributed:  True
-Global DNDarray x:  DNDarray([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], dtype=ht.int32, device=cpu:0, split=0)
-Global DNDarray x:
-Local torch tensor on rank  0 :  tensor([0, 1, 2, 3, 4], dtype=torch.int32)
-Local torch tensor on rank  1 :  tensor([5, 6, 7, 8, 9], dtype=torch.int32)
-```
-
-Check out our Jupyter Notebook [**Tutorials**](https://github.com/helmholtz-analytics/heat/blob/main/tutorials/), choose `local` to try things out on your machine, or `hpc` if you have access to an HPC system.
-
-The complete documentation of the latest version is always deployed on
-[Read the Docs](https://heat.readthedocs.io/).
-
-
-<!-- # Goals
-
-Heat is a flexible and seamless open-source software for high performance data
-analytics and machine learning. It provides highly optimized algorithms and data structures for tensor computations using CPUs, GPUs, and distributed cluster systems on top of MPI. The goal of Heat is to fill the gap between single-node data analytics and machine learning libraries, and  high-performance computing (HPC). Heat's interface integrates seamlessly with the existing data science ecosystem and makes  writing scalable
-scientific and data science applications as effortless as using NumPy.
-
-Heat allows you to tackle your actual Big Data challenges that go beyond the
-computational and memory needs of your laptop and desktop.
- -->
-# Installation
-
-## Requirements
-
-### Basics
-- python >= 3.11
-- MPI (OpenMPI, MPICH, Intel MPI, etc.)
-- mpi4py >= 3.1
-- pytorch >= 2.3
-
-### Parallel I/O
-- h5py
-- netCDF4
-- zarr
-
-### GPU support
-In order to do computations on your GPU(s):
-- your CUDA or ROCm installation must match your hardware and its drivers;
-- your [PyTorch installation](https://pytorch.org/get-started/locally/) must be compiled with CUDA/ROCm support.
-
-### HPC systems
-On most HPC-systems you will not be able to install/compile MPI or CUDA/ROCm yourself. Instead, you will most likely need to load a pre-installed MPI and/or CUDA/ROCm module from the module system. Maybe, you will even find PyTorch, h5py, or mpi4py as (part of) such a module. Note that for optimal performance on GPU, you need to usa an MPI library that has been compiled with CUDA/ROCm support (e.g., so-called "CUDA-aware MPI").
-
-
-## pip
-Install the latest version with
-
-```bash
-pip install heat[hdf5,netcdf,zarr]
-```
-where the part in brackets is a list of optional dependencies. You can omit
-it, if you do not need HDF5, NetCDF, or Zarr support.
-
-## **conda**
-
-The conda build includes all dependencies **including OpenMPI**.
-```bash
- conda install -c conda-forge heat
- ```
-
-# Support Channels
-
-Go ahead and ask questions on [GitHub Discussions](https://github.com/helmholtz-analytics/heat/discussions). If you found a bug or are missing a feature, then please file a new [issue](https://github.com/helmholtz-analytics/heat/issues/new/choose). You can also get in touch with us on [Mattermost](https://mattermost.hzdr.de/signup_user_complete/?id=3sixwk9okpbzpjyfrhen5jpqfo) (sign up with your GitHub credentials). Once you log in, you can introduce yourself on the `Town Square` channel.
-
-
-# Contribution guidelines
-
-**We welcome contributions from the community, if you want to contribute to Heat, be sure to review the [Contribution Guidelines](contributing.md) and [Resources](#resources)  before getting started!**
-
-We use [GitHub issues](https://github.com/helmholtz-analytics/heat/issues) for tracking requests and bugs, please see [Discussions](https://github.com/helmholtz-analytics/heat/discussions) for general questions and discussion. You can also get in touch with us on [Mattermost](https://mattermost.hzdr.de/signup_user_complete/?id=3sixwk9okpbzpjyfrhen5jpqfo) (sign up with your GitHub credentials). Once you log in, you can introduce yourself on the `Town Square` channel.
-
-If you’re unsure where to start or how your skills fit in, reach out! You can ask us here on GitHub, by leaving a comment on a relevant issue that is already open.
-
-**If you are new to contributing to open source, [this guide](https://opensource.guide/how-to-contribute/) helps explain why, what, and how to get involved.**
-
-
-## Resources
-
-* [Heat Tutorials](https://github.com/helmholtz-analytics/heat/tree/main/tutorials)
-* [Heat API Reference](https://heat.readthedocs.io/en/latest/autoapi/index.html)
-
-### Parallel Computing and MPI:
-
-* David Henty's [course](https://www.archer2.ac.uk/training/courses/200514-mpi/)
-* Wes Kendall's [Tutorials](https://mpitutorial.com/tutorials/)
-* Rolf Rabenseifner's [MPI course material](https://www.hlrs.de/training/self-study-materials/mpi-course-material) (including C, Fortran **and** Python via `mpi4py`)
-
-### mpi4py
-
-* [mpi4py docs](https://mpi4py.readthedocs.io/en/stable/tutorial.html)
-* [Tutorial](https://www.kth.se/blogs/pdc/2019/08/parallel-programming-in-python-mpi4py-part-1/)
-# License
-
-Heat is distributed under the MIT license, see our
-[LICENSE](LICENSE) file.
-
-# Citing Heat
-
-<!-- If you find Heat helpful for your research, please mention it in your publications. You can cite: -->
-
-If Heat contributed to a publication, please cite our main paper.
-
-**Preferred Citation:**
-
-Götz, M., Debus, C., Coquelin, D., et al. (2020). HeAT - a Distributed and GPU-accelerated Tensor Framework for Data Analytics. In *2020 IEEE International Conference on Big Data (Big Data)* (pp. 276-287). IEEE. DOI: 10.1109/BigData50022.2020.9378050.
-
-```bibtex
-@inproceedings{heat2020,
-    title={{HeAT -- a Distributed and GPU-accelerated Tensor Framework for Data Analytics}},
-    author={Markus Götz and Charlotte Debus and Daniel Coquelin and Kai Krajsek and Claudia Comito and Philipp Knechtges and Björn Hagemeier and Michael Tarnawa and Simon Hanselmann and Martin Siggel and Achim Basermann and Achim Streit},
-    booktitle={2020 IEEE International Conference on Big Data (Big Data)},
-    year={2020},
-    pages={276-287},
-    publisher={IEEE},
-    doi={10.1109/BigData50022.2020.9378050}
-}
-```
-
-### Other Relevant Publications
-
-**For the RSE perspective and latest benchmarks:**
-
-Hoppe, F., et al. (2025). *Engineering a large-scale data analytics and array computing library for research: Heat*. Electronic Communications of the EASST, 83.
-
-```bibtex
-@article{heat2025rse,
-  title={Engineering a large-scale data analytics and array computing library for research: Heat},
-  volume={83},
-  url={[https://eceasst.org/index.php/eceasst/article/view/2626](https://eceasst.org/index.php/eceasst/article/view/2626)},
-  DOI={10.14279/eceasst.v83.2626},
-  journal={Electronic Communications of the EASST},
-  author={Hoppe, Fabian and Gutiérrez Hermosillo Muriedas, Juan Pedro and Tarnawa, Michael and Knechtges, Philipp and Hagemeier, Björn and Krajsek, Kai and Rüttgers, Alexander and Götz, Markus and Comito, Claudia},
-  year={2025}
-}
-```
-
-**For the neural networks module (DASO):**
-
-Coquelin, D., et al. (2022). *Accelerating neural network training with distributed asynchronous and selective optimization (DASO)*. J Big Data 9, 14.
-
-```bibtex
-@Article{DASO2022,
-    author={Coquelin, Daniel and Debus, Charlotte and G{\"o}tz, Markus and von der Lehr, Fabrice and Kahn, James and Siggel, Martin and Streit, Achim},
-    title={Accelerating neural network training with distributed asynchronous and selective optimization (DASO)},
-    journal={Journal of Big Data},
-    year={2022},
-    volume={9},
-    number={1},
-    pages={14},
-    doi={10.1186/s40537-021-00556-1}
-}
-```
-
-
-**For specific software versions:**
-Please use the [Zenodo DOI]([10.5281/zenodo.2531472](https://doi.org/10.5281/zenodo.2531472).) provided with each release.
-
-
-
-
-# FAQ
-Work in progress...
-
-  <!-- - Users
-  - Developers
-  - Students
-  - system administrators -->
-
-## Acknowledgements
-
-*This work is supported by the [Helmholtz Association Initiative and
-Networking Fund](https://www.helmholtz.de/en/about_us/the_association/initiating_and_networking/)
-under project number ZT-I-0003 and the Helmholtz AI platform grant.*
-
-*This project has received funding from Google Summer of Code (GSoC) in 2022.*
-
-*This work is partially carried out under a [programme](https://activities.esa.int/index.php/4000144045) of, and funded by, the European Space Agency.
-Any view expressed in this repository or related publications can in no way be taken to reflect the official opinion of the European Space Agency.*
+[Getting Started](https://heat.readthedocs.io/en/stable/quick_start.html) | [Tutorials](https://github.com/helmholtz-analytics/heat/tree/main/doc/source/tutorials/notebooks) | [Docs](https://heat.readthedocs.io/) | [Contributing](https://heat.readthedocs.io/en/stable/CONTRIBUTING.html)
 
 ---
 
-<div align="center">
-  <a href="https://www.dlr.de/EN/Home/home_node.html"><img src="https://raw.githubusercontent.com/helmholtz-analytics/heat/main/doc/source/_static/images/dlr_logo.svg" height="50px" hspace="3%" vspace="20px"></a><a href="https://www.fz-juelich.de/portal/EN/Home/home_node.html"><img src="https://raw.githubusercontent.com/helmholtz-analytics/heat/main/doc/source/_static/images/fzj_logo.svg" height="40px" hspace="3%" vspace="20px"></a><a href="http://www.kit.edu/english/index.php"><img src="https://raw.githubusercontent.com/helmholtz-analytics/heat/main/doc/source/_static/images/kit_logo.svg" height="40px" hspace="3%" vspace="5px"></a><a href="https://www.helmholtz.de/en/"><img src="https://raw.githubusercontent.com/helmholtz-analytics/heat/main/doc/source/_static/images/helmholtz_logo.svg" height="50px" hspace="3%" vspace="5px"></a><a href="https://www.esa.int/"><img src="https://github.com/user-attachments/assets/2ee251b4-733e-44ea-8d1c-8b75928eef55" height="45px" hspace="3%" vspace="20px"></a>
+### Why Heat?
+Heat is a distributed tensor framework built on **PyTorch** and **mpi4py**. It provides highly optimized algorithms and data structures for tensor computations using CPUs, GPUs (CUDA/ROCm), and distributed cluster systems. It is designed to handle **massive arrays** that exceed the memory and computational limits of a single machine.
+
+* **Seamless integration:** Port existing NumPy/SciPy code to multi-node clusters with minimal effort.
+* **Hardware-agnostic:** Supports CPUs and GPUs (CUDA, ROCm, Apple MPS).
+* **Efficient scaling:** Exploit the entire, cumulative RAM of your cluster for memory-intensive operations.
+
+### Requirements
+* **Python:** >= 3.11
+* **MPI:** OpenMPI, MPICH, or Intel MPI
+* **Frameworks:** mpi4py >= 3.1, pytorch >= 2.3
+
+### Installation
+```bash
+# Via pip (with optional I/O support)
+pip install heat[hdf5,netcdf,zarr]
+
+# Via conda-forge
+conda install -c conda-forge heat
+
+# Via easybuild (for HPC systems)
+eb heat-<version>.eb --robot
+
+# Via spack (for HPC systems)
+spack install py-heat
+```
+
+### Distributed Example
+Heat handles inter-node communication automatically. Define how your data is partitioned across the cluster using the [`DNDarray.split`](https://heat.readthedocs.io/en/stable/autoapi/heat/core/dndarray/index.html) attribute. Push computations to your GPUs with the [`DNDarray.device`](https://heat.readthedocs.io/en/stable/autoapi/heat/core/dndarray/index.html) attribute. Heat will take care of the rest, ensuring efficient data movement and synchronization across nodes.
+
+Here an example from our [Linear Algebra tutorial](https://github.com/helmholtz-analytics/heat/tree/main/doc/source/tutorials/notebooks/Linear_Algebra.ipynb):
+
+<details>
+<summary><b>View Distributed Example (mpirun / srun)</b></summary>
+
+**1. Create your script (`my_script.py`):**
+
+```python
+import heat as ht
+
+split_A=0
+split_B=1
+M = 10000
+N = 10000
+K = 10000
+A = ht.random.randn(M, N, split=split_A, device="gpu")
+B = ht.random.randn(N, K, split=split_B, device="gpu")
+C = ht.matmul(A, B)
+print(C)
+
+```
+**2. Run with MPI:**
+
+On your laptop, e.g. with OpenMPI:
+```bash
+mpirun -np 4 python my_script.py
+```
+On an HPC cluster with SLURM:
+```bash
+srun --nodes=2 --ntasks-per-node=2 --gpus-per-node=2 python my_script.py
+```
+
+
+</details>
+
+
+### Contributing and Support
+We welcome contributions from the community. Please see our [Contribution Guidelines](https://heat.readthedocs.io/en/stable/CONTRIBUTING.html) and the [Code of Conduct](https://heat.readthedocs.io/en/stable/CODE_OF_CONDUCT.html).
+
+For bug reports, feature requests, or general questions, please use [GitHub Issues](https://github.com/helmholtz-analytics/heat/issues) or [Discussions](https://github.com/helmholtz-analytics/heat/discussions).
+
+### Citations
+Citations are essential for the sustainability of this project. If Heat supports your work, please cite our main paper:
+
+Götz, M., et al. (2020). HeAT - a Distributed and GPU-accelerated Tensor Framework for Data Analytics. In *2020 IEEE International Conference on Big Data (Big Data)* (pp. 276-287). IEEE. DOI: [10.1109/BigData50022.2020.9378050](https://doi.org/10.1109/BigData50022.2020.9378050).
+
+<details>
+<summary>BibTeX</summary>
+
+```bibtex
+@inproceedings{heatBigData2020,
+  author={Götz, Markus and Debus, Charlotte and Coquelin, Daniel and Krajsek, Kai and Comito, Claudia and Knechtges, Philipp and Hagemeier, Björn and Tarnawa, Michael and Hanselmann, Simon and Siggel, Martin and Basermann, Achim and Streit, Achim},
+  booktitle={2020 IEEE International Conference on Big Data (Big Data)},
+  title={HeAT – a Distributed and GPU-accelerated Tensor Framework for Data Analytics},
+  year={2020},
+  volume={},
+  number={},
+  pages={276-287},
+  keywords={Heating systems;Industries;Data analysis;Big Data;Parallel processing;Libraries;Arrays;HeAT;Tensor Framework;High-performance Computing;PyTorch;NumPy;Message Passing Interface;GPU;Big Data Analytics;Machine Learning;Dask;Model Parallelism;Parallel Application Frameworks},
+  doi={10.1109/BigData50022.2020.9378050}}
+```
+</details>
+
+### Acknowledgments
+This work was funded by the **Helmholtz Association Initiative and Networking Fund** (Project **ZT-I-0003**, "Helmholtz Analytics Framework"); the **Helmholtz AI** platform grant; the **European Space Agency (ESA)** (Programme [4000144045](https://activities.esa.int/index.php/4000144045)); the **Helmholtz Association Science Serve call 2025** (Project **DB002891**, [HeatHub](https://hifis.net/announcement/2026/01/08/scienceserve-awardees/)); the Google Summer of Code 2022 program.
+
+### License
+Heat is distributed under the **MIT license**. See the [LICENSE](https://github.com/helmholtz-analytics/heat/blob/main/LICENSE) file for details.

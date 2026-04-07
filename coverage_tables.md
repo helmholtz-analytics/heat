@@ -298,7 +298,7 @@ The following tables show the NumPy functions supported by Heat.
 | linalg.matrix_rank | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+linalg.matrix_rank) |
 | linalg.slogdet | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+linalg.slogdet) |
 | trace | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+trace) |
-| linalg.solve | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+linalg.solve) |
+| linalg.solve | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+linalg.solve) |
 | linalg.tensorsolve | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+linalg.tensorsolve) |
 | linalg.lstsq | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+linalg.lstsq) |
 | linalg.inv | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+linalg.inv) |
@@ -365,7 +365,7 @@ The following tables show the NumPy functions supported by Heat.
 
 | NumPy Statistical Operations | Heat | Issues |
 |---|---|---|
-| ptp | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+ptp) |
+| ptp | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+ptp) |
 | percentile | ✅ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+percentile) |
 | nanpercentile | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+nanpercentile) |
 | quantile | ❌ | [Search](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+quantile) |
