@@ -390,7 +390,7 @@ def silhouette_score(X, labels, *, metric="euclidean", sample_size=None, random_
             :sample_size
         ]  # selecs a subset of random samples, but all ranks need same indices
 
-        if metric == "precomputed":  # precomputed means here distance matrix for some reason?
+        if metric == "precomputed":  # input is distance matrix
             X, labels = X[indices].T[indices].T, labels[indices]
         else:
             X, labels = X[indices], labels[indices]
