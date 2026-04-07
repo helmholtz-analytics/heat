@@ -386,6 +386,8 @@ def silhouette_score(X, labels, *, metric="euclidean", sample_size=None, random_
         X, labels = check_X_y(X, labels, accept_sparse=["csc", "csr"])  # same as silhouette_samples
         if random_state is not None:
             ht.random.seed(random_state)
+        else:
+            ht.random.seed(None)
         indices = random_state.permutation(X.shape[0])[
             :sample_size
         ]  # selecs a subset of random samples, but all ranks need same indices
