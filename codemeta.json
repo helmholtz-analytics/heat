@@ -115,7 +115,7 @@
     ],
     "contributor": [
         {
-            "@id": "_:contributor_1",
+            "@id": "https://orcid.org/0000-0002-4676-7659",
             "@type": "Person",
             "email": "t.baumann@fz-juelich.de",
             "familyName": "Saupe",
@@ -183,7 +183,7 @@
         "scientific computing"
     ],
     "license": "https://spdx.org/licenses/MIT",
-    "name": "HeAT",
+    "name": "Heat",
     "programmingLanguage": "Python 3",
     "relatedLink": "https://heat.readthedocs.io/",
     "softwareRequirements": [
