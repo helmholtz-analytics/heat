@@ -384,7 +384,8 @@ def silhouette_score(X, labels, *, metric="euclidean", sample_size=None, random_
             ht.random.seed(random_state)
         else:
             ht.random.seed(None)
-        indices = random_state.permutation(X.shape[0])[
+        # indices = random_state.permutation(X.shape[0])[:sample_size]
+        indices = ht.random.permutation(X.shape[0])[
             :sample_size
         ]  # selects a subset of random samples, but all ranks need same indices
 
@@ -392,4 +393,8 @@ def silhouette_score(X, labels, *, metric="euclidean", sample_size=None, random_
             X, labels = X[indices].T[indices].T, labels[indices]
         else:
             X, labels = X[indices], labels[indices]
+
+        X.balance_()
+        labels.balance_()
+
     return float(ht.mean(silhouette_samples(X, labels, metric=metric, **kwds)))
