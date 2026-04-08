@@ -96,10 +96,8 @@ def test_silhouette_sampling_determinism():
     labels = ht.array(labels_np, split=0)
 
     # Run deterministic tests
-    #score1 = silhouette_score(X, labels, sample_size=20, random_state=42)
-    #score2 = silhouette_score(X, labels, sample_size=20, random_state=42)
-    score1 = silhouette_score(X, labels, sample_size=5, random_state=42)
-    score2 = silhouette_score(X, labels, sample_size=5, random_state=42)
+    score1 = silhouette_score(X, labels, sample_size=20, random_state=42)
+    score2 = silhouette_score(X, labels, sample_size=20, random_state=42)
 
     assert score1 == score2
     assert -1.0 <= score1 <= 1.0
@@ -107,13 +105,25 @@ def test_silhouette_sampling_determinism():
 
 def test_silhouette_sampling_stochasticity():
     # Test that random_state=None produces different scores (usually)
-    X = ht.random.randn(100, 2, split=0)
-    labels = ht.array([0] * 50 + [1] * 50, split=0)
+    n_samples = 1000
+    n_features = 2
+    centers = 3
 
-    score1 = silhouette_score(X, labels, sample_size=10, random_state=None)
-    score2 = silhouette_score(X, labels, sample_size=10, random_state=None)
+    X_np, labels_np = make_blobs(
+        n_samples=n_samples,
+        n_features=n_features,
+        centers=centers,
+        random_state=None
+    )
 
-    # While statistically possible to be equal, it's highly unlikely with enough data
+    # Convert to distributed Heat arrays
+    X = ht.array(X_np, split=0)
+    labels = ht.array(labels_np, split=0)
+
+    score1 = silhouette_score(X, labels, sample_size=20, random_state=None)
+    score2 = silhouette_score(X, labels, sample_size=20, random_state=None)
+
+
     assert score1 != score2
 
 
@@ -130,6 +140,67 @@ def test_silhouette_precomputed_metric():
     score = silhouette_score(X_dist, labels, metric="precomputed")
     assert score > 0.5  # Well separated clusters
 
+def run_error_test(name, func, expected_exception, match_text):
+    """
+    Helper to run a test and verify it raises the correct error.
+    """
+    rank = ht.communication.MPI_WORLD.rank
+    try:
+        func()
+        if rank == 0:
+            print(f"FAILED: {name} (No exception raised)")
+    except expected_exception as e:
+        if match_text in str(e):
+            if rank == 0:
+                print(f"PASSED: {name}")
+        else:
+            if rank == 0:
+                print(f"FAILED: {name} (Wrong error message: {e})")
+    except Exception as e:
+        if rank == 0:
+            print(f"FAILED: {name} (Wrong exception type: {type(e).__name__}: {e})")
+
+def test_suite():
+    rank = ht.communication.MPI_WORLD.rank
+    if rank == 0:
+        print(f"--- Starting Validation Tests on {ht.communication.MPI_WORLD.size} Ranks ---")
+
+    # 1. Number of labels too small (n_labels = 1)
+    def test_single_label():
+        X = ht.zeros((10, 2), split=0)
+        labels = ht.zeros((10,), split=0)
+        silhouette_score(X, labels)
+    run_error_test("Single Label Error", test_single_label, ValueError, "Number of labels is 1")
+
+    # 2. Number of labels too large (n_labels = n_samples)
+    def test_too_many_labels():
+        X = ht.zeros((10, 2), split=0)
+        labels = ht.arange(10, split=0)
+        silhouette_score(X, labels)
+    run_error_test("N-Labels Error", test_too_many_labels, ValueError, "Valid values are 2 to n_samples - 1")
+
+    # 3. Inconsistent lengths
+    def test_mismatched_lengths():
+        X = ht.zeros((10, 2), split=0)
+        labels = ht.zeros((5,), split=0)
+        silhouette_score(X, labels)
+    run_error_test("Consistent Length Error", test_mismatched_lengths, ValueError, "inconsistent numbers")
+
+    # 4. Precomputed Diagonal Check (Floats)
+    def test_nonzero_diagonal():
+        # Diagonal is 0.5, which is > atol
+        X = ht.eye(4, split=0) * 0.5 #creates DNDarray with non-zero diagonal and zeros elsewhere
+        labels = ht.array([0, 0, 1, 1], split=0)
+        silhouette_score(X, labels, metric="precomputed")
+    run_error_test("Float Diagonal Error", test_nonzero_diagonal, ValueError, "non-zero elements on the diagonal")
+
+    # 5. Invalid Label Shape
+    def test_label_shape():
+        X = ht.zeros((4, 2), split=0)
+        labels = ht.zeros((4, 2), split=0)
+        silhouette_score(X, labels)
+    run_error_test("Label Shape Error", test_label_shape, ValueError, "y should be a 1D array")
+
 if __name__ == "__main__":
     test_silhouette_implementation()
     test_silhouette_score_basic()
@@ -137,3 +208,4 @@ if __name__ == "__main__":
     test_silhouette_sampling_stochasticity()
     test_silhouette_precomputed_metric()
     #test_minimal_silhouette()
+    test_suite()
