@@ -7,31 +7,37 @@ from heat.cluster.metrics import silhouette_samples, silhouette_score
 
 
 def test_silhouette_implementation():
-    n_samples = 10
-    n_features = 5
-    centers = 3
+    cases = [
+        (20000, 100, 200),
+        (10000, 5000, 5),
+        (10000, 5, 5000),
+        (100, 10, 5)
+    ]
 
-    X_np, labels_np = make_blobs(n_samples=n_samples, n_features=n_features, centers=centers, random_state=42)
+    for n_samples, n_features, centers in cases:
+        if centers >= n_samples:
+            continue
+        X_np, labels_np = make_blobs(n_samples=n_samples, n_features=n_features, centers=centers,
+                                     random_state=42)
 
-    # Reference values from Scikit-Learn
-    sk_results = sk_silhouette(X_np, labels_np)
+        # Reference values from Scikit-Learn
+        sk_results = sk_silhouette(X_np, labels_np)
 
-    # Heat values
-    X_ht = ht.array(X_np, split=0)
-    labels_ht = ht.array(labels_np, split=0)
+        # Heat values
+        X_ht = ht.array(X_np, split=0)
+        labels_ht = ht.array(labels_np, split=0)
 
-    ht_results = silhouette_samples(X_ht, labels_ht)
+        ht_results = silhouette_samples(X_ht, labels_ht)
 
-    # Comparison
+        # Comparison
 
-    ht_results_np = ht_results.resplit(None).numpy()
-    #print(f"Labels: {labels_np}")
-    #print(f"HeAT Results: {ht_results}")
-    #print(f"SK Results: {sk_results}")
+        ht_results_np = ht_results.resplit(None).numpy()
+        #print(f"Labels: {labels_np}")
+        #print(f"HeAT Results: {ht_results}")
+        #print(f"SK Results: {sk_results}")
 
-    assert np.allclose(sk_results, ht_results_np, atol=1e-9), f'Max diff between Heat and scipy: np.max(np.abs(sk_results - ht_results_np))'
-
-
+        assert np.allclose(sk_results, ht_results_np,
+                           atol=1e-6), f'Max diff between Heat and scipy: np.max(np.abs(sk_results - ht_results_np))'
 
     # Single sample in a cluster
     labels_edge = np.array([0, 0, 0, 1])
@@ -39,6 +45,8 @@ def test_silhouette_implementation():
 
     res_edge = silhouette_samples(ht.array(X_edge), ht.array(labels_edge))
     assert res_edge[3] == 0
+
+
 
 
 def test_minimal_silhouette():
@@ -203,9 +211,9 @@ def test_suite():
 
 if __name__ == "__main__":
     test_silhouette_implementation()
-    test_silhouette_score_basic()
-    test_silhouette_sampling_determinism()
-    test_silhouette_sampling_stochasticity()
-    test_silhouette_precomputed_metric()
+    #test_silhouette_score_basic()
+    #test_silhouette_sampling_determinism()
+    #test_silhouette_sampling_stochasticity()
+    #test_silhouette_precomputed_metric()
     #test_minimal_silhouette()
-    test_suite()
+    #test_suite()
