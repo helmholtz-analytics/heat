@@ -9,7 +9,7 @@ import torch
 import warnings
 from typing import Any, Union, Sequence, List, Tuple
 
-from .communication import MPI, Communication
+from .communication import Communication
 from .dndarray import DNDarray
 
 from . import factories

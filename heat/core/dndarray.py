@@ -8,7 +8,8 @@ import torch
 import warnings
 
 from inspect import stack
-from mpi4py import MPI
+from ._config import HAVE_MPI
+from .communication import MPI
 from pathlib import Path
 from typing import List, Union, Tuple, TypeVar, Optional
 
@@ -613,7 +614,7 @@ class DNDarray:
 
         """
         if np.prod(self.shape) == 1:
-            if self.split is None:
+            if self.split is None or not self.comm.is_distributed():
                 return cast_function(self.__array)
 
             is_empty = np.prod(self.__array.shape) == 0

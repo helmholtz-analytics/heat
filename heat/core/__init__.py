@@ -21,6 +21,7 @@ from . import random
 from .relational import *
 from .rounding import *
 from .sanitation import *
+from ._pops import *
 from .statistics import *
 from .stride_tricks import *
 from .dndarray import *

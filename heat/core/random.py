@@ -897,7 +897,9 @@ def seed(seed: Optional[int] = None):
     # determine a time-based seed value if no explicit seed is provided
     # broadcast this value from process 0 to all MPI-processes
     if seed is None:
-        seed = communication.MPI_WORLD.bcast(int(time.time() * 256))
+        seed = int(time.time() * 256)
+        if MPI_WORLD.is_distributed():
+            seed = communication.MPI_WORLD.bcast(seed)
 
     global __seed, __localseed, __counter
     # initialize threefry RNG with this

@@ -5,18 +5,22 @@ import numpy as np
 import torch
 import warnings
 
-from .communication import MPI, MPI_WORLD
+from .communication import MPI, HAVE_MPI
 from . import factories
 from . import stride_tricks
 from . import sanitation
-from . import statistics
 from .dndarray import DNDarray
 from . import types
 
+from ._pops import POps
 from typing import Callable, Optional, Type, Union, Dict
 
+if HAVE_MPI:
+    from ._pops import pops2mpi
+
 __all__ = []
-__BOOLEAN_OPS = [MPI.LAND, MPI.LOR, MPI.BAND, MPI.BOR]
+
+__BOOLEAN_OPS = [POps.LAND, POps.LOR, POps.BAND, POps.BOR]
 
 
 def __binary_op(
@@ -301,7 +305,7 @@ def __cum_op(
         dtype=None if dtype is None else dtype.torch_type(),
     )
 
-    if x.split is not None and axis == x.split:
+    if x.comm.is_distributed() and x.split is not None and axis == x.split:
         indices = torch.tensor([cumop.shape[axis] - 1], device=cumop.device)
         send = (
             torch.index_select(cumop, axis, indices)
@@ -320,10 +324,11 @@ def __cum_op(
             device=cumop.device,
         )
 
-        x.comm.Exscan(send, recv, exscan_op)
+        x.comm.Exscan(send, recv, pops2mpi[exscan_op])
         final_op(cumop, recv, out=cumop)
 
     if out is not None:
+        out._DNDarray__array = cumop
         return out
 
     return factories.array(
@@ -507,13 +512,13 @@ def __reduce_op(
             split = None
             balanced = True
             if x.comm.is_distributed():
-                x.comm.Allreduce(MPI.IN_PLACE, partial, reduction_op)
+                x.comm.Allreduce(MPI.IN_PLACE, partial, pops2mpi[reduction_op])
         elif axis is not None and not keepdims:
             down_dims = len(tuple(dim for dim in axis if dim < x.split))
             split -= down_dims
             balanced = x.balanced
 
-    ARG_OPS = [statistics.MPI_ARGMAX, statistics.MPI_ARGMIN]
+    ARG_OPS = [POps.ARGMAX, POps.ARGMIN]
     arg_op = False
     if reduction_op in ARG_OPS:
         arg_op = True
