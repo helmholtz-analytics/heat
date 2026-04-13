@@ -2138,7 +2138,9 @@ def var(
         var_tot[x.comm.rank, 0, :] = var
         var_tot[x.comm.rank, 1, :] = mu
         var_tot[x.comm.rank, 2, :] = float(x.lshape[x.split])
-        x.comm.Allreduce(MPI.IN_PLACE, var_tot, MPI.SUM)
+
+        if x.is_distributed():
+            x.comm.Allreduce(MPI.IN_PLACE, var_tot, MPI.SUM)
 
         for i in range(1, x.comm.size):
             var_tot[0, 0, :], var_tot[0, 1, :], var_tot[0, 2, :] = __merge_moments(

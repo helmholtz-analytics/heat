@@ -508,7 +508,7 @@ def concatenate(arrays: Sequence[DNDarray, ...], axis: int = 0) -> DNDarray:
 
     s0, s1 = arr0.split, arr1.split
     # no splits, local concat
-    if s0 is None and s1 is None:
+    if not (arr0.is_distributed() or arr1.is_distributed()):
         return factories.array(
             torch.cat((arr0.larray, arr1.larray), dim=axis),
             device=arr0.device,

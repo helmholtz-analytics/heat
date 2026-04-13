@@ -17,6 +17,7 @@ from . import types
 
 from .communication import MPI
 from .dndarray import DNDarray
+from ._pops import POps
 
 __all__ = [
     "all",
@@ -96,7 +97,7 @@ def all(
         axis = tuple(range(x.ndim))
 
     return _operations.__reduce_op(
-        x, local_all, MPI.LAND, axis=axis, out=out, neutral=1, keepdims=keepdims
+        x, local_all, POps.LAND, axis=axis, out=out, neutral=1, keepdims=keepdims
     )
 
 
@@ -216,7 +217,7 @@ def any(
         axis = tuple(range(x.ndim))
 
     return _operations.__reduce_op(
-        x, local_any, MPI.LOR, axis=axis, out=out, neutral=0, keepdims=keepdims
+        x, local_any, POps.LOR, axis=axis, out=out, neutral=0, keepdims=keepdims
     )
 
 

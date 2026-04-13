@@ -10,7 +10,7 @@ import torch
 from typing import Optional, Callable, Any, Union
 
 import heat as ht
-from heat.core import MPI, MPICommunication, dndarray, factories, types, Device
+from heat.core import MPI, Communication, MPI_WORLD, dndarray, factories, types, Device
 from heat.core.random import seed
 
 
@@ -18,7 +18,7 @@ from heat.core.random import seed
 class TestCase(unittest.TestCase):
     """Helper functions for unit tests"""
 
-    __comm = MPICommunication()
+    __comm = MPI_WORLD
     device: Device = ht.cpu
     _hostnames: Optional[list[str]] = None
     other_device: Optional[Device] = None
@@ -72,7 +72,7 @@ class TestCase(unittest.TestCase):
         cls.device, cls.other_device, cls.envar, cls.is_mps = ht_device, other_device, envar, is_mps
 
     @property
-    def comm(self) -> MPICommunication:
+    def comm(self) -> Communication:
         """Returns the MPI communicator"""
         return self.__comm
 
@@ -92,7 +92,10 @@ class TestCase(unittest.TestCase):
                 host = platform.uname().node
             else:
                 host = os.uname()[1]
-            cls._hostnames = list(set(cls.__comm.handle.allgather(host)))
+            if cls.__comm.is_distributed():
+                cls._hostnames = list(set(cls.__comm.handle.allgather(host)))
+            else:
+                cls._hostnames = list(host)
         return cls._hostnames
 
     def assert_array_equal(

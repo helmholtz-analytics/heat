@@ -1048,7 +1048,7 @@ def load_csv(
     rank = comm.rank
     size = comm.size
 
-    if split is None:
+    if split is None or not comm.is_distributed():
         with open(path) as f:
             data = f.readlines()
             data = data[header_lines:]

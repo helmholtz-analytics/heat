@@ -131,6 +131,8 @@ class NonCommunication(Communication):
         """
         Single Process, No chunking.
         """
+        split = sanitize_axis(shape, split)
+
         return 0, shape, tuple(slice(0, end) for end in shape)
 
 
