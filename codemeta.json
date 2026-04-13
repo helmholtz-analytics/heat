@@ -14,7 +14,7 @@
             }
         },
         {
-            "@id": "_:author_2",
+            "@id": "https://orcid.org/0000-0002-7156-2022",
             "@type": "Person",
             "email": "charlotte.debus@kit.edu",
             "familyName": "Debus",
@@ -36,7 +36,7 @@
             }
         },
         {
-            "@id": "_:author_4",
+            "@id": "https://orcid.org/0000-0003-3417-161X",
             "@type": "Person",
             "email": "k.krajsek@fz-juelich.de",
             "familyName": "Krajsek",
@@ -47,7 +47,7 @@
             }
         },
         {
-            "@id": "_:author_5",
+            "@id": "https://orcid.org/0000-0002-9071-890X",
             "@type": "Person",
             "email": "c.comito@fz-juelich.de",
             "familyName": "Comito",
@@ -58,7 +58,7 @@
             }
         },
         {
-            "@id": "_:author_6",
+            "@id": "https://orcid.org/0000-0002-4849-0593",
             "@type": "Person",
             "email": "philipp.knechtges@dlr.de",
             "familyName": "Knechtges",
@@ -69,7 +69,7 @@
             }
         },
         {
-            "@id": "_:author_7",
+            "@id": "https://orcid.org/0000-0003-1528-0933",
             "@type": "Person",
             "email": "b.hagemeier@fz-juelich.de",
             "familyName": "Hagemeier",
@@ -80,7 +80,7 @@
             }
         },
         {
-            "@id": "_:author_8",
+            "@id": "https://orcid.org/0000-0002-3952-4659",
             "@type": "Person",
             "email": "martin.siggel@dlr.de",
             "familyName": "Siggel",
@@ -91,7 +91,7 @@
             }
         },
         {
-            "@id": "_:author_9",
+            "@id": "https://orcid.org/0000-0003-3637-3231",
             "@type": "Person",
             "email": "achim.basermann@dlr.de",
             "familyName": "Basermann",
@@ -126,7 +126,7 @@
             }
         },
         {
-            "@id": "_:contributor_2",
+            "@id": "https://orcid.org/0000-0003-0858-5579",
             "@type": "Person",
             "email": "m.tarnawa@fz-juelich.de",
             "familyName": "Tarnawa",
@@ -137,7 +137,7 @@
             }
         },
         {
-            "@id": "_:contributor_3",
+            "@id": "https://orcid.org/0000-0002-4501-6829",
             "@type": "Person",
             "email": "f.hoppe@dlr.de",
             "familyName": "Hoppe",
@@ -148,7 +148,7 @@
             }
         },
         {
-            "@id": "_:contributor_4",
+            "@id": "https://orcid.org/0000-0001-8439-7145",
             "@type": "Person",
             "email": "juan.muriedas@kit.edu",
             "familyName": "Gutiérrez Hermosillo Muriedas",
@@ -159,7 +159,7 @@
             }
         },
         {
-            "@id": "_:contributor_5",
+            "@id": "https://orcid.org/0000-0003-0876-3515",
             "@type": "Person",
             "email": "hakan.akdag@dlr.de",
             "familyName": "Akdag",
