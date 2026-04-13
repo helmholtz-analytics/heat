@@ -70,6 +70,30 @@ class TestSilhouette(TestCase):
         assert res_edge[3] == 0
 
 
+    def test_edge_case(self):
+        """
+        This is an edge case that fails currently. Heat produces a silhouette score of 0, whereas sklearn gives some reasonable value.
+        """
+        n = 12
+        seed = 1
+        data = ht.utils.data.spherical.create_spherical_dataset(
+            num_samples_cluster=n,
+            radius=1.0,
+            offset=4.0,
+            dtype=ht.float64,
+            random_state=seed,
+        ).resplit(0)
+
+        km = ht.cluster.KMeans(n_clusters=4)
+        km.fit(data)
+        labels = km.labels_.flatten()
+
+        score_heat = ht.cluster.silhouette_score(data, labels)
+        score_sklearn = sk_silhouette_score(
+            data.resplit(None).numpy(), labels.resplit(None).numpy()
+        )
+        print(f"{n=:6d} {score_heat=:.4f} {score_sklearn=:.4f}", flush=True)
+        assert np.isclose(score_heat, score_sklearn), f"{score_heat=} {score_sklearn=}"
 
 
     def test_minimal_silhouette(self):
