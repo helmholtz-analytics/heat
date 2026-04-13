@@ -6,8 +6,6 @@ import heat as ht
 import numpy as np
 
 
-
-
 # Checks
 def check_number_of_labels(n_labels, n_samples):
     """
@@ -283,10 +281,10 @@ def silhouette_samples(X, labels, *, metric="euclidean", **kwds):
 
     if metric == "precomputed":
         D = X
-    elif metric == 'euclidean':
+    elif metric == "euclidean":
         D = ht.spatial.cdist(X, X)
-     else:
-         raise NotImplementedError(f'{metric=} not implemented')
+    else:
+        raise NotImplementedError(f"{metric=} not implemented")
 
     # a(i) calculation
     a_mask = ht.reshape(labels_encoded, (1, -1)) == ht.reshape(
@@ -306,8 +304,7 @@ def silhouette_samples(X, labels, *, metric="euclidean", **kwds):
 
     # b(i) calculation
     b_mask = ht.reshape(labels, (-1, 1)) == ht.reshape(unique_labels, (1, -1))
-    full_b_mask = (labels_encoded.reshape((-1, 1)) == unique_labels.reshape((1, -1)))
-    )
+    full_b_mask = labels_encoded.reshape((-1, 1)) == unique_labels.reshape((1, -1))
 
     b_clust_dists = ht.matmul(D, full_b_mask)
 
