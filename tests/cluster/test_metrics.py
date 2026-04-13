@@ -96,6 +96,53 @@ class TestSilhouette(TestCase):
         assert np.isclose(score_heat, score_sklearn), f"{score_heat=} {score_sklearn=}"
 
 
+    def test_special_cases(self):
+        n = ht.comm.size * 4
+        d = 3
+        data = ht.random.random((n, d), split=0)
+        labels = ht.arange(data.shape[0])
+
+        # all elements in distinct clusters
+        labels = ht.arange(data.shape[0])
+        score = ht.cluster.silhouette_score(data, labels)
+        assert np.isclose(score, 0), f'Non-zero {score=} even though all clusters have only a single element'
+
+        # all elements in the same cluster
+        labels[...] = 0
+        score = ht.cluster.silhouette_score(data, labels)
+        assert np.isclose(score, 0), f'Non-zero {score=} even though there is only one cluster'
+
+        # perfect clustering
+        data[...] = 0
+        data[:n//2,0] = 0
+        data[n//2:,0] = 1
+        labels[:n//2] = 0
+        labels[n//2:] = 1
+        score = ht.cluster.silhouette_score(data, labels)
+        assert np.isclose(score, 1), f'Non-one {score=} even though the clustering is perfect'
+
+        # perfect, but strange clustering
+        data[...] = 0
+        data[:n//2,0] = 0
+        data[n//2:,0] = 1
+        labels[:n//2] = 0
+        labels[n//2:] = 2
+        score = ht.cluster.silhouette_score(data, labels)
+        assert np.isclose(score, 1), f'Non-one {score=} even though the clustering is perfect'
+
+        # worst possible clustering
+        data[...] = 0
+        data[:n//2,0] = 0
+        data[n//2:,0] = 1
+        labels = ht.arange(data.shape[0]) % 2
+        score = ht.cluster.silhouette_score(data, labels)
+        mean_inner_distance = (n/24)/(n/2-1)
+        mean_outter_distance = (n/24)/(n/2)
+        expect_score = mean_outter_distance / mean_inner_distance - 1
+        assert np.isclose(score, expect_score), f'Unexpected {score=}!={expect_score} even though the clustering is wrong'
+        assert score < 0, f'Unexpected {score=}>=0 even though the clustering is wrong'
+
+
     def test_minimal_silhouette(self):
         X_np = np.array([[0, 0], [10, 10], [20, 20], [1, 1]], dtype=np.float32)
         labels_np = np.array([0, 2, 1, 0], dtype=np.int32)

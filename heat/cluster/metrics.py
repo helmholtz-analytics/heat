@@ -7,29 +7,6 @@ import numpy as np
 
 
 # Checks
-def check_number_of_labels(n_labels, n_samples):
-    """
-    Check that number of labels are valid.
-
-    Parameters
-    ----------
-    n_labels : int
-        Number of labels.
-    n_samples : int
-        Number of samples.
-
-    Examples
-    --------
-    >>> check_number_of_labels(2, 5)
-    >>> check_number_of_labels(1, 5)
-    ValueError: Number of labels is 1. Valid values are 2 to n_samples - 1 (inclusive)
-    """
-    if not 1 < n_labels < n_samples:
-        raise ValueError(
-            "Number of labels is %d. Valid values are 2 to n_samples - 1 (inclusive)" % n_labels
-        )
-
-
 def check_X_y(X, y, accept_sparse=False, metric="euclidean"):
     """
     Input validation for standard estimators.
@@ -273,11 +250,8 @@ def silhouette_samples(X, labels, *, metric="euclidean", **kwds):
         labels, return_inverse=True
     )  # f.e. labels = [10, 30, 20, 10], then unique_labels = [10,20,30] and labels_encoded = [0, 2, 1, 0]
     unique_labels.resplit_(None)
-    labels_freqs = ht.bincount(labels_encoded)
-    n_samples = labels.shape[0]
-    n_labels = unique_labels.shape[0]
 
-    check_number_of_labels(n_labels, n_samples)
+    labels_freqs = ht.bincount(labels_encoded)
 
     if metric == "precomputed":
         D = X
@@ -287,7 +261,7 @@ def silhouette_samples(X, labels, *, metric="euclidean", **kwds):
         raise NotImplementedError(f"{metric=} not implemented")
 
     # a(i) calculation
-    a_mask = ht.reshape(labels_encoded, (1, -1)) == ht.reshape(
+    a_mask = ht.reshape(labels, (1, -1)) == ht.reshape(
         labels, (-1, 1)
     )  # reshape((-1,1)) transposes labels_encoded
     a_mask = a_mask
@@ -304,7 +278,7 @@ def silhouette_samples(X, labels, *, metric="euclidean", **kwds):
 
     # b(i) calculation
     b_mask = ht.reshape(labels, (-1, 1)) == ht.reshape(unique_labels, (1, -1))
-    full_b_mask = labels_encoded.reshape((-1, 1)) == unique_labels.reshape((1, -1))
+    full_b_mask = labels.reshape((-1, 1)) == unique_labels.reshape((1, -1))
 
     b_clust_dists = ht.matmul(D, full_b_mask)
 
