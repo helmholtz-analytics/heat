@@ -6,7 +6,6 @@ import heat as ht
 import numpy as np
 
 
-BORDER_LENGTH = 1e6  # value determines when array will be transformed to heat array
 
 
 # Checks
@@ -112,9 +111,7 @@ def check_array(X, accept_sparse=False, input_name="X", metric="euclidean"):
     DNDarray([[0., 1.], [1., 0.]], dtype=ht.float32, device=cpu:0, split=0)
     """
     # Convert to heat array if input big enough --> overhead acceptable if array big enough
-    if X.shape[0] > BORDER_LENGTH or X.shape[1] > BORDER_LENGTH:
-        if not isinstance(X, ht.DNDarray):
-            X = ht.array(X, split=0)
+    ht.sanitize_in(X)
 
     if not accept_sparse and X.is_sparse:
         raise TypeError(f"{input_name} is sparse, but sparse input is not accepted.")
@@ -162,9 +159,7 @@ def _check_y(y):
     >>> _check_y(y)
     DNDarray([1, 2, 3], dtype=ht.int64, device=cpu:0, split=0)
     """
-    if y.shape[0] > BORDER_LENGTH:
-        if not isinstance(y, ht.DNDarray):
-            y = ht.array(y, split=0)
+    ht.sanitize_in(y)
 
     # need 1D labels
     if len(y.shape) > 1:
@@ -288,8 +283,10 @@ def silhouette_samples(X, labels, *, metric="euclidean", **kwds):
 
     if metric == "precomputed":
         D = X
-    else:
+    elif metric == 'euclidean':
         D = ht.spatial.cdist(X, X)
+     else:
+         raise NotImplementedError(f'{metric=} not implemented')
 
     # a(i) calculation
     a_mask = ht.reshape(labels_encoded, (1, -1)) == ht.reshape(
@@ -302,15 +299,14 @@ def silhouette_samples(X, labels, *, metric="euclidean", **kwds):
     denominator_a = ht.where(
         denominator_a > 0,
         denominator_a,
-        1.0,
+        1,
     )
 
     a = ht.div(a_clust_dists, denominator_a)
 
     # b(i) calculation
     b_mask = ht.reshape(labels, (-1, 1)) == ht.reshape(unique_labels, (1, -1))
-    full_b_mask = (labels_encoded.reshape((-1, 1)) == unique_labels.reshape((1, -1))).astype(
-        ht.float32
+    full_b_mask = (labels_encoded.reshape((-1, 1)) == unique_labels.reshape((1, -1)))
     )
 
     b_clust_dists = ht.matmul(D, full_b_mask)
@@ -318,13 +314,13 @@ def silhouette_samples(X, labels, *, metric="euclidean", **kwds):
     denominator_b = labels_freqs
     b_clust_means = ht.div(b_clust_dists, denominator_b)
 
-    # we want neighbor cluster, so set the distance to points in own cluster to infinity
+    # we want neighboring clusters, so set the distance to points in own cluster to infinity
     b_clust_means.larray[b_mask.larray > 0] = float("inf")
     b = ht.min(b_clust_means, axis=1)
 
     sil_samples = ht.div(ht.sub(b, a), ht.maximum(a, b))
 
-    sil_samples = ht.where(labels_freqs[labels_encoded] > 1, sil_samples, 0.0)
+    sil_samples = ht.where(labels_freqs[labels_encoded] > 1, sil_samples, 0)
     sil_samples = ht.nan_to_num(sil_samples)
 
     return sil_samples
@@ -382,9 +378,6 @@ def silhouette_score(X, labels, *, metric="euclidean", sample_size=None, random_
         X, labels = check_X_y(X, labels, accept_sparse=["csc", "csr"])  # same as silhouette_samples
         if random_state is not None:
             ht.random.seed(random_state)
-        else:
-            ht.random.seed(None)
-        # indices = random_state.permutation(X.shape[0])[:sample_size]
         indices = ht.random.permutation(X.shape[0])[
             :sample_size
         ]  # selects a subset of random samples, but all ranks need same indices
