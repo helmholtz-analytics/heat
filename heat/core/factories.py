@@ -863,7 +863,7 @@ def __factory_like(
 
 def from_partitioned(x, comm: Optional[Communication] = None) -> DNDarray:
     """
-    Return a newly created DNDarray constructed from the '__partitioned__' attributed of the input object.
+    Return a newly created DNDarray constructed from the '__partitioned__' attribute of the input object.
     Memory of local partitions will be shared (zero-copy) as long as supported by data objects.
     Currently supports numpy ndarrays and torch tensors as data objects.
     Current limitations:

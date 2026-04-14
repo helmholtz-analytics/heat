@@ -1240,7 +1240,8 @@ def save_csv(
         if data.comm.rank == 0:
             os.truncate(path, 0)
         # avoid truncating and writing at the same time
-        data.comm.handle.Barrier()
+        if data.is_distributed():
+            data.comm.handle.Barrier()
 
     amode = MPI.MODE_WRONLY | MPI.MODE_CREATE
     csv_out = MPI.File.Open(data.comm.handle, path, amode)
@@ -1322,7 +1323,8 @@ def save_csv(
         offset = offset + row_width
 
     csv_out.Close()
-    data.comm.handle.Barrier()
+    if data.is_distributed():
+        data.comm.handle.Barrier()
 
 
 def save(
@@ -1862,7 +1864,8 @@ else:
             zarr_array = zarr.create(**zarr_create_kwargs)
 
         # Wait for the file creation to finish
-        MPI_WORLD.Barrier()
+        if MPI_WORLD.is_distributed():
+            MPI_WORLD.Barrier()
         zarr_array = zarr.open(store=path, mode="r+", **kwargs)
 
         if dndarray.split is not None:
@@ -1875,4 +1878,5 @@ else:
             if MPI_WORLD.rank == 0:
                 zarr_array[:] = dndarray.larray.cpu().numpy()
 
-        MPI_WORLD.Barrier()
+        if MPI_WORLD.is_distributed():
+            MPI_WORLD.Barrier()

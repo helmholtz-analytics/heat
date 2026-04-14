@@ -179,7 +179,8 @@ class TestCase(unittest.TestCase):
             np.allclose(heat_array.larray.cpu(), expected_array[slices], atol=atol, rtol=rtol),
             dtype=torch.int32,
         )
-        heat_array.comm.Allreduce(MPI.IN_PLACE, is_allclose, MPI.SUM)
+        if heat_array.is_distributed():
+            heat_array.comm.Allreduce(MPI.IN_PLACE, is_allclose, MPI.SUM)
         self.assertTrue(is_allclose == heat_array.comm.size)
 
     def assert_func_equal(
@@ -413,7 +414,8 @@ class TestCase(unittest.TestCase):
         """
         seed = np.random.randint(1000000, size=(1,))
         # print("using seed {} for random values".format(seed))
-        self.comm.Bcast(seed, root=0)
+        if ht.MPI_WORLD.is_distributed():
+            self.comm.Bcast(seed, root=0)
         np.random.seed(seed=seed.item())
         if issubclass(dtype, np.floating):
             array: np.ndarray = np.random.randn(*shape)
@@ -446,5 +448,6 @@ class TestCase(unittest.TestCase):
             tmpdir = None
             path = None
 
-        path = ht.MPI_WORLD.bcast(path, root=0)
+        if ht.MPI_WORLD.is_distributed():
+            path = ht.MPI_WORLD.bcast(path, root=0)
         return path, tmpdir  # need to return tmpdir here so that its not cleaned up at this point

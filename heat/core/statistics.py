@@ -387,7 +387,11 @@ def bincount(x: DNDarray, weights: Optional[DNDarray] = None, minlength: int = 0
     counts = torch.bincount(x.larray, weights, minlength)
 
     size = counts.numel()
-    maxlength = x.comm.allreduce(size, op=MPI.MAX)
+
+    if x.is_distributed():
+        maxlength = x.comm.allreduce(size, op=MPI.MAX)
+    else:
+        maxlength = size
 
     # resize tensors
     if size == 0:
@@ -401,7 +405,7 @@ def bincount(x: DNDarray, weights: Optional[DNDarray] = None, minlength: int = 0
         )
 
     # collect results
-    if x.split == 0:
+    if x.split == 0 and x.is_distributed():
         data = torch.empty_like(counts)
         x.comm.Allreduce(counts, data, op=MPI.SUM)
     else:
@@ -996,8 +1000,9 @@ def mean(x: DNDarray, axis: Optional[Union[int, Tuple[int, ...]]] = None) -> DND
         n_tot = factories.zeros(x.comm.size, device=x.device)
         n_tot[x.comm.rank] = float(x.lshape[x.split])
         mu_tot[x.comm.rank, :] = mu
-        x.comm.Allreduce(MPI.IN_PLACE, n_tot, MPI.SUM)
-        x.comm.Allreduce(MPI.IN_PLACE, mu_tot, MPI.SUM)
+        if x.is_distributed():
+            x.comm.Allreduce(MPI.IN_PLACE, n_tot, MPI.SUM)
+            x.comm.Allreduce(MPI.IN_PLACE, mu_tot, MPI.SUM)
 
         for i in range(1, x.comm.size):
             mu_tot[0, :], n_tot[0] = __merge_moments(
@@ -1323,7 +1328,7 @@ def __moment_w_axis(
         output_shape = [output_shape[it] for it in range(len(output_shape)) if it != axis]
         output_shape = output_shape if output_shape else (1,)
 
-        if x.split is None:  # x is *not* distributed -> no need to distribute
+        if not x.is_distributed():  # x is *not* distributed -> no need to distribute
             ret = function(x.larray, **kwargs)
             return DNDarray(
                 ret,
@@ -1763,18 +1768,21 @@ def ptp(
 
     comm = x.comm
 
-    # Create a dtype/size-specific MPI.Op via the communicator's factory
-    # The communicator must provide `_minmax_op(dtype, total_count, shape, stride, offset=0)`
-    op = comm._minmax_op(preview_dtype, total_count, packed_shape, packed_stride, offset=0)
+    if comm.is_distributed():
+        # Create a dtype/size-specific MPI.Op via the communicator's factory
+        # The communicator must provide `_minmax_op(dtype, total_count, shape, stride, offset=0)`
+        op = comm._minmax_op(preview_dtype, total_count, packed_shape, packed_stride, offset=0)
 
-    # Run the global reduction with the freshly created op and always free it afterwards
-    try:
-        packed = _operations.__reduce_op(x, local_minmax, op, axis=axis, keepdims=True)
-    finally:
+        # Run the global reduction with the freshly created op and always free it afterwards
         try:
-            op.Free()
-        except Exception:
-            pass
+            packed = _operations.__reduce_op(x, local_minmax, op, axis=axis, keepdims=True)
+        finally:
+            try:
+                op.Free()
+            except Exception:
+                pass
+    else:
+        packed = _operations.__reduce_op(x, local_minmax, None, axis=axis, keepdims=True)
 
     # Unpack global mins and maxs
     mins_t, maxs_t = packed.larray.chunk(2, dim=0)

@@ -645,7 +645,7 @@ class TestStatistics(TestCase):
 
         def __split_calc(ht_split, axis):
             sp = ht_split if axis > ht_split else ht_split - 1
-            if axis == ht_split:
+            if axis == ht_split or not ht.HAVE_MPI:
                 sp = None
             return sp
 
@@ -954,7 +954,7 @@ class TestStatistics(TestCase):
                     if not target_dims:
                         target_dims = ()
                     self.assertEqual(res.gshape, tuple(target_dims))
-                    if z.split is None:
+                    if not z.is_distributed():
                         sp = None
                     else:
                         sp = z.split if it > z.split else z.split - 1
@@ -1413,7 +1413,8 @@ class TestStatistics(TestCase):
 
         def __split_calc(ht_split, axis):
             sp = ht_split if axis > ht_split else ht_split - 1
-            if axis == ht_split:
+            if axis == ht_split or not ht.HAVE_MPI:
+                print(ht.HAVE_MPI)
                 sp = None
             return sp
 
@@ -1561,7 +1562,7 @@ class TestStatistics(TestCase):
                     if not target_dims:
                         target_dims = ()
                     self.assertEqual(res.gshape, tuple(target_dims))
-                    if z.split is None:
+                    if not z.is_distributed():
                         sp = None
                     else:
                         sp = z.split if it > z.split else z.split - 1

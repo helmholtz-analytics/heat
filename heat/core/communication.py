@@ -127,13 +127,21 @@ class NonCommunication(Communication):
         self.rank = 0
         self.size = 1
 
-    def chunk(self, shape, split) -> Tuple[int, Tuple[int], Tuple[slice]]:
+    def chunk(self, shape, split, *args, **kwargs) -> Tuple[int, Tuple[int], Tuple[slice]]:
         """
         Single Process, No chunking.
         """
         split = sanitize_axis(shape, split)
 
         return 0, shape, tuple(slice(0, end) for end in shape)
+
+    def counts_displs_shape(
+        self, shape: Tuple[int], axis: int
+    ) -> Tuple[Tuple[int], Tuple[int], Tuple[int]]:
+        """
+        Single Process
+        """
+        return ((shape[axis],), (0,), tuple(shape))
 
 
 MPI_WORLD = NonCommunication()
