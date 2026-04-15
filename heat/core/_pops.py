@@ -1,25 +1,37 @@
 import numpy as np
 import torch
 
-from enum import Enum
+from enum import IntEnum
 
 from .communication import MPI, HAVE_MPI
 
 from typing import Any
 
 
-class POps(Enum):
-    BAND = 0
-    BOR = 1
-    LAND = 2
-    LOR = 3
-    ARGMIN = 4
-    ARGMAX = 5
-    SUM = 6
-    PROD = 7
-    MIN = 8
-    MAX = 9
-    TOPK = 10
+class POps(IntEnum):
+    # predefined
+    OP_NULL: 0
+    MAX = 1
+    MIN = 2
+    SUM = 3
+    PROD = 4
+    LAND = 5
+    BAND = 6
+    LOR = 7
+    BOR = 8
+    LXOR = 9
+    BXOR = 10
+    MAX_LOC = 11
+    MIN_LOC = 12
+    REPLACE = 13
+    NO_OP = 14
+    # redefined
+    ARGMAX = 15
+    ARGMIN = 16
+    TOPK = 17
+    SUM_F16 = 18
+    SUM_BLOAT = 19
+    MINMAX = 20
 
 
 if HAVE_MPI:
@@ -134,17 +146,3 @@ if HAVE_MPI:
         b_parsed.copy_(final_result)
 
     MPI_TOPK = MPI.Op.Create(mpi_topk, commute=True)
-
-    pops2mpi = {
-        POps.BAND: MPI.BAND,
-        POps.BOR: MPI.BOR,
-        POps.LAND: MPI.LAND,
-        POps.LOR: MPI.LOR,
-        POps.ARGMIN: MPI_ARGMIN,
-        POps.ARGMAX: MPI_ARGMAX,
-        POps.SUM: MPI.SUM,
-        POps.PROD: MPI.PROD,
-        POps.MIN: MPI.MIN,
-        POps.MAX: MPI.MAX,
-        POps.TOPK: MPI_TOPK,
-    }
