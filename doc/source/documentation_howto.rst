@@ -8,36 +8,57 @@ Writing Heat Documentation
 In order to maintain proper, uniform and understandable API documentation of Heat, a few style guidelines are
 enforced. The following sections summarize the key features of Heats API documentation.
 
-Prerequisites
--------------
+Prerequisites and Building Locally
+----------------------------------
 
-The Heat documentation is build using Sphinx (Version 3.0.3), with a custom derivation of the Sphinx-RTD-Theme
-(defined in `_static/css/custom.css`).
-There are three main colors available for formatting:
+The Heat documentation is built using `Sphinx <https://www.sphinx-doc.org/>`_, with a custom derivation of the Sphinx-RTD-Theme
+(defined in ``_static/css/custom.css``). There are three main colors available for formatting:
 
 * :orangemarker:`Orange: RGB(240, 120, 30)`
 * :greymarker:`Grey: RGB(90, 105, 110)`
 * :bluemarker:`Blue: RGB(0, 90, 160)`
 
-All configurations regarding the documentation build are set in `doc/source/conf.py`.
-API Documentation is generated using the `sphinx-autoapi extension <https://sphinx-autoapi.readthedocs.io>`_ . This is
-done via custom templates, defined in `source/_templates/autoapi/python`.
+All configurations regarding the documentation build are set in ``doc/source/conf.py``.
+API Documentation is generated using the `sphinx-autoapi extension <https://sphinx-autoapi.readthedocs.io>`_. This is
+done via custom templates, defined in ``source/_templates/autoapi/python``.
 
-To build the documentation locally please run the following commands in the Heat home directory:
+To build the documentation locally, please install the documentation dependencies from the Heat root directory.
 
-* ``pip install -r doc/requirements.txt``
-* ``sphinx-build -T -E -b html doc/source doc/build/html``
+.. code:: bash
 
-The second command will build a local rendering of the documentation in the ``doc/build/html/autoapi`` folder. These
-should be checked before creating pull requests
+    pip install -e '.[docs]'
+
+
+Once installed, you have two options for building the docs:
+
+**Option A: Live-Reloading Server (Recommended)**
+
+To spin up a local server that automatically rebuilds the documentation whenever you save a file, run:
+
+.. code:: bash
+
+    cd doc
+    sphinx-autobuild source build/html
+
+The documentation will be available at ``http://127.0.0.1:8000``.
+
+**Option B: Standard One-Time Build**
+
+If you just want to build the HTML files once, run:
+
+.. code:: bash
+
+    cd doc
+    make html
+
+This will build a local rendering of the documentation in the ``doc/build/html`` folder. These should always be checked locally before creating pull requests.
 
 Docstring Guidelines
 --------------------
 
-Dostrings are written using the NumPy Documentation style (see sphinx-contributions `napoleon
-<https://sphinxcontrib-napoleon.readthedocs.io>`_ ).
-Apart from that, formatting happens via reStructuredText (reST). For a full reference on reST see `here <https://www
-.sphinx-doc.org/en/master/usage/restructuredtext/basics.html>`_
+Docstrings are written using the NumPy Documentation style (parsed via Sphinx's built-in `napoleon
+<https://www.sphinx-doc.org/en/master/usage/extensions/napoleon.html>`_ extension).
+Apart from that, formatting happens via reStructuredText (reST). For a full reference on reST see `here <https://www.sphinx-doc.org/en/master/usage/restructuredtext/basics.html>`_.
 
 Docstring Content
 ^^^^^^^^^^^^^^^^^

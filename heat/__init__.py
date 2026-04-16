@@ -9,6 +9,7 @@ from .core import __version__
 from . import core
 from . import classification
 from . import cluster
+from . import decomposition
 from . import fft
 from . import graph
 from . import naive_bayes

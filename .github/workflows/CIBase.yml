@@ -13,14 +13,22 @@ jobs:
   starter:
     runs-on: ubuntu-latest
     steps:
+      - name: Exit if secret is missing
+        run: |
+          if [ -z "${{ secrets.CB_PIPELINE }}" ]; then
+            echo "Secret CB_PIPELINE not set, skipping job."
+            exit 0
+          fi
+
       - name: Harden Runner
-        uses: step-security/harden-runner@5ef0c079ce82195b2a36a210272d6b661572d83e # v2.14.2
+        uses: step-security/harden-runner@fe104658747b27e96e4f7e80cd0a94068e53901d # v2.16.1
         with:
           egress-policy: audit
 
       - name: Get branch names
         id: branch-names
         uses: tj-actions/branch-names@5250492686b253f06fa55861556d1027b067aeb5 # v9.0.2
+
       - name: 'start test'
         run: |
          curl -s -X POST \

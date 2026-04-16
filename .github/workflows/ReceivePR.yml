@@ -13,7 +13,7 @@ jobs:
 
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@5ef0c079ce82195b2a36a210272d6b661572d83e # v2.14.2
+        uses: step-security/harden-runner@fe104658747b27e96e4f7e80cd0a94068e53901d # v2.16.1
         with:
           egress-policy: audit
 
@@ -22,7 +22,7 @@ jobs:
       - name: Use Python
         uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
         with:
-          python-version: '3.10'
+          python-version: '3.14'
           architecture: x64
 
       - name: Setup MPI
@@ -33,8 +33,9 @@ jobs:
       - name: Test
         run: |
           pip install .[dev]
+          pip install pytest
           pre-commit run --all-files
-          python -m unittest
+          pytest
 
       - name: Save PR number
         env:
@@ -42,7 +43,7 @@ jobs:
         run: |
           mkdir -p ./pr
           echo $PR_NUMBER > ./pr/pr_number
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+      - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: pr_number
           path: pr/

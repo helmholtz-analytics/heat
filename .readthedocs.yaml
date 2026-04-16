@@ -32,7 +32,7 @@ build:
           # If grep failed to find a match (exit code 1), then exit with 18
           if [ $? -eq 1 ]; then
             echo "No relevant changes found. Skipping build."
-            exit 18
+            exit 0
           fi
         fi
 
