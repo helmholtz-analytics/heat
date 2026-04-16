@@ -1397,7 +1397,9 @@ def __moment_w_axis(
         copy=False,
     )
 
+
 if HAVE_MPI:
+
     def mpi_argmax(a: str, b: str, _: Any) -> torch.Tensor:
         """
         Create the MPI function for doing argmax, for more info see :func:`argmax <argmax>`
@@ -1430,9 +1432,7 @@ if HAVE_MPI:
 
         rhs.copy_(result)
 
-
     MPI_ARGMAX = MPI.Op.Create(mpi_argmax, commute=True)
-
 
     def mpi_argmin(a: str, b: str, _: Any) -> torch.Tensor:
         """
@@ -1464,7 +1464,6 @@ if HAVE_MPI:
         result = torch.cat((min, indices[torch.arange(values.shape[0]), min_indices]))
 
         rhs.copy_(result)
-
 
     MPI_ARGMIN = MPI.Op.Create(mpi_argmin, commute=True)
 
