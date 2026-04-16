@@ -179,7 +179,7 @@ class TestCase(unittest.TestCase):
             np.allclose(heat_array.larray.cpu(), expected_array[slices], atol=atol, rtol=rtol),
             dtype=torch.int32,
         )
-        if heat_array.is_distributed():
+        if heat_array.comm.is_distributed():
             heat_array.comm.Allreduce(MPI.IN_PLACE, is_allclose, MPI.SUM)
         self.assertTrue(is_allclose == heat_array.comm.size)
 
