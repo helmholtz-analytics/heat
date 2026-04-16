@@ -17,7 +17,7 @@ from . import types
 
 from .communication import MPI
 from .dndarray import DNDarray
-from ._pops import POps
+from ._operations import POps
 
 __all__ = [
     "all",

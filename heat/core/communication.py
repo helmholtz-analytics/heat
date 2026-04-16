@@ -2534,6 +2534,7 @@ if HAVE_MPI:
     MPI_WORLD = MPICommunication(dup_comm)
     MPI_SELF = MPICommunication(MPI.COMM_SELF.Dup())
 
+
 # set the default communicator to be MPI_WORLD
 __default_comm = MPI_WORLD
 

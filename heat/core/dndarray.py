@@ -682,7 +682,7 @@ class DNDarray:
         Returns actual counts (number of items per process) and displacements (offsets) of the DNDarray.
         Does not assume load balance.
         """
-        if not self.is_distributed():
+        if self.is_distributed():
             counts = self.lshape_map[:, self.split]
             displs = [0] + torch.cumsum(counts, dim=0)[:-1].tolist()
             return tuple(counts.tolist()), tuple(displs)

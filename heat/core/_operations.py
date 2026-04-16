@@ -12,13 +12,37 @@ from . import sanitation
 from .dndarray import DNDarray
 from . import types
 
-from ._pops import POps
 from typing import Callable, Optional, Type, Union, Dict
-
-if HAVE_MPI:
-    from ._pops import pops2mpi
+from enum import IntEnum
 
 __all__ = []
+
+
+class POps(IntEnum):
+    # predefined
+    OP_NULL: 0
+    MAX = 1
+    MIN = 2
+    SUM = 3
+    PROD = 4
+    LAND = 5
+    BAND = 6
+    LOR = 7
+    BOR = 8
+    LXOR = 9
+    BXOR = 10
+    MAX_LOC = 11
+    MIN_LOC = 12
+    REPLACE = 13
+    NO_OP = 14
+    # redefined
+    TOPK = 15
+    ARGMAX = 16
+    ARGMIN = 17
+    SUM_F16 = 18
+    SUM_BLOAT = 19
+    MINMAX = 20
+
 
 __BOOLEAN_OPS = [POps.LAND, POps.LOR, POps.BAND, POps.BOR]
 
@@ -324,7 +348,7 @@ def __cum_op(
             device=cumop.device,
         )
 
-        x.comm.Exscan(send, recv, pops2mpi[exscan_op])
+        x.comm.Exscan(send, recv, MPI.Op.fromint(exscan_op))
         final_op(cumop, recv, out=cumop)
 
     if out is not None:
@@ -512,7 +536,7 @@ def __reduce_op(
             split = None
             balanced = True
             if x.comm.is_distributed():
-                x.comm.Allreduce(MPI.IN_PLACE, partial, pops2mpi[reduction_op])
+                x.comm.Allreduce(MPI.IN_PLACE, partial, MPI.Op.fromint(reduction_op))
         elif axis is not None and not keepdims:
             down_dims = len(tuple(dim for dim in axis if dim < x.split))
             split -= down_dims

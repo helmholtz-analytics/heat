@@ -21,7 +21,7 @@ from . import logical
 from . import constants
 from .random import randint
 from warnings import warn
-from ._pops import POps
+from ._operations import POps
 
 __all__ = [
     "argmax",
@@ -1398,6 +1398,76 @@ def __moment_w_axis(
     )
 
 
+if HAVE_MPI:
+
+    def mpi_argmax(a: str, b: str, _: Any) -> torch.Tensor:
+        """
+        Create the MPI function for doing argmax, for more info see :func:`argmax <argmax>`
+
+        Parameters
+        ----------
+        a : str
+            left hand side buffer
+        b : str
+            right hand side buffer
+        _ : Any
+            placeholder
+        """
+        lhs = torch.from_numpy(np.frombuffer(a, dtype=np.float64))
+        rhs = torch.from_numpy(np.frombuffer(b, dtype=np.float64))
+
+        # extract the values and minimal indices from the buffers (first half are values, second are indices)
+        idx_l, idx_r = lhs.chunk(2)[1], rhs.chunk(2)[1]
+
+        if idx_l[0] < idx_r[0]:
+            values = torch.stack((lhs.chunk(2)[0], rhs.chunk(2)[0]), dim=1)
+            indices = torch.stack((idx_l, idx_r), dim=1)
+        else:
+            values = torch.stack((rhs.chunk(2)[0], lhs.chunk(2)[0]), dim=1)
+            indices = torch.stack((idx_r, idx_l), dim=1)
+
+        # determine the minimum value and select the indices accordingly
+        max, max_indices = torch.max(values, dim=1)
+        result = torch.cat((max, indices[torch.arange(values.shape[0]), max_indices]))
+
+        rhs.copy_(result)
+
+    MPI_ARGMAX = MPI.Op.Create(mpi_argmax, commute=True)
+
+    def mpi_argmin(a: str, b: str, _: Any) -> torch.Tensor:
+        """
+        Create the MPI function for doing argmin, for more info see :func:`argmin <argmin>`
+
+        Parameters
+        ----------
+        a : str
+            left hand side
+        b : str
+            right hand side
+        _ : Any
+            placeholder
+        """
+        lhs = torch.from_numpy(np.frombuffer(a, dtype=np.float64))
+        rhs = torch.from_numpy(np.frombuffer(b, dtype=np.float64))
+        # extract the values and minimal indices from the buffers (first half are values, second are indices)
+        idx_l, idx_r = lhs.chunk(2)[1], rhs.chunk(2)[1]
+
+        if idx_l[0] < idx_r[0]:
+            values = torch.stack((lhs.chunk(2)[0], rhs.chunk(2)[0]), dim=1)
+            indices = torch.stack((idx_l, idx_r), dim=1)
+        else:
+            values = torch.stack((rhs.chunk(2)[0], lhs.chunk(2)[0]), dim=1)
+            indices = torch.stack((idx_r, idx_l), dim=1)
+
+        # determine the minimum value and select the indices accordingly
+        min, min_indices = torch.min(values, dim=1)
+        result = torch.cat((min, indices[torch.arange(values.shape[0]), min_indices]))
+
+        rhs.copy_(result)
+
+    MPI_ARGMIN = MPI.Op.Create(mpi_argmin, commute=True)
+
+
 def percentile(
     x: DNDarray,
     q: Union[DNDarray, int, float, Tuple, List],
@@ -1775,14 +1845,14 @@ def ptp(
 
         # Run the global reduction with the freshly created op and always free it afterwards
         try:
-            packed = _operations.__reduce_op(x, local_minmax, op, axis=axis, keepdims=True)
+            packed = _operations.__reduce_op(x, local_minmax, op.toint(), axis=axis, keepdims=True)
         finally:
             try:
                 op.Free()
             except Exception:
                 pass
     else:
-        packed = _operations.__reduce_op(x, local_minmax, None, axis=axis, keepdims=True)
+        packed = _operations.__reduce_op(x, local_minmax, POps.MINMAX, axis=axis, keepdims=True)
 
     # Unpack global mins and maxs
     mins_t, maxs_t = packed.larray.chunk(2, dim=0)
