@@ -6,7 +6,6 @@ import heat as ht
 import numpy as np
 
 
-# Checks
 def check_X_y(X, y, accept_sparse=False, metric="euclidean"):
     """
     Input validation for standard estimators.
@@ -191,7 +190,6 @@ def check_consistent_length(X, y):
             )
 
 
-# Functions
 def silhouette_samples(X, labels, *, metric="euclidean", **kwds):
     """
     Compute the Silhouette Coefficient for each sample.
@@ -258,7 +256,9 @@ def silhouette_samples(X, labels, *, metric="euclidean", **kwds):
     elif metric == "euclidean":
         D = ht.spatial.cdist(X, X)
     else:
-        raise NotImplementedError(f"{metric=} not implemented")
+        raise NotImplementedError(
+            f"{metric=} not implemented, choose from 'precomputed' and 'euclidean'."
+        )
 
     # a(i) calculation
     a_mask = ht.reshape(labels, (1, -1)) == ht.reshape(

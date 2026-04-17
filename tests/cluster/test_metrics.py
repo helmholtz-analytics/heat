@@ -29,45 +29,32 @@ def run_error_test(name, func, expected_exception, match_text):
 
 
 class TestSilhouette(TestCase):
-    def test_silhouette_implementation(self):
-        cases = [
-            (20000, 100, 200),
-            (10000, 5000, 5),
-            (10000, 5, 5000),
-            (100, 10, 5)
-        ]
 
-        for n_samples, n_features, centers in cases:
-            if centers >= n_samples:
-                continue
-            X_np, labels_np = make_blobs(n_samples=n_samples, n_features=n_features, centers=centers,
-                                         random_state=42)
+    def test_silhouette_samples(self):
+        n_points = [8, 17]
+        n_cluster = [3, 5]
+        dims = [1, 2, 3]
+        splits=[None, 0]
+        metric=['precomputed', 'euclidean']
 
-            # Reference values from Scikit-Learn
-            sk_results = sk_silhouette(X_np, labels_np)
+        for metric in metric:
+            for split in splits:
+                for n_p in n_points:
+                    for n_c in n_cluster:
+                        for d in dims:
+                            with self.subTest(f'{split=}, {n_p=}, {n_c=}, {d=}'):
+                                data = ht.random.random((n_p, d), split=split)
+                                labels = ht.random.randint(low=0, high=n_c, size=n_p, split=split)
 
-            # Heat values
-            X_ht = ht.array(X_np, split=0)
-            labels_ht = ht.array(labels_np, split=0)
+                                if metric == 'precomputed':
+                                    data = ht.spatial.cdist(data, data)
 
-            ht_results = silhouette_samples(X_ht, labels_ht)
+                                # Compute silhouette of all samples with sklearn and with heat
+                                sk_results = sk_silhouette(data.resplit(None).numpy(), labels.resplit(None).numpy(), metric=metric)
+                                ht_results = silhouette_samples(data, labels, metric=metric).resplit(None).numpy()
 
-            # Comparison
-
-            ht_results_np = ht_results.resplit(None).numpy()
-            #print(f"Labels: {labels_np}")
-            #print(f"HeAT Results: {ht_results}")
-            #print(f"SK Results: {sk_results}")
-
-            assert np.allclose(sk_results, ht_results_np,
-                               atol=1e-6), f'Max diff between Heat and scipy: np.max(np.abs(sk_results - ht_results_np))'
-
-        # Single sample in a cluster
-        labels_edge = np.array([0, 0, 0, 1])
-        X_edge = np.random.rand(4, n_features)
-
-        res_edge = silhouette_samples(ht.array(X_edge), ht.array(labels_edge))
-        assert res_edge[3] == 0
+                                assert np.allclose(sk_results, ht_results,
+                                                   atol=1e-6), f'Max diff between Heat and scipy: {np.max(np.abs(sk_results - ht_results))}'
 
 
     def test_special_cases(self):
