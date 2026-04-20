@@ -1,5 +1,5 @@
 name: "Using Heat as backend"
-description: "Discuss if and how to use heat as a backend for your code"
+description: "Discuss if and how to use Heat as a backend for your code"
 # title: ""
 
 body:
@@ -17,9 +17,9 @@ body:
   - type: textarea
     id: critical-part
     attributes:
-      label: What motivates you to switch to heat?
+      label: What motivates you to switch to Heat?
       description: |
-        Please explain if you run out of memory or want to achieve speedup or any other way in which heat might help.
+        Please explain if you run out of memory or want to achieve speedup or any other way in which Heat might help.
         If there is a critical part of your code that is currently the main bottleneck, please explain it briefly.
   - type: textarea
     id: current-base
@@ -37,7 +37,7 @@ body:
     id: future-parallelisation
     attributes:
       label: How much parallelism do you want in the future?
-      description: Do you want to run more efficiently on the hardware that you have or go full Jupiter?
+      description: Do you want to run more efficiently on the hardware that you have or go full [Jupiter](https://apps.fz-juelich.de/jsc/hps/jupiter/index.html)?
   - type: textarea
     id: future-devices
     attributes:
@@ -46,7 +46,7 @@ body:
   - type: textarea
     id: started-porting
     attributes:
-      label: Have you already tried using heat?
+      label: Have you already tried using Heat?
       description: If so, have you encountered specific issues such as missing features?
   - type: textarea
     id: other
