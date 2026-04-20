@@ -988,9 +988,9 @@ class TestLinalgBasics(TestCase):
     def test_matmul_edge_case_1(self):
         # test edge cases as documented in #2093
 
-        if ht.comm.size == 2:
+        if ht.comm.size == 4:
             split = 0
-            shape = (4, 3)
+            shape = (8, 6)
 
             A = ht.ones(shape, split=split)
             B = ht.ones(shape[::-1], split=split)
