@@ -118,8 +118,8 @@ def __counter_sequence(
 
     # Share this initial local state to update it correctly later
     tmp_counter = __counter
-    rank = comm.Get_rank()
-    size = comm.Get_size()
+    rank = comm.rank
+    size = comm.size
     max_count = 0xFFFFFFFF if dtype == torch.int32 else 0xFFFFFFFFFFFFFFFF
 
     # extract the counter state of the random number generator
@@ -132,7 +132,7 @@ def __counter_sequence(
     # if total_elements.item() > 2 * max_count:
     #    raise ValueError(f"Shape is to big with {total_elements} elements")
 
-    if split is None:
+    if split is None or size == 1:
         values = total_elements.item() // 2 + total_elements.item() % 2
         even_end = total_elements.item() % 2 == 0
         lslice = slice(None) if even_end else slice(None, -1)
@@ -390,11 +390,11 @@ def permutation(x: Union[int, DNDarray], **kwargs) -> DNDarray:
 
     # random permutation
     recv = torch.randperm(x.shape[0], device=x.device.torch_device)
-    if __rng != "Threefry":
+    if __rng != "Threefry" and x.is_distributed():
         x.comm.Bcast(recv, root=0)
 
     # rearrange locally
-    if (x.split is None) or (x.split != 0):
+    if (not x.is_distributed()) or (x.split != 0):
         return x[recv]
 
     # split == 0 -> need for communication
@@ -800,7 +800,7 @@ def randperm(
     device = devices.sanitize_device(device)
     comm = communication.sanitize_comm(comm)
     perm = torch.randperm(n, dtype=dtype.torch_type(), device=device.torch_device)
-    if comm.Get_size() > 1 and __rng != "Threefry":
+    if comm.size > 1 and __rng != "Threefry":
         comm.Bcast(perm, root=0)
 
     return factories.array(perm, dtype=dtype, device=device, split=split, comm=comm)
@@ -897,7 +897,9 @@ def seed(seed: Optional[int] = None):
     # determine a time-based seed value if no explicit seed is provided
     # broadcast this value from process 0 to all MPI-processes
     if seed is None:
-        seed = communication.MPI_WORLD.bcast(int(time.time() * 256))
+        seed = int(time.time() * 256)
+        if MPI_WORLD.is_distributed():
+            seed = communication.MPI_WORLD.bcast(seed)
 
     global __seed, __localseed, __counter
     # initialize threefry RNG with this

@@ -3,7 +3,6 @@
 import torch
 import numpy as np
 
-from .communication import MPI
 from .dndarray import DNDarray
 from .types import promote_types, float32, float64
 from .manipulations import pad, flip

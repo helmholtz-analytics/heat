@@ -89,31 +89,32 @@ class TestManipulations(TestCase):
         ht_cstack = ht.column_stack((ht_a, ht_b, ht_c))
         self.assertTrue((np_cstack == ht_cstack.numpy()).all())
 
-        # 2-D and 1-D arrays, distributed
-        c = np.arange(5, dtype=np.float32)
-        np_cstack = np.column_stack((a, b, c))
-        ht_a = ht.array(a, split=1)
-        ht_b = ht.array(b, split=1)
-        ht_c = ht.array(c, split=0)
-        ht_cstack = ht.column_stack((ht_a, ht_b, ht_c))
-        self.assertTrue((ht_cstack.numpy() == np_cstack).all())
-        self.assertTrue(ht_cstack.split == 1)
+        if ht.HAVE_MPI:
+            # 2-D and 1-D arrays, distributed
+            c = np.arange(5, dtype=np.float32)
+            np_cstack = np.column_stack((a, b, c))
+            ht_a = ht.array(a, split=1)
+            ht_b = ht.array(b, split=1)
+            ht_c = ht.array(c, split=0)
+            ht_cstack = ht.column_stack((ht_a, ht_b, ht_c))
+            self.assertTrue((ht_cstack.numpy() == np_cstack).all())
+            self.assertTrue(ht_cstack.split == 1)
 
-        # 1-D arrays, distributed, different dtypes
-        d = np.arange(10).astype(np.float32)
-        e = np.arange(10)
-        np_cstack = np.column_stack((d, e))
-        ht_d = ht.array(d, split=0)
-        ht_e = ht.array(e, split=0)
-        ht_cstack = ht.column_stack((ht_d, ht_e))
-        self.assertTrue((ht_cstack.numpy() == np_cstack).all())
-        self.assertTrue(ht_cstack.dtype == ht.float32)
-        self.assertTrue(ht_cstack.split == 0)
+            # 1-D arrays, distributed, different dtypes
+            d = np.arange(10).astype(np.float32)
+            e = np.arange(10)
+            np_cstack = np.column_stack((d, e))
+            ht_d = ht.array(d, split=0)
+            ht_e = ht.array(e, split=0)
+            ht_cstack = ht.column_stack((ht_d, ht_e))
+            self.assertTrue((ht_cstack.numpy() == np_cstack).all())
+            self.assertTrue(ht_cstack.dtype == ht.float32)
+            self.assertTrue(ht_cstack.split == 0)
 
-        # test exceptions
-        f = ht.random.randn(5, 4, 2, split=1)
-        with self.assertRaises(ValueError):
-            ht.column_stack((a, b, f))
+            # test exceptions
+            f = ht.random.randn(5, 4, 2, split=1)
+            with self.assertRaises(ValueError):
+                ht.column_stack((a, b, f))
 
     def test_collect(self):
         st = ht.zeros((50,), split=0)
@@ -475,14 +476,15 @@ class TestManipulations(TestCase):
             ht.concatenate((x, x), axis=x)
         with self.assertRaises(ValueError):
             ht.concatenate((x, ht.zeros((2, 2))), axis=0)
-        with self.assertRaises(RuntimeError):
-            a = ht.zeros((10,), comm=ht.communication.MPI_WORLD)
-            b = ht.zeros((10,), comm=ht.communication.MPI_SELF)
-            ht.concatenate([a, b])
         with self.assertRaises(ValueError):
             ht.concatenate((ht.zeros((12, 12)), ht.zeros((2, 2))), axis=0)
-        with self.assertRaises(RuntimeError):
-            ht.concatenate((ht.zeros((2, 2), split=0), ht.zeros((2, 2), split=1)), axis=0)
+        if ht.HAVE_MPI:
+            with self.assertRaises(RuntimeError):
+                a = ht.zeros((10,), comm=ht.communication.MPI_WORLD)
+                b = ht.zeros((10,), comm=ht.communication.MPI_SELF)
+                ht.concatenate([a, b])
+            with self.assertRaises(RuntimeError):
+                ht.concatenate((ht.zeros((2, 2), split=0), ht.zeros((2, 2), split=1)), axis=0)
 
     def test_diag(self):
         size = ht.MPI_WORLD.size
@@ -499,72 +501,73 @@ class TestManipulations(TestCase):
         res = ht.diag(a, offset=-size)
         self.assertTrue(torch.equal(res.larray, torch.diag(data, diagonal=-size)))
 
-        a = ht.array(data, split=0)
-        res = ht.diag(a)
+        if ht.HAVE_MPI:
+            a = ht.array(data, split=0)
+            res = ht.diag(a)
 
-        self.assertEqual(res.split, a.split)
-        self.assertEqual(res.shape, (size * 2, size * 2))
-        self.assertEqual(res.lshape[res.split], 2)
-        exp = torch.diag(data)
-        counts, displs = res.counts_displs()
-        local_exp = exp[displs[rank] : displs[rank] + counts[rank]]
-        self.assertTrue(torch.equal(res.larray, local_exp))
+            self.assertEqual(res.split, a.split)
+            self.assertEqual(res.shape, (size * 2, size * 2))
+            self.assertEqual(res.lshape[res.split], 2)
+            exp = torch.diag(data)
+            counts, displs = res.counts_displs()
+            local_exp = exp[displs[rank] : displs[rank] + counts[rank]]
+            self.assertTrue(torch.equal(res.larray, local_exp))
 
-        res = ht.diag(a, offset=size)
+            res = ht.diag(a, offset=size)
 
-        self.assertEqual(res.split, a.split)
-        self.assertEqual(res.shape, (size * 3, size * 3))
-        self.assertEqual(res.lshape[res.split], 3)
-        exp = torch.diag(data, diagonal=size)
+            self.assertEqual(res.split, a.split)
+            self.assertEqual(res.shape, (size * 3, size * 3))
+            self.assertEqual(res.lshape[res.split], 3)
+            exp = torch.diag(data, diagonal=size)
 
-        torch.manual_seed(size)
-        i = torch.randint(a.shape[0], ()).item()
-        self.assertTrue(torch.equal(res[i, i + size].larray, exp[i, i + size]))
+            torch.manual_seed(size)
+            i = torch.randint(a.shape[0], ()).item()
+            self.assertTrue(torch.equal(res[i, i + size].larray, exp[i, i + size]))
 
-        res = ht.diag(a, offset=-size)
-        self.assertEqual(res.split, a.split)
-        self.assertEqual(res.shape, (size * 3, size * 3))
-        self.assertEqual(res.lshape[res.split], 3)
-        exp = torch.diag(data, diagonal=-size)
-        counts, displs = res.counts_displs()
-        local_exp = exp[displs[rank] : displs[rank] + counts[rank]]
-        self.assertTrue(torch.equal(res.larray, local_exp))
+            res = ht.diag(a, offset=-size)
+            self.assertEqual(res.split, a.split)
+            self.assertEqual(res.shape, (size * 3, size * 3))
+            self.assertEqual(res.lshape[res.split], 3)
+            exp = torch.diag(data, diagonal=-size)
+            counts, displs = res.counts_displs()
+            local_exp = exp[displs[rank] : displs[rank] + counts[rank]]
+            self.assertTrue(torch.equal(res.larray, local_exp))
 
-        self.assertTrue(ht.equal(ht.diag(ht.diag(a)), a))
+            self.assertTrue(ht.equal(ht.diag(ht.diag(a)), a))
 
-        a = ht.random.rand(15, 20, 5, split=1)
-        res_1 = ht.diag(a)
-        res_2 = ht.diagonal(a)
-        self.assertTrue(ht.equal(res_1, res_2))
+            a = ht.random.rand(15, 20, 5, split=1)
+            res_1 = ht.diag(a)
+            res_2 = ht.diagonal(a)
+            self.assertTrue(ht.equal(res_1, res_2))
 
-        with self.assertRaises(TypeError):
-            ht.diag(data)
+            with self.assertRaises(TypeError):
+                ht.diag(data)
 
-        with self.assertRaises(ValueError):
-            ht.diag(a, offset=None)
+            with self.assertRaises(ValueError):
+                ht.diag(a, offset=None)
 
-        a = ht.arange(size)
-        with self.assertRaises(ValueError):
-            ht.diag(a, offset="3")
+            a = ht.arange(size)
+            with self.assertRaises(ValueError):
+                ht.diag(a, offset="3")
 
-        a = ht.empty([])
-        with self.assertRaises(ValueError):
-            ht.diag(a)
+            a = ht.empty([])
+            with self.assertRaises(ValueError):
+                ht.diag(a)
 
-        if rank == 0:
-            data = torch.ones(size, dtype=torch.int32, device=self.device.torch_device)
-        else:
-            data = torch.empty(0, dtype=torch.int32, device=self.device.torch_device)
-        a = ht.array(data, is_split=0)
-        res = ht.diag(a)
-        torch.manual_seed(size)
-        i = torch.randint(size, ()).item()
-        self.assertTrue(
-            torch.equal(
-                res[i, i].larray,
-                torch.tensor(1, dtype=torch.int32, device=self.device.torch_device),
+            if rank == 0:
+                data = torch.ones(size, dtype=torch.int32, device=self.device.torch_device)
+            else:
+                data = torch.empty(0, dtype=torch.int32, device=self.device.torch_device)
+            a = ht.array(data, is_split=0)
+            res = ht.diag(a)
+            torch.manual_seed(size)
+            i = torch.randint(size, ()).item()
+            self.assertTrue(
+                torch.equal(
+                    res[i, i].larray,
+                    torch.tensor(1, dtype=torch.int32, device=self.device.torch_device),
+                )
             )
-        )
 
         self.assert_func_equal_for_tensor(
             np.arange(23),
@@ -2737,37 +2740,38 @@ class TestManipulations(TestCase):
         ht_rstack = ht.row_stack((ht_a, ht_b, ht_c))
         self.assertTrue((np_rstack == ht_rstack.numpy()).all())
 
-        # 2-D and 1-D arrays, distributed
-        c = np.arange(5, dtype=np.float32)
-        if np.lib.NumpyVersion(np.__version__) >= "2.0.0b1":
-            np_rstack = np.vstack((a, b, c))
-        else:
-            np_rstack = np.row_stack((a, b, c))
-        ht_a = ht.array(a, split=0)
-        ht_b = ht.array(b, split=0)
-        ht_c = ht.array(c, split=0)
-        ht_rstack = ht.row_stack((ht_a, ht_b, ht_c))
-        self.assertTrue((ht_rstack.numpy() == np_rstack).all())
-        self.assertTrue(ht_rstack.split == 0)
+        if ht.HAVE_MPI:
+            # 2-D and 1-D arrays, distributed
+            c = np.arange(5, dtype=np.float32)
+            if np.lib.NumpyVersion(np.__version__) >= "2.0.0b1":
+                np_rstack = np.vstack((a, b, c))
+            else:
+                np_rstack = np.row_stack((a, b, c))
+            ht_a = ht.array(a, split=0)
+            ht_b = ht.array(b, split=0)
+            ht_c = ht.array(c, split=0)
+            ht_rstack = ht.row_stack((ht_a, ht_b, ht_c))
+            self.assertTrue((ht_rstack.numpy() == np_rstack).all())
+            self.assertTrue(ht_rstack.split == 0)
 
-        # 1-D arrays, distributed, different dtypes
-        d = np.arange(10).astype(np.float32)
-        e = np.arange(10)
-        if np.lib.NumpyVersion(np.__version__) >= "2.0.0b1":
-            np_rstack = np.vstack((d, e))
-        else:
-            np_rstack = np.row_stack((d, e))
-        ht_d = ht.array(d, split=0)
-        ht_e = ht.array(e, split=0)
-        ht_rstack = ht.row_stack((ht_d, ht_e))
-        self.assertTrue((ht_rstack.numpy() == np_rstack).all())
-        self.assertTrue(ht_rstack.dtype == ht.float32)
-        self.assertTrue(ht_rstack.split == 1)
+            # 1-D arrays, distributed, different dtypes
+            d = np.arange(10).astype(np.float32)
+            e = np.arange(10)
+            if np.lib.NumpyVersion(np.__version__) >= "2.0.0b1":
+                np_rstack = np.vstack((d, e))
+            else:
+                np_rstack = np.row_stack((d, e))
+            ht_d = ht.array(d, split=0)
+            ht_e = ht.array(e, split=0)
+            ht_rstack = ht.row_stack((ht_d, ht_e))
+            self.assertTrue((ht_rstack.numpy() == np_rstack).all())
+            self.assertTrue(ht_rstack.dtype == ht.float32)
+            self.assertTrue(ht_rstack.split == 1)
 
-        # test exceptions
-        f = ht.random.randn(4, 5, 2, split=1)
-        with self.assertRaises(ValueError):
-            ht.row_stack((a, b, f))
+            # test exceptions
+            f = ht.random.randn(4, 5, 2, split=1)
+            with self.assertRaises(ValueError):
+                ht.row_stack((a, b, f))
 
     def test_shape(self):
         x = ht.random.randn(3, 4, 5, split=2)

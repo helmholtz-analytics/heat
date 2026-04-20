@@ -8,7 +8,8 @@ import torch
 import warnings
 
 from inspect import stack
-from mpi4py import MPI
+from ._config import HAVE_MPI
+from .communication import MPI
 from pathlib import Path
 from typing import List, Union, Tuple, TypeVar, Optional
 
@@ -613,7 +614,7 @@ class DNDarray:
 
         """
         if np.prod(self.shape) == 1:
-            if self.split is None:
+            if self.split is None or not self.comm.is_distributed():
                 return cast_function(self.__array)
 
             is_empty = np.prod(self.__array.shape) == 0
@@ -681,7 +682,7 @@ class DNDarray:
         Returns actual counts (number of items per process) and displacements (offsets) of the DNDarray.
         Does not assume load balance.
         """
-        if self.split is not None:
+        if self.is_distributed():
             counts = self.lshape_map[:, self.split]
             displs = [0] + torch.cumsum(counts, dim=0)[:-1].tolist()
             return tuple(counts.tolist()), tuple(displs)
@@ -714,7 +715,7 @@ class DNDarray:
         lshape_map = torch.zeros(
             (self.comm.size, self.ndim), dtype=torch.int64, device=self.device.torch_device
         )
-        if not self.is_distributed:
+        if not self.is_distributed():
             lshape_map[:] = torch.tensor(self.gshape, device=self.device.torch_device)
             return lshape_map
         if self.is_balanced(force_check=True):
@@ -852,7 +853,7 @@ class DNDarray:
         if len(self.shape) != 2:
             raise ValueError("Only 2D tensors supported at the moment")
 
-        if self.split is not None and self.comm.is_distributed:
+        if self.split is not None and self.comm.is_distributed():
             counts, displ, _ = self.comm.counts_displs_shape(self.shape, self.split)
             k = min(self.shape[0], self.shape[1])
             for p in range(self.comm.size):
@@ -1166,6 +1167,9 @@ class DNDarray:
             If True, the balanced status of the ``DNDarray`` will be assessed via
             collective communication in any case.
         """
+        if not self.comm.is_distributed():
+            return True
+
         if not force_check and self.balanced is not None:
             return self.balanced
 

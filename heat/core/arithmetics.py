@@ -773,7 +773,9 @@ def cumprod(a: DNDarray, axis: int, dtype: datatype = None, out=None) -> DNDarra
             [4., 4., 4.],
             [8., 8., 8.]], dtype=ht.float32, device=cpu:0, split=None)
     """
-    return _operations.__cum_op(a, torch.cumprod, MPI.PROD, torch.mul, 1, axis, dtype, out)
+    return _operations.__cum_op(
+        a, torch.cumprod, _operations.POps.PROD, torch.mul, 1, axis, dtype, out
+    )
 
 
 # Alias support
@@ -829,7 +831,9 @@ def cumprod_(t: DNDarray, axis: int) -> DNDarray:
         t.larray.cumprod_(dim=axis)
         return t
 
-    return _operations.__cum_op(t, wrap_cumprod_, MPI.PROD, wrap_mul_, 1, axis, dtype=None, out=t)
+    return _operations.__cum_op(
+        t, wrap_cumprod_, _operations.POps.PROD, wrap_mul_, 1, axis, dtype=None, out=t
+    )
 
 
 DNDarray.cumprod_ = DNDarray.cumproduct_ = cumprod_
@@ -864,7 +868,9 @@ def cumsum(a: DNDarray, axis: int, dtype: datatype = None, out=None) -> DNDarray
               [2., 2., 2.],
               [3., 3., 3.]], dtype=ht.float32, device=cpu:0, split=None)
     """
-    return _operations.__cum_op(a, torch.cumsum, MPI.SUM, torch.add, 0, axis, dtype, out)
+    return _operations.__cum_op(
+        a, torch.cumsum, _operations.POps.SUM, torch.add, 0, axis, dtype, out
+    )
 
 
 def cumsum_(t: DNDarray, axis: int) -> DNDarray:
@@ -907,7 +913,9 @@ def cumsum_(t: DNDarray, axis: int) -> DNDarray:
         t.larray.cumsum_(dim=axis)
         return t
 
-    return _operations.__cum_op(t, wrap_cumsum_, MPI.SUM, wrap_add_, 0, axis, dtype=None, out=t)
+    return _operations.__cum_op(
+        t, wrap_cumsum_, _operations.POps.SUM, wrap_add_, 0, axis, dtype=None, out=t
+    )
 
 
 DNDarray.cumsum_ = cumsum_
@@ -2350,7 +2358,7 @@ def nanprod(
     b = nan_to_num(a, nan=1)
 
     return _operations.__reduce_op(
-        b, torch.prod, MPI.PROD, axis=axis, out=out, neutral=1, keepdims=keepdims
+        b, torch.prod, _operations.POps.PROD, axis=axis, out=out, neutral=1, keepdims=keepdims
     )
 
 
@@ -2395,7 +2403,7 @@ def nansum(
               [3.]], dtype=ht.float32, device=cpu:0, split=None)
     """
     return _operations.__reduce_op(
-        a, torch.nansum, MPI.SUM, axis=axis, out=out, neutral=0, keepdims=keepdims
+        a, torch.nansum, _operations.POps.SUM, axis=axis, out=out, neutral=0, keepdims=keepdims
     )
 
 
@@ -2721,7 +2729,7 @@ def prod(
     DNDarray([ 2., 12.], dtype=ht.float32, device=cpu:0, split=None)
     """
     return _operations.__reduce_op(
-        a, torch.prod, MPI.PROD, axis=axis, out=out, neutral=1, keepdims=keepdims
+        a, torch.prod, _operations.POps.PROD, axis=axis, out=out, neutral=1, keepdims=keepdims
     )
 
 
@@ -3171,7 +3179,7 @@ def sum(
     """
     # TODO: make me more numpy API complete Issue #101
     return _operations.__reduce_op(
-        a, torch.sum, MPI.SUM, axis=axis, out=out, neutral=0, keepdims=keepdims
+        a, torch.sum, _operations.POps.SUM, axis=axis, out=out, neutral=0, keepdims=keepdims
     )
 
 

@@ -65,7 +65,7 @@ def nonzero(x: DNDarray) -> DNDarray:
 
     # compute global shape of the index array
     gout = list(lcl_nonzero.shape)
-    if x.split is None:
+    if not x.is_distributed():
         is_split = None
     else:
         gout[0] = x.comm.allreduce(gout[0], MPI.SUM)

@@ -179,7 +179,7 @@ class TestArithmetics(TestCase):
         b = ht.array([1], split=0)
         a += b
         self.assertTrue(ht.equal(a, ht.array([2, 3])))
-        if a.comm.size > 1:
+        if a.is_distributed():
             if a.comm.rank < 2:
                 self.assertEqual(a.larray.size()[0], 1)
             else:
@@ -262,7 +262,7 @@ class TestArithmetics(TestCase):
 
         a = ht.ones(9).reshape((3, 3), new_split=0)
         b = ht.ones(9).reshape((3, 3), new_split=1)
-        if a.comm.Get_size() == 1:
+        if not a.is_distributed():
             a_double = a
             a_lshape = a.lshape
             a += b
@@ -407,7 +407,7 @@ class TestArithmetics(TestCase):
         b = ht.array([1], split=0)
         a &= b
         self.assertTrue(ht.equal(a, ht.array([1, 0])))
-        if a.comm.size > 1:
+        if a.is_distributed():
             if a.comm.rank < 2:
                 self.assertEqual(a.larray.size()[0], 1)
             else:
@@ -493,7 +493,7 @@ class TestArithmetics(TestCase):
 
         a = ht.ones(9, dtype=int).reshape((3, 3), new_split=0) * 11
         b = ht.ones(9, dtype=int).reshape((3, 3), new_split=1) * 13
-        if a.comm.Get_size() == 1:
+        if not a.is_distributed():
             a_double = a
             a_lshape = a.lshape
             a &= b
@@ -635,7 +635,7 @@ class TestArithmetics(TestCase):
         b = ht.array([1], split=0)
         a |= b
         self.assertTrue(ht.equal(a, ht.array([1, 3])))
-        if a.comm.size > 1:
+        if a.is_distributed():
             if a.comm.rank < 2:
                 self.assertEqual(a.larray.size()[0], 1)
             else:
@@ -721,7 +721,7 @@ class TestArithmetics(TestCase):
 
         a = ht.ones(9, dtype=int).reshape((3, 3), new_split=0) * 11
         b = ht.ones(9, dtype=int).reshape((3, 3), new_split=1) * 13
-        if a.comm.Get_size() == 1:
+        if not a.is_distributed():
             a_double = a
             a_lshape = a.lshape
             a |= b
@@ -868,7 +868,7 @@ class TestArithmetics(TestCase):
         b = ht.array([1], split=0)
         a ^= b
         self.assertTrue(ht.equal(a, ht.array([0, 3])))
-        if a.comm.size > 1:
+        if a.is_distributed():
             if a.comm.rank < 2:
                 self.assertEqual(a.larray.size()[0], 1)
             else:
@@ -954,7 +954,7 @@ class TestArithmetics(TestCase):
 
         a = ht.ones(9, dtype=int).reshape((3, 3), new_split=0) * 11
         b = ht.ones(9, dtype=int).reshape((3, 3), new_split=1) * 13
-        if a.comm.Get_size() == 1:
+        if not a.is_distributed():
             a_double = a
             a_lshape = a.lshape
             a ^= b
@@ -1035,7 +1035,7 @@ class TestArithmetics(TestCase):
         b = ht.array([1.0], split=0)
         a.copysign_(b)
         self.assertTrue(ht.equal(a, ht.array([1.0, 2.0])))
-        if a.comm.size > 1:
+        if a.is_distributed():
             if a.comm.rank < 2:
                 self.assertEqual(a.larray.size()[0], 1)
             else:
@@ -1130,7 +1130,7 @@ class TestArithmetics(TestCase):
 
         a = ht.ones(9, dtype=float).reshape((3, 3), new_split=0) * 2
         b = ht.ones(9, dtype=float).reshape((3, 3), new_split=1) * (-1)
-        if a.comm.Get_size() == 1:
+        if not a.is_distributed():
             a_double = a
             a_lshape = a.lshape
             a.copysign_(b)
@@ -1270,7 +1270,7 @@ class TestArithmetics(TestCase):
         a = a_double = ht.array([2, 2], split=0)
         a.cumprod_(0)
         self.assertTrue(ht.equal(a, ht.array([2, 4])))
-        if a.comm.size > 1:
+        if a.is_distributed():
             if a.comm.rank < 2:
                 self.assertEqual(a.larray.size()[0], 1)
             else:
@@ -1415,7 +1415,7 @@ class TestArithmetics(TestCase):
         a = a_double = ht.array([1, 2], split=0)
         a.cumsum_(0)
         self.assertTrue(ht.equal(a, ht.array([1, 3])))
-        if a.comm.size > 1:
+        if a.is_distributed():
             if a.comm.rank < 2:
                 self.assertEqual(a.larray.size()[0], 1)
             else:
@@ -1481,7 +1481,10 @@ class TestArithmetics(TestCase):
                             dtype=dtype,
                         )
                         self.assertTrue(ht.equal(ht_diff_pend, np_diff_pend))
-                        self.assertEqual(ht_diff_pend.split, sp)
+                        if ht_diff_pend.is_distributed():
+                            self.assertEqual(ht_diff_pend.split, sp)
+                        else:
+                            self.assertEqual(ht_diff_pend.split, None)
                         self.assertEqual(ht_diff_pend.dtype, dtype)
 
         np_array = ht_array.numpy()
@@ -1592,7 +1595,7 @@ class TestArithmetics(TestCase):
             ht.div("T", "s")
         with self.assertRaises(ValueError):
             ht.div(self.a_split_tensor, self.a_tensor, out=ht.empty((2, 2), split=None))
-        if a.comm.size > 1:
+        if a.is_distributed():
             with self.assertRaises(NotImplementedError):
                 ht.div(
                     self.a_split_tensor,
@@ -1676,7 +1679,7 @@ class TestArithmetics(TestCase):
         b = ht.array([2.0], split=0)
         a /= b
         self.assertTrue(ht.equal(a, ht.array([1.0, 2.0])))
-        if a.comm.size > 1:
+        if a.is_distributed():
             if a.comm.rank < 2:
                 self.assertEqual(a.larray.size()[0], 1)
             else:
@@ -1759,7 +1762,7 @@ class TestArithmetics(TestCase):
 
         a = ht.ones(9).reshape((3, 3), new_split=0) * 2
         b = ht.ones(9).reshape((3, 3), new_split=1) * 2
-        if a.comm.Get_size() == 1:
+        if not a.is_distributed():
             a_double = a
             a_lshape = a.lshape
             a /= b
@@ -1974,7 +1977,7 @@ class TestArithmetics(TestCase):
         b = ht.array([2], split=0)
         a //= b
         self.assertTrue(ht.equal(a, ht.array([1, 2])))
-        if a.comm.size > 1:
+        if a.is_distributed():
             if a.comm.rank < 2:
                 self.assertEqual(a.larray.size()[0], 1)
             else:
@@ -2057,7 +2060,7 @@ class TestArithmetics(TestCase):
 
         a = ht.ones(9).reshape((3, 3), new_split=0) * 3
         b = ht.ones(9).reshape((3, 3), new_split=1) * 2
-        if a.comm.Get_size() == 1:
+        if not a.is_distributed():
             a_double = a
             a_lshape = a.lshape
             a //= b
@@ -2171,7 +2174,7 @@ class TestArithmetics(TestCase):
         b = ht.array([2], split=0)
         a.fmod_(b)
         self.assertTrue(ht.equal(a, ht.array([1, 0])))
-        if a.comm.size > 1:
+        if a.is_distributed():
             if a.comm.rank < 2:
                 self.assertEqual(a.larray.size()[0], 1)
             else:
@@ -2254,7 +2257,7 @@ class TestArithmetics(TestCase):
 
         a = ht.ones(9).reshape((3, 3), new_split=0) * 3
         b = ht.ones(9).reshape((3, 3), new_split=1) * 2
-        if a.comm.Get_size() == 1:
+        if not a.is_distributed():
             a_double = a
             a_lshape = a.lshape
             a.fmod_(b)
@@ -2337,7 +2340,7 @@ class TestArithmetics(TestCase):
         b = ht.array([1], split=0)
         a.gcd_(b)
         self.assertTrue(ht.equal(a, ht.array([1, 1])))
-        if a.comm.size > 1:
+        if a.is_distributed():
             if a.comm.rank < 2:
                 self.assertEqual(a.larray.size()[0], 1)
             else:
@@ -2423,7 +2426,7 @@ class TestArithmetics(TestCase):
 
         a = ht.ones(9, dtype=int).reshape((3, 3), new_split=0) * 6
         b = ht.ones(9, dtype=int).reshape((3, 3), new_split=1) * 4
-        if a.comm.Get_size() == 1:
+        if not a.is_distributed():
             a_double = a
             a_lshape = a.lshape
             a.gcd_(b)
@@ -2496,7 +2499,7 @@ class TestArithmetics(TestCase):
         b = ht.array([2.0], split=0)
         a.hypot_(b).pow_(2)
         self.assertTrue(ht.equal(a, ht.array([5.0, 13.0])))
-        if a.comm.size > 1:
+        if a.is_distributed():
             if a.comm.rank < 2:
                 self.assertEqual(a.larray.size()[0], 1)
             else:
@@ -2582,7 +2585,7 @@ class TestArithmetics(TestCase):
 
         a = ht.ones(9).reshape((3, 3), new_split=0)
         b = ht.ones(9).reshape((3, 3), new_split=1) * 2
-        if a.comm.Get_size() == 1:
+        if not a.is_distributed():
             a_double = a
             a_lshape = a.lshape
             a.hypot_(b).pow_(2)
@@ -2755,7 +2758,7 @@ class TestArithmetics(TestCase):
         b = ht.array([2], split=0)
         a.lcm_(b)
         self.assertTrue(ht.equal(a, ht.array([2, 2])))
-        if a.comm.size > 1:
+        if a.is_distributed():
             if a.comm.rank < 2:
                 self.assertEqual(a.larray.size()[0], 1)
             else:
@@ -2841,7 +2844,7 @@ class TestArithmetics(TestCase):
 
         a = ht.ones(9, dtype=int).reshape((3, 3), new_split=0) * 2
         b = ht.ones(9, dtype=int).reshape((3, 3), new_split=1) * 3
-        if a.comm.Get_size() == 1:
+        if not a.is_distributed():
             a_double = a
             a_lshape = a.lshape
             a.lcm_(b)
@@ -2942,7 +2945,7 @@ class TestArithmetics(TestCase):
         b = ht.array([1], split=0)
         a <<= b
         self.assertTrue(ht.equal(a, ht.array([2, 4])))
-        if a.comm.size > 1:
+        if a.is_distributed():
             if a.comm.rank < 2:
                 self.assertEqual(a.larray.size()[0], 1)
             else:
@@ -3031,7 +3034,7 @@ class TestArithmetics(TestCase):
 
         a = ht.ones(9, dtype=int).reshape((3, 3), new_split=0)
         b = ht.ones(9, dtype=int).reshape((3, 3), new_split=1) * 2
-        if a.comm.Get_size() == 1:
+        if not a.is_distributed():
             a_double = a
             a_lshape = a.lshape
             a <<= b
@@ -3145,7 +3148,7 @@ class TestArithmetics(TestCase):
         b = ht.array([2], split=0)
         a *= b
         self.assertTrue(ht.equal(a, ht.array([2, 4])))
-        if a.comm.size > 1:
+        if a.is_distributed():
             if a.comm.rank < 2:
                 self.assertEqual(a.larray.size()[0], 1)
             else:
@@ -3228,7 +3231,7 @@ class TestArithmetics(TestCase):
 
         a = ht.ones(9).reshape((3, 3), new_split=0) * 2
         b = ht.ones(9).reshape((3, 3), new_split=1) * 3
-        if a.comm.Get_size() == 1:
+        if not a.is_distributed():
             a_double = a
             a_lshape = a.lshape
             a *= b
@@ -3575,7 +3578,7 @@ class TestArithmetics(TestCase):
         b = ht.array([2], split=0)
         a **= b
         self.assertTrue(ht.equal(a, ht.array([1, 4])))
-        if a.comm.size > 1:
+        if a.is_distributed():
             if a.comm.rank < 2:
                 self.assertEqual(a.larray.size()[0], 1)
             else:
@@ -3658,7 +3661,7 @@ class TestArithmetics(TestCase):
 
         a = ht.ones(9).reshape((3, 3), new_split=0) * 2
         b = ht.zeros(9).reshape((3, 3), new_split=1)
-        if a.comm.Get_size() == 1:
+        if not a.is_distributed():
             a_double = a
             a_lshape = a.lshape
             a **= b
@@ -3891,7 +3894,7 @@ class TestArithmetics(TestCase):
         b = ht.array([2], split=0)
         a %= b
         self.assertTrue(ht.equal(a, ht.array([1, 0])))
-        if a.comm.size > 1:
+        if a.is_distributed():
             if a.comm.rank < 2:
                 self.assertEqual(a.larray.size()[0], 1)
             else:
@@ -3974,7 +3977,7 @@ class TestArithmetics(TestCase):
 
         a = ht.ones(9).reshape((3, 3), new_split=0) * 3
         b = ht.ones(9).reshape((3, 3), new_split=1) * 2
-        if a.comm.Get_size() == 1:
+        if not a.is_distributed():
             a_double = a
             a_lshape = a.lshape
             a %= b
@@ -4073,7 +4076,7 @@ class TestArithmetics(TestCase):
         b = ht.array([1], split=0)
         a >>= b
         self.assertTrue(ht.equal(a, ht.array([0, 1])))
-        if a.comm.size > 1:
+        if a.is_distributed():
             if a.comm.rank < 2:
                 self.assertEqual(a.larray.size()[0], 1)
             else:
@@ -4162,7 +4165,7 @@ class TestArithmetics(TestCase):
 
         a = ht.ones(9, dtype=int).reshape((3, 3), new_split=0) * 4
         b = ht.ones(9, dtype=int).reshape((3, 3), new_split=1) * 2
-        if a.comm.Get_size() == 1:
+        if not a.is_distributed():
             a_double = a
             a_lshape = a.lshape
             a >>= b
@@ -4277,7 +4280,7 @@ class TestArithmetics(TestCase):
         b = ht.array([1], split=0)
         a -= b
         self.assertTrue(ht.equal(a, ht.array([0, 1])))
-        if a.comm.size > 1:
+        if a.is_distributed():
             if a.comm.rank < 2:
                 self.assertEqual(a.larray.size()[0], 1)
             else:
@@ -4360,7 +4363,7 @@ class TestArithmetics(TestCase):
 
         a = ht.ones(9).reshape((3, 3), new_split=0) * 2
         b = ht.ones(9).reshape((3, 3), new_split=1)
-        if a.comm.Get_size() == 1:
+        if not a.is_distributed():
             a_double = a
             a_lshape = a.lshape
             a -= b

@@ -10,7 +10,7 @@ import warnings
 
 from typing import Any, Iterable, Type, List, Callable, Union, Tuple, Sequence, Optional
 
-from .communication import MPI, Communication
+from .communication import MPI, Communication, HAVE_MPI
 from .dndarray import DNDarray
 
 from . import arithmetics
@@ -22,6 +22,8 @@ from . import stride_tricks
 from . import tiling
 from . import types
 from . import _operations
+
+from ._operations import POps
 
 __all__ = [
     "balance",
@@ -506,7 +508,7 @@ def concatenate(arrays: Sequence[DNDarray, ...], axis: int = 0) -> DNDarray:
 
     s0, s1 = arr0.split, arr1.split
     # no splits, local concat
-    if s0 is None and s1 is None:
+    if not (arr0.is_distributed() or arr1.is_distributed()):
         return factories.array(
             torch.cat((arr0.larray, arr1.larray), dim=axis),
             device=arr0.device,
@@ -4376,7 +4378,7 @@ def topk(
     gres = _operations.__reduce_op(
         a,
         local_topk,
-        MPI_TOPK,
+        POps.TOPK,
         axis=dim,
         neutral=neutral_value,
         dim=dim,
@@ -4427,47 +4429,48 @@ def topk(
     return final_array, final_indices
 
 
-def mpi_topk(a, b, mpi_type):
-    """
-    MPI function for distributed :func:`topk`
-    """
-    # Parse Buffer
-    a_parsed = torch.from_numpy(np.frombuffer(a, dtype=np.float64))
-    b_parsed = torch.from_numpy(np.frombuffer(b, dtype=np.float64))
+if HAVE_MPI:
 
-    # Collect metadata from Buffer
-    k = int(a_parsed[0].item())
-    dim = int(a_parsed[1].item())
-    largest = bool(a_parsed[2].item())
-    sorted = bool(a_parsed[3].item())
+    def mpi_topk(a, b, mpi_type):
+        """
+        MPI function for distributed :func:`topk`
+        """
+        # Parse Buffer
+        a_parsed = torch.from_numpy(np.frombuffer(a, dtype=np.float64))
+        b_parsed = torch.from_numpy(np.frombuffer(b, dtype=np.float64))
 
-    # Offset is the length of the shape on the buffer
-    len_shape_a = int(a_parsed[4])
-    shape_a = a_parsed[5 : 5 + len_shape_a].int().tolist()
-    len_shape_b = int(b_parsed[4])
-    shape_b = b_parsed[5 : 5 + len_shape_b].int().tolist()
+        # Collect metadata from Buffer
+        k = int(a_parsed[0].item())
+        dim = int(a_parsed[1].item())
+        largest = bool(a_parsed[2].item())
+        sorted = bool(a_parsed[3].item())
 
-    # separate the data into values, indices
-    a_values, a_indices = a_parsed[len_shape_a + 5 :].chunk(2)
-    b_values, b_indices = b_parsed[len_shape_b + 5 :].chunk(2)
+        # Offset is the length of the shape on the buffer
+        len_shape_a = int(a_parsed[4])
+        shape_a = a_parsed[5 : 5 + len_shape_a].int().tolist()
+        len_shape_b = int(b_parsed[4])
+        shape_b = b_parsed[5 : 5 + len_shape_b].int().tolist()
 
-    # reconstruct the flattened data by shape
-    a_values = a_values.reshape(shape_a)
-    a_indices = a_indices.reshape(shape_a)
-    b_values = b_values.reshape(shape_b)
-    b_indices = b_indices.reshape(shape_b)
+        # separate the data into values, indices
+        a_values, a_indices = a_parsed[len_shape_a + 5 :].chunk(2)
+        b_values, b_indices = b_parsed[len_shape_b + 5 :].chunk(2)
 
-    # concatenate the data to actually run topk on
-    values = torch.cat((a_values, b_values), dim=dim)
-    indices = torch.cat((a_indices, b_indices), dim=dim)
+        # reconstruct the flattened data by shape
+        a_values = a_values.reshape(shape_a)
+        a_indices = a_indices.reshape(shape_a)
+        b_values = b_values.reshape(shape_b)
+        b_indices = b_indices.reshape(shape_b)
 
-    result, k_indices = torch.topk(values, k, dim=dim, largest=largest, sorted=sorted)
-    indices = torch.gather(indices, dim, k_indices)
+        # concatenate the data to actually run topk on
+        values = torch.cat((a_values, b_values), dim=dim)
+        indices = torch.cat((a_indices, b_indices), dim=dim)
 
-    metadata = a_parsed[0 : len_shape_a + 5]
-    final_result = torch.cat((metadata, result.double().flatten(), indices.double().flatten()))
+        result, k_indices = torch.topk(values, k, dim=dim, largest=largest, sorted=sorted)
+        indices = torch.gather(indices, dim, k_indices)
 
-    b_parsed.copy_(final_result)
+        metadata = a_parsed[0 : len_shape_a + 5]
+        final_result = torch.cat((metadata, result.double().flatten(), indices.double().flatten()))
 
+        b_parsed.copy_(final_result)
 
-MPI_TOPK = MPI.Op.Create(mpi_topk, commute=True)
+    MPI_TOPK = MPI.Op.Create(mpi_topk, commute=True)

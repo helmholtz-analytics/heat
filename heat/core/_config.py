@@ -97,23 +97,33 @@ PLATFORM = platform.platform()
 TORCH_VERSION = torch.__version__
 TORCH_CUDA_IS_AVAILABLE = torch.cuda.is_available()
 CUDA_IS_ACTUALLY_ROCM = "rocm" in TORCH_VERSION
-
-mpi_library = _get_mpi_library()
-CUDA_AWARE_MPI, ROCM_AWARE_MPI = _check_gpu_aware_mpi(mpi_library)
+HAVE_MPI = False
 GPU_AWARE_MPI = False
 
-# warn the user if CUDA/ROCm-aware MPI is not available, but PyTorch can use GPUs with CUDA/ROCm
-if TORCH_CUDA_IS_AVAILABLE:
-    if not CUDA_IS_ACTUALLY_ROCM and not CUDA_AWARE_MPI:
-        warnings.warn(
-            f"Heat has CUDA GPU-support (PyTorch version {TORCH_VERSION} and `torch.cuda.is_available() = True`), but CUDA-awareness of MPI could not be detected. This may lead to performance degradation as direct MPI-communication between GPUs is not possible.",
-            UserWarning,
-        )
+try:
+    from mpi4py import MPI
 
-    elif CUDA_IS_ACTUALLY_ROCM and not ROCM_AWARE_MPI:
-        warnings.warn(
-            f"Heat has ROCm GPU-support (PyTorch version {TORCH_VERSION} and `torch.cuda.is_available() = True`), but ROCm-awareness of MPI could not be detected. This may lead to performance degradation as direct MPI-communication between GPUs is not possible.",
-            UserWarning,
-        )
-    else:
-        GPU_AWARE_MPI = True
+    HAVE_MPI = True
+    mpi_library = _get_mpi_library()
+    CUDA_AWARE_MPI, ROCM_AWARE_MPI = _check_gpu_aware_mpi(mpi_library)
+
+    # warn the user if CUDA/ROCm-aware MPI is not available, but PyTorch can use GPUs with CUDA/ROCm
+    if TORCH_CUDA_IS_AVAILABLE:
+        if not CUDA_IS_ACTUALLY_ROCM and not CUDA_AWARE_MPI:
+            warnings.warn(
+                f"Heat has CUDA GPU-support (PyTorch version {TORCH_VERSION} and `torch.cuda.is_available() = True`), but CUDA-awareness of MPI could not be detected. This may lead to performance degradation as direct MPI-communication between GPUs is not possible.",
+                UserWarning,
+            )
+
+        elif CUDA_IS_ACTUALLY_ROCM and not ROCM_AWARE_MPI:
+            warnings.warn(
+                f"Heat has ROCm GPU-support (PyTorch version {TORCH_VERSION} and `torch.cuda.is_available() = True`), but ROCm-awareness of MPI could not be detected. This may lead to performance degradation as direct MPI-communication between GPUs is not possible.",
+                UserWarning,
+            )
+        else:
+            GPU_AWARE_MPI = True
+except Exception:
+    warnings.warn(
+        "Heat uses MPI-communication for parallel computation, but an implementation of MPI could not be detected. It will now run in an experimental nonparallel mode with a limited feature set.",
+        UserWarning,
+    )

@@ -6,7 +6,7 @@ import numpy as np
 import torch
 from typing import Any, Callable, Union, Tuple, List, Optional
 
-from .communication import MPI
+from .communication import MPI, MPI_WORLD, HAVE_MPI
 from . import arithmetics
 from . import exponential
 from . import factories
@@ -21,6 +21,7 @@ from . import logical
 from . import constants
 from .random import randint
 from warnings import warn
+from ._operations import POps
 
 __all__ = [
     "argmax",
@@ -116,7 +117,13 @@ def argmax(
     # perform the global reduction
     smallest_value = -sanitation.sanitize_infinity(x)
     return _operations.__reduce_op(
-        x, local_argmax, MPI_ARGMAX, axis=axis, out=out, neutral=smallest_value, **kwargs
+        x,
+        local_argmax,
+        POps.ARGMAX,
+        axis=axis,
+        out=out,
+        neutral=smallest_value,
+        **kwargs,
     )
 
 
@@ -196,7 +203,7 @@ def argmin(
     # perform the global reduction
     largest_value = sanitation.sanitize_infinity(x)
     return _operations.__reduce_op(
-        x, local_argmin, MPI_ARGMIN, axis=axis, out=out, neutral=largest_value, **kwargs
+        x, local_argmin, POps.ARGMIN, axis=axis, out=out, neutral=largest_value, **kwargs
     )
 
 
@@ -380,7 +387,11 @@ def bincount(x: DNDarray, weights: Optional[DNDarray] = None, minlength: int = 0
     counts = torch.bincount(x.larray, weights, minlength)
 
     size = counts.numel()
-    maxlength = x.comm.allreduce(size, op=MPI.MAX)
+
+    if x.is_distributed():
+        maxlength = x.comm.allreduce(size, op=MPI.MAX)
+    else:
+        maxlength = size
 
     # resize tensors
     if size == 0:
@@ -394,7 +405,7 @@ def bincount(x: DNDarray, weights: Optional[DNDarray] = None, minlength: int = 0
         )
 
     # collect results
-    if x.split == 0:
+    if x.split == 0 and x.is_distributed():
         data = torch.empty_like(counts)
         x.comm.Allreduce(counts, data, op=MPI.SUM)
     else:
@@ -851,7 +862,7 @@ def max(
 
     smallest_value = -sanitation.sanitize_infinity(x)
     return _operations.__reduce_op(
-        x, local_max, MPI.MAX, axis=axis, out=out, neutral=smallest_value, keepdims=keepdims
+        x, local_max, POps.MAX, axis=axis, out=out, neutral=smallest_value, keepdims=keepdims
     )
 
 
@@ -989,8 +1000,9 @@ def mean(x: DNDarray, axis: Optional[Union[int, Tuple[int, ...]]] = None) -> DND
         n_tot = factories.zeros(x.comm.size, device=x.device)
         n_tot[x.comm.rank] = float(x.lshape[x.split])
         mu_tot[x.comm.rank, :] = mu
-        x.comm.Allreduce(MPI.IN_PLACE, n_tot, MPI.SUM)
-        x.comm.Allreduce(MPI.IN_PLACE, mu_tot, MPI.SUM)
+        if x.is_distributed():
+            x.comm.Allreduce(MPI.IN_PLACE, n_tot, MPI.SUM)
+            x.comm.Allreduce(MPI.IN_PLACE, mu_tot, MPI.SUM)
 
         for i in range(1, x.comm.size):
             mu_tot[0, :], n_tot[0] = __merge_moments(
@@ -1050,7 +1062,7 @@ def median(
     axis: Optional[int] = None,
     keepdims: bool = False,
     sketched: bool = False,
-    sketch_size: Optional[float] = 1.0 / MPI.COMM_WORLD.size,
+    sketch_size: Optional[float] = 1.0 / MPI_WORLD.size,
 ) -> DNDarray:
     """
     Compute the median of the data along the specified axis.
@@ -1084,8 +1096,8 @@ def median(
 
 
 DNDarray.median: Callable[[DNDarray, int, bool, bool, float], DNDarray] = (
-    lambda x, axis=None, keepdims=False, sketched=False, sketch_size=1.0 / MPI.COMM_WORLD.size: (
-        median(x, axis, keepdims, sketched=sketched, sketch_size=sketch_size)
+    lambda x, axis=None, keepdims=False, sketched=False, sketch_size=1.0 / MPI_WORLD.size: median(
+        x, axis, keepdims, sketched=sketched, sketch_size=sketch_size
     )
 )
 DNDarray.median.__doc__ = median.__doc__
@@ -1213,7 +1225,7 @@ def min(
 
     largest_value = sanitation.sanitize_infinity(x)
     return _operations.__reduce_op(
-        x, local_min, MPI.MIN, axis=axis, out=out, neutral=largest_value, keepdims=keepdims
+        x, local_min, POps.MIN, axis=axis, out=out, neutral=largest_value, keepdims=keepdims
     )
 
 
@@ -1316,7 +1328,7 @@ def __moment_w_axis(
         output_shape = [output_shape[it] for it in range(len(output_shape)) if it != axis]
         output_shape = output_shape if output_shape else (1,)
 
-        if x.split is None:  # x is *not* distributed -> no need to distribute
+        if not x.is_distributed():  # x is *not* distributed -> no need to distribute
             ret = function(x.larray, **kwargs)
             return DNDarray(
                 ret,
@@ -1386,75 +1398,74 @@ def __moment_w_axis(
     )
 
 
-def mpi_argmax(a: str, b: str, _: Any) -> torch.Tensor:
-    """
-    Create the MPI function for doing argmax, for more info see :func:`argmax <argmax>`
+if HAVE_MPI:
 
-    Parameters
-    ----------
-    a : str
-        left hand side buffer
-    b : str
-        right hand side buffer
-    _ : Any
-        placeholder
-    """
-    lhs = torch.from_numpy(np.frombuffer(a, dtype=np.float64))
-    rhs = torch.from_numpy(np.frombuffer(b, dtype=np.float64))
+    def mpi_argmax(a: str, b: str, _: Any) -> torch.Tensor:
+        """
+        Create the MPI function for doing argmax, for more info see :func:`argmax <argmax>`
 
-    # extract the values and minimal indices from the buffers (first half are values, second are indices)
-    idx_l, idx_r = lhs.chunk(2)[1], rhs.chunk(2)[1]
+        Parameters
+        ----------
+        a : str
+            left hand side buffer
+        b : str
+            right hand side buffer
+        _ : Any
+            placeholder
+        """
+        lhs = torch.from_numpy(np.frombuffer(a, dtype=np.float64))
+        rhs = torch.from_numpy(np.frombuffer(b, dtype=np.float64))
 
-    if idx_l[0] < idx_r[0]:
-        values = torch.stack((lhs.chunk(2)[0], rhs.chunk(2)[0]), dim=1)
-        indices = torch.stack((idx_l, idx_r), dim=1)
-    else:
-        values = torch.stack((rhs.chunk(2)[0], lhs.chunk(2)[0]), dim=1)
-        indices = torch.stack((idx_r, idx_l), dim=1)
+        # extract the values and minimal indices from the buffers (first half are values, second are indices)
+        idx_l, idx_r = lhs.chunk(2)[1], rhs.chunk(2)[1]
 
-    # determine the minimum value and select the indices accordingly
-    max, max_indices = torch.max(values, dim=1)
-    result = torch.cat((max, indices[torch.arange(values.shape[0]), max_indices]))
+        if idx_l[0] < idx_r[0]:
+            values = torch.stack((lhs.chunk(2)[0], rhs.chunk(2)[0]), dim=1)
+            indices = torch.stack((idx_l, idx_r), dim=1)
+        else:
+            values = torch.stack((rhs.chunk(2)[0], lhs.chunk(2)[0]), dim=1)
+            indices = torch.stack((idx_r, idx_l), dim=1)
 
-    rhs.copy_(result)
+        # determine the minimum value and select the indices accordingly
+        max, max_indices = torch.max(values, dim=1)
+        result = torch.cat((max, indices[torch.arange(values.shape[0]), max_indices]))
 
+        rhs.copy_(result)
 
-MPI_ARGMAX = MPI.Op.Create(mpi_argmax, commute=True)
+    MPI_ARGMAX = MPI.Op.Create(mpi_argmax, commute=True)
 
+    def mpi_argmin(a: str, b: str, _: Any) -> torch.Tensor:
+        """
+        Create the MPI function for doing argmin, for more info see :func:`argmin <argmin>`
 
-def mpi_argmin(a: str, b: str, _: Any) -> torch.Tensor:
-    """
-    Create the MPI function for doing argmin, for more info see :func:`argmin <argmin>`
+        Parameters
+        ----------
+        a : str
+            left hand side
+        b : str
+            right hand side
+        _ : Any
+            placeholder
+        """
+        lhs = torch.from_numpy(np.frombuffer(a, dtype=np.float64))
+        rhs = torch.from_numpy(np.frombuffer(b, dtype=np.float64))
+        # extract the values and minimal indices from the buffers (first half are values, second are indices)
+        idx_l, idx_r = lhs.chunk(2)[1], rhs.chunk(2)[1]
 
-    Parameters
-    ----------
-    a : str
-        left hand side
-    b : str
-        right hand side
-    _ : Any
-        placeholder
-    """
-    lhs = torch.from_numpy(np.frombuffer(a, dtype=np.float64))
-    rhs = torch.from_numpy(np.frombuffer(b, dtype=np.float64))
-    # extract the values and minimal indices from the buffers (first half are values, second are indices)
-    idx_l, idx_r = lhs.chunk(2)[1], rhs.chunk(2)[1]
+        if idx_l[0] < idx_r[0]:
+            values = torch.stack((lhs.chunk(2)[0], rhs.chunk(2)[0]), dim=1)
+            indices = torch.stack((idx_l, idx_r), dim=1)
+        else:
+            values = torch.stack((rhs.chunk(2)[0], lhs.chunk(2)[0]), dim=1)
+            indices = torch.stack((idx_r, idx_l), dim=1)
 
-    if idx_l[0] < idx_r[0]:
-        values = torch.stack((lhs.chunk(2)[0], rhs.chunk(2)[0]), dim=1)
-        indices = torch.stack((idx_l, idx_r), dim=1)
-    else:
-        values = torch.stack((rhs.chunk(2)[0], lhs.chunk(2)[0]), dim=1)
-        indices = torch.stack((idx_r, idx_l), dim=1)
+        # determine the minimum value and select the indices accordingly
+        min, min_indices = torch.min(values, dim=1)
+        result = torch.cat((min, indices[torch.arange(values.shape[0]), min_indices]))
 
-    # determine the minimum value and select the indices accordingly
-    min, min_indices = torch.min(values, dim=1)
-    result = torch.cat((min, indices[torch.arange(values.shape[0]), min_indices]))
+        rhs.copy_(result)
 
-    rhs.copy_(result)
-
-
-MPI_ARGMIN = MPI.Op.Create(mpi_argmin, commute=True)
+    MPI_ARGMIN = MPI.Op.Create(mpi_argmin, commute=True)
 
 
 def percentile(
@@ -1465,7 +1476,7 @@ def percentile(
     interpolation: str = "linear",
     keepdims: bool = False,
     sketched: bool = False,
-    sketch_size: Optional[float] = 1.0 / MPI.COMM_WORLD.size,
+    sketch_size: Optional[float] = 1.0 / MPI_WORLD.size,
 ) -> DNDarray:
     r"""
     Compute the q-th percentile of the data along the specified axis/axes.
@@ -1668,7 +1679,7 @@ def percentile(
         if (
             not isinstance(sketch_size, float)
             or sketch_size <= 0
-            or (MPI.COMM_WORLD.size > 1 and sketch_size == 1)
+            or (MPI_WORLD.size > 1 and sketch_size == 1)
             or sketch_size > 1
         ):
             raise ValueError(
@@ -1827,18 +1838,21 @@ def ptp(
 
     comm = x.comm
 
-    # Create a dtype/size-specific MPI.Op via the communicator's factory
-    # The communicator must provide `_minmax_op(dtype, total_count, shape, stride, offset=0)`
-    op = comm._minmax_op(preview_dtype, total_count, packed_shape, packed_stride, offset=0)
+    if comm.is_distributed():
+        # Create a dtype/size-specific MPI.Op via the communicator's factory
+        # The communicator must provide `_minmax_op(dtype, total_count, shape, stride, offset=0)`
+        op = comm._minmax_op(preview_dtype, total_count, packed_shape, packed_stride, offset=0)
 
-    # Run the global reduction with the freshly created op and always free it afterwards
-    try:
-        packed = _operations.__reduce_op(x, local_minmax, op, axis=axis, keepdims=True)
-    finally:
+        # Run the global reduction with the freshly created op and always free it afterwards
         try:
-            op.Free()
-        except Exception:
-            pass
+            packed = _operations.__reduce_op(x, local_minmax, op.toint(), axis=axis, keepdims=True)
+        finally:
+            try:
+                op.Free()
+            except Exception:
+                pass
+    else:
+        packed = _operations.__reduce_op(x, local_minmax, POps.MINMAX, axis=axis, keepdims=True)
 
     # Unpack global mins and maxs
     mins_t, maxs_t = packed.larray.chunk(2, dim=0)
@@ -2202,7 +2216,9 @@ def var(
         var_tot[x.comm.rank, 0, :] = var
         var_tot[x.comm.rank, 1, :] = mu
         var_tot[x.comm.rank, 2, :] = float(x.lshape[x.split])
-        x.comm.Allreduce(MPI.IN_PLACE, var_tot, MPI.SUM)
+
+        if x.is_distributed():
+            x.comm.Allreduce(MPI.IN_PLACE, var_tot, MPI.SUM)
 
         for i in range(1, x.comm.size):
             var_tot[0, 0, :], var_tot[0, 1, :], var_tot[0, 2, :] = __merge_moments(

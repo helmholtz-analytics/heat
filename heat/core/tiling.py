@@ -5,11 +5,9 @@ Tiling functions/classes. With these classes, you can classes you can address bl
 from __future__ import annotations
 import itertools
 import torch
-from mpi4py import MPI
-from typing import List, Tuple, Union
 
+from typing import List, Tuple, Union
 from .dndarray import DNDarray
-from .communication import MPICommunication
 
 __all__ = ["SplitTiles", "SquareDiagTiles"]
 

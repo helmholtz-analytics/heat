@@ -19,7 +19,10 @@ class TestIndexing(TestCase):
         nz = cond.nonzero()
         self.assertEqual(nz.gshape, (6, 2))
         self.assertEqual(nz.dtype, ht.int64)
-        self.assertEqual(nz.split, 0)
+        if nz.is_distributed():
+            self.assertEqual(nz.split, 0)
+        else:
+            self.assertEqual(nz.split, None)
         a[nz] = 10.0
         self.assertEqual(ht.all(a[nz] == 10), 1)
 
@@ -49,7 +52,10 @@ class TestIndexing(TestCase):
         wh = ht.where(cond)
         self.assertEqual(wh.gshape, (6, 2))
         self.assertEqual(wh.dtype, ht.int64)
-        self.assertEqual(wh.split, 0)
+        if wh.is_distributed():
+            self.assertEqual(wh.split, 0)
+        else:
+            self.assertEqual(wh.split, None)
 
         # not split cond
         a = ht.array([[0.0, 1.0, 2.0], [0.0, 2.0, 4.0], [0.0, 3.0, 6.0]], split=None)

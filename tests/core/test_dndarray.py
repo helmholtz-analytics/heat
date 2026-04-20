@@ -1,3 +1,5 @@
+import unittest
+
 import numpy as np
 import torch
 
@@ -608,6 +610,7 @@ class TestDNDarray(TestCase):
             with self.assertRaises(TypeError):
                 complex(ht.full((ht.MPI_WORLD.size,), 2, split=0))
 
+    @unittest.skipUnless(ht.communication.HAVE_MPI, "MPI required")
     def test_counts_displs(self):
         # balanced distributed DNDarray
         a = ht.arange(128, split=0).reshape((8, 8, 2))
@@ -1787,7 +1790,7 @@ class TestDNDarray(TestCase):
                 self.assertEqual(heat_float64_F.strides, numpy_float64_F.strides)
 
         # Distributed, int16, row-major memory layout
-        size = ht.communication.MPI_WORLD.size
+        size = ht.MPI_WORLD.size
         split = 2
         torch_int16 = torch.arange(
             6 * 5 * 3 * size * 4 * 5 * 7, dtype=torch.int16, device=self.device.torch_device

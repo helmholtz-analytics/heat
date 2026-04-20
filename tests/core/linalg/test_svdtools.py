@@ -3,7 +3,6 @@ import os
 import unittest
 import heat as ht
 import numpy as np
-from mpi4py import MPI
 
 from heat.testing.basic_test import TestCase
 
@@ -12,7 +11,7 @@ class TestHSVD(TestCase):
     def test_hsvd_rank_part1(self):
         # not testing on MPS for now as torch.norm() is unstable
         if not self.is_mps:
-            nprocs = MPI.COMM_WORLD.Get_size()
+            nprocs = ht.MPI_WORLD.size
             test_matrices = [
                 ht.random.randn(50, 15 * nprocs, dtype=ht.float32, split=1),
                 ht.random.randn(50, 15 * nprocs, dtype=ht.float64, split=1),
@@ -158,7 +157,7 @@ class TestHSVD(TestCase):
 
     def test_hsvd_rank_part2(self):
         # check if hsvd_rank yields correct results for maxrank <= truerank
-        nprocs = MPI.COMM_WORLD.Get_size()
+        nprocs = ht.MPI_WORLD.size
         true_rk = max(10, nprocs)
         if self.is_mps:
             test_matrices_low_rank = [
