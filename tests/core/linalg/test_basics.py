@@ -998,14 +998,14 @@ class TestLinalgBasics(TestCase):
             C = A @ B
             assert ht.allclose(C, 1)
         else:
-            self.skipTest()
+            self.skipTest('This edge case requires two tasks')
 
     def test_matmul_edge_case_2(self):
         # test edge cases as documented in #2093
         # single element per task
 
         if ht.comm.size == 1:
-            self.skipTest()
+            self.skipTest('This edge case requires more than one task')
 
         for split in [0, 1]:
             a = ht.random.random((ht.comm.size, ht.comm.size), dtype=ht.float32, split=split)
