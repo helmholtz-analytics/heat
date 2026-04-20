@@ -42,7 +42,7 @@ class TestSilhouette(TestCase):
                 for n_p in n_points:
                     for n_c in n_cluster:
                         for d in dims:
-                            with self.subTest(f'{split=}, {n_p=}, {n_c=}, {d=}'):
+                            with self.subTest(f'{split=}, {n_p=}, {n_c=}, {d=}, {metric=}'):
                                 data = ht.random.random((n_p, d), split=split)
                                 labels = ht.random.randint(low=0, high=n_c, size=n_p, split=split)
 
