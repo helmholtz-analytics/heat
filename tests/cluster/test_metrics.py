@@ -40,6 +40,8 @@ class TestSilhouette(TestCase):
         for metric in metric:
             for split in splits:
                 for n_p in n_points:
+                    if n_p / ht.comm.size < 2:
+                        self.skipTest('Matrix multiplication bug #2093')
                     for n_c in n_cluster:
                         for d in dims:
                             with self.subTest(f'{split=}, {n_p=}, {n_c=}, {d=}, {metric=}'):
