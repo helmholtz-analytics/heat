@@ -31,7 +31,25 @@ maintainers = [
 ]
 license = "MIT"
 license-files = ["LICENSE"]
-keywords=["data", "analytics", "tensors", "distributed", "gpu"]
+keywords = [
+    "python",
+    "pytorch",
+    "numpy",
+    "mpi",
+    "mpi4py",
+    "distributed computing",
+    "parallel computing",
+    "high-performance computing",
+    "hpc",
+    "gpu",
+    "multi-gpu",
+    "tensors",
+    "data analytics",
+    "machine learning",
+    "data science",
+    "scientific computing",
+    "array api"
+]
 classifiers=[
     "Development Status :: 5 - Production/Stable",
     "Programming Language :: Python :: 3.11",
