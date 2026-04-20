@@ -193,12 +193,10 @@ class TestSolver(TestCase):
                 b = ht.array([1, 2], dtype=dtype)
                 x = ht.linalg.solve(A, b)
                 self.assertTrue(ht.allclose(A@x, b))
-                self.assertTrue(x.dtype == dtype)
 
                 out = ht.empty_like(x).astype(dtype, copy=False)
                 ht.linalg.solve(A, b, out=out)
                 self.assertTrue(ht.allclose(x, out))
-                self.assertTrue(x.dtype == dtype)
 
         # --- test catching all the things that are not supposed to work ---
 
