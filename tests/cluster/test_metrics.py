@@ -1,3 +1,6 @@
+import pytest
+pytest.importorskip("sklearn")
+
 import heat as ht
 import numpy as np
 from sklearn.metrics import silhouette_samples as sk_silhouette
