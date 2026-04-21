@@ -8,7 +8,7 @@ import numpy as np
 
 def _validate_input(X, labels, metric="euclidean"):
     """
-    Input validation for clustering metrics
+    Input validation for clustering metrics. Converts input to DNDarray if needed.
 
     Parameters
     ----------
@@ -71,9 +71,7 @@ def _validate_input(X, labels, metric="euclidean"):
     if X.split != labels.split:
         import warnings
 
-        warnings.warn(
-            f"labels are resplit from {labels.split} to match {X.split} to match split of data"
-        )
+        warnings.warn(f"labels are resplit from {labels.split} to {X.split} to match split of data")
         labels.resplit_(X.split)
 
     # Check if local chunks match

@@ -68,10 +68,10 @@ class TestSilhouette(TestCase):
 
         # perfect, but strange clustering
         data[...] = 0
-        data[:n//2,0] = 0
-        data[n//2:,0] = 1
-        labels[:n//2] = 0
-        labels[n//2:] = 2
+        data[:n//2,0] = 0.
+        data[n//2:,0] = 1.
+        labels[:n//2] = 0.
+        labels[n//2:] = 2.
         score = ht.cluster.silhouette_score(data, labels)
         assert np.isclose(score, 1), f'Non-one {score=} even though the clustering is perfect'
 
@@ -81,11 +81,11 @@ class TestSilhouette(TestCase):
         data[n//2:,0] = 1
         labels = ht.arange(data.shape[0]) % 2
         score = ht.cluster.silhouette_score(data, labels)
-        mean_inner_distance = (n/24)/(n/2-1)
-        mean_outter_distance = (n/24)/(n/2)
+        mean_inner_distance = (n/4)/(n/2-1)
+        mean_outter_distance = (n/4)/(n/2)
         expect_score = mean_outter_distance / mean_inner_distance - 1
-        assert np.isclose(score, expect_score), f'Unexpected {score=}!={expect_score} even though the clustering is wrong'
-        assert score < 0, f'Unexpected {score=}>=0 even though the clustering is wrong'
+        assert np.isclose(score, expect_score), f'Unexpected {score=}!={expect_score}'
+        assert score < 0, f'Unexpected {score=}>=0 even though the clustering is perfectly poor'
 
 
     def test_minimal_silhouette_example(self):
