@@ -50,6 +50,80 @@ __all__ = [
     "vector_norm",
 ]
 
+import torch.distributed as dist
+
+try:
+    from torch.distributed.device_mesh import init_device_mesh
+    from torch.distributed.tensor import DTensor, Shard, Replicate
+    from torch.distributed.tensor.placement_types import Partial
+
+    _DTENSOR_AVAILABLE = True
+except ImportError:
+    _DTENSOR_AVAILABLE = False
+
+_DTENSOR_MESH = None
+
+
+def _get_or_create_mesh():
+    import os
+
+    global _DTENSOR_MESH
+    if _DTENSOR_MESH is None:
+        if not dist.is_initialized():
+            rank = int(os.environ.get("OMPI_COMM_WORLD_RANK", "0"))
+            world_size = int(os.environ.get("OMPI_COMM_WORLD_SIZE", "1"))
+            os.environ["RANK"] = str(rank)
+            os.environ["WORLD_SIZE"] = str(world_size)
+            os.environ["MASTER_ADDR"] = os.environ.get("MASTER_ADDR", "127.0.0.1")
+            os.environ["MASTER_PORT"] = os.environ.get("MASTER_PORT", "29500")
+
+            backend = "nccl" if torch.cuda.is_available() else "gloo"
+            dist.init_process_group(backend=backend)
+
+        device_type = "cuda" if torch.cuda.is_available() else "cpu"
+        _DTENSOR_MESH = init_device_mesh(device_type, (dist.get_world_size(),))
+    return _DTENSOR_MESH
+
+
+def _use_dtensor(a: DNDarray, b: DNDarray) -> bool:
+    if not _DTENSOR_AVAILABLE:
+        return False
+
+    # enforce nccl backend to guarantee performance over mpi ring topologies
+    if not torch.cuda.is_available():
+        return False
+
+    # ensure 2d matrices as dtensor matmul behavior differs on higher dims
+    if a.ndim != 2 or b.ndim != 2:
+        return False
+
+    # avoid faketensor propagation crashes by enforcing strict divisibility
+    comm_size = a.comm.size
+    if a.split is not None and a.gshape[a.split] % comm_size != 0:
+        return False
+    if b.split is not None and b.gshape[b.split] % comm_size != 0:
+        return False
+
+    return True
+
+
+def _to_dtensor(dndarray: DNDarray, mesh) -> "DTensor":
+    placements = [Replicate()] if dndarray.split is None else [Shard(dndarray.split)]
+    return DTensor.from_local(dndarray.larray, mesh, placements)
+
+
+def _from_dtensor(dtensor: "DTensor", target_split: int) -> torch.Tensor:
+    target_placement = Replicate() if target_split is None else Shard(target_split)
+
+    # force network redistribution if tensor is incomplete or layout mismatches
+    if (
+        any(isinstance(p, Partial) for p in dtensor.placements)
+        or dtensor.placements[0] != target_placement
+    ):
+        dtensor = dtensor.redistribute(dtensor.device_mesh, [target_placement])
+
+    return dtensor.to_local()
+
 
 def _estimate_largest_singularvalue(A: DNDarray, algorithm: str = "fro") -> DNDarray:
     """
@@ -610,6 +684,29 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
     """
     sanitation.sanitize_in(a)
     sanitation.sanitize_in(b)
+
+    if _use_dtensor(a, b):
+        try:
+            mesh = _get_or_create_mesh()
+
+            dt_a = _to_dtensor(a, mesh)
+            dt_b = _to_dtensor(b, mesh)
+
+            dt_c = torch.matmul(dt_a, dt_b)
+
+            # heat infers the final split directly from the inputs
+            expected_split = a.split if a.split is not None else b.split
+            local_c = _from_dtensor(dt_c, expected_split)
+
+            gshape_c = (a.gshape[0], b.gshape[1])
+
+            return DNDarray(
+                local_c, gshape_c, a.dtype, expected_split, a.device, a.comm, balanced=True
+            )
+        except Exception as e:
+            import logging
+
+            logging.warning(f"dtensor routing failed, falling back to mpi: {e}")
 
     batch_dim = max(a.ndim, b.ndim) - 2  # -1 for vector vector multiplication
     batched = batch_dim > 0
