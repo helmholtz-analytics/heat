@@ -86,7 +86,7 @@ def _validate_input(X, labels, metric="euclidean"):
     return X, labels
 
 
-def silhouette_samples(X, labels, *, metric="euclidean", **kwds):
+def silhouette_samples(X, labels, *, metric="euclidean"):
     """
     Compute the Silhouette Coefficient for each sample.
 
@@ -109,8 +109,11 @@ def silhouette_samples(X, labels, *, metric="euclidean", **kwds):
         The metric to use when calculating distance between instances in a feature array.
         If metric is "precomputed", X is assumed to be a distance matrix.
         Default is "euclidean".
-    **kwds : optional
-        Additional keyword arguments are ignored (reserved for compatibility).
+
+    Returns
+    -------
+    DNDarray
+        Silhouette value of all individual samples in the clustering
 
     Notes
     -----
@@ -122,7 +125,6 @@ def silhouette_samples(X, labels, *, metric="euclidean", **kwds):
     Raises
     ------
     ValueError
-        If the number of labels is 1 or equal to the number of samples.
         If `metric='precomputed'` and the diagonal contains non-zero elements.
 
     See Also
@@ -193,7 +195,9 @@ def silhouette_samples(X, labels, *, metric="euclidean", **kwds):
     return sil_samples
 
 
-def silhouette_score(X, labels, *, metric="euclidean", sample_size=None, random_state=None, **kwds):
+def silhouette_score(
+    X, labels, *, metric="euclidean", sample_size=None, random_state=None, **kwargs
+):
     r"""
     Compute the mean Silhouette Coefficient of all samples.
 
@@ -221,8 +225,14 @@ def silhouette_score(X, labels, *, metric="euclidean", sample_size=None, random_
     random_state : int, optional
         Determines random number generation for selecting a subset of samples.
         Used when `sample_size` is not `None`.
-    **kwds : optional
+    **kwargs : optional
         Additional keyword arguments passed to `silhouette_samples`.
+
+    Returns
+    -------
+    float
+        Silhouette score of the clustering
+
 
     Notes
     -----
@@ -261,4 +271,4 @@ def silhouette_score(X, labels, *, metric="euclidean", sample_size=None, random_
         X.balance_()
         labels.balance_()
 
-    return float(ht.mean(silhouette_samples(X, labels, metric=metric, **kwds)))
+    return float(ht.mean(silhouette_samples(X, labels, metric=metric, **kwargs)))
