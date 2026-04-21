@@ -351,12 +351,16 @@ def silhouette_score(X, labels, *, metric="euclidean", sample_size=None, random_
             ht.random.seed(random_state)
         indices = ht.random.permutation(X.shape[0])[
             :sample_size
-        ]  # selects a subset of random samples, but all ranks need same indices
+        ]  # selects a subset of random samples, but all ranks need same index array
 
+        labels = labels[indices]
         if metric == "precomputed":  # input is distance matrix
-            X, labels = X[indices].T[indices].T, labels[indices]
+            raise NotImplementedError(
+                "Random sampling in silhouette with precomputed distance matrix is not currently supported. Please open an issue on GitHub if you need this feature."
+            )
+            X = X[indices].T[indices].T
         else:
-            X, labels = X[indices], labels[indices]
+            X = X[indices]
 
         X.balance_()
         labels.balance_()

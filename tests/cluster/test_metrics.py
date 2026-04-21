@@ -146,30 +146,39 @@ class TestSilhouette(TestCase):
         assert -1.0 <= score <= 1.0
         assert np.allclose(score,0.76439, atol=1e-9)
 
+    def test_silhouette_random_sampling(self):
+        n_points = 64
+        n_samples = [8, 17, 64]
+        n_cluster = [3, 5]
+        dims = [1, 2, 3]
+        splits=[None, 0]
+        metric=['euclidean']
 
-    def test_silhouette_sampling_determinism(self):
-        n_samples = 1000
-        n_features = 2
-        centers = 3
+        for metric in metric:
+            for split in splits:
+                for n_s in n_samples:
+                    for n_c in n_cluster:
+                        for d in dims:
+                            with self.subTest(f'{split=}, {n_s=}, {n_c=}, {d=}, {metric=}'):
+                                data = ht.random.random((n_points, d), split=split)
+                                labels = ht.random.randint(low=0, high=n_c, size=n_points, split=split)
 
-        # Generate stable data
-        X_np, labels_np = make_blobs(
-            n_samples=n_samples,
-            n_features=n_features,
-            centers=centers,
-            random_state=42
-        )
+                                if metric == 'precomputed':
+                                    data = ht.spatial.cdist(data, data)
 
-        # Convert to distributed Heat arrays
-        X = ht.array(X_np, split=0)
-        labels = ht.array(labels_np, split=0)
+                                # Compute silhouette of all samples with sklearn and with heat
+                                score1 = silhouette_score(data, labels, metric=metric, sample_size=n_s, random_state=42)
+                                score2 = silhouette_score(data, labels, metric=metric, sample_size=n_s, random_state=42)
+                                score3 = silhouette_score(data, labels, metric=metric, sample_size=n_s, random_state=43)
 
-        # Run deterministic tests
-        score1 = silhouette_score(X, labels, sample_size=20, random_state=42)
-        score2 = silhouette_score(X, labels, sample_size=20, random_state=42)
+                                assert -1 <= score1 <= 1
+                                assert np.isclose(score1, score2)
 
-        assert score1 == score2
-        assert -1.0 <= score1 <= 1.0
+                                if n_s == n_points:
+                                    score_all = silhouette_score(data, labels, metric=metric)
+                                    assert np.isclose(score1, score_all)
+                                else:
+                                    assert not np.isclose(score1, score3)
 
 
     def test_silhouette_sampling_stochasticity(self):
