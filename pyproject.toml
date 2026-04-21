@@ -88,8 +88,8 @@ dev = [
 tests = [
     "pytest",
     "scikit-learn",
-    "hdf5",
-    "netcdf",
+    "h5py>=3.11",
+    "netCDF4>=1.7",
     "pandas",
     "zarr",
 ]

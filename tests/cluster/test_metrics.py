@@ -109,32 +109,21 @@ class TestSilhouette(TestCase):
         assert score < 0, f'Unexpected {score=}>=0 even though the clustering is wrong'
 
 
-    def test_minimal_silhouette(self):
+    def test_minimal_silhouette_example(self):
         if self.comm.size > 3:
             self.skipTest('Matrix multiplication bug #2093')
-        X_np = np.array([[0, 0], [10, 10], [20, 20], [1, 1]], dtype=np.float32)
-        labels_np = np.array([0, 2, 1, 0], dtype=np.int32)
+        X = ht.array([[0, 0], [10, 10], [20, 20], [1, 1]], dtype=np.float32, split=0)
+        labels = ht.array([0, 2, 1, 0], dtype=np.int32, split=0)
 
-        # HeAT values
-        X_ht = ht.array(X_np, split=0)
-        labels_ht = ht.array(labels_np, split=0)
+        sil = silhouette_samples(X, labels)
 
-        ht_res = silhouette_samples(X_ht, labels_ht)
+        # Expected value for i=0 (Cluster 0)
+        # a = dist((0,0), (1,1)) = 1.414
+        # b = dist((0,0), (10,10)) = 14.14
+        # sil = (14.14 - 1.414) / 14.14 = 0.9
 
-        res_np = ht_res.numpy()
-
-        sk_results = sk_silhouette(X_np, labels_np)
-
-        #print(f"Labels: {labels_np}")
-        #print(f"HeAT Results: {res_np}")
-        #print(f"SK Results: {sk_results}")
-
-            # Expected value for i=0 (Cluster 0)
-            # a = dist((0,0), (1,1)) = 1.414
-            # b = dist((0,0), (10,10)) = 14.14
-            # sil = (14.14 - 1.414) / 14.14 = 0.9
-
-        assert res_np[0] > 0.8, f"Point 0 is {res_np[0]:.4f}"
+        if self.comm.rank == 0:
+            assert sil.larray[0] == pytest.approx(0.9), f"Point 0 is {sil.larray[0]:.4f}"
 
 
     def test_silhouette_score_basic(self):
