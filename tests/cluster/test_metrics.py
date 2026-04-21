@@ -10,27 +10,6 @@ from heat.cluster.metrics import silhouette_samples, silhouette_score
 from heat.testing.basic_test import TestCase
 
 
-def run_error_test(name, func, expected_exception, match_text):
-    """
-    Helper to run a test and verify it raises the correct error.
-    """
-    rank = ht.communication.MPI_WORLD.rank
-    try:
-        func()
-        if rank == 0:
-            print(f"FAILED: {name} (No exception raised)")
-    except expected_exception as e:
-        if match_text in str(e):
-            if rank == 0:
-                print(f"PASSED: {name}")
-        else:
-            if rank == 0:
-                print(f"FAILED: {name} (Wrong error message: {e})")
-    except Exception as e:
-        if rank == 0:
-            print(f"FAILED: {name} (Wrong exception type: {type(e).__name__}: {e})")
-
-
 class TestSilhouette(TestCase):
 
     def test_silhouette_samples(self):
@@ -173,42 +152,28 @@ class TestSilhouette(TestCase):
                                     assert not np.isclose(score1, score3)
 
 
-    def test_suite(self):
-        rank = ht.communication.MPI_WORLD.rank
-        if rank == 0:
-            print(f"--- Starting Validation Tests on {ht.communication.MPI_WORLD.size} Ranks ---")
+    def test_input_validation(self):
+        # inconsistent number of labels and samples
+        for n_labels in [1, 11]:
+            X = ht.zeros((10, 2), split=None)
+            labels = ht.zeros((1,), split=None)
+            with self.assertRaisesRegex(ValueError, "inconsistent number of samples and labels"):
+                silhouette_score(X, labels)
 
-        # 1. Number of labels too small (n_labels = 1)
-        X = ht.zeros((10, 2), split=0)
-        labels = ht.zeros((1,), split=0)
-        with self.assertRaisesRegex(ValueError, "inconsistent number of samples and labels"):
+        # invalid label shape
+        X = ht.zeros((4, 2), split=None)
+        labels = ht.zeros((4, 2), split=None)
+        with self.assertRaisesRegex(ValueError, "labels should be a 1D array"):
             silhouette_score(X, labels)
 
-        # 2. Number of labels too large (n_labels = n_samples)
-        def test_too_many_labels():
-            X = ht.zeros((10, 2), split=0)
-            labels = ht.arange(10, split=0)
-            silhouette_score(X, labels)
-        run_error_test("N-Labels Error", test_too_many_labels, ValueError, "Valid values are 2 to n_samples - 1")
-
-        # 3. Inconsistent lengths
-        def test_mismatched_lengths():
-            X = ht.zeros((10, 2), split=0)
-            labels = ht.zeros((5,), split=0)
-            silhouette_score(X, labels)
-        run_error_test("Consistent Length Error", test_mismatched_lengths, ValueError, "inconsistent numbers")
-
-        # 4. Precomputed Diagonal Check (Floats)
-        def test_nonzero_diagonal():
-            # Diagonal is 0.5, which is > atol
-            X = ht.eye(4, split=0) * 0.5 #creates DNDarray with non-zero diagonal and zeros elsewhere
-            labels = ht.array([0, 0, 1, 1], split=0)
+        # distance matrix with non-zero diagonal elements
+        X = ht.eye(4, split=0) * 0.5 #creates DNDarray with non-zero diagonal and zeros elsewhere
+        labels = ht.array([0, 0, 1, 1], split=0)
+        with self.assertRaisesRegex(ValueError, "non-zero elements on the diagonal"):
             silhouette_score(X, labels, metric="precomputed")
-        run_error_test("Float Diagonal Error", test_nonzero_diagonal, ValueError, "non-zero elements on the diagonal")
 
-        # 5. Invalid Label Shape
-        def test_label_shape():
-            X = ht.zeros((4, 2), split=0)
-            labels = ht.zeros((4, 2), split=0)
-            silhouette_score(X, labels)
-        run_error_test("Label Shape Error", test_label_shape, ValueError, "y should be a 1D array")
+        for shape in [(2, 2, 2), (4, 6)]:
+            X = ht.zeros((4, 6), split=0)
+            labels = ht.array([0, 0, 1, 1], split=None)
+            with self.assertRaisesRegex(ValueError, "Precomputed distance matrix needs to be 2D and square"):
+                silhouette_score(X, labels, metric="precomputed")

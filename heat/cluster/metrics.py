@@ -6,18 +6,16 @@ import heat as ht
 import numpy as np
 
 
-def check_X_y(X, y, accept_sparse=False, metric="euclidean"):
+def check_X_y(X, y, metric="euclidean"):
     """
     Input validation for standard estimators.
 
     Parameters
     ----------
-    X : {DNDarray, list, sparse matrix}
+    X : {DNDarray, list}
         Input data.
-    y : {DNDarray, list, sparse matrix}
+    y : {DNDarray, list}
         Labels.
-    accept_sparse : bool, optional
-        Whether to accept sparse matrix input. Default is False.
     metric : str, optional
         The metric to use for validation. Default is "euclidean".
 
@@ -40,40 +38,33 @@ def check_X_y(X, y, accept_sparse=False, metric="euclidean"):
     ht.sanitize_in(X)
     ht.sanitize_in(y)
 
-    X = check_array(X, accept_sparse=accept_sparse, input_name="X", metric=metric)
+    X = check_array(X, metric=metric)
 
-    y = _check_y(y)
+    y = _check_labels(y)
 
     check_consistent_length(X, y)
 
     return X, y
 
 
-def check_array(X, accept_sparse=False, input_name="X", metric="euclidean"):
+def check_array(X, metric="euclidean"):
     """
     Input validation for a single array-like object.
-    Converts input to a distributed HeAT DNDarray if dimensions exceed BORDER_LENGTH.
 
     Parameters
     ----------
-    X : {DNDarray, array-like, sparse matrix}
+    X : {DNDarray, array-like}
         The input data to check.
-    accept_sparse : bool, optional
-        Whether to accept sparse matrix input. Default is False.
-    input_name : str, optional
-        The name of the input variable to use in error messages. Default is "X".
     metric : str, optional
         The metric to use. Default is "euclidean".
 
     Returns
     -------
     X : DNDarray
-        The validated and potentially converted HeAT DNDarray.
+        The validated and potentially converted Heat DNDarray.
 
     Raises
     ------
-    TypeError
-        If the input is sparse but `accept_sparse` is False.
     ValueError
         If `metric="precomputed"` and the diagonal contains non-zero elements.
 
@@ -84,80 +75,74 @@ def check_array(X, accept_sparse=False, input_name="X", metric="euclidean"):
     >>> check_array(X, metric="precomputed")
     DNDarray([[0., 1.], [1., 0.]], dtype=ht.float32, device=cpu:0, split=0)
     """
-    # Convert to heat array if input big enough --> overhead acceptable if array big enough
     ht.sanitize_in(X)
 
-    if not accept_sparse and X.is_sparse:
-        raise TypeError(f"{input_name} is sparse, but sparse input is not accepted.")
-
     if metric == "precomputed":
-        error_msg = ValueError(
-            "The precomputed distance matrix contains non-zero elements on the diagonal"
-        )
-        # mb write a function to fill diag with 0, like np.fill_diagonal(X, 0)
+        if X.ndim != 2 or X.shape[-1] != X.shape[-2]:
+            raise ValueError(
+                f"Precomputed distance matrix needs to be 2D and square but has shape {X.shape}"
+            )
+
         diag_elements = ht.diag(X)
 
-        atol = ht.finfo(X.dtype).eps * 100  # tolerance based on machine accuracy
-
-        if ht.any(ht.abs(diag_elements) > atol):
-            raise error_msg
-        elif ht.any(diag_elements != 0):  # integral dtype
-            raise error_msg
+        if ht.any(ht.abs(diag_elements) > ht.finfo(X.dtype).eps * 100):
+            raise ValueError(
+                "The precomputed distance matrix contains non-zero elements on the diagonal"
+            )
     return X
 
 
-def _check_y(y):
+def _check_labels(labels):
     """
     Standard validation of labels
-    Ensures y is a 1D DNDarray and handles reshaping of column vectors.
+    Ensures `labels` is a 1D DNDarray and handles reshaping of column vectors.
 
     Parameters
     ----------
-    y : {DNDarray, array-like}
+    labels : {DNDarray, array-like}
         The target values (labels).
 
     Returns
     -------
-    y : DNDarray
-        The validated and potentially converted HeAT DNDarray in 1D
+    labels : DNDarray
+        The validated and potentially converted Heat DNDarray in 1D
 
     Raises
     ------
     ValueError
-        If y is None or cannot be squeezed into a 1D representation.
+        If labels is None or cannot be squeezed into a 1D representation.
 
     Examples
     --------
     >>> import heat as ht
-    >>> y = ht.array([[1], [2], [3]])
-    >>> _check_y(y)
+    >>> labels = ht.array([[1], [2], [3]])
+    >>> _check_labels(labels)
     DNDarray([1, 2, 3], dtype=ht.int64, device=cpu:0, split=0)
     """
-    ht.sanitize_in(y)
+    ht.sanitize_in(labels)
 
     # need 1D labels
-    if len(y.shape) > 1:
-        if y.shape[1] == 1:
-            y = y.reshape(-1)
+    if len(labels.shape) > 1:
+        if labels.shape[1] == 1:
+            labels = labels.reshape(-1)
         else:
-            raise ValueError("y should be a 1D array or a column vector.")
+            raise ValueError(
+                f"labels should be a 1D array or a column vector but has shape {labels.shape}."
+            )
 
-    if y is None:
-        raise ValueError(" requires y to be passed, but the target y is None")
-
-    return y
+    return labels
 
 
-def check_consistent_length(X, y):
+def check_consistent_length(X, labels):
     """
-    Check that X and y have a consistent number of samples (rows).
+    Check that X and labels have a consistent number of samples (rows).
     For distributed DNDarrays, it ensures identical split axes and local chunk sizes.
 
     Parameters
     ----------
     X : DNDarray
         Input data.
-    y : DNDarray
+    labels : DNDarray
         Labels
 
     Raises
@@ -170,23 +155,27 @@ def check_consistent_length(X, y):
     --------
     >>> import heat as ht
     >>> X = ht.zeros((10, 2), split=0)
-    >>> y = ht.ones((10,), split=None)
-    >>> check_consistent_length(X, y)
-    # y is silently resplit to match X.split=0
+    >>> labels = ht.ones((10,), split=None)
+    >>> check_consistent_length(X, labels)
     """
-    if X.shape[0] != y.shape[0]:
+    if X.shape[0] != labels.shape[0]:
         raise ValueError(
-            f"Found input variables with inconsistent number of samples and labels! Got: {X.shape[0]} samples and {y.shape[0]} labels"
+            f"Found input variables with inconsistent number of samples and labels! Got: {X.shape[0]} samples and {labels.shape[0]} labels"
         )
 
-    if isinstance(X, ht.DNDarray) and isinstance(y, ht.DNDarray):
+    if isinstance(X, ht.DNDarray) and isinstance(labels, ht.DNDarray):
         # ensure split axis is the same
-        if X.split != y.split:
-            y.resplit_(X.split)
+        if X.split != labels.split:
+            import warnings
+
+            warnings.warn(
+                f"labels are resplit from {labels.split} to match {X.split} to match split of data"
+            )
+            labels.resplit_(X.split)
         # Check if local chunks match
-        if X.lshape[0] != y.lshape[0]:
+        if X.lshape[X.split] != labels.lshape[X.split]:
             raise ValueError(
-                "Local shapes of X and y do not match. Ensure they are partitioned identically."
+                "Local shapes of X and labels do not match. Ensure they are partitioned identically."
             )
 
 
@@ -242,7 +231,7 @@ def silhouette_samples(X, labels, *, metric="euclidean", **kwds):
     DNDarray([0.7452, 0.7836, 0.7452, 0.7836], dtype=ht.float64, device=cpu:0, split=0)
     """
     # Sanitation and checks
-    X, labels = check_X_y(X, labels, accept_sparse=["csr"], metric=metric)
+    X, labels = check_X_y(X, labels, metric=metric)
 
     unique_labels, labels_encoded = ht.unique(
         labels, return_inverse=True
@@ -346,7 +335,7 @@ def silhouette_score(X, labels, *, metric="euclidean", sample_size=None, random_
     0.76439
     """
     if sample_size is not None:
-        X, labels = check_X_y(X, labels, accept_sparse=["csc", "csr"])  # same as silhouette_samples
+        X, labels = check_X_y(X, labels)  # same as silhouette_samples
         if random_state is not None:
             ht.random.seed(random_state)
         indices = ht.random.permutation(X.shape[0])[
