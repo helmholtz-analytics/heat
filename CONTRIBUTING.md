@@ -39,7 +39,7 @@ Don't hesitate to reach out, for instance by creating a draft PR if you need hel
 
 ## Environment Setup
 
-Follow the [Quick Start](./quick_start) to set up your development environment and install the mandatory `pre-commit` hooks.
+Follow the [Quick Start](https://heat.readthedocs.io/en/stable/quick_start.html) to set up your development environment and install the mandatory `pre-commit` hooks.
 
 ## Developing & Testing
 * **Branching:** For any new development, create a new branch from the latest main or, if applicable and possible, use the specific branch created for you by the project bot.
