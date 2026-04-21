@@ -58,6 +58,28 @@
             }
         },
         {
+            "@id": "https://orcid.org/0000-0003-1528-0933",
+            "@type": "Person",
+            "email": "b.hagemeier@fz-juelich.de",
+            "familyName": "Hagemeier",
+            "givenName": "Björn",
+            "affiliation": {
+                "@type": "Organization",
+                "name": "Forschungszentrum Jülich (FZJ)"
+            }
+        },
+        {
+            "@id": "https://orcid.org/0000-0003-0858-5579",
+            "@type": "Person",
+            "email": "m.tarnawa@fz-juelich.de",
+            "familyName": "Tarnawa",
+            "givenName": "Michael",
+            "affiliation": {
+                "@type": "Organization",
+                "name": "Forschungszentrum Jülich (FZJ)"
+            }
+        },
+        {
             "@id": "https://orcid.org/0000-0002-4849-0593",
             "@type": "Person",
             "email": "philipp.knechtges@dlr.de",
@@ -69,14 +91,36 @@
             }
         },
         {
-            "@id": "https://orcid.org/0000-0003-1528-0933",
+            "@id": "https://orcid.org/0000-0002-4501-6829",
             "@type": "Person",
-            "email": "b.hagemeier@fz-juelich.de",
-            "familyName": "Hagemeier",
-            "givenName": "Björn",
+            "email": "f.hoppe@dlr.de",
+            "familyName": "Hoppe",
+            "givenName": "Fabian",
             "affiliation": {
                 "@type": "Organization",
-                "name": "Forschungszentrum Jülich (FZJ)"
+                "name": "Deutsches Zentrum für Luft- und Raumfahrt (DLR)"
+            }
+        },
+        {
+            "@id": "https://orcid.org/0000-0003-0876-3515",
+            "@type": "Person",
+            "email": "hakan.akdag@dlr.de",
+            "familyName": "Akdag",
+            "givenName": "Hakan",
+            "affiliation": {
+                "@type": "Organization",
+                "name": "Deutsches Zentrum für Luft- und Raumfahrt (DLR)"
+            }
+        },
+        {
+            "@id": "https://orcid.org/0000-0001-6347-9272",
+            "@type": "Person",
+            "email": "alexander.ruettgers@dlr.de",
+            "familyName": "Rüttgers",
+            "givenName": "Alexander",
+            "affiliation": {
+                "@type": "Organization",
+                "name": "Deutsches Zentrum für Luft- und Raumfahrt (DLR)"
             }
         },
         {
@@ -115,6 +159,17 @@
     ],
     "contributor": [
         {
+            "@id": "https://orcid.org/0000-0002-9071-890X",
+            "@type": "Person",
+            "email": "c.comito@fz-juelich.de",
+            "familyName": "Comito",
+            "givenName": "Claudia",
+            "affiliation": {
+                "@type": "Organization",
+                "name": "Forschungszentrum Jülich (FZJ)"
+            }
+        },
+        {
             "@id": "https://orcid.org/0000-0002-4676-7659",
             "@type": "Person",
             "email": "t.baumann@fz-juelich.de",
@@ -137,17 +192,6 @@
             }
         },
         {
-            "@id": "https://orcid.org/0000-0002-4501-6829",
-            "@type": "Person",
-            "email": "f.hoppe@dlr.de",
-            "familyName": "Hoppe",
-            "givenName": "Fabian",
-            "affiliation": {
-                "@type": "Organization",
-                "name": "Deutsches Zentrum für Luft- und Raumfahrt (DLR)"
-            }
-        },
-        {
             "@id": "https://orcid.org/0000-0001-8439-7145",
             "@type": "Person",
             "email": "juan.muriedas@kit.edu",
@@ -157,33 +201,30 @@
                 "@type": "Organization",
                 "name": "Karlsruher Institut für Technologie (KIT)"
             }
-        },
-        {
-            "@id": "https://orcid.org/0000-0003-0876-3515",
-            "@type": "Person",
-            "email": "hakan.akdag@dlr.de",
-            "familyName": "Akdag",
-            "givenName": "Hakan",
-            "affiliation": {
-                "@type": "Organization",
-                "name": "Deutsches Zentrum für Luft- und Raumfahrt (DLR)"
-            }
         }
     ],
     "description": "The Helmholtz Analytics Toolkit (Heat) is a powerful Python library for massively-parallel HPC. Its hardware-agnostic design, based on PyTorch and MPI, enables seamless scaling on Nvidia, AMD, and ARM architectures, excelling where task-parallel frameworks show limitations.",
     "keywords": [
         "python",
-        "data science",
-        "data analytics",
-        "machine learning",
-        "deep learning",
+        "pytorch",
+        "numpy",
+        "mpi",
+        "mpi4py",
+        "distributed computing",
         "parallel computing",
         "high-performance computing",
-        "multi-GPU",
-        "scientific computing"
+        "hpc",
+        "gpu",
+        "multi-gpu",
+        "tensors",
+        "data analytics",
+        "machine learning",
+        "data science",
+        "scientific computing",
+        "array api"
     ],
     "license": "https://spdx.org/licenses/MIT",
-    "name": "Heat",
+    "name": "heat",
     "programmingLanguage": "Python 3",
     "relatedLink": "https://heat.readthedocs.io/",
     "softwareRequirements": [
