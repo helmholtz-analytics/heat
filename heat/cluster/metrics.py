@@ -1,20 +1,20 @@
 """
-Cluster metrics for the HeAT library.
+Cluster metrics for the Heat library.
 """
 
 import heat as ht
 import numpy as np
 
 
-def check_X_y(X, y, metric="euclidean"):
+def _validate_input(X, labels, metric="euclidean"):
     """
-    Input validation for standard estimators.
+    Input validation for clustering metrics
 
     Parameters
     ----------
     X : {DNDarray, list}
         Input data.
-    y : {DNDarray, list}
+    labels : {DNDarray, list}
         Labels.
     metric : str, optional
         The metric to use for validation. Default is "euclidean".
@@ -23,60 +23,22 @@ def check_X_y(X, y, metric="euclidean"):
     -------
     X : DNDarray
         The converted and validated X.
-    y : DNDarray
-        The converted and validated y.
+    labels : DNDarray
+        The converted and validated labels.
 
     Examples
     --------
     >>> import heat as ht
     >>> X = ht.array([[1, 2], [3, 4]], dtype=ht.float)
-    >>> y = ht.array([0, 1])
-    >>> check_X_y(X, y)
+    >>> labels = ht.array([0, 1])
+    >>> _validate_input(X, labels)
     (DNDarray([[1., 2.], [3., 4.]], dtype=ht.float32, device=cpu:0, split=None),
      DNDarray([0, 1], dtype=ht.int64, device=cpu:0, split=None))
     """
     ht.sanitize_in(X)
-    ht.sanitize_in(y)
+    ht.sanitize_in(labels)
 
-    X = check_array(X, metric=metric)
-
-    y = _check_labels(y)
-
-    check_consistent_length(X, y)
-
-    return X, y
-
-
-def check_array(X, metric="euclidean"):
-    """
-    Input validation for a single array-like object.
-
-    Parameters
-    ----------
-    X : {DNDarray, array-like}
-        The input data to check.
-    metric : str, optional
-        The metric to use. Default is "euclidean".
-
-    Returns
-    -------
-    X : DNDarray
-        The validated and potentially converted Heat DNDarray.
-
-    Raises
-    ------
-    ValueError
-        If `metric="precomputed"` and the diagonal contains non-zero elements.
-
-    Examples
-    --------
-    >>> import heat as ht
-    >>> X = [[0, 1], [1, 0]]
-    >>> check_array(X, metric="precomputed")
-    DNDarray([[0., 1.], [1., 0.]], dtype=ht.float32, device=cpu:0, split=0)
-    """
-    ht.sanitize_in(X)
-
+    # check precomputed distance matrix
     if metric == "precomputed":
         if X.ndim != 2 or X.shape[-1] != X.shape[-2]:
             raise ValueError(
@@ -89,94 +51,39 @@ def check_array(X, metric="euclidean"):
             raise ValueError(
                 "The precomputed distance matrix contains non-zero elements on the diagonal"
             )
-    return X
 
-
-def _check_labels(labels):
-    """
-    Standard validation of labels
-    Ensures `labels` is a 1D DNDarray and handles reshaping of column vectors.
-
-    Parameters
-    ----------
-    labels : {DNDarray, array-like}
-        The target values (labels).
-
-    Returns
-    -------
-    labels : DNDarray
-        The validated and potentially converted Heat DNDarray in 1D
-
-    Raises
-    ------
-    ValueError
-        If labels is None or cannot be squeezed into a 1D representation.
-
-    Examples
-    --------
-    >>> import heat as ht
-    >>> labels = ht.array([[1], [2], [3]])
-    >>> _check_labels(labels)
-    DNDarray([1, 2, 3], dtype=ht.int64, device=cpu:0, split=0)
-    """
-    ht.sanitize_in(labels)
-
-    # need 1D labels
+    # flatten labels
     if len(labels.shape) > 1:
-        if labels.shape[1] == 1:
-            labels = labels.reshape(-1)
+        if np.prod(labels.shape) == X.shape[0]:
+            labels = labels.flatten()
         else:
             raise ValueError(
                 f"labels should be a 1D array or a column vector but has shape {labels.shape}."
             )
 
-    return labels
-
-
-def check_consistent_length(X, labels):
-    """
-    Check that X and labels have a consistent number of samples (rows).
-    For distributed DNDarrays, it ensures identical split axes and local chunk sizes.
-
-    Parameters
-    ----------
-    X : DNDarray
-        Input data.
-    labels : DNDarray
-        Labels
-
-    Raises
-    ------
-    ValueError
-        If the global sample counts differ or if local distributed chunks
-        are not aligned.
-
-    Examples
-    --------
-    >>> import heat as ht
-    >>> X = ht.zeros((10, 2), split=0)
-    >>> labels = ht.ones((10,), split=None)
-    >>> check_consistent_length(X, labels)
-    """
+    # check for consistency between X and labels
     if X.shape[0] != labels.shape[0]:
         raise ValueError(
             f"Found input variables with inconsistent number of samples and labels! Got: {X.shape[0]} samples and {labels.shape[0]} labels"
         )
 
-    if isinstance(X, ht.DNDarray) and isinstance(labels, ht.DNDarray):
-        # ensure split axis is the same
-        if X.split != labels.split:
-            import warnings
+    # ensure split axis is the same
+    if X.split != labels.split:
+        import warnings
 
-            warnings.warn(
-                f"labels are resplit from {labels.split} to match {X.split} to match split of data"
-            )
-            labels.resplit_(X.split)
-        # Check if local chunks match
+        warnings.warn(
+            f"labels are resplit from {labels.split} to match {X.split} to match split of data"
+        )
+        labels.resplit_(X.split)
+
+    # Check if local chunks match
+    if X.split is not None:
         if X.lshape[X.split] != labels.lshape[X.split]:
             raise ValueError(
                 "Local shapes of X and labels do not match. Ensure they are partitioned identically."
             )
+
+    return X, labels
 
 
 def silhouette_samples(X, labels, *, metric="euclidean", **kwds):
@@ -231,7 +138,7 @@ def silhouette_samples(X, labels, *, metric="euclidean", **kwds):
     DNDarray([0.7452, 0.7836, 0.7452, 0.7836], dtype=ht.float64, device=cpu:0, split=0)
     """
     # Sanitation and checks
-    X, labels = check_X_y(X, labels, metric=metric)
+    X, labels = _validate_input(X, labels, metric=metric)
 
     unique_labels, labels_encoded = ht.unique(
         labels, return_inverse=True
@@ -335,7 +242,7 @@ def silhouette_score(X, labels, *, metric="euclidean", sample_size=None, random_
     0.76439
     """
     if sample_size is not None:
-        X, labels = check_X_y(X, labels)  # same as silhouette_samples
+        X, labels = _validate_input(X, labels)  # same as silhouette_samples
         if random_state is not None:
             ht.random.seed(random_state)
         indices = ht.random.permutation(X.shape[0])[

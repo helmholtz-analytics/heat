@@ -166,6 +166,12 @@ class TestSilhouette(TestCase):
         with self.assertRaisesRegex(ValueError, "labels should be a 1D array"):
             silhouette_score(X, labels)
 
+        # pass labels as column vector
+        X = ht.random.random((4, 2), split=None)
+        labels_1D = ht.zeros((4,), split=None)
+        labels_column = ht.zeros((1, 4), split=None)
+        self.assertEqual(silhouette_score(X, labels_1D), silhouette_score(X, labels_column))
+
         # distance matrix with non-zero diagonal elements
         X = ht.eye(4, split=0) * 0.5 #creates DNDarray with non-zero diagonal and zeros elsewhere
         labels = ht.array([0, 0, 1, 1], split=0)
