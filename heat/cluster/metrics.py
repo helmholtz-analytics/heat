@@ -176,7 +176,7 @@ def check_consistent_length(X, y):
     """
     if X.shape[0] != y.shape[0]:
         raise ValueError(
-            f"Found input variables with inconsistent numbers of samples: [{X.shape[0]}, {y.shape[0]}]"
+            f"Found input variables with inconsistent number of samples and labels! Got: {X.shape[0]} samples and {y.shape[0]} labels"
         )
 
     if isinstance(X, ht.DNDarray) and isinstance(y, ht.DNDarray):

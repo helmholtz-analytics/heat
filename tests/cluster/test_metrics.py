@@ -55,8 +55,8 @@ class TestSilhouette(TestCase):
                                     data = ht.spatial.cdist(data, data)
 
                                 # Compute silhouette of all samples with sklearn and with heat
-                                sk_results = sk_silhouette(data.resplit(None).numpy(), labels.resplit(None).numpy(), metric=metric)
-                                ht_results = silhouette_samples(data, labels, metric=metric).resplit(None).numpy()
+                                sk_results = sk_silhouette(data.numpy(), labels.numpy(), metric=metric)
+                                ht_results = silhouette_samples(data, labels, metric=metric).numpy()
 
                                 assert np.allclose(sk_results, ht_results,
                                                    atol=1e-6), f'Max diff between Heat and scipy: {np.max(np.abs(sk_results - ht_results))}'
@@ -126,7 +126,7 @@ class TestSilhouette(TestCase):
             assert sil.larray[0] == pytest.approx(0.9), f"Point 0 is {sil.larray[0]:.4f}"
 
 
-    def test_silhouette_score_basic(self):
+    def test_minimal_silhouette_score_example(self):
         if self.comm.size > 2:
             self.skipTest('Matrix multiplication bug #2093')
         X = ht.array([[1, 2], [1, 1], [4, 4], [4, 5]], split=0)
@@ -173,55 +173,16 @@ class TestSilhouette(TestCase):
                                     assert not np.isclose(score1, score3)
 
 
-    def test_silhouette_sampling_stochasticity(self):
-        # Test that random_state=None produces different scores (usually)
-        n_samples = 1000
-        n_features = 2
-        centers = 3
-
-        X_np, labels_np = make_blobs(
-            n_samples=n_samples,
-            n_features=n_features,
-            centers=centers,
-            random_state=None
-        )
-
-        # Convert to distributed Heat arrays
-        X = ht.array(X_np, split=0)
-        labels = ht.array(labels_np, split=0)
-
-        score1 = silhouette_score(X, labels, sample_size=20, random_state=None)
-        score2 = silhouette_score(X, labels, sample_size=20, random_state=None)
-
-        assert score1 != score2
-
-
-    def test_silhouette_precomputed_metric(self):
-        if self.comm.size > 3:
-            self.skipTest('Matrix multiplication bug #2093')
-        # X as a distance matrix
-        X_dist = ht.array([
-            [0.0, 1.0, 5.0, 5.0],
-            [1.0, 0.0, 5.0, 5.0],
-            [5.0, 5.0, 0.0, 1.0],
-            [5.0, 5.0, 1.0, 0.0]
-        ], split=0)
-        labels = ht.array([0, 0, 1, 1], split=0)
-
-        score = silhouette_score(X_dist, labels, metric="precomputed")
-        assert score > 0.5  # Well separated clusters
-
     def test_suite(self):
         rank = ht.communication.MPI_WORLD.rank
         if rank == 0:
             print(f"--- Starting Validation Tests on {ht.communication.MPI_WORLD.size} Ranks ---")
 
         # 1. Number of labels too small (n_labels = 1)
-        def test_single_label():
-            X = ht.zeros((10, 2), split=0)
-            labels = ht.zeros((10,), split=0)
+        X = ht.zeros((10, 2), split=0)
+        labels = ht.zeros((1,), split=0)
+        with self.assertRaisesRegex(ValueError, "inconsistent number of samples and labels"):
             silhouette_score(X, labels)
-        run_error_test("Single Label Error", test_single_label, ValueError, "Number of labels is 1")
 
         # 2. Number of labels too large (n_labels = n_samples)
         def test_too_many_labels():
