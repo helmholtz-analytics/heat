@@ -7,25 +7,55 @@ from heat.testing.basic_test import TestCase
 from heat.core.signal import _sanitize_conv_input, _conv_batchprocessing_check
 
 import torch
-_torch_det_mode = torch.are_deterministic_algorithms_enabled()
+import os
+
+# _torch_cudnn_benchmark = None
+# _torch_cudnn_deterministic = None
+# _torch_det_mode = None
+# _miopen_find_mode = None
+# _miopen_find_enforce = None
 
 class TestSignal(TestCase):
     @classmethod
     def setUpClass(cls):
         super(TestSignal, cls).setUpClass()
 
-        import os
+        # global _torch_cudnn_benchmark
+        # global _torch_cudnn_deterministic
+        # global _torch_det_mode
+        # global _miopen_find_mode
+        # global _miopen_find_enforce
+
+        # Store previous values
+        cls._torch_cudnn_benchmark =torch.backends.cudnn.benchmark
+        cls._torch_cudnn_deterministic = torch.backends.cudnn.deterministic
+        cls._torch_det_mode = torch.are_deterministic_algorithms_enabled()
+        cls._miopen_find_mode = os.environ.get("MIOPEN_FIND_MODE", "")
+        cls._miopen_find_enforce = os.environ.get("MIOPEN_FIND_ENFORCE", "")
+
+        # Set deterministic behavior for convolution operations
         os.environ["MIOPEN_FIND_MODE"] = "1"  # Normal find mode
         os.environ["MIOPEN_FIND_ENFORCE"] = "3"  # Use DB, don't re-search
-
         torch.use_deterministic_algorithms(True)
+        torch.backends.cudnn.benchmark = False
+        torch.backends.cudnn.deterministic = True
 
 
     @classmethod
     def tearDownClass(cls):
         super(TestSignal, cls).tearDownClass()
 
-        torch.use_deterministic_algorithms(_torch_det_mode)
+        # global _torch_cudnn_benchmark
+        # global _torch_cudnn_deterministic
+        # global _torch_det_mode
+        # global _miopen_find_mode
+        # global _miopen_find_enforce
+
+        torch.use_deterministic_algorithms(cls._torch_det_mode)
+        os.environ["MIOPEN_FIND_MODE"] = cls._miopen_find_mode
+        os.environ["MIOPEN_FIND_ENFORCE"] = cls._miopen_find_enforce
+        torch.backends.cudnn.benchmark = cls._torch_cudnn_benchmark
+        torch.backends.cudnn.deterministic = cls._torch_cudnn_deterministic
 
 
     def test_sanitize_conv_input_invalid_types(self):
@@ -941,64 +971,65 @@ class TestSignal(TestCase):
     def test_convolve_large_signal_and_kernel_modes(self):
         if self.comm.size <= 4:
             # prep
-            np.random.seed(12)
-            np_a = np.random.randint(1000, size=4418)
-            np_b = np.random.randint(1000, size=913)
             # torch convolution does not support int on MPS
+            np.random.seed(12)
             ht_dtype = ht.float32 if self.is_mps else ht.int32
-            np_dtype = np.float32 if self.is_mps else np.int32
-            random_stride = np.random.randint(1, high=len(np_a), size=1)[0]
+
+            a = ht.array(np.random.randint(1000, size=4418), dtype=ht_dtype)
+            b = ht.array(np.random.randint(1000, size=913), dtype=ht_dtype)
+
+            random_stride = np.random.randint(1, high=len(a), size=1)[0]
+
 
             for mode in ["full", "same", "valid"]:
                 strides = [1, random_stride] if mode != "same" else [1]
                 for stride in strides:
                     # solution
-                    np_conv = np.convolve(np_a, np_b, mode=mode)
-                    solution = ht.array(np_conv[::stride].astype(np_dtype))
+                    conv = ht.convolve(a, b, mode=mode)
+                    solution = conv[::stride]
 
                     # test
-                    a = ht.array(np_a, split=0, dtype=ht_dtype)
-                    b = ht.array(np_b, split=None, dtype=ht_dtype)
-                    conv = ht.convolve(a, b, mode=mode, stride=stride)
+                    a_split = ht.array(a, split=0, dtype=ht_dtype)
+                    b_unsplit = ht.array(b, split=None, dtype=ht_dtype)
+                    conv = ht.convolve(a_split, b_unsplit, mode=mode, stride=stride)
                     self.assertTrue(ht.allclose(conv, solution))
 
-                    b = ht.array(np_b, split=0, dtype=ht_dtype)
-                    conv = ht.convolve(a, b, mode=mode, stride=stride)
+                    b_split = ht.array(b, split=0, dtype=ht_dtype)
+                    conv = ht.convolve(a_split, b_unsplit, mode=mode, stride=stride)
                     self.assertTrue(ht.allclose(conv, solution))
 
     def test_convolve2d_large_signal_and_kernel_modes(self):
         if self.comm.size <= 4:
             np.random.seed(12)
             ht_dtype = ht.int32 if ht.get_device() == ht.cpu else ht.float32
-            np_dtype = np.int32 if ht.get_device() == ht.cpu else np.float32
 
-            np_a = np.random.randint(0,100, size=(734, 680)).astype(np_dtype)
-            np_b = np.random.randint(0,10, size=(39, 17)).astype(np_dtype)
+            a = ht.array(np.random.randint(0,100, size=(734,680)), dtype=ht_dtype)
+            b = ht.array(np.random.randint(0,10, size=(39,17)), dtype=ht_dtype)
 
             random_stride = tuple(np.random.randint(1, high=20, size=2))
+
             for mode in ["full", "same", "valid"]:
                 strides = [(1,1), random_stride] if mode != "same" else [(1,1)]
                 for stride in strides:
-                    sc_conv = sig.convolve2d(np_a, np_b, mode=mode)
-                    solution = ht.array(sc_conv[::stride[0], ::stride[1]])
 
+                    sc_conv = ht.convolve2d(a, b, mode=mode)
+                    solution = sc_conv[::stride[0], ::stride[1]]
 
-                    a = ht.array(np_a, split=0, dtype=ht_dtype)
-                    b = ht.array(np_b, split=None, dtype=ht_dtype)
-                    conv = ht.convolve2d(a, b, mode=mode, stride=stride)
+                    a_split0 = ht.array(a, split=0, dtype=ht_dtype)
+                    b_unsplit = ht.array(b, split=None, dtype=ht_dtype)
+                    conv = ht.convolve2d(a_split0, b_unsplit, mode=mode, stride=stride)
                     self.assertTrue(ht.allclose(conv, solution))
 
-                    b = ht.array(np_b, split=0, dtype=ht_dtype)
-                    conv = ht.convolve2d(a, b, mode=mode, stride=stride)
+                    b_split0 = ht.array(b, split=0, dtype=ht_dtype)
+                    conv = ht.convolve2d(a_split0, b_split0, mode=mode, stride=stride)
                     self.assertTrue(ht.allclose(conv, solution))
 
-                    a = ht.array(np_a, split=1, dtype=ht_dtype)
-                    b = ht.array(np_b, split=None, dtype=ht_dtype)
-                    conv = ht.convolve2d(a, b, mode=mode, stride=stride)
+                    a_split1 = ht.array(a, split=1, dtype=ht_dtype)
+                    conv = ht.convolve2d(a_split1, b_unsplit, mode=mode, stride=stride)
                     self.assertTrue(ht.allclose(conv, solution))
 
-                    b = ht.array(np_b, split=1, dtype=ht_dtype)
-                    conv = ht.convolve2d(a, b, mode=mode, stride=stride)
+                    b_split1 = ht.array(b, split=1, dtype=ht_dtype)
+                    conv = ht.convolve2d(a_split1, b_split1, mode=mode, stride=stride)
                     self.assertTrue(ht.allclose(conv, solution))
 
     def test_convolve_kernel_size_1(self):
