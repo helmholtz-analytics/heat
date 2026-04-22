@@ -82,16 +82,13 @@ dev = [
 
     # Benchmarking
     "perun",
-]
 
-## dependencies used for IO and verification in test suite
-tests = [
-    "pytest",
-    "scikit-learn",
+    # Additional dependencies required to run the entire test suite
     "h5py>=3.11",
     "netCDF4>=1.7",
-    "pandas",
     "zarr",
+    "pandas",
+    "scikit-learn",
 ]
 
 docs = [
