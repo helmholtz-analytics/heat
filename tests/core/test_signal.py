@@ -956,12 +956,19 @@ class TestSignal(TestCase):
             # torch convolution does not support int on MPS
             np.random.seed(12)
             ht_dtype = ht.float32 if self.is_mps else ht.int32
+            
+            a = ht.random.randint(0,1000, size=4418, dtype=ht_dtype)
+            b = ht.random.randint(0,1000, size=913, dtype=ht_dtype)
 
-            a = ht.array(np.random.randint(1000, size=4418), dtype=ht_dtype)
-            b = ht.array(np.random.randint(1000, size=913), dtype=ht_dtype)
+            if self.comm.rank == 0:
+                random_stride = np.random.randint(1, high=len(a), size=1)
+                self.comm.Bcast(random_stride, root=0)
+            else:
+                random_stride = np.empty(1, dtype=int)
+                self.comm.Bcast(random_stride, root=0)
 
-            random_stride = np.random.randint(1, high=len(a), size=1)[0]
-
+            random_stride = random_stride[0]
+            print(f"Testing convolution with stride {random_stride} on signal of size {len(a)} and kernel of size {len(b)}")
 
             for mode in ["full", "same", "valid"]:
                 strides = [1, random_stride] if mode != "same" else [1]
@@ -973,22 +980,30 @@ class TestSignal(TestCase):
                     # test
                     a_split = ht.array(a, split=0, dtype=ht_dtype)
                     b_unsplit = ht.array(b, split=None, dtype=ht_dtype)
-                    conv = ht.convolve(a_split, b_unsplit, mode=mode, stride=stride)
+                    conv = ht.convolve(a_split, b_unsplit, mode=mode, stride=stride).resplit(None)
                     self.assertTrue(ht.allclose(conv, solution))
 
                     b_split = ht.array(b, split=0, dtype=ht_dtype)
-                    conv = ht.convolve(a_split, b_unsplit, mode=mode, stride=stride)
+                    conv = ht.convolve(a_split, b_unsplit, mode=mode, stride=stride).resplit(None)
                     self.assertTrue(ht.allclose(conv, solution))
 
     def test_convolve2d_large_signal_and_kernel_modes(self):
         if self.comm.size <= 4:
             np.random.seed(12)
-            ht_dtype = ht.int32 if ht.get_device() == ht.cpu else ht.float32
+            ht_dtype = ht.float32 if self.is_mps else ht.int32
 
-            a = ht.array(np.random.randint(0,100, size=(734,680)), dtype=ht_dtype)
-            b = ht.array(np.random.randint(0,10, size=(39,17)), dtype=ht_dtype)
+            a = ht.random.randint(0,100, size=(734,680), dtype=ht_dtype)
+            b = ht.random.randint(0,10, size=(39,17), dtype=ht_dtype)
 
-            random_stride = tuple(np.random.randint(1, high=20, size=2))
+            if self.comm.rank == 0:
+                random_stride = np.random.randint(1, high=len(a), size=2)
+                self.comm.Bcast(random_stride, root=0)
+            else:
+                random_stride = np.empty(2, dtype=int)
+                self.comm.Bcast(random_stride, root=0)
+
+            random_stride = tuple(random_stride)
+            print(f"Testing 2D convolution with stride {random_stride} on signal of size {a.shape} and kernel of size {b.shape}")
 
             for mode in ["full", "same", "valid"]:
                 strides = [(1,1), random_stride] if mode != "same" else [(1,1)]
