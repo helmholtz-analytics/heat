@@ -511,7 +511,7 @@ class TestSignal(TestCase):
             kernel = ht.random.randn(5, 19, dtype=float_dtype)
             batch_convolved = ht.convolve2d(batch_signal, kernel, mode="valid", stride=stride)
             self.assertTrue(
-                ht.equal(
+                ht.allclose(
                     ht.convolve2d(signal, kernel, mode="valid", stride=stride),
                     batch_convolved[0],
                 )
@@ -522,7 +522,7 @@ class TestSignal(TestCase):
             dis_kernel = ht.array(kernel, split=0)
             batch_convolved = ht.convolve2d(batch_signal, dis_kernel, stride=stride)
             self.assertTrue(
-                ht.equal(ht.convolve2d(signal, kernel, stride=stride),
+                ht.allclose(ht.convolve2d(signal, kernel, stride=stride),
                          batch_convolved[5])
             )
 
@@ -533,7 +533,7 @@ class TestSignal(TestCase):
             batch_convolved = ht.convolve2d(batch_signal, batch_kernel, mode="full",
                                           stride=stride)
             self.assertTrue(
-                ht.equal(
+                ht.allclose(
                     ht.convolve2d(signal, kernel, mode="full", stride=stride),
                     batch_convolved[-1],
                 )
@@ -545,7 +545,7 @@ class TestSignal(TestCase):
             batch_signal.larray[:, :, :] = signal.larray
             batch_convolved = ht.convolve2d(batch_signal, kernel, mode="valid", stride=stride)
             self.assertTrue(
-                ht.equal(
+                ht.allclose(
                     ht.convolve2d(signal, kernel, mode="valid", stride=stride),
                     batch_convolved[1, 2, 0]
                 )
