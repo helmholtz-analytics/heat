@@ -981,10 +981,12 @@ class TestSignal(TestCase):
                     a_split = ht.array(a, split=0, dtype=ht_dtype)
                     b_unsplit = ht.array(b, split=None, dtype=ht_dtype)
                     conv = ht.convolve(a_split, b_unsplit, mode=mode, stride=stride).resplit(None)
+                    torch.cuda.synchronize() if ht.get_device() == ht.devices.gpu else None
                     self.assertTrue(ht.allclose(conv, solution))
 
                     b_split = ht.array(b, split=0, dtype=ht_dtype)
                     conv = ht.convolve(a_split, b_unsplit, mode=mode, stride=stride).resplit(None)
+                    torch.cuda.synchronize() if ht.get_device() == ht.devices.gpu else None
                     self.assertTrue(ht.allclose(conv, solution))
 
     def test_convolve2d_large_signal_and_kernel_modes(self):
