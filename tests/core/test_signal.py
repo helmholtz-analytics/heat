@@ -949,87 +949,86 @@ class TestSignal(TestCase):
                     self.assertTrue(
                         ht.equal(solution[::stride[0], ::stride[1]], gathered))
 
+    # def test_convolve_large_signal_and_kernel_modes(self):
+    #     if self.comm.size <= 4:
+    #         # prep
+    #         # torch convolution does not support int on MPS
+    #         np.random.seed(12)
+    #         ht_dtype = ht.float32 if self.is_mps else ht.float64
 
-"""     def test_convolve_large_signal_and_kernel_modes(self):
-        if self.comm.size <= 4:
-            # prep
-            # torch convolution does not support int on MPS
-            np.random.seed(12)
-            ht_dtype = ht.float32 if self.is_mps else ht.float64
+    #         a = ht.random.randint(0,1000, size=4418).astype(ht_dtype)
+    #         b = ht.random.randint(0,1000, size=913).astype(ht_dtype)
 
-            a = ht.random.randint(0,1000, size=4418).astype(ht_dtype)
-            b = ht.random.randint(0,1000, size=913).astype(ht_dtype)
+    #         if self.comm.rank == 0:
+    #             random_stride = np.random.randint(1, high=len(a), size=1)
+    #             self.comm.Bcast(random_stride, root=0)
+    #         else:
+    #             random_stride = np.empty(1, dtype=int)
+    #             self.comm.Bcast(random_stride, root=0)
 
-            if self.comm.rank == 0:
-                random_stride = np.random.randint(1, high=len(a), size=1)
-                self.comm.Bcast(random_stride, root=0)
-            else:
-                random_stride = np.empty(1, dtype=int)
-                self.comm.Bcast(random_stride, root=0)
+    #         random_stride = random_stride[0]
+    #         print(f"Testing convolution with stride {random_stride} on signal of size {len(a)} and kernel of size {len(b)}")
 
-            random_stride = random_stride[0]
-            print(f"Testing convolution with stride {random_stride} on signal of size {len(a)} and kernel of size {len(b)}")
+    #         for mode in ["full", "same", "valid"]:
+    #             strides = [1, random_stride] if mode != "same" else [1]
+    #             for stride in strides:
+    #                 # solution
+    #                 conv = ht.convolve(a, b, mode=mode)
+    #                 solution = conv[::stride]
 
-            for mode in ["full", "same", "valid"]:
-                strides = [1, random_stride] if mode != "same" else [1]
-                for stride in strides:
-                    # solution
-                    conv = ht.convolve(a, b, mode=mode)
-                    solution = conv[::stride]
+    #                 # test
+    #                 a_split = ht.array(a, split=0, dtype=ht_dtype)
+    #                 b_unsplit = ht.array(b, split=None, dtype=ht_dtype)
+    #                 conv = ht.convolve(a_split, b_unsplit, mode=mode, stride=stride).resplit(None)
+    #                 torch.cuda.synchronize() if "gpu" in str(ht.get_device())  else None
+    #                 self.assertTrue(ht.allclose(conv, solution))
 
-                    # test
-                    a_split = ht.array(a, split=0, dtype=ht_dtype)
-                    b_unsplit = ht.array(b, split=None, dtype=ht_dtype)
-                    conv = ht.convolve(a_split, b_unsplit, mode=mode, stride=stride).resplit(None)
-                    torch.cuda.synchronize() if "gpu" in str(ht.get_device())  else None
-                    self.assertTrue(ht.allclose(conv, solution))
+    #                 b_split = ht.array(b, split=0, dtype=ht_dtype)
+    #                 conv = ht.convolve(a_split, b_unsplit, mode=mode, stride=stride).resplit(None)
+    #                 torch.cuda.synchronize() if "gpu" in str(ht.get_device()) else None
+    #                 self.assertTrue(ht.allclose(conv, solution))
 
-                    b_split = ht.array(b, split=0, dtype=ht_dtype)
-                    conv = ht.convolve(a_split, b_unsplit, mode=mode, stride=stride).resplit(None)
-                    torch.cuda.synchronize() if "gpu" in str(ht.get_device()) else None
-                    self.assertTrue(ht.allclose(conv, solution))
+    # def test_convolve2d_large_signal_and_kernel_modes(self):
+    #     if self.comm.size <= 4:
+    #         np.random.seed(12)
+    #         ht_dtype = ht.float32 if self.is_mps else ht.float64
 
-    def test_convolve2d_large_signal_and_kernel_modes(self):
-        if self.comm.size <= 4:
-            np.random.seed(12)
-            ht_dtype = ht.float32 if self.is_mps else ht.float64
+    #         a = ht.random.randint(0,100, size=(734,680)).astype(ht_dtype)
+    #         b = ht.random.randint(0,10, size=(39,17)).astype(ht_dtype)
 
-            a = ht.random.randint(0,100, size=(734,680)).astype(ht_dtype)
-            b = ht.random.randint(0,10, size=(39,17)).astype(ht_dtype)
+    #         if self.comm.rank == 0:
+    #             random_stride = np.random.randint(1, high=len(a), size=2)
+    #             self.comm.Bcast(random_stride, root=0)
+    #         else:
+    #             random_stride = np.empty(2, dtype=int)
+    #             self.comm.Bcast(random_stride, root=0)
 
-            if self.comm.rank == 0:
-                random_stride = np.random.randint(1, high=len(a), size=2)
-                self.comm.Bcast(random_stride, root=0)
-            else:
-                random_stride = np.empty(2, dtype=int)
-                self.comm.Bcast(random_stride, root=0)
+    #         random_stride = tuple(random_stride)
+    #         print(f"Testing 2D convolution with stride {random_stride} on signal of size {a.shape} and kernel of size {b.shape}")
 
-            random_stride = tuple(random_stride)
-            print(f"Testing 2D convolution with stride {random_stride} on signal of size {a.shape} and kernel of size {b.shape}")
+    #         for mode in ["full", "same", "valid"]:
+    #             strides = [(1,1), random_stride] if mode != "same" else [(1,1)]
+    #             for stride in strides:
 
-            for mode in ["full", "same", "valid"]:
-                strides = [(1,1), random_stride] if mode != "same" else [(1,1)]
-                for stride in strides:
+    #                 sc_conv = ht.convolve2d(a, b, mode=mode)
+    #                 solution = sc_conv[::stride[0], ::stride[1]]
 
-                    sc_conv = ht.convolve2d(a, b, mode=mode)
-                    solution = sc_conv[::stride[0], ::stride[1]]
+    #                 a_split0 = ht.array(a, split=0, dtype=ht_dtype)
+    #                 b_unsplit = ht.array(b, split=None, dtype=ht_dtype)
+    #                 conv = ht.convolve2d(a_split0, b_unsplit, mode=mode, stride=stride)
+    #                 self.assertTrue(ht.allclose(conv, solution))
 
-                    a_split0 = ht.array(a, split=0, dtype=ht_dtype)
-                    b_unsplit = ht.array(b, split=None, dtype=ht_dtype)
-                    conv = ht.convolve2d(a_split0, b_unsplit, mode=mode, stride=stride)
-                    self.assertTrue(ht.allclose(conv, solution))
+    #                 b_split0 = ht.array(b, split=0, dtype=ht_dtype)
+    #                 conv = ht.convolve2d(a_split0, b_split0, mode=mode, stride=stride)
+    #                 self.assertTrue(ht.allclose(conv, solution))
 
-                    b_split0 = ht.array(b, split=0, dtype=ht_dtype)
-                    conv = ht.convolve2d(a_split0, b_split0, mode=mode, stride=stride)
-                    self.assertTrue(ht.allclose(conv, solution))
+    #                 a_split1 = ht.array(a, split=1, dtype=ht_dtype)
+    #                 conv = ht.convolve2d(a_split1, b_unsplit, mode=mode, stride=stride)
+    #                 self.assertTrue(ht.allclose(conv, solution))
 
-                    a_split1 = ht.array(a, split=1, dtype=ht_dtype)
-                    conv = ht.convolve2d(a_split1, b_unsplit, mode=mode, stride=stride)
-                    self.assertTrue(ht.allclose(conv, solution))
-
-                    b_split1 = ht.array(b, split=1, dtype=ht_dtype)
-                    conv = ht.convolve2d(a_split1, b_split1, mode=mode, stride=stride)
-                    self.assertTrue(ht.allclose(conv, solution)) """
+    #                 b_split1 = ht.array(b, split=1, dtype=ht_dtype)
+    #                 conv = ht.convolve2d(a_split1, b_split1, mode=mode, stride=stride)
+    #                 self.assertTrue(ht.allclose(conv, solution))
 
     def test_convolve_kernel_size_1(self):
         ht_dtype = ht.float32 if self.is_mps else ht.float64
