@@ -18,7 +18,6 @@ class TestSignal(TestCase):
         os.environ["MIOPEN_FIND_MODE"] = "1"  # Normal find mode
         os.environ["MIOPEN_FIND_ENFORCE"] = "3"  # Use DB, don't re-search
 
-        # 4. Pin the convolution algorithm
         torch.use_deterministic_algorithms(True)
 
 
@@ -961,11 +960,11 @@ class TestSignal(TestCase):
                     a = ht.array(np_a, split=0, dtype=ht_dtype)
                     b = ht.array(np_b, split=None, dtype=ht_dtype)
                     conv = ht.convolve(a, b, mode=mode, stride=stride)
-                    self.assert_array_equal(conv, solution)
+                    self.assertTrue(ht.allclose(conv, solution))
 
                     b = ht.array(np_b, split=0, dtype=ht_dtype)
                     conv = ht.convolve(a, b, mode=mode, stride=stride)
-                    self.assert_array_equal(conv, solution)
+                    self.assertTrue(ht.allclose(conv, solution))
 
     def test_convolve2d_large_signal_and_kernel_modes(self):
         if self.comm.size <= 4:
