@@ -11,6 +11,14 @@ class TestSignal(TestCase):
     def setUpClass(cls):
         super(TestSignal, cls).setUpClass()
 
+        import os
+        os.environ["MIOPEN_FIND_MODE"] = "1"  # Normal find mode
+        os.environ["MIOPEN_FIND_ENFORCE"] = "3"  # Use DB, don't re-search
+
+        # 4. Pin the convolution algorithm
+        import torch
+        torch.use_deterministic_algorithms(True)
+
     def test_sanitize_conv_input_invalid_types(self):
         dis_signal = ht.arange(0, 16, split=0).astype(ht.int)
         kernel_odd = ht.ones(3).astype(ht.int)
