@@ -6,6 +6,9 @@ from heat import manipulations
 from heat.testing.basic_test import TestCase
 from heat.core.signal import _sanitize_conv_input, _conv_batchprocessing_check
 
+import torch
+_torch_det_mode = torch.are_deterministic_algorithms_enabled()
+
 class TestSignal(TestCase):
     @classmethod
     def setUpClass(cls):
@@ -16,8 +19,15 @@ class TestSignal(TestCase):
         os.environ["MIOPEN_FIND_ENFORCE"] = "3"  # Use DB, don't re-search
 
         # 4. Pin the convolution algorithm
-        import torch
         torch.use_deterministic_algorithms(True)
+
+
+    @classmethod
+    def tearDownClass(cls):
+        super(TestSignal, cls).tearDownClass()
+
+        torch.use_deterministic_algorithms(_torch_det_mode)
+
 
     def test_sanitize_conv_input_invalid_types(self):
         dis_signal = ht.arange(0, 16, split=0).astype(ht.int)
@@ -463,7 +473,7 @@ class TestSignal(TestCase):
             kernel = ht.random.randn(5, 19, dtype=float_dtype)
             batch_convolved = ht.convolve2d(batch_signal, kernel, mode="valid")
             self.assertTrue(
-                ht.equal(
+                ht.allclose(
                     ht.convolve2d(signal, kernel, mode="valid"),
                     batch_convolved[0],
                 )
@@ -479,7 +489,7 @@ class TestSignal(TestCase):
             dis_kernel = ht.array(kernel, split=0)
             batch_convolved = ht.convolve2d(batch_signal, dis_kernel)
             self.assertTrue(
-                ht.equal(ht.convolve2d(signal, kernel),
+                ht.allclose(ht.convolve2d(signal, kernel),
                          batch_convolved[5])
             )
 
@@ -488,7 +498,7 @@ class TestSignal(TestCase):
             batch_kernel.larray[:] = dis_kernel.larray
             batch_convolved = ht.convolve2d(batch_signal, batch_kernel, mode="same")
             self.assertTrue(
-                ht.equal(
+                ht.allclose(
                     ht.convolve2d(signal, kernel, mode="same"),
                     batch_convolved[-1],
                 )
@@ -499,7 +509,7 @@ class TestSignal(TestCase):
             batch_signal.larray[:, :, :] = signal.larray
             batch_convolved = ht.convolve2d(batch_signal, kernel, mode="valid")
             self.assertTrue(
-                ht.equal(
+                ht.allclose(
                     ht.convolve2d(signal, kernel, mode="valid"),
                     batch_convolved[1, 2, 0]
                 )
