@@ -956,7 +956,7 @@ class TestSignal(TestCase):
             # torch convolution does not support int on MPS
             np.random.seed(12)
             ht_dtype = ht.float32 if self.is_mps else ht.int32
-            
+
             a = ht.random.randint(0,1000, size=4418, dtype=ht_dtype)
             b = ht.random.randint(0,1000, size=913, dtype=ht_dtype)
 
