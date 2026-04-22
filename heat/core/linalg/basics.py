@@ -12,6 +12,11 @@ from typing import List, Callable, Union, Optional, Tuple
 from torch._C import Value
 
 from ..communication import MPI
+from ..communication import _get_or_create_mesh, _DTENSOR_AVAILABLE
+
+if _DTENSOR_AVAILABLE:
+    from torch.distributed.tensor import DTensor, Shard, Replicate
+    from torch.distributed.tensor.placement_types import Partial
 from .. import arithmetics
 from .. import complex_math
 from .. import constants
@@ -50,59 +55,17 @@ __all__ = [
     "vector_norm",
 ]
 
-import torch.distributed as dist
 
-try:
-    from torch.distributed.device_mesh import init_device_mesh
-    from torch.distributed.tensor import DTensor, Shard, Replicate
-    from torch.distributed.tensor.placement_types import Partial
-
-    _DTENSOR_AVAILABLE = True
-except ImportError:
-    _DTENSOR_AVAILABLE = False
-
-_DTENSOR_MESH = None
-
-
-def _get_or_create_mesh():
-    import os
-
-    global _DTENSOR_MESH
-    if _DTENSOR_MESH is None:
-        if not dist.is_initialized():
-            rank = int(os.environ.get("OMPI_COMM_WORLD_RANK", "0"))
-            world_size = int(os.environ.get("OMPI_COMM_WORLD_SIZE", "1"))
-            os.environ["RANK"] = str(rank)
-            os.environ["WORLD_SIZE"] = str(world_size)
-            os.environ["MASTER_ADDR"] = os.environ.get("MASTER_ADDR", "127.0.0.1")
-            os.environ["MASTER_PORT"] = os.environ.get("MASTER_PORT", "29500")
-
-            backend = "nccl" if torch.cuda.is_available() else "gloo"
-            dist.init_process_group(backend=backend)
-
-        device_type = "cuda" if torch.cuda.is_available() else "cpu"
-        _DTENSOR_MESH = init_device_mesh(device_type, (dist.get_world_size(),))
-    return _DTENSOR_MESH
-
-
-def _use_dtensor(a: DNDarray, b: DNDarray) -> bool:
+def _use_dtensor(*DNDarrays) -> bool:
     if not _DTENSOR_AVAILABLE:
         return False
 
-    # enforce nccl backend to guarantee performance over mpi ring topologies
-    if not torch.cuda.is_available():
-        return False
-
-    # ensure 2d matrices as dtensor matmul behavior differs on higher dims
-    if a.ndim != 2 or b.ndim != 2:
-        return False
-
-    # avoid faketensor propagation crashes by enforcing strict divisibility
-    comm_size = a.comm.size
-    if a.split is not None and a.gshape[a.split] % comm_size != 0:
-        return False
-    if b.split is not None and b.gshape[b.split] % comm_size != 0:
-        return False
+    # on evenly distributed DNDarrays and on GPU only
+    for array in DNDarrays:
+        if not array.is_distributed() or str(array.device)[:3] != "gpu":
+            return False
+        if array.split is not None and array.gshape[array.split] % array.comm.size != 0:
+            return False
 
     return True
 
@@ -687,7 +650,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
 
     if _use_dtensor(a, b):
         try:
-            mesh = _get_or_create_mesh()
+            mesh = _get_or_create_mesh(a.device)
 
             dt_a = _to_dtensor(a, mesh)
             dt_b = _to_dtensor(b, mesh)
