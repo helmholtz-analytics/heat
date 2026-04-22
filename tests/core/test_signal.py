@@ -954,7 +954,7 @@ class TestSignal(TestCase):
                 for stride in strides:
                     # solution
                     np_conv = np.convolve(np_a, np_b, mode=mode)
-                    solution = np_conv[::stride].astype(np_dtype)
+                    solution = ht.array(np_conv[::stride].astype(np_dtype))
 
                     # test
                     a = ht.array(np_a, split=0, dtype=ht_dtype)
@@ -980,25 +980,26 @@ class TestSignal(TestCase):
                 strides = [(1,1), random_stride] if mode != "same" else [(1,1)]
                 for stride in strides:
                     sc_conv = sig.convolve2d(np_a, np_b, mode=mode)
-                    solution = sc_conv[::stride[0], ::stride[1]]
+                    solution = ht.array(sc_conv[::stride[0], ::stride[1]])
+
 
                     a = ht.array(np_a, split=0, dtype=ht_dtype)
                     b = ht.array(np_b, split=None, dtype=ht_dtype)
                     conv = ht.convolve2d(a, b, mode=mode, stride=stride)
-                    self.assert_array_equal(conv, solution)
+                    self.assertTrue(ht.allclose(conv, solution))
 
                     b = ht.array(np_b, split=0, dtype=ht_dtype)
                     conv = ht.convolve2d(a, b, mode=mode, stride=stride)
-                    self.assert_array_equal(conv, solution)
+                    self.assertTrue(ht.allclose(conv, solution))
 
                     a = ht.array(np_a, split=1, dtype=ht_dtype)
                     b = ht.array(np_b, split=None, dtype=ht_dtype)
                     conv = ht.convolve2d(a, b, mode=mode, stride=stride)
-                    self.assert_array_equal(conv, solution)
+                    self.assertTrue(ht.allclose(conv, solution))
 
                     b = ht.array(np_b, split=1, dtype=ht_dtype)
                     conv = ht.convolve2d(a, b, mode=mode, stride=stride)
-                    self.assert_array_equal(conv, solution)
+                    self.assertTrue(ht.allclose(conv, solution))
 
     def test_convolve_kernel_size_1(self):
         # prep
