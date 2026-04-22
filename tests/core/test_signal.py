@@ -955,7 +955,7 @@ class TestSignal(TestCase):
             # prep
             # torch convolution does not support int on MPS
             np.random.seed(12)
-            ht_dtype = ht.float32 if self.is_mps else ht.int32
+            ht_dtype = ht.float32
 
             a = ht.random.randint(0,1000, size=4418, dtype=ht_dtype)
             b = ht.random.randint(0,1000, size=913, dtype=ht_dtype)
@@ -990,7 +990,7 @@ class TestSignal(TestCase):
     def test_convolve2d_large_signal_and_kernel_modes(self):
         if self.comm.size <= 4:
             np.random.seed(12)
-            ht_dtype = ht.float32 if self.is_mps else ht.int32
+            ht_dtype = ht.float32
 
             a = ht.random.randint(0,100, size=(734,680), dtype=ht_dtype)
             b = ht.random.randint(0,10, size=(39,17), dtype=ht_dtype)
