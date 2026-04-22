@@ -957,8 +957,8 @@ class TestSignal(TestCase):
             np.random.seed(12)
             ht_dtype = ht.float32
 
-            a = ht.random.randint(0,1000, size=4418, dtype=ht_dtype)
-            b = ht.random.randint(0,1000, size=913, dtype=ht_dtype)
+            a = ht.random.randint(0,1000, size=4418).astype(ht_dtype)
+            b = ht.random.randint(0,1000, size=913).astype(ht_dtype)
 
             if self.comm.rank == 0:
                 random_stride = np.random.randint(1, high=len(a), size=1)
@@ -992,8 +992,8 @@ class TestSignal(TestCase):
             np.random.seed(12)
             ht_dtype = ht.float32
 
-            a = ht.random.randint(0,100, size=(734,680), dtype=ht_dtype)
-            b = ht.random.randint(0,10, size=(39,17), dtype=ht_dtype)
+            a = ht.random.randint(0,100, size=(734,680)).astype(ht_dtype)
+            b = ht.random.randint(0,10, size=(39,17)).astype(ht_dtype)
 
             if self.comm.rank == 0:
                 random_stride = np.random.randint(1, high=len(a), size=2)
