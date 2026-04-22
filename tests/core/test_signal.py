@@ -382,14 +382,14 @@ class TestSignal(TestCase):
         self.assertTrue(ht.equal(solution, gathered))
 
     def test_convolve_batch_convolutions(self):
-        float_dtype = ht.float32 if self.is_mps else ht.float64
+        ht_dtype = ht.float32 if self.is_mps else ht.float64
         # distributed along the first axis
-        signal = ht.random.randn(1000, dtype=float_dtype)
-        batch_signal = ht.empty((10, 1000), dtype=float_dtype, split=0)
+        signal = ht.random.randn(1000, dtype=ht_dtype)
+        batch_signal = ht.empty((10, 1000), dtype=ht_dtype, split=0)
         batch_signal.larray[:] = signal.larray
 
         # kernel without batch dimensions
-        kernel = ht.random.randn(19, dtype=float_dtype)
+        kernel = ht.random.randn(19, dtype=ht_dtype)
         batch_convolved = ht.convolve(batch_signal, kernel, mode="same")
         self.assertTrue(
             ht.equal(ht.convolve(signal, kernel, mode="same"), batch_convolved[0])
@@ -407,7 +407,7 @@ class TestSignal(TestCase):
         self.assertTrue(ht.equal(ht.convolve(signal, kernel), batch_convolved[0]))
 
         # batch kernel including resplit to signal axis
-        batch_kernel = ht.empty((10, 19), dtype=float_dtype, split=1)
+        batch_kernel = ht.empty((10, 19), dtype=ht_dtype, split=1)
         batch_kernel.larray[:] = dis_kernel.larray
         batch_convolved = ht.convolve(batch_signal, batch_kernel, mode="full")
         self.assertTrue(
@@ -415,7 +415,7 @@ class TestSignal(TestCase):
         )
 
         # n-D batch convolution
-        batch_signal = ht.empty((4, 3, 3, 1000), dtype=float_dtype, split=1)
+        batch_signal = ht.empty((4, 3, 3, 1000), dtype=ht_dtype, split=1)
         batch_signal.larray[:, :, :] = signal.larray
         batch_convolved = ht.convolve(batch_signal, kernel, mode="valid")
         self.assertTrue(
@@ -425,15 +425,15 @@ class TestSignal(TestCase):
         )
 
     def test_convolve_stride_batch_convolutions(self):
-        float_dtype = ht.float32 if self.is_mps else ht.float64
+        ht_dtype = ht.float32 if self.is_mps else ht.float64
 
         # distributed input along the first axis
         stride = 123
-        signal = ht.random.randn(1000, dtype=float_dtype)
-        batch_signal = ht.empty((10, 1000), dtype=float_dtype, split=0)
+        signal = ht.random.randn(1000, dtype=ht_dtype)
+        batch_signal = ht.empty((10, 1000), dtype=ht_dtype, split=0)
         batch_signal.larray[:] = signal.larray
 
-        kernel = ht.random.randn(19, dtype=float_dtype)
+        kernel = ht.random.randn(19, dtype=ht_dtype)
         batch_convolved = ht.convolve(batch_signal, kernel, mode="valid", stride=stride)
         self.assertTrue(
             ht.equal(ht.convolve(signal, kernel, mode="valid", stride=stride), batch_convolved[0])
@@ -448,7 +448,7 @@ class TestSignal(TestCase):
 
         # batch kernel
         stride = 41
-        batch_kernel = ht.empty((10, 19), dtype=float_dtype, split=1)
+        batch_kernel = ht.empty((10, 19), dtype=ht_dtype, split=1)
         batch_kernel.larray[:] = dis_kernel.larray
 
         batch_convolved = ht.convolve(batch_signal, kernel, mode="full", stride=stride)
@@ -461,7 +461,7 @@ class TestSignal(TestCase):
 
         # n-D batch convolution
         stride = 55
-        batch_signal = ht.empty((4, 3, 3, 1000), dtype=float_dtype, split=1)
+        batch_signal = ht.empty((4, 3, 3, 1000), dtype=ht_dtype, split=1)
         batch_signal.larray[:, :, :] = signal.larray
         batch_convolved = ht.convolve(batch_signal, kernel, mode="valid", stride=stride)
         self.assertTrue(
@@ -472,16 +472,16 @@ class TestSignal(TestCase):
         )
 
     def test_convolve2d_batch_convolutions(self):
-        float_dtype = ht.float32 if self.is_mps else ht.float64
+        ht_dtype = ht.float32 if self.is_mps else ht.float64
 
         if self.comm.size < 5:
             # distributed input along the first axis
-            signal = ht.random.randn(10, 100, dtype=float_dtype)
-            batch_signal = ht.empty((10, 10, 100), dtype=float_dtype, split=0)
+            signal = ht.random.randn(10, 100, dtype=ht_dtype)
+            batch_signal = ht.empty((10, 10, 100), dtype=ht_dtype, split=0)
             batch_signal.larray[:] = signal.larray
 
             # kernel without batch dimensions
-            kernel = ht.random.randn(5, 19, dtype=float_dtype)
+            kernel = ht.random.randn(5, 19, dtype=ht_dtype)
             batch_convolved = ht.convolve2d(batch_signal, kernel, mode="valid")
             self.assertTrue(
                 ht.allclose(
@@ -505,7 +505,7 @@ class TestSignal(TestCase):
             )
 
             # batch kernel including resplit to signal axis
-            batch_kernel = ht.empty((10, 5, 19), dtype=float_dtype, split=1)
+            batch_kernel = ht.empty((10, 5, 19), dtype=ht_dtype, split=1)
             batch_kernel.larray[:] = dis_kernel.larray
             batch_convolved = ht.convolve2d(batch_signal, batch_kernel, mode="same")
             self.assertTrue(
@@ -516,7 +516,7 @@ class TestSignal(TestCase):
             )
 
             # n-D batch convolution
-            batch_signal = ht.empty((4, 5, 3, 10, 100), dtype=float_dtype, split=1)
+            batch_signal = ht.empty((4, 5, 3, 10, 100), dtype=ht_dtype, split=1)
             batch_signal.larray[:, :, :] = signal.larray
             batch_convolved = ht.convolve2d(batch_signal, kernel, mode="valid")
             self.assertTrue(
@@ -527,17 +527,17 @@ class TestSignal(TestCase):
             )
 
     def test_convolve2d_stride_batch_convolutions(self):
-        float_dtype = ht.float32 if self.is_mps else ht.float64
+        ht_dtype = ht.float32 if self.is_mps else ht.float64
 
         if self.comm.size < 5:
             # distributed input along the first axis
-            signal = ht.random.randn(10, 100, dtype=float_dtype)
-            batch_signal = ht.empty((10, 10, 100), dtype=float_dtype, split=0)
+            signal = ht.random.randn(10, 100, dtype=ht_dtype)
+            batch_signal = ht.empty((10, 10, 100), dtype=ht_dtype, split=0)
             batch_signal.larray[:] = signal.larray
 
             # kernel without batch dimensions
             stride = (3,15)
-            kernel = ht.random.randn(5, 19, dtype=float_dtype)
+            kernel = ht.random.randn(5, 19, dtype=ht_dtype)
             batch_convolved = ht.convolve2d(batch_signal, kernel, mode="valid", stride=stride)
             self.assertTrue(
                 ht.allclose(
@@ -557,7 +557,7 @@ class TestSignal(TestCase):
 
             # batch kernel including resplit to signal axis
             stride = (3,4)
-            batch_kernel = ht.empty((10, 5, 19), dtype=float_dtype, split=1)
+            batch_kernel = ht.empty((10, 5, 19), dtype=ht_dtype, split=1)
             batch_kernel.larray[:] = dis_kernel.larray
             batch_convolved = ht.convolve2d(batch_signal, batch_kernel, mode="full",
                                           stride=stride)
@@ -570,7 +570,7 @@ class TestSignal(TestCase):
 
             # n-D batch convolution
             stride = (4,3)
-            batch_signal = ht.empty((4, 5, 3, 10, 100), dtype=float_dtype, split=1)
+            batch_signal = ht.empty((4, 5, 3, 10, 100), dtype=ht_dtype, split=1)
             batch_signal.larray[:, :, :] = signal.larray
             batch_convolved = ht.convolve2d(batch_signal, kernel, mode="valid", stride=stride)
             self.assertTrue(
@@ -581,7 +581,7 @@ class TestSignal(TestCase):
             )
 
     def test_convolve_kernel_odd_modes(self):
-        ht_dtype = ht.int
+        ht_dtype = ht.float32 if self.is_mps else ht.float64
 
         np_sig = np.arange(0,16)
         np_k_odd = np.arange(3)
@@ -626,7 +626,7 @@ class TestSignal(TestCase):
                 self.assertTrue(ht.equal(full_odd.astype(ht.float), gathered))
 
     def test_convolve2d_kernel_odd_modes(self):
-        ht_dtype = ht.int
+        ht_dtype = ht.float32 if self.is_mps else ht.float64
 
         np_sig = np.arange(256).reshape((16, 16))
         np_k_odd = np.arange(9).reshape((3, 3))
@@ -673,7 +673,7 @@ class TestSignal(TestCase):
                 self.assertTrue(ht.equal(full_odd.astype(ht.float), gathered))
 
     def test_convolve_stride_kernel_odd_modes(self):
-        ht_dtype = ht.int
+        ht_dtype = ht.float32 if self.is_mps else ht.float64
 
         np_sig = np.arange(0, 16)
         np_k_odd = np.arange(3)
@@ -707,7 +707,7 @@ class TestSignal(TestCase):
                         dis_signal.astype(ht.float), dis_kernel, mode, stride, solution[::stride])
 
     def test_convolve2d_stride_kernel_odd_modes(self):
-        ht_dtype = ht.int
+        ht_dtype = ht.float32 if self.is_mps else ht.float64
 
         np_sig = np.arange(256).reshape((16, 16))
         np_k_odd = np.arange(9).reshape((3, 3))
@@ -761,11 +761,11 @@ class TestSignal(TestCase):
     def test_convolve_kernel_even_modes(self):
         full_even = ht.array(
             [0, 1, 3, 6, 10, 14, 18, 22, 26, 30, 34, 38, 42, 46, 50, 54, 42, 29, 15]
-        ).astype(ht.int)
+        ).astype(ht.float32)
 
-        dis_signal = ht.arange(0, 16, split=0).astype(ht.int)
+        dis_signal = ht.arange(0, 16, split=0).astype(ht.float32)
         kernel_even = [1, 1, 1, 1]
-        dis_kernel_even = ht.ones(4, split=0).astype(ht.int)
+        dis_kernel_even = ht.ones(4, split=0).astype(ht.float32)
 
         # test modes, avoid kernel larger than signal chunk
         if self.comm.size <= 3:
@@ -811,7 +811,7 @@ class TestSignal(TestCase):
                         )
 
     def test_convolve2d_kernel_even_modes(self):
-        ht_dtype = ht.int if self.is_mps else ht.float
+        ht_dtype = ht.float32 if self.is_mps else ht.float64
         np_sig = np.arange(256).reshape((16, 16))
         np_k_even = np.ones(16).reshape((4, 4))
         full_even = ht.array(sig.convolve2d(np_sig, np_k_even))
@@ -853,7 +853,7 @@ class TestSignal(TestCase):
                         self.assertTrue(ht.equal(full_even[3:-3, 3:-3], gathered))
 
     def test_convolve_stride_kernel_even_modes(self):
-        ht_dtype = ht.int
+        ht_dtype = ht.float32 if self.is_mps else ht.float64
 
         np_sig = np.arange(0,16)
         np_kernel = np.ones(4)
@@ -894,7 +894,7 @@ class TestSignal(TestCase):
                     )
 
     def test_convolve2d_stride_kernel_even_modes(self):
-        ht_dtype = ht.int
+        ht_dtype = ht.float32 if self.is_mps else ht.float64
 
         np_sig = np.arange(256).reshape((16, 16))
         np_k_even = np.arange(16).reshape((4,4))
@@ -955,7 +955,7 @@ class TestSignal(TestCase):
             # prep
             # torch convolution does not support int on MPS
             np.random.seed(12)
-            ht_dtype = ht.float32
+            ht_dtype = ht.float32 if self.is_mps else ht.float64
 
             a = ht.random.randint(0,1000, size=4418).astype(ht_dtype)
             b = ht.random.randint(0,1000, size=913).astype(ht_dtype)
@@ -992,7 +992,7 @@ class TestSignal(TestCase):
     def test_convolve2d_large_signal_and_kernel_modes(self):
         if self.comm.size <= 4:
             np.random.seed(12)
-            ht_dtype = ht.float32
+            ht_dtype = ht.float32 if self.is_mps else ht.float64
 
             a = ht.random.randint(0,100, size=(734,680)).astype(ht_dtype)
             b = ht.random.randint(0,10, size=(39,17)).astype(ht_dtype)
@@ -1032,8 +1032,7 @@ class TestSignal(TestCase):
                     self.assertTrue(ht.allclose(conv, solution))
 
     def test_convolve_kernel_size_1(self):
-        # prep
-        ht_dtype = ht.float32 if self.is_mps else ht.int32
+        ht_dtype = ht.float32 if self.is_mps else ht.float64
 
         # non-distributed signal
         signal = ht.arange(0, 16, dtype=ht_dtype)
@@ -1049,7 +1048,7 @@ class TestSignal(TestCase):
 
     def test_convolve2d_kernel_size_1(self):
         # prep
-        ht_dtype = ht.int32 if ht.get_device() == ht.cpu else ht.float32
+        ht_dtype = ht.float32 if self.is_mps else ht.float64
 
         signal = ht.arange(0, 16, dtype=ht_dtype).reshape(4,4)
         alt_signal = [[0,1,2,3], [4,5,6,7], [8,9,10,11],[12,13,14,15]]
