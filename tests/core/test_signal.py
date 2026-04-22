@@ -1,3 +1,5 @@
+import os
+import torch
 import numpy as np
 import scipy.signal as sig
 
@@ -6,25 +8,11 @@ from heat import manipulations
 from heat.testing.basic_test import TestCase
 from heat.core.signal import _sanitize_conv_input, _conv_batchprocessing_check
 
-import torch
-import os
-
-# _torch_cudnn_benchmark = None
-# _torch_cudnn_deterministic = None
-# _torch_det_mode = None
-# _miopen_find_mode = None
-# _miopen_find_enforce = None
 
 class TestSignal(TestCase):
     @classmethod
     def setUpClass(cls):
         super(TestSignal, cls).setUpClass()
-
-        # global _torch_cudnn_benchmark
-        # global _torch_cudnn_deterministic
-        # global _torch_det_mode
-        # global _miopen_find_mode
-        # global _miopen_find_enforce
 
         # Store previous values
         cls._torch_cudnn_benchmark =torch.backends.cudnn.benchmark
@@ -44,12 +32,6 @@ class TestSignal(TestCase):
     @classmethod
     def tearDownClass(cls):
         super(TestSignal, cls).tearDownClass()
-
-        # global _torch_cudnn_benchmark
-        # global _torch_cudnn_deterministic
-        # global _torch_det_mode
-        # global _miopen_find_mode
-        # global _miopen_find_enforce
 
         torch.use_deterministic_algorithms(cls._torch_det_mode)
         os.environ["MIOPEN_FIND_MODE"] = cls._miopen_find_mode
