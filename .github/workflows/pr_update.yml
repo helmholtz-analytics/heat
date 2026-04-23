@@ -17,7 +17,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - uses: ./.github/actions/gh_test_quick
         with:
-          branch: ${{ github.heat_ref }}
+          branch: ${{ github.head_ref }}
           sha: ${{ github.event.pull_request.head.sha }}
           pr_number: ${{ github.event.pull_request.number }}
 
@@ -29,9 +29,10 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - uses: ./.github/actions/trigger_codebase_tests
         with:
-          branch: ${{ github.heat_ref }}
+          branch: ${{ github.head_ref }}
           sha: ${{ github.event.pull_request.head.sha }}
           pr_number: ${{ github.event.pull_request.number }}
+          trigger_token: ${{ secrets.CX_TRIGGER_TOKEN }}
   trigger-benchmarks:
     name: Trigger Codebase Benchmarks
     runs-on: ubuntu-latest
@@ -41,10 +42,11 @@ jobs:
       - uses: ./.github/actions/trigger_codebase_benchmarks
         if: contains(github.event.pull_request.labels.*.name, 'benchmark PR')
         with:
-          branch: ${{ github.heat_ref }}
+          branch: ${{ github.head_ref }}
           sha: ${{ github.event.pull_request.head.sha }}
           author: ${{ github.event.pull_request.assignee.login || 'heat_team' }}
           pr_number: ${{ github.event.pull_request.number }}
+          trigger_token: ${{ secrets.CX_TRIGGER_TOKEN }}
 
   dependency-review:
     name: Dependency Review

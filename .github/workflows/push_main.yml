@@ -12,6 +12,7 @@ jobs:
         with:
           branch: "main"
           sha: ${{ github.sha}}
+          trigger_token: ${{ secrets.CX_TRIGGER_TOKEN }}
   trigger-benchmarks:
     name: Trigger Benchmarks
     runs-on: ubuntu-latest
@@ -21,3 +22,4 @@ jobs:
           branch: "main"
           sha: ${{ github.sha}}
           author: ${{ 'heat_team' }}
+          trigger_token: ${{ secrets.CX_TRIGGER_TOKEN }}

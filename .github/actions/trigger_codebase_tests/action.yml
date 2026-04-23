@@ -13,6 +13,9 @@ inputs:
     description: "The pull request number to trigger tests on. Defaults to the current PR number."
     required: false
     default: ""
+  trigger_token:
+    description: "The trigger token used to start the Codebase pipeline."
+    required: true
 runs:
   using: "composite"
   steps:
@@ -26,7 +29,7 @@ runs:
       if: ${{ inputs.pr_number == '' }}
       shell: bash
       env:
-        API_TOKEN: ${{ secrets.CX_TRIGGER_TOKEN }}
+        API_TOKEN: ${{ inputs.trigger_token }}
         BRANCH: ${{ inputs.branch }}
         PR_NUMBER: ${{ inputs.pr_number }}
       run: |
