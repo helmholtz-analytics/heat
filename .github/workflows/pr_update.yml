@@ -9,39 +9,39 @@ on:
       - 'tests/**'
 
 jobs:
-  run-quick-tests:
-    name: Run Quick Tests
+  test-pr:
+    name: Test and Benchmark Pull Request
     runs-on: ubuntu-latest
     steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@6c3c2f2c1c457b00c10c4848d6f5491db3b629df # v2.18.0
+        with:
+          egress-policy: audit
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
       - uses: ./.github/actions/gh_test_quick
         with:
           branch: ${{ github.head_ref }}
           sha: ${{ github.event.pull_request.head.sha }}
           pr_number: ${{ github.event.pull_request.number }}
-
-  trigger-tests:
-    name: Trigger Codebase Tests
-    runs-on: ubuntu-latest
-    steps:
+      # The next two steps only run if the PR is not from a fork, and if the quick tests passed.
       - uses: ./.github/actions/trigger_codebase_tests
+        if: ${{ !github.event.repository.fork }} && success()
         with:
           branch: ${{ github.head_ref }}
           sha: ${{ github.event.pull_request.head.sha }}
           pr_number: ${{ github.event.pull_request.number }}
           trigger_token: ${{ secrets.CX_TRIGGER_TOKEN }}
-  trigger-benchmarks:
-    name: Trigger Codebase Benchmarks
-    runs-on: ubuntu-latest
-    steps:
       - uses: ./.github/actions/trigger_codebase_benchmarks
-        if: contains(github.event.pull_request.labels.*.name, 'benchmark PR')
+        if: ${{ !github.event.repository.fork }} && success() && contains(github.event.pull_request.labels.*.name, 'benchmark PR')
         with:
           branch: ${{ github.head_ref }}
           sha: ${{ github.event.pull_request.head.sha }}
           author: ${{ github.event.pull_request.assignee.login || 'heat_team' }}
           pr_number: ${{ github.event.pull_request.number }}
           trigger_token: ${{ secrets.CX_TRIGGER_TOKEN }}
-
   dependency-review:
     name: Dependency Review
     runs-on: ubuntu-latest
