@@ -10,16 +10,26 @@ on:
 
 jobs:
   run-quick-tests:
-    name: Run quick tests
+    name: Run Quick Tests
     runs-on: ubuntu-latest
     steps:
-      - uses: ./.github/actions/gh_quick_test.yml
+      - uses: ./.github/actions/gh_test_quick.yml
+        with:
+          branch: ${{ github.heat_ref }}
+          sha: ${{ github.event.pull_request.head.sha }}
+          pr_number: ${{ github.event.pull_request.number }}
+
+  trigger-tests:
+    name: Trigger Codebase Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: ./.github/actions/trigger_codebase_tests.yml
         with:
           branch: ${{ github.heat_ref }}
           sha: ${{ github.event.pull_request.head.sha }}
           pr_number: ${{ github.event.pull_request.number }}
   trigger-benchmarks:
-    name: Trigger Benchmarks
+    name: Trigger Codebase Benchmarks
     runs-on: ubuntu-latest
     steps:
       - uses: ./.github/actions/trigger_codebase_benchmarks.yml
