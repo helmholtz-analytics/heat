@@ -32,6 +32,10 @@ jobs:
     needs: quick-tests
     if: ${{ !github.event.repository.fork }}
     steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
       - uses: ./.github/actions/trigger_codebase_tests
         with:
           branch: ${{ github.head_ref }}
@@ -45,6 +49,10 @@ jobs:
     needs: trigger-tests
     if: ${{ !github.event.repository.fork && contains(github.event.pull_request.labels.*.name, 'benchmark PR') }}
     steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
       - uses: ./.github/actions/trigger_codebase_benchmarks
         with:
           branch: ${{ github.head_ref }}
