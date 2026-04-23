@@ -1,9 +1,23 @@
 name: On PR Update
-on: [pull_request]
-permissions:
-  contents: write # so it can comment
-  pull-requests: write # so it can create pull requests
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - '.github/**'
+      - 'heat/**'
+      - 'tests/**'
+
 jobs:
+  run-quick-tests:
+    name: Run quick tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: ./.github/actions/gh_quick_test.yml
+        with:
+          branch: ${{ github.heat_ref }}
+          sha: ${{ github.event.pull_request.head.sha }}
+          pr_number: ${{ github.event.pull_request.number }}
   trigger-benchmarks:
     name: Trigger Benchmarks
     runs-on: ubuntu-latest

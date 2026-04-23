@@ -4,6 +4,14 @@ on:
     branches:
       - main
 jobs:
+  trigger-ci:
+    name: Trigger CI
+    runs-on: ubuntu-latest
+    steps:
+      - uses: ./.github/actions/trigger_codebase_benchmarks.yml
+        with:
+          branch: "main"
+          sha: ${{ github.sha}}
   trigger-benchmarks:
     name: Trigger Benchmarks
     runs-on: ubuntu-latest
@@ -12,4 +20,4 @@ jobs:
         with:
           branch: "main"
           sha: ${{ github.sha}}
-          author: ${{ 'heat_team'}}
+          author: ${{ 'heat_team' }}

@@ -37,11 +37,11 @@ runs:
         SHORT_SHA=$(git rev-parse --short $SHA)
         curl -s -X POST \
           --fail-with-body \
-          -F "token=$PIPE_TRIGGER_TOKEN" \
-          -F "ref=main" \
+          -F "token=$CX_TRIGGER_TOKEN" \
+          -F "ref=pipeline/cb/base" \
           -F "variables[SHA]=$SHA" \
           -F "variables[SHORT_SHA]=${SHORT_SHA}" \
           -F "variables[BRANCH]=$BRANCH" \
           -F "variables[PR]=$PR_NUMBER" \
           -F "variables[AUTHOR]=${AUTHOR}" \
-          https://codebase.helmholtz.cloud/api/v4/projects/7930/trigger/pipeline
+          https://codebase.helmholtz.cloud/api/v4/projects/20697/trigger/pipeline

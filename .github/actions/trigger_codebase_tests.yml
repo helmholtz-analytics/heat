@@ -22,7 +22,7 @@ runs:
         egress-policy: audit
     - name: Checkout
       uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-    - name: Trigger tests for PR
+    - name: Trigger codebase tests
       if : ${{ inputs.pr_number == '' }}
       env:
         PIPE_TRIGGER_TOKEN: ${{ secrets.CB_PIPELINE }}
@@ -31,7 +31,9 @@ runs:
       run: |
         curl -s -X POST \
           --fail-with-body \
-          -F "token=$PIPE_TRIGGER_TOKEN" \
-          -F "ref=main" \
-          -F "variables[GHBRANCH]=$BRANCH" \
-          https://codebase.helmholtz.cloud/api/v4/projects/7930/trigger/pipeline
+          -F "token=$CX_TRIGGER_TOKEN" \
+          -F "ref=pipeline/ci/base" \
+          -F "variables[BRANCH]=$BRANCH" \
+          -F "variables[PR]=$PR_NUMBER" \
+          -F "variables[SHA]=${{ inputs.sha }}" \
+          https://codebase.helmholtz.cloud/api/v4/projects/20697/trigger/pipeline

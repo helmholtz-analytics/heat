@@ -12,13 +12,6 @@ jobs:
       pull-requests: write  # for release-drafter/release-drafter to add label to PR
     runs-on: ubuntu-latest
     steps:
-      - name: Exit if secret is missing
-        run: |
-          if [ -z "${{ secrets.GITHUB_TOKEN }}" ]; then
-            echo "Secret GITHUB_TOKEN not set, skipping job."
-            exit 0
-          fi
-
       - name: Harden Runner
         uses: step-security/harden-runner@6c3c2f2c1c457b00c10c4848d6f5491db3b629df # v2.18.0
         with:
