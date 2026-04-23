@@ -21,21 +21,20 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           ref: ${{ github.event.pull_request.head.sha }}
-      - uses: ./.github/actions/gh_test_quick
+      - uses: ./.github/actions/gh_tests
         with:
-          branch: ${{ github.head_ref }}
+          mode: quick
           sha: ${{ github.event.pull_request.head.sha }}
-          pr_number: ${{ github.event.pull_request.number }}
       # The next two steps only run if the PR is not from a fork, and if the quick tests passed.
       - uses: ./.github/actions/trigger_codebase_tests
-        if: ${{ !github.event.repository.fork }} && success()
+        if: ${{ !github.event.repository.fork && success() }}
         with:
           branch: ${{ github.head_ref }}
           sha: ${{ github.event.pull_request.head.sha }}
           pr_number: ${{ github.event.pull_request.number }}
           trigger_token: ${{ secrets.CX_TRIGGER_TOKEN }}
       - uses: ./.github/actions/trigger_codebase_benchmarks
-        if: ${{ !github.event.repository.fork }} && success() && contains(github.event.pull_request.labels.*.name, 'benchmark PR')
+        if: ${{ !github.event.repository.fork  && success() && contains(github.event.pull_request.labels.*.name, 'benchmark PR') }}
         with:
           branch: ${{ github.head_ref }}
           sha: ${{ github.event.pull_request.head.sha }}

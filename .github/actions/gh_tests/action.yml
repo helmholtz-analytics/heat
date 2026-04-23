@@ -1,0 +1,79 @@
+name: GH Tests
+description: "Run quick or full tests with a single configurable action."
+inputs:
+  mode:
+    description: "Test mode: quick or full."
+    required: false
+    default: "full"
+  sha:
+    description: "Commit SHA to checkout before running tests."
+    required: false
+    default: "${{ github.sha }}"
+  py-version:
+    description: "Python version for the test run."
+    required: false
+    default: "3.14"
+  mpi:
+    description: "MPI implementation to install."
+    required: false
+    default: "openmpi"
+  install-options:
+    description: "Package install target/options for heat."
+    required: false
+    default: ".[hdf5,netcdf,pandas,zarr]"
+  pytorch-version:
+    description: "Pinned torch/torchvision/torchaudio versions."
+    required: false
+    default: "torch==2.11.0 torchvision==0.26.0 torchaudio==2.11.0"
+runs:
+  using: "composite"
+  steps:
+    - name: Harden Runner
+      uses: step-security/harden-runner@6c3c2f2c1c457b00c10c4848d6f5491db3b629df # v2.18.0
+      with:
+        egress-policy: audit
+
+    - name: Checkout
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        ref: ${{ inputs.sha }}
+
+    - name: Setup MPI
+      uses: mpi4py/setup-mpi@3969f247e8fceef153418744f9d9ee6fdaeda29f # v1.2.0
+      with:
+        mpi: ${{ inputs.mpi }}
+
+    - name: Use Python ${{ inputs.py-version }}
+      uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
+      with:
+        python-version: ${{ inputs.py-version }}
+        architecture: x64
+
+    - name: Install heat
+      if: ${{ inputs.mode == 'full' }}
+      shell: bash
+      run: |
+        pip install pytest
+        pip install ${{ inputs.pytorch-version }} ${{ inputs.install-options }} --extra-index-url https://download.pytorch.org/whl/cpu
+
+    - name: Run full tests
+      if: ${{ inputs.mode == 'full' }}
+      shell: bash
+      run: |
+        mpirun -n 1 pytest
+        mpirun -n 2 pytest
+        mpirun -n 3 pytest
+        mpirun -n 4 pytest
+
+    - name: Install quick test dependencies
+      if: ${{ inputs.mode == 'quick' }}
+      shell: bash
+      run: |
+        pip install .
+        pip install pytest
+
+    - name: Run quick checks
+      if: ${{ inputs.mode == 'quick' }}
+      shell: bash
+      run: |
+        pytest
