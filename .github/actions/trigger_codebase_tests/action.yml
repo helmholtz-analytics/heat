@@ -26,13 +26,13 @@ runs:
       if: ${{ inputs.pr_number == '' }}
       shell: bash
       env:
-        PIPE_TRIGGER_TOKEN: ${{ secrets.CB_PIPELINE }}
+        API_TOKEN: ${{ secrets.CX_TRIGGER_TOKEN }}
         BRANCH: ${{ inputs.branch }}
         PR_NUMBER: ${{ inputs.pr_number }}
       run: |
         curl -s -X POST \
           --fail-with-body \
-          -F "token=$CX_TRIGGER_TOKEN" \
+          -F "token=$API_TOKEN" \
           -F "ref=pipeline/ci/base" \
           -F "variables[BRANCH]=$BRANCH" \
           -F "variables[PR]=$PR_NUMBER" \

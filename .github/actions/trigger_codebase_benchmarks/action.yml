@@ -29,7 +29,7 @@ runs:
     - name: Trigger benchmarks
       shell: bash
       env:
-        AUTHOR: ${{ inputs.auth }}
+        AUTHOR: ${{ inputs.author}}
         BRANCH: ${{ inputs.branch }}
         PIPE_TRIGGER_TOKEN: ${{ secrets.BENCH_PIPE_TRIGGER }}
         SHA: ${{ inputs.sha }}
