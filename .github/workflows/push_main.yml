@@ -8,7 +8,7 @@ jobs:
     name: Trigger CI
     runs-on: ubuntu-latest
     steps:
-      - uses: ./.github/actions/trigger_codebase_benchmarks.yml
+      - uses: ./.github/actions/trigger_codebase_tests
         with:
           branch: "main"
           sha: ${{ github.sha}}
@@ -16,7 +16,7 @@ jobs:
     name: Trigger Benchmarks
     runs-on: ubuntu-latest
     steps:
-      - uses: ./.github/actions/trigger_codebase_benchmarks.yml
+      - uses: ./.github/actions/trigger_codebase_benchmarks
         with:
           branch: "main"
           sha: ${{ github.sha}}

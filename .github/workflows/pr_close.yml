@@ -10,7 +10,7 @@ jobs:
   backport:
     name: Backport pull request
     runs-on: ubuntu-latest
-    # Don't run on closed unmerged pull requests
+    # Don't run on closed unmerged pull requests or on forks
     if: github.event.pull_request.merged && ${{ !github.event.repository.fork }}
     steps:
       - name: Harden the runner (Audit all outbound calls)
