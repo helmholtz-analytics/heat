@@ -51,6 +51,7 @@ class ShuffleTestDataset(ht.utils.data.Dataset):
             ht.utils.data.dataset_shuffle(self, attrs=[["data", None]])
 
 
+@unittest.skipIf(ht.MPI_WORLD.size < 2, "Test requires at least 2 processes")
 class TestDataParallel(unittest.TestCase):
     """Test suite for DataParallel functionality."""
 
