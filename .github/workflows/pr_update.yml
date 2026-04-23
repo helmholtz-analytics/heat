@@ -9,8 +9,8 @@ on:
       - 'tests/**'
 
 jobs:
-  test-pr:
-    name: Test and Benchmark Pull Request
+  quick-tests:
+    name: Quick Tests
     runs-on: ubuntu-latest
     steps:
       - name: Harden the runner (Audit all outbound calls)
@@ -25,22 +25,34 @@ jobs:
         with:
           mode: quick
           sha: ${{ github.event.pull_request.head.sha }}
-      # The next two steps only run if the PR is not from a fork, and if the quick tests passed.
+
+  trigger-tests:
+    name: Trigger Codebase Tests
+    runs-on: ubuntu-latest
+    needs: quick-tests
+    if: ${{ !github.event.repository.fork }}
+    steps:
       - uses: ./.github/actions/trigger_codebase_tests
-        if: ${{ !github.event.repository.fork && success() }}
         with:
           branch: ${{ github.head_ref }}
           sha: ${{ github.event.pull_request.head.sha }}
           pr_number: ${{ github.event.pull_request.number }}
           trigger_token: ${{ secrets.CX_TRIGGER_TOKEN }}
+
+  trigger-benchmarks:
+    name: Trigger Codebase Benchmarks
+    runs-on: ubuntu-latest
+    needs: trigger-tests
+    if: ${{ !github.event.repository.fork && contains(github.event.pull_request.labels.*.name, 'benchmark PR') }}
+    steps:
       - uses: ./.github/actions/trigger_codebase_benchmarks
-        if: ${{ !github.event.repository.fork  && success() && contains(github.event.pull_request.labels.*.name, 'benchmark PR') }}
         with:
           branch: ${{ github.head_ref }}
           sha: ${{ github.event.pull_request.head.sha }}
           author: ${{ github.event.pull_request.assignee.login || 'heat_team' }}
           pr_number: ${{ github.event.pull_request.number }}
           trigger_token: ${{ secrets.CX_TRIGGER_TOKEN }}
+
   dependency-review:
     name: Dependency Review
     runs-on: ubuntu-latest
