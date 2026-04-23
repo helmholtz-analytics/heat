@@ -13,8 +13,6 @@ jobs:
     name: Run Quick Tests
     runs-on: ubuntu-latest
     steps:
-      - name: 'Checkout Repository'
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - uses: ./.github/actions/gh_test_quick
         with:
           branch: ${{ github.head_ref }}
@@ -25,8 +23,6 @@ jobs:
     name: Trigger Codebase Tests
     runs-on: ubuntu-latest
     steps:
-      - name: 'Checkout Repository'
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - uses: ./.github/actions/trigger_codebase_tests
         with:
           branch: ${{ github.head_ref }}
@@ -37,8 +33,6 @@ jobs:
     name: Trigger Codebase Benchmarks
     runs-on: ubuntu-latest
     steps:
-      - name: 'Checkout Repository'
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - uses: ./.github/actions/trigger_codebase_benchmarks
         if: contains(github.event.pull_request.labels.*.name, 'benchmark PR')
         with:
