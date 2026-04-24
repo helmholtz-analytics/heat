@@ -2,7 +2,7 @@ name: On PR Update
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [synchronize]
     paths:
       - '.github/**'
       - 'heat/**'
