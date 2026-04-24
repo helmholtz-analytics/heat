@@ -1,13 +1,36 @@
-name: On Push Other Branches
+name: On Push Other
+# This workflow is targeted at forks and branches without open PRs, to ensure they get tested. It is not intended to run on branches with open PRs, as those should be tested by the PR workflow.
 on:
   push:
     branches-ignore:
       - main
       - dependabot/**
 jobs:
+  check-pr-status:
+    runs-on: ubuntu-latest
+    outputs:
+      has-pr: ${{ steps.check-pr.outputs.has-pr }}
+    steps:
+      - name: Check if branch has an open PR
+        id: check-pr
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const branch = context.ref.replace('refs/heads/', '');
+            const prs = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              head: `${context.repo.owner}:${branch}`
+            });
+            const hasPR = prs.data.length > 0;
+            core.setOutput('has-pr', hasPR);
+
   test-branch:
+    needs: check-pr-status
     runs-on: ubuntu-latest
     timeout-minutes: 120
+    if: github.event.repository.fork == true || needs.check-pr-status.outputs.has-pr == 'false'
     strategy:
       fail-fast: false
       matrix:
@@ -15,7 +38,7 @@ jobs:
           - '3.11' # Oldest supported
           - '3.14' # Latest stable
         mpi: [ 'openmpi' ]
-        install-options: [ '.', '.[hdf5,netcdf,pandas,zarr]' ]
+        install-options: [ '.[dev]' ]
         pytorch-version:
           - 'torch==2.3.1 torchvision==0.18.1 torchaudio==2.3.1'   # Oldest supported
           - 'torch==2.9.1 torchvision==0.24.1 torchaudio==2.9.1'   # JSC Stage 2026

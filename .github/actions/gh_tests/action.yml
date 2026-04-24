@@ -2,7 +2,7 @@ name: GH Tests
 description: "Run quick or full tests with a single configurable action."
 inputs:
   mode:
-    description: "Test mode: quick, medium, and full."
+    description: "Test mode: quick (only serial), medium (1 and 4 ranks), and full (1 to 4)."
     required: false
     default: "full"
   sha:
@@ -20,7 +20,7 @@ inputs:
   install-options:
     description: "Package install target/options for heat."
     required: false
-    default: ".[hdf5,netcdf,pandas,zarr]"
+    default: ".[dev]"
   pytorch-version:
     description: "Pinned torch/torchvision/torchaudio versions."
     required: false
@@ -63,8 +63,13 @@ runs:
       shell: bash
       run: |
         mpirun -n 1 pytest -vv
+    - name: Run tests on 2 ranks
+      if: ${{ inputs.mode == 'full'}}
+      shell: bash
+      run: |
+        mpirun -n 2 pytest -vv
     - name: Run tests on 3 ranks
-      if: ${{ inputs.mode == 'full' || inputs.mode == 'medium' }}
+      if: ${{ inputs.mode == 'full'}}
       shell: bash
       run: |
         mpirun -n 3 pytest -vv
