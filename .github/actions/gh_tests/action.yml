@@ -32,15 +32,20 @@ runs:
       uses: mpi4py/setup-mpi@3969f247e8fceef153418744f9d9ee6fdaeda29f # v1.2.0
       with:
         mpi: ${{ inputs.mpi }}
+    - name: "Set up Python"
+      uses: actions/setup-python@v6
+      with:
+        python-version: "${{ inputs.py-version }}"
     - name: Install uv and set the Python version
       uses: astral-sh/setup-uv@v7
       with:
-        python-version: ${{ inputs.py-version }}
         enable-cache: true
     # Installations
     - name: Install heat
       if: ${{ inputs.mode == 'full' || inputs.mode == 'medium' }}
       shell: bash
+      env:
+        UV_SYSTEM_PYTHON: 1
       run: |
         uv pip install pytest
         uv pip install ${{ inputs.pytorch-version }} --extra-index-url https://download.pytorch.org/whl/cpu
@@ -48,6 +53,8 @@ runs:
     - name: Install quick test dependencies
       if: ${{ inputs.mode == 'quick' }}
       shell: bash
+      env:
+        UV_SYSTEM_PYTHON: 1
       run: |
         uv pip install pytest
         uv pip install .
