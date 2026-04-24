@@ -7,6 +7,7 @@ on:
       - stable
     paths:
       - 'heat/**'
+      - 'tests/**'
       - 'pyproject.toml'
       - '.github/workflows/ci_full.yaml'
 
