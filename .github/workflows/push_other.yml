@@ -1,4 +1,4 @@
-name: On Push Main
+name: On Push Other Branches
 on:
   push:
     branches-ignore:

@@ -41,8 +41,6 @@ runs:
     - name: Install heat
       if: ${{ inputs.mode == 'full' || inputs.mode == 'medium' }}
       shell: bash
-      env:
-        UV_SYSTEM_PYTHON: true
       run: |
         uv pip install pytest
         uv pip install ${{ inputs.pytorch-version }} --extra-index-url https://download.pytorch.org/whl/cpu
@@ -50,8 +48,6 @@ runs:
     - name: Install quick test dependencies
       if: ${{ inputs.mode == 'quick' }}
       shell: bash
-      env:
-        UV_SYSTEM_PYTHON: true
       run: |
         uv pip install pytest
         uv pip install .
