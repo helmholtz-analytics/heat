@@ -233,6 +233,48 @@
         "https://pypi.org/project/torchvision/",
         "https://pypi.org/project/scipy/"
     ],
+    "softwareSuggestions": [
+        "https://pypi.org/project/h5py/",
+        "https://pypi.org/project/netCDF4/",
+        "https://pypi.org/project/zarr/",
+        "https://pypi.org/project/pandas/",
+        "https://pypi.org/project/scikit-learn/",
+        "https://pypi.org/project/matplotlib/",
+        "https://pypi.org/project/jupyter/",
+        "https://pypi.org/project/ipyparallel/",
+        "https://pypi.org/project/pillow/",
+        "https://pypi.org/project/pre-commit/",
+        "https://pypi.org/project/ruff/",
+        "https://pypi.org/project/mypy/",
+        "https://pypi.org/project/pytest/",
+        "https://pypi.org/project/coverage/",
+        "https://pypi.org/project/perun/",
+        "https://pypi.org/project/sphinx/"
+    ],
+    "referencePublication": {
+        "@type": "ScholarlyArticle",
+        "@id": "https://doi.org/10.1109/BigData50022.2020.9378050",
+        "name": "HeAT -- a Distributed and GPU-accelerated Tensor Framework for Data Analytics",
+        "datePublished": "2020",
+        "isPartOf": {
+            "@type": "PublicationIssue",
+            "name": "2020 IEEE International Conference on Big Data (IEEE Big Data 2020)"
+        },
+        "author": [
+            { "@type": "Person", "familyName": "Götz", "givenName": "Markus" },
+            { "@type": "Person", "familyName": "Debus", "givenName": "Charlotte" },
+            { "@type": "Person", "familyName": "Coquelin", "givenName": "Daniel" },
+            { "@type": "Person", "familyName": "Krajsek", "givenName": "Kai" },
+            { "@type": "Person", "familyName": "Comito", "givenName": "Claudia" },
+            { "@type": "Person", "familyName": "Knechtges", "givenName": "Philipp" },
+            { "@type": "Person", "familyName": "Hagemeier", "givenName": "Björn" },
+            { "@type": "Person", "familyName": "Tarnawa", "givenName": "Michael" },
+            { "@type": "Person", "familyName": "Hanselmann", "givenName": "Simon" },
+            { "@type": "Person", "familyName": "Siggel", "givenName": "Martin" },
+            { "@type": "Person", "familyName": "Basermann", "givenName": "Achim" },
+            { "@type": "Person", "familyName": "Streit", "givenName": "Achim" }
+        ]
+    },
     "version": "1.8.0",
     "issueTracker": "https://github.com/helmholtz-analytics/heat/issues"
 }
