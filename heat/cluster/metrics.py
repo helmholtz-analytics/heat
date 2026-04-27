@@ -157,10 +157,9 @@ def silhouette_samples(X, labels, *, metric="euclidean"):
         )
 
     # a(i) calculation
-    a_mask = ht.reshape(labels, (1, -1)) == ht.reshape(
-        labels, (-1, 1)
-    )  # reshape((-1,1)) transposes labels_encoded
-    a_mask = a_mask
+    labels_row = labels.reshape((1, -1))  # reshape((1,-1)) adds a dimension
+    labels_column = labels.reshape((-1, 1))  # reshape((-1,1)) transposes the labels
+    a_mask = labels_row == labels_column
 
     a_clust_dists = ht.sum(ht.mul(D, a_mask), axis=1)
     denominator_a = labels_freqs[labels_encoded] - 1
@@ -173,8 +172,9 @@ def silhouette_samples(X, labels, *, metric="euclidean"):
     a = ht.div(a_clust_dists, denominator_a)
 
     # b(i) calculation
-    b_mask = ht.reshape(labels, (-1, 1)) == ht.reshape(unique_labels, (1, -1))
-    full_b_mask = labels.reshape((-1, 1)) == unique_labels.reshape((1, -1))
+    unique_labels_row = unique_labels.reshape((1, -1))
+    b_mask = labels_column == unique_labels_row
+    full_b_mask = labels_column == unique_labels_row
 
     b_clust_dists = ht.matmul(D, full_b_mask)
 
