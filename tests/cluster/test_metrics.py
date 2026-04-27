@@ -94,15 +94,14 @@ class TestSilhouette(TestCase):
         X = ht.array([[0, 0], [10, 10], [20, 20], [1, 1]], dtype=np.float32, split=0)
         labels = ht.array([0, 2, 1, 0], dtype=np.int32, split=0)
 
-        sil = silhouette_samples(X, labels)
+        sil = silhouette_samples(X, labels).numpy()
 
         # Expected value for i=0 (Cluster 0)
         # a = dist((0,0), (1,1)) = 1.414
         # b = dist((0,0), (10,10)) = 14.14
         # sil = (14.14 - 1.414) / 14.14 = 0.9
 
-        if self.comm.rank == 0:
-            assert sil.larray[0] == pytest.approx(0.9), f"Point 0 is {sil.larray[0]:.4f}"
+        assert sil[0] == pytest.approx(0.9), f"Point 0 is {sil[0]:.4f}"
 
 
     def test_minimal_silhouette_score_example(self):
