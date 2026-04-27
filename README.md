@@ -119,7 +119,7 @@ Götz, M., et al. (2020). HeAT - a Distributed and GPU-accelerated Tensor Framew
 </details>
 
 ### Acknowledgments
-This work was funded by the **Helmholtz Association Initiative and Networking Fund** (Project **ZT-I-0003**, "Helmholtz Analytics Framework"); the **Helmholtz AI** platform grant; the **European Space Agency (ESA)** (Programme [4000144045](https://activities.esa.int/index.php/4000144045)); the **Helmholtz Association Innovation Fund** (Project [HiRSE_PS](https://www.helmholtz-hirse.de/)); the **Helmholtz Association ScienceServe call 2025** (Project **DB002891**, [HeatHub](https://hifis.net/announcement/2026/01/08/scienceserve-awardees/)); the Google Summer of Code 2022 program.
+This work was funded by the **Helmholtz Association Initiative and Networking Fund** (Project **ZT-I-0003**, "Helmholtz Analytics Framework"); the **Helmholtz AI** platform grant; the **European Space Agency (ESA)** (Programme [4000144045](https://activities.esa.int/index.php/4000144045)); the **Helmholtz Association Innovation Fund** (Project [HiRSE](https://www.helmholtz-hirse.de/)); the **Helmholtz Association ScienceServe call 2025** (Project **DB002891**, [HeatHub](https://hifis.net/announcement/2026/01/08/scienceserve-awardees/)); the Google Summer of Code 2022 program.
 
 ### License
 Heat is distributed under the **MIT license**. See the [LICENSE](https://github.com/helmholtz-analytics/heat/blob/main/LICENSE) file for details.
