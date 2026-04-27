@@ -86,7 +86,7 @@ conda activate heat_dev
 3. Install Heat in editable mode:
 
 ```bash
-pip install -e '.[hdf5, netcdf, zarr, dev]'
+pip install -e '.[dev]'
 ```
 
 #### Method B: manual dependency management (pip)
@@ -105,7 +105,7 @@ source heat_dev/bin/activate
 3. Install Heat in editable mode:
 
 ```bash
-pip install -e '.[hdf5, netcdf, zarr, dev]'
+pip install -e '.[dev]'
 ```
 
 ### Repository syncing
