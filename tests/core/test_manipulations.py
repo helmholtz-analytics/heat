@@ -3724,7 +3724,7 @@ class TestManipulations(TestCase):
         self.assertEqual(inv.split, None)
         self.assertEqual(inv.dtype, ht.int64)
         self.assertEqual(inv.device, data_split_none.device)
-        self.assertTrue(torch.equal(inv.larray, exp_inv.int()))
+        self.assertTrue(torch.equal(inv.larray, exp_inv))
 
         data_split_zero = ht.array(torch_array, split=0)
         res, inv = ht.unique(data_split_zero, return_inverse=True, sorted=True)
