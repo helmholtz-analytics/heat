@@ -157,7 +157,7 @@
             }
         }
     ],
-    "contributor": [
+    "maintainer": [
         {
             "@id": "https://orcid.org/0000-0002-9071-890X",
             "@type": "Person",
