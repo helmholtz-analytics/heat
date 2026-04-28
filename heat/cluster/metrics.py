@@ -157,11 +157,14 @@ def silhouette_samples(X, labels, *, metric="euclidean"):
         )
 
     # a(i) calculation
-    labels_row = labels.reshape((1, -1))  # reshape((1,-1)) adds a dimension
     labels_column = labels.reshape((-1, 1))  # reshape((-1,1)) transposes the labels
-    a_mask = labels_row == labels_column
 
-    a_clust_dists = ht.sum(ht.mul(D, a_mask), axis=1)
+    unique_labels_row = unique_labels.reshape((1, -1))  # reshape((1,-1)) adds a dimension
+    full_mask = labels_column == unique_labels_row
+
+    clust_dists = ht.matmul(D, full_mask)
+    a_clust_dists = ht.sum(ht.mul(clust_dists, full_mask), axis=1)
+
     denominator_a = labels_freqs[labels_encoded] - 1
     denominator_a = ht.where(
         denominator_a > 0,
@@ -172,17 +175,11 @@ def silhouette_samples(X, labels, *, metric="euclidean"):
     a = ht.div(a_clust_dists, denominator_a)
 
     # b(i) calculation
-    unique_labels_row = unique_labels.reshape((1, -1))
-    b_mask = labels_column == unique_labels_row
-    full_b_mask = labels_column == unique_labels_row
-
-    b_clust_dists = ht.matmul(D, full_b_mask)
-
     denominator_b = labels_freqs
-    b_clust_means = ht.div(b_clust_dists, denominator_b)
+    b_clust_means = ht.div(clust_dists, denominator_b)
 
     # we want neighboring clusters, so set the distance to points in own cluster to infinity
-    b_clust_means.larray[b_mask.larray > 0] = float("inf")
+    b_clust_means.larray[full_mask.larray > 0] = float("inf")
     b = ht.min(b_clust_means, axis=1)
 
     sil_samples = ht.div(ht.sub(b, a), ht.maximum(a, b))
