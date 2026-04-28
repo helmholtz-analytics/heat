@@ -1,11 +1,11 @@
-name: On Push Main
+name: On Push Support
 on:
   push:
     branches:
       - 'support/**'
 jobs:
-  codebase-test-and-bench-main:
-    name: Testing and
+  codebase-test-support:
+    name: Testing
     runs-on: ubuntu-latest
     steps:
       - name: Harden the runner (Audit all outbound calls)

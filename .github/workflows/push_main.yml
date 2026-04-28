@@ -30,7 +30,7 @@ jobs:
         with:
           branch: "main"
           sha: ${{ github.sha}}
-          author: ${{ 'heat_team' }}
+          author: 'heat_team'
           trigger_token: ${{ secrets.CX_TRIGGER_TOKEN }}
   gh-matrix-tests:
     runs-on: ubuntu-latest

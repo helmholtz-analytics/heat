@@ -4,7 +4,6 @@ on:
   push:
     branches-ignore:
       - main
-      - dependabot/**
 jobs:
   check-pr-status:
     runs-on: ubuntu-latest

@@ -2,7 +2,7 @@ name: On PR Update
 
 on:
   pull_request:
-    types: [synchronize]
+    types: [opened, reopened, synchronize]
     paths:
       - '.github/**'
       - 'heat/**'
@@ -10,8 +10,22 @@ on:
 
 jobs:
   quick-tests:
-    name: Quick Tests
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        py-version:
+          - '3.11' # Oldest supported
+          - '3.14' # Latest stable
+        mpi: [ 'openmpi' ]
+        install-options: [ '.[dev]' ]
+        pytorch-version:
+          - 'torch==2.3.1 torchvision==0.18.1 torchaudio==2.3.1'   # Oldest supported
+          - 'torch==2.11.0 torchvision==0.26.0 torchaudio==2.11.0' # Latest stable
+        exclude:
+          - py-version: '3.14'
+            pytorch-version: 'torch==2.3.1 torchvision==0.18.1 torchaudio==2.3.1'
+    name: Quick Tests - Py${{ matrix.py-version }} with ${{ matrix.pytorch-version }}"
     steps:
       - name: Harden the runner
         uses: step-security/harden-runner@6c3c2f2c1c457b00c10c4848d6f5491db3b629df # v2.18.0
@@ -25,6 +39,10 @@ jobs:
         with:
           mode: quick
           sha: ${{ github.event.pull_request.head.sha }}
+          py-version: ${{ matrix.py-version }}
+          mpi: ${{ matrix.mpi }}
+          install-options: ${{ matrix.install-options }}
+          pytorch-version: ${{ matrix.pytorch-version }}
 
   trigger-tests:
     name: Trigger Codebase Tests
