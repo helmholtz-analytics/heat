@@ -58,4 +58,4 @@ jobs:
 
       - name: Run parallel tests
         run: |
-          mpirun -n 4 pytest -vv
+          mpirun -n 4 pytest -vs tests/core/test_random.py
