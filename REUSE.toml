@@ -1,0 +1,7 @@
+version = 1
+
+# All files
+[[annotations]]
+path = "**"
+SPDX-FileCopyrightText = "2026 Claudia Comito <c.comito@fz-juelich.de>"
+SPDX-License-Identifier = "MIT"
