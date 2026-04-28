@@ -18,6 +18,6 @@ jobs:
           ref: ${{ github.sha }}
       - uses: ./.github/actions/trigger_codebase_tests
         with:
-          branch: "main"
+          branch: ${{ github.head_ref}}
           sha: ${{ github.sha}}
           trigger_token: ${{ secrets.CX_TRIGGER_TOKEN }}
