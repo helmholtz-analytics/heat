@@ -1,7 +1,4 @@
-name: "Using Heat as backend"
-description: "Discuss if and how to use Heat as a backend for your code"
-# title: ""
-
+title: "[Use Heat as Backend]: "
 body:
   - type: markdown
     attributes:
