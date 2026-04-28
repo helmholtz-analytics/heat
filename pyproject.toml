@@ -82,6 +82,12 @@ dev = [
 
     # Benchmarking
     "perun",
+
+    # Additional dependencies required to run the entire test suite
+    "h5py>=3.11",
+    "netCDF4>=1.7",
+    "zarr",
+    "pandas",
 ]
 
 docs = [

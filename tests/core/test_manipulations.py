@@ -3687,7 +3687,7 @@ class TestManipulations(TestCase):
 
         torch_array = torch.tensor(
             [[1, 2], [2, 3], [1, 2], [2, 3], [1, 2]],
-            dtype=torch.int32,
+            dtype=torch.float32,
             device=self.device.torch_device,
         )
         data = ht.array(torch_array, split=0)
@@ -3697,6 +3697,8 @@ class TestManipulations(TestCase):
         self.assertTrue(
             (inv == ht.array(exp_inv.to(dtype=inv.larray.dtype), split=inv.split)).all()
         )
+        self.assertEqual(res.dtype, data.dtype)
+        self.assertEqual(inv.dtype, ht.int64)
 
         res, inv = ht.unique(data, return_inverse=True, axis=1)
         _, exp_inv = torch_array.unique(dim=1, return_inverse=True, sorted=True)
@@ -3720,9 +3722,9 @@ class TestManipulations(TestCase):
         res, inv = ht.unique(data_split_none, return_inverse=True, sorted=True)
         self.assertIsInstance(inv, ht.DNDarray)
         self.assertEqual(inv.split, None)
-        self.assertEqual(inv.dtype, data_split_none.dtype)
+        self.assertEqual(inv.dtype, ht.int64)
         self.assertEqual(inv.device, data_split_none.device)
-        self.assertTrue(torch.equal(inv.larray, exp_inv.int()))
+        self.assertTrue(torch.equal(inv.larray, exp_inv))
 
         data_split_zero = ht.array(torch_array, split=0)
         res, inv = ht.unique(data_split_zero, return_inverse=True, sorted=True)
