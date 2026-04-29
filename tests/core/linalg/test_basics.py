@@ -985,6 +985,32 @@ class TestLinalgBasics(TestCase):
                     # self.assertTrue(ht.allclose(ret_batched, c, 1e-2))
                     self.assertTrue(max_diff < 1e-4)
 
+    def test_matmul_edge_case_1(self):
+        # test edge cases as documented in #2093
+
+        if ht.comm.size == 4:
+            split = 0
+            shape = (8, 6)
+
+            A = ht.ones(shape, split=split)
+            B = ht.ones(shape[::-1], split=split)
+
+            C = A @ B
+            assert ht.allclose(C, 1)
+        else:
+            self.skipTest('This edge case requires two tasks')
+
+    def test_matmul_edge_case_2(self):
+        # test edge cases as documented in #2093
+        # one row/column chunk per task for a square matrix split along axis 0 or 1
+
+        if ht.comm.size == 1:
+            self.skipTest('This edge case requires more than one task')
+
+        for split in [0, 1]:
+            a = ht.random.random((ht.comm.size, ht.comm.size), dtype=ht.float32, split=split)
+            self.assertTrue(np.allclose((a @ a).numpy(), a.numpy() @ a.numpy()))
+
     def test_matrix_norm(self):
         a = ht.arange(9, dtype=ht.float) - 4
         b = a.reshape((3, 3))
