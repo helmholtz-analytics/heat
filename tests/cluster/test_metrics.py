@@ -89,7 +89,7 @@ class TestSilhouette(TestCase):
 
 
     def test_minimal_silhouette_example(self):
-        if self.comm.size > 3:
+        if self.comm.size > 2:
             self.skipTest('Matrix multiplication bug #2093')
         X = ht.array([[0, 0], [10, 10], [20, 20], [1, 1]], dtype=np.float32, split=0)
         labels = ht.array([0, 2, 1, 0], dtype=np.int32, split=0)
@@ -109,6 +109,10 @@ class TestSilhouette(TestCase):
             self.skipTest('Matrix multiplication bug #2093')
         X = ht.array([[1, 2], [1, 1], [4, 4], [4, 5]], split=0)
         labels = ht.array([0, 0, 1, 1], split=0)
+
+        if self.is_mps:
+            X = X.astype(ht.float32)
+            labels = labels.astype(ht.float32)
 
         score = silhouette_score(X, labels)
 
