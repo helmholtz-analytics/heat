@@ -2468,5 +2468,73 @@ def use_comm(comm: Communication = None):
     __default_comm = sanitize_comm(comm)
 
 
+# DTensor mesh initialization
+
+import torch.distributed as dist
+
+try:
+    from torch.distributed.device_mesh import init_device_mesh
+    from torch.distributed.tensor import DTensor, Shard, Replicate
+    from torch.distributed.tensor.placement_types import Partial
+
+    _DTENSOR_AVAILABLE = True
+except ImportError:
+    _DTENSOR_AVAILABLE = False
+
+_DTENSOR_MESHES = {}
+
+
+def _get_or_create_mesh(device):
+    """
+    Initializes a PyTorch Distributed ProcessGroup and DeviceMesh that
+    mirrors the underlying MPI communicator for the given device.
+    """
+    import os
+
+    global _DTENSOR_MESHES
+    mesh_device_type = "cuda" if str(device)[:3] == "gpu" else "cpu"
+
+    if mesh_device_type not in _DTENSOR_MESHES:
+        if not dist.is_initialized():
+            # Map MPI ranks to PyTorch Distributed environment variables
+            rank = int(os.environ.get("OMPI_COMM_WORLD_RANK", "0"))
+            world_size = int(os.environ.get("OMPI_COMM_WORLD_SIZE", "1"))
+
+            os.environ["RANK"] = str(rank)
+            os.environ["WORLD_SIZE"] = str(world_size)
+
+            # Map MPI local rank to physical GPU ID (only if using GPUs)
+            if mesh_device_type == "cuda" and torch.cuda.is_available():
+                local_rank = int(os.environ.get("OMPI_COMM_WORLD_LOCAL_RANK", "0"))
+                torch.cuda.set_device(local_rank)
+
+            # Network Configuration
+            if "MASTER_ADDR" not in os.environ:
+                import logging
+
+                logging.info("MASTER_ADDR not found in environment. Defaulting to 127.0.0.1")
+                os.environ["MASTER_ADDR"] = "127.0.0.1"
+
+            if "MASTER_PORT" not in os.environ:
+                os.environ["MASTER_PORT"] = "6000"
+
+            # Initialize Process Group
+            if mesh_device_type == "cuda":
+                backend = "nccl"
+            elif dist.is_mpi_available():
+                backend = "mpi"
+            else:
+                backend = "gloo"
+
+            dist.init_process_group(backend=backend)
+
+        # Create Device Mesh for the given device type
+        _DTENSOR_MESHES[mesh_device_type] = init_device_mesh(
+            mesh_device_type, (dist.get_world_size(),)
+        )
+
+    return _DTENSOR_MESHES[mesh_device_type]
+
+
 # import at the end of file to break circular dependencies
 from .dndarray import DNDarray
