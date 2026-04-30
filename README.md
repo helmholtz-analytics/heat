@@ -17,6 +17,7 @@
 [![OpenSSF Best Practices](https://bestpractices.coreinfrastructure.org/projects/7688/badge)](https://bestpractices.coreinfrastructure.org/projects/7688)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.2531472.svg)](https://doi.org/10.5281/zenodo.2531472)
 [![Benchmarks](https://img.shields.io/badge/Grafana-Benchmarks-2ea44f)](https://930000e0-e69a-4939-912e-89a92316b420.ka.bw-cloud-instance.org/grafana)
+[![REUSE status](https://api.reuse.software/badge/git.fsfe.org/reuse/api)](https://api.reuse.software/info/git.fsfe.org/reuse/api)
 
 # Heat
 **High-performance data analytics in Python, at scale.**
