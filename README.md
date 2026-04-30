@@ -17,6 +17,7 @@
 [![OpenSSF Best Practices](https://bestpractices.coreinfrastructure.org/projects/7688/badge)](https://bestpractices.coreinfrastructure.org/projects/7688)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.2531472.svg)](https://doi.org/10.5281/zenodo.2531472)
 [![Benchmarks](https://img.shields.io/badge/Grafana-Benchmarks-2ea44f)](https://930000e0-e69a-4939-912e-89a92316b420.ka.bw-cloud-instance.org/grafana)
+[![REUSE status](https://api.reuse.software/badge/git.fsfe.org/reuse/api)](https://api.reuse.software/info/git.fsfe.org/reuse/api)
 
 # Heat
 **High-performance data analytics in Python, at scale.**
@@ -96,7 +97,7 @@ We welcome contributions from the community. Please see our [Contribution Guidel
 
 For bug reports, feature requests, or general questions, please use [GitHub Issues](https://github.com/helmholtz-analytics/heat/issues) or [Discussions](https://github.com/helmholtz-analytics/heat/discussions).
 
-### Citations
+### How to cite
 Citations are essential for the sustainability of this project. If Heat supports your work, please cite our main paper:
 
 Götz, M., et al. (2020). HeAT - a Distributed and GPU-accelerated Tensor Framework for Data Analytics. In *2020 IEEE International Conference on Big Data (Big Data)* (pp. 276-287). IEEE. DOI: [10.1109/BigData50022.2020.9378050](https://doi.org/10.1109/BigData50022.2020.9378050).
@@ -122,4 +123,4 @@ Götz, M., et al. (2020). HeAT - a Distributed and GPU-accelerated Tensor Framew
 This work was funded by the **Helmholtz Association Initiative and Networking Fund** (Project **ZT-I-0003**, "Helmholtz Analytics Framework"); the **Helmholtz AI** platform grant; the **European Space Agency (ESA)** (Programme [4000144045](https://activities.esa.int/index.php/4000144045)); the **Helmholtz Association Science Serve call 2025** (Project **DB002891**, [HeatHub](https://hifis.net/announcement/2026/01/08/scienceserve-awardees/)); the Google Summer of Code 2022 program.
 
 ### License
-Heat is distributed under the **MIT license**. See the [LICENSE](https://github.com/helmholtz-analytics/heat/blob/main/LICENSE) file for details.
+Heat is distributed under the **MIT license**. See the [LICENSE](https://github.com/helmholtz-analytics/heat/blob/main/LICENSES/MIT.txt) file for details.

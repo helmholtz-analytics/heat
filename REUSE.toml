@@ -1,0 +1,21 @@
+version = 1
+
+# All files
+[[annotations]]
+path = "**"
+SPDX-FileCopyrightText = "Copyright (c) 2019-2026 Forschungszentrum Jülich GmbH, Karlsruher Institut für Technologie KdöR (KIT); Copyright (c) 2019-2025 Deutsches Zentrum für Luft- und Raumfahrt e.V. (DLR)"
+SPDX-License-Identifier = "MIT"
+
+# iris dataset
+[[annotations]]
+path = "heat/datasets/iris*"
+SPDX-FileCopyrightText = "R. A. Fisher"
+SPDX-License-Identifier = "CC0-1.0"
+precedence = "override"
+
+# diabetes dataset
+[[annotations]]
+path = "heat/datasets/diabetes.h5"
+SPDX-FileCopyrightText = "National Institute of Diabetes and Digestive and Kidney Diseases"
+SPDX-License-Identifier = "CC0-1.0"
+precedence = "override"
