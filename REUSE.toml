@@ -3,5 +3,5 @@ version = 1
 # All files
 [[annotations]]
 path = "**"
-SPDX-FileCopyrightText = "2026 Claudia Comito <c.comito@fz-juelich.de>"
+SPDX-FileCopyrightText = "Copyright (c) 2019-2026 Forschungszentrum Jülich GmbH, Karlsruher Institut für Technologie KdöR (KIT); Copyright (c) 2019-2025 Deutsches Zentrum für Luft- und Raumfahrt e.V. (DLR)"
 SPDX-License-Identifier = "MIT"
