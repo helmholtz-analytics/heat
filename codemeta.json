@@ -251,6 +251,62 @@
         "https://pypi.org/project/perun/",
         "https://pypi.org/project/sphinx/"
     ],
+    "funding": [
+        {
+            "@type": "Grant",
+            "name": "Helmholtz Analytics Framework",
+            "identifier": "ZT-I-0003",
+            "funder": {
+                "@type": "Organization",
+                "name": "Helmholtz Association Initiative and Networking Fund"
+            }
+        },
+        {
+            "@type": "Grant",
+            "name": "Helmholtz AI platform grant",
+            "funder": {
+                "@type": "Organization",
+                "name": "Helmholtz AI"
+            }
+        },
+        {
+            "@type": "Grant",
+            "identifier": "4000144045",
+            "url": "https://activities.esa.int/index.php/4000144045",
+            "funder": {
+                "@type": "Organization",
+                "name": "European Space Agency (ESA)"
+            }
+        },
+        {
+            "@type": "Grant",
+            "name": "HiRSE",
+            "url": "https://blogs.helmholtz.de/research-field-information/en/2025/01/22/hirse-continues-now-as-joint-lab/",
+            "funder": {
+                "@type": "Organization",
+                "name": "Helmholtz Association Innovation Fund"
+            }
+        },
+        {
+            "@type": "Grant",
+            "name": "HeatHub",
+            "identifier": "DB002891",
+            "url": "https://hifis.net/announcement/2026/01/08/scienceserve-awardees/",
+            "funder": {
+                "@type": "Organization",
+                "name": "Helmholtz Association Initiative and Networking Fund"
+            }
+        },
+        {
+            "@type": "Grant",
+            "name": "Google Summer of Code 2022",
+            "url": "https://summerofcode.withgoogle.com/archive/2022/organizations/forschungszentrum-julich",
+            "funder": {
+                "@type": "Organization",
+                "name": "Google"
+            }
+        }
+    ],
     "referencePublication": {
         "@type": "ScholarlyArticle",
         "@id": "https://doi.org/10.1109/BigData50022.2020.9378050",
