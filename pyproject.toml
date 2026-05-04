@@ -57,7 +57,7 @@ dependencies = [
 ## IO Modules
 hdf5 = ["h5py>=3.11"]
 netcdf = ["netCDF4>=1.7"]
-zarr = ["zarr"]
+zarr = ["zarr<3.2"]
 pandas = ["pandas"]
 
 ## Examples and tutorial
@@ -82,6 +82,12 @@ dev = [
 
     # Benchmarking
     "perun",
+
+    # Additional dependencies required to run the entire test suite
+    "h5py>=3.11",
+    "netCDF4>=1.7",
+    "zarr<3.2",
+    "pandas",
 ]
 
 docs = [
