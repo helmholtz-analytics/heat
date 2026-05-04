@@ -1,0 +1,80 @@
+name: GH Tests
+description: "Run quick or full tests with a single configurable action."
+inputs:
+  mode:
+    description: "Test mode: quick (only serial), medium (1 and 4 ranks), and full (1 to 4)."
+    required: false
+    default: "full"
+  sha:
+    description: "Commit SHA to checkout before running tests."
+    required: false
+    default: "${{ github.sha }}"
+  py-version:
+    description: "Python version for the test run."
+    required: false
+    default: "3.14"
+  mpi:
+    description: "MPI implementation to install."
+    required: false
+    default: "openmpi"
+  install-options:
+    description: "Package install target/options for heat."
+    required: false
+    default: ".[dev]"
+  pytorch-version:
+    description: "Pinned torch/torchvision/torchaudio versions."
+    required: false
+    default: "torch==2.11.0 torchvision==0.26.0 torchaudio==2.11.0"
+runs:
+  using: "composite"
+  steps:
+    - name: Setup MPI
+      uses: mpi4py/setup-mpi@3969f247e8fceef153418744f9d9ee6fdaeda29f # v1.2.0
+      with:
+        mpi: ${{ inputs.mpi }}
+    - name: "Set up Python"
+      uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+      with:
+        python-version: "${{ inputs.py-version }}"
+    - name: Install uv and set the Python version
+      uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+      with:
+        enable-cache: true
+    # Installations
+    - name: Install heat
+      if: ${{ inputs.mode == 'full' || inputs.mode == 'medium' }}
+      shell: bash
+      env:
+        UV_SYSTEM_PYTHON: 1
+      run: |
+        uv pip install pytest
+        uv pip install ${{ inputs.pytorch-version }} --extra-index-url https://download.pytorch.org/whl/cpu
+        uv pip install -e ${{ inputs.install-options }}
+    - name: Install quick test dependencies
+      if: ${{ inputs.mode == 'quick' }}
+      shell: bash
+      env:
+        UV_SYSTEM_PYTHON: 1
+      run: |
+        uv pip install pytest
+        uv pip install .
+    # Running tests
+    - name: Run serial tests
+      shell: bash
+      run: |
+        mpirun -n 1 pytest -vv
+    - name: Run tests on 2 ranks
+      if: ${{ inputs.mode == 'full'}}
+      shell: bash
+      run: |
+        mpirun -n 2 pytest -vv
+    - name: Run tests on 3 ranks
+      if: ${{ inputs.mode == 'full'}}
+      shell: bash
+      run: |
+        mpirun -n 3 pytest -vv
+    - name: Run tests on 4 ranks
+      if: ${{ inputs.mode == 'full' || inputs.mode == 'medium' }}
+      shell: bash
+      run: |
+        mpirun -n 4 pytest -vv

@@ -1,0 +1,64 @@
+name: On Push Other
+# This workflow is targeted at forks and branches without open PRs, to ensure they get tested. It is not intended to run on branches with open PRs, as those should be tested by the PR workflow.
+on:
+  push:
+    branches-ignore:
+      - main
+jobs:
+  check-pr-status:
+    runs-on: ubuntu-latest
+    outputs:
+      has-pr: ${{ steps.check-pr.outputs.has-pr }}
+    steps:
+      - name: Check if branch has an open PR
+        id: check-pr
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const branch = context.ref.replace('refs/heads/', '');
+            const prs = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              head: `${context.repo.owner}:${branch}`
+            });
+            const hasPR = prs.data.length > 0;
+            core.setOutput('has-pr', hasPR);
+
+  test-branch:
+    needs: check-pr-status
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    if: github.event.repository.fork == true || needs.check-pr-status.outputs.has-pr == 'false'
+    strategy:
+      fail-fast: false
+      matrix:
+        py-version:
+          - '3.11' # Oldest supported
+          - '3.14' # Latest stable
+        mpi: [ 'openmpi' ]
+        install-options: [ '.[dev]' ]
+        pytorch-version:
+          - 'torch==2.3.1 torchvision==0.18.1 torchaudio==2.3.1'   # Oldest supported
+          - 'torch==2.9.1 torchvision==0.24.1 torchaudio==2.9.1'   # JSC Stage 2026
+          - 'torch==2.11.0 torchvision==0.26.0 torchaudio==2.11.0' # Latest stable
+        exclude:
+          - py-version: '3.14'
+            pytorch-version: 'torch==2.3.1 torchvision==0.18.1 torchaudio==2.3.1'
+    name: Python ${{ matrix.py-version }} with ${{ matrix.pytorch-version }}; options ${{ matrix.install-options }}
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@6c3c2f2c1c457b00c10c4848d6f5491db3b629df # v2.18.0
+        with:
+          egress-policy: audit
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.sha }}
+      - uses: ./.github/actions/gh_tests
+        with:
+          mode: "full"
+          py-version: ${{ matrix.py-version }}
+          mpi: ${{ matrix.mpi }}
+          install-options: ${{ matrix.install-options }}
+          pytorch-version: ${{ matrix.pytorch-version }}

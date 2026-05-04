@@ -1,5 +1,4 @@
-name: ci_full
-
+name: On Push Main
 on:
   push:
     branches:
@@ -9,10 +8,31 @@ on:
       - 'heat/**'
       - 'tests/**'
       - 'pyproject.toml'
-      - '.github/workflows/ci_full.yaml'
-
 jobs:
-  full_matrix_test:
+  codebase-test-and-bench-main:
+    name: Codebase Tests and Benchmarks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@6c3c2f2c1c457b00c10c4848d6f5491db3b629df # v2.18.0
+        with:
+          egress-policy: audit
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.sha }}
+      - uses: ./.github/actions/trigger_codebase_tests
+        with:
+          branch: "main"
+          sha: ${{ github.sha}}
+          trigger_token: ${{ secrets.CX_TRIGGER_TOKEN }}
+      - uses: ./.github/actions/trigger_codebase_benchmarks
+        with:
+          branch: "main"
+          sha: ${{ github.sha}}
+          author: 'heat_team'
+          trigger_token: ${{ secrets.CX_TRIGGER_TOKEN }}
+  gh-matrix-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     strategy:
@@ -24,7 +44,7 @@ jobs:
           - '3.13'
           - '3.14'
         mpi: [ 'openmpi' ]
-        install-options: [ '.', '.[dev]' ]
+        install-options: [ '.[dev]' ]
         pytorch-version:
           - 'torch==2.3.1 torchvision==0.18.1 torchaudio==2.3.1'
           - 'torch==2.4.1 torchvision==0.19.1 torchaudio==2.4.1'
@@ -61,30 +81,14 @@ jobs:
         uses: step-security/harden-runner@8d3c67de8e2fe68ef647c8db1e6a09f647780f40 # v2.19.0
         with:
           egress-policy: audit
-
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-
-      - name: Setup MPI
-        uses: mpi4py/setup-mpi@3969f247e8fceef153418744f9d9ee6fdaeda29f # v1.2.0
         with:
+          ref: ${{ github.sha }}
+      - uses: ./.github/actions/gh_tests
+        with:
+          mode: "full"
+          py-version: ${{ matrix.py-version }}
           mpi: ${{ matrix.mpi }}
-
-      - name: Use Python ${{ matrix.py-version }}
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-        with:
-          python-version: ${{ matrix.py-version }}
-          architecture: x64
-
-      - name: Install heat
-        run: |
-          pip install pytest
-          pip install ${{ matrix.pytorch-version }} ${{ matrix.install-options }} --extra-index-url https://download.pytorch.org/whl/cpu
-
-      - name: Run tests with 3 tasks
-        run: |
-          mpirun -n 3 pytest
-
-      - name: Run tests with 4 tasks
-        run: |
-          mpirun -n 4 pytest
+          install-options: ${{ matrix.install-options }}
+          pytorch-version: ${{ matrix.pytorch-version }}
