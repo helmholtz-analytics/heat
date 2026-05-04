@@ -996,7 +996,7 @@ class TestLinalgBasics(TestCase):
             B = ht.ones(shape[::-1], split=split)
 
             C = A @ B
-            assert ht.allclose(C, shape[-1])
+            self.assertTrue(ht.allclose(C, shape[-1]))
         else:
             self.skipTest('This edge case requires four tasks')
 
