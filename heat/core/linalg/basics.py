@@ -841,9 +841,9 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
 
         # check for remaining dims in the outside dimensions
         rem_a_out, rem_b_out = 0, 0
-        if a.lshape[-2] % mB != 0 or (kB == 1 and a.lshape[-2] != 1):
+        if a.lshape[-2] % mB != 0 or (mB == 1 and a.lshape[-2] != 1):
             rem_a_out = 1
-        if b.lshape[-1] % nB != 0 or (kB == 1 and b.lshape[-1] != 1):
+        if b.lshape[-1] % nB != 0 or (nB == 1 and b.lshape[-1] != 1):
             rem_b_out = 1
 
         # get the flags from all processes
