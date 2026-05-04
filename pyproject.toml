@@ -13,8 +13,12 @@ authors = [
     { name = "Daniel Coquelin", email = "daniel.coquelin@kit.edu"},
     { name = "Kai Krajsek", email = "k.krajsek@fz-juelich.de"},
     { name = "Claudia Comito", email = "c.comito@fz-juelich.de"},
-    { name = "Philipp Knechtges", email = "philipp.knechtges@dlr.de"},
     { name = "Björn Hagemeier", email = "b.hagemeier@fz-juelich.de"},
+    { name = "Michael Tarnawa", email = "m.tarnawa@fz-juelich.de"},
+    { name = "Philipp Knechtges", email = "philipp.knechtges@dlr.de"},
+    { name = "Fabian Hoppe", email = "f.hoppe@dlr.de"},
+    { name = "Hakan Akdag", email = "hakan.akdag@dlr.de"},
+    { name = "Alexander Rüttgers", email = "alexander.ruettgers@dlr.de"},
     { name = "Martin Siggel", email = "martin.siggel@dlr.de"},
     { name = "Achim Basermann", email = "achim.basermann@dlr.de"},
     { name = "Achim Streit", email = "achim.streit@kit.de"},
@@ -23,13 +27,29 @@ maintainers = [
     { name = "Claudia Comito", email = "c.comito@fz-juelich.de"},
     { name = "Thomas Saupe", email = "t.baumann@fz-juelich.de"},
     { name = "Michael Tarnawa", email = "m.tarnawa@fz-juelich.de"},
-    { name = "Fabian Hoppe", email = "f.hoppe@dlr.de"},
     { name = "Juan Pedro Gutiérrez Hermosillo Muriedas", email = "juan.muriedas@kit.edu"},
-    { name = "Hakan Akdag", email = "hakan.akdag@dlr.de"},
 ]
 license = "MIT"
 license-files = ["LICENSE"]
-keywords=["data", "analytics", "tensors", "distributed", "gpu"]
+keywords = [
+    "python",
+    "pytorch",
+    "numpy",
+    "mpi",
+    "mpi4py",
+    "distributed computing",
+    "parallel computing",
+    "high-performance computing",
+    "hpc",
+    "gpu",
+    "multi-gpu",
+    "tensors",
+    "data analytics",
+    "machine learning",
+    "data science",
+    "scientific computing",
+    "array api"
+]
 classifiers=[
     "Development Status :: 5 - Production/Stable",
     "Programming Language :: Python :: 3.11",
