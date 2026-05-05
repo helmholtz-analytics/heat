@@ -47,6 +47,7 @@ extensions = [
     "nbsphinx",
     "myst_parser",
     "sphinxcontrib.mermaid",
+    "sphinx_design",
 ]
 
 # Document Python Code
