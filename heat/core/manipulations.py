@@ -23,8 +23,6 @@ from . import tiling
 from . import types
 from . import _operations
 
-from ._operations import POps
-
 __all__ = [
     "balance",
     "broadcast_arrays",
@@ -508,7 +506,7 @@ def concatenate(arrays: Sequence[DNDarray, ...], axis: int = 0) -> DNDarray:
 
     s0, s1 = arr0.split, arr1.split
     # no splits, local concat
-    if not (arr0.is_distributed() or arr1.is_distributed()):
+    if s0 is None and s1 is None:
         return factories.array(
             torch.cat((arr0.larray, arr1.larray), dim=axis),
             device=arr0.device,
@@ -519,7 +517,7 @@ def concatenate(arrays: Sequence[DNDarray, ...], axis: int = 0) -> DNDarray:
     elif s0 != s1 and all([s is not None for s in [s0, s1]]):
         raise RuntimeError(f"DNDarrays given have differing split axes, arr0 {s0} arr1 {s1}")
 
-    elif (s0 is None and s1 != axis) or (s1 is None and s0 != axis):
+    elif (s0 is None and s1 != axis) or (s1 is None and s0 != axis) or not HAVE_MPI:
         _, _, arr0_slice = arr1.comm.chunk(arr0.shape, arr1.split)
         _, _, arr1_slice = arr0.comm.chunk(arr1.shape, arr0.split)
         out = factories.array(
@@ -4375,10 +4373,12 @@ def topk(
             )
         return send_buffer
 
+    mpi_op = MPI_TOPK if HAVE_MPI else None
+
     gres = _operations.__reduce_op(
         a,
         local_topk,
-        POps.TOPK,
+        mpi_op,
         axis=dim,
         neutral=neutral_value,
         dim=dim,

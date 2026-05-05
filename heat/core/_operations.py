@@ -13,38 +13,15 @@ from .dndarray import DNDarray
 from . import types
 
 from typing import Callable, Optional, Type, Union, Dict
-from enum import IntEnum
+
+from enum import Enum
 
 __all__ = []
 
 
-class POps(IntEnum):
-    # predefined
-    OP_NULL: 0
-    MAX = 1
-    MIN = 2
-    SUM = 3
-    PROD = 4
-    LAND = 5
-    BAND = 6
-    LOR = 7
-    BOR = 8
-    LXOR = 9
-    BXOR = 10
-    MAX_LOC = 11
-    MIN_LOC = 12
-    REPLACE = 13
-    NO_OP = 14
-    # redefined
-    TOPK = 15
-    ARGMAX = 16
-    ARGMIN = 17
-    SUM_F16 = 18
-    SUM_BLOAT = 19
-    MINMAX = 20
-
-
-__BOOLEAN_OPS = [POps.LAND, POps.LOR, POps.BAND, POps.BOR]
+class OperationType(Enum):
+    ARG = 1
+    LOG = 2
 
 
 def __binary_op(
@@ -262,7 +239,7 @@ def __binary_op(
 def __cum_op(
     x: DNDarray,
     partial_op: Callable,
-    exscan_op: Callable,
+    exscan_op: Callable | None,
     final_op: Callable,
     neutral: Union[int, float],
     axis: Union[int, float],
@@ -348,7 +325,7 @@ def __cum_op(
             device=cumop.device,
         )
 
-        x.comm.Exscan(send, recv, MPI.Op.fromint(exscan_op))
+        x.comm.Exscan(send, recv, exscan_op)
         final_op(cumop, recv, out=cumop)
 
     if out is not None:
@@ -444,8 +421,9 @@ def __local_op(
 def __reduce_op(
     x: DNDarray,
     partial_op: Callable,
-    reduction_op: Callable,
+    reduction_op: Callable | None,
     neutral: Optional[Union[int, float]] = None,
+    op_type: OperationType | None = None,
     **kwargs,
 ) -> DNDarray:
     """
@@ -466,6 +444,8 @@ def __reduce_op(
         Neutral element, i.e. an element that does not change the result of the reduction operation. Needed for
         those cases where 'x.gshape[x.split] < x.comm.rank', that is, the shape of the distributed tensor is such
         that one or more processes will be left without data.
+    op_type: Operation.Type
+        The general type of the operands.
     **kwargs:
         Arguments to be passed to the operation.
 
@@ -536,22 +516,21 @@ def __reduce_op(
             split = None
             balanced = True
             if x.comm.is_distributed():
-                x.comm.Allreduce(MPI.IN_PLACE, partial, MPI.Op.fromint(reduction_op))
+                x.comm.Allreduce(MPI.IN_PLACE, partial, reduction_op)
         elif axis is not None and not keepdims:
             down_dims = len(tuple(dim for dim in axis if dim < x.split))
             split -= down_dims
             balanced = x.balanced
 
-    ARG_OPS = [POps.ARGMAX, POps.ARGMIN]
     arg_op = False
-    if reduction_op in ARG_OPS:
+    if op_type == OperationType.ARG:
         arg_op = True
         partial = partial.chunk(2)[-1].type(torch.int64)
         if partial.ndim > 1:
             partial = partial.squeeze(dim=0)
 
     # if reduction_op is a Boolean operation, then resulting tensor is bool
-    tensor_type = bool if reduction_op in __BOOLEAN_OPS else partial.dtype
+    tensor_type = bool if op_type == OperationType.LOG else partial.dtype
 
     if out is not None:
         # sanitize out

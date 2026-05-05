@@ -15,7 +15,7 @@ from . import stride_tricks
 from . import types
 from . import logical
 
-from .communication import MPI
+from .communication import MPI, HAVE_MPI
 from .dndarray import DNDarray
 from .types import (
     canonical_heat_type,
@@ -26,6 +26,7 @@ from .types import (
     datatype,
     can_cast,
 )
+from ._operations import OperationType
 
 
 __all__ = [
@@ -773,9 +774,9 @@ def cumprod(a: DNDarray, axis: int, dtype: datatype = None, out=None) -> DNDarra
             [4., 4., 4.],
             [8., 8., 8.]], dtype=ht.float32, device=cpu:0, split=None)
     """
-    return _operations.__cum_op(
-        a, torch.cumprod, _operations.POps.PROD, torch.mul, 1, axis, dtype, out
-    )
+    mpi_op = MPI.PROD if HAVE_MPI else None
+
+    return _operations.__cum_op(a, torch.cumprod, mpi_op, torch.mul, 1, axis, dtype, out)
 
 
 # Alias support
@@ -831,9 +832,7 @@ def cumprod_(t: DNDarray, axis: int) -> DNDarray:
         t.larray.cumprod_(dim=axis)
         return t
 
-    return _operations.__cum_op(
-        t, wrap_cumprod_, _operations.POps.PROD, wrap_mul_, 1, axis, dtype=None, out=t
-    )
+    return _operations.__cum_op(t, wrap_cumprod_, MPI.PROD, wrap_mul_, 1, axis, dtype=None, out=t)
 
 
 DNDarray.cumprod_ = DNDarray.cumproduct_ = cumprod_
@@ -868,9 +867,9 @@ def cumsum(a: DNDarray, axis: int, dtype: datatype = None, out=None) -> DNDarray
               [2., 2., 2.],
               [3., 3., 3.]], dtype=ht.float32, device=cpu:0, split=None)
     """
-    return _operations.__cum_op(
-        a, torch.cumsum, _operations.POps.SUM, torch.add, 0, axis, dtype, out
-    )
+    mpi_op = MPI.SUM if HAVE_MPI else None
+
+    return _operations.__cum_op(a, torch.cumsum, mpi_op, torch.add, 0, axis, dtype, out)
 
 
 def cumsum_(t: DNDarray, axis: int) -> DNDarray:
@@ -913,9 +912,7 @@ def cumsum_(t: DNDarray, axis: int) -> DNDarray:
         t.larray.cumsum_(dim=axis)
         return t
 
-    return _operations.__cum_op(
-        t, wrap_cumsum_, _operations.POps.SUM, wrap_add_, 0, axis, dtype=None, out=t
-    )
+    return _operations.__cum_op(t, wrap_cumsum_, MPI.SUM, wrap_add_, 0, axis, dtype=None, out=t)
 
 
 DNDarray.cumsum_ = cumsum_
@@ -2356,10 +2353,7 @@ def nanprod(
     DNDarray([ 1., 4.], dtype=ht.float32, device=cpu:0, split=None)
     """
     b = nan_to_num(a, nan=1)
-
-    return _operations.__reduce_op(
-        b, torch.prod, _operations.POps.PROD, axis=axis, out=out, neutral=1, keepdims=keepdims
-    )
+    return prod(b, axis, out, keepdims)
 
 
 def nansum(
@@ -2402,9 +2396,8 @@ def nansum(
     DNDarray([[3.],
               [3.]], dtype=ht.float32, device=cpu:0, split=None)
     """
-    return _operations.__reduce_op(
-        a, torch.nansum, _operations.POps.SUM, axis=axis, out=out, neutral=0, keepdims=keepdims
-    )
+    b = nan_to_num(a)
+    return sum(b, axis, out, keepdims)
 
 
 def neg(a: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
@@ -2728,8 +2721,10 @@ def prod(
     ]), axis=1)
     DNDarray([ 2., 12.], dtype=ht.float32, device=cpu:0, split=None)
     """
+    mpi_op = MPI.PROD if HAVE_MPI else None
+
     return _operations.__reduce_op(
-        a, torch.prod, _operations.POps.PROD, axis=axis, out=out, neutral=1, keepdims=keepdims
+        a, torch.prod, mpi_op, axis=axis, out=out, neutral=1, keepdims=keepdims
     )
 
 
@@ -3178,8 +3173,10 @@ def sum(
               [3.]], dtype=ht.float32, device=cpu:0, split=None)
     """
     # TODO: make me more numpy API complete Issue #101
+    mpi_op = MPI.SUM if HAVE_MPI else None
+
     return _operations.__reduce_op(
-        a, torch.sum, _operations.POps.SUM, axis=axis, out=out, neutral=0, keepdims=keepdims
+        a, torch.sum, mpi_op, axis=axis, out=out, neutral=0, keepdims=keepdims
     )
 
 

@@ -15,9 +15,9 @@ from . import _operations
 from . import stride_tricks
 from . import types
 
-from .communication import MPI
+from .communication import MPI, HAVE_MPI
 from .dndarray import DNDarray
-from ._operations import POps
+from ._operations import OperationType
 
 __all__ = [
     "all",
@@ -96,8 +96,17 @@ def all(
     if keepdims and axis is None:
         axis = tuple(range(x.ndim))
 
+    mpi_op = MPI.LAND if HAVE_MPI else None
+
     return _operations.__reduce_op(
-        x, local_all, POps.LAND, axis=axis, out=out, neutral=1, keepdims=keepdims
+        x,
+        local_all,
+        mpi_op,
+        axis=axis,
+        out=out,
+        neutral=1,
+        keepdims=keepdims,
+        op_type=OperationType.LOG,
     )
 
 
@@ -216,8 +225,17 @@ def any(
     if keepdims and axis is None:
         axis = tuple(range(x.ndim))
 
+    mpi_op = MPI.LOR if HAVE_MPI else None
+
     return _operations.__reduce_op(
-        x, local_any, POps.LOR, axis=axis, out=out, neutral=0, keepdims=keepdims
+        x,
+        local_any,
+        mpi_op,
+        axis=axis,
+        out=out,
+        neutral=0,
+        keepdims=keepdims,
+        op_type=OperationType.LOG,
     )
 
 

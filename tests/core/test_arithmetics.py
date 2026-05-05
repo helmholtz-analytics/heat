@@ -1481,10 +1481,7 @@ class TestArithmetics(TestCase):
                             dtype=dtype,
                         )
                         self.assertTrue(ht.equal(ht_diff_pend, np_diff_pend))
-                        if ht_diff_pend.is_distributed():
-                            self.assertEqual(ht_diff_pend.split, sp)
-                        else:
-                            self.assertEqual(ht_diff_pend.split, None)
+                        self.assertEqual(ht_diff_pend.split, sp)
                         self.assertEqual(ht_diff_pend.dtype, dtype)
 
         np_array = ht_array.numpy()

@@ -27,7 +27,7 @@ from . import logical
 from . import stride_tricks
 from . import types
 
-from .communication import Communication, MPI_WORLD
+from .communication import Communication, MPI_WORLD, HAVE_MPI
 from .devices import Device
 from .dndarray import DNDarray
 from .types import datatype
@@ -390,11 +390,11 @@ def permutation(x: Union[int, DNDarray], **kwargs) -> DNDarray:
 
     # random permutation
     recv = torch.randperm(x.shape[0], device=x.device.torch_device)
-    if __rng != "Threefry" and x.is_distributed():
+    if __rng != "Threefry" and HAVE_MPI:
         x.comm.Bcast(recv, root=0)
 
     # rearrange locally
-    if (not x.is_distributed()) or (x.split != 0):
+    if (x.split is None) or (x.split != 0) or not HAVE_MPI:
         return x[recv]
 
     # split == 0 -> need for communication
@@ -898,7 +898,7 @@ def seed(seed: Optional[int] = None):
     # broadcast this value from process 0 to all MPI-processes
     if seed is None:
         seed = int(time.time() * 256)
-        if MPI_WORLD.is_distributed():
+        if HAVE_MPI:
             seed = communication.MPI_WORLD.bcast(seed)
 
     global __seed, __localseed, __counter

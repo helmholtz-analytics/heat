@@ -58,7 +58,7 @@ class TestIO(TestCase):
 
     def tearDown(self):
         # synchronize all processes
-        if ht.MPI_WORLD.is_distributed():
+        if ht.HAVE_MPI:
             ht.MPI_WORLD.Barrier()
 
         # clean up of temporary files
@@ -91,7 +91,7 @@ class TestIO(TestCase):
                         shutil.rmtree(file)
                     except FileNotFoundError:
                         pass
-        if ht.MPI_WORLD.is_distributed():
+        if ht.HAVE_MPI:
             ht.MPI_WORLD.Barrier()
 
     def test_size_from_slice(self):
@@ -168,7 +168,7 @@ class TestIO(TestCase):
         self.assertTrue(torch.equal(a.larray[9], tenth_value))
 
         a = ht.load_csv(self.CSV_PATH, sep=";", split=0)
-        rank = a.comm.Get_rank()
+        rank = a.comm.rank
         expected_gshape = (csv_file_length, csv_file_cols)
         self.assertEqual(a.gshape, expected_gshape)
 
@@ -272,7 +272,7 @@ class TestIO(TestCase):
                             self.assertTrue(
                                 ht.max(resid).item() < 0.00001 and ht.min(resid).item() > -0.00001
                             )
-                            if data.is_distributed():
+                            if ht.HAVE_MPI:
                                 data.comm.Barrier()
                             if data.comm.rank == 0:
                                 os.unlink(filename)
@@ -289,7 +289,7 @@ class TestIO(TestCase):
         data.save(filename)
         comparison = ht.load(filename).reshape((150,))
         self.assertTrue((data == comparison).all())
-        if data.is_distributed():
+        if ht.HAVE_MPI:
             data.comm.Barrier()
         if data.comm.rank == 0:
             os.unlink(filename)
@@ -306,7 +306,7 @@ class TestIO(TestCase):
         data.save(filename)
         comparison = ht.load(filename)
         self.assertTrue((data == comparison).all())
-        if data.is_distributed():
+        if ht.HAVE_MPI:
             data.comm.Barrier()
         if data.comm.rank == 0:
             os.unlink(filename)
@@ -324,7 +324,7 @@ class TestIO(TestCase):
         data.save(filename)
         comparison = ht.load(filename)
         self.assertTrue((data == comparison).all())
-        if data.is_distributed():
+        if ht.HAVE_MPI:
             data.comm.Barrier()
         if data.comm.rank == 0:
             os.unlink(filename)
@@ -425,7 +425,7 @@ class TestIO(TestCase):
 
             # appending unlimited variable
             split_range.save(self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE, is_unlimited=True)
-            if ht.MPI_WORLD.is_distributed():
+            if ht.HAVE_MPI:
                 ht.MPI_WORLD.Barrier()
             split_range.save(
                 self.NETCDF_OUT_PATH,
@@ -446,7 +446,7 @@ class TestIO(TestCase):
                 )
 
             # indexing netcdf file: single index
-            if ht.MPI_WORLD.is_distributed():
+            if ht.HAVE_MPI:
                 ht.MPI_WORLD.Barrier()
             zeros = ht.zeros((20, 1, 20, 2), device=self.device)
             zeros.save(self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE, mode="w")
@@ -463,7 +463,7 @@ class TestIO(TestCase):
                 self.assertTrue((ones.larray == comparison).all())
 
             # indexing netcdf file: multiple indices
-            if ht.MPI_WORLD.is_distributed():
+            if ht.HAVE_MPI:
                 ht.MPI_WORLD.Barrier()
             small_range_split = ht.arange(10, split=0, device=self.device)
             small_range = ht.arange(10, device=self.device)
@@ -513,7 +513,7 @@ class TestIO(TestCase):
                 self.assertTrue((ones_nosplit.larray == comparison).all())
 
             # indexing netcdf file: broadcasting var
-            if ht.MPI_WORLD.is_distributed():
+            if ht.HAVE_MPI:
                 ht.MPI_WORLD.Barrier()
             zeros = ht.zeros((2, 2), device=self.device)
             zeros.save(self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE, mode="w")
@@ -531,7 +531,7 @@ class TestIO(TestCase):
                 self.assertTrue((ones_nosplit.larray == comparison).all())
 
             # indexing netcdf file: broadcasting ones
-            if ht.MPI_WORLD.is_distributed():
+            if ht.HAVE_MPI:
                 ht.MPI_WORLD.Barrier()
             zeros = ht.zeros((1, 1, 1, 1), device=self.device)
             zeros.save(self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE, mode="w")
@@ -547,7 +547,7 @@ class TestIO(TestCase):
                 self.assertTrue((ones.larray == comparison).all())
 
             # different split and dtype
-            if ht.MPI_WORLD.is_distributed():
+            if ht.HAVE_MPI:
                 ht.MPI_WORLD.Barrier()
             zeros = ht.zeros((2, 2), split=1, dtype=ht.int32, device=self.device)
             zeros_nosplit = ht.zeros((2, 2), dtype=ht.int32, device=self.device)
@@ -825,7 +825,7 @@ class TestIO(TestCase):
                 np.save(str(temp_path / "int_data") + str(i), x)
                 crea_array.append(x)
             int_array = np.concatenate(crea_array)
-        if ht.MPI_WORLD.is_distributed():
+        if ht.HAVE_MPI:
             ht.MPI_WORLD.Barrier()
         load_array = ht.load_npy_from_path(
             str(temp_path), dtype=ht.int32, split=0
@@ -850,7 +850,7 @@ class TestIO(TestCase):
                 np.save(str(temp_path / "float_data") + str(i), x)
                 crea_array.append(x)
             float_array = np.concatenate(crea_array, 1)
-        if ht.MPI_WORLD.is_distributed():
+        if ht.HAVE_MPI:
             ht.MPI_WORLD.Barrier()
 
         if not self.is_mps:
@@ -880,11 +880,11 @@ class TestIO(TestCase):
             if ht.MPI_WORLD.rank == 0:
                 x = np.random.rand(2, random.randint(1, 10), 11)
                 np.save(os.path.join(path, "float_data"), x)
-            if ht.MPI_WORLD.is_distributed():
+            if ht.HAVE_MPI:
                 ht.MPI_WORLD.Barrier()
             with self.assertRaises(RuntimeError):
                 ht.load_npy_from_path(path, dtype=ht.int64, split=0)
-            if ht.MPI_WORLD.is_distributed():
+            if ht.HAVE_MPI:
                 ht.MPI_WORLD.Barrier()
 
     def test_load_multiple_csv(self):
@@ -913,7 +913,7 @@ class TestIO(TestCase):
 
             nparray = np.concatenate(nplist)
             npdroparray = np.concatenate(npdroplist)
-        if ht.MPI_WORLD.is_distributed():
+        if ht.HAVE_MPI:
             ht.MPI_WORLD.Barrier()
 
         def delete_first_col(dataf):
@@ -959,12 +959,12 @@ class TestIO(TestCase):
                     (os.path.join(os.getcwd(), path, "fail.csv")),
                     index=False,
                 )
-            if ht.MPI_WORLD.is_distributed():
+            if ht.HAVE_MPI:
                 ht.MPI_WORLD.Barrier()
 
             with self.assertRaises(RuntimeError):
                 ht.load_csv_from_folder(path, dtype=ht.int64, split=0)
-            if ht.MPI_WORLD.is_distributed():
+            if ht.HAVE_MPI:
                 ht.MPI_WORLD.Barrier()
 
     def test_load_zarr(self):
@@ -986,7 +986,7 @@ class TestIO(TestCase):
                 )
             arr[:] = test_data
 
-        if ht.MPI_WORLD.is_distributed():
+        if ht.HAVE_MPI:
             ht.MPI_WORLD.Barrier()
 
         dndarray = ht.load_zarr(self.ZARR_TEMP_PATH)
@@ -995,7 +995,7 @@ class TestIO(TestCase):
         if ht.MPI_WORLD.rank == 0:
             self.assertTrue((dndnumpy == test_data).all())
 
-        if ht.MPI_WORLD.is_distributed():
+        if ht.HAVE_MPI:
             ht.MPI_WORLD.Barrier()
 
     def test_load_zarr_group(self):
@@ -1004,7 +1004,7 @@ class TestIO(TestCase):
 
         import zarr
 
-        if ht.MPI_WORLD.is_distributed():
+        if ht.HAVE_MPI:
             ht.MPI_WORLD.Barrier()
 
         # Write out a nested Zarr store
@@ -1023,7 +1023,7 @@ class TestIO(TestCase):
                 data=original_data,
             )
 
-        if ht.MPI_WORLD.is_distributed():
+        if ht.HAVE_MPI:
             ht.MPI_WORLD.Barrier()
 
         # Test loading using both positional and keyword arguments for different splits
@@ -1044,7 +1044,7 @@ class TestIO(TestCase):
                 self.assertEqual(ht_tensor_kw.gshape, original_data.shape)
                 self.assertTrue(np.array_equal(ht_tensor_kw.numpy(), original_data))
 
-        if ht.MPI_WORLD.is_distributed():
+        if ht.HAVE_MPI:
             ht.MPI_WORLD.Barrier()
         # test loading with wildcard
         num_chunks = self.comm.size * 2 + 1
@@ -1056,7 +1056,7 @@ class TestIO(TestCase):
         if not self.is_mps:
             np_testing_types.extend([np.float64, np.complex128])
 
-        if ht.MPI_WORLD.is_distributed():
+        if ht.HAVE_MPI:
             ht.MPI_WORLD.Barrier()
         for dtype in np_testing_types:
             global_data_shape = (num_chunks * 10, num_chunks * 5, 7)
@@ -1086,7 +1086,7 @@ class TestIO(TestCase):
                         dtype=chunk_data_split1.dtype,
                         data=chunk_data_split1
                     )
-            if ht.MPI_WORLD.is_distributed():
+            if ht.HAVE_MPI:
                 ht.MPI_WORLD.Barrier()
 
             # test wildcard loading for split=0
@@ -1116,7 +1116,7 @@ class TestIO(TestCase):
                     self.assertTrue((ht_array_split0.numpy() == global_data).all())
                     self.assertTrue(ht_array_split0.dtype == ht.float32)
 
-            if ht.MPI_WORLD.is_distributed():
+            if ht.HAVE_MPI:
                 ht.MPI_WORLD.Barrier()
 
             # Test data misconstruction when using the wrong split axis
@@ -1139,7 +1139,7 @@ class TestIO(TestCase):
             with self.assertRaises(FileNotFoundError):
                 test = ht.load(self.ZARR_OUT_PATH, variable="NONEXSISTENT_CHUNK_*_SPLIT0/DATA", split=0)
 
-            if ht.MPI_WORLD.is_distributed():
+            if ht.HAVE_MPI:
                 ht.MPI_WORLD.Barrier()
 
     def test_load_zarr_slice(self):
@@ -1161,7 +1161,7 @@ class TestIO(TestCase):
                 )
             arr[:] = test_data
 
-        if ht.MPI_WORLD.is_distributed():
+        if ht.HAVE_MPI:
             ht.MPI_WORLD.Barrier()
 
         slices_to_test = [
@@ -1190,7 +1190,7 @@ class TestIO(TestCase):
                 if ht.MPI_WORLD.rank == 0:
                     self.assertTrue((dndnumpy == test_data[slices]).all())
 
-                if ht.MPI_WORLD.is_distributed():
+                if ht.HAVE_MPI:
                     ht.MPI_WORLD.Barrier()
 
     def test_save_zarr_2d_split0(self):
@@ -1211,7 +1211,7 @@ class TestIO(TestCase):
                     if ht.MPI_WORLD.rank == 0:
                         self.assertTrue((dndnumpy == zarr_array).all())
 
-                    if ht.MPI_WORLD.is_distributed():
+                    if ht.HAVE_MPI:
                         ht.MPI_WORLD.Barrier()
 
     def test_save_zarr_2d_split1(self):
@@ -1232,7 +1232,7 @@ class TestIO(TestCase):
                     if ht.MPI_WORLD.rank == 0:
                         self.assertTrue((dndnumpy == zarr_array).all())
 
-                    if ht.MPI_WORLD.is_distributed():
+                    if ht.HAVE_MPI:
                         ht.MPI_WORLD.Barrier()
 
     def test_save_zarr_split_none(self):
@@ -1251,7 +1251,7 @@ class TestIO(TestCase):
                     if ht.MPI_WORLD.rank == 0:
                         self.assertTrue((dndnumpy == arr).all())
 
-                    if ht.MPI_WORLD.is_distributed():
+                    if ht.HAVE_MPI:
                         ht.MPI_WORLD.Barrier()
 
     def test_save_zarr_1d_split_0(self):
@@ -1270,7 +1270,7 @@ class TestIO(TestCase):
                     if ht.MPI_WORLD.rank == 0:
                         self.assertTrue((dndnumpy == arr).all())
 
-                    if ht.MPI_WORLD.is_distributed():
+                    if ht.HAVE_MPI:
                         ht.MPI_WORLD.Barrier()
 
     def test_load_zarr_arguments(self):
@@ -1309,7 +1309,7 @@ class TestIO(TestCase):
                 dtype=ht.types.int.char(),
                 overwrite=True,
             )
-        if comm.is_distributed():
+        if ht.HAVE_MPI:
             comm.Barrier()
 
         with self.assertRaises(RuntimeError):
@@ -1369,6 +1369,8 @@ class TestIO(TestCase):
         rank_slices = [comm.chunk(G_SHAPE, split=0, rank=i)[-1][0] for i in range(N_FILES)]  # all row slices
         local_slice = rank_slices[comm.rank]
 
+        print("QQQ", rank_slices, local_slice)
+
         Path(self.HDF5_MULTIPLE_FOLDER).mkdir(exist_ok=True)
 
         if comm.rank == 0:
@@ -1377,12 +1379,14 @@ class TestIO(TestCase):
                 with h5py.File(str(file_path), "w") as file:
                     file[self.HDF5_MULTIPLE_DATASET] = original_data[rank_slices[n]].numpy()
 
-        if comm.is_distributed():
+        if ht.HAVE_MPI:
             comm.Barrier()
 
         dndarray = ht.io.load_multiple_hdf5(self.HDF5_MULTIPLE_FOLDER, self.HDF5_MULTIPLE_DATASET, dtype=torch.int64)
         dndarray_np = dndarray.numpy()
         original_data_np = original_data.numpy()
+
+        print(dndarray_np, "\n---\n", original_data_np)
         self.assertTrue((dndarray_np == original_data_np).all())
 
 
@@ -1412,7 +1416,7 @@ class TestIO(TestCase):
                 with h5py.File(str(file_path), "w") as file:
                     file[self.HDF5_MULTIPLE_DATASET] = original_data[written_rows:written_rows+to_write].numpy()
 
-        if comm.is_distributed():
+        if ht.HAVE_MPI:
             comm.Barrier()
 
         dndarray = ht.io.load_multiple_hdf5(self.HDF5_MULTIPLE_FOLDER, self.HDF5_MULTIPLE_DATASET)
@@ -1445,15 +1449,15 @@ class TestIO(TestCase):
         empty_folder = Path(self.HDF5_MULTIPLE_FOLDER, "empty_test_folder")
         if comm.rank == 0:
             empty_folder.mkdir(parents=True,exist_ok=True)
-        if comm.is_distributed():
+        if ht.HAVE_MPI:
             comm.Barrier()
         with self.assertRaises(ValueError):
             ht.io.load_multiple_hdf5(str(empty_folder), "my_dataset_name")
-        if comm.is_distributed():
+        if ht.HAVE_MPI:
             comm.Barrier()
         if comm.rank == 0:
             empty_folder.rmdir()
-        if comm.is_distributed():
+        if ht.HAVE_MPI:
             comm.Barrier()
 
         # Amount of dimensions of all hdf5 files must be the same
@@ -1466,11 +1470,11 @@ class TestIO(TestCase):
             # create second file with dataset of shape (4, 5, 6)
             with h5py.File(str(Path(inconsistent_folder, "file_1.h5")), "w") as file:
                 file["my_dataset"] = np.random.rand(4, 5, 6)
-        if comm.is_distributed():
+        if ht.HAVE_MPI:
             comm.Barrier()
         with self.assertRaises(ValueError):
             ht.io.load_multiple_hdf5(str(inconsistent_folder), "my_dataset")
-        if comm.is_distributed():
+        if ht.HAVE_MPI:
             comm.Barrier()
         if comm.rank == 0:
             shutil.rmtree(inconsistent_folder)
@@ -1485,11 +1489,11 @@ class TestIO(TestCase):
             # create second file with dataset of shape (6, 5)
             with h5py.File(str(Path(missmatch_folder, "file_1.h5")), "w") as file:
                 file["my_dataset"] = np.random.rand(6, 7)
-        if comm.is_distributed():
+        if ht.HAVE_MPI:
             comm.Barrier()
         with self.assertRaises(ValueError):
             ht.io.load_multiple_hdf5(str(missmatch_folder), "my_dataset", dtype=ht.float32)
-        if comm.is_distributed():
+        if ht.HAVE_MPI:
             comm.Barrier()
         if comm.rank == 0:
             shutil.rmtree(missmatch_folder)

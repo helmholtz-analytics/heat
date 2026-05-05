@@ -8,8 +8,7 @@ import torch
 import warnings
 
 from inspect import stack
-from ._config import HAVE_MPI
-from .communication import MPI
+from .communication import MPI, HAVE_MPI
 from pathlib import Path
 from typing import List, Union, Tuple, TypeVar, Optional
 
@@ -614,7 +613,7 @@ class DNDarray:
 
         """
         if np.prod(self.shape) == 1:
-            if self.split is None or not self.comm.is_distributed():
+            if not self.is_distributed():
                 return cast_function(self.__array)
 
             is_empty = np.prod(self.__array.shape) == 0
@@ -682,7 +681,7 @@ class DNDarray:
         Returns actual counts (number of items per process) and displacements (offsets) of the DNDarray.
         Does not assume load balance.
         """
-        if self.is_distributed():
+        if self.split is not None:
             counts = self.lshape_map[:, self.split]
             displs = [0] + torch.cumsum(counts, dim=0)[:-1].tolist()
             return tuple(counts.tolist()), tuple(displs)

@@ -126,6 +126,7 @@ class NonCommunication(Communication):
     def __init__(self):
         self.rank = 0
         self.size = 1
+        self.handle = None
 
     def chunk(self, shape, split, *args, **kwargs) -> Tuple[int, Tuple[int], Tuple[slice]]:
         """

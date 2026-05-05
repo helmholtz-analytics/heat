@@ -10,7 +10,7 @@ import torch
 from typing import Optional, Callable, Any, Union
 
 import heat as ht
-from heat.core import MPI, Communication, MPI_WORLD, dndarray, factories, types, Device
+from heat.core import MPI, Communication, MPI_WORLD, dndarray, factories, types, Device, HAVE_MPI
 from heat.core.random import seed
 
 
@@ -92,7 +92,7 @@ class TestCase(unittest.TestCase):
                 host = platform.uname().node
             else:
                 host = os.uname()[1]
-            if cls.__comm.is_distributed():
+            if HAVE_MPI:
                 cls._hostnames = list(set(cls.__comm.handle.allgather(host)))
             else:
                 cls._hostnames = list(host)
@@ -179,7 +179,7 @@ class TestCase(unittest.TestCase):
             np.allclose(heat_array.larray.cpu(), expected_array[slices], atol=atol, rtol=rtol),
             dtype=torch.int32,
         )
-        if heat_array.comm.is_distributed():
+        if HAVE_MPI:
             heat_array.comm.Allreduce(MPI.IN_PLACE, is_allclose, MPI.SUM)
         self.assertTrue(is_allclose == heat_array.comm.size)
 
@@ -448,6 +448,6 @@ class TestCase(unittest.TestCase):
             tmpdir = None
             path = None
 
-        if ht.MPI_WORLD.is_distributed():
+        if HAVE_MPI:
             path = ht.MPI_WORLD.bcast(path, root=0)
         return path, tmpdir  # need to return tmpdir here so that its not cleaned up at this point

@@ -21,7 +21,7 @@ from . import logical
 from . import constants
 from .random import randint
 from warnings import warn
-from ._operations import POps
+from ._operations import OperationType
 
 __all__ = [
     "argmax",
@@ -116,13 +116,17 @@ def argmax(
 
     # perform the global reduction
     smallest_value = -sanitation.sanitize_infinity(x)
+
+    mpi_op = MPI_ARGMAX if HAVE_MPI else None
+
     return _operations.__reduce_op(
         x,
         local_argmax,
-        POps.ARGMAX,
+        mpi_op,
         axis=axis,
         out=out,
         neutral=smallest_value,
+        op_type=OperationType.ARG,
         **kwargs,
     )
 
@@ -202,8 +206,18 @@ def argmin(
 
     # perform the global reduction
     largest_value = sanitation.sanitize_infinity(x)
+
+    mpi_op = MPI_ARGMIN if HAVE_MPI else None
+
     return _operations.__reduce_op(
-        x, local_argmin, POps.ARGMIN, axis=axis, out=out, neutral=largest_value, **kwargs
+        x,
+        local_argmin,
+        mpi_op,
+        axis=axis,
+        out=out,
+        neutral=largest_value,
+        op_type=OperationType.ARG,
+        **kwargs,
     )
 
 
@@ -388,7 +402,7 @@ def bincount(x: DNDarray, weights: Optional[DNDarray] = None, minlength: int = 0
 
     size = counts.numel()
 
-    if x.is_distributed():
+    if HAVE_MPI:
         maxlength = x.comm.allreduce(size, op=MPI.MAX)
     else:
         maxlength = size
@@ -405,7 +419,7 @@ def bincount(x: DNDarray, weights: Optional[DNDarray] = None, minlength: int = 0
         )
 
     # collect results
-    if x.split == 0 and x.is_distributed():
+    if HAVE_MPI and x.split == 0:
         data = torch.empty_like(counts)
         x.comm.Allreduce(counts, data, op=MPI.SUM)
     else:
@@ -861,8 +875,9 @@ def max(
         return torch.tensor(x).max().item()
 
     smallest_value = -sanitation.sanitize_infinity(x)
+    mpi_op = MPI.MAX if HAVE_MPI else None
     return _operations.__reduce_op(
-        x, local_max, POps.MAX, axis=axis, out=out, neutral=smallest_value, keepdims=keepdims
+        x, local_max, mpi_op, axis=axis, out=out, neutral=smallest_value, keepdims=keepdims
     )
 
 
@@ -1000,7 +1015,7 @@ def mean(x: DNDarray, axis: Optional[Union[int, Tuple[int, ...]]] = None) -> DND
         n_tot = factories.zeros(x.comm.size, device=x.device)
         n_tot[x.comm.rank] = float(x.lshape[x.split])
         mu_tot[x.comm.rank, :] = mu
-        if x.is_distributed():
+        if HAVE_MPI:
             x.comm.Allreduce(MPI.IN_PLACE, n_tot, MPI.SUM)
             x.comm.Allreduce(MPI.IN_PLACE, mu_tot, MPI.SUM)
 
@@ -1224,8 +1239,9 @@ def min(
         return torch.tensor(x).min().item()
 
     largest_value = sanitation.sanitize_infinity(x)
+    mpi_op = MPI.MIN if HAVE_MPI else None
     return _operations.__reduce_op(
-        x, local_min, POps.MIN, axis=axis, out=out, neutral=largest_value, keepdims=keepdims
+        x, local_min, mpi_op, axis=axis, out=out, neutral=largest_value, keepdims=keepdims
     )
 
 
@@ -1328,7 +1344,7 @@ def __moment_w_axis(
         output_shape = [output_shape[it] for it in range(len(output_shape)) if it != axis]
         output_shape = output_shape if output_shape else (1,)
 
-        if not x.is_distributed():  # x is *not* distributed -> no need to distribute
+        if x.split is None:  # x is *not* distributed -> no need to distribute
             ret = function(x.larray, **kwargs)
             return DNDarray(
                 ret,
@@ -1838,21 +1854,22 @@ def ptp(
 
     comm = x.comm
 
-    if comm.is_distributed():
+    if HAVE_MPI:
         # Create a dtype/size-specific MPI.Op via the communicator's factory
         # The communicator must provide `_minmax_op(dtype, total_count, shape, stride, offset=0)`
         op = comm._minmax_op(preview_dtype, total_count, packed_shape, packed_stride, offset=0)
 
         # Run the global reduction with the freshly created op and always free it afterwards
         try:
-            packed = _operations.__reduce_op(x, local_minmax, op.toint(), axis=axis, keepdims=True)
+            packed = _operations.__reduce_op(x, local_minmax, op, axis=axis, keepdims=True)
         finally:
             try:
+                comm.commop2realop.pop(comm.commops.MINMAX)
                 op.Free()
             except Exception:
                 pass
     else:
-        packed = _operations.__reduce_op(x, local_minmax, POps.MINMAX, axis=axis, keepdims=True)
+        packed = _operations.__reduce_op(x, local_minmax, None, axis=axis, keepdims=True)
 
     # Unpack global mins and maxs
     mins_t, maxs_t = packed.larray.chunk(2, dim=0)
@@ -2217,7 +2234,7 @@ def var(
         var_tot[x.comm.rank, 1, :] = mu
         var_tot[x.comm.rank, 2, :] = float(x.lshape[x.split])
 
-        if x.is_distributed():
+        if HAVE_MPI:
             x.comm.Allreduce(MPI.IN_PLACE, var_tot, MPI.SUM)
 
         for i in range(1, x.comm.size):

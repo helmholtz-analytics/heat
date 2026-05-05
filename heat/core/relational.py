@@ -9,7 +9,7 @@ import numpy as np
 
 from typing import Union
 
-from .communication import MPI, MPI_WORLD
+from .communication import MPI, MPI_WORLD, HAVE_MPI
 from .dndarray import DNDarray
 from . import _operations
 from . import dndarray
@@ -190,10 +190,8 @@ def equal(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> boo
         result_value = torch.equal(x.larray, y.larray)
     else:
         result_value = True
-    if MPI_WORLD.is_distributed():
-        return x.comm.allreduce(result_value, MPI.LAND)
-    else:
-        return result_value
+
+    return x.comm.allreduce(result_value, MPI.LAND) if HAVE_MPI else result_value
 
 
 def ge(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> DNDarray:

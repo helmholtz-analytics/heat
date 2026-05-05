@@ -20,7 +20,7 @@ from . import devices
 from . import factories
 from . import types
 
-from .communication import Communication, MPI, MPI_WORLD, sanitize_comm
+from .communication import Communication, MPI, HAVE_MPI, MPI_WORLD, sanitize_comm
 from .dndarray import DNDarray
 from .manipulations import hsplit, vsplit
 from .statistics import max as smax, min as smin
@@ -839,7 +839,7 @@ else:
         shapes_arr = np.array(shapes, dtype=int)
         gshape = np.zeros(shapes_arr.shape[1], dtype=int)
 
-        for i in range(1, len(gshape)):  # rows can be diffrent
+        for i in range(1, len(gshape)):  # rows can be different
             if len(set(shapes_arr[:, i])) != 1:
                 raise ValueError(f"Dimension missmatch on ndim {i + 1}")
             gshape[i] = shapes_arr[0][i]
@@ -1048,7 +1048,7 @@ def load_csv(
     rank = comm.rank
     size = comm.size
 
-    if split is None or not comm.is_distributed():
+    if split is None or not HAVE_MPI:
         with open(path) as f:
             data = f.readlines()
             data = data[header_lines:]
@@ -1240,7 +1240,7 @@ def save_csv(
         if data.comm.rank == 0:
             os.truncate(path, 0)
         # avoid truncating and writing at the same time
-        if data.is_distributed():
+        if HAVE_MPI:
             data.comm.handle.Barrier()
 
     amode = MPI.MODE_WRONLY | MPI.MODE_CREATE
@@ -1323,7 +1323,7 @@ def save_csv(
         offset = offset + row_width
 
     csv_out.Close()
-    if data.is_distributed():
+    if HAVE_MPI:
         data.comm.handle.Barrier()
 
 

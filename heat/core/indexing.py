@@ -5,7 +5,7 @@ Functions relating to indices of items within DNDarrays, i.e. `where()`
 import torch
 from typing import List, Dict, Any, TypeVar, Union, Tuple, Sequence
 
-from .communication import MPI
+from .communication import MPI, HAVE_MPI
 from .dndarray import DNDarray
 from . import sanitation
 from . import types
@@ -65,10 +65,11 @@ def nonzero(x: DNDarray) -> DNDarray:
 
     # compute global shape of the index array
     gout = list(lcl_nonzero.shape)
-    if not x.is_distributed():
+    if x.split is None:
         is_split = None
     else:
-        gout[0] = x.comm.allreduce(gout[0], MPI.SUM)
+        if HAVE_MPI:
+            gout[0] = x.comm.allreduce(gout[0], MPI.SUM)
         is_split = 0
 
     return DNDarray(
