@@ -26,3 +26,4 @@ python:
       path: .
       extra_requirements:
         - docs
+        - sphinx_design
