@@ -33,7 +33,8 @@ class TestEigh(TestCase):
                     self._check_eigh_result(X, Lambda, H)
 
         # test edge case discussed in #2171
-        if ht.comm.size == 2:  # with some communicator sizes this fails, see Issue #2093
+        comm = ht.get_comm()
+        if comm.size == 2:  # with some communicator sizes this fails, see Issue #2093
             X = ht.ones((32, 32), split=0, dtype=ht.float64)
             X = X + X.T.resplit_(X.split)
             Lambda, H = ht.linalg.eigh(X)

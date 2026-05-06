@@ -9,6 +9,7 @@ class TestTallSkinnySVD(TestCase):
         full_matrices = False
 
         for shape, split in zip(['tall_skinny', 'short_fat', 'square'][::-1], [0, 1, 0], strict=True):
+            comm = ht.get_comm()
             with self.subTest(shape=shape):
                 # prepare data
                 if shape == 'tall_skinny':
@@ -17,7 +18,8 @@ class TestTallSkinnySVD(TestCase):
                     Xn = np.random.randn(10, ht.MPI_WORLD.size * 10 + 3)
                 else:
                     Xn = np.random.randn(ht.MPI_WORLD.size * 10, ht.MPI_WORLD.size * 10)
-                Xn = ht.comm.bcast(Xn, root=0)
+                if ht.HAVE_MPI:
+                    Xn = comm.bcast(Xn, root=0)
 
                 # do SVD in numpy
                 Un, Sn, Vhn = np.linalg.svd(Xn, full_matrices=full_matrices)

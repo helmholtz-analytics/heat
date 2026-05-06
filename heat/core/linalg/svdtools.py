@@ -10,6 +10,7 @@ from .. import factories
 from ..linalg import matmul, vector_norm, qr, svd
 from ..sanitation import sanitize_in_nd_realfloating
 from ..manipulations import vstack, hstack, diag
+from ..communication import HAVE_MPI
 
 from .. import statistics
 from math import floor, sqrt
@@ -297,7 +298,7 @@ def hsvd(
         transposeflag = True
         A = A.T
 
-    no_procs = A.comm.Get_size()
+    no_procs = A.comm.size
 
     Anorm = vector_norm(A)
 
@@ -325,7 +326,8 @@ def hsvd(
     finished = False
     while not finished:
         # communicate dimension of each nodes to all other nodes
-        dims_global = A.comm.allgather(U_loc.shape[1])
+
+        dims_global = A.comm.allgather(U_loc.shape[1]) if HAVE_MPI else [U_loc.shape[1]]
 
         if A.comm.rank == 0 and not silent:
             print(
@@ -419,10 +421,11 @@ def hsvd(
     # stack U_loc and err_squared_loc to avoid sending multiple messages
     err_squared_loc = torch.full((1, U_loc.shape[1]), err_squared_loc, device=U_loc.device)
     U_loc = torch.vstack([U_loc, err_squared_loc])
-    U_loc_shape = A.comm.bcast(U_loc.shape, root=0)
-    if A.comm.rank != 0:
-        U_loc = torch.zeros(U_loc_shape, dtype=A.larray.dtype, device=A.device.torch_device)
-    A.comm.Bcast(U_loc, root=0)
+    if HAVE_MPI:
+        U_loc_shape = A.comm.bcast(U_loc.shape, root=0)
+        if A.comm.rank != 0:
+            U_loc = torch.zeros(U_loc_shape, dtype=A.larray.dtype, device=A.device.torch_device)
+        A.comm.Bcast(U_loc, root=0)
     # separate U_loc and err_squared_loc again
     err_squared_loc = U_loc[-1, 0]
     U = factories.array(U_loc[:-1], device=A.device, split=None, comm=A.comm)

@@ -279,9 +279,10 @@ class TestSolver(TestCase):
                 ht.linalg.solve(A, b)
 
         # make sure we catch errors on all tasks if any local problem is non-invertible
-        A = ht.random.randn(ht.comm.size, s, s, split=0)
-        b = ht.ones((ht.comm.size, s), split=0)
-        if ht.comm.rank == 0:
+        comm = ht.get_comm()
+        A = ht.random.randn(comm.size, s, s, split=0)
+        b = ht.ones((comm.size, s), split=0)
+        if comm.rank == 0:
             A.larray[...] = 0
         with self.assertRaises(RuntimeError):
             ht.linalg.solve(A, b)
