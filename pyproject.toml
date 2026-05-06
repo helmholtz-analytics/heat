@@ -119,6 +119,7 @@ docs = [
     "sphinx-copybutton",
     "myst-parser",
     "sphinxcontrib-mermaid",
+    "sphinx_design",
 ]
 
 [project.scripts]
