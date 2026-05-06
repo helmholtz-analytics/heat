@@ -1864,7 +1864,6 @@ def ptp(
             packed = _operations.__reduce_op(x, local_minmax, op, axis=axis, keepdims=True)
         finally:
             try:
-                comm.commop2realop.pop(comm.commops.MINMAX)
                 op.Free()
             except Exception:
                 pass
