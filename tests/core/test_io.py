@@ -877,6 +877,7 @@ class TestIO(TestCase):
             ht.MPI_WORLD.Barrier()
             with self.assertRaises(RuntimeError):
                 ht.load_npy_from_path(path, dtype=ht.int64, split=0)
+            ht.MPI_WORLD.Barrier()
 
     def test_load_multiple_csv(self):
         if not ht.io.supports_pandas():

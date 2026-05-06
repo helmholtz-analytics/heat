@@ -1,3 +1,74 @@
+# v1.8.0
+
+# Release notes
+
+- [Overview](#v1.8.0-overview)
+- [Highlights](#v1.8.0-highlights)
+- [Changes](#v1.8.0-changes)
+  - [Features](#v1.8.0-features)
+  - [Interoperability](#v1.8.0-interoperability)
+  - [Bug Fixes](#v1.8.0-bug-fixes)
+  - [Documentation & Maintenance](#v1.8.0-docs-maintenance)
+- [Contributors](#v1.8.0-contributors)
+- [Acknowledgements and Disclaimer](#v1.8.0-acknowledgements-and-disclaimer)
+
+## <a name="v1.8.0-overview">Overview
+
+This release expands support of fundamental linear algebra solvers to massive memory-distributed arrays, including **matrix exponential** and **linear system solving**. We added support for **complex-valued QR decomposition**. We have also introduced the **float16** data type to support memory-efficient workflows and ensured seamless integration with the latest deep learning frameworks by supporting **PyTorch 2.10.0 and 2.11.0**.
+
+We have completely overhauled our [Jupyter Notebooks tutorials](https://github.com/helmholtz-analytics/heat/blob/main/doc/source/tutorials/notebooks/README.md), check them out to get started with Heat on local machines or high-performance computing clusters.
+
+Furthermore, this version streamlines our developer experience with a "Single Source of Truth" (SSOT) documentation strategy and improved CI stability for community forks.
+
+We are grateful to our community of users, students, open-source contributors, the European Space Agency, and the Helmholtz Association for their support and feedback.
+
+## <a name="v1.8.0-highlights">Highlights
+
+* New linear algebra primitives: `ht.linalg.solve` and `ht.linalg.matrix_exp`
+* Support for complex-valued tensors in QR decomposition
+* Implementation of the `float16` (Half Precision) data type
+* Full compatibility with PyTorch 2.10.0 and 2.11.0
+* Enhanced Array API inspection and standard compliance tools
+
+## <a name="v1.8.0-changes">Changes
+
+### <a name="v1.8.0-features">Features
+* Added `heat.linalg.matrix_exp` by @brownbaerchen in [PR #2114](https://github.com/helmholtz-analytics/heat/pull/2114)
+* Implement `heat.linalg.solve` by @brownbaerchen in [PR #2113](https://github.com/helmholtz-analytics/heat/pull/2113)
+* Added support for complex values in QR by @brownbaerchen in [PR #2105](https://github.com/helmholtz-analytics/heat/pull/2105)
+* Added `float16` datatype by @brownbaerchen in [PR #2092](https://github.com/helmholtz-analytics/heat/pull/2092)
+* Add array API inspection by @mtar in [PR #2210](https://github.com/helmholtz-analytics/heat/pull/2210)
+* Print contents of array in `__repr__` by @brownbaerchen in [PR #2091](https://github.com/helmholtz-analytics/heat/pull/2091)
+
+### <a name="v1.8.0-interoperability">Interoperability
+* Support PyTorch 2.11.0 by @github-actions[bot] in [PR #2224](https://github.com/helmholtz-analytics/heat/pull/2224)
+* Support PyTorch 2.10.0 by @github-actions[bot] in [PR #2112](https://github.com/helmholtz-analytics/heat/pull/2112)
+* Add pandas as optional dependency by @brownbaerchen in [PR #2149](https://github.com/helmholtz-analytics/heat/pull/2149)
+* Adapted SVD API to match NumPy API by @brownbaerchen in [PR #2089](https://github.com/helmholtz-analytics/heat/pull/2089)
+
+### <a name="v1.8.0-bug-fixes">Bug Fixes
+* Fix: Missing sync for sent messages in `get_halo` by @JuanPedroGHM in [PR #2150](https://github.com/helmholtz-analytics/heat/pull/2150)
+* Fix bug in `Heat.indexing.nonzero` by @brownbaerchen in [PR #2138](https://github.com/helmholtz-analytics/heat/pull/2138)
+* Fix `test_io` deadlock and leaner CI matrix by @ClaudiaComito in [PR #2139](https://github.com/helmholtz-analytics/heat/pull/2139)
+* Pass indexing directly to torch in `meshgrid` by @brownbaerchen in [PR #2211](https://github.com/helmholtz-analytics/heat/pull/2211)
+* Consistent random values across MPI tasks in `test_statistics.py` by @brownbaerchen in [PR #2090](https://github.com/helmholtz-analytics/heat/pull/2090)
+
+### <a name="v1.8.0-docs-maintenance">Documentation & Maintenance
+* Major tutorials update by @ClaudiaComito, @mrfh92, @JuanPedroGHM, @krajsek, in [PR #2031](https://github.com/helmholtz-analytics/heat/pull/2031)
+* SSOT for ReadTheDocs and GitHub documentation by @ClaudiaComito in [PR #2215](https://github.com/helmholtz-analytics/heat/pull/2215)
+* Update README and sync with Quick Start by @ClaudiaComito in [PR #2208](https://github.com/helmholtz-analytics/heat/pull/2208)
+* Reorganize tests to new directory structure by @mtar in [PR #2172](https://github.com/helmholtz-analytics/heat/pull/2172)
+* Fix CI on forks and enable runs on draft PRs by @brownbaerchen in [PR #2152](https://github.com/helmholtz-analytics/heat/pull/2152)
+
+## <a name="v1.8.0-contributors">Contributors
+@brownbaerchen, @ClaudiaComito, @mtar, @JuanPedroGHM
+
+## <a name="v1.8.0-acknowledgements-and-disclaimer"> Acknowledgement and Disclaimer
+
+This work is partially funded by the **Helmholtz Association Science Serve call 2025** (Project **DB002891**, [HeatHub](https://hifis.net/announcement/2026/01/08/scienceserve-awardees/)).
+
+
+
 # v1.7.0
 
 ## Highlights

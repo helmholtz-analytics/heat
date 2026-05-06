@@ -1,5 +1,5 @@
-Heat Tutorials
-==============
+Tutorials
+=========
 
 .. toctree::
     :hidden:
