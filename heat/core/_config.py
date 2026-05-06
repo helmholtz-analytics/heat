@@ -27,21 +27,27 @@ class MPILibrary(Enum):
 class MPILibraryInfo:
     name: MPILibrary
     version: str
+    incompatible_operations: dict[str, list[str]] = dataclasses.field(default_factory=dict)
 
 
 def _get_mpi_library() -> MPILibraryInfo:
     library = mpi4py.MPI.Get_library_version().split()
     match library:
         case ["Open", "MPI", *_]:
-            return MPILibraryInfo(MPILibrary.OpenMPI, library[2])
+            version = library[2]
+            if version.startswith("v5.0."):
+                incompatibilities = INCOMPATIBILITIES[MPILibrary.OpenMPI].get("5.0.x", {})
+            elif version.startswith("v4.1."):
+                incompatibilities = INCOMPATIBILITIES[MPILibrary.OpenMPI].get("4.1.x", {})
+            return MPILibraryInfo(MPILibrary.OpenMPI, library[2], incompatibilities)
         case ["Intel(R)", "MPI", *_]:
-            return MPILibraryInfo(MPILibrary.IntelMPI, library[3])
+            return MPILibraryInfo(MPILibrary.IntelMPI, library[3], {})
         case ["MPICH", "Version:", *_]:
-            return MPILibraryInfo(MPILibrary.MPICH, library[2])
+            return MPILibraryInfo(MPILibrary.MPICH, library[2], {})
         case ["MVAPICH", "Version:", *_]:
-            return MPILibraryInfo(MPILibrary.MVAPICH, library[2])
+            return MPILibraryInfo(MPILibrary.MVAPICH, library[2], {})
         case ["===", "ParaStation", "MPI", *_]:
-            return MPILibraryInfo(MPILibrary.ParaStationMPI, library[3])
+            return MPILibraryInfo(MPILibrary.ParaStationMPI, library[3], {})
         case _:
             return MPILibraryInfo(MPILibrary.Other, "unknown")
 
@@ -68,7 +74,7 @@ def _check_gpu_aware_mpi(library: MPILibraryInfo) -> tuple[bool, bool]:
                     rocm = "rocm" in extensions or "hip" in extensions
                 # Seems to be broken, disabled by default for now
                 # return cuda, rocm
-                return False, False
+                return cuda, rocm
             except Exception as e:  # noqa E722
                 return False, False
         case MPILibrary.IntelMPI:
@@ -91,6 +97,35 @@ def _check_gpu_aware_mpi(library: MPILibraryInfo) -> tuple[bool, bool]:
             return cuda, rocm
         case _:
             return False, False
+
+
+# Library / version / device
+INCOMPATIBILITIES: dict[MPILibrary, dict[str, dict[str, list[str]]]] = {
+    MPILibrary.IntelMPI: {},
+    MPILibrary.OpenMPI: {
+        "5.0.x": {
+            "cuda": [
+                "Accumulate",
+                "Compare_and_swap",
+                "Fetch_and_op",
+                "Get_Accumulate",
+                "Iallgather",
+                "Iallgatherv",
+                "Iallreduce",
+                "Ialltoall",
+                "Ialltoallv",
+                "Ialltoallw",
+                "Ibcast",
+                "Iscan",
+                "Iexscan",
+                "Rget",
+                "Rput",
+                "Ireduce",
+            ]
+        },
+        "4.1.x": {"cuda": []},
+    },
+}
 
 
 PLATFORM = platform.platform()

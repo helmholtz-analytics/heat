@@ -15,7 +15,7 @@ from typing import Any, Callable, Optional, List, Tuple, Union
 
 from .stride_tricks import sanitize_axis
 
-from ._config import GPU_AWARE_MPI
+from ._config import GPU_AWARE_MPI, mpi_library
 
 
 class MPIRequest:
@@ -55,11 +55,25 @@ class MPIRequest:
         Waits for an MPI request to complete
         """
         self.handle.Wait(status)
-        if self.tensor is not None and isinstance(self.tensor, torch.Tensor):
-            if self.permutation is not None:
-                self.recvbuf = self.recvbuf.permute(self.permutation)
-        if self.tensor is not None and self.tensor.is_cuda and not GPU_AWARE_MPI:
-            self.tensor.copy_(self.recvbuf)
+
+        # Apply permutation if needed (for all buffer types)
+        if self.permutation is not None and self.recvbuf is not None:
+            self.recvbuf = self.recvbuf.permute(self.permutation)
+
+        # Copy result from CPU back to GPU if needed
+        if self.tensor is not None:
+            tensor_device = (
+                self.tensor.device
+                if isinstance(self.tensor, torch.Tensor)
+                else self.tensor.larray.device
+            )
+            recvbuf_device = self.recvbuf.device
+
+            if tensor_device != recvbuf_device:
+                if isinstance(self.tensor, torch.Tensor):
+                    self.tensor.copy_(self.recvbuf.to(tensor_device))
+                else:
+                    self.tensor.larray.copy_(self.recvbuf.to(tensor_device))
 
     def __getattr__(self, name: str) -> Callable:
         """
@@ -434,9 +448,25 @@ class MPICommunication(Communication):
         return [mpi_mem, elements, mpi_type]
 
     def _moveToCompDevice(self, x: torch.Tensor, func: Callable | None) -> torch.Tensor:
-        """Moves the torch tensor to the relevant device, in case the function is not compatible with the MPI+GPU library."""
+        """
+        Moves the torch tensor to the relevant device, in case the function is not compatible with the MPI+GPU library.
+
+        Parameters
+        ----------
+        x: torch.Tensor
+            The tensor to be moved to the relevant device
+        func: Callable
+            The MPI function that is intended to be called with the tensor, used to check for compatibility with the MPI+GPU library
+
+        Returns
+        -------
+        torch.Tensor
+            The tensor on the relevant device for the MPI function
+        """
         if x.is_cuda:
-            if GPU_AWARE_MPI:
+            if GPU_AWARE_MPI and func.__name__ not in mpi_library.incompatible_operations.get(
+                "cuda", []
+            ):
                 torch.cuda.synchronize(x.device)
                 return x
             else:
@@ -1074,8 +1104,11 @@ class MPICommunication(Communication):
             The operation to perform upon reduction
         """
         ret, sbuf, rbuf, buf = self.__reduce_like(self.handle.Allreduce, sendbuf, recvbuf, op)
-        if buf is not None and isinstance(buf, torch.Tensor) and buf.is_cuda and not GPU_AWARE_MPI:
-            buf.copy_(rbuf)
+        if buf is not None and not GPU_AWARE_MPI:
+            if isinstance(buf, torch.Tensor) and buf.is_cuda:
+                buf.copy_(rbuf)
+            elif isinstance(buf, DNDarray) and buf.larray.is_cuda:
+                buf.larray.copy_(rbuf)
         return ret
 
     Allreduce.__doc__ = MPI.Comm.Allreduce.__doc__
