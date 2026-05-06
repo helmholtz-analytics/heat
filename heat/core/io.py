@@ -474,12 +474,16 @@ else:
                 next_rank = (data.comm.rank + 1) % data.comm.size
                 data.comm.isend(failed, dest=next_rank)
 
-        failed = data.comm.allreduce(failed, op=MPI.MAX)
+        if HAVE_MPI:
+            failed = data.comm.allreduce(failed, op=MPI.MAX)
         if failed - 1 == data.comm.rank:
-            data.comm.bcast(excep, root=failed - 1)
+            if HAVE_MPI:
+                failed = data.comm.allreduce(failed, op=MPI.MAX)
+                data.comm.bcast(excep, root=failed - 1)
             raise excep
         elif failed:
-            excep = data.comm.bcast(excep, root=failed - 1)
+            if HAVE_MPI:
+                excep = data.comm.bcast(excep, root=failed - 1)
             excep.args = f"raised by process rank {failed - 1}", *excep.args
             raise excep from None  # raise the same error but without traceback
             # because that is on a different process
@@ -1644,7 +1648,8 @@ else:
                     )
                 # broadcast shape of first local tensor to allow sanitation on empty ranks
                 target_ndims = torch.tensor(local_tensors[0].ndim, dtype=torch.int32)
-            dummy_array.comm.Bcast(target_ndims, root=0)
+            if HAVE_MPI:
+                dummy_array.comm.Bcast(target_ndims, root=0)
             # sanitize split axis
             proxy_shape = (1,) * target_ndims.item()
             split = sanitize_axis(proxy_shape, axis=split)
@@ -1670,7 +1675,8 @@ else:
                 # dummy dtype code
                 ht_type_code = -1
             # check for empty ranks
-            dummy_array.comm.Allreduce(MPI.IN_PLACE, empty_ranks, op=MPI.SUM)
+            if HAVE_MPI:
+                dummy_array.comm.Allreduce(MPI.IN_PLACE, empty_ranks, op=MPI.SUM)
             if empty_ranks.item() > 0:
                 # fix local shape and dtype of empty tensors, otherwise DNDarray construction will fail
                 # Rank 0 broadcasts the info to all other ranks

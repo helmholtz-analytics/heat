@@ -19,6 +19,7 @@ if HAVE_MPI:
 else:
     MPI = None
 
+from abc import ABC, abstractmethod
 from typing import Any, Callable, Optional, List, Tuple, Union
 
 from .stride_tricks import sanitize_axis
@@ -79,25 +80,31 @@ class MPIRequest:
         return getattr(self.handle, name)
 
 
-class Communication:
+class Communication(ABC):
     """
     Base class for Communications (inteded for other backends)
     """
 
     @staticmethod
+    @abstractmethod
     def is_distributed() -> NotImplementedError:
         """
         Whether or not the Communication is distributed
         """
         raise NotImplementedError()
 
-    def __init__(self) -> NotImplementedError:
-        raise NotImplementedError()
-
-    def chunk(self, shape, split) -> NotImplementedError:
+    def chunk(
+        self,
+        shape: Tuple[int],
+        split: int,
+        rank: int = None,
+        w_size: int = None,
+        sparse: bool = False,
+    ) -> Tuple[int, Tuple[int], Tuple[slice]]:
         """
         Calculates the chunk of data that will be assigned to this compute node given a global data shape and a split
-        axis. Returns ``(offset, local_shape, slices)``: the offset in the split dimension, the resulting local shape if the
+        axis.
+        Returns ``(offset, local_shape, slices)``: the offset in the split dimension, the resulting local shape if the
         global input shape is chunked on the split axis and the chunk slices with respect to the given shape
 
         Parameters
@@ -106,9 +113,44 @@ class Communication:
             The global shape of the data to be split
         split : int
             The axis along which to chunk the data
-
+        rank : int, optional
+            Process for which the chunking is calculated for, defaults to ``self.rank``.
+            Intended for creating chunk maps without communication
+        w_size : int, optional
+            The MPI world size, defaults to ``self.size``.
+            Intended for creating chunk maps without communication
+        sparse : bool, optional
+            Specifies whether the array is a sparse matrix
         """
-        raise NotImplementedError()
+        # ensure the split axis is valid, we actually do not need it
+        split = sanitize_axis(shape, split)
+        if split is None:
+            return 0, shape, tuple(slice(0, end) for end in shape)
+        rank = self.rank if rank is None else rank
+        w_size = self.size if w_size is None else w_size
+        if not isinstance(rank, int) or not isinstance(w_size, int):
+            raise TypeError("rank and size must be integers")
+
+        dims = len(shape)
+        size = shape[split]
+        chunk = size // w_size
+        remainder = size % w_size
+
+        if remainder > rank:
+            chunk += 1
+            start = rank * chunk
+        else:
+            start = rank * chunk + remainder
+        end = start + chunk
+
+        if sparse:
+            return start, end
+
+        return (
+            start,
+            tuple(shape[i] if i != split else end - start for i in range(dims)),
+            tuple(slice(0, shape[i]) if i != split else slice(start, end) for i in range(dims)),
+        )
 
 
 class NonCommunication(Communication):
@@ -127,14 +169,6 @@ class NonCommunication(Communication):
         self.rank = 0
         self.size = 1
         self.handle = None
-
-    def chunk(self, shape, split, *args, **kwargs) -> Tuple[int, Tuple[int], Tuple[slice]]:
-        """
-        Single Process, No chunking.
-        """
-        split = sanitize_axis(shape, split)
-
-        return 0, shape, tuple(slice(0, end) for end in shape)
 
     def counts_displs_shape(
         self, shape: Tuple[int], axis: int
@@ -210,65 +244,6 @@ if HAVE_MPI:
             Determines whether the communicator is distributed, i.e. handles more than one node.
             """
             return self.size > 1
-
-        def chunk(
-            self,
-            shape: Tuple[int],
-            split: int,
-            rank: int = None,
-            w_size: int = None,
-            sparse: bool = False,
-        ) -> Tuple[int, Tuple[int], Tuple[slice]]:
-            """
-            Calculates the chunk of data that will be assigned to this compute node given a global data shape and a split
-            axis.
-            Returns ``(offset, local_shape, slices)``: the offset in the split dimension, the resulting local shape if the
-            global input shape is chunked on the split axis and the chunk slices with respect to the given shape
-
-            Parameters
-            ----------
-            shape : Tuple[int,...]
-                The global shape of the data to be split
-            split : int
-                The axis along which to chunk the data
-            rank : int, optional
-                Process for which the chunking is calculated for, defaults to ``self.rank``.
-                Intended for creating chunk maps without communication
-            w_size : int, optional
-                The MPI world size, defaults to ``self.size``.
-                Intended for creating chunk maps without communication
-            sparse : bool, optional
-                Specifies whether the array is a sparse matrix
-            """
-            # ensure the split axis is valid, we actually do not need it
-            split = sanitize_axis(shape, split)
-            if split is None:
-                return 0, shape, tuple(slice(0, end) for end in shape)
-            rank = self.rank if rank is None else rank
-            w_size = self.size if w_size is None else w_size
-            if not isinstance(rank, int) or not isinstance(w_size, int):
-                raise TypeError("rank and size must be integers")
-
-            dims = len(shape)
-            size = shape[split]
-            chunk = size // w_size
-            remainder = size % w_size
-
-            if remainder > rank:
-                chunk += 1
-                start = rank * chunk
-            else:
-                start = rank * chunk + remainder
-            end = start + chunk
-
-            if sparse:
-                return start, end
-
-            return (
-                start,
-                tuple(shape[i] if i != split else end - start for i in range(dims)),
-                tuple(slice(0, shape[i]) if i != split else slice(start, end) for i in range(dims)),
-            )
 
         def counts_displs_shape(
             self, shape: Tuple[int], axis: int
