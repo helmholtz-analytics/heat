@@ -1520,6 +1520,272 @@ class DNDarray:
             return slice(local_inds.start, local_inds.stop, local_inds.step)
         return None
 
+    # TODO: what does this do?
+    @staticmethod
+    def __normalize_index_component(comp):
+        if isinstance(comp, DNDarray):
+            if comp.dtype in (ht_bool, ht_uint8):
+                return comp
+
+            if comp.split is not None:
+                return comp
+
+            return comp.larray.to(torch.int64)
+
+        return comp
+
+    @staticmethod
+    def __is_basic_component(k):
+        return k is ... or k is None or isinstance(k, (slice, int, np.integer))
+
+    def __broadcast_value(
+        self,
+        key: int | tuple[int, ...] | slice,
+        value: "DNDarray",
+        **kwargs,
+    ):
+        """
+        Broadcasts the assignment DNDarray `value` to the shape of the indexed array `arr[key]` if necessary.
+        """
+        is_scalar = (
+            np.isscalar(value)
+            or getattr(value, "ndim", 1) == 0
+            or (value.shape == (1,) and value.split is None)
+        )
+        if is_scalar:
+            # no need to broadcast
+            return value, is_scalar
+        # need information on indexed array
+        output_shape = kwargs.get("output_shape", None)
+        if output_shape is not None:
+            indexed_dims = len(output_shape)
+        else:
+            if isinstance(key, (int, tuple)):
+                # direct indexing, output_shape has not been calculated
+                # use proxy to avoid MPI communication and limit memory usage
+                indexed_proxy = self.__torch_proxy__()[key]
+                indexed_dims = indexed_proxy.ndim
+                output_shape = tuple(indexed_proxy.shape)
+            else:
+                raise RuntimeError(
+                    "Not enough information to broadcast value to indexed array, please provide `output_shape`"
+                )
+        value_shape = value.shape
+        # check if value needs to be broadcasted
+        if value_shape != output_shape:
+            # assess whether the shapes are compatible, starting from the trailing dimension
+            for i in range(1, min(len(value_shape), len(output_shape)) + 1):
+                if i == 1:
+                    if value_shape[-i] != output_shape[-i] and not value_shape[-i] == 1:
+                        # shapes are not compatible, raise error
+                        raise ValueError(
+                            f"could not broadcast input array from shape {value_shape} into shape {output_shape}"
+                        )
+                else:
+                    if value_shape[-i] != output_shape[-i] and (not value_shape[-i] == 1):
+                        # shapes are not compatible, raise error
+                        raise ValueError(
+                            f"could not broadcast input from shape {value_shape} into shape {output_shape}"
+                        )
+            # value has more dimensions than indexed array
+            if value.ndim > indexed_dims:
+                # check if all dimensions except the indexed ones are singletons
+                all_singletons = value.shape[: value.ndim - indexed_dims] == (1,) * (
+                    value.ndim - indexed_dims
+                )
+                if not all_singletons:
+                    raise ValueError(
+                        f"could not broadcast input array from shape {value_shape} into shape {output_shape}"
+                    )
+                # squeeze out singleton dimensions
+                value = value.squeeze(tuple(range(value.ndim - indexed_dims)))
+            else:
+                while value.ndim < indexed_dims:
+                    # broadcasting
+                    # expand missing dimensions to align split axis
+                    value = value.expand_dims(0)
+                    try:
+                        value_shape = tuple(torch.broadcast_shapes(value.shape, output_shape))
+                    except RuntimeError:
+                        raise ValueError(
+                            f"could not broadcast input array from shape {value_shape} into shape {output_shape}"
+                        )
+        return value, is_scalar
+
+    @staticmethod
+    def __dedup_last_wins_advanced_index(
+        key_in,
+        rhs_in: torch.Tensor,
+        target_shape: tuple[int, ...],
+    ):
+        """
+        CUDA-safe handling for duplicate advanced indices:
+        enforce NumPy semantics (last assignment wins) by dropping earlier duplicates.
+        Works for:
+            - key_in: torch.Tensor (indexes axis 0)
+            - key_in: tuple/list of torch.Tensors (pure advanced indexing)
+        rhs_in must match the indexing result shape.
+        """
+        # Scalars or single element: no need to dedup
+        if rhs_in.numel() <= 1:
+            return key_in, rhs_in
+
+        # Normalize key to either a single tensor or tuple of tensors
+        if torch.is_tensor(key_in):
+            idx_tensors = (key_in,)
+        elif (
+            isinstance(key_in, (tuple, list))
+            and len(key_in) > 0
+            and all(torch.is_tensor(k) for k in key_in)
+        ):
+            idx_tensors = tuple(key_in)
+        else:
+            # Not pure advanced-tensor indexing -> don't touch
+            return key_in, rhs_in
+
+        device = rhs_in.device
+
+        # Broadcast indices to common shape, then flatten
+        try:
+            idx_b = torch.broadcast_tensors(*idx_tensors)
+        except RuntimeError:
+            # If broadcast fails, leave it to PyTorch (will error appropriately)
+            return key_in, rhs_in
+
+        pos_shape = idx_b[0].shape
+        pos_ndim = len(pos_shape)
+        n = idx_b[0].numel()
+
+        idx_flat = [t.to(device=device, dtype=torch.int64).reshape(-1) for t in idx_b]
+
+        # Build linear index for duplicate detection
+        if len(idx_flat) == 1:
+            lin = idx_flat[0]
+        else:
+            lin = idx_flat[0]
+            # linearize across the first len(idx_flat) dimensions of the target tensor
+            for d in range(1, len(idx_flat)):
+                lin = lin * int(target_shape[d]) + idx_flat[d]
+
+        # Fast path: no duplicates
+        if torch.unique(lin).numel() == n:
+            return key_in, rhs_in
+
+        # Determine "last occurrence" per linear index (last wins)
+        pos = torch.arange(n, device=device, dtype=torch.int64)
+
+        # Prefer stable sort by lin if available; otherwise sort by combined key
+        try:
+            order = torch.argsort(lin, stable=True)
+        except TypeError:
+            # combined key sorts by lin, then by pos
+            combined = lin.to(torch.int64) * (n + 1) + pos
+            order = torch.argsort(combined)
+
+        lin_s = lin[order]
+        pos_s = pos[order]
+
+        is_last = torch.ones_like(lin_s, dtype=torch.bool)
+        is_last[:-1] = lin_s[1:] != lin_s[:-1]
+        keep_pos = pos_s[is_last]  # positions in original stream
+
+        # Reduce RHS accordingly:
+        # Flatten leading "pos_ndim" dims into one, keep trailing dims as payload
+        rhs_view = rhs_in.reshape(n, *rhs_in.shape[pos_ndim:])
+        rhs_u = rhs_view[keep_pos].reshape(keep_pos.numel(), *rhs_in.shape[pos_ndim:])
+
+        # Reduce indices accordingly (use flattened 1D indices)
+        if torch.is_tensor(key_in):
+            key_u = idx_flat[0][keep_pos]
+            return key_u, rhs_u
+
+        key_u = tuple(t[keep_pos] for t in idx_flat)
+        return key_u, rhs_u
+
+    def __set(
+        self,
+        key: int | tuple[int, ...] | list[int],
+        value: float | "DNDarray" | torch.Tensor,
+    ):
+        """
+        Setter for not advanced indexing, i.e. when arr[key] is an in-place view of arr.
+        """
+        # only assign values if key does not contain empty slices
+        process_is_inactive = self.larray[key].numel() == 0
+        if not process_is_inactive:
+            rhs = value.larray.type(self.dtype.torch_type())
+            key_to_use = key
+
+            # CUDA: make advanced indexing assignment deterministic for duplicate indices
+            if self.larray.is_cuda:
+                key_to_use, rhs = self.__dedup_last_wins_advanced_index(
+                    key_to_use, rhs, self.larray.shape
+                )
+
+            self.larray[key_to_use] = rhs
+        return
+
+    @staticmethod
+    def __advanced_setitem_unordered_local(
+        x_local: torch.Tensor,
+        split_key: torch.Tensor,
+        value_torch: torch.Tensor,
+        *,
+        split_axis: int,
+        value_key_start_dim: int,
+        local_offset: int,
+        local_size: int,
+        value_is_scalar: bool,
+        out_dtype: torch.dtype,
+        base_index: tuple | None = None,
+    ) -> None:
+        """
+        The function is a helper that updates ``x_local`` in-place according to the logical advanced
+        indexing pattern encoded by ``split_key`` and the broadcasted ``value_torch``.
+        This helper operates exclusively on local ``torch.Tensor`` views:
+        - ``x_local`` is the local slice of the distributed array on this rank.
+        - ``split_key`` contains GLOBAL indices along the split axis.
+        - Only those indices that fall into ``[local_offset, local_offset + local_size)``
+            are applied on this rank.
+        """
+        # 1) Local mask: which global indices in `split_key` belong to this rank?
+        global_indices = split_key
+        local_mask = (global_indices >= local_offset) & (global_indices < local_offset + local_size)
+
+        coord = local_mask.nonzero(as_tuple=True)
+
+        if coord[0].numel() == 0:
+            # Nothing to do on this rank, exit early.
+            return
+
+        # 2) Map global → local indices along the split axis
+        global_split_indices = global_indices[coord]
+        local_split_indices = global_split_indices - local_offset
+
+        # 3) Build LHS index for x_local (corresponds to self.larray)
+        if base_index is None:
+            lhs_index = [slice(None)] * x_local.ndim
+        else:
+            lhs_index = list(base_index)
+
+        lhs_index[split_axis] = local_split_indices
+        lhs_index = tuple(lhs_index)
+
+        # 4) Build RHS index for value_torch
+        if value_is_scalar:
+            # Scalar assignment: broadcast scalar to the selected positions
+            x_local[lhs_index] = value_torch.to(out_dtype)
+            return
+
+        rhs_index = [slice(None)] * value_torch.ndim
+        m = split_key.ndim
+
+        for d in range(m):
+            rhs_index[value_key_start_dim + d] = coord[d]
+
+        rhs = value_torch[tuple(rhs_index)]
+        x_local[lhs_index] = rhs.to(out_dtype)
+
     def __getitem__(self, key: int | tuple[int, ...] | list[int]) -> DNDarray:
         """
         Global getter function for DNDarrays.
@@ -1565,23 +1831,10 @@ class DNDarray:
 
         original_split = self.split
 
-        # TODO: what does this do and why here?
-        def _normalize_index_component(comp):
-            if isinstance(comp, DNDarray):
-                if comp.dtype in (ht_bool, ht_uint8):
-                    return comp
-
-                if comp.split is not None:
-                    return comp
-
-                return comp.larray.to(torch.int64)
-
-            return comp
-
         if isinstance(key, DNDarray):
-            key = _normalize_index_component(key)
+            key = self.__normalize_index_component(key)
         elif isinstance(key, (list, tuple)):
-            key = type(key)(_normalize_index_component(k) for k in key)
+            key = type(key)(self.__normalize_index_component(k) for k in key)
 
         if isinstance(key, tuple) and len(key) >= 1 and self.ndim >= 1:
             first = key[0]
@@ -1732,11 +1985,8 @@ class DNDarray:
             # cross-rank reductions or communication.
             # Example: X[:, 1:], X[5:10], X[:, :-1], ...
             # ------------------------------------------------------------
-            def _is_basic_component(k):
-                return k is ... or k is None or isinstance(k, (slice, int, np.integer))
-
             _basic_index = isinstance(key, (tuple, list)) and all(
-                _is_basic_component(k) for k in key
+                self.__is_basic_component(k) for k in key
             )
 
             if _basic_index:
@@ -2473,193 +2723,6 @@ class DNDarray:
         (2/2) >>> tensor([[0., 1., 0., 0., 0.],
                           [0., 1., 0., 0., 0.]])
         """
-
-        def __broadcast_value(
-            arr: "DNDarray",
-            key: int | tuple[int, ...] | slice,
-            value: "DNDarray",
-            **kwargs,
-        ):
-            """
-            Broadcasts the assignment DNDarray `value` to the shape of the indexed array `arr[key]` if necessary.
-            """
-            is_scalar = (
-                np.isscalar(value)
-                or getattr(value, "ndim", 1) == 0
-                or (value.shape == (1,) and value.split is None)
-            )
-            if is_scalar:
-                # no need to broadcast
-                return value, is_scalar
-            # need information on indexed array
-            output_shape = kwargs.get("output_shape", None)
-            if output_shape is not None:
-                indexed_dims = len(output_shape)
-            else:
-                if isinstance(key, (int, tuple)):
-                    # direct indexing, output_shape has not been calculated
-                    # use proxy to avoid MPI communication and limit memory usage
-                    indexed_proxy = arr.__torch_proxy__()[key]
-                    indexed_dims = indexed_proxy.ndim
-                    output_shape = tuple(indexed_proxy.shape)
-                else:
-                    raise RuntimeError(
-                        "Not enough information to broadcast value to indexed array, please provide `output_shape`"
-                    )
-            value_shape = value.shape
-            # check if value needs to be broadcasted
-            if value_shape != output_shape:
-                # assess whether the shapes are compatible, starting from the trailing dimension
-                for i in range(1, min(len(value_shape), len(output_shape)) + 1):
-                    if i == 1:
-                        if value_shape[-i] != output_shape[-i] and not value_shape[-i] == 1:
-                            # shapes are not compatible, raise error
-                            raise ValueError(
-                                f"could not broadcast input array from shape {value_shape} into shape {output_shape}"
-                            )
-                    else:
-                        if value_shape[-i] != output_shape[-i] and (not value_shape[-i] == 1):
-                            # shapes are not compatible, raise error
-                            raise ValueError(
-                                f"could not broadcast input from shape {value_shape} into shape {output_shape}"
-                            )
-                # value has more dimensions than indexed array
-                if value.ndim > indexed_dims:
-                    # check if all dimensions except the indexed ones are singletons
-                    all_singletons = value.shape[: value.ndim - indexed_dims] == (1,) * (
-                        value.ndim - indexed_dims
-                    )
-                    if not all_singletons:
-                        raise ValueError(
-                            f"could not broadcast input array from shape {value_shape} into shape {output_shape}"
-                        )
-                    # squeeze out singleton dimensions
-                    value = value.squeeze(tuple(range(value.ndim - indexed_dims)))
-                else:
-                    while value.ndim < indexed_dims:
-                        # broadcasting
-                        # expand missing dimensions to align split axis
-                        value = value.expand_dims(0)
-                        try:
-                            value_shape = tuple(torch.broadcast_shapes(value.shape, output_shape))
-                        except RuntimeError:
-                            raise ValueError(
-                                f"could not broadcast input array from shape {value_shape} into shape {output_shape}"
-                            )
-            return value, is_scalar
-
-        def __dedup_last_wins_advanced_index(
-            key_in,
-            rhs_in: torch.Tensor,
-            target_shape: tuple[int, ...],
-        ):
-            """
-            CUDA-safe handling for duplicate advanced indices:
-            enforce NumPy semantics (last assignment wins) by dropping earlier duplicates.
-            Works for:
-              - key_in: torch.Tensor (indexes axis 0)
-              - key_in: tuple/list of torch.Tensors (pure advanced indexing)
-            rhs_in must match the indexing result shape.
-            """
-            # Scalars or single element: no need to dedup
-            if rhs_in.numel() <= 1:
-                return key_in, rhs_in
-
-            # Normalize key to either a single tensor or tuple of tensors
-            if torch.is_tensor(key_in):
-                idx_tensors = (key_in,)
-            elif (
-                isinstance(key_in, (tuple, list))
-                and len(key_in) > 0
-                and all(torch.is_tensor(k) for k in key_in)
-            ):
-                idx_tensors = tuple(key_in)
-            else:
-                # Not pure advanced-tensor indexing -> don't touch
-                return key_in, rhs_in
-
-            device = rhs_in.device
-
-            # Broadcast indices to common shape, then flatten
-            try:
-                idx_b = torch.broadcast_tensors(*idx_tensors)
-            except RuntimeError:
-                # If broadcast fails, leave it to PyTorch (will error appropriately)
-                return key_in, rhs_in
-
-            pos_shape = idx_b[0].shape
-            pos_ndim = len(pos_shape)
-            n = idx_b[0].numel()
-
-            idx_flat = [t.to(device=device, dtype=torch.int64).reshape(-1) for t in idx_b]
-
-            # Build linear index for duplicate detection
-            if len(idx_flat) == 1:
-                lin = idx_flat[0]
-            else:
-                lin = idx_flat[0]
-                # linearize across the first len(idx_flat) dimensions of the target tensor
-                for d in range(1, len(idx_flat)):
-                    lin = lin * int(target_shape[d]) + idx_flat[d]
-
-            # Fast path: no duplicates
-            if torch.unique(lin).numel() == n:
-                return key_in, rhs_in
-
-            # Determine "last occurrence" per linear index (last wins)
-            pos = torch.arange(n, device=device, dtype=torch.int64)
-
-            # Prefer stable sort by lin if available; otherwise sort by combined key
-            try:
-                order = torch.argsort(lin, stable=True)
-            except TypeError:
-                # combined key sorts by lin, then by pos
-                combined = lin.to(torch.int64) * (n + 1) + pos
-                order = torch.argsort(combined)
-
-            lin_s = lin[order]
-            pos_s = pos[order]
-
-            is_last = torch.ones_like(lin_s, dtype=torch.bool)
-            is_last[:-1] = lin_s[1:] != lin_s[:-1]
-            keep_pos = pos_s[is_last]  # positions in original stream
-
-            # Reduce RHS accordingly:
-            # Flatten leading "pos_ndim" dims into one, keep trailing dims as payload
-            rhs_view = rhs_in.reshape(n, *rhs_in.shape[pos_ndim:])
-            rhs_u = rhs_view[keep_pos].reshape(keep_pos.numel(), *rhs_in.shape[pos_ndim:])
-
-            # Reduce indices accordingly (use flattened 1D indices)
-            if torch.is_tensor(key_in):
-                key_u = idx_flat[0][keep_pos]
-                return key_u, rhs_u
-
-            key_u = tuple(t[keep_pos] for t in idx_flat)
-            return key_u, rhs_u
-
-        def __set(
-            arr: "DNDarray",
-            key: int | tuple[int, ...] | list[int],
-            value: float | "DNDarray" | torch.Tensor,
-        ):
-            """
-            Setter for not advanced indexing, i.e. when arr[key] is an in-place view of arr.
-            """
-            # only assign values if key does not contain empty slices
-            process_is_inactive = arr.larray[key].numel() == 0
-            if not process_is_inactive:
-                rhs = value.larray.type(arr.dtype.torch_type())
-                key_to_use = key
-
-                # CUDA: make advanced indexing assignment deterministic for duplicate indices
-                if arr.larray.is_cuda:
-                    key_to_use, rhs = __dedup_last_wins_advanced_index(
-                        key_to_use, rhs, arr.larray.shape
-                    )
-
-                arr.larray[key_to_use] = rhs
-            return
-
         # make sure `value` is a DNDarray
         try:
             value = factories.array(value)
@@ -2673,7 +2736,7 @@ class DNDarray:
         scalar = np.isscalar(key) or getattr(key, "ndim", 1) == 0
         if scalar:
             key, root = self.__process_scalar_key(key, indexed_axis=0, return_local_indices=True)
-            value, value_is_scalar = __broadcast_value(self, key, value)
+            value, value_is_scalar = self.__broadcast_value(key, value)
 
             if root is not None:
                 if self.comm.rank == root:
@@ -2689,11 +2752,11 @@ class DNDarray:
                                     f"distribution schemes do not match: "
                                     f"{value.lshape_map} vs. {indexed_lshape_map}"
                                 )
-                    __set(self, key, value)
+                    self.__set(key, value)
             else:
                 if not value_is_scalar:
                     value = sanitation.sanitize_distribution(value, target=self[key])
-                __set(self, key, value)
+                self.__set(key, value)
             return
 
         if isinstance(key, tuple) and len(key) >= 1 and self.ndim >= 1:
@@ -2766,12 +2829,12 @@ class DNDarray:
             key_is_mask_like = bool(km_global)
 
         # match dimensions
-        value, value_is_scalar = __broadcast_value(self, key, value, output_shape=output_shape)
+        value, value_is_scalar = self.__broadcast_value(key, value, output_shape=output_shape)
 
         # early out for non-distributed case
         if not self.is_distributed() and not value.is_distributed():
             # no communication needed, just apply the local set
-            __set(self, key, value)
+            self.__set(key, value)
 
             # For 0-D arrays there is nothing to transpose; avoid permute() with no dims
             if self.ndim > 0:
@@ -2814,7 +2877,7 @@ class DNDarray:
                     )
                     self.comm.Allgather(target_shape, target_map)
                     value.redistribute_(target_map=target_map)
-                __set(self, key, value)
+                self.__set(key, value)
             self = self.transpose(backwards_transpose_axes)
             return
 
@@ -2841,71 +2904,9 @@ class DNDarray:
             target_map = flipped_value.lshape_map
             target_map[:, output_split] = split_key.lshape_map[:, 0]
             flipped_value.redistribute_(target_map=target_map)
-            __set(self, key, flipped_value)
+            self.__set(key, flipped_value)
             self = self.transpose(backwards_transpose_axes)
             return
-
-        def _advanced_setitem_unordered_local(
-            x_local: torch.Tensor,
-            split_key: torch.Tensor,
-            value_torch: torch.Tensor,
-            *,
-            split_axis: int,
-            value_key_start_dim: int,
-            local_offset: int,
-            local_size: int,
-            value_is_scalar: bool,
-            out_dtype: torch.dtype,
-            base_index: tuple | None = None,
-        ) -> None:
-            """
-            The function is a helper that updates ``x_local`` in-place according to the logical advanced
-            indexing pattern encoded by ``split_key`` and the broadcasted ``value_torch``.
-            This helper operates exclusively on local ``torch.Tensor`` views:
-            - ``x_local`` is the local slice of the distributed array on this rank.
-            - ``split_key`` contains GLOBAL indices along the split axis.
-            - Only those indices that fall into ``[local_offset, local_offset + local_size)``
-              are applied on this rank.
-            """
-            # 1) Local mask: which global indices in `split_key` belong to this rank?
-            global_indices = split_key
-            local_mask = (global_indices >= local_offset) & (
-                global_indices < local_offset + local_size
-            )
-
-            coord = local_mask.nonzero(as_tuple=True)
-
-            if coord[0].numel() == 0:
-                # Nothing to do on this rank, exit early.
-                return
-
-            # 2) Map global → local indices along the split axis
-            global_split_indices = global_indices[coord]
-            local_split_indices = global_split_indices - local_offset
-
-            # 3) Build LHS index for x_local (corresponds to self.larray)
-            if base_index is None:
-                lhs_index = [slice(None)] * x_local.ndim
-            else:
-                lhs_index = list(base_index)
-
-            lhs_index[split_axis] = local_split_indices
-            lhs_index = tuple(lhs_index)
-
-            # 4) Build RHS index for value_torch
-            if value_is_scalar:
-                # Scalar assignment: broadcast scalar to the selected positions
-                x_local[lhs_index] = value_torch.to(out_dtype)
-                return
-
-            rhs_index = [slice(None)] * value_torch.ndim
-            m = split_key.ndim
-
-            for d in range(m):
-                rhs_index[value_key_start_dim + d] = coord[d]
-
-            rhs = value_torch[tuple(rhs_index)]
-            x_local[lhs_index] = rhs.to(out_dtype)
 
         if split_key_is_ordered == 0:
             # key along split axis is unordered, communication needed in general
@@ -3158,7 +3159,7 @@ class DNDarray:
                         base_index[dim] = k_part
 
                 # apply the advanced indexing setitem locally
-                _advanced_setitem_unordered_local(
+                self.__advanced_setitem_unordered_local(
                     x_local=self.larray,
                     split_key=split_key,
                     value_torch=value_torch,
@@ -3326,7 +3327,7 @@ class DNDarray:
                 balanced=value.balanced,
             )
             # set local elements of `self` to corresponding elements of `value`
-            __set(self, key, recv_buf)
+            self.__set(key, recv_buf)
             self = self.transpose(backwards_transpose_axes)
 
     def __setter(
