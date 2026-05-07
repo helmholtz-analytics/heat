@@ -97,11 +97,11 @@ class TestBasicTest(TestCase):
         path, tmpdir = self.get_tmpdir()
         assert os.path.exists(path), f'No directory at {path}'
         assert os.path.isdir(path), f'No directory at {path}'
-        if ht.MPI_WORLD.is_distributed():
+        if ht.HAVE_MPI:
             ht.MPI_WORLD.Barrier()
 
         # test cleanup
         del tmpdir
-        if ht.MPI_WORLD.is_distributed():
+        if ht.HAVE_MPI:
             ht.MPI_WORLD.Barrier()
         assert not os.path.exists(path)

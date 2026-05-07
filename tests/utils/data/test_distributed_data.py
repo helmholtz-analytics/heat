@@ -4,7 +4,6 @@ from heat.utils.data.datatools import DistributedDataset, DistributedSampler
 import torch
 import unittest
 
-@unittest.skipUnless(ht.HAVE_MPI, "Requires MPI")
 class SeedEnviroment:
     """
     Class to be used in a `with` Enviroment.
@@ -23,7 +22,6 @@ class SeedEnviroment:
     def __exit__(self, *args, **kwargs):
         torch.random.set_rng_state(self.state)
 
-@unittest.skipUnless(ht.HAVE_MPI, "Requires MPI")
 class TestDistbributedData(unittest.TestCase):
     def test_dataset_and_sampler(self) -> bool:
 
