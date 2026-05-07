@@ -7,6 +7,7 @@ from .core.linalg import *
 from .core import __version__
 
 from . import core
+from . import utils
 
 if core.communication.HAVE_MPI:
     from . import classification
@@ -20,5 +21,4 @@ if core.communication.HAVE_MPI:
     from . import regression
     from . import sparse
     from . import spatial
-    from . import utils
     from . import preprocessing
