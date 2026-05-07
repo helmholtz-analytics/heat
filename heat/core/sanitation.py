@@ -26,6 +26,7 @@ __all__ = [
     "sanitize_out",
     "sanitize_sequence",
     "scalar_to_1d",
+    "sanitize_in_min_max_nd",
 ]
 
 
@@ -171,6 +172,22 @@ def sanitize_in(x: Any):
     """
     if not isinstance(x, DNDarray):
         raise TypeError(f"Input must be a DNDarray, is {type(x)}")
+
+
+def sanitize_in_min_max_nd(
+    input: Any, min_nd: Union[int, None] = None, max_nd: Union[int, None] = None
+) -> None:
+    """
+    Verify that input object ``input`` is a ``DNDarray`` with at least ``min_nd`` or at most ``max_nd`` dimensions.
+    If not raise ValueError
+    If not DNDarray raise TypeError
+    """
+    sanitize_in(input)
+
+    if min_nd is not None and input.ndim < min_nd:
+        raise ValueError(f"Input needs to be a DNDarray with at least {min_nd} dimensions.")
+    if max_nd is not None and input.ndim > max_nd:
+        raise ValueError(f"Input needs to be a DNDarray with at most {max_nd} dimensions.")
 
 
 def sanitize_in_nd_realfloating(input: Any, inputname: str, allowed_ns: List[int]) -> None:
