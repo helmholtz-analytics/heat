@@ -1059,4 +1059,5 @@ class TestSignal(TestCase):
 
             if not self.is_mps:
                 conv = ht.convolve2d(float(1),float(5),stride=(stride,stride))
-                self.assertTrue(ht.equal(ht.array([[5]]), conv))
+                self.assertTrue(np.allclose(conv.shape, (1, 1)))
+                self.assertEqual(conv[0,0], 5)
