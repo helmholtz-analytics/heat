@@ -19,3 +19,16 @@ path = "heat/datasets/diabetes.h5"
 SPDX-FileCopyrightText = "National Institute of Diabetes and Digestive and Kidney Diseases"
 SPDX-License-Identifier = "CC0-1.0"
 precedence = "override"
+
+# other's logos
+[[annotations]]
+path = [
+    "doc/source/_static/images/dlr_logo.svg",
+    "doc/source/_static/images/fzj_logo.svg",
+    "doc/source/_static/images/jsc_logo.png",
+    "doc/source/_static/images/jupyter.png",
+    "doc/source/_static/images/kit_logo.svg",
+    "doc/source/_static/images/perun_logo.svg",
+]
+SPDX-FileCopyrightText = "Copyright lies with the respective trademark owners"
+SPDX-License-Identifier = "LicenseRef-Company-Logos"
