@@ -1059,5 +1059,6 @@ class TestSignal(TestCase):
 
             if not self.is_mps:
                 conv = ht.convolve2d(float(1),float(5),stride=(stride,stride))
+                expect = ht.ones_like(conv) * 5
                 self.assertEqual(conv.shape, (1, 1))
-                self.assertEqual(conv[0,0], 5)
+                self.assertTrue(ht.allclose(conv, expect))
