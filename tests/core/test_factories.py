@@ -400,6 +400,11 @@ class TestFactories(TestCase):
                 dim = self.get_rank() + 1
                 ht.array([[0] * dim] * dim, is_split=0)
 
+        # edge case: single element in 2D array
+        a = ht.array([[5]])
+        self.assertTrue(np.allclose(a.shape, (1, 1)))
+        self.assertEqual(a[0,0], 5)
+
     def test_array_implicit_device_selection(self):
         # test implicit device selection
         for device in ['cpu', 'cuda', 'mps']:
