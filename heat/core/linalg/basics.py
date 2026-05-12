@@ -902,6 +902,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
             a_d1_1s_flag = True
 
         index_map_comm.Wait()
+        a_block_map = a_block_map.cpu().numpy()
         for pr in range(comm.size):
             start0 = index_map[pr, 0, 0, 0].item()
             stop0 = index_map[pr, 0, 0, 1].item()
@@ -917,9 +918,8 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
                     (stop1 - start1) // kB // comm.size if a_d1_1s_flag else (stop1 - start1) // kB
                 ):
                     # loop over the number of blocks in the 1st dimension
-                    a_block_map[pr, dim0, dim1] = torch.tensor(
-                        (dim0 * mB, dim1 * kB), dtype=torch.int, device=tdev
-                    )
+                    a_block_map[pr, dim0, dim1] = (dim0 * mB, dim1 * kB)
+        a_block_map = torch.tensor(a_block_map, device=tdev, dtype=torch.int)
         rem_map_comm.Wait()
 
         if b.split == ndim - 2:
