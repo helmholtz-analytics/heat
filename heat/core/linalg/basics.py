@@ -830,9 +830,10 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
 
         # get the lshape map to determine what needs to be sent where as well as M and N
         # lshape map dims -> {node, a=0 | b=1, lshape}
-        lshape_map = torch.zeros((comm.size, 2, ndim), dtype=int, device=tdev)
-        lshape_map[comm.rank, 0, :] = torch.tensor(a.lshape, device=tdev)
-        lshape_map[comm.rank, 1, :] = torch.tensor(b.lshape, device=tdev)
+        lshape_map = np.zeros((comm.size, 2, ndim), dtype=int)
+        lshape_map[comm.rank, 0, :] = a.lshape
+        lshape_map[comm.rank, 1, :] = b.lshape
+        lshape_map = torch.from_numpy(lshape_map)
         comm.Allreduce(MPI.IN_PLACE, lshape_map, MPI.SUM)
 
         # find mB (first blocking dim for a) and nB (2nd blocking dim for b)
@@ -849,19 +850,22 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
         # get the flags from all processes
         # rem_map dims guide -> {process number, a/b (0/1), dim0/dim1 (0/1), True/False (1/0)
         #   if there is a remainder in this dimension
-        rem_map = torch.zeros((comm.size, 2, 2))
-        rem_map[comm.rank, 0, :] = torch.tensor((rem_a_out, rem_a), device=tdev)
-        rem_map[comm.rank, 1, :] = torch.tensor((rem_b, rem_b_out), device=tdev)
+        rem_map = np.zeros((comm.size, 2, 2))
+        rem_map[comm.rank, 0, :] = (rem_a_out, rem_a)
+        rem_map[comm.rank, 1, :] = (rem_b, rem_b_out)
+        rem_map = torch.from_numpy(rem_map)
         rem_map_comm = comm.Iallreduce(MPI.IN_PLACE, rem_map, MPI.SUM)
 
         # index_map dims guide -> {process number, a=0/b=1, relevant 1st index, 2nd index}
-        index_map = torch.zeros((comm.size, 2, 2, 2), dtype=int, device=tdev)
+        index_map = np.zeros((comm.size, 2, 2, 2), dtype=int)
         a_idx = comm.chunk(a.shape, a.split)[2]
-        index_map[comm.rank, 0, 0] = torch.tensor((a_idx[-2].start, a_idx[-2].stop), device=tdev)
-        index_map[comm.rank, 0, 1] = torch.tensor((a_idx[-1].start, a_idx[-1].stop), device=tdev)
+        index_map[comm.rank, 0, 0] = (a_idx[-2].start, a_idx[-2].stop)
+        index_map[comm.rank, 0, 1] = (a_idx[-1].start, a_idx[-1].stop)
         b_idx = comm.chunk(b.shape, b.split)[2]
-        index_map[comm.rank, 1, 0] = torch.tensor((b_idx[-2].start, b_idx[-2].stop), device=tdev)
-        index_map[comm.rank, 1, 1] = torch.tensor((b_idx[-1].start, b_idx[-1].stop), device=tdev)
+        index_map[comm.rank, 1, 0] = (b_idx[-2].start, b_idx[-2].stop)
+        index_map[comm.rank, 1, 1] = (b_idx[-1].start, b_idx[-1].stop)
+        index_map = torch.from_numpy(index_map)
+
         index_map_comm = comm.Iallreduce(MPI.IN_PLACE, index_map, MPI.SUM)
 
         # output: c = a @ b
