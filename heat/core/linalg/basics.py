@@ -881,16 +881,14 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
         c_index_map_comm = comm.Iallreduce(MPI.IN_PLACE, c_index_map, MPI.SUM)
 
         if a.split == ndim - 2:
-            a_block_map = torch.zeros(
+            a_block_map = np.zeros(
                 (comm.size, a.shape[-2] // mB // comm.size, a.shape[-1] // kB, 2),
                 dtype=torch.int,
-                device=tdev,
             )
         elif a.split == ndim - 1:  # else should be equivalent at this point
-            a_block_map = torch.zeros(
+            a_block_map = np.zeros(
                 (comm.size, a.shape[-2] // mB, a.shape[-1] // kB // comm.size, 2),
                 dtype=torch.int,
-                device=tdev,
             )
         # units-> [process, dim0 block number, dim1 block number, start coord] **indices are local
 
@@ -902,7 +900,6 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
             a_d1_1s_flag = True
 
         index_map_comm.Wait()
-        a_block_map = a_block_map.cpu().numpy()
         for pr in range(comm.size):
             start0 = index_map[pr, 0, 0, 0].item()
             stop0 = index_map[pr, 0, 0, 1].item()
@@ -919,7 +916,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
                 ):
                     # loop over the number of blocks in the 1st dimension
                     a_block_map[pr, dim0, dim1] = (dim0 * mB, dim1 * kB)
-        a_block_map = torch.tensor(a_block_map, device=tdev, dtype=torch.int)
+        a_block_map = torch.from_numpy(a_block_map)
         rem_map_comm.Wait()
 
         if b.split == ndim - 2:
@@ -2263,7 +2260,7 @@ def __mm_c_block_setter(
     c : torch.Tensor
         the local data for C
     """
-    # # (int, int, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, int, int, int, int, int, torch.Tensor) -> None
+    # (int, int, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, int, int, int, int, int, torch.Tensor) -> None
     shp_b = b_block_map.shape
     offset_a = b_proc * shp_b[1] if b_proc != 0 else 0
     shp_a = a_block_map.shape
@@ -2271,13 +2268,13 @@ def __mm_c_block_setter(
     # offsets are the number of blocks in the multiplication direction on previous nodes
 
     for bl_1_a in (
-        torch.arange(offset_a, offset_a + shp_b[1], dtype=torch.long, device=c.device)
+        torch.arange(offset_a, offset_a + shp_b[1], dtype=torch.long)
         if b_split == 0
         else torch.arange(a_block_map[a_proc].shape[0], dtype=torch.long, device=c.device)
     ):
         # offset is the number of blocks on the previous node in the direction of multiplication
         for bl_0_a in torch.arange(
-            a_block_map[a_proc].shape[0], dtype=torch.long, device=c.device
+            a_block_map[a_proc].shape[0], dtype=torch.long
         ):  # dim0
             for bl_1_b in torch.arange(
                 b_block_map[b_proc].shape[1], dtype=torch.long, device=c.device
