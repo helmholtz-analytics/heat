@@ -2677,6 +2677,176 @@ class DNDarray:
 
         return self
 
+    def __setitem_unordered(
+        self,
+        key: tuple | list | torch.Tensor,
+        key_is_mask_like: bool,
+        value: "DNDarray",
+        key_is_single_tensor: bool,
+        counts: tuple,
+        displs: tuple,
+        rank: int,
+        backwards_transpose_axes: tuple,
+    ) -> "DNDarray":
+        """
+        Handles the MPI communication when assigning a distributed
+        value to a distributed array with unordered global indices.
+        """
+        # distribution of `key` and `value` must be aligned
+        if key_is_mask_like:
+            # redistribute `value` to match distribution of `key` in one pass
+            split_key = key[self.split]
+            global_split_key = factories.array(
+                split_key, is_split=0, device=self.device, comm=self.comm, copy=False
+            )
+            target_map = value.lshape_map
+            target_map[:, value.split] = global_split_key.lshape_map[:, 0]
+            value.redistribute_(target_map=target_map)
+        else:
+            # redistribute split-axis `key` to match distribution of `value` in one pass
+            if key_is_single_tensor:
+                # key is a single torch.Tensor
+                split_key = key
+            else:
+                split_key = key[self.split]
+                global_split_key = factories.array(
+                    split_key, is_split=0, device=self.device, comm=self.comm, copy=False
+                )
+            target_map = global_split_key.lshape_map
+            target_map[:, 0] = value.lshape_map[:, value.split]
+            global_split_key.redistribute_(target_map=target_map)
+            split_key = global_split_key.larray
+
+        # key and value are now aligned
+
+        # prepare for `value` Alltoallv:
+        # work along axis 0, transpose if necessary
+        transpose_axes = list(range(value.ndim))
+        transpose_axes[0], transpose_axes[value.split] = (
+            transpose_axes[value.split],
+            transpose_axes[0],
+        )
+        value = value.transpose(transpose_axes)
+        send_counts = torch.zeros(
+            self.comm.size, dtype=torch.int64, device=self.device.torch_device
+        )
+        send_displs = torch.zeros_like(send_counts)
+        # allocate send buffer: add 1 column to store sent indices
+        send_buf_shape = list(value.lshape)
+        if value.ndim < 2:
+            send_buf_shape.append(1)
+        if key_is_mask_like:
+            send_buf_shape[-1] += len(key)
+        else:
+            send_buf_shape[-1] += 1
+        send_buf = torch.zeros(
+            send_buf_shape, dtype=value.dtype.torch_type(), device=self.device.torch_device
+        )
+        for proc in range(self.comm.size):
+            # calculate what local elements of `value` belong on process `proc`
+            send_indices = torch.nonzero(
+                (split_key >= displs[proc]) & (split_key < displs[proc] + counts[proc])
+            ).flatten()
+            # calculate outgoing counts and displacements for each process
+            send_counts[proc] = send_indices.numel()
+            send_displs[proc] = send_counts[:proc].sum()
+            # compose send buffer: stack local elements of `value` according to destination process
+            if send_indices.numel() > 0:
+                if value.ndim < 2:
+                    # temporarily add a singleton dimension to value to accommodate column dimension for send_indices
+                    send_buf[send_displs[proc] : send_displs[proc] + send_counts[proc], :-1] = (
+                        value.larray[send_indices].unsqueeze(1)
+                    )
+                else:
+                    send_buf[send_displs[proc] : send_displs[proc] + send_counts[proc], :-1] = (
+                        value.larray[send_indices]
+                    )
+                # store outgoing GLOBAL indices in the last column of send_buf
+                if key_is_mask_like:
+                    for i in range(-len(key), 0):
+                        send_buf[send_displs[proc] : send_displs[proc] + send_counts[proc], i] = (
+                            key[i + len(key)][send_indices]
+                        )
+                else:
+                    send_indices = split_key[send_indices]
+                    send_buf[send_displs[proc] : send_displs[proc] + send_counts[proc], -1] = (
+                        send_indices
+                    )
+
+        # compose communication matrix: share `send_counts` information with all processes
+        comm_matrix = torch.zeros(
+            (self.comm.size, self.comm.size),
+            dtype=torch.int64,
+            device=self.device.torch_device,
+        )
+        self.comm.Allgather(send_counts, comm_matrix)
+        # comm_matrix columns contain recv_counts for each process
+        recv_counts = comm_matrix[:, self.comm.rank].squeeze(0)
+        recv_displs = torch.zeros_like(recv_counts)
+        recv_displs[1:] = recv_counts.cumsum(0)[:-1]
+        # allocate receive buffer, with 1 extra column for incoming indices
+        recv_buf_shape = value.lshape_map[self.comm.rank]
+        recv_buf_shape[value.split] = recv_counts.sum()
+        recv_buf_shape = recv_buf_shape.tolist()
+        if value.ndim < 2:
+            recv_buf_shape.append(1)
+        if key_is_mask_like:
+            recv_buf_shape[-1] += len(key)
+        else:
+            recv_buf_shape[-1] += 1
+        recv_buf_shape = tuple(recv_buf_shape)
+        recv_buf = torch.zeros(
+            recv_buf_shape, dtype=value.dtype.torch_type(), device=self.device.torch_device
+        )
+        # perform Alltoallv along the 0 axis
+        send_counts, send_displs, recv_counts, recv_displs = (
+            send_counts.tolist(),
+            send_displs.tolist(),
+            recv_counts.tolist(),
+            recv_displs.tolist(),
+        )
+        self.comm.Alltoallv(
+            (send_buf, send_counts, send_displs), (recv_buf, recv_counts, recv_displs)
+        )
+        del send_buf, comm_matrix
+        key = list(key)
+        if key_is_mask_like:
+            # extract incoming indices from recv_buf
+            recv_indices = recv_buf[..., -len(key) :]
+            # correct split-axis indices for rank offset
+            recv_indices[:, 0] -= displs[rank]
+            key = recv_indices.split(1, dim=1)
+            key = [key[i].squeeze_(1) for i in range(len(key))]
+            # remove indices from recv_buf
+            recv_buf = recv_buf[..., : -len(key)]
+        else:
+            # store incoming indices in int 1-D tensor and correct for rank offset
+            recv_indices = recv_buf[..., -1].type(torch.int64) - displs[rank]
+            # remove last column from recv_buf
+            recv_buf = recv_buf[..., :-1]
+            # replace split-axis key with incoming local indices
+            key = list(key)
+            key[self.split] = recv_indices
+            key = tuple(key)
+        # transpose back value and recv_buf if necessary, wrap recv_buf in DNDarray
+        value = value.transpose(transpose_axes)
+        if value.ndim < 2:
+            recv_buf.squeeze_(1)
+        recv_buf = DNDarray(
+            recv_buf.permute(*transpose_axes),
+            gshape=value.gshape,
+            dtype=value.dtype,
+            split=value.split,
+            device=value.device,
+            comm=value.comm,
+            balanced=value.balanced,
+        )
+        # set local elements of `self` to corresponding elements of `value`
+        self.__set(key, recv_buf)
+        if self.ndim > 0:
+            return self.transpose(backwards_transpose_axes)
+        return self
+
     def __setitem__(
         self,
         key: int | tuple[int, ...] | list[int],
@@ -3134,159 +3304,17 @@ class DNDarray:
                 return
 
             # both `self` and `value` are distributed
-            # distribution of `key` and `value` must be aligned
-            if key_is_mask_like:
-                # redistribute `value` to match distribution of `key` in one pass
-                split_key = key[self.split]
-                global_split_key = factories.array(
-                    split_key, is_split=0, device=self.device, comm=self.comm, copy=False
-                )
-                target_map = value.lshape_map
-                target_map[:, value.split] = global_split_key.lshape_map[:, 0]
-                value.redistribute_(target_map=target_map)
-            else:
-                # redistribute split-axis `key` to match distribution of `value` in one pass
-                if key_is_single_tensor:
-                    # key is a single torch.Tensor
-                    split_key = key
-                else:
-                    split_key = key[self.split]
-                    global_split_key = factories.array(
-                        split_key, is_split=0, device=self.device, comm=self.comm, copy=False
-                    )
-                target_map = global_split_key.lshape_map
-                target_map[:, 0] = value.lshape_map[:, value.split]
-                global_split_key.redistribute_(target_map=target_map)
-                split_key = global_split_key.larray
-
-            # key and value are now aligned
-
-            # prepare for `value` Alltoallv:
-            # work along axis 0, transpose if necessary
-            transpose_axes = list(range(value.ndim))
-            transpose_axes[0], transpose_axes[value.split] = (
-                transpose_axes[value.split],
-                transpose_axes[0],
+            self = self.__setitem_unordered(
+                key=key,
+                key_is_mask_like=key_is_mask_like,
+                value=value,
+                key_is_single_tensor=key_is_single_tensor,
+                counts=counts,
+                displs=displs,
+                rank=rank,
+                backwards_transpose_axes=backwards_transpose_axes,
             )
-            value = value.transpose(transpose_axes)
-            send_counts = torch.zeros(
-                self.comm.size, dtype=torch.int64, device=self.device.torch_device
-            )
-            send_displs = torch.zeros_like(send_counts)
-            # allocate send buffer: add 1 column to store sent indices
-            send_buf_shape = list(value.lshape)
-            if value.ndim < 2:
-                send_buf_shape.append(1)
-            if key_is_mask_like:
-                send_buf_shape[-1] += len(key)
-            else:
-                send_buf_shape[-1] += 1
-            send_buf = torch.zeros(
-                send_buf_shape, dtype=value.dtype.torch_type(), device=self.device.torch_device
-            )
-            for proc in range(self.comm.size):
-                # calculate what local elements of `value` belong on process `proc`
-                send_indices = torch.nonzero(
-                    (split_key >= displs[proc]) & (split_key < displs[proc] + counts[proc])
-                ).flatten()
-                # calculate outgoing counts and displacements for each process
-                send_counts[proc] = send_indices.numel()
-                send_displs[proc] = send_counts[:proc].sum()
-                # compose send buffer: stack local elements of `value` according to destination process
-                if send_indices.numel() > 0:
-                    if value.ndim < 2:
-                        # temporarily add a singleton dimension to value to accmodate column dimension for send_indices
-                        send_buf[send_displs[proc] : send_displs[proc] + send_counts[proc], :-1] = (
-                            value.larray[send_indices].unsqueeze(1)
-                        )
-                    else:
-                        send_buf[send_displs[proc] : send_displs[proc] + send_counts[proc], :-1] = (
-                            value.larray[send_indices]
-                        )
-                    # store outgoing GLOBAL indices in the last column of send_buf
-                    # TODO: if key_is_mask_like: apply send_indices to all dimensions of key
-                    if key_is_mask_like:
-                        for i in range(-len(key), 0):
-                            send_buf[
-                                send_displs[proc] : send_displs[proc] + send_counts[proc], i
-                            ] = key[i + len(key)][send_indices]
-                    else:
-                        send_indices = split_key[send_indices]
-                        send_buf[send_displs[proc] : send_displs[proc] + send_counts[proc], -1] = (
-                            send_indices
-                        )
-
-            # compose communication matrix: share `send_counts` information with all processes
-            comm_matrix = torch.zeros(
-                (self.comm.size, self.comm.size),
-                dtype=torch.int64,
-                device=self.device.torch_device,
-            )
-            self.comm.Allgather(send_counts, comm_matrix)
-            # comm_matrix columns contain recv_counts for each process
-            recv_counts = comm_matrix[:, self.comm.rank].squeeze(0)
-            recv_displs = torch.zeros_like(recv_counts)
-            recv_displs[1:] = recv_counts.cumsum(0)[:-1]
-            # allocate receive buffer, with 1 extra column for incoming indices
-            recv_buf_shape = value.lshape_map[self.comm.rank]
-            recv_buf_shape[value.split] = recv_counts.sum()
-            recv_buf_shape = recv_buf_shape.tolist()
-            if value.ndim < 2:
-                recv_buf_shape.append(1)
-            if key_is_mask_like:
-                recv_buf_shape[-1] += len(key)
-            else:
-                recv_buf_shape[-1] += 1
-            recv_buf_shape = tuple(recv_buf_shape)
-            recv_buf = torch.zeros(
-                recv_buf_shape, dtype=value.dtype.torch_type(), device=self.device.torch_device
-            )
-            # perform Alltoallv along the 0 axis
-            send_counts, send_displs, recv_counts, recv_displs = (
-                send_counts.tolist(),
-                send_displs.tolist(),
-                recv_counts.tolist(),
-                recv_displs.tolist(),
-            )
-            self.comm.Alltoallv(
-                (send_buf, send_counts, send_displs), (recv_buf, recv_counts, recv_displs)
-            )
-            del send_buf, comm_matrix
-            key = list(key)
-            if key_is_mask_like:
-                # extract incoming indices from recv_buf
-                recv_indices = recv_buf[..., -len(key) :]
-                # correct split-axis indices for rank offset
-                recv_indices[:, 0] -= displs[rank]
-                key = recv_indices.split(1, dim=1)
-                key = [key[i].squeeze_(1) for i in range(len(key))]
-                # remove indices from recv_buf
-                recv_buf = recv_buf[..., : -len(key)]
-            else:
-                # store incoming indices in int 1-D tensor and correct for rank offset
-                recv_indices = recv_buf[..., -1].type(torch.int64) - displs[rank]
-                # remove last column from recv_buf
-                recv_buf = recv_buf[..., :-1]
-                # replace split-axis key with incoming local indices
-                key = list(key)
-                key[self.split] = recv_indices
-                key = tuple(key)
-            # transpose back value and recv_buf if necessary, wrap recv_buf in DNDarray
-            value = value.transpose(transpose_axes)
-            if value.ndim < 2:
-                recv_buf.squeeze_(1)
-            recv_buf = DNDarray(
-                recv_buf.permute(*transpose_axes),
-                gshape=value.gshape,
-                dtype=value.dtype,
-                split=value.split,
-                device=value.device,
-                comm=value.comm,
-                balanced=value.balanced,
-            )
-            # set local elements of `self` to corresponding elements of `value`
-            self.__set(key, recv_buf)
-            self = self.transpose(backwards_transpose_axes)
+            return
 
     def __setter(
         self,
