@@ -881,12 +881,12 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
         c_index_map_comm = comm.Iallreduce(MPI.IN_PLACE, c_index_map, MPI.SUM)
 
         if a.split == ndim - 2:
-            a_block_map = np.zeros(
+            a_block_map = torch.zeros(
                 (comm.size, a.shape[-2] // mB // comm.size, a.shape[-1] // kB, 2),
                 dtype=torch.int,
             )
         elif a.split == ndim - 1:  # else should be equivalent at this point
-            a_block_map = np.zeros(
+            a_block_map = torch.zeros(
                 (comm.size, a.shape[-2] // mB, a.shape[-1] // kB // comm.size, 2),
                 dtype=torch.int,
             )
@@ -900,6 +900,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
             a_d1_1s_flag = True
 
         index_map_comm.Wait()
+        a_block_map = a_block_map.numpy() # temporarily cast to numpy for faster memory access
         for pr in range(comm.size):
             start0 = index_map[pr, 0, 0, 0].item()
             stop0 = index_map[pr, 0, 0, 1].item()
@@ -933,13 +934,11 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
             b_block_map = torch.zeros(
                 (comm.size, b.shape[-2] // kB // comm.size, b.shape[-1] // nB, 2),
                 dtype=torch.int,
-                device=tdev,
             )
         else:  # b split 1
             b_block_map = torch.zeros(
                 (comm.size, b.shape[-2] // kB, b.shape[-1] // nB // comm.size, 2),
                 dtype=torch.int,
-                device=tdev,
             )
         # units-> [process, dim0 block number, dim1 block number, start coord] **indices are local
 
@@ -950,6 +949,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
         if any(lshape_map[:, 1, :][:, -1] == 1):
             b_d1_1s_flag = True
 
+        b_block_map = b_block_map.numpy() # temporarily cast to numpy for faster memory access
         for pr in range(b.comm.size):
             start0 = index_map[pr, 1, 0, 0].item()
             stop0 = index_map[pr, 1, 0, 1].item()
@@ -966,9 +966,8 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
                     if b_d1_1s_flag
                     else (stop1 - start1) // nB
                 ):
-                    b_block_map[pr, dim0, dim1] = torch.tensor(
-                        (dim0 * kB, dim1 * nB), dtype=torch.int, device=tdev
-                    )
+                    b_block_map[pr, dim0, dim1] = (dim0 * kB, dim1 * nB)
+        b_block_map = torch.from_numpy(b_block_map)
 
         if a.split == ndim - 1:
             cnt = 0
@@ -2270,20 +2269,20 @@ def __mm_c_block_setter(
     for bl_1_a in (
         torch.arange(offset_a, offset_a + shp_b[1], dtype=torch.long)
         if b_split == 0
-        else torch.arange(a_block_map[a_proc].shape[0], dtype=torch.long, device=c.device)
+        else torch.arange(a_block_map[a_proc].shape[0], dtype=torch.long)
     ):
         # offset is the number of blocks on the previous node in the direction of multiplication
         for bl_0_a in torch.arange(
             a_block_map[a_proc].shape[0], dtype=torch.long
         ):  # dim0
             for bl_1_b in torch.arange(
-                b_block_map[b_proc].shape[1], dtype=torch.long, device=c.device
+                b_block_map[b_proc].shape[1], dtype=torch.long
             ):
                 for bl_0_b in (
-                    torch.arange(offset_b, offset_b + shp_a[1], dtype=torch.long, device=c.device)
+                    torch.arange(offset_b, offset_b + shp_a[1], dtype=torch.long)
                     if a_split == 1
                     else torch.arange(
-                        b_block_map[b_proc].shape[0], dtype=torch.long, device=c.device
+                        b_block_map[b_proc].shape[0], dtype=torch.long
                     )
                 ):
                     # this offset is the same as before but for b
