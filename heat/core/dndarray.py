@@ -930,6 +930,46 @@ class DNDarray:
         backwards_transpose_axes : tuple[int, ...]
             The axes to transpose the input ``DNDarray`` back to its original shape if it has been transposed for advanced indexing
         """
+        # normalize index components
+        if isinstance(key, DNDarray):
+            if key.dtype not in (ht_bool, ht_uint8) and key.split is None:
+                key = key.larray.to(torch.int64)
+        elif isinstance(key, (list, tuple)):
+            key = type(key)(
+                k.larray.to(torch.int64)
+                if isinstance(k, DNDarray)
+                and k.dtype not in (ht_bool, ht_uint8)
+                and k.split is None
+                else k
+                for k in key
+            )
+
+        # 1D boolean mask resolution
+        first = key[0] if isinstance(key, tuple) and len(key) >= 1 else key
+        if isinstance(first, (DNDarray, torch.Tensor, np.ndarray)) and arr.ndim >= 1:
+            first_dtype = getattr(first, "dtype", None)
+            first_ndim = getattr(first, "ndim", 0)
+            first_shape = tuple(getattr(first, "shape", ()))
+
+            if (
+                first_ndim == 1
+                and first_shape == (arr.gshape[0],)
+                and first_dtype in (ht_bool, ht_uint8, torch.bool, torch.uint8, np.bool_, np.uint8)
+            ):
+                if isinstance(first, DNDarray):
+                    nz = first.nonzero()
+                    if isinstance(nz, tuple):
+                        nz = nz[0]
+                    if getattr(nz, "ndim", 1) > 1 and nz.shape[-1] == 1:
+                        nz = nz.squeeze(-1)
+                    idx0 = nz
+                elif isinstance(first, torch.Tensor):
+                    idx0 = torch.nonzero(first, as_tuple=False).flatten()
+                else:  # np.ndarray
+                    idx0 = np.nonzero(first)[0].astype(np.int64)
+
+                key = (idx0,) + key[1:] if isinstance(key, tuple) else (idx0,)
+
         output_shape = list(arr.gshape)
         split_bookkeeping = [None] * arr.ndim
         new_split = arr.split
@@ -1520,20 +1560,6 @@ class DNDarray:
             return slice(local_inds.start, local_inds.stop, local_inds.step)
         return None
 
-    # TODO: what does this do?
-    @staticmethod
-    def __normalize_index_component(comp):
-        if isinstance(comp, DNDarray):
-            if comp.dtype in (ht_bool, ht_uint8):
-                return comp
-
-            if comp.split is not None:
-                return comp
-
-            return comp.larray.to(torch.int64)
-
-        return comp
-
     @staticmethod
     def __is_basic_component(k):
         return k is ... or k is None or isinstance(k, (slice, int, np.integer))
@@ -1830,54 +1856,6 @@ class DNDarray:
         from .types import bool as ht_bool, uint8 as ht_uint8  # avoid circulars
 
         original_split = self.split
-
-        if isinstance(key, DNDarray):
-            key = self.__normalize_index_component(key)
-        elif isinstance(key, (list, tuple)):
-            key = type(key)(self.__normalize_index_component(k) for k in key)
-
-        if isinstance(key, tuple) and len(key) >= 1 and self.ndim >= 1:
-            first = key[0]
-
-            # Case 1: DNDarray boolean mask
-            if (
-                isinstance(first, DNDarray)
-                and first.dtype in (ht_bool, ht_uint8)
-                and first.ndim == 1
-                and first.gshape == (self.gshape[0],)
-            ):
-                nz = first.nonzero()
-                if isinstance(nz, tuple):
-                    nz = nz[0]
-                if getattr(nz, "ndim", 1) > 1 and nz.shape[-1] == 1:
-                    nz = nz.squeeze(-1)
-                idx0 = nz
-                key = (idx0,) + key[1:]
-
-            # Case 2: torch.Tensor boolean mask
-            elif (
-                isinstance(first, torch.Tensor)
-                and first.ndim == 1
-                and first.shape[0] == self.gshape[0]
-                and first.dtype in (torch.bool, torch.uint8)
-            ):
-                idx0 = torch.nonzero(first, as_tuple=False).flatten()
-                key = (idx0,) + key[1:]
-
-            # Case 3: numpy.ndarray boolean mask
-            elif (
-                isinstance(first, np.ndarray)
-                and first.ndim == 1
-                and first.shape[0] == self.gshape[0]
-                and first.dtype in (np.bool_, np.uint8)
-            ):
-                idx0 = np.nonzero(first)[0].astype(np.int64)
-                key = (idx0,) + key[1:]
-
-        if isinstance(key, DNDarray):
-            # Exclude boolean masks; they have their own dedicated handling.
-            if key.ndim == 1 and key.dtype not in (ht_bool, ht_uint8):
-                key = key.larray.to(torch.int64)
 
         # Single-element indexing
         scalar = np.isscalar(key) or getattr(key, "ndim", 1) == 0
@@ -2758,36 +2736,6 @@ class DNDarray:
                     value = sanitation.sanitize_distribution(value, target=self[key])
                 self.__set(key, value)
             return
-
-        if isinstance(key, tuple) and len(key) >= 1 and self.ndim >= 1:
-            first = key[0]
-            if isinstance(first, (DNDarray, torch.Tensor, np.ndarray)):
-                first_dtype = getattr(first, "dtype", None)
-                first_ndim = getattr(first, "ndim", 0)
-                first_shape = tuple(getattr(first, "shape", ()))
-
-                if (
-                    first_ndim == 1
-                    and first_shape == (self.shape[0],)
-                    and first_dtype
-                    in (ht_bool, ht_uint8, torch.bool, torch.uint8, np.bool_, np.uint8)
-                ):
-                    # 1D boolean row mask -> explicit integer indices
-                    if isinstance(first, DNDarray):
-                        nz = first.nonzero()
-                        if isinstance(nz, tuple):
-                            nz = nz[0]
-                        idx0 = nz  # DNDarray of int indices (global)
-                    else:
-                        first_t = torch.as_tensor(first, device=self.device.torch_device)
-                        idx0 = torch.nonzero(first_t, as_tuple=False).flatten()
-
-                    # Build new key: (idx0, rest...)
-                    new_key = (idx0,) + key[1:]
-
-                    # recursuve call with integer advanced indexing.
-                    self[new_key] = value
-                    return
 
         # handle negative indices in multi-element keys
         if isinstance(key, tuple):
