@@ -13,5 +13,5 @@ Jump-start your transition to Heat-based distributed computing by coding it up t
 Missing some features?
 Get it on our radar for future releases right there.
 
-A more detailed program will follow shortly, but please already mark this in your calendar!
+A more detailed program will follow shortly, but you can already [register](https://indico3-jsc.fz-juelich.de/e/heat-hackathon-2026).
 We are looking forward to meeting you there!
