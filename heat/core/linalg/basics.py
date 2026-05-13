@@ -850,7 +850,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
         # get the flags from all processes
         # rem_map dims guide -> {process number, a/b (0/1), dim0/dim1 (0/1), True/False (1/0)
         #   if there is a remainder in this dimension
-        rem_map = np.zeros((comm.size, 2, 2))
+        rem_map = np.zeros((comm.size, 2, 2), dtype=int)
         rem_map[comm.rank, 0, :] = (rem_a_out, rem_a)
         rem_map[comm.rank, 1, :] = (rem_b, rem_b_out)
         rem_map = torch.from_numpy(rem_map)
@@ -2266,19 +2266,15 @@ def __mm_c_block_setter(
     offset_b = a_proc * shp_a[2] if a_proc != 0 else 0
     # offsets are the number of blocks in the multiplication direction on previous nodes
 
-    for bl_1_a in (
-        torch.arange(offset_a, offset_a + shp_b[1], dtype=torch.long)
-        if b_split == 0
-        else torch.arange(a_block_map[a_proc].shape[0], dtype=torch.long)
-    ):
+    a_range_start = offset_a if b_split == 0 else 0
+    a_range_end = offset_a + shp_b[1] if b_split == 0 else a_block_map[a_proc].shape[0]
+    for bl_1_a in range(a_range_start, a_range_end):
         # offset is the number of blocks on the previous node in the direction of multiplication
-        for bl_0_a in torch.arange(a_block_map[a_proc].shape[0], dtype=torch.long):  # dim0
-            for bl_1_b in torch.arange(b_block_map[b_proc].shape[1], dtype=torch.long):
-                for bl_0_b in (
-                    torch.arange(offset_b, offset_b + shp_a[1], dtype=torch.long)
-                    if a_split == 1
-                    else torch.arange(b_block_map[b_proc].shape[0], dtype=torch.long)
-                ):
+        for bl_0_a in range(a_block_map[a_proc].shape[0]):
+            for bl_1_b in range(b_block_map[b_proc].shape[1]):
+                b_range_start = offset_b if a_split == 1 else 0
+                b_range_end = offset_b + shp_a[1] if a_split == 1 else b_block_map[b_proc].shape[0]
+                for bl_0_b in range(b_range_start, b_range_end):
                     # this offset is the same as before but for b
                     a_start1 = int(a_block_map[a_proc, bl_0_a, bl_1_a, 1].item())
                     a_start0 = int(a_block_map[a_proc, bl_0_a, bl_1_a, 0].item())
