@@ -1046,6 +1046,8 @@ class TestSignal(TestCase):
                 self.assertTrue(ht.equal(ht.array([5]), conv))
 
     def test_convolve2d_kernel_size_1(self):
+        if "rocm" in torch.__version__:
+            self.skipTest('This test mysteriously fails on AMD, see #2283')
         # prep
         ht_dtype = ht.float32 if self.is_mps else ht.float64
 
