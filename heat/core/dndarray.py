@@ -1812,6 +1812,166 @@ class DNDarray:
         rhs = value_torch[tuple(rhs_index)]
         x_local[lhs_index] = rhs.to(out_dtype)
 
+    def __getitem_unordered(
+        self,
+        key: tuple,
+        output_shape: tuple,
+        output_split: int,
+        out_is_balanced: bool,
+        key_is_mask_like: bool,
+        backwards_transpose_axes: tuple,
+    ) -> "DNDarray":
+        """
+        Handles the MPI communication (Isend/Recv) when the key along the
+        split axis is unordered and indices are GLOBAL.
+        """
+        counts, displs = self.counts_displs()
+        rank, size = self.comm.rank, self.comm.size
+
+        key_is_single_tensor = isinstance(key, torch.Tensor)
+        if key_is_single_tensor:
+            split_key = key
+        else:
+            split_key = key[self.split]
+
+        if split_key.ndim > 1:
+            original_split_key_shape = split_key.shape
+            communication_split = output_split - (split_key.ndim - 1)
+            split_key = split_key.flatten()
+        else:
+            communication_split = output_split
+
+        recv_counts = torch.zeros((size,), dtype=torch.int64, device=self.larray.device)
+        if key_is_mask_like:
+            recv_indices = torch.zeros(
+                (len(split_key), len(key)), dtype=split_key.dtype, device=self.larray.device
+            )
+        else:
+            recv_indices = torch.zeros(
+                (split_key.shape), dtype=split_key.dtype, device=self.larray.device
+            )
+
+        for p in range(size):
+            cond1 = split_key >= displs[p]
+            cond2 = split_key < displs[p] + counts[p]
+            indices_from_p = torch.nonzero(cond1 & cond2, as_tuple=False)
+            incoming_indices = split_key[indices_from_p].flatten()
+            recv_counts[p] = incoming_indices.numel()
+            start = int(recv_counts[:p].sum().item())
+            stop = start + int(recv_counts[p].item())
+            if incoming_indices.numel() > 0:
+                if key_is_mask_like:
+                    for i in range(len(key)):
+                        recv_indices[start:stop, i] = key[i][indices_from_p].flatten()
+                    recv_indices[start:stop, self.split] -= displs[p]
+                else:
+                    recv_indices[start:stop] = incoming_indices - displs[p]
+
+        comm_matrix = torch.zeros((size, size), dtype=torch.int64, device=self.larray.device)
+        self.comm.Allgather(recv_counts, comm_matrix)
+        send_counts = comm_matrix[:, rank]
+
+        active_rank_pairs = torch.nonzero(comm_matrix, as_tuple=False)
+        rank = int(rank)
+        mask_recv = active_rank_pairs[:, 1].eq(rank)
+        mask_send = active_rank_pairs[:, 0].eq(rank)
+
+        active_recv_indices_from = [int(x.item()) for x in active_rank_pairs[mask_recv, 0]]
+        active_send_indices_to = [int(x.item()) for x in active_rank_pairs[mask_send, 1]]
+        rank_is_active = (len(active_recv_indices_from) > 0) or (len(active_send_indices_to) > 0)
+
+        recv_buf_shape = list(output_shape)
+        if communication_split != output_split:
+            recv_buf_shape = (
+                recv_buf_shape[:communication_split]
+                + [recv_counts.sum().item()]
+                + recv_buf_shape[output_split + 1 :]
+            )
+        else:
+            recv_buf_shape[communication_split] = recv_counts.sum().item()
+
+        recv_buf = torch.zeros(
+            tuple(recv_buf_shape), dtype=self.larray.dtype, device=self.larray.device
+        )
+
+        if rank_is_active:
+            send_requests = []
+            for i in active_send_indices_to:
+                start = recv_counts[:i].sum().item()
+                stop = start + recv_counts[i].item()
+                outgoing_indices = recv_indices[start:stop]
+                send_requests.append(self.comm.Isend(outgoing_indices, dest=i))
+                del outgoing_indices
+            del recv_indices
+            for i in active_recv_indices_from:
+                if key_is_mask_like:
+                    incoming_indices = torch.zeros(
+                        (send_counts[i].item(), len(key)),
+                        dtype=torch.int64,
+                        device=self.larray.device,
+                    )
+                else:
+                    incoming_indices = torch.zeros(
+                        send_counts[i].item(), dtype=torch.int64, device=self.larray.device
+                    )
+                self.comm.Recv(incoming_indices, source=i)
+                if key_is_single_tensor:
+                    send_buf = self.larray[incoming_indices]
+                else:
+                    if key_is_mask_like:
+                        send_key = tuple(
+                            incoming_indices[:, i].reshape(-1)
+                            for i in range(incoming_indices.shape[1])
+                        )
+                        send_buf = self.larray[send_key]
+                    else:
+                        send_key = list(key)
+                        send_key[self.split] = incoming_indices
+                        send_buf = self.larray[tuple(send_key)]
+                send_requests.append(self.comm.Isend(send_buf, dest=i))
+                del send_buf
+
+            tmp_recv_buf_shape = recv_buf_shape.copy()
+            tmp_recv_buf_shape[communication_split] = recv_counts.max().item()
+            tmp_recv_buf = torch.zeros(
+                tuple(tmp_recv_buf_shape), dtype=self.larray.dtype, device=self.larray.device
+            )
+
+            for i in active_send_indices_to:
+                tmp_recv_slice = [slice(None)] * tmp_recv_buf.ndim
+                tmp_recv_slice[communication_split] = slice(0, recv_counts[i].item())
+                self.comm.Recv(tmp_recv_buf[tmp_recv_slice], source=i)
+                cond1 = split_key >= displs[i]
+                cond2 = split_key < displs[i] + counts[i]
+                recv_buf_indices = torch.nonzero(cond1 & cond2, as_tuple=False).flatten()
+                recv_buf_key = [slice(None)] * recv_buf.ndim
+                recv_buf_key[communication_split] = recv_buf_indices
+                recv_buf[recv_buf_key] = tmp_recv_buf[tmp_recv_slice]
+            del tmp_recv_buf
+            for req in send_requests:
+                req.Wait()
+
+        if communication_split != output_split:
+            original_local_shape = (
+                output_shape[:communication_split]
+                + original_split_key_shape
+                + output_shape[output_split + 1 :]
+            )
+            recv_buf = recv_buf.reshape(original_local_shape)
+
+        indexed_arr = DNDarray(
+            recv_buf,
+            gshape=output_shape,
+            dtype=self.dtype,
+            split=output_split,
+            device=self.device,
+            comm=self.comm,
+            balanced=out_is_balanced,
+        )
+        if self.ndim > 0:
+            return self.transpose(backwards_transpose_axes), indexed_arr
+        return self, indexed_arr
+
     def __getitem__(self, key: int | tuple[int, ...] | list[int]) -> DNDarray:
         """
         Global getter function for DNDarrays.
@@ -2070,166 +2230,16 @@ class DNDarray:
                 balanced=out_is_balanced,
                 comm=self.comm,
             )
+
         # key along split axis is not ordered, indices are GLOBAL
-        # prepare for communication of indices and data
-        counts, displs = self.counts_displs()
-        rank, size = self.comm.rank, self.comm.size
-
-        key_is_single_tensor = isinstance(key, torch.Tensor)
-        if key_is_single_tensor:
-            split_key = key
-        else:
-            split_key = key[self.split]
-        # split_key might be multi-dimensional, flatten it for communication
-        if split_key.ndim > 1:
-            original_split_key_shape = split_key.shape
-            communication_split = output_split - (split_key.ndim - 1)
-            split_key = split_key.flatten()
-        else:
-            communication_split = output_split
-
-        # determine the number of elements to be received from each process
-        recv_counts = torch.zeros((size,), dtype=torch.int64, device=self.larray.device)
-        if key_is_mask_like:
-            recv_indices = torch.zeros(
-                (len(split_key), len(key)), dtype=split_key.dtype, device=self.larray.device
-            )
-        else:
-            recv_indices = torch.zeros(
-                (split_key.shape), dtype=split_key.dtype, device=self.larray.device
-            )
-        for p in range(size):
-            cond1 = split_key >= displs[p]
-            cond2 = split_key < displs[p] + counts[p]
-            indices_from_p = torch.nonzero(cond1 & cond2, as_tuple=False)
-            incoming_indices = split_key[indices_from_p].flatten()
-            recv_counts[p] = incoming_indices.numel()
-            start = int(recv_counts[:p].sum().item())
-            stop = start + int(recv_counts[p].item())
-            if incoming_indices.numel() > 0:
-                if key_is_mask_like:
-                    # apply selection to all dimensions
-                    for i in range(len(key)):
-                        recv_indices[start:stop, i] = key[i][indices_from_p].flatten()
-                    recv_indices[start:stop, self.split] -= displs[p]
-                else:
-                    recv_indices[start:stop] = incoming_indices - displs[p]
-        # build communication matrix by sharing recv_counts with all processes
-        # comm_matrix rows contain the send_counts for each process, columns contain the recv_counts
-        comm_matrix = torch.zeros((size, size), dtype=torch.int64, device=self.larray.device)
-        self.comm.Allgather(recv_counts, comm_matrix)
-        send_counts = comm_matrix[:, rank]
-
-        active_rank_pairs = torch.nonzero(comm_matrix, as_tuple=False)
-
-        # rank sicher als Python-int
-        rank = int(rank)
-
-        mask_recv = active_rank_pairs[:, 1].eq(rank)
-        mask_send = active_rank_pairs[:, 0].eq(rank)
-
-        active_recv_indices_from = [int(x.item()) for x in active_rank_pairs[mask_recv, 0]]
-        active_send_indices_to = [int(x.item()) for x in active_rank_pairs[mask_send, 1]]
-        rank_is_active = (len(active_recv_indices_from) > 0) or (len(active_send_indices_to) > 0)
-
-        # allocate recv_buf for incoming data
-        recv_buf_shape = list(output_shape)
-        if communication_split != output_split:
-            # split key was flattened, flatten corresponding dims in recv_buf accordingly
-            recv_buf_shape = (
-                recv_buf_shape[:communication_split]
-                + [recv_counts.sum().item()]
-                + recv_buf_shape[output_split + 1 :]
-            )
-        else:
-            recv_buf_shape[communication_split] = recv_counts.sum().item()
-        recv_buf = torch.zeros(
-            tuple(recv_buf_shape), dtype=self.larray.dtype, device=self.larray.device
+        self, indexed_arr = self.__getitem_unordered(
+            key=key,
+            output_shape=output_shape,
+            output_split=output_split,
+            out_is_balanced=out_is_balanced,
+            key_is_mask_like=key_is_mask_like,
+            backwards_transpose_axes=backwards_transpose_axes,
         )
-        if rank_is_active:
-            # non-blocking send indices to `active_send_indices_to`
-            send_requests = []
-            for i in active_send_indices_to:
-                start = recv_counts[:i].sum().item()
-                stop = start + recv_counts[i].item()
-                outgoing_indices = recv_indices[start:stop]
-                send_requests.append(self.comm.Isend(outgoing_indices, dest=i))
-                del outgoing_indices
-            del recv_indices
-            for i in active_recv_indices_from:
-                # receive indices from `active_recv_indices_from`
-                if key_is_mask_like:
-                    incoming_indices = torch.zeros(
-                        (send_counts[i].item(), len(key)),
-                        dtype=torch.int64,
-                        device=self.larray.device,
-                    )
-                else:
-                    incoming_indices = torch.zeros(
-                        send_counts[i].item(), dtype=torch.int64, device=self.larray.device
-                    )
-                self.comm.Recv(incoming_indices, source=i)
-                # prepare send_buf for outgoing data
-                if key_is_single_tensor:
-                    send_buf = self.larray[incoming_indices]
-                else:
-                    if key_is_mask_like:
-                        send_key = tuple(
-                            incoming_indices[:, i].reshape(-1)
-                            for i in range(incoming_indices.shape[1])
-                        )
-                        send_buf = self.larray[send_key]
-                    else:
-                        send_key = list(key)
-                        send_key[self.split] = incoming_indices
-                        send_buf = self.larray[tuple(send_key)]
-                # non-blocking send requested data to i
-                send_requests.append(self.comm.Isend(send_buf, dest=i))
-                del send_buf
-            # allocate temporary recv_buf to receive data from all active processes
-            tmp_recv_buf_shape = recv_buf_shape.copy()
-            tmp_recv_buf_shape[communication_split] = recv_counts.max().item()
-            tmp_recv_buf = torch.zeros(
-                tuple(tmp_recv_buf_shape), dtype=self.larray.dtype, device=self.larray.device
-            )
-            for i in active_send_indices_to:
-                # receive data from i
-                tmp_recv_slice = [slice(None)] * tmp_recv_buf.ndim
-                tmp_recv_slice[communication_split] = slice(0, recv_counts[i].item())
-                self.comm.Recv(tmp_recv_buf[tmp_recv_slice], source=i)
-                # write received data to appropriate portion of recv_buf
-                cond1 = split_key >= displs[i]
-                cond2 = split_key < displs[i] + counts[i]
-                recv_buf_indices = torch.nonzero(cond1 & cond2, as_tuple=False).flatten()
-                recv_buf_key = [slice(None)] * recv_buf.ndim
-                recv_buf_key[communication_split] = recv_buf_indices
-                recv_buf[recv_buf_key] = tmp_recv_buf[tmp_recv_slice]
-            del tmp_recv_buf
-            # wait for all non-blocking communication to finish
-            for req in send_requests:
-                req.Wait()
-        if communication_split != output_split:
-            # split_key has been flattened, bring back recv_buf to intended shape
-            original_local_shape = (
-                output_shape[:communication_split]
-                + original_split_key_shape
-                + output_shape[output_split + 1 :]
-            )
-            recv_buf = recv_buf.reshape(original_local_shape)
-
-        # construct indexed array from recv_buf
-        indexed_arr = DNDarray(
-            recv_buf,
-            gshape=output_shape,
-            dtype=self.dtype,
-            split=output_split,
-            device=self.device,
-            comm=self.comm,
-            balanced=out_is_balanced,
-        )
-        # transpose array back if needed
-        if self.ndim > 0:
-            self = self.transpose(backwards_transpose_axes)
         return indexed_arr
 
     if torch.cuda.device_count() > 0:
