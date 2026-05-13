@@ -100,7 +100,7 @@ def nonzero(x: DNDarray, as_tuple: bool = True) -> tuple[DNDarray, ...] | DNDarr
             # return indices as single 2D DNDarray
             return global_nonzero
         # return indices as tuple of 1D DNDarrays
-        lcl_nonzero = global_nonzero.larray.split(1, dim=1)
+        lcl_nonzero = global_nonzero.larray.unbind(dim=1)
         return tuple(
             DNDarray(
                 nz_tensor,
@@ -127,7 +127,7 @@ def nonzero(x: DNDarray, as_tuple: bool = True) -> tuple[DNDarray, ...] | DNDarr
             balanced=False,
         )
     # return indices as tuple of 1D DNDarrays
-    lcl_nonzero = lcl_nonzero.split(1, dim=1)
+    lcl_nonzero = lcl_nonzero.unbind(dim=1)
     return tuple(
         DNDarray(
             nz_tensor,
