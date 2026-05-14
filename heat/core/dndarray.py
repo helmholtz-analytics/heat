@@ -44,7 +44,6 @@ class ProcessedKey(NamedTuple):
 
     key: Any
     op_type: str  # "scalar", "slice", "mask", "advanced", "distributed"
-    is_view: bool  # True for basic slicing/scalars, False for copies
     output_shape: tuple
     output_split: int | None
     split_key_is_ordered: int
@@ -967,7 +966,6 @@ class DNDarray:
             return arr, ProcessedKey(
                 key=key,
                 op_type="scalar",
-                is_view=True,
                 output_shape=tuple(output_shape),
                 output_split=output_split,
                 split_key_is_ordered=1,
@@ -1153,21 +1151,16 @@ class DNDarray:
                 # define indexing type
                 if root is not None:
                     op_type = "scalar"
-                    is_view = True
-                elif key_is_mask_like:
-                    op_type = "mask"
-                    is_view = False
                 elif split_key_is_ordered == 0:
                     op_type = "distributed"
-                    is_view = False
+                elif key_is_mask_like:
+                    op_type = "mask"
                 else:
                     op_type = "advanced"
-                    is_view = False
 
                 return arr, ProcessedKey(
                     key=key,
                     op_type=op_type,
-                    is_view=is_view,
                     output_shape=tuple(output_shape),
                     output_split=new_split,
                     split_key_is_ordered=split_key_is_ordered,
@@ -1562,24 +1555,18 @@ class DNDarray:
 
         if root is not None:
             op_type = "scalar"
-            is_view = not advanced_indexing
-        elif key_is_mask_like:
-            op_type = "mask"
-            is_view = False
         elif split_key_is_ordered == 0:
             op_type = "distributed"
-            is_view = False
         elif split_key_is_ordered == -1:
             op_type = "descending_slice"
-            is_view = False
+        elif key_is_mask_like:
+            op_type = "mask"
         else:
             op_type = "advanced"
-            is_view = False
 
         return arr, ProcessedKey(
             key=tuple(key),
             op_type=op_type,
-            is_view=is_view,
             output_shape=tuple(output_shape),
             output_split=new_split,
             split_key_is_ordered=split_key_is_ordered,
@@ -1964,9 +1951,7 @@ class DNDarray:
         from .manipulations import flip
 
         # local indexing
-        print("DEBUGGING: p.key =", p.key)
         indexed_arr = self.larray[p.key]
-        print("DEBUGGING: indexed_arr =", indexed_arr)
         if self.ndim > 0:
             self = self.transpose(p.backwards_transpose_axes)
 
@@ -2286,27 +2271,19 @@ class DNDarray:
         # identify mask operation (op_type="mask" OR a 1D boolean array)
         from .types import bool as ht_bool, uint8 as ht_uint8
 
-        is_1d_bool = (
-            isinstance(key, DNDarray) and key.dtype in (ht_bool, ht_uint8) and key.ndim == 1
-        )
-
         # dispatch to appropriate getitem method
-        if processed_key.is_view:
-            if processed_key.op_type == "scalar":
-                return self.__getitem_scalar(processed_key)
-            elif processed_key.op_type == "slice":
-                return self.__getitem_slice(processed_key)
-
-        else:
-            # returns a copy
-            if processed_key.op_type == "mask" or is_1d_bool:
-                return self.__getitem_mask(processed_key, key)
-            elif processed_key.op_type == "descending_slice":
-                return self.__getitem_descending_slice_distributed(processed_key)
-            elif processed_key.op_type == "advanced":
-                return self.__getitem_advanced_local(processed_key, key)
-            elif processed_key.op_type == "distributed":
-                return self.__getitem_advanced_distributed(processed_key)
+        if processed_key.op_type == "scalar":
+            return self.__getitem_scalar(processed_key)
+        elif processed_key.op_type == "distributed":
+            return self.__getitem_advanced_distributed(processed_key)
+        elif processed_key.op_type == "slice":
+            return self.__getitem_slice(processed_key)
+        elif processed_key.op_type == "mask":
+            return self.__getitem_mask(processed_key, key)
+        elif processed_key.op_type == "descending_slice":
+            return self.__getitem_descending_slice_distributed(processed_key)
+        elif processed_key.op_type == "advanced":
+            return self.__getitem_advanced_local(processed_key, key)
 
     if torch.cuda.device_count() > 0:
 
