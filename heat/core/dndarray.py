@@ -976,19 +976,32 @@ class DNDarray:
             )
 
         # evaluate if this is a distributed fast-path mask before we modify the key
-
         distr_mask_fast_path = False
         if (
-            isinstance(key, DNDarray)
+            arr.split is not None
+            and isinstance(key, DNDarray)
             and key.dtype in (ht_bool, ht_uint8)
             and key.split == arr.split
         ):
-            if op == "set" and key.gshape == arr.gshape:
+            # exact shape match
+            if key.gshape == arr.gshape:
                 distr_mask_fast_path = True
-            elif (
-                op == "get" and key.ndim == 1 and arr.split == 0 and key.gshape == (arr.gshape[0],)
-            ):
+            # row-filtering mask (1D mask on split=0)
+            elif key.ndim == 1 and arr.split == 0 and key.gshape == (arr.gshape[0],):
                 distr_mask_fast_path = True
+
+        if distr_mask_fast_path:
+            return arr, ProcessedKey(
+                key=key.larray,
+                op_type="distr_mask",
+                output_shape=(),  # Dummy shape, bypassed safely in __setitem__
+                output_split=0 if op == "get" else arr.split,
+                split_key_is_ordered=0,
+                key_is_mask_like=True,
+                out_is_balanced=False,
+                root=None,
+                backwards_transpose_axes=tuple(range(arr.ndim)),
+            )
 
         # normalize index components
         if isinstance(key, DNDarray):
@@ -1012,7 +1025,8 @@ class DNDarray:
             first_shape = tuple(getattr(first, "shape", ()))
 
             if (
-                first_ndim == 1
+                not distr_mask_fast_path
+                and first_ndim == 1
                 and first_shape == (arr.gshape[0],)
                 and first_dtype in (ht_bool, ht_uint8, torch.bool, torch.uint8, np.bool_, np.uint8)
             ):
@@ -1052,6 +1066,7 @@ class DNDarray:
                 key = torch.tensor(key, device=arr.larray.device)
             except RuntimeError:
                 raise IndexError("Invalid indices: expected a list of integers, got {}".format(key))
+
         if isinstance(key, (DNDarray, torch.Tensor, np.ndarray)):
             if key.dtype in (ht_bool, ht_uint8, torch.bool, torch.uint8, np.bool_, np.uint8):
                 # boolean indexing: shape must be consistent with arr.shape
@@ -1062,13 +1077,17 @@ class DNDarray:
                             tuple(key.shape), arr.shape
                         )
                     )
-                # extract non-zero elements
-                try:
-                    # key is torch tensor
-                    key = key.nonzero(as_tuple=True)
-                except TypeError:
-                    # key is np.ndarray or DNDarray
-                    key = key.nonzero()
+
+                if not distr_mask_fast_path:
+                    # extract non-zero elements
+                    try:
+                        key = key.nonzero(as_tuple=True)
+                    except TypeError:
+                        key = key.nonzero()
+                else:
+                    # keep the raw boolean mask
+                    key = key.larray if isinstance(key, DNDarray) else key
+
                 key_is_mask_like = True
             else:
                 # advanced indexing on first dimension: first dim will expand to shape of key
@@ -1951,7 +1970,7 @@ class DNDarray:
 
     def __getitem_mask(self, p: ProcessedKey, original_key) -> "DNDarray":
         # local masking, then wrap into DNDarray
-        local_mask = original_key.larray
+        local_mask = p.key
         local_result = self.larray[local_mask]
 
         return factories.array(
@@ -2740,43 +2759,40 @@ class DNDarray:
     def __setitem_mask(
         self, p: ProcessedKey, original_key, value: "DNDarray", value_is_scalar: bool
     ) -> None:
-        if value.is_distributed():
-            self.__setitem_unordered(
-                key=p.key,
-                key_is_mask_like=p.key_is_mask_like,
-                value=value,
-                key_is_single_tensor=isinstance(original_key, torch.Tensor),
-                counts=self.counts_displs()[0],
-                displs=self.counts_displs()[1],
-                rank=self.comm.rank,
-                backwards_transpose_axes=p.backwards_transpose_axes,
-            )
-            return
+        local_mask = p.key
 
-        rank = self.comm.rank
-        counts, displs = self.counts_displs()
-
-        if (
-            isinstance(original_key, DNDarray)
-            and original_key.split == self.split
-            and original_key.dtype in (ht_bool, ht_uint8)
-        ):
-            local_mask = original_key.larray
-
-            if value_is_scalar:
-                if hasattr(value, "larray"):
-                    scalar_torch = value.larray
-                else:
-                    scalar_torch = torch.as_tensor(value, device=self.device.torch_device)
-                scalar_torch = scalar_torch.type(self.dtype.torch_type())
-                self.larray[local_mask] = scalar_torch
+        if value_is_scalar:
+            if hasattr(value, "larray"):
+                scalar_torch = value.larray
             else:
+                scalar_torch = torch.as_tensor(value, device=self.device.torch_device)
+            scalar_torch = scalar_torch.type(self.dtype.torch_type())
+            self.larray[local_mask] = scalar_torch
+        else:
+            if isinstance(value, DNDarray) and value.is_distributed():
+                expected_elements = int(local_mask.sum().item())
+                if value.lshape[0] != expected_elements:
+                    raise ValueError(
+                        f"Shape mismatch: Cannot assign distributed array with local shape {value.lshape} "
+                        f"to a mask requiring {expected_elements} elements on rank {self.comm.rank}."
+                    )
+
+                # value perfectly aligns
+                value_torch = value.larray
+                self.larray[local_mask] = value_torch.type(self.dtype.torch_type())
+
+            else:
+                # Value is a non-distributed array -> MPI prefix sum needed
                 if hasattr(value, "larray"):
                     value_torch = value.larray
                 else:
                     value_torch = torch.as_tensor(value, device=self.device.torch_device)
 
-                if value_torch.ndim == 1:
+                # distinguish between exact-shape masks and 1D row-filtering masks
+                is_row_mask = local_mask.ndim == 1 and self.ndim > 1
+
+                if not is_row_mask and value_torch.ndim == 1:
+                    # N-D mask on N-D array -> flattens into 1D sequence, requires MPI prefix sum
                     local_mask_flat = local_mask.flatten()
                     local_true = int(local_mask_flat.sum().item())
 
@@ -2796,53 +2812,8 @@ class DNDarray:
                     x_flat = self.larray.view(-1)
                     x_flat[local_mask_flat] = rhs_local
                 else:
-                    self.larray[local_mask] = value_torch[local_mask].type(self.dtype.torch_type())
-            return
-
-        split_part = p.key[self.split]
-        if isinstance(split_part, DNDarray):
-            local_mask = split_part.larray
-        elif isinstance(split_part, torch.Tensor):
-            if split_part.dtype not in (torch.bool, torch.uint8):
-                raise TypeError(
-                    f"mask-like key along the split axis must be boolean, got {split_part.dtype}"
-                )
-            start = displs[rank]
-            stop = start + counts[rank]
-            local_mask = split_part[start:stop]
-        else:
-            raise TypeError("Unsupported mask-like key type along split axis")
-
-        local_indices = torch.nonzero(local_mask, as_tuple=False).flatten()
-
-        if local_indices.numel() == 0:
-            return
-
-        new_key = []
-        for i, k_i in enumerate(p.key):
-            if i == self.split:
-                new_key.append(local_indices)
-            else:
-                if isinstance(k_i, DNDarray):
-                    new_key.append(k_i.larray)
-                else:
-                    new_key.append(k_i)
-
-        key_local = tuple(new_key)
-
-        if value_is_scalar:
-            if hasattr(value, "larray"):
-                scalar_torch = value.larray
-            else:
-                scalar_torch = torch.as_tensor(value, device=self.device.torch_device)
-            scalar_torch = scalar_torch.type(self.dtype.torch_type())
-            self.larray[key_local] = scalar_torch
-        else:
-            if hasattr(value, "larray"):
-                value_torch = value.larray
-            else:
-                value_torch = torch.as_tensor(value, device=self.device.torch_device)
-            self.larray[key_local] = value_torch[key_local].type(self.dtype.torch_type())
+                    # PyTorch assigns and broadcasts natively
+                    self.larray[local_mask] = value_torch.type(self.dtype.torch_type())
 
     def __setitem_advanced_distributed(
         self, p: ProcessedKey, original_key, value: "DNDarray", value_is_scalar: bool
@@ -3193,12 +3164,19 @@ class DNDarray:
         self, processed_key = self.__process_key(key, return_local_indices=True, op="set")
         print(f"DEBUGGING: Processed key: {processed_key}")
 
-        # match dimensions
-        value, value_is_scalar = self.__broadcast_value(
-            key, value, output_shape=processed_key.output_shape
-        )
-
         op = processed_key.op_type
+
+        # match dimensions (except for distr_mask as it perfectly aligns)
+        if op == "distr_mask":
+            value_is_scalar = (
+                np.isscalar(value)
+                or getattr(value, "ndim", 1) == 0
+                or (getattr(value, "shape", None) == (1,) and getattr(value, "split", 0) is None)
+            )
+        else:
+            value, value_is_scalar = self.__broadcast_value(
+                key, value, output_shape=processed_key.output_shape
+            )
 
         # dispatch to the appropriate setter
         if op == "distr_mask":
