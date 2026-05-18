@@ -993,13 +993,16 @@ class DNDarray:
             ):
                 # exact shape match
                 if split_key.gshape == arr.gshape:
-                    distr_mask_fast_path = True
-                # row-filtering mask (1D mask on split=0)
+                    # "get" flattens to 1D
+                    # if split > 0, local flattening scrambles global C-order
+                    if op == "set" or (op == "get" and arr.split == 0):
+                        distr_mask_fast_path = True
                 elif (
                     split_key.ndim == 1
                     and arr.split == 0
                     and split_key.gshape == (arr.gshape[arr.split],)
                 ):
+                    # 1D mask on split=0
                     distr_mask_fast_path = True
 
         # early out if mask and not tuple key
