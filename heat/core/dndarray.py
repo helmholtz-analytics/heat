@@ -1407,10 +1407,11 @@ class DNDarray:
             # adv indexing key elements are DNDarrays: extract torch tensors
             # options: 1. key is mask-like (covers boolean mask as well), 2. adv indexing along split axis, 3. everything else
             # 1. define key as mask-like if each element of key is a DNDarray, and all elements of key are of the same shape, and the advanced-indexing dimensions are consecutive
-            key_is_mask_like = (
-                all(isinstance(k, DNDarray) for k in key)
+            key_is_mask_like = key_is_mask_like or (
+                len(advanced_indexing_dims) > 1
+                and all(isinstance(k, DNDarray) for k in key)
                 and len(set(k.shape for k in key)) == 1
-                and torch.tensor(advanced_indexing_dims).diff().eq(1).all()
+                and torch.tensor(advanced_indexing_dims).diff().eq(1).all().item()
             )
             # if split axis is affected by advanced indexing, keep track of non-split dimensions for later
             if arr.is_distributed() and arr.split in advanced_indexing_dims:
