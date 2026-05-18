@@ -1157,7 +1157,7 @@ class DNDarray:
                                             copy=False,
                                         )
                                         .all()
-                                        .astype(types.canonical_heat_types.uint8)
+                                        .astype(types.canonical_heat_type.uint8)
                                         .item()
                                     )
                                 else:
