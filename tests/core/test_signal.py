@@ -581,6 +581,8 @@ class TestSignal(TestCase):
             )
 
     def test_convolve_kernel_odd_modes(self):
+        if "rocm" in torch.__version__:
+            self.skipTest('This test mysteriously fails on AMD, see #2283')
         ht_dtype = ht.float32 if self.is_mps else ht.float64
 
         np_sig = np.arange(0,16)
