@@ -161,7 +161,17 @@ class MPICommunication(Communication):
             self.size = None
 
     def __del__(self):
-        self.Free()
+        handle = getattr(self, "handle", None)
+        if handle in (None, MPI.COMM_WORLD, MPI.COMM_SELF, MPI.COMM_NULL):
+            return
+
+        if not MPI.Is_initialized() or MPI.Is_finalized():
+            return
+
+        try:
+            self.Free()
+        except Exception:
+            pass
 
     def is_distributed(self) -> bool:
         """
