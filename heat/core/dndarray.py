@@ -977,20 +977,33 @@ class DNDarray:
 
         # evaluate if this is a distributed fast-path mask before we modify the key
         distr_mask_fast_path = False
-        if (
-            arr.split is not None
-            and isinstance(key, DNDarray)
-            and key.dtype in (ht_bool, ht_uint8)
-            and key.split == arr.split
-        ):
-            # exact shape match
-            if key.gshape == arr.gshape:
-                distr_mask_fast_path = True
-            # row-filtering mask (1D mask on split=0)
-            elif key.ndim == 1 and arr.split == 0 and key.gshape == (arr.gshape[0],):
-                distr_mask_fast_path = True
 
-        if distr_mask_fast_path:
+        # mask along split axis within tuple?
+        if arr.is_distributed():
+            split_key = None
+            if isinstance(key, tuple) and len(key) > (arr.split or 0):
+                split_key = key[arr.split]
+            elif not isinstance(key, tuple):
+                split_key = key
+
+            if (
+                isinstance(split_key, DNDarray)
+                and split_key.dtype in (ht_bool, ht_uint8)
+                and split_key.split == arr.split
+            ):
+                # exact shape match
+                if split_key.gshape == arr.gshape:
+                    distr_mask_fast_path = True
+                # row-filtering mask (1D mask on split=0)
+                elif (
+                    split_key.ndim == 1
+                    and arr.split == 0
+                    and split_key.gshape == (arr.gshape[arr.split],)
+                ):
+                    distr_mask_fast_path = True
+
+        # early out if mask and not tuple key
+        if distr_mask_fast_path and not isinstance(key, tuple):
             return arr, ProcessedKey(
                 key=key.larray,
                 op_type="distr_mask",
@@ -1204,7 +1217,10 @@ class DNDarray:
                     backwards_transpose_axes=backwards_transpose_axes,
                 )
 
-        key = list(key) if isinstance(key, Iterable) else [key]
+        if isinstance(key, (tuple, list)):
+            key = list(key)
+        else:
+            key = [key]
 
         # check for ellipsis, newaxis. NB: (np.newaxis is None)==True
         add_dims = sum(k is None for k in key)
@@ -1303,10 +1319,18 @@ class DNDarray:
                 advanced_indexing = True
                 advanced_indexing_dims.append(i)
 
+                is_fast_path_component = distr_mask_fast_path and i == arr.split
+
+                if is_fast_path_component:
+                    key[i] = k.larray if isinstance(k, DNDarray) else k
+                    advanced_indexing_shapes.append(tuple(k.shape))
+                    # skip the rest, local boolean masking along split axis
+                    continue
+
                 if not isinstance(k, DNDarray):
                     k = factories.array(k, device=arr.device, comm=arr.comm, copy=None)
 
-                # Normalize negative integer indices (NumPy/PyTorch semantics) and validate bounds
+                # normalize negative integer indices (NumPy/PyTorch semantics) and validate bounds
                 if k.dtype in (types.int32, types.int64) and k.ndim >= 1:
                     dim = arr.gshape[i]
 
@@ -1461,7 +1485,12 @@ class DNDarray:
                 # all key elements are now DNDarrays of the same shape, same split axis
             # 2. advanced indexing along split axis
             if arr.is_distributed() and arr.split in advanced_indexing_dims:
-                if split_key_is_ordered == 1:
+                if distr_mask_fast_path:
+                    # mask is already a local tensor, just extract any other advanced indices
+                    for i in non_split_dims:
+                        if isinstance(key[i], DNDarray):
+                            key[i] = key[i].larray
+                elif split_key_is_ordered == 1:
                     # extract torch tensors, keep process-local indices only
                     k = key[arr.split].larray
                     cond1 = k >= displs[arr.comm.rank]
@@ -2759,7 +2788,15 @@ class DNDarray:
     def __setitem_mask(
         self, p: ProcessedKey, original_key, value: "DNDarray", value_is_scalar: bool
     ) -> None:
-        local_mask = p.key
+        pytorch_key = p.key
+
+        if isinstance(pytorch_key, tuple):
+            for k in pytorch_key:
+                if isinstance(k, torch.Tensor) and k.dtype in (torch.bool, torch.uint8):
+                    local_mask = k
+                    break
+        else:
+            local_mask = pytorch_key
 
         if value_is_scalar:
             if hasattr(value, "larray"):
@@ -2767,7 +2804,7 @@ class DNDarray:
             else:
                 scalar_torch = torch.as_tensor(value, device=self.device.torch_device)
             scalar_torch = scalar_torch.type(self.dtype.torch_type())
-            self.larray[local_mask] = scalar_torch
+            self.larray[pytorch_key] = scalar_torch
         else:
             if isinstance(value, DNDarray) and value.is_distributed():
                 expected_elements = int(local_mask.sum().item())
@@ -2779,7 +2816,7 @@ class DNDarray:
 
                 # value perfectly aligns
                 value_torch = value.larray
-                self.larray[local_mask] = value_torch.type(self.dtype.torch_type())
+                self.larray[pytorch_key] = value_torch.type(self.dtype.torch_type())
 
             else:
                 # Value is a non-distributed array -> MPI prefix sum needed
@@ -2813,7 +2850,7 @@ class DNDarray:
                     x_flat[local_mask_flat] = rhs_local
                 else:
                     # PyTorch assigns and broadcasts natively
-                    self.larray[local_mask] = value_torch.type(self.dtype.torch_type())
+                    self.larray[pytorch_key] = value_torch.type(self.dtype.torch_type())
 
     def __setitem_advanced_distributed(
         self, p: ProcessedKey, original_key, value: "DNDarray", value_is_scalar: bool
