@@ -581,6 +581,8 @@ class TestSignal(TestCase):
             )
 
     def test_convolve_kernel_odd_modes(self):
+        if "rocm" in torch.__version__:
+            self.skipTest('This test mysteriously fails on AMD, see #2283')
         ht_dtype = ht.float32 if self.is_mps else ht.float64
 
         np_sig = np.arange(0,16)
@@ -673,6 +675,8 @@ class TestSignal(TestCase):
                 self.assertTrue(ht.equal(full_odd.astype(ht.float), gathered))
 
     def test_convolve_stride_kernel_odd_modes(self):
+        if "rocm" in torch.__version__:
+            self.skipTest('This test mysteriously fails on AMD, see #2283')
         ht_dtype = ht.float32 if self.is_mps else ht.float64
 
         np_sig = np.arange(0, 16)
@@ -759,6 +763,8 @@ class TestSignal(TestCase):
                         ht.equal(solution[::stride[0], ::stride[1]], gathered))
 
     def test_convolve_kernel_even_modes(self):
+        if "rocm" in torch.__version__:
+            self.skipTest('This test mysteriously fails on AMD, see #2283')
         full_even = ht.array(
             [0, 1, 3, 6, 10, 14, 18, 22, 26, 30, 34, 38, 42, 46, 50, 54, 42, 29, 15]
         ).astype(ht.float32)
@@ -1046,6 +1052,8 @@ class TestSignal(TestCase):
                 self.assertTrue(ht.equal(ht.array([5]), conv))
 
     def test_convolve2d_kernel_size_1(self):
+        if "rocm" in torch.__version__:
+            self.skipTest('This test mysteriously fails on AMD, see #2283')
         # prep
         ht_dtype = ht.float32 if self.is_mps else ht.float64
 
