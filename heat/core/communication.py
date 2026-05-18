@@ -160,6 +160,9 @@ class MPICommunication(Communication):
             self.rank = None
             self.size = None
 
+    def __del__(self):
+        self.Free()
+
     def is_distributed(self) -> bool:
         """
         Determines whether the communicator is distributed, i.e. handles more than one node.
