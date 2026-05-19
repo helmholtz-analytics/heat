@@ -2263,7 +2263,7 @@ class DNDarray:
 
         # key processing returns a ProcessedKey namedtuple
         self, processed_key = self.__process_key(key, return_local_indices=True, op="get")
-        print(f"DEBUGGING: Processed key: {processed_key}")
+        # print(f"DEBUGGING: Processed key: {processed_key}")
 
         # dispatch to appropriate getitem method
         op = processed_key.op_type
@@ -3231,7 +3231,7 @@ class DNDarray:
         original_key = key
 
         self, processed_key = self.__process_key(key, return_local_indices=True, op="set")
-        print(f"DEBUGGING: Processed key: {processed_key}")
+        # print(f"DEBUGGING: Processed key: {processed_key}")
 
         op = processed_key.op_type
 
