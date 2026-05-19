@@ -976,8 +976,8 @@ class DNDarray:
             )
 
         # evaluate if this is a distributed fast-path mask before we modify the key
-        distr_mask_fast_path = False
 
+        distr_mask_fast_path = False
         # mask along split axis within tuple?
         if arr.is_distributed():
             split_key = None
@@ -1157,7 +1157,7 @@ class DNDarray:
                                             copy=False,
                                         )
                                         .all()
-                                        .astype(types.canonical_heat_type.uint8)
+                                        .astype(types.canonical_heat_type(torch.uint8))
                                         .item()
                                     )
                                 else:
@@ -1177,9 +1177,16 @@ class DNDarray:
 
                                 split_key_is_ordered = (key == sorted).all().item()
                                 if not split_key_is_ordered:
-                                    # prepare for distributed non-ordered indexing: distribute torch/numpy key
-                                    key = factories.array(key, split=0, device=arr.device).larray
-                                    out_is_balanced = True
+                                    if op == "get":
+                                        # prepare for distributed non-ordered indexing: distribute torch/numpy key
+                                        key = factories.array(
+                                            key, split=0, device=arr.device
+                                        ).larray
+                                        out_is_balanced = True
+                                    else:
+                                        # local setitem
+                                        out_is_balanced = True
+
                             if split_key_is_ordered:
                                 # extract local key
                                 cond1 = key >= displs[arr.comm.rank]
@@ -2858,12 +2865,28 @@ class DNDarray:
     def __setitem_advanced_distributed(
         self, p: ProcessedKey, original_key, value: "DNDarray", value_is_scalar: bool
     ) -> None:
+        # check distribution status of the indexing key
+        split_key_orig = (
+            original_key[self.split] if isinstance(original_key, tuple) else original_key
+        )
+        key_is_distributed = (
+            isinstance(split_key_orig, DNDarray) and split_key_orig.is_distributed()
+        )
+
+        # reject implicit cross-distribution assignments
+        if key_is_distributed and not value.is_distributed() and not value_is_scalar:
+            raise ValueError(
+                f"Distribution mismatch: index distributed={key_is_distributed}, value distributed={value.is_distributed()}. "
+                "Cannot assign a non-distributed value array using a distributed index. "
+                "Please distribute the value array or use a non-distributed index."
+            )
+
         if value.is_distributed():
             self.__setitem_unordered(
                 key=p.key,
                 key_is_mask_like=p.key_is_mask_like,
                 value=value,
-                key_is_single_tensor=isinstance(original_key, torch.Tensor),
+                key_is_single_tensor=isinstance(p.key, torch.Tensor),
                 counts=self.counts_displs()[0],
                 displs=self.counts_displs()[1],
                 rank=self.comm.rank,
@@ -2873,7 +2896,7 @@ class DNDarray:
 
         counts, displs = self.counts_displs()
         rank = self.comm.rank
-        key_is_single_tensor = isinstance(original_key, torch.Tensor)
+        key_is_single_tensor = isinstance(p.key, torch.Tensor)
 
         if (
             value_is_scalar
@@ -3022,9 +3045,9 @@ class DNDarray:
                 split_key = key
             else:
                 split_key = key[self.split]
-                global_split_key = factories.array(
-                    split_key, is_split=0, device=self.device, comm=self.comm, copy=False
-                )
+            global_split_key = factories.array(
+                split_key, is_split=0, device=self.device, comm=self.comm, copy=False
+            )
             target_map = global_split_key.lshape_map
             target_map[:, 0] = value.lshape_map[:, value.split]
             global_split_key.redistribute_(target_map=target_map)
