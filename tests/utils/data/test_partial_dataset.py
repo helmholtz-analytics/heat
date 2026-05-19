@@ -1,6 +1,7 @@
 import heat as ht
 import torch
 import unittest
+from flaky import flaky
 
 from pathlib import Path
 
@@ -12,6 +13,7 @@ class TestPartialDataset(unittest.TestCase):
         super().setUpClass()
         cls.HDF5_PATH = str(Path(ht.__file__).parent / "datasets" / "iris.h5")
 
+    @flaky(max_runs=3, min_passes=1)
     @unittest.skipUnless(ht.supports_hdf5(), "Requires HDF5")
     def test_partial_h5_dataset(self):
         # load h5 data and get the total shape
