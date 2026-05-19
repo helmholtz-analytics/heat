@@ -16,9 +16,9 @@ class TestDNDarray(TestCase):
         N = ht.MPI_WORLD.size
         cls.reference_tensor = ht.zeros((N, N + 1, 2 * N))
 
-        for n in range(N):
-            for m in range(N + 1):
-                cls.reference_tensor[n, m, :] = ht.arange(0, 2 * N) + m * 10 + n * 100
+        # for n in range(N):
+        #     for m in range(N + 1):
+        #         cls.reference_tensor[n, m, :] = ht.arange(0, 2 * N) + m * 10 + n * 100
 
     def test_and(self):
         int16_tensor = ht.array([[1, 1], [2, 2]], dtype=ht.int16)
@@ -877,6 +877,16 @@ class TestDNDarray(TestCase):
         x_np_adv_ind = x_np[np.array([3, 3, 1, 8])]
         self.assert_array_equal(x_adv_ind, x_np_adv_ind)
 
+        # 1d, split 0, advanced indexing with a local DNDarray
+        x = ht.arange(10, 1, -1, split=0)
+        x_np = np.arange(10, 1, -1)
+        idx_np = np.array([3, 3, 1, 8])
+        # local DNDarray index
+        idx = ht.array(idx_np, split=None)
+        x_adv_ind = x[idx]
+        x_np_adv_ind = x_np[idx_np]
+        self.assert_array_equal(x_adv_ind, x_np_adv_ind)
+
         # 3d, split 0, non-unique, non-ordered key along split axis
         x = ht.arange(60, split=0).reshape(5, 3, 4)
         x_np = np.arange(60).reshape(5, 3, 4)
@@ -1695,6 +1705,31 @@ class TestDNDarray(TestCase):
         self.assertTrue(ht.all(x_adv_ind == value).item())
         self.assertTrue(x_adv_ind.dtype == x.dtype)
 
+        # 1d, split 0, advanced indexing with a local DNDarray
+        x = ht.arange(10, 1, -1, split=0)
+        x_np = np.arange(10, 1, -1)
+        idx_np = np.array([3, 3, 1, 8])
+        idx = ht.array(idx_np, split=None)  # Explicitly local DNDarray
+        vals_np = np.arange(4)
+        vals = ht.array(vals_np, split=None)
+        x[idx] = vals
+        x_np[idx_np] = vals_np
+        self.assertTrue(ht.all(x == ht.array(x_np, split=0)).item())
+
+        # 2d, split 0, single 1d tensor unordered advanced indexing
+        arr = ht.zeros((10, 5), dtype=ht.float32, split=0)
+        idx_np = np.array([7, 2, 8, 1])
+        idx = ht.array(idx_np, split=0)
+
+        vals_np = np.arange(20, dtype=np.float32).reshape(4, 5)
+        vals = ht.array(vals_np, split=0)
+
+        arr[idx] = vals
+
+        arr_np = np.zeros((10, 5), dtype=np.float32)
+        arr_np[idx_np] = vals_np
+        self.assertTrue((arr == ht.array(arr_np, split=0)).all().item())
+
         # TODO: n-d value
 
         # 3d, split 0, non-unique, non-ordered key along split axis, key mask-like
@@ -1704,7 +1739,6 @@ class TestDNDarray(TestCase):
         k3 = np.array([1, 2, 3, 1])
         value = ht.array([99, 98, 97, 96], split=0)
         x[k1, k2, k3] = value
-        print("DEBUGGING: x[k1, k2, k3]", x[k1, k2, k3].larray)
         self.assertTrue((x[k1, k2, k3] == ht.array([96, 98, 97, 96], split=0)).all().item())
 
         # advanced indexing on non-consecutive dimensions, split dimension will be lost
@@ -2191,8 +2225,6 @@ class TestDNDarray(TestCase):
         ht_key = ht.array(np_key, split=split)
         arr[ht_key, 4] = 10.0
         np_arr[np_key, 4] = 10.0
-        #print(f"\n\n\n arr.numpy(): {arr.numpy()}, np_arr: {np_arr}\n\n\n ")
-        print(f"\n\n\n arr[ht_key, 4] : {arr[ht_key, 4] }\n\n\n ")
         self.assertTrue(np.all(arr.numpy() == np_arr))
         self.assertTrue(ht.all(arr[ht_key, 4] == 10.0))
 
@@ -2504,7 +2536,6 @@ class TestDNDarray(TestCase):
         mask_ht_sNone = ht.array(mask_np, split=None)
         result_ht_s1 = arr_ht_s1[mask_ht_sNone]
         self.assert_array_equal(result_ht_s1, result_np)
-        print(f"result_ht_s1.split: {result_ht_s1.split}")
         self.assertEqual(result_ht_s1.split, 1)
         self.assertEqual(result_ht_s1.gshape, (5, 2))
 
