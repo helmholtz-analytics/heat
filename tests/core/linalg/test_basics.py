@@ -988,6 +988,28 @@ class TestLinalgBasics(TestCase):
                     # self.assertTrue(ht.allclose(ret_batched, c, 1e-2))
                     self.assertTrue(max_diff < 1e-4)
 
+    def test_matmul_edge_case_1(self):
+        # test edge cases as documented in #2093
+
+        if ht.comm.size == 4:
+            split = 0
+            shape = (8, 6)
+
+            A = ht.ones(shape, split=split)
+            B = ht.ones(shape[::-1], split=split)
+
+            C = A @ B
+            self.assertTrue(ht.allclose(C, A.shape[-1]))
+
+            A = A.T
+            B = B.T
+            C = A @ B
+            self.assertEqual(A.split, 1)
+            self.assertEqual(C.split, 1)
+            self.assertTrue(ht.allclose(C, A.shape[-1]))
+        else:
+            self.skipTest('This edge case requires four tasks')
+
     def test_matrix_norm(self):
         a = ht.arange(9, dtype=ht.float) - 4
         b = a.reshape((3, 3))
