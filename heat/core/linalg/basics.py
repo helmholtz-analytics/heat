@@ -922,7 +922,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
             # there are between the blocks in the first dim of B
             cnt = 0
             for r in rem_map[:, 1, 0]:
-                if r.item():
+                if r > 0:
                     cnt += 1
                     # why increment by exactly 1? what can we assume about the lshapes on different nodes?
                     # can the sizes in the split dimension differ by more than 1?
@@ -970,7 +970,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
             cnt = 0
             # this loop will push the blocks in B to adjust for the remainders in A
             for r in rem_map[:, 0, 1]:
-                if r.item():
+                if r > 0:
                     cnt += 1
                     b_block_map[:, cnt:, :, 0] += 1
 
@@ -1048,9 +1048,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
                         st = index_map[pr - 1, 1, 0, 0]
                         sp = index_map[pr - 1, 1, 0, 1]
 
-                        c.larray[..., r_loc.item(), :] += (
-                            r[..., st:sp] @ b_lp_data[pr - 1]
-                        ).squeeze(-2)
+                        c.larray[..., r_loc, :] += (r[..., st:sp] @ b_lp_data[pr - 1]).squeeze(-2)
                     del b_lp_data[pr - 1]
 
                 # need to wait if its the last loop, also need to collect the remainders
@@ -1085,11 +1083,9 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
                         if False:
                             st1 = index_map[pr, 1, 1, 0]
                             sp1 = index_map[pr, 1, 1, 1]
-                            c.larray[..., r_loc.item(), st1:sp1] += r[..., st:sp] @ b_lp_data[pr]
+                            c.larray[..., r_loc, st1:sp1] += r[..., st:sp] @ b_lp_data[pr]
                         else:
-                            c.larray[..., r_loc.item(), :] += (
-                                r[..., st:sp] @ b_lp_data[pr]
-                            ).squeeze(-2)
+                            c.larray[..., r_loc, :] += (r[..., st:sp] @ b_lp_data[pr]).squeeze(-2)
 
                     # set the final blocks on the last loop, then adjust for the
                     # the remainders which were collected in b_rem
@@ -1203,9 +1199,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
                         st = index_map[pr - 1, 0, 1, 0]
                         sp = index_map[pr - 1, 0, 1, 1]
 
-                        c.larray[..., r_loc.item()] += (
-                            a_lp_data[pr - 1] @ r[..., st:sp, :]
-                        ).squeeze(-1)
+                        c.larray[..., r_loc] += (a_lp_data[pr - 1] @ r[..., st:sp, :]).squeeze(-1)
 
                     del a_lp_data[pr - 1]
 
@@ -1234,9 +1228,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
                     if b_rem_locs1.size != 0 and r_loc is not None:
                         st = index_map[pr, 0, 1, 0]
                         sp = index_map[pr, 0, 1, 1]
-                        c.larray[..., r_loc.item()] += (a_lp_data[pr] @ r[..., st:sp, :]).squeeze(
-                            -1
-                        )
+                        c.larray[..., r_loc] += (a_lp_data[pr] @ r[..., st:sp, :]).squeeze(-1)
                     # set the final blocks on the last loop, then adjust for the the remainders which were collected in b_rem
                     if a_rem_locs1.size:
                         c.larray[..., : b_node_rem_s1.shape[-1]] += a_rem @ b_node_rem_s1
