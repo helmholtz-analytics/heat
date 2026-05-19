@@ -3145,8 +3145,9 @@ class DNDarray:
             (send_buf, send_counts, send_displs), (recv_buf, recv_counts, recv_displs)
         )
         del send_buf, comm_matrix
-        key = list(key)
+
         if key_is_mask_like:
+            key = list(key)
             # extract incoming indices from recv_buf
             recv_indices = recv_buf[..., -len(key) :]
             # correct split-axis indices for rank offset
@@ -3160,10 +3161,15 @@ class DNDarray:
             recv_indices = recv_buf[..., -1].type(torch.int64) - displs[rank]
             # remove last column from recv_buf
             recv_buf = recv_buf[..., :-1]
+
             # replace split-axis key with incoming local indices
-            key = list(key)
-            key[self.split] = recv_indices
-            key = tuple(key)
+            if key_is_single_tensor:
+                key = recv_indices
+            else:
+                key = list(key)
+                key[self.split] = recv_indices
+                key = tuple(key)
+
         # transpose back value and recv_buf if necessary, wrap recv_buf in DNDarray
         value = value.transpose(transpose_axes)
         if value.ndim < 2:
