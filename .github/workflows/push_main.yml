@@ -43,7 +43,7 @@ jobs:
           - '3.12'
           - '3.13'
           - '3.14'
-        mpi: [ 'openmpi' ]
+        mpi: [ 'mpich' ]
         install-options: [ '.[dev]' ]
         pytorch-version:
           - 'torch==2.3.1 torchvision==0.18.1 torchaudio==2.3.1'

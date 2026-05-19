@@ -16,7 +16,7 @@ inputs:
   mpi:
     description: "MPI implementation to install."
     required: false
-    default: "openmpi"
+    default: "mpich"
   install-options:
     description: "Package install target/options for heat."
     required: false
