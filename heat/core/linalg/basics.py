@@ -863,7 +863,6 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
         b_idx = comm.chunk(b.shape, b.split)[2]
         index_map[comm.rank, 1, 0] = (b_idx[-2].start, b_idx[-2].stop)
         index_map[comm.rank, 1, 1] = (b_idx[-1].start, b_idx[-1].stop)
-        index_map = torch.from_numpy(index_map)
 
         index_map_comm = comm.Iallreduce(MPI.IN_PLACE, index_map, MPI.SUM)
 
@@ -901,10 +900,10 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
         index_map_comm.Wait()
         a_block_map = a_block_map.numpy()  # temporarily cast to numpy for faster memory access
         for pr in range(comm.size):
-            start0 = index_map[pr, 0, 0, 0].item()
-            stop0 = index_map[pr, 0, 0, 1].item()
-            start1 = index_map[pr, 0, 1, 0].item()
-            stop1 = index_map[pr, 0, 1, 1].item()
+            start0 = index_map[pr, 0, 0, 0]
+            stop0 = index_map[pr, 0, 0, 1]
+            start1 = index_map[pr, 0, 1, 0]
+            stop1 = index_map[pr, 0, 1, 1]
 
             # maybe we could use torch.arange instead of this nested loop
             for dim0 in range(
@@ -950,10 +949,10 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
 
         b_block_map = b_block_map.numpy()  # temporarily cast to numpy for faster memory access
         for pr in range(b.comm.size):
-            start0 = index_map[pr, 1, 0, 0].item()
-            stop0 = index_map[pr, 1, 0, 1].item()
-            start1 = index_map[pr, 1, 1, 0].item()
-            stop1 = index_map[pr, 1, 1, 1].item()
+            start0 = index_map[pr, 1, 0, 0]
+            stop0 = index_map[pr, 1, 0, 1]
+            start1 = index_map[pr, 1, 1, 0]
+            stop1 = index_map[pr, 1, 1, 1]
 
             # loop over the number of blocks in the 0th dimension
             for dim0 in range(
@@ -1047,8 +1046,8 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
 
                     # this loop is to take care of the remainders in dim0 of a
                     if a_rem_locs0.nelement() != 0 and r_loc is not None:
-                        st = index_map[pr - 1, 1, 0, 0].item()
-                        sp = index_map[pr - 1, 1, 0, 1].item()
+                        st = index_map[pr - 1, 1, 0, 0]
+                        sp = index_map[pr - 1, 1, 0, 1]
 
                         c.larray[..., r_loc.item(), :] += (
                             r[..., st:sp] @ b_lp_data[pr - 1]
@@ -1079,14 +1078,14 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
 
                     # this loop is to take care of the remainders in the 0th dimension of A
                     if a_rem_locs0.nelement() != 0 and r_loc is not None:
-                        st = index_map[pr, 1, 0, 0].item()
-                        sp = index_map[pr, 1, 0, 1].item()  # linear algebra dimension 0/1
+                        st = index_map[pr, 1, 0, 0]
+                        sp = index_map[pr, 1, 0, 1]  # linear algebra dimension 0/1
 
                         # code not reachable?
                         # if split_01_flag:
                         if False:
-                            st1 = index_map[pr, 1, 1, 0].item()
-                            sp1 = index_map[pr, 1, 1, 1].item()
+                            st1 = index_map[pr, 1, 1, 0]
+                            sp1 = index_map[pr, 1, 1, 1]
                             c.larray[..., r_loc.item(), st1:sp1] += r[..., st:sp] @ b_lp_data[pr]
                         else:
                             c.larray[..., r_loc.item(), :] += (
@@ -1123,20 +1122,20 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
                 if pr != 0:
                     req[pr - 1].Wait()
                     # after receiving the last loop's bcast
-                    st0 = index_map[pr - 1, 0, 0, 0].item()
-                    sp0 = index_map[pr - 1, 0, 0, 1].item() + 1
-                    st1 = index_map[pr - 1, 1, 1, 0].item()
-                    sp1 = index_map[pr - 1, 1, 1, 1].item()
+                    st0 = index_map[pr - 1, 0, 0, 0]
+                    sp0 = index_map[pr - 1, 0, 0, 1] + 1
+                    st1 = index_map[pr - 1, 1, 1, 0]
+                    sp1 = index_map[pr - 1, 1, 1, 1]
 
                     c.larray[..., : sp0 - st0, st1:sp1] += a.larray @ b_lp_data[pr - 1]
 
                     del b_lp_data[pr - 1]
                 if pr == comm.size - 1:
                     req[pr].Wait()
-                    st0 = index_map[pr, 0, 0, 0].item()
-                    sp0 = index_map[pr, 0, 0, 1].item() + 1
-                    st1 = index_map[pr, 1, 1, 0].item()
-                    sp1 = index_map[pr, 1, 1, 1].item()
+                    st0 = index_map[pr, 0, 0, 0]
+                    sp0 = index_map[pr, 0, 0, 1] + 1
+                    st1 = index_map[pr, 1, 1, 0]
+                    sp1 = index_map[pr, 1, 1, 1]
                     c.larray[..., : sp0 - st0, st1:sp1] += a.larray @ b_lp_data[pr]
                     del b_lp_data[pr]
 
@@ -1202,8 +1201,8 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
                         a_rem[..., pr - 1] = a_lp_data[pr - 1][..., -1]
                     # this loop is to take care of the remainders in dim1 of B
                     if b_rem_locs1.nelement() != 0 and r_loc is not None:
-                        st = index_map[pr - 1, 0, 1, 0].item()
-                        sp = index_map[pr - 1, 0, 1, 1].item()
+                        st = index_map[pr - 1, 0, 1, 0]
+                        sp = index_map[pr - 1, 0, 1, 1]
 
                         c.larray[..., r_loc.item()] += (
                             a_lp_data[pr - 1] @ r[..., st:sp, :]
@@ -1234,8 +1233,8 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
                         a_rem[..., pr] = a_lp_data[pr][..., -1]
                     # this loop is to take care of the remainders in the 0th dimension of A
                     if b_rem_locs1.nelement() != 0 and r_loc is not None:
-                        st = index_map[pr, 0, 1, 0].item()
-                        sp = index_map[pr, 0, 1, 1].item()
+                        st = index_map[pr, 0, 1, 0]
+                        sp = index_map[pr, 0, 1, 1]
                         c.larray[..., r_loc.item()] += (a_lp_data[pr] @ r[..., st:sp, :]).squeeze(
                             -1
                         )
