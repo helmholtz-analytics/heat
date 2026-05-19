@@ -1138,55 +1138,37 @@ class DNDarray:
                                 sorted = key_split.sort()
                         else:
                             new_split = 0
-                            # assess if key is sorted along split axis
-                            try:
-                                # DNDarray key
-                                sorted, _ = torch.sort(key.larray, stable=True)
-                                split_key_is_ordered = torch.tensor(
-                                    (key.larray == sorted).all(),
-                                    dtype=torch.uint8,
-                                    device=key.larray.device,
-                                )
-                                if key.split is not None:
-                                    out_is_balanced = key.balanced
-                                    split_key_is_ordered = (
-                                        factories.array(
-                                            [split_key_is_ordered],
-                                            is_split=0,
-                                            device=arr.device,
-                                            copy=False,
-                                        )
-                                        .all()
-                                        .astype(types.canonical_heat_type(torch.uint8))
-                                        .item()
-                                    )
-                                else:
-                                    split_key_is_ordered = split_key_is_ordered.item()
+                            key_is_dist = isinstance(key, DNDarray) and key.is_distributed()
+                            if isinstance(key, DNDarray):
+                                out_is_balanced = key.balanced
                                 key = key.larray
-                            except AttributeError:
+                            elif not isinstance(key, torch.Tensor):
+                                key = torch.as_tensor(key, device=arr.larray.device)
+                                out_is_balanced = True
+                            else:
+                                out_is_balanced = True
+
+                            # identify ordered key
+                            if key_is_dist:
+                                # distributed keys unconditionally use the unordered engine
+                                split_key_is_ordered = 0
+                            else:
                                 try:
                                     sorted, _ = torch.sort(key, stable=True)
                                 except TypeError:
-                                    # ndarray key -> move key to same device as arr before any torch ops / comparisons
-                                    key = torch.as_tensor(key, device=arr.larray.device)
-                                    try:
-                                        sorted, _ = torch.sort(key, stable=True)
-                                    except TypeError:
-                                        # fallback for older torch without stable=
-                                        sorted, _ = torch.sort(key)
+                                    sorted, _ = torch.sort(key)
+                                split_key_is_ordered = int((key == sorted).all().item())
 
-                                split_key_is_ordered = (key == sorted).all().item()
-                                if not split_key_is_ordered:
-                                    if op == "get":
-                                        # prepare for distributed non-ordered indexing: distribute torch/numpy key
-                                        key = factories.array(
-                                            key, split=0, device=arr.device
-                                        ).larray
-                                        out_is_balanced = True
-                                    else:
-                                        # local setitem
-                                        out_is_balanced = True
+                            # unordered local keys
+                            if not split_key_is_ordered and not key_is_dist:
+                                if op == "get":
+                                    # prepare for distributed non-ordered indexing: distribute local key
+                                    key = factories.array(key, split=0, device=arr.device).larray
+                                    out_is_balanced = True
+                                else:
+                                    out_is_balanced = True
 
+                            # ordered keys
                             if split_key_is_ordered:
                                 # extract local key
                                 cond1 = key >= displs[arr.comm.rank]
