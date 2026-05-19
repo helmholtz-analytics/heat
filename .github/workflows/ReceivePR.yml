@@ -34,7 +34,7 @@ jobs:
       - name: Test
         run: |
           pip install .[dev]
-          pip install pytest
+          pip install pytest flaky
           pre-commit run --all-files
           pytest
 
