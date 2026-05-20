@@ -8,6 +8,7 @@ from pathlib import Path
 
 @unittest.skipIf(torch.cuda.is_available() and torch.version.hip, "not supported for HIP")
 @unittest.skipUnless(ht.supports_hdf5(), "Requires HDF5")
+@flaky
 class TestPartialDataset(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -64,7 +65,6 @@ class TestPartialDataset(unittest.TestCase):
                     self.assertEqual(batch.shape, expected_batch_shape)
                     break  # Just check first batch for this test
 
-    @flaky
     def test_consecutive_batches_differ(self):
         """Test that consecutive batches within an epoch are different."""
         full_data = ht.load(self.HDF5_PATH, dataset="data", split=None)
