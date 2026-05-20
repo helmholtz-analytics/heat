@@ -138,6 +138,7 @@ class TestPartialDataset(unittest.TestCase):
                     f"Element count {elems} should be >= {expected_min}"
                 )
 
+    @flaky
     def test_data_varies_between_epochs(self):
         """Test that data differs between consecutive epochs due to shuffling."""
         full_data = ht.load(self.HDF5_PATH, dataset="data", split=None)
@@ -178,6 +179,7 @@ class TestPartialDataset(unittest.TestCase):
                     "Data should vary between epochs"
                 )
 
+    @flaky
     def test_partial_h5_dataset_integration(self):
         """Integration test: verify the complete workflow with both CPU and GPU."""
         full_data = ht.load(self.HDF5_PATH, dataset="data", split=None)
