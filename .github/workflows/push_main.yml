@@ -11,6 +11,7 @@ on:
 jobs:
   codebase-test-and-bench-main:
     name: Codebase Tests and Benchmarks
+    if: ${{ !github.event.repository.fork }}
     runs-on: ubuntu-latest
     steps:
       - name: Harden the runner (Audit all outbound calls)

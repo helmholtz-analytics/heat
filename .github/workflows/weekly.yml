@@ -13,6 +13,7 @@ permissions:
 jobs:
     codeql:
         name: CodeQL Analysis
+        if: ${{ !github.event.repository.fork }}
         runs-on: ubuntu-latest
         steps:
           - name: Harden Runner
@@ -32,6 +33,7 @@ jobs:
                 category: "/language:python"
     scorecard:
         name: Code Quality Scorecard
+        if: ${{ !github.event.repository.fork }}
         runs-on: ubuntu-latest
         steps:
           - name: Harden Runner
@@ -79,6 +81,7 @@ jobs:
             with:
                 sarif_file: results.sarif
     check-links:
+      if: ${{ !github.event.repository.fork }}
         runs-on: ubuntu-latest
         steps:
           - name: Harden Runner
