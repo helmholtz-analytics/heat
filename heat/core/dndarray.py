@@ -348,7 +348,6 @@ class DNDarray:
         """
         return self.__split
 
-    @property
     def stride(self) -> tuple[int, ...]:
         """
         Returns the steps in each dimension when traversing a ``DNDarray``. torch-like usage: ``self.stride()``
