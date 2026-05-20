@@ -929,53 +929,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
                     # can the sizes in the split dimension differ by more than 1?
                     a_block_map[:, :, cnt:, 1] += 1
 
-            b_block_map = torch.zeros(
-                (comm.size, b.shape[-2] // kB // comm.size, b.shape[-1] // nB, 2),
-                dtype=torch.int,
-                device=tdev,
-            )
-        else:  # b split 1
-            b_block_map = torch.zeros(
-                (comm.size, b.shape[-2] // kB, b.shape[-1] // nB // comm.size, 2),
-                dtype=torch.int,
-                device=tdev,
-            )
         # units-> [process, dim0 block number, dim1 block number, start coord] **indices are local
-
-        # below is to handle the edge case where there is only one element in one dimension of b
-        b_d0_1s_flag, b_d1_1s_flag = False, False
-        if any(lshape_map[:, 1, :][:, -2] == 1):
-            b_d0_1s_flag = True
-        if any(lshape_map[:, 1, :][:, -1] == 1):
-            b_d1_1s_flag = True
-
-        for pr in range(b.comm.size):
-            start0 = index_map[pr, 1, 0, 0].item()
-            stop0 = index_map[pr, 1, 0, 1].item()
-            start1 = index_map[pr, 1, 1, 0].item()
-            stop1 = index_map[pr, 1, 1, 1].item()
-
-            # loop over the number of blocks in the 0th dimension
-            for dim0 in range(
-                (stop0 - start0) // kB // b.comm.size if b_d0_1s_flag else (stop0 - start0) // kB
-            ):
-                # loop over the number of blocks in the 1st dimension
-                for dim1 in range(
-                    (stop1 - start1) // nB // b.comm.size
-                    if b_d1_1s_flag
-                    else (stop1 - start1) // nB
-                ):
-                    b_block_map[pr, dim0, dim1] = torch.tensor(
-                        (dim0 * kB, dim1 * nB), dtype=torch.int, device=tdev
-                    )
-
-        if a.split == ndim - 1:
-            cnt = 0
-            # this loop will push the blocks in B to adjust for the remainders in A
-            for r in rem_map[:, 0, 1]:
-                if r.item():
-                    cnt += 1
-                    b_block_map[:, cnt:, :, 0] += 1
 
         # work loop: loop over all processes (also will incorporate the remainder calculations)
         c_index_map_comm.Wait()
