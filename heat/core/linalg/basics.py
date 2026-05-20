@@ -869,13 +869,6 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
         c_shape = (*batch_shape, a.gshape[-2], b.gshape[-1])
         c = factories.zeros(c_shape, split=a.split, dtype=c_type, device=dev, comm=comm)
 
-        # get the index map for c
-        c_index_map = factories.zeros((c.comm.size, 2, 2), device=dev, comm=comm)
-        c_idx = comm.chunk(c.shape, c.split)[2]
-        c_index_map[comm.rank, 0, :] = (c_idx[-2].start, c_idx[-2].stop)
-        c_index_map[comm.rank, 1, :] = (c_idx[-1].start, c_idx[-1].stop)
-        c_index_map_comm = comm.Iallreduce(MPI.IN_PLACE, c_index_map, MPI.SUM)
-
         if a.split == ndim - 2:
             a_block_map = torch.zeros(
                 (comm.size, a.shape[-2] // mB // comm.size, a.shape[-1] // kB, 2),
@@ -976,9 +969,6 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
                 if r.item():
                     cnt += 1
                     b_block_map[:, cnt:, :, 0] += 1
-
-        # work loop: loop over all processes (also will incorporate the remainder calculations)
-        c_index_map_comm.Wait()
 
         # split la dims 00
         if a.split == ndim - 2 and b.split == ndim - 2:
