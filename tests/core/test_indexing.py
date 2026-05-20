@@ -26,7 +26,6 @@ class TestIndexing(TestCase):
 
         # edge case: single non-zero element
         for split in [None, 0, 1]:
-            print(f"Testing single non-zero element with split={split}")
             a = ht.zeros((4, 3), dtype=ht.bool, split=split)
             a[1, 2] = True
             nz = ht.indexing.nonzero(a)
@@ -38,7 +37,7 @@ class TestIndexing(TestCase):
         nz = ht.nonzero(a, as_tuple=False)
         self.assertEqual(nz.gshape, (4, 2))
         self.assertEqual(nz.dtype, ht.int64)
-        self.assertEqual(nz.split, 0)
+        self.assertEqual(nz.split, a.split)
         t_a =  a.resplit_(None).larray
         t_nz = torch.nonzero(t_a, as_tuple=False)
         self.assertTrue(ht.equal(nz, ht.array(t_nz)))
