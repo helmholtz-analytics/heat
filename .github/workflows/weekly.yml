@@ -81,7 +81,7 @@ jobs:
             with:
                 sarif_file: results.sarif
     check-links:
-      if: ${{ !github.event.repository.fork }}
+        if: ${{ !github.event.repository.fork }}
         runs-on: ubuntu-latest
         steps:
           - name: Harden Runner
