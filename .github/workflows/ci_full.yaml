@@ -78,7 +78,7 @@ jobs:
 
       - name: Install heat
         run: |
-          pip install pytest
+          pip install pytest flaky
           pip install ${{ matrix.pytorch-version }} ${{ matrix.install-options }} --extra-index-url https://download.pytorch.org/whl/cpu
 
       - name: Run tests with 3 tasks
