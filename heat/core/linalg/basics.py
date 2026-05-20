@@ -830,14 +830,14 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
 
         # get the lshape map to determine what needs to be sent where as well as M and N
         # lshape map dims -> {node, a=0 | b=1, lshape}
-        lshape_map = torch.zeros((comm.size, 2, ndim), dtype=int, device=tdev)
-        lshape_map[comm.rank, 0, :] = torch.tensor(a.lshape, device=tdev)
-        lshape_map[comm.rank, 1, :] = torch.tensor(b.lshape, device=tdev)
+        lshape_map = np.zeros((comm.size, 2, ndim), dtype=int)
+        lshape_map[comm.rank, 0, :] = a.lshape
+        lshape_map[comm.rank, 1, :] = b.lshape
         comm.Allreduce(MPI.IN_PLACE, lshape_map, MPI.SUM)
 
         # find mB (first blocking dim for a) and nB (2nd blocking dim for b)
-        mB = lshape_map[:, 0, -2].min().item()  # smallest number of local rows of a on a node
-        nB = lshape_map[:, 1, -1].min().item()  # smallest number of local columns of b on a node
+        mB = lshape_map[:, 0, -2].min()  # smallest number of local rows of a on a node
+        nB = lshape_map[:, 1, -1].min()  # smallest number of local columns of b on a node
 
         # check for remaining dims in the outside dimensions
         rem_a_out, rem_b_out = 0, 0
@@ -899,7 +899,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
                     b_lp_data[pr] = b.larray.clone()
                 else:
                     b_lp_data[pr] = torch.empty(
-                        (*batch_shape, lshape_map[pr, 1, -2].item(), lshape_map[pr, 1, -1].item()),
+                        (*batch_shape, lshape_map[pr, 1, -2], lshape_map[pr, 1, -1]),
                         dtype=b.dtype.torch_type(),
                         device=tdev,
                     )
@@ -930,7 +930,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
                     b_lp_data[pr] = b.larray.clone()
                 else:
                     b_lp_data[pr] = torch.empty(
-                        (*batch_shape, lshape_map[pr, 1, -2].item(), lshape_map[pr, 1, -1].item()),
+                        (*batch_shape, lshape_map[pr, 1, -2], lshape_map[pr, 1, -1]),
                         dtype=b.dtype.torch_type(),
                         device=tdev,
                     )
@@ -971,7 +971,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
                     a_lp_data[pr] = a.larray.clone()
                 else:
                     a_lp_data[pr] = torch.empty(
-                        (*batch_shape, lshape_map[pr, 0, -2].item(), lshape_map[pr, 0, -1].item()),
+                        (*batch_shape, lshape_map[pr, 0, -2], lshape_map[pr, 0, -1]),
                         dtype=a.dtype.torch_type(),
                         device=tdev,
                     )
