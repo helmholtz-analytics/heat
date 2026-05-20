@@ -996,9 +996,16 @@ class TestLinalgBasics(TestCase):
             B = ht.ones(shape[::-1], split=split)
 
             C = A @ B
-            assert ht.allclose(C, 6)
+            self.assertTrue(ht.allclose(C, A.shape[-1]))
+
+            A = A.T
+            B = B.T
+            C = A @ B
+            self.assertEqual(A.split, 1)
+            self.assertEqual(C.split, 1)
+            self.assertTrue(ht.allclose(C, A.shape[-1]))
         else:
-            self.skipTest('This edge case requires two tasks')
+            self.skipTest('This edge case requires four tasks')
 
     def test_matmul_edge_case_2(self):
         # test edge cases as documented in #2093
