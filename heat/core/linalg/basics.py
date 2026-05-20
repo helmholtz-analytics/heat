@@ -876,58 +876,10 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
         c_index_map[comm.rank, 1, :] = (c_idx[-1].start, c_idx[-1].stop)
         c_index_map_comm = comm.Iallreduce(MPI.IN_PLACE, c_index_map, MPI.SUM)
 
-        if a.split == ndim - 2:
-            a_block_map = torch.zeros(
-                (comm.size, a.shape[-2] // mB // comm.size, a.shape[-1] // kB, 2),
-                dtype=torch.int,
-                device=tdev,
-            )
-        elif a.split == ndim - 1:  # else should be equivalent at this point
-            a_block_map = torch.zeros(
-                (comm.size, a.shape[-2] // mB, a.shape[-1] // kB // comm.size, 2),
-                dtype=torch.int,
-                device=tdev,
-            )
         # units-> [process, dim0 block number, dim1 block number, start coord] **indices are local
 
-        # below is to handle the edge case where there is only one element in one dimension of a
-        a_d0_1s_flag, a_d1_1s_flag = False, False
-        if any(lshape_map[:, 0, :][:, -2] == 1):
-            a_d0_1s_flag = True
-        if any(lshape_map[:, 0, :][:, -1] == 1):
-            a_d1_1s_flag = True
-
         index_map_comm.Wait()
-        for pr in range(comm.size):
-            start0 = index_map[pr, 0, 0, 0].item()
-            stop0 = index_map[pr, 0, 0, 1].item()
-            start1 = index_map[pr, 0, 1, 0].item()
-            stop1 = index_map[pr, 0, 1, 1].item()
-
-            # maybe we could use torch.arange instead of this nested loop
-            for dim0 in range(
-                (stop0 - start0) // mB // comm.size if a_d0_1s_flag else (stop0 - start0) // mB
-            ):
-                # loop over the number of blocks in the 0th dimension
-                for dim1 in range(
-                    (stop1 - start1) // kB // comm.size if a_d1_1s_flag else (stop1 - start1) // kB
-                ):
-                    # loop over the number of blocks in the 1st dimension
-                    a_block_map[pr, dim0, dim1] = torch.tensor(
-                        (dim0 * mB, dim1 * kB), dtype=torch.int, device=tdev
-                    )
         rem_map_comm.Wait()
-
-        if b.split == ndim - 2:
-            # the blocks are shifted in the 2nd dimension of A for as many remainders
-            # there are between the blocks in the first dim of B
-            cnt = 0
-            for r in rem_map[:, 1, 0]:
-                if r.item():
-                    cnt += 1
-                    # why increment by exactly 1? what can we assume about the lshapes on different nodes?
-                    # can the sizes in the split dimension differ by more than 1?
-                    a_block_map[:, :, cnt:, 1] += 1
 
         # units-> [process, dim0 block number, dim1 block number, start coord] **indices are local
 
