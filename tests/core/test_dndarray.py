@@ -966,6 +966,15 @@ class TestDNDarray(TestCase):
         mask_split2 = ht.array(mask, split=2)
         self.assert_array_equal(arr_split2[mask_split2], arr.numpy()[mask])
 
+        # 0-D arrays indexed by Python booleans or 0-D boolean tensors
+        x_np = np.array(42)
+        x_ht = ht.array(42)
+
+        self.assert_array_equal(x_ht[False], x_np[False])
+        self.assert_array_equal(x_ht[True], x_np[True])
+        self.assert_array_equal(x_ht[ht.array(False)], x_np[np.array(False)])
+        self.assert_array_equal(x_ht[ht.array(True)], x_np[np.array(True)])
+
         # boolean edge case
         idx = ht.array([2, 0, 1], split=0)
         mask = ht.array([True, False, True], split=0)
