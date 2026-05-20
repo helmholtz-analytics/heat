@@ -108,6 +108,7 @@ dev = [
     "netCDF4>=1.7",
     "zarr<3.2",
     "pandas",
+    "scikit-learn",
 ]
 
 docs = [
