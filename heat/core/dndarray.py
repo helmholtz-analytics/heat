@@ -1930,7 +1930,7 @@ class DNDarray:
         global_split_indices = global_indices[coord]
         local_split_indices = global_split_indices - local_offset
 
-        # 3) Build LHS index for x_local (corresponds to self.larray)
+        # build LHS index for x_local (corresponds to self.larray)
         if base_index is None:
             lhs_index = [slice(None)] * x_local.ndim
         else:
@@ -1939,20 +1939,24 @@ class DNDarray:
         lhs_index[split_axis] = local_split_indices
         lhs_index = tuple(lhs_index)
 
-        # 4) Build RHS index for value_torch
+        # build RHS index for value_torch
         if value_is_scalar:
-            # Scalar assignment: broadcast scalar to the selected positions
-            x_local[lhs_index] = value_torch.to(out_dtype)
-            return
+            rhs = value_torch.to(out_dtype)
+        else:
+            rhs_index = [slice(None)] * value_torch.ndim
+            m = split_key.ndim
 
-        rhs_index = [slice(None)] * value_torch.ndim
-        m = split_key.ndim
+            for d in range(m):
+                rhs_index[value_key_start_dim + d] = coord[d]
 
-        for d in range(m):
-            rhs_index[value_key_start_dim + d] = coord[d]
+            rhs = value_torch[tuple(rhs_index)].to(out_dtype)
 
-        rhs = value_torch[tuple(rhs_index)]
-        x_local[lhs_index] = rhs.to(out_dtype)
+        if x_local.is_cuda:
+            lhs_index, rhs = DNDarray.__dedup_last_wins_advanced_index(
+                lhs_index, rhs, x_local.shape
+            )
+
+        x_local[lhs_index] = rhs
 
     def __getitem_scalar(self, p: ProcessedKey) -> DNDarray:
         if p.root is not None:
@@ -2955,11 +2959,21 @@ class DNDarray:
             local_indices = torch.nonzero(
                 (split_key >= displs[rank]) & (split_key < displs[rank] + counts[rank])
             ).flatten()
-            key_local = split_key[local_indices] - displs[rank]
-            if value_is_scalar:
-                self.larray[key_local] = value.larray.type(self.dtype.torch_type())
-            else:
-                self.larray[key_local] = value.larray[local_indices].type(self.dtype.torch_type())
+
+            if local_indices.numel() > 0:
+                key_local = split_key[local_indices] - displs[rank]
+
+                if value_is_scalar:
+                    rhs = value.larray.type(self.dtype.torch_type())
+                else:
+                    rhs = value.larray[local_indices].type(self.dtype.torch_type())
+
+                if self.larray.is_cuda:
+                    key_local, rhs = self.__dedup_last_wins_advanced_index(
+                        key_local, rhs, self.larray.shape
+                    )
+
+                self.larray[key_local] = rhs
             return
 
         if isinstance(original_key, tuple):
