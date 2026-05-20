@@ -8,7 +8,6 @@ from pathlib import Path
 
 @unittest.skipIf(torch.cuda.is_available() and torch.version.hip, "not supported for HIP")
 @unittest.skipUnless(ht.supports_hdf5(), "Requires HDF5")
-@flaky
 class TestPartialDataset(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -33,9 +32,16 @@ class TestPartialDataset(unittest.TestCase):
         full_data = ht.load(self.HDF5_PATH, dataset="data", split=None)
 
         # Test basic initialization
-        partial_dset = self._create_test_dataset(self.HDF5_PATH, full_data.comm, 30, 20)
+        initial_load = 30
+        load_length = 20
+        partial_dset = self._create_test_dataset(self.HDF5_PATH, full_data.comm, initial_load, load_length)
         self.assertEqual(partial_dset.total_size, full_data.shape[0])
-        self.assertTrue(partial_dset.partial_dataset)
+
+        rows = full_data.shape[0]
+        if initial_load > rows // full_data.comm.size:
+            self.assertFalse(partial_dset.partial_dataset)
+        else:
+            self.assertTrue(partial_dset.partial_dataset)
 
     def test_batch_shape_consistency(self):
         """Test that all batches have the expected shape across device configurations."""
@@ -65,6 +71,7 @@ class TestPartialDataset(unittest.TestCase):
                     self.assertEqual(batch.shape, expected_batch_shape)
                     break  # Just check first batch for this test
 
+    @flaky
     def test_consecutive_batches_differ(self):
         """Test that consecutive batches within an epoch are different."""
         full_data = ht.load(self.HDF5_PATH, dataset="data", split=None)
