@@ -6,7 +6,7 @@ from heat.testing.basic_test import TestCase
 
 try:
     from sklearn.metrics import silhouette_samples as sk_silhouette
-except ModuleNotFoundError:
+except ImportError:
     sk_silhouette = None
 
 
