@@ -982,124 +982,35 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
 
         # split la dims 00
         if a.split == ndim - 2 and b.split == ndim - 2:
-            # need to send b here and not a
-            #   the rows on 'a' are complete, and the columns of 'b' are split
-            # locations of the remainders in b
-            b_rem_locs0 = torch.nonzero(rem_map[:, 1, 0] == 1, as_tuple=False)
-            a_rem_locs0 = torch.nonzero(rem_map[:, 0, 0] == 1, as_tuple=False)
-            # remainders for a in the
-            a_node_rem_s0 = a.larray[..., :mB, kB : (kB + 1) * b_rem_locs0.numel() : kB + 1]
-            b_rem = torch.empty(
-                (*batch_shape, b_rem_locs0.numel(), b.lshape[-1]),
-                dtype=a.dtype.torch_type(),
-                device=tdev,
-            )
-
-            # this if/elif/else loop is for the handling of
-            if comm.rank in a_rem_locs0:
-                # if A is split in dim0 and the rank has a remainder in this direction
-                r = a.larray[..., -1, :].unsqueeze(-2)
-                # can we not just set r_loc = -1 instead?
-                r_loc = index_map[comm.rank, 0, 0, 1] - index_map[comm.rank, 0, 0, 0] - 1
-            else:
-                r = None
-                r_loc = None
-
+            # A is split along rows, B is split along rows.
+            # Broadcast each rank's B chunk; each rank multiplies with the corresponding
+            # columns of its local A (which holds all columns).
+            # C_local += A_local[..., b_start:b_stop] @ B_rank_pr
             req = {}
             b_lp_data = {}
             for pr in range(comm.size):
-                # ibcast data on node first
                 if comm.rank == pr:
                     b_lp_data[pr] = b.larray.clone()
                 else:
-                    b_lp_data[pr] = torch.zeros(
+                    b_lp_data[pr] = torch.empty(
                         (*batch_shape, lshape_map[pr, 1, -2].item(), lshape_map[pr, 1, -1].item()),
                         dtype=b.dtype.torch_type(),
                         device=tdev,
                     )
-
-                # sending a to all nodes for b to operate with
                 req[pr] = comm.Ibcast(b_lp_data[pr], root=pr)
 
-                # receive the data from the last loop and do the calculation with that
                 if pr != 0:
                     req[pr - 1].Wait()
-                    # after receiving the last loop's bcast
-                    __mm_c_block_setter(
-                        b_proc=pr - 1,
-                        a_proc=comm.rank,
-                        a_data=a.larray,
-                        b_data=b_lp_data[pr - 1],
-                        b_block_map=b_block_map,
-                        a_block_map=a_block_map,
-                        b_split=0,
-                        a_split=0,
-                        mB=mB,
-                        kB=kB,
-                        nB=nB,
-                        c=c.larray,
-                    )
-
-                    # check if there is a remainder on b in the previous node
-                    # this loop is intended to get the remainders of b since it is the one being passed
-                    if pr - 1 in b_rem_locs0:
-                        # takes care of the remainders in b as well as dim0 of a
-                        b_rem[..., pr - 1, :] = b_lp_data[pr - 1][..., -1, :]
-
-                    # this loop is to take care of the remainders in dim0 of a
-                    if a_rem_locs0.nelement() != 0 and r_loc is not None:
-                        st = index_map[pr - 1, 1, 0, 0].item()
-                        sp = index_map[pr - 1, 1, 0, 1].item()
-
-                        c.larray[..., r_loc.item(), :] += (
-                            r[..., st:sp] @ b_lp_data[pr - 1]
-                        ).squeeze(-2)
+                    b_start = index_map[pr - 1, 1, 0, 0].item()
+                    b_stop = index_map[pr - 1, 1, 0, 1].item()
+                    c.larray += a.larray[..., b_start:b_stop] @ b_lp_data[pr - 1]
                     del b_lp_data[pr - 1]
 
-                # need to wait if its the last loop, also need to collect the remainders
                 if pr == comm.size - 1:
                     req[pr].Wait()
-                    __mm_c_block_setter(
-                        b_proc=pr,
-                        a_proc=comm.rank,
-                        a_data=a.larray,
-                        b_data=b_lp_data[pr],
-                        b_block_map=b_block_map,
-                        a_block_map=a_block_map,
-                        b_split=0,
-                        a_split=0,
-                        mB=mB,
-                        kB=kB,
-                        nB=nB,
-                        c=c.larray,
-                    )
-                    # check if there is a remainder on b on the last node (there shouldnt be)
-                    if pr in b_rem_locs0:
-                        # this is to save the data from B required by the remainders from dim1 of A
-                        b_rem[..., pr, :] = b_lp_data[pr][..., -1, :]
-
-                    # this loop is to take care of the remainders in the 0th dimension of A
-                    if a_rem_locs0.nelement() != 0 and r_loc is not None:
-                        st = index_map[pr, 1, 0, 0].item()
-                        sp = index_map[pr, 1, 0, 1].item()  # linear algebra dimension 0/1
-
-                        # code not reachable?
-                        # if split_01_flag:
-                        if False:
-                            st1 = index_map[pr, 1, 1, 0].item()
-                            sp1 = index_map[pr, 1, 1, 1].item()
-                            c.larray[..., r_loc.item(), st1:sp1] += r[..., st:sp] @ b_lp_data[pr]
-                        else:
-                            c.larray[..., r_loc.item(), :] += (
-                                r[..., st:sp] @ b_lp_data[pr]
-                            ).squeeze(-2)
-
-                    # set the final blocks on the last loop, then adjust for the
-                    # the remainders which were collected in b_rem
-                    if b_rem_locs0.numel():
-                        c.larray[..., : a_node_rem_s0.shape[-2], :] += (
-                            a_node_rem_s0 @ b_rem
-                        )  # shouldnt shape[0] always be mB?
+                    b_start = index_map[pr, 1, 0, 0].item()
+                    b_stop = index_map[pr, 1, 0, 1].item()
+                    c.larray += a.larray[..., b_start:b_stop] @ b_lp_data[pr]
                     del b_lp_data[pr]
 
         # split la dims 01
@@ -1143,106 +1054,35 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
 
         # split la dims 11
         elif a.split == ndim - 1 and b.split == ndim - 1:
-            # for this case, a is sent to b
-            #   this is because 'b' has complete columns and the rows of 'a' are split
-            # locations of the remainders in b
-            b_rem_locs1 = torch.nonzero(rem_map[:, 1, 1] == 1, as_tuple=False)
-            a_rem_locs1 = torch.nonzero(rem_map[:, 0, 1] == 1, as_tuple=False)
-            b_node_rem_s1 = b.larray[..., kB : (kB + 1) * a_rem_locs1.numel() : kB + 1, :nB]
-            # b_node_rem_s1 -> remainders for a in the
-
-            a_rem = torch.empty(
-                (*batch_shape, a.lshape[-2], a_rem_locs1.numel()),
-                dtype=b.dtype.torch_type(),
-                device=tdev,
-            )
-            # this if/elif/else loop is for the handling of
-            if comm.rank in b_rem_locs1:
-                # if b is split in dim1 and the rank has a remainder in this direction
-                r = b.larray[..., -1].unsqueeze(-1)
-                r_loc = index_map[comm.rank, 1, 1, 1] - index_map[comm.rank, 1, 1, 0] - 1
-            else:
-                r = None
-                r_loc = None
+            # A is split along columns (inner dim), B is split along columns (output dim).
+            # Broadcast each rank's A chunk; each rank multiplies with the corresponding
+            # rows of its local B (which holds all rows).
+            # C_local += A_rank_pr @ B_local[..., a_start:a_stop, :]
             req = {}
             a_lp_data = {}
             for pr in range(comm.size):
-                # ibcast data on node first
-                if a.comm.rank == pr:
+                if comm.rank == pr:
                     a_lp_data[pr] = a.larray.clone()
                 else:
-                    a_lp_data[pr] = torch.zeros(
+                    a_lp_data[pr] = torch.empty(
                         (*batch_shape, lshape_map[pr, 0, -2].item(), lshape_map[pr, 0, -1].item()),
                         dtype=a.dtype.torch_type(),
                         device=tdev,
                     )
-                # sending a to all nodes for b to operate with
                 req[pr] = comm.Ibcast(a_lp_data[pr], root=pr)
-                # receive the data from the last loop and do the calculation with that
+
                 if pr != 0:
-                    # after receiving the last loop's bcast
                     req[pr - 1].Wait()
-                    __mm_c_block_setter(
-                        a_proc=pr - 1,
-                        b_proc=comm.rank,
-                        a_data=a_lp_data[pr - 1],
-                        b_data=b.larray,
-                        b_block_map=b_block_map,
-                        a_block_map=a_block_map,
-                        a_split=1,
-                        b_split=1,
-                        mB=mB,
-                        kB=kB,
-                        nB=nB,
-                        c=c.larray,
-                    )
-                    # check if there is a remainder on b in the previous node
-                    # this loop is intended to get the remainders of b since it is the one being passed
-                    if pr - 1 in a_rem_locs1:
-                        # takes care of the remainders in b as well as dim0 of a
-                        a_rem[..., pr - 1] = a_lp_data[pr - 1][..., -1]
-                    # this loop is to take care of the remainders in dim1 of B
-                    if b_rem_locs1.nelement() != 0 and r_loc is not None:
-                        st = index_map[pr - 1, 0, 1, 0].item()
-                        sp = index_map[pr - 1, 0, 1, 1].item()
-
-                        c.larray[..., r_loc.item()] += (
-                            a_lp_data[pr - 1] @ r[..., st:sp, :]
-                        ).squeeze(-1)
-
+                    a_start = index_map[pr - 1, 0, 1, 0].item()
+                    a_stop = index_map[pr - 1, 0, 1, 1].item()
+                    c.larray += a_lp_data[pr - 1] @ b.larray[..., a_start:a_stop, :]
                     del a_lp_data[pr - 1]
 
-                # need to wait if its the last loop, also need to collect the remainders
-                if pr == b.comm.size - 1:
+                if pr == comm.size - 1:
                     req[pr].Wait()
-                    __mm_c_block_setter(
-                        a_proc=pr,
-                        b_proc=a.comm.rank,
-                        a_data=a_lp_data[pr],
-                        b_data=b.larray,
-                        b_block_map=b_block_map,
-                        a_block_map=a_block_map,
-                        a_split=1,
-                        b_split=1,
-                        mB=mB,
-                        kB=kB,
-                        nB=nB,
-                        c=c.larray,
-                    )
-                    # check if there is a remainder on b on the last node (there shouldnt be)
-                    if pr in a_rem_locs1:
-                        # this is to save the data from B required by the remainders from dim1 of A
-                        a_rem[..., pr] = a_lp_data[pr][..., -1]
-                    # this loop is to take care of the remainders in the 0th dimension of A
-                    if b_rem_locs1.nelement() != 0 and r_loc is not None:
-                        st = index_map[pr, 0, 1, 0].item()
-                        sp = index_map[pr, 0, 1, 1].item()
-                        c.larray[..., r_loc.item()] += (a_lp_data[pr] @ r[..., st:sp, :]).squeeze(
-                            -1
-                        )
-                    # set the final blocks on the last loop, then adjust for the the remainders which were collected in b_rem
-                    if a_rem_locs1.numel():
-                        c.larray[..., : b_node_rem_s1.shape[-1]] += a_rem @ b_node_rem_s1
+                    a_start = index_map[pr, 0, 1, 0].item()
+                    a_stop = index_map[pr, 0, 1, 1].item()
+                    c.larray += a_lp_data[pr] @ b.larray[..., a_start:a_stop, :]
                     del a_lp_data[pr]
 
         # split la dims 10
