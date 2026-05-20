@@ -1,0 +1,23 @@
+name: On Push Support
+on:
+  push:
+    branches:
+      - 'support/**'
+jobs:
+  codebase-test-support:
+    name: Testing
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@6c3c2f2c1c457b00c10c4848d6f5491db3b629df # v2.18.0
+        with:
+          egress-policy: audit
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.sha }}
+      - uses: ./.github/actions/trigger_codebase_tests
+        with:
+          branch: ${{ github.head_ref}}
+          sha: ${{ github.sha}}
+          trigger_token: ${{ secrets.CX_TRIGGER_TOKEN }}
