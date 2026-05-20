@@ -847,13 +847,13 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
             rem_b_out = 1
 
         # index_map dims guide -> {process number, a=0/b=1, relevant 1st index, 2nd index}
-        index_map = torch.zeros((comm.size, 2, 2, 2), dtype=int, device=tdev)
+        index_map = np.zeros((comm.size, 2, 2, 2), dtype=int)
         a_idx = comm.chunk(a.shape, a.split)[2]
-        index_map[comm.rank, 0, 0] = torch.tensor((a_idx[-2].start, a_idx[-2].stop), device=tdev)
-        index_map[comm.rank, 0, 1] = torch.tensor((a_idx[-1].start, a_idx[-1].stop), device=tdev)
+        index_map[comm.rank, 0, 0] = (a_idx[-2].start, a_idx[-2].stop + 1)
+        index_map[comm.rank, 0, 1] = (a_idx[-1].start, a_idx[-1].stop)
         b_idx = comm.chunk(b.shape, b.split)[2]
-        index_map[comm.rank, 1, 0] = torch.tensor((b_idx[-2].start, b_idx[-2].stop), device=tdev)
-        index_map[comm.rank, 1, 1] = torch.tensor((b_idx[-1].start, b_idx[-1].stop), device=tdev)
+        index_map[comm.rank, 1, 0] = (b_idx[-2].start, b_idx[-2].stop)
+        index_map[comm.rank, 1, 1] = (b_idx[-1].start, b_idx[-1].stop)
         index_map_comm = comm.Iallreduce(MPI.IN_PLACE, index_map, MPI.SUM)
 
         # output: c = a @ b
@@ -898,15 +898,13 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
 
                 if pr != 0:
                     req[pr - 1].Wait()
-                    b_start = index_map[pr - 1, 1, 0, 0].item()
-                    b_stop = index_map[pr - 1, 1, 0, 1].item()
+                    b_start, b_stop = index_map[pr - 1, 1, 0]
                     c.larray += a.larray[..., b_start:b_stop] @ b_lp_data[pr - 1]
                     del b_lp_data[pr - 1]
 
                 if pr == comm.size - 1:
                     req[pr].Wait()
-                    b_start = index_map[pr, 1, 0, 0].item()
-                    b_stop = index_map[pr, 1, 0, 1].item()
+                    b_start, b_stop = index_map[pr, 1, 0]
                     c.larray += a.larray[..., b_start:b_stop] @ b_lp_data[pr]
                     del b_lp_data[pr]
 
@@ -932,20 +930,16 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
                 if pr != 0:
                     req[pr - 1].Wait()
                     # after receiving the last loop's bcast
-                    st0 = index_map[pr - 1, 0, 0, 0].item()
-                    sp0 = index_map[pr - 1, 0, 0, 1].item() + 1
-                    st1 = index_map[pr - 1, 1, 1, 0].item()
-                    sp1 = index_map[pr - 1, 1, 1, 1].item()
+                    st0, sp0 = index_map[pr - 1, 0, 0]
+                    st1, sp1 = index_map[pr - 1, 1, 1]
 
                     c.larray[..., : sp0 - st0, st1:sp1] += a.larray @ b_lp_data[pr - 1]
 
                     del b_lp_data[pr - 1]
                 if pr == comm.size - 1:
                     req[pr].Wait()
-                    st0 = index_map[pr, 0, 0, 0].item()
-                    sp0 = index_map[pr, 0, 0, 1].item() + 1
-                    st1 = index_map[pr, 1, 1, 0].item()
-                    sp1 = index_map[pr, 1, 1, 1].item()
+                    st0, sp0 = index_map[pr, 0, 0]
+                    st1, sp1 = index_map[pr, 1, 1]
                     c.larray[..., : sp0 - st0, st1:sp1] += a.larray @ b_lp_data[pr]
                     del b_lp_data[pr]
 
@@ -970,15 +964,13 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
 
                 if pr != 0:
                     req[pr - 1].Wait()
-                    a_start = index_map[pr - 1, 0, 1, 0].item()
-                    a_stop = index_map[pr - 1, 0, 1, 1].item()
+                    a_start, a_stop = index_map[pr - 1, 0, 1]
                     c.larray += a_lp_data[pr - 1] @ b.larray[..., a_start:a_stop, :]
                     del a_lp_data[pr - 1]
 
                 if pr == comm.size - 1:
                     req[pr].Wait()
-                    a_start = index_map[pr, 0, 1, 0].item()
-                    a_stop = index_map[pr, 0, 1, 1].item()
+                    a_start, a_stop = index_map[pr, 0, 1]
                     c.larray += a_lp_data[pr] @ b.larray[..., a_start:a_stop, :]
                     del a_lp_data[pr]
 
