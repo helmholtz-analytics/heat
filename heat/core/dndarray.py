@@ -950,7 +950,13 @@ class DNDarray:
         """
         # early out for scalar key
         is_scalar = np.isscalar(key) or getattr(key, "ndim", 1) == 0
-        if is_scalar:
+
+        is_boolean = isinstance(key, bool) or (
+            hasattr(key, "dtype")
+            and key.dtype in (ht_bool, ht_uint8, torch.bool, torch.uint8, np.bool_, np.uint8)
+        )
+
+        if is_scalar and not is_boolean:
             if arr.ndim == 0 and op == "get":
                 raise IndexError(
                     "Too many indices for DNDarray: DNDarray is 0-dimensional, but 1 were indexed"
@@ -1092,13 +1098,16 @@ class DNDarray:
                             tuple(key.shape), arr.shape
                         )
                     )
-
                 if not distr_mask_fast_path:
-                    # extract non-zero elements
-                    try:
-                        key = key.nonzero(as_tuple=True)
-                    except TypeError:
-                        key = key.nonzero()
+                    if key_ndim == 0:
+                        # 0-D boolean mask: keep as 0-D tensor, do not extract non-zero
+                        key = key.larray if isinstance(key, DNDarray) else key
+                    else:
+                        # extract non-zero elements
+                        try:
+                            key = key.nonzero(as_tuple=True)
+                        except TypeError:
+                            key = key.nonzero()
                 else:
                     # keep the raw boolean mask
                     key = key.larray if isinstance(key, DNDarray) else key
@@ -1214,7 +1223,22 @@ class DNDarray:
             key = [key]
 
         # check for ellipsis, newaxis. NB: (np.newaxis is None)==True
-        add_dims = sum(k is None for k in key)
+        def is_0d_bool(k):
+            if isinstance(k, bool):
+                return True
+            if hasattr(k, "dtype") and k.dtype in (
+                ht_bool,
+                ht_uint8,
+                torch.bool,
+                torch.uint8,
+                np.bool_,
+                np.uint8,
+            ):
+                if getattr(k, "ndim", 1) == 0:
+                    return True
+            return False
+
+        add_dims = sum(k is None or is_0d_bool(k) for k in key)
         ellipsis = sum(isinstance(k, type(...)) for k in key)
         if ellipsis > 1:
             raise ValueError("indexing key can only contain 1 Ellipsis (...)")
@@ -1230,10 +1254,15 @@ class DNDarray:
             key = expand_key
         while add_dims > 0:
             # expand array dims: output_shape, split_bookkeeping to reflect newaxis
-            # replace newaxis with slice(None) in key
+            # replace newaxis with slice(None), replace 0-D bools with a target slice
             for i, k in reversed(list(enumerate(key))):
-                if k is None:
-                    key[i] = slice(None)
+                if k is None or is_0d_bool(k):
+                    if k is None:
+                        key[i] = slice(None)
+                    else:
+                        val = bool(k.item() if hasattr(k, "item") else k)
+                        key[i] = slice(None) if val else slice(0, 0)
+
                     arr = arr.expand_dims(i - add_dims + 1)
                     output_shape = (
                         output_shape[: i - add_dims + 1] + [1] + output_shape[i - add_dims + 1 :]
@@ -2244,7 +2273,7 @@ class DNDarray:
 
         # key processing returns a ProcessedKey namedtuple
         self, processed_key = self.__process_key(key, return_local_indices=True, op="get")
-        # print(f"DEBUGGING: Processed key: {processed_key}")
+        print(f"DEBUGGING: Processed key: {processed_key}")
 
         # dispatch to appropriate getitem method
         op = processed_key.op_type
@@ -3212,7 +3241,7 @@ class DNDarray:
         original_key = key
 
         self, processed_key = self.__process_key(key, return_local_indices=True, op="set")
-        # print(f"DEBUGGING: Processed key: {processed_key}")
+        print(f"DEBUGGING: Processed key: {processed_key}")
 
         op = processed_key.op_type
 
