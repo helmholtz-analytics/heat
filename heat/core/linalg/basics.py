@@ -846,14 +846,6 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
         if b.lshape[-1] % nB != 0 or (nB == 1 and b.lshape[-1] != 1):
             rem_b_out = 1
 
-        # get the flags from all processes
-        # rem_map dims guide -> {process number, a/b (0/1), dim0/dim1 (0/1), True/False (1/0)
-        #   if there is a remainder in this dimension
-        rem_map = torch.zeros((comm.size, 2, 2))
-        rem_map[comm.rank, 0, :] = torch.tensor((rem_a_out, rem_a), device=tdev)
-        rem_map[comm.rank, 1, :] = torch.tensor((rem_b, rem_b_out), device=tdev)
-        rem_map_comm = comm.Iallreduce(MPI.IN_PLACE, rem_map, MPI.SUM)
-
         # index_map dims guide -> {process number, a=0/b=1, relevant 1st index, 2nd index}
         index_map = torch.zeros((comm.size, 2, 2, 2), dtype=int, device=tdev)
         a_idx = comm.chunk(a.shape, a.split)[2]
@@ -879,7 +871,6 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
         # units-> [process, dim0 block number, dim1 block number, start coord] **indices are local
 
         index_map_comm.Wait()
-        rem_map_comm.Wait()
 
         # units-> [process, dim0 block number, dim1 block number, start coord] **indices are local
 
@@ -993,11 +984,19 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
 
         # split la dims 10
         elif a.split == ndim - 1 and b.split == ndim - 2:
-            # todo: this may create the full matrix on evey process, issue #360
+            # rem_map dims guide -> {process number, a/b (0/1), dim0/dim1 (0/1), True/False (1/0)
+            #   if there is a remainder in this dimension
+            rem_map = np.zeros((comm.size, 2, 2))
+            rem_map[comm.rank, 0, :] = (rem_a_out, rem_a)
+            rem_map[comm.rank, 1, :] = (rem_b, rem_b_out)
+            rem_map_comm = comm.Iallreduce(MPI.IN_PLACE, rem_map, MPI.SUM)
+            rem_map_comm.Wait()
+
+            # todo: this may create the full matrix on every process, issue #360
             # for this case, only a sum is needed at the end
-            a_rem_locs1 = torch.nonzero(rem_map[:, 0, 1] == 1, as_tuple=False)
+            a_rem_locs1 = np.array(np.nonzero(rem_map[:, 0, 1] == 1)).T
             # locations of the remainders in b
-            b_rem_locs0 = torch.nonzero(rem_map[:, 1, 0] == 1, as_tuple=False)
+            b_rem_locs0 = np.array(np.nonzero(rem_map[:, 1, 0] == 1)).T
             res = torch.zeros(
                 (*batch_shape, a.gshape[-2], b.gshape[-1]), dtype=c_type.torch_type(), device=tdev
             )
