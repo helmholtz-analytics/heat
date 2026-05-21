@@ -861,11 +861,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
         c_shape = (*batch_shape, a.gshape[-2], b.gshape[-1])
         c = factories.zeros(c_shape, split=a.split, dtype=c_type, device=dev, comm=comm)
 
-        # units-> [process, dim0 block number, dim1 block number, start coord] **indices are local
-
         index_map_comm.Wait()
-
-        # units-> [process, dim0 block number, dim1 block number, start coord] **indices are local
 
         # split la dims 00
         if a.split == ndim - 2 and b.split == ndim - 2:
@@ -873,6 +869,8 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
             # Broadcast each rank's B chunk; each rank multiplies with the corresponding
             # columns of its local A (which holds all columns).
             # C_local += A_local[..., b_start:b_stop] @ B_rank_pr
+
+            # post non-blocking sends
             req = {}
             b_lp_data = {}
             for pr in range(comm.size):
@@ -886,17 +884,12 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
                     )
                 req[pr] = comm.Ibcast(b_lp_data[pr], root=pr)
 
-                if pr != 0:
-                    req[pr - 1].Wait()
-                    b_start, b_stop = index_map[pr - 1, 1, 0]
-                    c.larray += a.larray[..., b_start:b_stop] @ b_lp_data[pr - 1]
-                    del b_lp_data[pr - 1]
-
-                if pr == comm.size - 1:
-                    req[pr].Wait()
-                    b_start, b_stop = index_map[pr, 1, 0]
-                    c.larray += a.larray[..., b_start:b_stop] @ b_lp_data[pr]
-                    del b_lp_data[pr]
+            # receive the data and do the local matrix multiplications
+            for pr in range(comm.size):
+                req[pr].Wait()
+                b_start, b_stop = index_map[pr, 1, 0]
+                c.larray += a.larray[..., b_start:b_stop] @ b_lp_data[pr]
+                del b_lp_data[pr]
 
         # split la dims 01
         elif a.split == ndim - 2 and b.split == ndim - 1:
