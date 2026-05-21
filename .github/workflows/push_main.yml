@@ -45,7 +45,6 @@ jobs:
           - '3.13'
           - '3.14'
         mpi: [ 'mpich' ]
-        install-options: [ '.[dev]' ]
         pytorch-version:
           - 'torch==2.3.1 torchvision==0.18.1 torchaudio==2.3.1'
           - 'torch==2.4.1 torchvision==0.19.1 torchaudio==2.4.1'
@@ -76,7 +75,7 @@ jobs:
           - py-version: '3.13'
             pytorch-version: 'torch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1'
 
-    name: Python ${{ matrix.py-version }} with ${{ matrix.pytorch-version }}; options ${{ matrix.install-options }}
+    name: Python ${{ matrix.py-version }} with ${{ matrix.pytorch-version }}
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@a5ad31d6a139d249332a2605b85202e8c0b78450 # v2.19.1
@@ -91,5 +90,4 @@ jobs:
           mode: "full"
           py-version: ${{ matrix.py-version }}
           mpi: ${{ matrix.mpi }}
-          install-options: ${{ matrix.install-options }}
           pytorch-version: ${{ matrix.pytorch-version }}
