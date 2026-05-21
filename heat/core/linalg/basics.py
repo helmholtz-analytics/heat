@@ -874,59 +874,9 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
                 c.larray += a_chunks[pr] @ b.larray[..., a_start:a_stop, :]
                 del a_chunks[pr]
 
-        # split dims 10  TODO: The implementation of this case involves allocation of a global matrix and can be improved substantially
+        # split dims 10
         elif a.split == ndim - 1 and b.split == ndim - 2:
-            # compute number of blocks
-            kB = min([a.gshape[-1] // comm.size, b.gshape[-2] // comm.size])
-
-            # figure out remainders
-            if kB == 1 and a.lshape[-1] != 1:
-                rem_a_in = 1
-            else:
-                rem_a_in = a.lshape[-1] % kB
-
-            if kB == 1 and b.lshape[-2] != 1:
-                rem_b_in = 1
-            else:
-                rem_b_in = b.lshape[-2] % kB
-
-            # find mB (first blocking dim for a) and nB (2nd blocking dim for b)
-            mB = lshape_map[:, 0, -2].min()  # smallest number of local rows of a on a node
-            nB = lshape_map[:, 1, -1].min()  # smallest number of local columns of b on a node
-
-            # check for remaining dims in the outside dimensions
-            rem_a_out, rem_b_out = 0, 0
-            if a.lshape[-2] % mB != 0 or (mB == 1 and a.lshape[-2] != 1):
-                rem_a_out = 1
-            if b.lshape[-1] % nB != 0 or (nB == 1 and b.lshape[-1] != 1):
-                rem_b_out = 1
-
-            # rem_map dims guide -> {process number, a/b (0/1), dim0/dim1 (0/1), True/False (1/0)
-            #   if there is a remainder in this dimension
-            rem_map = np.zeros((comm.size, 2, 2))
-            rem_map[comm.rank, 0, :] = (rem_a_out, rem_a_in)
-            rem_map[comm.rank, 1, :] = (rem_b_in, rem_b_out)
-            comm.Allreduce(MPI.IN_PLACE, rem_map, MPI.SUM)
-
-            res = torch.zeros(
-                (*batch_shape, a.gshape[-2], b.gshape[-1]), dtype=c_type.torch_type(), device=tdev
-            )
-            for i in range(a.lshape[-1] // kB):
-                res += (
-                    a.larray[..., :mB, i * kB : i * kB + kB]
-                    @ b.larray[..., i * kB : i * kB + kB, :nB]
-                )
-
-            # take care of remainders
-            a_rem_locs1 = np.array(np.nonzero(rem_map[:, 0, 1] == 1)).T
-            b_rem_locs0 = np.array(np.nonzero(rem_map[:, 1, 0] == 1)).T
-            if a.comm.rank in a_rem_locs1 and b.comm.rank in b_rem_locs0 and kB > 1:
-                # these Nones are used to change the dims if the full process is not covered
-                res += a.larray[..., :, -1, None] @ b.larray[..., None, -1, :]
-
-            comm.Allreduce(MPI.IN_PLACE, res, MPI.SUM)
-            split = a.split if b.gshape[-1] > 1 else ndim - 2
-            c = factories.array(res, split=split, device=dev, comm=comm)
+            return matmul(a, b.resplit(a.split))
 
     if vector_flag:  # squeeze only in the la dimensions
         # it could be sensible to resplit/rebalance in case a single node gets the whole vector
