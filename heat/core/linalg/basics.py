@@ -823,60 +823,56 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
 
         index_map_comm.Wait()
 
-        # split dims 00
-        if a.split == ndim - 2 and b.split == ndim - 2:
+        # split dims 00 and 01
+        if (a.split == ndim - 2 and b.split == ndim - 2) or (
+            a.split == ndim - 2 and b.split == ndim - 1
+        ):
+            reqs, b_chunks = {}, {}
+            # broadcast chunks of b
             for pr in range(comm.size):
-                # broadcast chunk of b
                 if comm.rank == pr:
-                    b_chunk = b.larray.clone()
+                    b_chunks[pr] = b.larray.clone()
                 else:
-                    b_chunk = torch.empty(
+                    b_chunks[pr] = torch.empty(
                         (*batch_shape, lshape_map[pr, 1, -2], lshape_map[pr, 1, -1]),
                         dtype=b.dtype.torch_type(),
                         device=tdev,
                     )
-                comm.Bcast(b_chunk, root=pr)
+                reqs[pr] = comm.Ibcast(b_chunks[pr], root=pr)
 
-                # do local matrix multiplication with the chunk of b
-                b_start, b_stop = index_map[pr, 1, 0]
-                c.larray += a.larray[..., b_start:b_stop] @ b_chunk
-
-        # split dims 01
-        elif a.split == ndim - 2 and b.split == ndim - 1:
+            # do local matrix multiplications with the chunk of b
             for pr in range(comm.size):
-                # broadcast chunk of b
-                if comm.rank == pr:
-                    b_chunk = b.larray.clone()
-                else:
-                    b_chunk = torch.empty(
-                        (*batch_shape, lshape_map[pr, 1, -2], lshape_map[pr, 1, -1]),
-                        dtype=b.dtype.torch_type(),
-                        device=tdev,
-                    )
-                comm.Bcast(b_chunk, root=pr)
-
-                # do local matrix multiplication with the chunk of b
-                st0, sp0 = index_map[pr, 0, 0]
-                st1, sp1 = index_map[pr, 1, 1]
-                c.larray[..., : sp0 - st0, st1:sp1] += a.larray @ b_chunk
+                reqs[pr].Wait()
+                if a.split == ndim - 2 and b.split == ndim - 2:  # split 00
+                    b_start, b_stop = index_map[pr, 1, 0]
+                    c.larray += a.larray[..., b_start:b_stop] @ b_chunks[pr]
+                else:  # split 01
+                    st0, sp0 = index_map[pr, 0, 0]
+                    st1, sp1 = index_map[pr, 1, 1]
+                    c.larray[..., : sp0 - st0, st1:sp1] += a.larray @ b_chunks[pr]
+                del b_chunks[pr]
 
         # split dims 11
         elif a.split == ndim - 1 and b.split == ndim - 1:
+            reqs, a_chunks = {}, {}
+            # broadcast chunks of a
             for pr in range(comm.size):
-                # broadcast chunk of a
                 if comm.rank == pr:
-                    a_chunk = a.larray.clone()
+                    a_chunks[pr] = a.larray.clone()
                 else:
-                    a_chunk = torch.empty(
+                    a_chunks[pr] = torch.empty(
                         (*batch_shape, lshape_map[pr, 0, -2], lshape_map[pr, 0, -1]),
                         dtype=a.dtype.torch_type(),
                         device=tdev,
                     )
-                comm.Bcast(a_chunk, root=pr)
+                reqs[pr] = comm.Ibcast(a_chunks[pr], root=pr)
 
-                # do local matrix multiplication with the chunk of a
+            # do local matrix multiplications with the chunk of a
+            for pr in range(comm.size):
+                reqs[pr].Wait()
                 a_start, a_stop = index_map[pr, 0, 1]
-                c.larray += a_chunk @ b.larray[..., a_start:a_stop, :]
+                c.larray += a_chunks[pr] @ b.larray[..., a_start:a_stop, :]
+                del a_chunks[pr]
 
         # split dims 10  TODO: The implementation of this case involves allocation of a global matrix and can be improved substantially
         elif a.split == ndim - 1 and b.split == ndim - 2:
