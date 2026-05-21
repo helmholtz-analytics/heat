@@ -47,7 +47,7 @@ runs:
       env:
         UV_SYSTEM_PYTHON: 1
       run: |
-        uv pip install pytest flaky
+        uv pip install -e .[dev]
         uv pip install ${{ inputs.pytorch-version }} --extra-index-url https://download.pytorch.org/whl/cpu
         uv pip install -e ${{ inputs.install-options }}
     - name: Install quick test dependencies
@@ -56,8 +56,7 @@ runs:
       env:
         UV_SYSTEM_PYTHON: 1
       run: |
-        uv pip install pytest flaky
-        uv pip install .
+        uv pip install -e .[dev]
     # Running tests
     - name: Run serial tests
       shell: bash
