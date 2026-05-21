@@ -865,97 +865,58 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
 
         # split la dims 00
         if a.split == ndim - 2 and b.split == ndim - 2:
-            # A is split along rows, B is split along rows.
-            # Broadcast each rank's B chunk; each rank multiplies with the corresponding
-            # columns of its local A (which holds all columns).
-            # C_local += A_local[..., b_start:b_stop] @ B_rank_pr
-
-            # post non-blocking sends
-            req = {}
-            b_lp_data = {}
             for pr in range(comm.size):
+                # broadcast chunk of b
                 if comm.rank == pr:
-                    b_lp_data[pr] = b.larray.clone()
+                    b_chunk = b.larray.clone()
                 else:
-                    b_lp_data[pr] = torch.empty(
+                    b_chunk = torch.empty(
                         (*batch_shape, lshape_map[pr, 1, -2], lshape_map[pr, 1, -1]),
                         dtype=b.dtype.torch_type(),
                         device=tdev,
                     )
-                req[pr] = comm.Ibcast(b_lp_data[pr], root=pr)
+                comm.Bcast(b_chunk, root=pr)
 
-            # receive the data and do the local matrix multiplications
-            for pr in range(comm.size):
-                req[pr].Wait()
+                # do local matrix multiplication with the chunk of b
                 b_start, b_stop = index_map[pr, 1, 0]
-                c.larray += a.larray[..., b_start:b_stop] @ b_lp_data[pr]
-                del b_lp_data[pr]
+                c.larray += a.larray[..., b_start:b_stop] @ b_chunk
 
         # split la dims 01
         elif a.split == ndim - 2 and b.split == ndim - 1:
-            # for this case there are no remainders which need to be taken care of
-            req = {}
-            b_lp_data = {}
             for pr in range(comm.size):
-                # ibcast data on node first
+                # broadcast chunk of b
                 if comm.rank == pr:
-                    b_lp_data[pr] = b.larray.clone()
+                    b_chunk = b.larray.clone()
                 else:
-                    b_lp_data[pr] = torch.empty(
+                    b_chunk = torch.empty(
                         (*batch_shape, lshape_map[pr, 1, -2], lshape_map[pr, 1, -1]),
                         dtype=b.dtype.torch_type(),
                         device=tdev,
                     )
-                # sending a to all nodes for b to operate with
-                req[pr] = comm.Ibcast(b_lp_data[pr], root=pr)
+                comm.Bcast(b_chunk, root=pr)
 
-                # receive the data from the last loop and do the calculation with that
-                if pr != 0:
-                    req[pr - 1].Wait()
-                    # after receiving the last loop's bcast
-                    st0, sp0 = index_map[pr - 1, 0, 0]
-                    st1, sp1 = index_map[pr - 1, 1, 1]
-
-                    c.larray[..., : sp0 - st0, st1:sp1] += a.larray @ b_lp_data[pr - 1]
-
-                    del b_lp_data[pr - 1]
-                if pr == comm.size - 1:
-                    req[pr].Wait()
-                    st0, sp0 = index_map[pr, 0, 0]
-                    st1, sp1 = index_map[pr, 1, 1]
-                    c.larray[..., : sp0 - st0, st1:sp1] += a.larray @ b_lp_data[pr]
-                    del b_lp_data[pr]
+                # do local matrix multiplication with the chunk of b
+                st0, sp0 = index_map[pr, 0, 0]
+                st1, sp1 = index_map[pr, 1, 1]
+                c.larray[..., : sp0 - st0, st1:sp1] += a.larray @ b_chunk
 
         # split la dims 11
         elif a.split == ndim - 1 and b.split == ndim - 1:
-            # A is split along columns (inner dim), B is split along columns (output dim).
-            # Broadcast each rank's A chunk; each rank multiplies with the corresponding
-            # rows of its local B (which holds all rows).
-            # C_local += A_rank_pr @ B_local[..., a_start:a_stop, :]
-            req = {}
-            a_lp_data = {}
             for pr in range(comm.size):
+                # broadcast chunk of a
                 if comm.rank == pr:
-                    a_lp_data[pr] = a.larray.clone()
+                    a_chunk = a.larray.clone()
                 else:
-                    a_lp_data[pr] = torch.empty(
+                    a_chunk = torch.empty(
                         (*batch_shape, lshape_map[pr, 0, -2], lshape_map[pr, 0, -1]),
                         dtype=a.dtype.torch_type(),
                         device=tdev,
                     )
-                req[pr] = comm.Ibcast(a_lp_data[pr], root=pr)
+                comm.Bcast(a_chunk, root=pr)
 
-                if pr != 0:
-                    req[pr - 1].Wait()
-                    a_start, a_stop = index_map[pr - 1, 0, 1]
-                    c.larray += a_lp_data[pr - 1] @ b.larray[..., a_start:a_stop, :]
-                    del a_lp_data[pr - 1]
-
-                if pr == comm.size - 1:
-                    req[pr].Wait()
-                    a_start, a_stop = index_map[pr, 0, 1]
-                    c.larray += a_lp_data[pr] @ b.larray[..., a_start:a_stop, :]
-                    del a_lp_data[pr]
+                # do local matrix multiplication with the chunk of a
+                a_start, a_stop = index_map[pr, 0, 1]
+                c.larray += a_chunk @ b.larray[..., a_start:a_stop, :]
 
         # split la dims 10
         elif a.split == ndim - 1 and b.split == ndim - 2:
