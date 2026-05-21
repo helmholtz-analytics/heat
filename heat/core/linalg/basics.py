@@ -680,13 +680,11 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
 
     c = None
 
-    # single-process setup, torch matmul
+    # early out with torch matmul if input is not distributed
     if a.comm.size == 1:
         c = factories.array(torch.matmul(a.larray, b.larray), dtype=c_type, device=dev)
 
-    # early out for vector vector multiplication
-    # is this even covered in the tests?
-    # seems to be used in test_qr
+    # early out for vector vector multiplication TODO: output should be split like input
     elif a.ndim == 1 and b.ndim == 1:
         # make both split 0, do a local mm then a sum
         a.resplit_(0)
@@ -695,7 +693,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
         a.comm.Allreduce(MPI.IN_PLACE, res, MPI.SUM)
         c = factories.array(res, split=None, device=dev, comm=comm)
 
-    elif a.split is None and b.split is None:  # None-None
+    elif a.split is None and b.split is None:
         if allow_resplit and not vector_flag:  # resplit a to 0
             a.resplit_(ndim - 2)
             slice_0 = a.comm.chunk(a.shape, a.split)[2][0]
@@ -800,7 +798,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
 
         return c
 
-    else:
+    else:  # both matrices are split in la dims
         # get the lshape map to determine what needs to be sent where as well as M and N
         # lshape map dims -> {node, a=0 | b=1, lshape}
         lshape_map = np.zeros((comm.size, 2, ndim), dtype=int)
@@ -818,14 +816,14 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
         index_map[comm.rank, 1, 1] = (b_idx[-1].start, b_idx[-1].stop)
         index_map_comm = comm.Iallreduce(MPI.IN_PLACE, index_map, MPI.SUM)
 
-        # output: c = a @ b
+        # allocate output: c = a @ b
         # for the communication scheme, the output array needs to be created
         c_shape = (*batch_shape, a.gshape[-2], b.gshape[-1])
         c = factories.zeros(c_shape, split=a.split, dtype=c_type, device=dev, comm=comm)
 
         index_map_comm.Wait()
 
-        # split la dims 00
+        # split dims 00
         if a.split == ndim - 2 and b.split == ndim - 2:
             for pr in range(comm.size):
                 # broadcast chunk of b
@@ -843,7 +841,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
                 b_start, b_stop = index_map[pr, 1, 0]
                 c.larray += a.larray[..., b_start:b_stop] @ b_chunk
 
-        # split la dims 01
+        # split dims 01
         elif a.split == ndim - 2 and b.split == ndim - 1:
             for pr in range(comm.size):
                 # broadcast chunk of b
@@ -862,7 +860,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
                 st1, sp1 = index_map[pr, 1, 1]
                 c.larray[..., : sp0 - st0, st1:sp1] += a.larray @ b_chunk
 
-        # split la dims 11
+        # split dims 11
         elif a.split == ndim - 1 and b.split == ndim - 1:
             for pr in range(comm.size):
                 # broadcast chunk of a
@@ -880,7 +878,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
                 a_start, a_stop = index_map[pr, 0, 1]
                 c.larray += a_chunk @ b.larray[..., a_start:a_stop, :]
 
-        # split la dims 10  TODO: The implementation of this case involves allocation of a global matrix and can be improved substantially
+        # split dims 10  TODO: The implementation of this case involves allocation of a global matrix and can be improved substantially
         elif a.split == ndim - 1 and b.split == ndim - 2:
             # compute number of blocks
             kB = min([a.gshape[-1] // comm.size, b.gshape[-2] // comm.size])
