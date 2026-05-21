@@ -801,50 +801,12 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
         return c
 
     else:
-        # block sizes dont need to be the same. they just need the same inner dimension (kB)
-        kB = 0  # redundant?
-        rem_a, rem_b = 0, 0
-        if a.split == ndim - 1 and b.split == ndim - 2:  # split 10
-            # if the split direction is the last dim in a and the first dim in b
-            # the max inner dim (kB) is the min value from the result of the integer division
-            # of the last dim of a/world size and the first dim of b/world size
-            kB = min(
-                [a.gshape[-1] // comm.size, b.gshape[-2] // comm.size]
-            )  # a.gshape[-1] == b.gshape[-2]
-        elif a.split == ndim - 2 and b.split == ndim - 1:  # split 01
-            kB = a.gshape[-1]
-        elif a.split == ndim - 1:  # split 11
-            kB = a.gshape[-1] // comm.size
-        elif b.split == ndim - 2:  # split 00
-            kB = b.gshape[-2] // comm.size
-            kB = min(
-                kB, a.gshape[-1]
-            )  # shouldnt this always be kB and be the same as for split 11?
-
-        if (kB == 1 and a.lshape[-1] != 1) or a.lshape[
-            -1
-        ] % kB != 0:  # does kb == 1 imply a.lshape[-1] > 1?
-            rem_a = 1
-        if (kB == 1 and b.lshape[-2] != 1) or b.lshape[-2] % kB != 0:
-            rem_b = 1
-
         # get the lshape map to determine what needs to be sent where as well as M and N
         # lshape map dims -> {node, a=0 | b=1, lshape}
         lshape_map = np.zeros((comm.size, 2, ndim), dtype=int)
         lshape_map[comm.rank, 0, :] = a.lshape
         lshape_map[comm.rank, 1, :] = b.lshape
         comm.Allreduce(MPI.IN_PLACE, lshape_map, MPI.SUM)
-
-        # find mB (first blocking dim for a) and nB (2nd blocking dim for b)
-        mB = lshape_map[:, 0, -2].min()  # smallest number of local rows of a on a node
-        nB = lshape_map[:, 1, -1].min()  # smallest number of local columns of b on a node
-
-        # check for remaining dims in the outside dimensions
-        rem_a_out, rem_b_out = 0, 0
-        if a.lshape[-2] % mB != 0 or (mB == 1 and a.lshape[-2] != 1):
-            rem_a_out = 1
-        if b.lshape[-1] % nB != 0 or (nB == 1 and b.lshape[-1] != 1):
-            rem_b_out = 1
 
         # index_map dims guide -> {process number, a=0/b=1, relevant 1st index, 2nd index}
         index_map = np.zeros((comm.size, 2, 2, 2), dtype=int)
@@ -918,21 +880,40 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
                 a_start, a_stop = index_map[pr, 0, 1]
                 c.larray += a_chunk @ b.larray[..., a_start:a_stop, :]
 
-        # split la dims 10
+        # split la dims 10  TODO: The implementation of this case involves allocation of a global matrix and can be improved substantially
         elif a.split == ndim - 1 and b.split == ndim - 2:
+            # compute number of blocks
+            kB = min([a.gshape[-1] // comm.size, b.gshape[-2] // comm.size])
+
+            # figure out remainders
+            if kB == 1 and a.lshape[-1] != 1:
+                rem_a_in = 1
+            else:
+                rem_a_in = a.lshape[-1] % kB
+
+            if kB == 1 and b.lshape[-2] != 1:
+                rem_b_in = 1
+            else:
+                rem_b_in = b.lshape[-2] % kB
+
+            # find mB (first blocking dim for a) and nB (2nd blocking dim for b)
+            mB = lshape_map[:, 0, -2].min()  # smallest number of local rows of a on a node
+            nB = lshape_map[:, 1, -1].min()  # smallest number of local columns of b on a node
+
+            # check for remaining dims in the outside dimensions
+            rem_a_out, rem_b_out = 0, 0
+            if a.lshape[-2] % mB != 0 or (mB == 1 and a.lshape[-2] != 1):
+                rem_a_out = 1
+            if b.lshape[-1] % nB != 0 or (nB == 1 and b.lshape[-1] != 1):
+                rem_b_out = 1
+
             # rem_map dims guide -> {process number, a/b (0/1), dim0/dim1 (0/1), True/False (1/0)
             #   if there is a remainder in this dimension
             rem_map = np.zeros((comm.size, 2, 2))
-            rem_map[comm.rank, 0, :] = (rem_a_out, rem_a)
-            rem_map[comm.rank, 1, :] = (rem_b, rem_b_out)
-            rem_map_comm = comm.Iallreduce(MPI.IN_PLACE, rem_map, MPI.SUM)
-            rem_map_comm.Wait()
+            rem_map[comm.rank, 0, :] = (rem_a_out, rem_a_in)
+            rem_map[comm.rank, 1, :] = (rem_b_in, rem_b_out)
+            comm.Allreduce(MPI.IN_PLACE, rem_map, MPI.SUM)
 
-            # todo: this may create the full matrix on every process, issue #360
-            # for this case, only a sum is needed at the end
-            a_rem_locs1 = np.array(np.nonzero(rem_map[:, 0, 1] == 1)).T
-            # locations of the remainders in b
-            b_rem_locs0 = np.array(np.nonzero(rem_map[:, 1, 0] == 1)).T
             res = torch.zeros(
                 (*batch_shape, a.gshape[-2], b.gshape[-1]), dtype=c_type.torch_type(), device=tdev
             )
@@ -941,6 +922,10 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
                     a.larray[..., :mB, i * kB : i * kB + kB]
                     @ b.larray[..., i * kB : i * kB + kB, :nB]
                 )
+
+            # take care of remainders
+            a_rem_locs1 = np.array(np.nonzero(rem_map[:, 0, 1] == 1)).T
+            b_rem_locs0 = np.array(np.nonzero(rem_map[:, 1, 0] == 1)).T
             if a.comm.rank in a_rem_locs1 and b.comm.rank in b_rem_locs0 and kB > 1:
                 # these Nones are used to change the dims if the full process is not covered
                 res += a.larray[..., :, -1, None] @ b.larray[..., None, -1, :]
