@@ -37,7 +37,6 @@ jobs:
           - '3.11' # Oldest supported
           - '3.14' # Latest stable
         mpi: [ 'mpich' ]
-        install-options: [ '.[dev]' ]
         pytorch-version:
           - 'torch==2.3.1 torchvision==0.18.1 torchaudio==2.3.1'   # Oldest supported
           - 'torch==2.9.1 torchvision==0.24.1 torchaudio==2.9.1'   # JSC Stage 2026
@@ -45,7 +44,7 @@ jobs:
         exclude:
           - py-version: '3.14'
             pytorch-version: 'torch==2.3.1 torchvision==0.18.1 torchaudio==2.3.1'
-    name: Python ${{ matrix.py-version }} with ${{ matrix.pytorch-version }}; options ${{ matrix.install-options }}
+    name: Python ${{ matrix.py-version }} with ${{ matrix.pytorch-version }}
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@6c3c2f2c1c457b00c10c4848d6f5491db3b629df # v2.18.0
@@ -60,5 +59,4 @@ jobs:
           mode: "full"
           py-version: ${{ matrix.py-version }}
           mpi: ${{ matrix.mpi }}
-          install-options: ${{ matrix.install-options }}
           pytorch-version: ${{ matrix.pytorch-version }}
