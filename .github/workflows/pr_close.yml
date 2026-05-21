@@ -1,4 +1,4 @@
-name: Backport merged pull request
+name: On PR Close
 on:
   pull_request_target:
     types: [closed]
@@ -10,16 +10,16 @@ jobs:
   backport:
     name: Backport pull request
     runs-on: ubuntu-latest
-    # Don't run on closed unmerged pull requests
-    if: github.event.pull_request.merged && ${{ !github.event.repository.fork }}
+    # Don't run on closed unmerged pull requests or on forks
+    if: ${{ github.event.pull_request.merged && !github.event.repository.fork }}
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@fe104658747b27e96e4f7e80cd0a94068e53901d # v2.16.1
+        uses: step-security/harden-runner@a5ad31d6a139d249332a2605b85202e8c0b78450 # v2.19.1
         with:
           egress-policy: audit
 
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Create backport pull requests
-        uses: korthout/backport-action@3c06f323a58619da1e8522229ebc8d5de2633e46 # v4.3.0
+        uses: korthout/backport-action@7c3f6cd5843cac11bc59a04a1b7699af93261670 # v4.5.0
         with:
           merge_commits: 'skip'
