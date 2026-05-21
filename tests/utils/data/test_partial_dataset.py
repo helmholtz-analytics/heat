@@ -8,7 +8,7 @@ from pathlib import Path
 HDF5_PATH = str(Path(ht.__file__).parent / "datasets" / "iris.h5")
 USE_GPU = torch.cuda.is_available() and os.getenv("HEAT_TEST_USE_GPU") == "gpu"
 
-@pytest.mark.skipif(torch.cuda.is_available() and torch.version.hip, reason="Not supported for ROCM/HIP")
+@pytest.mark.skipif(torch.cuda.is_available() and torch.version.hip is not None, reason="Not supported for ROCM/HIP")
 @pytest.mark.skipif(not ht.supports_hdf5(), reason="Requires HDF5")
 class TestPartialDataset:
     def _create_test_dataset(self, file, comm, initial_load, load_length, use_gpu=False):
