@@ -47,16 +47,15 @@ runs:
       env:
         UV_SYSTEM_PYTHON: 1
       run: |
-        uv pip install -e .[dev]
         uv pip install ${{ inputs.pytorch-version }} --extra-index-url https://download.pytorch.org/whl/cpu
-        uv pip install -e ${{ inputs.install-options }}
+        uv pip install ${{ inputs.install-options }}
     - name: Install quick test dependencies
       if: ${{ inputs.mode == 'quick' }}
       shell: bash
       env:
         UV_SYSTEM_PYTHON: 1
       run: |
-        uv pip install -e .[dev]
+        uv pip install ${{ inputs.install-options }}
     # Running tests
     - name: Run serial tests
       shell: bash
