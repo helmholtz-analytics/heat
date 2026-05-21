@@ -22,10 +22,13 @@ def test_matmul_generic(n, m, k, splitA, splitB):
     assert C.shape == (n, k)
     assert np.allclose(C.numpy(), A.numpy() @ B.numpy())
 
-    assert C.split == A.split or A.split is None
-    assert C.split == B.split or C.split == A.split
+    if A.is_distributed() or B.is_distributed():
+        assert C.split == A.split or A.split is None
+        assert C.split == B.split or C.split == A.split
+    else:
+        assert C.split is None
 
-    if C.split is None:
+    if C.split is None and ht.comm.size > 1:
         assert A.split is None and B.split is None
         D = ht.matmul(A, B, allow_resplit=True)
         assert D.split is None
