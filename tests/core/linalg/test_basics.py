@@ -1,3 +1,5 @@
+import pytest
+
 import numpy as np
 import torch
 import heat as ht
@@ -5,6 +7,44 @@ import heat as ht
 from heat.testing.basic_test import TestCase
 from heat.core.linalg.basics import _estimate_largest_singularvalue
 
+
+@pytest.mark.parametrize('n', [ht.comm.size, 2*ht.comm.size])
+@pytest.mark.parametrize('m', [ht.comm.size, 3*ht.comm.size, 4*ht.comm.size+1])
+@pytest.mark.parametrize('k', [ht.comm.size, 3*ht.comm.size])
+@pytest.mark.parametrize('splitA', [None, 0, 1])
+@pytest.mark.parametrize('splitB', [None, 0, 1])
+def test_matmul_generic(n, m, k, splitA, splitB):
+    A = ht.random.random((n, m), split=splitA)
+    B = ht.random.random((m, k), split=splitB)
+    C = A @ B
+
+    assert isinstance(C, ht.DNDarray)
+    assert C.shape == (n, k)
+    assert np.allclose(C.numpy(), A.numpy() @ B.numpy())
+
+    assert C.split == A.split or A.split is None
+    assert C.split == B.split or C.split == A.split
+
+    if C.split is None:
+        assert A.split is None and B.split is None
+        D = ht.matmul(A, B, allow_resplit=True)
+        assert D.split is None
+        assert A.split == 0
+        assert np.allclose(C.numpy(), D.numpy())
+
+@pytest.mark.parametrize('batch', [1, 3])
+@pytest.mark.parametrize('n', [ht.comm.size, 2*ht.comm.size])
+@pytest.mark.parametrize('m', [ht.comm.size, 3*ht.comm.size, 4*ht.comm.size+1])
+@pytest.mark.parametrize('k', [ht.comm.size, 3*ht.comm.size])
+@pytest.mark.parametrize('splitA', [None, 0, 1, 2])
+@pytest.mark.parametrize('splitB', [None, 1, 2])
+def test_matmul_batched_generic(batch, n, m, k, splitA, splitB):
+    A = ht.random.random((batch, n, m), split=splitA)
+    B = ht.random.random((batch, m, k), split=splitA if splitA == 0 else splitB)
+    C = A @ B
+    assert isinstance(C, ht.DNDarray)
+    assert C.shape == (batch, n, k)
+    assert np.allclose(C.numpy(), A.numpy() @ B.numpy())
 
 class TestLinalgBasics(TestCase):
     def test_estimate_largest_singularvalue(self):
@@ -385,6 +425,7 @@ class TestLinalgBasics(TestCase):
             ht.linalg.inv(ht.zeros((3, 3), split=0))
         with self.assertRaises(RuntimeError):
             ht.linalg.inv(ht.ones((3, 3), split=1))
+
 
     def test_matmul(self):
         with self.assertRaises(ValueError):
