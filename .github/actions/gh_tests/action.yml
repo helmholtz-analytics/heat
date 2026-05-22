@@ -17,10 +17,6 @@ inputs:
     description: "MPI implementation to install."
     required: false
     default: "mpich"
-  install-options:
-    description: "Package install target/options for heat."
-    required: false
-    default: ".[dev]"
   pytorch-version:
     description: "Pinned torch/torchvision/torchaudio versions."
     required: false
@@ -29,7 +25,7 @@ runs:
   using: "composite"
   steps:
     - name: Setup MPI
-      uses: mpi4py/setup-mpi@3969f247e8fceef153418744f9d9ee6fdaeda29f # v1.2.0
+      uses: mpi4py/setup-mpi@dbbb80b116bea57fc1788daf7dbbf7ab3df3a0f1 # v1.4.2
       with:
         mpi: ${{ inputs.mpi }}
     - name: "Set up Python"
@@ -47,17 +43,15 @@ runs:
       env:
         UV_SYSTEM_PYTHON: 1
       run: |
-        uv pip install pytest flaky
         uv pip install ${{ inputs.pytorch-version }} --extra-index-url https://download.pytorch.org/whl/cpu
-        uv pip install -e ${{ inputs.install-options }}
+        uv pip install .[dev]
     - name: Install quick test dependencies
       if: ${{ inputs.mode == 'quick' }}
       shell: bash
       env:
         UV_SYSTEM_PYTHON: 1
       run: |
-        uv pip install pytest flaky
-        uv pip install .
+        uv pip install .[dev]
     # Running tests
     - name: Run serial tests
       shell: bash
