@@ -684,7 +684,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
     if a.comm.size == 1:
         c = factories.array(torch.matmul(a.larray, b.larray), dtype=c_type, device=dev)
 
-    # early out for vector vector multiplication TODO: output should be split like input
+    # early out for vector vector multiplication
     elif a.ndim == 1 and b.ndim == 1:
         # make both split 0, do a local mm then a sum
         a.resplit_(0)
@@ -734,7 +734,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
 
     c_shape = (*batch_shape, a.gshape[-2], b.gshape[-1])
 
-    # one split None => other one is la dimension
+    # one split None => other one is non-batch dimension
     if a.split is None or b.split is None:
         split = None
         is_split = False
@@ -773,7 +773,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
             b.comm.Allreduce(MPI.IN_PLACE, c, MPI.SUM)
 
         # early out
-        if vector_flag:  # squeeze only in the la dimensions
+        if vector_flag:  # squeeze only in the non-batch dimensions
             # it could be sensible to resplit/rebalance in case a single node gets the whole vector
             if split is not None and split > batch_dim:  # split in dimension that gets squeezed
                 split = batch_dim
@@ -798,7 +798,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
 
         return c
 
-    else:  # both matrices are split in la dims
+    else:  # both matrices are split in non-batch dims
         # get the lshape map to determine what needs to be sent where as well as M and N
         # lshape map dims -> {node, a=0 | b=1, lshape}
         lshape_map = np.zeros((comm.size, 2, ndim), dtype=int)
@@ -829,56 +829,56 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
         ):
             reqs, b_chunks = {}, {}
             # broadcast chunks of b
-            for pr in range(comm.size):
-                if comm.rank == pr:
-                    b_chunks[pr] = b.larray.clone()
+            for proc in range(comm.size):
+                if comm.rank == proc:
+                    b_chunks[proc] = b.larray.clone()
                 else:
-                    b_chunks[pr] = torch.empty(
-                        (*batch_shape, lshape_map[pr, 1, -2], lshape_map[pr, 1, -1]),
+                    b_chunks[proc] = torch.empty(
+                        (*batch_shape, lshape_map[proc, 1, -2], lshape_map[proc, 1, -1]),
                         dtype=b.dtype.torch_type(),
                         device=tdev,
                     )
-                reqs[pr] = comm.Ibcast(b_chunks[pr], root=pr)
+                reqs[proc] = comm.Ibcast(b_chunks[proc], root=proc)
 
             # do local matrix multiplications with the chunk of b
-            for pr in range(comm.size):
-                reqs[pr].Wait()
+            for proc in range(comm.size):
+                reqs[proc].Wait()
                 if a.split == ndim - 2 and b.split == ndim - 2:  # split 00
-                    b_start, b_stop = index_map[pr, 1, 0]
-                    c.larray += a.larray[..., b_start:b_stop] @ b_chunks[pr]
+                    b_start, b_stop = index_map[proc, 1, 0]
+                    c.larray += a.larray[..., b_start:b_stop] @ b_chunks[proc]
                 else:  # split 01
-                    st0, sp0 = index_map[pr, 0, 0]
-                    st1, sp1 = index_map[pr, 1, 1]
-                    c.larray[..., : sp0 - st0, st1:sp1] += a.larray @ b_chunks[pr]
-                del b_chunks[pr]
+                    st0, sp0 = index_map[proc, 0, 0]
+                    st1, sp1 = index_map[proc, 1, 1]
+                    c.larray[..., : sp0 - st0, st1:sp1] += a.larray @ b_chunks[proc]
+                del b_chunks[proc]
 
         # split dims 11
         elif a.split == ndim - 1 and b.split == ndim - 1:
             reqs, a_chunks = {}, {}
             # broadcast chunks of a
-            for pr in range(comm.size):
-                if comm.rank == pr:
-                    a_chunks[pr] = a.larray.clone()
+            for proc in range(comm.size):
+                if comm.rank == proc:
+                    a_chunks[proc] = a.larray.clone()
                 else:
-                    a_chunks[pr] = torch.empty(
-                        (*batch_shape, lshape_map[pr, 0, -2], lshape_map[pr, 0, -1]),
+                    a_chunks[proc] = torch.empty(
+                        (*batch_shape, lshape_map[proc, 0, -2], lshape_map[proc, 0, -1]),
                         dtype=a.dtype.torch_type(),
                         device=tdev,
                     )
-                reqs[pr] = comm.Ibcast(a_chunks[pr], root=pr)
+                reqs[proc] = comm.Ibcast(a_chunks[proc], root=proc)
 
             # do local matrix multiplications with the chunk of a
-            for pr in range(comm.size):
-                reqs[pr].Wait()
-                a_start, a_stop = index_map[pr, 0, 1]
-                c.larray += a_chunks[pr] @ b.larray[..., a_start:a_stop, :]
-                del a_chunks[pr]
+            for proc in range(comm.size):
+                reqs[proc].Wait()
+                a_start, a_stop = index_map[proc, 0, 1]
+                c.larray += a_chunks[proc] @ b.larray[..., a_start:a_stop, :]
+                del a_chunks[proc]
 
         # split dims 10
         elif a.split == ndim - 1 and b.split == ndim - 2:
             c[...] = matmul(a, b.resplit(a.split))
 
-    if vector_flag:  # squeeze only in the la dimensions
+    if vector_flag:  # squeeze only in the non-batch dimensions
         # it could be sensible to resplit/rebalance in case a single node gets the whole vector
         split = c.split
         if split is not None and split > batch_dim:
