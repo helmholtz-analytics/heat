@@ -876,7 +876,10 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
 
         # split dims 10
         elif a.split == ndim - 1 and b.split == ndim - 2:
-            c[...] = matmul(a, b.resplit(a.split))
+            _b = b.copy()
+            _b.resplit_(a.split)
+            c[...] = matmul(a, _b)
+            del _b
 
     if vector_flag:  # squeeze only in the non-batch dimensions
         # it could be sensible to resplit/rebalance in case a single node gets the whole vector
