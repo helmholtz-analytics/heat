@@ -50,7 +50,7 @@ runs:
       run: |
         mpirun -n 1 pytest -vv
     - name: Run tests on 2 ranks
-      if: ${{ inputs.mode == 'full'}}
+      if: ${{ inputs.mode == 'full' || inputs.mode == 'quick' }}
       shell: bash
       run: |
         mpirun -n 2 pytest -vv
