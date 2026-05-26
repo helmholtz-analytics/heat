@@ -4,7 +4,7 @@ on:
     branches:
       - main
       - stable
-      - cx/cx-corrections
+      - fix/cx-corrections
     paths:
       - 'heat/**'
       - 'tests/**'
