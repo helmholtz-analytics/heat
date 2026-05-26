@@ -1138,53 +1138,56 @@ class DNDarray:
                                 new_split = tuple(key.shape).index(arr.shape[0])
                             else:
                                 new_split = key.ndim - 1
-                            try:
-                                key_split = key[new_split].larray
-                                sorted, _ = key_split.sort(stable=True)
-                            except AttributeError:
-                                key_split = key[new_split]
-                                sorted = key_split.sort()
                         else:
                             new_split = 0
-                            key_is_dist = isinstance(key, DNDarray) and key.is_distributed()
-                            if isinstance(key, DNDarray):
-                                out_is_balanced = key.balanced
-                                key = key.larray
-                            elif not isinstance(key, torch.Tensor):
-                                key = torch.as_tensor(key, device=arr.larray.device)
+
+                        key_is_dist = isinstance(key, DNDarray) and key.is_distributed()
+                        if isinstance(key, DNDarray):
+                            out_is_balanced = key.balanced
+                            key = key.larray
+                        elif not isinstance(key, torch.Tensor):
+                            key = torch.as_tensor(key, device=arr.larray.device)
+                            out_is_balanced = True
+                        else:
+                            out_is_balanced = True
+
+                        # normalize negative indices
+                        if key.dtype in (torch.int8, torch.int16, torch.int32, torch.int64):
+                            dim = arr.gshape[0]
+                            if ((key < -dim) | (key >= dim)).any():
+                                raise IndexError(f"index out of bounds for axis 0 with size {dim}")
+                            key = torch.where(key < 0, key + dim, key)
+
+                        # identify ordered key
+                        if key_is_dist or key.ndim > 1:
+                            split_key_is_ordered = 0
+                        else:
+                            try:
+                                sorted_k, _ = torch.sort(key, stable=True)
+                            except TypeError:
+                                sorted_k, _ = torch.sort(key)
+                            split_key_is_ordered = int((key == sorted_k).all().item())
+
+                        # unordered local keys
+                        if not split_key_is_ordered and not key_is_dist:
+                            if op == "get":
+                                # prepare for distributed non-ordered indexing: distribute local key
+                                key = factories.array(
+                                    key, split=new_split, device=arr.device
+                                ).larray
                                 out_is_balanced = True
                             else:
                                 out_is_balanced = True
 
-                            # identify ordered key
-                            if key_is_dist:
-                                # distributed keys unconditionally use the unordered engine
-                                split_key_is_ordered = 0
-                            else:
-                                try:
-                                    sorted, _ = torch.sort(key, stable=True)
-                                except TypeError:
-                                    sorted, _ = torch.sort(key)
-                                split_key_is_ordered = int((key == sorted).all().item())
-
-                            # unordered local keys
-                            if not split_key_is_ordered and not key_is_dist:
-                                if op == "get":
-                                    # prepare for distributed non-ordered indexing: distribute local key
-                                    key = factories.array(key, split=0, device=arr.device).larray
-                                    out_is_balanced = True
-                                else:
-                                    out_is_balanced = True
-
-                            # ordered keys
-                            if split_key_is_ordered:
-                                # extract local key
-                                cond1 = key >= displs[arr.comm.rank]
-                                cond2 = key < displs[arr.comm.rank] + counts[arr.comm.rank]
-                                key = key[cond1 & cond2]
-                                if return_local_indices:
-                                    key -= displs[arr.comm.rank]
-                                out_is_balanced = False
+                        # ordered keys
+                        if split_key_is_ordered:
+                            # extract local key
+                            cond1 = key >= displs[arr.comm.rank]
+                            cond2 = key < displs[arr.comm.rank] + counts[arr.comm.rank]
+                            key = key[cond1 & cond2]
+                            if return_local_indices:
+                                key -= displs[arr.comm.rank]
+                            out_is_balanced = False
                 else:
                     try:
                         out_is_balanced = key.balanced
@@ -1659,7 +1662,7 @@ class DNDarray:
         if arr.split == indexed_axis:
             # adjust negative key
             if key < 0:
-                key += arr.shape[0]
+                key += arr.gshape[indexed_axis]
             # work out active process
             _, displs = arr.counts_displs()
             if key in displs:
@@ -2031,25 +2034,6 @@ class DNDarray:
         )
 
     def __getitem_advanced_local(self, p: ProcessedKey, original_key) -> "DNDarray":
-        # Fast-path for 1D arrays split along axis 0
-        if self.is_distributed() and self.split == 0 and self.ndim == 1:
-            k0 = (
-                original_key[0]
-                if isinstance(original_key, tuple) and len(original_key) == 1
-                else original_key
-            )
-            idx_t = k0.larray if isinstance(k0, DNDarray) else k0
-            if isinstance(idx_t, torch.Tensor) and idx_t.dtype in (
-                torch.int8,
-                torch.int16,
-                torch.int32,
-                torch.int64,
-                torch.uint8,
-            ):
-                return self.__take_split0_global_1d(
-                    idx_t, out_gshape=p.output_shape, out_split=0, out_is_balanced=p.out_is_balanced
-                )
-
         indexed_arr = self.larray[p.key]
         if self.ndim > 0:
             self = self.transpose(p.backwards_transpose_axes)
@@ -2281,6 +2265,7 @@ class DNDarray:
 
         # dispatch to appropriate getitem method
         op = processed_key.op_type
+        # print("DEBUGGING: Operation type:", op)
 
         if op == "scalar":
             return self.__getitem_scalar(processed_key)
@@ -2956,17 +2941,20 @@ class DNDarray:
 
         if key_is_single_tensor:
             split_key = p.key
+            split_key_flat = split_key.reshape(-1)
             local_indices = torch.nonzero(
-                (split_key >= displs[rank]) & (split_key < displs[rank] + counts[rank])
+                (split_key_flat >= displs[rank]) & (split_key_flat < displs[rank] + counts[rank])
             ).flatten()
 
             if local_indices.numel() > 0:
-                key_local = split_key[local_indices] - displs[rank]
+                key_local = split_key_flat[local_indices] - displs[rank]
 
                 if value_is_scalar:
                     rhs = value.larray.type(self.dtype.torch_type())
                 else:
-                    rhs = value.larray[local_indices].type(self.dtype.torch_type())
+                    # flatten leading dimensions of value.larray that correspond to the multi-dimensional key
+                    rhs_view = value.larray.reshape(-1, *value.larray.shape[split_key.ndim :])
+                    rhs = rhs_view[local_indices].type(self.dtype.torch_type())
 
                 if self.larray.is_cuda:
                     key_local, rhs = self.__dedup_last_wins_advanced_index(
