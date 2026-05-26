@@ -168,10 +168,7 @@ class MPICommunication(Communication):
         if not MPI.Is_initialized() or MPI.Is_finalized():
             return
 
-        try:
-            self.Free()
-        except Exception:
-            pass
+        self.Free()
 
     def is_distributed(self) -> bool:
         """
