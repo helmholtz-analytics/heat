@@ -47,7 +47,7 @@ jobs:
                 persist-credentials: false
 
           - name: "Run analysis"
-            uses: ossf/scorecard-action@05b42c624433fc40578a4040d5cf5e36ddca8cde # v2.4.2
+            uses: ossf/scorecard-action@4eaacf0543bb3f2c246792bd56e8cdeffafb205a # v2.4.3
             with:
                 results_file: results.sarif
                 results_format: sarif
@@ -109,7 +109,7 @@ jobs:
             with:
                 egress-policy: audit
 
-          - uses: actions/stale@5bef64f19d7facfb25b37b414482c7164d639639 # v9.1.0
+          - uses: actions/stale@b5d41d4e1d5dceea10e7104786b73624c18a190f # v10.2.0
             with:
                 days-before-issue-stale: 60
                 days-before-issue-close: 60
