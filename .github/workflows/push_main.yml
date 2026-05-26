@@ -87,7 +87,7 @@ jobs:
           ref: ${{ github.sha }}
       - uses: ./.github/actions/gh_tests
         with:
-          mode: "quick"
+          mode: "full"
           py-version: ${{ matrix.py-version }}
           mpi: ${{ matrix.mpi }}
           pytorch-version: ${{ matrix.pytorch-version }}
