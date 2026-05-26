@@ -141,7 +141,6 @@ def arange(
     else:
         data = torch.arange(start, stop, step, device=device.torch_device)
         data = data.type(htype.torch_type())
-    print("DeBUGGING: device = ", device)
     return DNDarray(
         data, gshape=gshape, dtype=htype, split=split, device=device, comm=comm, balanced=balanced
     )
