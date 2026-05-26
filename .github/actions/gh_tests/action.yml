@@ -20,7 +20,7 @@ inputs:
   pytorch-version:
     description: "Pinned torch/torchvision/torchaudio versions."
     required: false
-    default: "torch==2.11.0 torchvision==0.26.0 torchaudio==2.11.0"
+    default: "torch torchvision torchaudio"
 runs:
   using: "composite"
   steps:
@@ -38,19 +38,11 @@ runs:
         enable-cache: true
     # Installations
     - name: Install heat
-      if: ${{ inputs.mode == 'full' || inputs.mode == 'medium' }}
       shell: bash
       env:
         UV_SYSTEM_PYTHON: 1
       run: |
         uv pip install ${{ inputs.pytorch-version }} --extra-index-url https://download.pytorch.org/whl/cpu
-        uv pip install .[dev]
-    - name: Install quick test dependencies
-      if: ${{ inputs.mode == 'quick' }}
-      shell: bash
-      env:
-        UV_SYSTEM_PYTHON: 1
-      run: |
         uv pip install .[dev]
     # Running tests
     - name: Run serial tests
