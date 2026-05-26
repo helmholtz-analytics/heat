@@ -4,7 +4,7 @@ on:
     branches:
       - main
       - stable
-      - fix/cx-corrections
+      - free_communicators
     paths:
       - 'heat/**'
       - 'tests/**'
