@@ -930,6 +930,26 @@ class TestDNDarray(TestCase):
         self.assert_array_equal(x_indexed, x_np_indexed)
         self.assertTrue(x_indexed.split == 1)
 
+        # 1d, split 0, advanced indexing with negative indices (fix #824)
+        x = ht.arange(10, 1, -1, split=0)
+        x_np = np.arange(10, 1, -1)
+        idx_np = np.array([3, 3, -3, 8])
+        idx = ht.array(idx_np)
+
+        x_adv_ind = x[idx]
+        x_np_adv_ind = x_np[idx_np]
+        self.assert_array_equal(x_adv_ind, x_np_adv_ind)
+
+        # 2d, split 0, multi-dimensional advanced indexing (fix #824)
+        x = ht.arange(10, 1, -1, split=0)
+        x_np = np.arange(10, 1, -1)
+        idx_np_2d = np.array([[1, 1], [2, 3]])
+        idx_2d = ht.array(idx_np_2d)
+
+        x_adv_ind_2d = x[idx_2d]
+        x_np_adv_ind_2d = x_np[idx_np_2d]
+        self.assert_array_equal(x_adv_ind_2d, x_np_adv_ind_2d)
+
         # combining advanced and basic indexing
         y_np = np.arange(35).reshape(5, 7)
         y_np_indexed = y_np[np.array([0, 2, 4]), 1:3]
@@ -1789,6 +1809,32 @@ class TestDNDarray(TestCase):
             with self.assertRaises(RuntimeError):
                 value = ht.array([[99, 98], [97, 96]], split=0)
                 x[key] = value
+
+        # 1d, split 0, advanced indexing assignment with negative indices
+        x = ht.arange(10, 1, -1, split=0)
+        x_np = np.arange(10, 1, -1)
+        idx_np = np.array([3, 3, -3, 8])
+        idx = ht.array(idx_np)
+
+        vals_np = np.array([100, 101, 102, 103])
+        vals = ht.array(vals_np)
+
+        x[idx] = vals
+        x_np[idx_np] = vals_np
+        self.assert_array_equal(x, x_np)
+
+        # 2d, split 0, multi-dimensional advanced indexing assignment
+        x = ht.arange(10, 1, -1, split=0)
+        x_np = np.arange(10, 1, -1)
+        idx_np_2d = np.array([[1, 1], [2, 3]])
+        idx_2d = ht.array(idx_np_2d)
+
+        vals_np_2d = np.array([[200, 201], [202, 203]])
+        vals_2d = ht.array(vals_np_2d)
+
+        x[idx_2d] = vals_2d
+        x_np[idx_np_2d] = vals_np_2d
+        self.assert_array_equal(x, x_np)
 
         # combining advanced and basic indexing
 
