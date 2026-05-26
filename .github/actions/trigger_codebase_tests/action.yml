@@ -1,0 +1,36 @@
+name: Trigger Codebase Tests
+description: "Trigger tests on Codebase for performance testing and analysis."
+inputs:
+  branch:
+    description: "The branch to trigger tests on. Defaults to 'main'."
+    required: false
+    default: "main"
+  sha:
+    description: "The commit SHA to trigger tests on. Defaults to the current commit."
+    required: false
+    default: "${{ github.sha }}"
+  pr_number:
+    description: "The pull request number to trigger tests on. Defaults to the current PR number."
+    required: false
+    default: ""
+  trigger_token:
+    description: "The trigger token used to start the Codebase pipeline."
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - name: Trigger codebase tests
+      shell: bash
+      env:
+        API_TOKEN: ${{ inputs.trigger_token }}
+        BRANCH: ${{ inputs.branch }}
+        PR_NUMBER: ${{ inputs.pr_number }}
+      run: |
+        curl -s -X POST \
+          --fail-with-body \
+          -F "token=$API_TOKEN" \
+          -F "ref=pipeline/ci/base" \
+          -F "variables[BRANCH]=$BRANCH" \
+          -F "variables[PR]=$PR_NUMBER" \
+          -F "variables[SHA]=${{ inputs.sha }}" \
+          https://codebase.helmholtz.cloud/api/v4/projects/20697/trigger/pipeline
