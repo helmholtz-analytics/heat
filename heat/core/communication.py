@@ -162,7 +162,7 @@ class MPICommunication(Communication):
 
     def __del__(self):
         handle = getattr(self, "handle", None)
-        if handle in (None, MPI.COMM_WORLD, MPI.COMM_SELF, MPI.COMM_NULL):
+        if MPI is None or handle in (None, MPI.COMM_WORLD, MPI.COMM_SELF, MPI.COMM_NULL):
             return
 
         if not MPI.Is_initialized() or MPI.Is_finalized():
