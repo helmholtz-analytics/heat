@@ -2219,6 +2219,46 @@ class DNDarray:
             return self.transpose(backwards_transpose_axes), indexed_arr
         return self, indexed_arr
 
+    def __prepare_unordered_comm(self, split_key_flat: torch.Tensor, displs: tuple) -> tuple:
+        """
+        Helper function for distributed unordered indexing.
+        Determines destination ranks, sorts the key, and computes Alltoallv parameters.
+        """
+        displs_t = torch.tensor(displs, device=self.device.torch_device)
+
+        # map global indices to destination ranks
+        dest_ranks = torch.searchsorted(displs_t[1:], split_key_flat, right=True).to(torch.int64)
+
+        # sort by destination rank to pack memory contiguously
+        sort_idx = torch.argsort(dest_ranks)
+        dest_ranks_sorted = dest_ranks[sort_idx]
+
+        # calculate send_counts and send_displs
+        send_counts = torch.bincount(dest_ranks_sorted, minlength=self.comm.size).to(torch.int64)
+        send_displs = torch.zeros_like(send_counts)
+        send_displs[1:] = torch.cumsum(send_counts, dim=0)[:-1]
+
+        # compose communication matrix, i.e. share `send_counts` information with all processes
+        comm_matrix = torch.zeros(
+            (self.comm.size, self.comm.size),
+            dtype=torch.int64,
+            device=self.device.torch_device,
+        )
+        self.comm.Allgather(send_counts, comm_matrix)
+
+        # comm_matrix columns contain recv_counts for each process
+        recv_counts = comm_matrix[:, self.comm.rank].squeeze(0)
+        recv_displs = torch.zeros_like(recv_counts)
+        recv_displs[1:] = recv_counts.cumsum(0)[:-1]
+
+        return (
+            sort_idx,
+            send_counts,
+            send_displs,
+            recv_counts,
+            recv_displs,
+        )
+
     def __getitem__(self, key: int | tuple[int, ...] | list[int]) -> DNDarray:
         """
         Global getter function for DNDarrays.
@@ -3075,10 +3115,11 @@ class DNDarray:
             transpose_axes[0],
         )
         value = value.transpose(transpose_axes)
-        send_counts = torch.zeros(
-            self.comm.size, dtype=torch.int64, device=self.device.torch_device
+
+        split_key_flat = split_key.reshape(-1)
+        sort_idx, send_counts, send_displs, recv_counts, recv_displs = (
+            self.__prepare_unordered_comm(split_key_flat, displs)
         )
-        send_displs = torch.zeros_like(send_counts)
 
         # allocate send buffer: add 1 column to store sent indices
         send_buf_shape = list(value.lshape)
@@ -3091,19 +3132,6 @@ class DNDarray:
         send_buf = torch.zeros(
             send_buf_shape, dtype=value.dtype.torch_type(), device=self.device.torch_device
         )
-        # map global indices to destination ranks
-        displs_t = torch.tensor(displs, device=self.device.torch_device)
-        split_key_flat = split_key.reshape(-1)
-        dest_ranks = torch.searchsorted(displs_t[1:], split_key_flat, right=True).to(torch.int64)
-
-        # sort by destination rank to pack memory contiguously
-        sort_idx = torch.argsort(dest_ranks)
-        dest_ranks_sorted = dest_ranks[sort_idx]
-
-        # calculate send_counts and send_displs
-        send_counts = torch.bincount(dest_ranks_sorted, minlength=self.comm.size).to(torch.int64)
-        send_displs = torch.zeros_like(send_counts)
-        send_displs[1:] = torch.cumsum(send_counts, dim=0)[:-1]
 
         # pack the send_buf
         if sort_idx.numel() > 0:
@@ -3118,17 +3146,6 @@ class DNDarray:
             else:
                 send_buf[:, -1] = split_key_flat[sort_idx].to(send_buf.dtype)
 
-        # compose communication matrix: share `send_counts` information with all processes
-        comm_matrix = torch.zeros(
-            (self.comm.size, self.comm.size),
-            dtype=torch.int64,
-            device=self.device.torch_device,
-        )
-        self.comm.Allgather(send_counts, comm_matrix)
-        # comm_matrix columns contain recv_counts for each process
-        recv_counts = comm_matrix[:, self.comm.rank].squeeze(0)
-        recv_displs = torch.zeros_like(recv_counts)
-        recv_displs[1:] = recv_counts.cumsum(0)[:-1]
         # allocate receive buffer, with 1 extra column for incoming indices
         recv_buf_shape = value.lshape_map[self.comm.rank]
         recv_buf_shape[value.split] = recv_counts.sum()
@@ -3153,7 +3170,7 @@ class DNDarray:
         self.comm.Alltoallv(
             (send_buf, send_counts, send_displs), (recv_buf, recv_counts, recv_displs)
         )
-        del send_buf, comm_matrix
+        del send_buf
 
         if key_is_mask_like:
             key = list(key)
