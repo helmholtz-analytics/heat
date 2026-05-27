@@ -3079,6 +3079,7 @@ class DNDarray:
             self.comm.size, dtype=torch.int64, device=self.device.torch_device
         )
         send_displs = torch.zeros_like(send_counts)
+
         # allocate send buffer: add 1 column to store sent indices
         send_buf_shape = list(value.lshape)
         if value.ndim < 2:
@@ -3090,36 +3091,32 @@ class DNDarray:
         send_buf = torch.zeros(
             send_buf_shape, dtype=value.dtype.torch_type(), device=self.device.torch_device
         )
-        for proc in range(self.comm.size):
-            # calculate what local elements of `value` belong on process `proc`
-            send_indices = torch.nonzero(
-                (split_key >= displs[proc]) & (split_key < displs[proc] + counts[proc])
-            ).flatten()
-            # calculate outgoing counts and displacements for each process
-            send_counts[proc] = send_indices.numel()
-            send_displs[proc] = send_counts[:proc].sum()
-            # compose send buffer: stack local elements of `value` according to destination process
-            if send_indices.numel() > 0:
-                if value.ndim < 2:
-                    # temporarily add a singleton dimension to value to accommodate column dimension for send_indices
-                    send_buf[send_displs[proc] : send_displs[proc] + send_counts[proc], :-1] = (
-                        value.larray[send_indices].unsqueeze(1)
-                    )
-                else:
-                    send_buf[send_displs[proc] : send_displs[proc] + send_counts[proc], :-1] = (
-                        value.larray[send_indices]
-                    )
-                # store outgoing GLOBAL indices in the last column of send_buf
-                if key_is_mask_like:
-                    for i in range(-len(key), 0):
-                        send_buf[send_displs[proc] : send_displs[proc] + send_counts[proc], i] = (
-                            key[i + len(key)][send_indices]
-                        )
-                else:
-                    send_indices = split_key[send_indices]
-                    send_buf[send_displs[proc] : send_displs[proc] + send_counts[proc], -1] = (
-                        send_indices
-                    )
+        # map global indices to destination ranks
+        displs_t = torch.tensor(displs, device=self.device.torch_device)
+        split_key_flat = split_key.reshape(-1)
+        dest_ranks = torch.searchsorted(displs_t[1:], split_key_flat, right=True).to(torch.int64)
+
+        # sort by destination rank to pack memory contiguously
+        sort_idx = torch.argsort(dest_ranks)
+        dest_ranks_sorted = dest_ranks[sort_idx]
+
+        # calculate send_counts and send_displs
+        send_counts = torch.bincount(dest_ranks_sorted, minlength=self.comm.size).to(torch.int64)
+        send_displs = torch.zeros_like(send_counts)
+        send_displs[1:] = torch.cumsum(send_counts, dim=0)[:-1]
+
+        # pack the send_buf
+        if sort_idx.numel() > 0:
+            if value.ndim < 2:
+                send_buf[:, :-1] = value.larray[sort_idx].unsqueeze(1)
+            else:
+                send_buf[:, :-1] = value.larray[sort_idx]
+
+            if key_is_mask_like:
+                for i in range(-len(key), 0):
+                    send_buf[:, i] = key[i + len(key)][sort_idx]
+            else:
+                send_buf[:, -1] = split_key_flat[sort_idx].to(send_buf.dtype)
 
         # compose communication matrix: share `send_counts` information with all processes
         comm_matrix = torch.zeros(
