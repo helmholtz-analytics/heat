@@ -2069,6 +2069,160 @@ class DNDarray:
         backwards_transpose_axes: tuple,
     ) -> DNDarray:
         """
+        Handles the MPI communication (Alltoallv) when the key along the
+        split axis is unordered and indices are GLOBAL.
+        """
+        counts, displs = self.counts_displs()
+        rank = self.comm.rank
+
+        key_is_single_tensor = isinstance(key, torch.Tensor)
+        split_key = key if key_is_single_tensor else key[self.split]
+        split_key_flat = split_key.reshape(-1)
+
+        # Calculate communication split axis for transposing later
+        if key_is_single_tensor or key_is_mask_like:
+            communication_split = 0
+        else:
+            communication_split = (
+                output_split - (split_key.ndim - 1) if split_key.ndim > 1 else output_split
+            )
+
+        # ---------------------------------------------------------------------
+        # Phase 1: Route and Send Index Requests (1st Alltoallv)
+        # ---------------------------------------------------------------------
+        sort_idx, send_counts_t, send_displs_t, recv_counts_t, recv_displs_t = (
+            self.__prepare_unordered_comm(split_key_flat, displs)
+        )
+
+        send_counts = send_counts_t.tolist()
+        send_displs = send_displs_t.tolist()
+        recv_counts = recv_counts_t.tolist()
+        recv_displs = recv_displs_t.tolist()
+
+        # Expand counts for multidimensional mask coordinates
+        if key_is_mask_like:
+            mask_dims = len(key)
+            idx_send_counts = [c * mask_dims for c in send_counts]
+            idx_send_displs = [d * mask_dims for d in send_displs]
+            idx_recv_counts = [c * mask_dims for c in recv_counts]
+            idx_recv_displs = [d * mask_dims for d in recv_displs]
+
+            send_indices = torch.stack([k.flatten()[sort_idx] for k in key], dim=1).reshape(-1)
+            recv_indices_flat = torch.zeros(
+                sum(idx_recv_counts), dtype=split_key.dtype, device=self.larray.device
+            )
+        else:
+            idx_send_counts, idx_send_displs = send_counts, send_displs
+            idx_recv_counts, idx_recv_displs = recv_counts, recv_displs
+
+            send_indices = split_key_flat[sort_idx]
+            recv_indices_flat = torch.zeros(
+                sum(idx_recv_counts), dtype=split_key.dtype, device=self.larray.device
+            )
+
+        self.comm.Alltoallv(
+            (send_indices, idx_send_counts, idx_send_displs),
+            (recv_indices_flat, idx_recv_counts, idx_recv_displs),
+        )
+
+        if key_is_mask_like:
+            recv_indices = recv_indices_flat.reshape(sum(recv_counts), len(key))
+        else:
+            recv_indices = recv_indices_flat
+
+        # ---------------------------------------------------------------------
+        # Phase 2: Local Data Lookup on Owners
+        # ---------------------------------------------------------------------
+        if key_is_mask_like:
+            recv_indices[:, self.split] -= displs[rank]
+            lookup_key = tuple(recv_indices[:, i] for i in range(len(key)))
+            local_vals = self.larray[lookup_key]
+        else:
+            recv_indices -= displs[rank]
+            if key_is_single_tensor:
+                local_vals = self.larray[recv_indices]
+            else:
+                lookup_key = list(key)
+                lookup_key[self.split] = recv_indices
+                local_vals = self.larray[tuple(lookup_key)]
+
+        # ---------------------------------------------------------------------
+        # Phase 3: Return Requested Data (2nd Alltoallv)
+        # ---------------------------------------------------------------------
+        # Ensure the indexed elements are aligned along axis 0 for contiguous flattening
+        transpose_axes = list(range(local_vals.ndim))
+        transpose_axes[0], transpose_axes[communication_split] = (
+            transpose_axes[communication_split],
+            transpose_axes[0],
+        )
+        local_vals = local_vals.permute(*transpose_axes)
+
+        feature_shape = list(local_vals.shape[1:])
+        feature_size = 1
+        for dim in feature_shape:
+            feature_size *= dim
+
+        return_send_counts = [c * feature_size for c in recv_counts]
+        return_send_displs = [d * feature_size for d in recv_displs]
+        return_recv_counts = [c * feature_size for c in send_counts]
+        return_recv_displs = [d * feature_size for d in send_displs]
+
+        send_vals = local_vals.reshape(-1)
+        recv_vals_flat = torch.empty(
+            sum(return_recv_counts), dtype=self.larray.dtype, device=self.larray.device
+        )
+
+        self.comm.Alltoallv(
+            (send_vals, return_send_counts, return_send_displs),
+            (recv_vals_flat, return_recv_counts, return_recv_displs),
+        )
+
+        # ---------------------------------------------------------------------
+        # Phase 4: Reassembly & Unsorting
+        # ---------------------------------------------------------------------
+        recv_vals = recv_vals_flat.reshape(-1, *feature_shape)
+
+        # Reverse the sorting applied in Phase 1
+        inv_sort_idx = torch.empty_like(sort_idx)
+        inv_sort_idx[sort_idx] = torch.arange(sort_idx.numel(), device=sort_idx.device)
+        unsorted_vals = recv_vals[inv_sort_idx]
+
+        # Restore original dimension order
+        final_vals = unsorted_vals.permute(*transpose_axes)
+
+        # Reshape to match the global output shape expectation
+        if communication_split != output_split:
+            original_local_shape = (
+                output_shape[:communication_split]
+                + split_key.shape
+                + output_shape[output_split + 1 :]
+            )
+            final_vals = final_vals.reshape(original_local_shape)
+
+        indexed_arr = DNDarray(
+            final_vals,
+            gshape=output_shape,
+            dtype=self.dtype,
+            split=output_split,
+            device=self.device,
+            comm=self.comm,
+            balanced=out_is_balanced,
+        )
+
+        if self.ndim > 0:
+            return self.transpose(backwards_transpose_axes), indexed_arr
+        return self, indexed_arr
+
+    def __getitem_unordered_p2p(
+        self,
+        key: tuple,
+        output_shape: tuple,
+        output_split: int,
+        out_is_balanced: bool,
+        key_is_mask_like: bool,
+        backwards_transpose_axes: tuple,
+    ) -> DNDarray:
+        """
         Handles the MPI communication (Isend/Recv) when the key along the
         split axis is unordered and indices are GLOBAL.
         """
@@ -2301,7 +2455,7 @@ class DNDarray:
 
         # key processing returns a ProcessedKey namedtuple
         self, processed_key = self.__process_key(key, return_local_indices=True, op="get")
-        # print(f"DEBUGGING: Processed key: {processed_key}")
+        print(f"DEBUGGING: Processed key: {processed_key}")
 
         # dispatch to appropriate getitem method
         op = processed_key.op_type
