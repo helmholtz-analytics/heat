@@ -11,9 +11,15 @@ permissions:
     security-events: write
     pull-requests: write
 jobs:
+    fork-guard:
+        name: Fork Guard
+        runs-on: ubuntu-latest
+        if: ${{ !github.event.repository.fork }}
+        steps:
+          - run: echo "Non-fork repository; continuing workflow."
     codeql:
         name: CodeQL Analysis
-        if: ${{ !github.event.repository.fork }}
+        needs: fork-guard
         runs-on: ubuntu-latest
         steps:
           - name: Harden Runner
@@ -33,7 +39,7 @@ jobs:
                 category: "/language:python"
     scorecard:
         name: Code Quality Scorecard
-        if: ${{ !github.event.repository.fork }}
+        needs: fork-guard
         runs-on: ubuntu-latest
         steps:
           - name: Harden Runner
@@ -81,7 +87,7 @@ jobs:
             with:
                 sarif_file: results.sarif
     check-links:
-        if: ${{ !github.event.repository.fork }}
+        needs: fork-guard
         runs-on: ubuntu-latest
         steps:
           - name: Harden Runner
@@ -102,6 +108,7 @@ jobs:
 
     inactivity:
         name: Inactivity Management
+        needs: fork-guard
         runs-on: ubuntu-latest
         steps:
           - name: Harden Runner
