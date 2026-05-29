@@ -12,6 +12,11 @@ from typing import List, Callable, Union, Optional, Tuple
 from torch._C import Value
 
 from ..communication import MPI
+from ..communication import _get_or_create_mesh, _DTENSOR_AVAILABLE
+
+if _DTENSOR_AVAILABLE:
+    from torch.distributed.tensor import DTensor, Shard, Replicate
+    from torch.distributed.tensor.placement_types import Partial
 from .. import arithmetics
 from .. import complex_math
 from .. import constants
@@ -49,6 +54,38 @@ __all__ = [
     "vecdot",
     "vector_norm",
 ]
+
+
+def _use_dtensor(*DNDarrays) -> bool:
+    if not _DTENSOR_AVAILABLE:
+        return False
+
+    # on evenly distributed DNDarrays and on GPU only
+    for array in DNDarrays:
+        if not str(array.device)[:3] == "gpu":
+            return False
+        if array.split is not None and array.gshape[array.split] % array.comm.size != 0:
+            return False
+
+    return True
+
+
+def _to_dtensor(dndarray: DNDarray, mesh) -> "DTensor":
+    placements = [Replicate()] if dndarray.split is None else [Shard(dndarray.split)]
+    return DTensor.from_local(dndarray.larray, mesh, placements)
+
+
+def _from_dtensor(dtensor: "DTensor", target_split: int) -> torch.Tensor:
+    target_placement = Replicate() if target_split is None else Shard(target_split)
+
+    # force network redistribution if tensor is incomplete or layout mismatches
+    if (
+        any(isinstance(p, Partial) for p in dtensor.placements)
+        or dtensor.placements[0] != target_placement
+    ):
+        dtensor = dtensor.redistribute(dtensor.device_mesh, [target_placement])
+
+    return dtensor.to_local()
 
 
 def _estimate_largest_singularvalue(A: DNDarray, algorithm: str = "fro") -> DNDarray:
@@ -610,6 +647,31 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
     """
     sanitation.sanitize_in(a)
     sanitation.sanitize_in(b)
+
+    if a.is_distributed() or b.is_distributed():
+        # route through DTensor if it makes sense
+        if _use_dtensor(a, b):
+            try:
+                mesh = _get_or_create_mesh(a.device)
+
+                dt_a = _to_dtensor(a, mesh)
+                dt_b = _to_dtensor(b, mesh)
+
+                dt_c = torch.matmul(dt_a, dt_b)
+
+                # heat infers the final split directly from the inputs
+                expected_split = a.split if a.split is not None else b.split
+                local_c = _from_dtensor(dt_c, expected_split)
+
+                gshape_c = (a.gshape[0], b.gshape[1])
+
+                return DNDarray(
+                    local_c, gshape_c, a.dtype, expected_split, a.device, a.comm, balanced=True
+                )
+            except Exception as e:
+                import logging
+
+                logging.warning(f"dtensor routing failed, falling back to mpi: {e}")
 
     batch_dim = max(a.ndim, b.ndim) - 2  # -1 for vector vector multiplication
     batched = batch_dim > 0
