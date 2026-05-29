@@ -1,7 +1,7 @@
 name: On PR Update
 
 on:
-  pull_request:
+  pull_request_target:
     types: [opened, reopened, synchronize]
     paths:
       - '.github/**'
@@ -46,7 +46,7 @@ jobs:
     name: Trigger Codebase Tests
     runs-on: ubuntu-latest
     needs: quick-tests
-    if: ${{ !github.event.repository.fork && !startsWith(github.head_ref, 'dependabot') }}
+    if: ${{ !startsWith(github.head_ref, 'dependabot') }}
     steps:
       - name: Harden the runner
         uses: step-security/harden-runner@6c3c2f2c1c457b00c10c4848d6f5491db3b629df # v2.18.0
@@ -67,7 +67,7 @@ jobs:
     name: Trigger Codebase Benchmarks
     runs-on: ubuntu-latest
     needs: trigger-tests
-    if: ${{ !github.event.repository.fork && !startsWith(github.head_ref, 'dependabot') && contains(github.event.pull_request.labels.*.name, 'benchmark PR') }}
+    if: ${{ !startsWith(github.head_ref, 'dependabot') && contains(github.event.pull_request.labels.*.name, 'benchmark PR') }}
     steps:
       - name: Harden the runner
         uses: step-security/harden-runner@6c3c2f2c1c457b00c10c4848d6f5491db3b629df # v2.18.0
