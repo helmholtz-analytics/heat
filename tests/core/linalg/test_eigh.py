@@ -7,28 +7,36 @@ from heat.testing.basic_test import TestCase
 
 class TestEigh(TestCase):
     def _check_eigh_result(self, X, Lambda, H):
-        dtypetol = 1e-3 if X.dtype == ht.float32 else 1e-5
+        dtypetol = 1e-3 if X.dtype in [ht.float32, ht.complex64] else 1e-5
         self.assertEqual(Lambda.shape, (X.shape[0],))
         self.assertEqual(H.shape, X.shape)
         self.assertEqual(H.split, X.split)
         self.assertEqual(Lambda.split, 0)
         self.assertEqual(H.dtype, X.dtype)
-        self.assertEqual(Lambda.dtype, X.dtype)
-        X_rec = H @ ht.diag(Lambda) @ H.T
+        if X.dtype in [ht.float32, ht.complex64]:
+            self.assertEqual(Lambda.dtype, ht.float32)
+        elif X.dtype in [ht.complex128, ht.float64]:
+            self.assertEqual(Lambda.dtype, ht.float64)
+        else:
+            raise Exception
+        X_rec = H @ ht.diag(Lambda) @ ht.conj(H).T
         self.assertTrue(ht.norm(X - X_rec) / ht.norm(X) < dtypetol)
-        HtH = H.T @ H
+        HtH = ht.conj(H).T @ H
         eye_size_H = ht.eye(HtH.shape[0], split=HtH.split, dtype=X.dtype)
         self.assertTrue(ht.norm(HtH - eye_size_H) / ht.norm(eye_size_H) < dtypetol)
 
     def test_eigh(self):
         # test with default values
         splits = [None, 0, 1]
-        dtypes = [ht.float32, ht.float64]
+        dtypes = [ht.float32, ht.float64, ht.complex64, ht.complex128]
         for split in splits:
             for dtype in dtypes:
+                if dtype in [ht.complex64, ht.complex128] and self.comm.size > 1:
+                    self.skipTest('eigh with complex matrices is only supported on single task for now')
+
                 with self.subTest(split=split, dtype=dtype):
                     X = ht.random.randn(100, 100, split=split, dtype=dtype)
-                    X = X + X.T.resplit_(X.split)
+                    X = X + ht.conj(X).T.resplit_(X.split)
                     Lambda, H = ht.linalg.eigh(X)
                     self._check_eigh_result(X, Lambda, H)
 
