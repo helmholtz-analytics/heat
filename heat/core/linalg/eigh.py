@@ -301,7 +301,6 @@ def eigh(
     :func:`heat.linalg.polar`
     """
     sanitize_in(A)
-    assert A.ndim == 2
 
     if A.ndim != 2:
         raise ValueError(f"Input matrix must be two-dimensional, but input shape was {A.shape}.")
