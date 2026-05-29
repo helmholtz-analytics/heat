@@ -302,9 +302,7 @@ def eigh(
     """
     sanitize_in(A)
     if A.ndim != 2:
-        raise ValueError(
-            f"Input matrix must be two-dimensional, but input shape was {A.shape}."
-        )
+        raise ValueError(f"Input matrix must be two-dimensional, but input shape was {A.shape}.")
     if A.shape[0] != A.shape[1]:
         raise ValueError(
             f"Input matrix must be symmetric and, consequently, square, but input shape was {A.shape[0]} x {A.shape[1]}."
