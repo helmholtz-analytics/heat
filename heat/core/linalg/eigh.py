@@ -58,7 +58,7 @@ def _subspaceiteration(
         tol = 1e-4 if tol is None else tol
     else:
         raise TypeError(
-            f"Input DNDarray must be of data type float32, float64, complex64, or complex128 but is of type {A.dtype}."
+            f"Input DNDarray must be of data type float32, float64, complex64, or complex128, but is of type {A.dtype}."
         )
 
     Anorm = matrix_norm(A, ord="fro")
@@ -303,6 +303,8 @@ def eigh(
     sanitize_in(A)
     assert A.ndim == 2
 
+    if A.ndim != 2:
+        raise ValueError(f"Input matrix must be two-dimensional, but input shape was {A.shape}.")
     if A.shape[0] != A.shape[1]:
         raise ValueError(
             f"Input matrix must be symmetric and, consequently, square, but input shape was {A.shape[0]} x {A.shape[1]}."
