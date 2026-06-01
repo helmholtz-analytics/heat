@@ -400,6 +400,23 @@ class TestFactories(TestCase):
                 dim = self.get_rank() + 1
                 ht.array([[0] * dim] * dim, is_split=0)
 
+    def test_array_implicit_device_selection(self):
+        # test implicit device selection
+        for device in ['cpu', 'cuda', 'mps']:
+            with self.subTest(f'{device=}'):
+                try:
+                    a_torch = torch.zeros(4, device=device)
+                except (RuntimeError, AssertionError, NotImplementedError):
+                    print(f'{device=} is not available')
+                    continue
+
+                a = ht.array(a_torch)
+                self.assertEqual(a.device, ht.devices.sanitize_device(a_torch.device.type))
+                b = ht.array(a)
+                self.assertEqual(a.device, b.device)
+                c = ht.array(a, device='cpu')
+                self.assertEqual(str(c.device)[:3], 'cpu')
+
     def test_asarray(self):
         # same heat array
         arr = ht.array([1, 2])
@@ -851,78 +868,76 @@ class TestFactories(TestCase):
         with self.assertRaises(ValueError):
             ht.logspace(-5, 3, num=-1)
 
+
     def test_meshgrid(self):
         # arrays < 2
         self.assertEqual(ht.meshgrid(), [])
         self.assertEqual(ht.meshgrid(ht.array(1)), [ht.array(1)])
 
         # 2 arrays
-        x = ht.arange(4)
-        y = ht.arange(3)
-        xx, yy = ht.meshgrid(x, y)
-        res_xx = ht.array([[0, 1, 2, 3], [0, 1, 2, 3], [0, 1, 2, 3]], dtype=ht.int32, split=None)
-        res_yy = ht.array([[0, 0, 0, 0], [1, 1, 1, 1], [2, 2, 2, 2]], dtype=ht.int32, split=None)
+        for indexing in ['xy', 'ij']:
+            for split in [None, 0]:
+                x = ht.random.random(4, split=split)
+                y = ht.random.random(3)
+                xx, yy = ht.meshgrid(x, y, indexing=indexing)
 
-        self.assertEqual(xx.shape, res_xx.shape)
-        self.assertEqual(yy.shape, res_yy.shape)
-        self.assertEqual(xx.device, res_xx.device)
-        self.assertEqual(yy.device, res_yy.device)
-        self.assertEqual(xx.dtype, x.dtype)
-        self.assertEqual(yy.dtype, y.dtype)
-        self.assertTrue(ht.equal(xx, res_xx))
-        self.assertTrue(ht.equal(yy, res_yy))
+                self.assertEqual(x.device, xx.device)
+                self.assertEqual(y.device, yy.device)
+                self.assertEqual(x.dtype, xx.dtype)
+                self.assertEqual(y.dtype, yy.dtype)
 
-        # different dtype + indexing parameter
-        x = ht.linspace(0, 4, 3)
-        y = ht.linspace(0, 4, 5)
-        xx, yy = ht.meshgrid(x, y, indexing="ij")
+                x_numpy = x.resplit(None).numpy()
+                y_numpy = y.resplit(None).numpy()
+                xx_numpy, yy_numpy = np.meshgrid(x_numpy, y_numpy, indexing=indexing)
 
-        res_xx = ht.array(
-            [[0.0, 0.0, 0.0, 0.0, 0.0], [2.0, 2.0, 2.0, 2.0, 2.0], [4.0, 4.0, 4.0, 4.0, 4.0]],
-            dtype=ht.float32,
-            split=None,
-        )
-        res_yy = ht.array(
-            [[0.0, 1.0, 2.0, 3.0, 4.0], [0.0, 1.0, 2.0, 3.0, 4.0], [0.0, 1.0, 2.0, 3.0, 4.0]],
-            dtype=ht.float32,
-            split=None,
-        )
+                self.assertTrue(ht.allclose(xx, ht.array(xx_numpy, split=xx.split)))
+                self.assertTrue(ht.allclose(yy, ht.array(yy_numpy, split=yy.split)))
+                self.assertTrue(np.allclose(xx.shape, xx_numpy.shape))
+                self.assertTrue(np.allclose(yy.shape, yy_numpy.shape))
 
-        self.assertEqual(xx.shape, res_xx.shape)
-        self.assertEqual(yy.shape, res_yy.shape)
-        self.assertEqual(xx.device, res_xx.device)
-        self.assertEqual(yy.device, res_yy.device)
-        self.assertEqual(xx.dtype, x.dtype)
-        self.assertEqual(yy.dtype, y.dtype)
-        self.assertTrue(ht.equal(xx, res_xx))
-        self.assertTrue(ht.equal(yy, res_yy))
+                if split == 0:
+                    if indexing == 'ij':
+                        self.assertEqual(xx.split, 0)
+                        self.assertEqual(yy.split, 0)
+                    else:
+                        self.assertEqual(xx.split, 1)
+                        self.assertEqual(yy.split, 1)
+                else:
+                    self.assertEqual(xx.split, None)
+                    self.assertEqual(yy.split, None)
 
         # 3 arrays
+        x = ht.linspace(0, 4, 3)
+        y = ht.linspace(0, 4, 5)
         z = ht.linspace(0, 1, 3, split=0)
 
         # split 0
         zz, xx, yy = ht.meshgrid(z, x, y)
+        if zz.comm.size == 1:
+            self.assertEqual(list(zz.shape), list(zz.larray.shape))
+            self.assertEqual(list(xx.shape), list(xx.larray.shape))
+            self.assertEqual(list(yy.shape), list(yy.larray.shape))
 
-        res_zz, res_xx, res_yy = np.meshgrid(z.numpy(), x.numpy(), y.numpy())
+        res_zz, res_xx, res_yy = np.meshgrid(z.resplit(None).numpy(), x.resplit(None).numpy(), y.resplit(None).numpy())
 
-        self.assertEqual(xx.split, 0)
-        self.assertEqual(yy.split, 0)
-        self.assertEqual(zz.split, 0)
-        self.assertTrue(ht.equal(xx, ht.array(res_xx)))
-        self.assertTrue(ht.equal(yy, ht.array(res_yy)))
-        self.assertTrue(ht.equal(zz, ht.array(res_zz)))
+        self.assertEqual(xx.split, 1)
+        self.assertEqual(yy.split, 1)
+        self.assertEqual(zz.split, 1)
+        self.assertTrue(ht.allclose(xx, ht.array(res_xx, split=xx.split)))
+        self.assertTrue(ht.allclose(yy, ht.array(res_yy, split=xx.split)))
+        self.assertTrue(ht.allclose(zz, ht.array(res_zz, split=xx.split)))
 
         # split 1
         xx, zz, yy = ht.meshgrid(x, z, y)
 
         res_xx, res_zz, res_yy = np.meshgrid(x.numpy(), z.numpy(), y.numpy())
 
-        self.assertEqual(xx.split, 1)
-        self.assertEqual(yy.split, 1)
-        self.assertEqual(zz.split, 1)
-        self.assertTrue(ht.equal(xx, ht.array(res_xx)))
-        self.assertTrue(ht.equal(yy, ht.array(res_yy)))
-        self.assertTrue(ht.equal(zz, ht.array(res_zz)))
+        self.assertEqual(xx.split, 0)
+        self.assertEqual(yy.split, 0)
+        self.assertEqual(zz.split, 0)
+        self.assertTrue(ht.allclose(xx, ht.array(res_xx, split=xx.split)))
+        self.assertTrue(ht.allclose(yy, ht.array(res_yy, split=yy.split)))
+        self.assertTrue(ht.allclose(zz, ht.array(res_zz, split=zz.split)))
 
         # split 2
         xx, yy, zz = ht.meshgrid(x, y, z)
@@ -932,9 +947,9 @@ class TestFactories(TestCase):
         self.assertEqual(xx.split, 2)
         self.assertEqual(yy.split, 2)
         self.assertEqual(zz.split, 2)
-        self.assertTrue(ht.equal(xx, ht.array(res_xx)))
-        self.assertTrue(ht.equal(yy, ht.array(res_yy)))
-        self.assertTrue(ht.equal(zz, ht.array(res_zz)))
+        self.assertTrue(ht.allclose(xx, ht.array(res_xx, split=xx.split)))
+        self.assertTrue(ht.allclose(yy, ht.array(res_yy, split=yy.split)))
+        self.assertTrue(ht.allclose(zz, ht.array(res_zz, split=zz.split)))
 
         # exceptions
         with self.assertRaises(ValueError):

@@ -3375,7 +3375,13 @@ def unique(
         )
         if isinstance(torch_output, tuple):
             heat_output = tuple(
-                factories.array(i, dtype=a.dtype, split=None, device=a.device, comm=a.comm)
+                factories.array(
+                    i,
+                    dtype=types.canonical_heat_type(i.dtype),
+                    split=None,
+                    device=a.device,
+                    comm=a.comm,
+                )
                 for i in torch_output
             )
         else:

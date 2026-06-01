@@ -6,9 +6,11 @@ import warnings
 
 warnings.warn("The heat.array_api submodule is not fully implemented.", stacklevel=2)
 
-__array_api_version__ = "2023.12"
+__array_api_version__ = "2025.12"
 
 __all__ = ["__array_api_version__"]
+
+from ._inspection import __array_namespace_info__
 
 from ._constants import e, inf, nan, newaxis, pi
 

@@ -160,6 +160,16 @@ class MPICommunication(Communication):
             self.rank = None
             self.size = None
 
+    def __del__(self):
+        handle = getattr(self, "handle", None)
+        if MPI is None or handle in (None, MPI.COMM_WORLD, MPI.COMM_SELF, MPI.COMM_NULL):
+            return
+
+        if not MPI.Is_initialized() or MPI.Is_finalized():
+            return
+
+        self.Free()
+
     def is_distributed(self) -> bool:
         """
         Determines whether the communicator is distributed, i.e. handles more than one node.
@@ -1333,6 +1343,7 @@ class MPICommunication(Communication):
 
         # perform the scatter operation
         exit_code = func(mpi_sendbuf, mpi_recvbuf, **kwargs)
+
         return exit_code, sbuf, rbuf, original_recvbuf, recv_axis_permutation
 
     def Allgather(

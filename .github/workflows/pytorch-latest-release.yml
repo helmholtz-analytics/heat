@@ -11,10 +11,10 @@ permissions:
 jobs:
   get-version:
     runs-on: ubuntu-latest
-    if: ${{ github.repository }} == 'hemlholtz-analytics/heat'
+    if: ${{ github.repository == 'helmholtz-analytics/heat' }}
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
+        uses: step-security/harden-runner@a5ad31d6a139d249332a2605b85202e8c0b78450 # v2.19.1
         with:
           egress-policy: audit
 
@@ -27,7 +27,7 @@ jobs:
           jq -r ".tag_name" | tr -d 'v' > .github/pytorch-release-versions/pytorch-latest.txt
       - name: Check if file has been modified
         id: git-check
-        run: echo "::set-output name=modified::$([ -z "`git status --porcelain`" ] && echo "false" || echo "true")"
+        run: echo "modified=$([ -z "`git status --porcelain`" ] && echo "false" || echo "true")" >> $GITHUB_OUTPUT
       - name: Delete working branch if it already exists
         run: git push --delete origin ${{ env.working_branch }} || true
       - name: Commit latest PyTorch release version to new branch
