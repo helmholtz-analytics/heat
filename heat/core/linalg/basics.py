@@ -836,8 +836,8 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
             a.split == ndim - 2 and b.split == ndim - 1
         ):
             reqs, b_chunks = {}, {}
-            # broadcast chunks of b
             for proc in range(comm.size):
+                # broadcast chunks of b
                 if comm.rank == proc:
                     b_chunks[proc] = b.larray.clone()
                 else:
@@ -848,8 +848,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
                     )
                 reqs[proc] = comm.Ibcast(b_chunks[proc], root=proc)
 
-            # do local matrix multiplications with the chunk of b
-            for proc in range(comm.size):
+                # do local matrix multiplications with the chunk of b
                 reqs[proc].Wait()
                 if a.split == ndim - 2 and b.split == ndim - 2:  # split 00
                     b_start, b_stop = index_map[proc, 1, 0]
@@ -863,8 +862,8 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
         # split dims 11
         elif a.split == ndim - 1 and b.split == ndim - 1:
             reqs, a_chunks = {}, {}
-            # broadcast chunks of a
             for proc in range(comm.size):
+                # broadcast chunks of a
                 if comm.rank == proc:
                     a_chunks[proc] = a.larray.clone()
                 else:
@@ -875,8 +874,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
                     )
                 reqs[proc] = comm.Ibcast(a_chunks[proc], root=proc)
 
-            # do local matrix multiplications with the chunk of a
-            for proc in range(comm.size):
+                # do local matrix multiplications with the chunk of a
                 reqs[proc].Wait()
                 a_start, a_stop = index_map[proc, 0, 1]
                 c.larray += a_chunks[proc] @ b.larray[..., a_start:a_stop, :]
