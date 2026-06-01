@@ -804,7 +804,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
         lshape_map = np.zeros((comm.size, 2, ndim), dtype=int)
         lshape_map[comm.rank, 0, :] = a.lshape
         lshape_map[comm.rank, 1, :] = b.lshape
-        comm.Allreduce(MPI.IN_PLACE, lshape_map, MPI.SUM)
+        lshape_map_req = comm.Iallreduce(MPI.IN_PLACE, lshape_map, MPI.SUM)
 
         # index_map dims guide -> {process number, a=0/b=1, relevant 1st index, 2nd index}
         index_map = np.zeros((comm.size, 2, 2, 2), dtype=int)
@@ -814,17 +814,25 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
         b_idx = comm.chunk(b.shape, b.split)[2]
         index_map[comm.rank, 1, 0] = (b_idx[-2].start, b_idx[-2].stop)
         index_map[comm.rank, 1, 1] = (b_idx[-1].start, b_idx[-1].stop)
-        index_map_comm = comm.Iallreduce(MPI.IN_PLACE, index_map, MPI.SUM)
+        index_map_req = comm.Iallreduce(MPI.IN_PLACE, index_map, MPI.SUM)
 
         # allocate output: c = a @ b
         # for the communication scheme, the output array needs to be created
         c_shape = (*batch_shape, a.gshape[-2], b.gshape[-1])
         c = factories.zeros(c_shape, split=a.split, dtype=c_type, device=dev, comm=comm)
 
-        index_map_comm.Wait()
+        lshape_map_req.Wait()
+        index_map_req.Wait()
+
+        # split dims 10 - This is the worst possible case and requires a resplit
+        if a.split == ndim - 1 and b.split == ndim - 2:
+            _b = b.copy()
+            _b.resplit_(a.split)
+            c[...] = matmul(a, _b)
+            del _b
 
         # split dims 00 and 01
-        if (a.split == ndim - 2 and b.split == ndim - 2) or (
+        elif (a.split == ndim - 2 and b.split == ndim - 2) or (
             a.split == ndim - 2 and b.split == ndim - 1
         ):
             reqs, b_chunks = {}, {}
@@ -873,13 +881,6 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
                 a_start, a_stop = index_map[proc, 0, 1]
                 c.larray += a_chunks[proc] @ b.larray[..., a_start:a_stop, :]
                 del a_chunks[proc]
-
-        # split dims 10
-        elif a.split == ndim - 1 and b.split == ndim - 2:
-            _b = b.copy()
-            _b.resplit_(a.split)
-            c[...] = matmul(a, _b)
-            del _b
 
     if vector_flag:  # squeeze only in the non-batch dimensions
         # it could be sensible to resplit/rebalance in case a single node gets the whole vector
