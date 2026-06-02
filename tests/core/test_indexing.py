@@ -2,33 +2,43 @@ import heat as ht
 from heat.testing.basic_test import TestCase
 
 import torch
+import numpy as np
 
 class TestIndexing(TestCase):
     def test_nonzero(self):
-        # cases to test:
-        # not split
-        a = ht.array([[1, 2, 3], [4, 5, 2], [7, 8, 9]], split=None)
-        cond = a > 3
-        nz = ht.nonzero(cond)
-        self.assertEqual(len(nz), 2)
-        self.assertEqual(len(nz[0]), 5)
-        self.assertEqual(nz[0].dtype, ht.int64)
+        for split in [None, 0, 1]:
+            for cond_type in ['mean', 'max']:
+                a = ht.random.random((2*self.comm.size, 3*self.comm.size, 4*self.comm.size))
+                if cond_type == 'mean':
+                    cond = a > a.mean() / 2
+                elif cond_type == 'max':
+                    cond = a == a.max()
+                else:
+                    raise NotImplementedError
 
-        # split
-        a = ht.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]], split=1)
-        cond = a > 3
-        nz = cond.nonzero()
-        self.assertEqual(len(nz), 2)
-        self.assertEqual(len(nz[0]), 6)
-        self.assertEqual(nz[0].dtype, ht.int64)
-        a[nz] = 10
-        self.assertEqual(ht.all(a[nz] == 10), 1)
+                nz_as_tuple = ht.nonzero(cond, as_tuple=True)
+                nz_as_tuple_ref = np.nonzero(cond.numpy())
+                for i in range(len(nz_as_tuple)):
+                    self.assertEqual(nz_as_tuple[i].dtype, ht.int64)
+                    self.assertTrue(np.allclose(nz_as_tuple[i].numpy(), nz_as_tuple_ref[i]))
+
+                nz_no_tuple = ht.nonzero(cond, as_tuple=False)
+                nz_no_tuple_ref = torch.nonzero(cond.resplit(None), as_tuple=False)
+                self.assertEqual(nz_no_tuple.dtype, ht.int64)
+                self.assertTrue(np.allclose(nz_no_tuple.numpy(), nz_no_tuple_ref.numpy()))
+
+                if cond_type == 'max':
+                    self.assertEqual(len(cond[cond]), 1)
+                    for me in nz_as_tuple:
+                        self.assertEqual(me.shape, (1,))
+                    self.assertEqual(nz_no_tuple.shape, (1, a.ndim))
+
 
         # edge case: single non-zero element
         for split in [None, 0, 1]:
             a = ht.zeros((4, 3), dtype=ht.bool, split=split)
             a[1, 2] = True
-            nz = ht.indexing.nonzero(a)
+            nz = ht.indexing.nonzero(a, as_tuple=False)
             self.assertTrue(ht.allclose(a[nz], a[a]))
             a.comm.Barrier()
 
