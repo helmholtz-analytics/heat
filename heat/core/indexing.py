@@ -7,6 +7,7 @@ import torch
 from .communication import MPI
 from .dndarray import DNDarray
 from . import factories
+from .sanitation import sanitize_in
 from . import types
 from . import manipulations
 
@@ -17,7 +18,7 @@ def nonzero(x: DNDarray, as_tuple: bool = True) -> tuple[DNDarray, ...] | DNDarr
     """
     Return a Tuple of :class:`~heat.core.dndarray.DNDarray`s, one for each dimension of ``x``,
     containing the indices of the non-zero elements in that dimension. If ``x`` is split then
-    the result is split in the 0th dimension. However, this :class:`~heat.core.dndarray.DNDarray`
+    the result is split in the first dimension. However, this :class:`~heat.core.dndarray.DNDarray`
     can be UNBALANCED as it contains the indices of the non-zero elements on each node.
     The values in ``x`` are always tested and returned in row-major, C-style order.
     The corresponding non-zero values can be obtained with: ``x[nonzero(x)]``.
@@ -53,26 +54,24 @@ def nonzero(x: DNDarray, as_tuple: bool = True) -> tuple[DNDarray, ...] | DNDarr
     >>> y[ht.nonzero(y > 3)]
     DNDarray([4, 5, 6, 7, 8, 9], dtype=ht.int64, device=cpu:0, split=0)
     """
-    try:
-        local_x = x.larray
-    except AttributeError:
-        raise TypeError("Input must be a DNDarray, is {}".format(type(x)))
+    sanitize_in(x)
 
     if not x.is_distributed():
         # nonzero indices as tuple
-        nonzero = torch.nonzero(input=local_x, as_tuple=as_tuple)
+        nonzero = torch.nonzero(input=x.larray, as_tuple=as_tuple)
         # bookkeeping for final DNDarray construct
         if as_tuple:
             nonzero = list(nonzero)
             for i, nz_tensor in enumerate(nonzero):
                 nonzero[i] = factories.array(nz_tensor, device=x.device, comm=x.comm)
             return tuple(nonzero)
-        # nonzero indices as single 2D DNDarray
-        return factories.array(nonzero, device=x.device, comm=x.comm)
+        else:
+            # nonzero indices as single 2D DNDarray
+            return factories.array(nonzero, device=x.device, comm=x.comm)
 
     # distributed case
-    lcl_nonzero = torch.nonzero(input=local_x, as_tuple=False)
-    nonzero_size = torch.tensor(lcl_nonzero.shape[0], dtype=torch.int64, device=lcl_nonzero.device)
+    lcl_nonzero = torch.nonzero(input=x.larray, as_tuple=False)
+    nonzero_size = torch.tensor(lcl_nonzero.shape[0], dtype=torch.int64, device="cpu")
     nonzero_dtype = types.canonical_heat_type(lcl_nonzero.dtype)
 
     # global nonzero_size
@@ -81,7 +80,34 @@ def nonzero(x: DNDarray, as_tuple: bool = True) -> tuple[DNDarray, ...] | DNDarr
     _, displs = x.counts_displs()
     lcl_nonzero[:, x.split] += displs[x.comm.rank]
 
-    if x.split != 0:
+    if x.split == 0:
+        # for split=0, the local nonzero indices are already globally ordered along the split axis
+        if not as_tuple:
+            # return indices as single 2D DNDarray
+            return DNDarray(
+                lcl_nonzero,
+                gshape=(nonzero_size.item(), x.ndim),
+                dtype=nonzero_dtype,
+                split=0,
+                device=x.device,
+                comm=x.comm,
+                balanced=False,
+            )
+        # return indices as tuple of 1D DNDarrays
+        lcl_nonzero = lcl_nonzero.unbind(dim=1)
+        return tuple(
+            DNDarray(
+                nz_tensor,
+                gshape=(nonzero_size.item(),),
+                dtype=nonzero_dtype,
+                split=0,
+                device=x.device,
+                comm=x.comm,
+                balanced=False,
+            )
+            for nz_tensor in lcl_nonzero
+        )
+    else:
         # construct global 2D DNDarray of nz indices:
         shape_2d = (nonzero_size.item(), x.ndim)
         global_nonzero = DNDarray(
@@ -113,33 +139,6 @@ def nonzero(x: DNDarray, as_tuple: bool = True) -> tuple[DNDarray, ...] | DNDarr
             )
             for nz_tensor in lcl_nonzero
         )
-
-    # for split=0, the local nonzero indices are already globally ordered along the split axis
-    if not as_tuple:
-        # return indices as single 2D DNDarray
-        return DNDarray(
-            lcl_nonzero,
-            gshape=(nonzero_size.item(), x.ndim),
-            dtype=nonzero_dtype,
-            split=0,
-            device=x.device,
-            comm=x.comm,
-            balanced=False,
-        )
-    # return indices as tuple of 1D DNDarrays
-    lcl_nonzero = lcl_nonzero.unbind(dim=1)
-    return tuple(
-        DNDarray(
-            nz_tensor,
-            gshape=(nonzero_size.item(),),
-            dtype=nonzero_dtype,
-            split=0,
-            device=x.device,
-            comm=x.comm,
-            balanced=False,
-        )
-        for nz_tensor in lcl_nonzero
-    )
 
 
 DNDarray.nonzero = lambda self: nonzero(self, as_tuple=True)
