@@ -985,11 +985,13 @@ class DNDarray:
         distr_mask_fast_path = False
         # mask along split axis within tuple?
         if arr.is_distributed():
-            split_key = None
-            if isinstance(key, tuple) and len(key) > (arr.split or 0):
+            if isinstance(key, tuple) and len(key) > arr.split:
                 split_key = key[arr.split]
-            elif not isinstance(key, tuple):
+            elif isinstance(key, DNDarray):
                 split_key = key
+            else:
+                split_key = None
+
             if (
                 isinstance(split_key, DNDarray)
                 and split_key.dtype in (ht_bool, ht_uint8)
