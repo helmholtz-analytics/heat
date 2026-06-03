@@ -2,5 +2,6 @@ openmpi
 mpi4py
 h5py
 ipyparallel
+torch
 heat
 perun
