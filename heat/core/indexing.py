@@ -9,6 +9,7 @@ from .dndarray import DNDarray
 from . import factories
 from . import types
 from . import manipulations
+from . import sanitation
 
 __all__ = ["nonzero", "where"]
 
@@ -53,11 +54,9 @@ def nonzero(x: DNDarray, as_tuple: bool = True) -> tuple[DNDarray, ...] | DNDarr
     >>> y[ht.nonzero(y > 3)]
     DNDarray([4, 5, 6, 7, 8, 9], dtype=ht.int64, device=cpu:0, split=0)
     """
-    try:
-        local_x = x.larray
-    except AttributeError:
-        raise TypeError("Input must be a DNDarray, is {}".format(type(x)))
-
+    sanitation.sanitize_in(x)
+    local_x = x.larray
+    
     if not x.is_distributed():
         # nonzero indices as tuple
         nonzero = torch.nonzero(input=local_x, as_tuple=as_tuple)
