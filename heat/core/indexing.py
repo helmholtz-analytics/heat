@@ -71,7 +71,7 @@ def nonzero(x: DNDarray, as_tuple: bool = True) -> tuple[DNDarray, ...] | DNDarr
 
     # distributed case
     lcl_nonzero = torch.nonzero(input=local_x, as_tuple=False)
-    nonzero_size = torch.tensor(lcl_nonzero.shape[0], dtype=torch.int64, device=lcl_nonzero.device)
+    nonzero_size = torch.tensor(lcl_nonzero.shape[0], dtype=torch.int64)
     nonzero_dtype = types.canonical_heat_type(lcl_nonzero.dtype)
 
     # global nonzero_size
