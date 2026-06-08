@@ -56,7 +56,7 @@ def nonzero(x: DNDarray, as_tuple: bool = True) -> tuple[DNDarray, ...] | DNDarr
     """
     sanitation.sanitize_in(x)
     local_x = x.larray
-    
+
     if not x.is_distributed():
         # nonzero indices as tuple
         nonzero = torch.nonzero(input=local_x, as_tuple=as_tuple)
