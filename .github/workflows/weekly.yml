@@ -1,0 +1,131 @@
+name: Weekly Workflow
+
+on:
+    schedule:
+        - cron: '0 6 * * 1'  # Runs at 06:00 UTC every Monday
+    workflow_dispatch:
+
+permissions:
+    actions: read
+    contents: read
+    security-events: write
+    pull-requests: write
+jobs:
+    fork-guard:
+        name: Fork Guard
+        runs-on: ubuntu-latest
+        if: ${{ !github.event.repository.fork }}
+        steps:
+          - run: echo "Non-fork repository; continuing workflow."
+    codeql:
+        name: CodeQL Analysis
+        needs: fork-guard
+        runs-on: ubuntu-latest
+        steps:
+          - name: Harden Runner
+            uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+            with:
+                egress-policy: audit
+          - name: Checkout repository
+            uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+            # Initializes the CodeQL tools for scanning.
+          - name: Initialize CodeQL
+            uses: github/codeql-action/init@9e0d7b8d25671d64c341c19c0152d693099fb5ba # v4.35.5
+            with:
+                languages: python
+          - name: Perform CodeQL Analysis
+            uses: github/codeql-action/analyze@9e0d7b8d25671d64c341c19c0152d693099fb5ba # v4.35.5
+            with:
+                category: "/language:python"
+    scorecard:
+        name: Code Quality Scorecard
+        needs: fork-guard
+        runs-on: ubuntu-latest
+        steps:
+          - name: Harden Runner
+            uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+            with:
+                egress-policy: audit
+
+          - name: "Checkout code"
+            uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+            with:
+                persist-credentials: false
+
+          - name: "Run analysis"
+            uses: ossf/scorecard-action@4eaacf0543bb3f2c246792bd56e8cdeffafb205a # v2.4.3
+            with:
+                results_file: results.sarif
+                results_format: sarif
+                # (Optional) "write" PAT token. Uncomment the `repo_token` line below if:
+                # - you want to enable the Branch-Protection check on a *public* repository, or
+                # - you are installing Scorecard on a *private* repository
+                # To create the PAT, follow the steps in https://github.com/ossf/scorecard-action#authentication-with-pat.
+                # repo_token: ${{ secrets.SCORECARD_TOKEN }}
+
+                # Public repositories:
+                #   - Publish results to OpenSSF REST API for easy access by consumers
+                #   - Allows the repository to include the Scorecard badge.
+                #   - See https://github.com/ossf/scorecard-action#publishing-results.
+                # For private repositories:
+                #   - `publish_results` will always be set to `false`, regardless
+                #     of the value entered here.
+                publish_results: true
+
+            # Upload the results as artifacts (optional). Commenting out will disable uploads of run results in SARIF
+            # format to the repository Actions tab.
+          - name: "Upload artifact"
+            uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+            with:
+                name: SARIF file
+                path: results.sarif
+                retention-days: 5
+
+            # Upload the results to GitHub's code scanning dashboard.
+          - name: "Upload to code-scanning"
+            uses: github/codeql-action/upload-sarif@9e0d7b8d25671d64c341c19c0152d693099fb5ba # v4.35.5
+            with:
+                sarif_file: results.sarif
+    check-links:
+        needs: fork-guard
+        runs-on: ubuntu-latest
+        steps:
+          - name: Harden Runner
+            uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+            with:
+                egress-policy: audit
+
+          - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # master
+          - uses: gaurav-nelson/github-action-markdown-link-check@5c5dfc0ac2e225883c0e5f03a85311ec2830d368 # v1
+            # checks all markdown files from root but ignores subfolders
+            # By Removing the max-depth variable we can modify it -> to check all the .md files in the entire repo.
+            with:
+                use-quiet-mode: 'yes'
+                # Specifying yes to show only errors in the output
+                use-verbose-mode: 'yes'
+                # Specifying yes to show detailed HTTP status for checked links.
+                max-depth: 0
+
+    inactivity:
+        name: Inactivity Management
+        needs: fork-guard
+        runs-on: ubuntu-latest
+        steps:
+          - name: Harden Runner
+            uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+            with:
+                egress-policy: audit
+
+          - uses: actions/stale@eb5cf3af3ac0a1aa4c9c45633dd1ae542a27a899 # v10.3.0
+            with:
+                days-before-issue-stale: 60
+                days-before-issue-close: 60
+                stale-issue-label: "stale"
+                stale-issue-message: "This issue is stale because it has been open for 60 days with no activity."
+                close-issue-message: "This issue was closed because it has been inactive for 60 days since being marked as stale."
+                days-before-pr-stale: 60
+                days-before-pr-close: 60
+                stale-pr-label: "stale"
+                stale-pr-message: "This pull request is stale because it has been open for 60 days with no activity."
+                close-pr-message: "This pull request was closed because it has been inactive for 60 days since being marked as stale."
+                repo-token: ${{ secrets.GITHUB_TOKEN }}

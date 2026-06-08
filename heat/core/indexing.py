@@ -15,8 +15,8 @@ __all__ = ["nonzero", "where"]
 
 def nonzero(x: DNDarray) -> DNDarray:
     """
-    Return a :class:`~heat.core.dndarray.DNDarray` containing the indices of the elements that are non-zero.. (using ``torch.nonzero``)
-    If ``x`` is split then the result is split in the 0th dimension. However, this :class:`~heat.core.dndarray.DNDarray`
+    Return a :class:`~heat.core.dndarray.DNDarray` containing the indices of the elements that are non-zero (using ``torch.nonzero``).
+    If ``x`` is split then the result is split in the first dimension. However, this :class:`~heat.core.dndarray.DNDarray`
     can be UNBALANCED as it contains the indices of the non-zero elements on each node.
     Returns an array with one entry for each dimension of ``x``, containing the indices of the non-zero elements in that dimension.
     The values in ``x`` are always tested and returned in row-major, C-style order.
@@ -53,26 +53,23 @@ def nonzero(x: DNDarray) -> DNDarray:
     """
     sanitation.sanitize_in(x)
 
-    if x.split is None:
-        # if there is no split then just return the values from torch
-        lcl_nonzero = torch.nonzero(input=x.larray, as_tuple=False)
-        gout = list(lcl_nonzero.size())
-        is_split = None
-    else:
-        # a is split
-        lcl_nonzero = torch.nonzero(input=x.larray, as_tuple=False)
+    lcl_nonzero = torch.nonzero(input=x.larray, as_tuple=False)
+
+    # add offsets mapping from local indices to global indices if x is split
+    if x.split is not None:
         _, _, slices = x.comm.chunk(x.shape, x.split)
         lcl_nonzero[..., x.split] += slices[x.split].start
-        gout = list(lcl_nonzero.size())
-        gout[0] = x.comm.allreduce(gout[0], MPI.SUM)
-        is_split = 0
 
     if x.ndim == 1:
         lcl_nonzero = lcl_nonzero.squeeze(dim=1)
 
-    for g in range(len(gout) - 1, -1, -1):
-        if gout[g] == 1 and len(gout) > 1:
-            del gout[g]
+    # compute global shape of the index array
+    gout = list(lcl_nonzero.shape)
+    if x.split is None:
+        is_split = None
+    else:
+        gout[0] = x.comm.allreduce(gout[0], MPI.SUM)
+        is_split = 0
 
     return DNDarray(
         lcl_nonzero,

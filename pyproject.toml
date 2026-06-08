@@ -13,29 +13,49 @@ authors = [
     { name = "Daniel Coquelin", email = "daniel.coquelin@kit.edu"},
     { name = "Kai Krajsek", email = "k.krajsek@fz-juelich.de"},
     { name = "Claudia Comito", email = "c.comito@fz-juelich.de"},
-    { name = "Philipp Knechtges", email = "philipp.knechtges@dlr.de"},
     { name = "Björn Hagemeier", email = "b.hagemeier@fz-juelich.de"},
+    { name = "Michael Tarnawa", email = "m.tarnawa@fz-juelich.de"},
+    { name = "Philipp Knechtges", email = "philipp.knechtges@dlr.de"},
+    { name = "Fabian Hoppe", email = "f.hoppe@dlr.de"},
+    { name = "Hakan Akdag", email = "hakan.akdag@dlr.de"},
+    { name = "Alexander Rüttgers", email = "alexander.ruettgers@dlr.de"},
     { name = "Martin Siggel", email = "martin.siggel@dlr.de"},
     { name = "Achim Basermann", email = "achim.basermann@dlr.de"},
     { name = "Achim Streit", email = "achim.streit@kit.de"},
 ]
 maintainers = [
     { name = "Claudia Comito", email = "c.comito@fz-juelich.de"},
+    { name = "Thomas Saupe", email = "t.baumann@fz-juelich.de"},
     { name = "Michael Tarnawa", email = "m.tarnawa@fz-juelich.de"},
-    { name = "Fabian Hoppe", email = "f.hoppe@dlr.de"},
     { name = "Juan Pedro Gutiérrez Hermosillo Muriedas", email = "juan.muriedas@kit.edu"},
-    { name = "Hakan Akdag", email = "hakan.akdag@dlr.de"},
-    { name = "Berkant Palazoglu", email = "b.palazoglu@fz-juelich.de"}
 ]
 license = "MIT"
 license-files = ["LICENSE"]
-keywords=["data", "analytics", "tensors", "distributed", "gpu"]
+keywords = [
+    "python",
+    "pytorch",
+    "numpy",
+    "mpi",
+    "mpi4py",
+    "distributed computing",
+    "parallel computing",
+    "high-performance computing",
+    "hpc",
+    "gpu",
+    "multi-gpu",
+    "tensors",
+    "data analytics",
+    "machine learning",
+    "data science",
+    "scientific computing",
+    "array api"
+]
 classifiers=[
     "Development Status :: 5 - Production/Stable",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Intended Audience :: Science/Research",
     "Topic :: Scientific/Engineering",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
@@ -44,29 +64,30 @@ classifiers=[
     "Typing :: Typed"
 ]
 
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 
 dependencies = [
-    "mpi4py>=3.0.0",
-    "torch~=2.0,<2.10.1",
-    "torchvision~=0.15",
+    "mpi4py>=3.1",
+    "torch~=2.3,<2.11.1",
+    "torchvision~=0.18",
     "scipy~=1.14",
 ]
 
 [project.optional-dependencies]
 ## IO Modules
-hdf5 = ["h5py>=2.8.0"]
-netcdf = ["netCDF4>=1.5.6"]
-zarr = ["zarr"]
+hdf5 = ["h5py>=3.11"]
+netcdf = ["netCDF4>=1.7"]
+zarr = ["zarr<3.2"]
+pandas = ["pandas"]
 
 ## Examples and tutorial
 examples = [
     "scikit-learn",
-    "matplotlib~=3.1",
+    "matplotlib~=3.8",
     "jupyter",
     "ipyparallel",
     "pillow",
-    "h5py>=2.8.0",
+    "h5py>=3.11",
 ]
 
 dev = [
@@ -78,9 +99,17 @@ dev = [
     # Testing
     "pytest",
     "coverage",
+    "pytest-rerunfailures",
 
     # Benchmarking
     "perun",
+
+    # Additional dependencies required to run the entire test suite
+    "h5py>=3.11",
+    "netCDF4>=1.7",
+    "zarr<3.2",
+    "pandas",
+    "scikit-learn",
 ]
 
 docs = [
@@ -90,6 +119,8 @@ docs = [
     "nbsphinx",
     "sphinx-autobuild",
     "sphinx-copybutton",
+    "myst-parser",
+    "sphinxcontrib-mermaid",
 ]
 
 [project.scripts]
@@ -118,7 +149,7 @@ version = {attr = "heat.core.version.__version__"}
 # Mypy
 [tool.mypy]
 packages=["heat"]
-python_version="3.10"
+python_version="3.11"
 exclude=[
     'test_\w+\.py$',
     '^benchmarks/',
@@ -146,7 +177,7 @@ ignore_errors=false
 
 # Ruff
 [tool.ruff]
-target-version = "py310"
+target-version = "py311"
 exclude = ["tutorials", "examples", "benchmarks", "scripts", "**/tests/", "doc", "docker"]
 line-length = 100
 
@@ -159,6 +190,7 @@ ignore = [
     "E501",
     "F401",
     "F403",
+    "D104",
     "D105",
     "D107",
     "D200",
