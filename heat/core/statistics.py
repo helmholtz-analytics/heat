@@ -1084,8 +1084,8 @@ def median(
 
 
 DNDarray.median: Callable[[DNDarray, int, bool, bool, float], DNDarray] = (
-    lambda x, axis=None, keepdims=False, sketched=False, sketch_size=1.0 / MPI_WORLD.size: (
-        median(x, axis, keepdims, sketched=sketched, sketch_size=sketch_size)
+    lambda x, axis=None, keepdims=False, sketched=False, sketch_size=1.0 / MPI_WORLD.size: median(
+        x, axis, keepdims, sketched=sketched, sketch_size=sketch_size
     )
 )
 DNDarray.median.__doc__ = median.__doc__

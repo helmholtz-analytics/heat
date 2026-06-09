@@ -701,9 +701,7 @@ class MPICommunication(Communication):
 
     Bsend.__doc__ = MPI.Comm.Bsend.__doc__
 
-    def Ibsend(
-        self, buf: Any, dest: int, tag: int = 0
-    ) -> MPIRequest:
+    def Ibsend(self, buf: Any, dest: int, tag: int = 0) -> MPIRequest:
         """
         Nonblocking buffered send
 
@@ -720,9 +718,7 @@ class MPICommunication(Communication):
 
     Ibsend.__doc__ = MPI.Comm.Ibsend.__doc__
 
-    def Irsend(
-        self, buf: Any, dest: int, tag: int = 0
-    ) -> MPIRequest:
+    def Irsend(self, buf: Any, dest: int, tag: int = 0) -> MPIRequest:
         """
         Nonblocking ready send
 
@@ -756,9 +752,7 @@ class MPICommunication(Communication):
 
     Isend.__doc__ = MPI.Comm.Isend.__doc__
 
-    def Issend(
-        self, buf: Any, dest: int, tag: int = 0
-    ) -> MPIRequest:
+    def Issend(self, buf: Any, dest: int, tag: int = 0) -> MPIRequest:
         """
         Nonblocking synchronous send
 
@@ -775,7 +769,7 @@ class MPICommunication(Communication):
 
     Issend.__doc__ = MPI.Comm.Issend.__doc__
 
-    def Rsend(self, buf:Any, dest: int, tag: int = 0):
+    def Rsend(self, buf: Any, dest: int, tag: int = 0):
         """
         Blocking ready send
 
@@ -1346,7 +1340,7 @@ class MPICommunication(Communication):
                 if isinstance(sendbuf, torch.Tensor):
                     sendbuf = sendbuf.numpy()
                 np.copyto(sendbuf, recvbuf)
-                    
+
             return None, None, None, None, None
 
         # keep a reference to the original buffer object
@@ -1567,7 +1561,7 @@ class MPICommunication(Communication):
                 if isinstance(sendbuf, torch.Tensor):
                     sendbuf = sendbuf.numpy()
                 np.copyto(sendbuf, recvbuf)
-                    
+
             return None, None, None, None, None
 
         # keep a reference to the original buffer object
@@ -1697,7 +1691,7 @@ class MPICommunication(Communication):
                 - if ``send_axis`` or ``recv_axis`` are ``None``, an error will be thrown
         recv_axis: int
             Prior split axis, along which blocks are received from the individual ranks
-        """            
+        """
         ret, sbuf, rbuf, buf, permutation = self.__alltoall_like(
             self.handle.Alltoallv, sendbuf, recvbuf, send_axis, recv_axis
         )
@@ -2035,7 +2029,7 @@ class MPICommunication(Communication):
                     if isinstance(sendbuf, torch.Tensor):
                         sendbuf = sendbuf.numpy()
                     np.copyto(sendbuf, recvbuf)
-                    
+
             return None, None, None, None, None
 
         # keep a reference to the original buffer object
@@ -2296,7 +2290,7 @@ class MPICommunication(Communication):
                     if isinstance(sendbuf, torch.Tensor):
                         sendbuf = sendbuf.numpy()
                     np.copyto(sendbuf, recvbuf)
-                    
+
             return None, None, None, None, None
 
         # keep a reference to the original buffer object
@@ -2480,7 +2474,7 @@ class MPICommunication(Communication):
             The axis along which ``sendbuf`` is packed
         recv_axis: int
             The axis along which ``recvbuf`` is packed
-        """            
+        """
         ret, sbuf, rbuf, buf, permutation = self.__scatter_like(
             self.handle.Scatterv,
             sendbuf,
