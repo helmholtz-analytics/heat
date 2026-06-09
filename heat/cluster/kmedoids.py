@@ -145,7 +145,7 @@ class KMedoids(_KCluster):
 
             # update the centroids
             new_cluster_centers = self._update_centroids(x, matching_centroids)
-            
+
             # check whether centroid movement has converged
             if ht.equal(self._cluster_centers, new_cluster_centers):
                 break
