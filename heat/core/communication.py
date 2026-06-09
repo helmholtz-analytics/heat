@@ -34,7 +34,7 @@ class MPIRequest:
         The buffer to the receive data
     tensor: torch.Tensor
         Internal Data
-    permutation: Tuple[int,...]
+    permutation: tuple[int,...]
         Permutation of the tensor axes
     """
 
@@ -93,7 +93,7 @@ class Communication(ABC):
     @abstractmethod
     def chunk(
         self,
-        shape: Tuple[int],
+        shape: tuple[int],
         split: int,
         rank: int = None,
         w_size: int = None,
@@ -308,7 +308,7 @@ class MPICommunication(Communication):
 
         Returns
         -------
-        Tuple[MPI.Datatype, int]
+        tuple[MPI.Datatype, int]
             A tuple containing the constructed MPI data type and the count (always 1 in this case)
 
         Raises
@@ -358,9 +358,9 @@ class MPICommunication(Communication):
         ----------
         obj : DNDarray or torch.Tensor
             The object for which to construct the MPI data type and number of elements
-        counts : Tuple[ints,...], optional
+        counts : tuple[ints,...], optional
             Optional counts arguments for variable MPI-calls (e.g. Alltoallv)
-        displs : Tuple[ints,...], optional
+        displs : tuple[ints,...], optional
             Optional displacements arguments for variable MPI-calls (e.g. Alltoallv)
         is_contiguous: bool
             Information on global contiguity of the memory-distributed object. If `None`, it will be set to local contiguity via ``torch.Tensor.is_contiguous()``.
@@ -425,10 +425,10 @@ class MPICommunication(Communication):
     def as_buffer(
         cls,
         obj: torch.Tensor,
-        counts: Tuple[int] | None = None,
-        displs: Tuple[int] | None = None,
+        counts: tuple[int] | None = None,
+        displs: tuple[int] | None = None,
         is_contiguous: bool | None = None,
-    ) -> list[MPI.memory | Tuple[int, int] | MPI.Datatype]:
+    ) -> list[MPI.memory | tuple[int, int] | MPI.Datatype]:
         """
         Converts a passed ``torch.Tensor`` into a memory buffer object with associated number of elements and MPI data type.
 
@@ -436,9 +436,9 @@ class MPICommunication(Communication):
         ----------
         obj : torch.Tensor
             The object to be converted into a buffer representation.
-        counts : Tuple[int,...], optional
+        counts : tuple[int,...], optional
             Optional counts arguments for variable MPI-calls (e.g. Alltoallv)
-        displs : Tuple[int,...], optional
+        displs : tuple[int,...], optional
             Optional displacements arguments for variable MPI-calls (e.g. Alltoallv)
         is_contiguous: bool, optional
             Optional information on global contiguity of the memory-distributed object.
@@ -942,10 +942,10 @@ class MPICommunication(Communication):
             torch.dtype of underlying elements
         total_count: int
             Number of elements per mins OR per max (so recv buffer has 2*total_count elements)
-        shape: Tuple[int]
+        shape: tuple[int]
             Shape of the packed buffer that the MPI callback will operate on.
             This describes the logical shape of the concatenated buffer [mins; maxs]
-        stride: Tuple[int]
+        stride: tuple[int]
             Stride (in elements) of the packed buffer's storage, matching the layout
         offset: int, optional
             Storage offset (if needed), default 0
@@ -1073,7 +1073,7 @@ class MPICommunication(Communication):
             # Datatype and count shall be derived from the recv buffer, and applied to both, as they should match after the last code block
             buf = recvbuf
             rbuf = self._moveToCompDevice(buf, func)
-            recvbuf: Tuple[MPI.memory, int, MPI.Datatype] = self.as_buffer(rbuf, is_contiguous=True)
+            recvbuf: tuple[MPI.memory, int, MPI.Datatype] = self.as_buffer(rbuf, is_contiguous=True)
             if not recvbuf[2].is_predefined:
                 # If using a derived datatype, we need to define the reduce operation to be able to handle the it.
                 derived_op = self.__derived_op(rbuf, recvbuf[2], op)
@@ -1830,11 +1830,11 @@ class MPICommunication(Communication):
         ----------
         datatype : MPI.Datatype
             The base datatype to create the recursive vector datatype from.
-        tensor_stride : Tuple[int]
+        tensor_stride : tuple[int]
             A list of tensor strides for each dimension.
         subarray_sizes : List[int]
             A list of subarray sizes for each dimension.
-        start: List[int]
+        start: list[int]
             Index of the first element of the subarray in the original array.
 
         Notes
