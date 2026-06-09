@@ -171,8 +171,8 @@ class MPICommunication(Communication):
     def __init__(self, handle: MPI.Intracomm = MPI.COMM_WORLD):
         self.handle = handle
         try:
-            self.rank: Optional[int] = handle.Get_rank()
-            self.size: Optional[int] = handle.Get_size()
+            self.rank = handle.Get_rank()
+            self.size = handle.Get_size()
         except MPI.Exception:
             # ranks not within the group will fail with an MPI.Exception, this is expected
             self.rank = None
