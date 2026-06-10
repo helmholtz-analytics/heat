@@ -93,12 +93,12 @@ class Communication(ABC):
     @abstractmethod
     def chunk(
         self,
-        shape: tuple[int],
+        shape: tuple[int, ...],
         split: int,
         rank: int = None,
         w_size: int = None,
         sparse: bool = False,
-    ) -> tuple[int, tuple[int], tuple[slice]]:
+    ) -> tuple[int, tuple[int, ...], tuple[slice, ...]]:
         """
         Calculates the chunk of data that will be assigned to this compute node given a global data shape and a split
         axis.
@@ -425,10 +425,10 @@ class MPICommunication(Communication):
     def as_buffer(
         cls,
         obj: torch.Tensor,
-        counts: tuple[int] | None = None,
-        displs: tuple[int] | None = None,
+        counts: tuple[int, ...] | None = None,
+        displs: tuple[int, ...] | None = None,
         is_contiguous: bool | None = None,
-    ) -> list[MPI.memory | tuple[int, int] | MPI.Datatype]:
+    ) -> list[MPI.memory, tuple[int, int], MPI.Datatype]:
         """
         Converts a passed ``torch.Tensor`` into a memory buffer object with associated number of elements and MPI data type.
 
@@ -474,7 +474,7 @@ class MPICommunication(Communication):
 
     def alltoall_sendbuffer(
         self, obj: torch.Tensor
-    ) -> list[MPI.memory | tuple[int, int] | MPI.Datatype]:
+    ) -> list[MPI.memory, tuple[list[int], list[int]], list[MPI.Datatype]]:
         """
         Converts a passed ``torch.Tensor`` into a memory buffer object with associated number of elements and MPI data type.
         XXX: might not work for all MPI stacks. Might require multiple type commits or so
@@ -539,7 +539,7 @@ class MPICommunication(Communication):
 
     def alltoall_recvbuffer(
         self, obj: torch.Tensor
-    ) -> list[MPI.memory | tuple[int, int] | MPI.Datatype]:
+    ) -> list[MPI.memory, tuple[list[int], list[int]], list[MPI.Datatype]]:
         """
         Converts a passed ``torch.Tensor`` into a memory buffer object with associated number of elements and MPI data type.
         XXX: might not work for all MPI stacks. Might require multiple type commits or so
@@ -628,7 +628,7 @@ class MPICommunication(Communication):
         source: int = MPI.ANY_SOURCE,
         tag: int = MPI.ANY_TAG,
         status: MPI.Status | None = None,
-    ):
+    ) -> None:
         """
         Blocking receive
 
@@ -659,7 +659,7 @@ class MPICommunication(Communication):
 
     def __send_like(
         self, func: Callable, buf: Any, dest: int, tag: int
-    ) -> tuple[DNDarray | torch.Tensor | None]:
+    ) -> tuple[MPI.Request | None, torch.Tensor | None]:
         """
         Generic function for sending a message to process with rank "dest"
 
@@ -684,7 +684,7 @@ class MPICommunication(Communication):
 
         return func(self.as_buffer(sbuf), dest, tag), sbuf
 
-    def Bsend(self, buf: Any, dest: int, tag: int = 0):
+    def Bsend(self, buf: Any, dest: int, tag: int = 0) -> None:
         """
         Blocking buffered send
 
@@ -769,7 +769,7 @@ class MPICommunication(Communication):
 
     Issend.__doc__ = MPI.Comm.Issend.__doc__
 
-    def Rsend(self, buf: Any, dest: int, tag: int = 0):
+    def Rsend(self, buf: Any, dest: int, tag: int = 0) -> None:
         """
         Blocking ready send
 
@@ -786,7 +786,7 @@ class MPICommunication(Communication):
 
     Rsend.__doc__ = MPI.Comm.Rsend.__doc__
 
-    def Ssend(self, buf: Any, dest: int, tag: int = 0):
+    def Ssend(self, buf: Any, dest: int, tag: int = 0) -> None:
         """
         Blocking synchronous send
 
@@ -803,7 +803,7 @@ class MPICommunication(Communication):
 
     Ssend.__doc__ = MPI.Comm.Ssend.__doc__
 
-    def Send(self, buf: Any, dest: int, tag: int = 0):
+    def Send(self, buf: Any, dest: int, tag: int = 0) -> None:
         """
         Blocking send
 
@@ -822,7 +822,7 @@ class MPICommunication(Communication):
 
     def __broadcast_like(
         self, func: Callable, buf: Any, root: int
-    ) -> tuple[DNDarray | torch.Tensor | None]:
+    ) -> tuple[MPI.Request | None, torch.Tensor | None, torch.Tensor | None, torch.Tensor | None]:
         """
         Generic function for broadcasting a message from the process with rank "root" to all other processes of the
         communicator
@@ -987,7 +987,7 @@ class MPICommunication(Communication):
         op: MPI.Op,
         *args: Any,
         **kwargs: Any,
-    ) -> tuple[DNDarray | torch.Tensor | None]:
+    ) -> tuple[MPI.Request | None, torch.Tensor | None, torch.Tensor | None, torch.Tensor | None]:
         """
         Generic function for reduction operations.
 
@@ -1095,7 +1095,7 @@ class MPICommunication(Communication):
         sendbuf: Any,
         recvbuf: Any,
         op: MPI.Op = MPI.SUM,
-    ):
+    ) -> None:
         """
         Combines values from all processes and distributes the result back to all processes
 
@@ -1120,7 +1120,7 @@ class MPICommunication(Communication):
         sendbuf: Any,
         recvbuf: Any,
         op: MPI.Op = MPI.SUM,
-    ):
+    ) -> None:
         """
         Computes the exclusive scan (partial reductions) of data on a collection of processes
 
@@ -1237,7 +1237,7 @@ class MPICommunication(Communication):
         recvbuf: Any,
         op: MPI.Op = MPI.SUM,
         root: int = 0,
-    ):
+    ) -> None:
         """
         Reduce values from all processes to a single value on process "root"
 
@@ -1264,7 +1264,7 @@ class MPICommunication(Communication):
         sendbuf: Any,
         recvbuf: Any,
         op: MPI.Op = MPI.SUM,
-    ):
+    ) -> None:
         """
         Computes the scan (partial reductions) of data on a collection of processes in a nonblocking way
 
@@ -1291,7 +1291,13 @@ class MPICommunication(Communication):
         recvbuf: Any,
         axis: int,
         **kwargs,
-    ):
+    ) -> tuple[
+        MPI.Request | None,
+        torch.Tensor | None,
+        torch.Tensor | None,
+        torch.Tensor | None,
+        list | None,
+    ]:
         """
         Generic function for allgather operations.
 
@@ -1338,7 +1344,7 @@ class MPICommunication(Communication):
                 recvbuf.copy_(sendbuf)
             elif isinstance(recvbuf, np.ndarray):
                 if isinstance(sendbuf, torch.Tensor):
-                    sendbuf = sendbuf.numpy()
+                    sendbuf = sendbuf.cpu().numpy()
                 np.copyto(sendbuf, recvbuf)
 
             return None, None, None, None, None
@@ -1388,7 +1394,7 @@ class MPICommunication(Communication):
         sendbuf: Any,
         recvbuf: Any,
         recv_axis: int = 0,
-    ):
+    ) -> None:
         """
         Gathers data from all tasks and distribute the combined data to all tasks
 
@@ -1417,7 +1423,7 @@ class MPICommunication(Communication):
         sendbuf: Any,
         recvbuf: Any,
         recv_axis: int = 0,
-    ):
+    ) -> None:
         """
         v-call of Allgather: Each process may contribute a different amount of data.
 
@@ -1497,7 +1503,13 @@ class MPICommunication(Communication):
         send_axis: int,
         recv_axis: int,
         **kwargs,
-    ):
+    ) -> tuple[
+        MPI.Request | None,
+        torch.Tensor | None,
+        torch.Tensor | None,
+        torch.Tensor | None,
+        list[int] | None,
+    ]:
         """
         Generic function for alltoall operations.
 
@@ -1559,7 +1571,7 @@ class MPICommunication(Communication):
                 recvbuf.copy_(sendbuf)
             elif isinstance(recvbuf, np.ndarray):
                 if isinstance(sendbuf, torch.Tensor):
-                    sendbuf = sendbuf.numpy()
+                    sendbuf = sendbuf.cpu().numpy()
                 np.copyto(sendbuf, recvbuf)
 
             return None, None, None, None, None
@@ -1637,7 +1649,7 @@ class MPICommunication(Communication):
         recvbuf: Any,
         send_axis: int = 0,
         recv_axis: int = None,
-    ):
+    ) -> None:
         """
         All processes send data to all processes: The jth block sent from process i is received by process j and is
         placed in the ith block of recvbuf.
@@ -1673,7 +1685,7 @@ class MPICommunication(Communication):
         recvbuf: Any,
         send_axis: int = 0,
         recv_axis: int = None,
-    ):
+    ) -> None:
         """
         v-call of Alltoall: All processes send different amount of data to, and receive different amount of data
         from, all processes
@@ -1707,7 +1719,7 @@ class MPICommunication(Communication):
         self,
         sendbuf: Any,
         recvbuf: Any,
-    ):
+    ) -> None:
         """
         Generalized All-to-All communication allowing different counts, displacements and datatypes for each partner. See MPI standard for more information.
 
@@ -1971,7 +1983,13 @@ class MPICommunication(Communication):
         send_factor: int = 1,
         recv_factor: int = 1,
         **kwargs,
-    ):
+    ) -> tuple[
+        MPI.Request | None,
+        torch.Tensor | None,
+        torch.Tensor | None,
+        torch.Tensor | None,
+        list[int] | None,
+    ]:
         """
         Generic function for gather operations.
 
@@ -2083,7 +2101,7 @@ class MPICommunication(Communication):
         root: int = 0,
         axis: int = 0,
         recv_axis: int = None,
-    ):
+    ) -> None:
         """
         Gathers together values from a group of processes
 
@@ -2118,7 +2136,7 @@ class MPICommunication(Communication):
         root: int = 0,
         axis: int = 0,
         recv_axis: int = None,
-    ):
+    ) -> None:
         """
         v-call for Gather: All processes send different amount of data
 
@@ -2232,7 +2250,13 @@ class MPICommunication(Communication):
         send_factor: int = 1,
         recv_factor: int = 1,
         **kwargs,
-    ):
+    ) -> tuple[
+        MPI.Request | None,
+        torch.Tensor | None,
+        torch.Tensor | None,
+        torch.Tensor | None,
+        list[int] | None,
+    ]:
         """
         Generic function for scatter operations.
 
@@ -2423,7 +2447,7 @@ class MPICommunication(Communication):
         root: int = 0,
         axis: int = 0,
         recv_axis: int = None,
-    ):
+    ) -> None:
         """
         Sends data parts from one process to all other processes in a communicator
 
@@ -2458,7 +2482,7 @@ class MPICommunication(Communication):
         root: int = 0,
         axis: int = 0,
         recv_axis: int = None,
-    ):
+    ) -> None:
         """
         v-call for Scatter: Sends different amounts of data to different processes
 
