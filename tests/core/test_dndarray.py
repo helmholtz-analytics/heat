@@ -707,6 +707,150 @@ class TestDNDarray(TestCase):
             with self.assertRaises(TypeError):
                 float(ht.full((ht.MPI_WORLD.size,), 2, split=0))
 
+    def test_getitem(self):
+        # following https://numpy.org/doc/stable/user/basics.indexing.html
+
+        # Single element indexing
+        # 1D, local
+        x = ht.arange(10)
+        self.assertTrue(x[2].item() == 2)
+        self.assertTrue(x[-2].item() == 8)
+        self.assertTrue(x[2].dtype == ht.int32)
+        # 1D, distributed
+        x = ht.arange(10, split=0, dtype=ht.float64)
+        self.assertTrue(x[2].item() == 2.0)
+        self.assertTrue(x[-2].item() == 8.0)
+        self.assertTrue(x[2].dtype == ht.float64)
+        self.assertTrue(x[2].split is None)
+        # 2D, local
+        x = ht.arange(10).reshape(2, 5)
+        self.assertTrue((x[0] == ht.arange(5)).all().item())
+        self.assertTrue(x[0].dtype == ht.int32)
+        # 2D, distributed
+        x_split0 = ht.array(x, split=0)
+        self.assertTrue((x_split0[0] == ht.arange(5, split=None)).all().item())
+        x_split1 = ht.array(x, split=1)
+        self.assertTrue((x_split1[-2] == ht.arange(5, split=0)).all().item())
+        # 3D, local
+        x = ht.arange(27).reshape(3, 3, 3)
+        key = -2
+        indexed = x[key]
+        self.assertTrue((indexed.larray == x.larray[key]).all())
+        self.assertTrue(indexed.dtype == ht.int32)
+        self.assertTrue(indexed.split is None)
+        # 3D, distributed, split = 0
+        x_split0 = ht.array(x, dtype=ht.float32, split=0)
+        indexed_split0 = x_split0[key]
+        self.assertTrue((indexed_split0.larray == x.larray[key]).all())
+        self.assertTrue(indexed_split0.dtype == ht.float32)
+        self.assertTrue(indexed_split0.split is None)
+        # 3D, distributed split, != 0
+        x_split2 = ht.array(x, dtype=ht.int64, split=2)
+        key = ht.array(2)
+        indexed_split2 = x_split2[key]
+        self.assertTrue((indexed_split2.numpy() == x.numpy()[key.item()]).all())
+        self.assertTrue(indexed_split2.dtype == ht.int64)
+        self.assertTrue(indexed_split2.split == 1)
+
+        # Slicing and striding
+        x = ht.arange(20, split=0)
+        x_sliced = x[1:11:3]
+        x_np = np.arange(20)
+        x_sliced_np = x_np[1:11:3]
+        self.assert_array_equal(x_sliced, x_sliced_np)
+        self.assertTrue(x_sliced.split == 0)
+
+        # 1-element slice along split axis
+        x = ht.arange(20).reshape(4, 5)
+        x.resplit_(axis=1)
+        x_sliced = x[:, 2:3]
+        x_np = np.arange(20).reshape(4, 5)
+        x_sliced_np = x_np[:, 2:3]
+        self.assert_array_equal(x_sliced, x_sliced_np)
+        self.assertTrue(x_sliced.split == 1)
+
+        # tests for bug 730:
+        a = ht.ones((10, 25, 30), split=1)
+        if a.comm.size > 1:
+            self.assertEqual(a[0].split, 0)
+            self.assertEqual(a[:, 0, :].split, None)
+            self.assertEqual(a[:, :, 0].split, 1)
+
+        # DIMENSIONAL INDEXING
+        # ellipsis
+        x_np = np.array([[[1], [2], [3]], [[4], [5], [6]]])
+        x_np_ellipsis = x_np[..., 0]
+        x = ht.array([[[1], [2], [3]], [[4], [5], [6]]])
+
+        # local
+        x_ellipsis = x[..., 0]
+        x_slice = x[:, :, 0]
+        self.assert_array_equal(x_ellipsis, x_np_ellipsis)
+        self.assert_array_equal(x_slice, x_np_ellipsis)
+
+        # distributed
+        x.resplit_(axis=1)
+        x_ellipsis = x[..., 0]
+        x_slice = x[:, :, 0]
+        self.assert_array_equal(x_ellipsis, x_np_ellipsis)
+        self.assert_array_equal(x_slice, x_np_ellipsis)
+        self.assertTrue(x_ellipsis.split == 1)
+
+        # newaxis: local
+        x = ht.array([[[1], [2], [3]], [[4], [5], [6]]])
+        x_np_newaxis = x_np[:, np.newaxis, :2, :]
+        x_newaxis = x[:, np.newaxis, :2, :]
+        x_none = x[:, None, :2, :]
+        self.assert_array_equal(x_newaxis, x_np_newaxis)
+        self.assert_array_equal(x_none, x_np_newaxis)
+
+        # newaxis: distributed
+        x.resplit_(axis=1)
+        x_newaxis = x[:, np.newaxis, :2, :]
+        x_none = x[:, None, :2, :]
+        self.assert_array_equal(x_newaxis, x_np_newaxis)
+        self.assert_array_equal(x_none, x_np_newaxis)
+        self.assertTrue(x_newaxis.split == 2)
+        self.assertTrue(x_none.split == 2)
+
+        x = ht.arange(5, split=0)
+        x_np = np.arange(5)
+        y = x[:, np.newaxis] + x[np.newaxis, :]
+        y_np = x_np[:, np.newaxis] + x_np[np.newaxis, :]
+        self.assert_array_equal(y, y_np)
+        self.assertTrue(y.split == 0)
+
+        # ADVANCED INDEXING
+        # "x[(1, 2, 3),] is fundamentally different from x[(1, 2, 3)]"
+
+        # advanced indexing on non-consecutive dimensions
+        x = ht.arange(60, split=0).reshape(5, 3, 4, new_split=1)
+        x_copy = x.copy()
+        x_np = np.arange(60).reshape(5, 3, 4)
+        k1 = np.array([0, 4, 1, 0])
+        k2 = 0
+        k3 = np.array([1, 2, 3, 1])
+        key = (k1, k2, k3)
+        self.assert_array_equal(x[key], x_np[key])
+        # check that x is unchanged after internal manipulation
+        self.assertTrue(x.shape == x_copy.shape)
+        self.assertTrue(x.split == x_copy.split)
+        self.assertTrue(x.lshape == x_copy.lshape)
+        self.assertTrue((x == x_copy).all().item())
+
+        # combining advanced and basic indexing
+        y_np = np.arange(35).reshape(5, 7)
+        y_np_indexed = y_np[np.array([0, 2, 4]), 1:3]
+        y = ht.array(y_np, split=1)
+        y_indexed = y[ht.array([0, 2, 4]), 1:3]
+        self.assert_array_equal(y_indexed, y_np_indexed)
+        self.assertTrue(y_indexed.split == 1)
+
+        # boolean edge case
+        idx = ht.array([2, 0, 1], split=0)
+        mask = ht.array([True, False, True], split=0)
+        self.assertTrue((idx[mask] == ht.array([2, 1], dtype=idx.dtype, split=0)).all().item())
+
     def test_int_cast(self):
         # simple scalar tensor
         a = ht.ones(1)
@@ -1267,6 +1411,77 @@ class TestDNDarray(TestCase):
         self.assertTrue(ht.array(res).device == heat_array.device)
         self.assertTrue(ht.all(heat_array == ht.array(res)))
         self.assertEqual(heat_array.split, 1)
+
+    def test_setitem(self):
+        # following https://numpy.org/doc/stable/user/basics.indexing.html
+
+        # Single element indexing
+        # 1D, local
+        x = ht.zeros(10)
+        x[2] = 2
+        x[-2] = 8
+        self.assertTrue(x[2].item() == 2)
+        self.assertTrue(x[-2].item() == 8)
+        self.assertTrue(x[2].dtype == ht.float32)
+        # 1D, distributed
+        x = ht.zeros(10, split=0, dtype=ht.float64)
+        x[2] = 2
+        x[-2] = 8
+        self.assertTrue(x[2].item() == 2.0)
+        self.assertTrue(x[-2].item() == 8.0)
+        self.assertTrue(x[2].dtype == ht.float64)
+        self.assertTrue(x.split == 0)
+        # 2D, local
+        x = ht.zeros(10).reshape(2, 5)
+        x[0] = ht.arange(5)
+        self.assertTrue((x[0] == ht.arange(5)).all().item())
+        self.assertTrue(x[0].dtype == ht.float32)
+        # 2D, distributed
+        x_split0 = ht.zeros(10, split=0).reshape(2, 5)
+        x_split0[0] = ht.arange(5)
+        self.assertTrue((x_split0[0] == ht.arange(5, split=None)).all().item())
+        x_split1 = ht.zeros(10, split=0).reshape(2, 5, new_split=1)
+        x_split1[-2] = ht.arange(5)
+        self.assertTrue((x_split1[-2] == ht.arange(5, split=0)).all().item())
+
+        # DIMENSIONAL INDEXING
+
+        # ellipsis
+        x = ht.array([[[1], [2], [3]], [[4], [5], [6]]])
+        # local
+        value = x.squeeze() + 7
+        x[..., 0] = value
+        self.assertTrue(ht.all(x[..., 0] == value).item())
+        value -= 7
+        x[:, :, 0] = value
+        self.assertTrue(ht.all(x[:, :, 0] == value).item())
+
+        # distributed
+        x.resplit_(axis=1)
+        value *= 2
+        x[..., 0] = value
+        x_ellipsis = x[..., 0]
+        self.assertTrue(ht.all(x_ellipsis == value).item())
+        value += 2
+        x[:, :, 0] = value
+        self.assertTrue(ht.all(x[:, :, 0] == value).item())
+        self.assertTrue(x_ellipsis.split == 1)
+
+        # newaxis: local, w. broadcasting and different dtype
+        x = ht.array([[[1], [2], [3]], [[4], [5], [6]]])
+        value = ht.array([10.0, 20.0]).reshape(2, 1)
+        x[:, None, :2, :] = value
+        x_newaxis = x[:, None, :2, :]
+        self.assertTrue(ht.all(x_newaxis == value).item())
+        value += 2
+        x[:, None, :2, :] = value
+        self.assertTrue(ht.all(x[:, None, :2, :] == value).item())
+        self.assertTrue(x[:, None, :2, :].dtype == x.dtype)
+
+        # ADVANCED INDEXING
+        # "x[(1, 2, 3),] is fundamentally different from x[(1, 2, 3)]"
+
+        # TODO: n-d value
 
     def test_setitem_getitem(self):
         # tests for bug #825
