@@ -15,7 +15,7 @@ from typing import Any, Callable, Optional, List, Tuple, Union
 
 from .stride_tricks import sanitize_axis
 
-from ._config import GPU_AWARE_MPI
+from ._config import GPU_AWARE_MPI, mpi_library
 
 
 class MPIRequest:
@@ -55,11 +55,25 @@ class MPIRequest:
         Waits for an MPI request to complete
         """
         self.handle.Wait(status)
-        if self.tensor is not None and isinstance(self.tensor, torch.Tensor):
-            if self.permutation is not None:
-                self.recvbuf = self.recvbuf.permute(self.permutation)
-        if self.tensor is not None and self.tensor.is_cuda and not GPU_AWARE_MPI:
-            self.tensor.copy_(self.recvbuf)
+
+        # Apply permutation if needed (for all buffer types)
+        if self.permutation is not None and self.recvbuf is not None:
+            self.recvbuf = self.recvbuf.permute(self.permutation)
+
+        # Copy result from CPU back to GPU if needed
+        if self.tensor is not None:
+            tensor_device = (
+                self.tensor.device
+                if isinstance(self.tensor, torch.Tensor)
+                else self.tensor.larray.device
+            )
+            recvbuf_device = self.recvbuf.device
+
+            if tensor_device != recvbuf_device:
+                if isinstance(self.tensor, torch.Tensor):
+                    self.tensor.copy_(self.recvbuf.to(tensor_device))
+                else:
+                    self.tensor.larray.copy_(self.recvbuf.to(tensor_device))
 
     def __getattr__(self, name: str) -> Callable:
         """
@@ -382,8 +396,8 @@ class MPICommunication(Communication):
         # chain the types based on the
         for i in range(len(shape) - 1, -1, -1):
             mpi_type = mpi_type.Create_vector(shape[i], 1, strides[i]).Create_resized(0, offsets[i])
-            mpi_type.Commit()
 
+        mpi_type.Commit()
         if counts is not None:
             return mpi_type, (counts, displs)
 
@@ -444,9 +458,25 @@ class MPICommunication(Communication):
         return [mpi_mem, elements, mpi_type]
 
     def _moveToCompDevice(self, x: torch.Tensor, func: Callable | None) -> torch.Tensor:
-        """Moves the torch tensor to the relevant device, in case the function is not compatible with the MPI+GPU library."""
+        """
+        Moves the torch tensor to the relevant device, in case the function is not compatible with the MPI+GPU library.
+
+        Parameters
+        ----------
+        x: torch.Tensor
+            The tensor to be moved to the relevant device
+        func: Callable
+            The MPI function that is intended to be called with the tensor, used to check for compatibility with the MPI+GPU library
+
+        Returns
+        -------
+        torch.Tensor
+            The tensor on the relevant device for the MPI function
+        """
         if x.is_cuda:
-            if GPU_AWARE_MPI:
+            if GPU_AWARE_MPI and func.__name__ not in mpi_library.incompatible_operations.get(
+                "cuda", []
+            ):
                 torch.cuda.synchronize(x.device)
                 return x
             else:
@@ -847,8 +877,11 @@ class MPICommunication(Communication):
             Rank of the root process, that broadcasts the message
         """
         ret, sbuf, rbuf, buf = self.__broadcast_like(self.handle.Bcast, buf, root)
-        if buf is not None and isinstance(buf, torch.Tensor) and buf.is_cuda and not GPU_AWARE_MPI:
-            buf.copy_(rbuf)
+        if buf is not None and not GPU_AWARE_MPI:
+            if isinstance(buf, torch.Tensor) and buf.is_cuda:
+                buf.copy_(rbuf)
+            elif isinstance(buf, DNDarray) and buf.larray.is_cuda:
+                buf.larray.copy_(rbuf)
         return ret
 
     Bcast.__doc__ = MPI.Comm.Bcast.__doc__
@@ -1084,8 +1117,11 @@ class MPICommunication(Communication):
             The operation to perform upon reduction
         """
         ret, sbuf, rbuf, buf = self.__reduce_like(self.handle.Allreduce, sendbuf, recvbuf, op)
-        if buf is not None and isinstance(buf, torch.Tensor) and buf.is_cuda and not GPU_AWARE_MPI:
-            buf.copy_(rbuf)
+        if buf is not None and not GPU_AWARE_MPI:
+            if isinstance(buf, torch.Tensor) and buf.is_cuda:
+                buf.copy_(rbuf)
+            elif isinstance(buf, DNDarray) and buf.larray.is_cuda:
+                buf.larray.copy_(rbuf)
         return ret
 
     Allreduce.__doc__ = MPI.Comm.Allreduce.__doc__
@@ -1341,7 +1377,7 @@ class MPICommunication(Communication):
             rbuf = recvbuf
             mpi_recvbuf = recvbuf
 
-        # perform the scatter operation
+        # perform the allgather operation
         exit_code = func(mpi_sendbuf, mpi_recvbuf, **kwargs)
 
         return exit_code, sbuf, rbuf, original_recvbuf, recv_axis_permutation
@@ -1369,8 +1405,12 @@ class MPICommunication(Communication):
         )
         if buf is not None and isinstance(buf, torch.Tensor) and permutation is not None:
             rbuf = rbuf.permute(permutation)
-        if isinstance(buf, torch.Tensor) and buf.is_cuda and not GPU_AWARE_MPI:
-            buf.copy_(rbuf)
+
+        if buf is not None and not GPU_AWARE_MPI:
+            if isinstance(buf, torch.Tensor) and buf.is_cuda:
+                buf.copy_(rbuf)
+            elif isinstance(buf, DNDarray) and buf.larray.is_cuda:
+                buf.larray.copy_(rbuf)
         return ret
 
     Allgather.__doc__ = MPI.Comm.Allgather.__doc__
@@ -1398,8 +1438,12 @@ class MPICommunication(Communication):
         )
         if buf is not None and isinstance(buf, torch.Tensor) and permutation is not None:
             rbuf = rbuf.permute(permutation)
-        if isinstance(buf, torch.Tensor) and buf.is_cuda and not GPU_AWARE_MPI:
-            buf.copy_(rbuf)
+        print("Unpermuted")
+        if buf is not None and not GPU_AWARE_MPI:
+            if isinstance(buf, torch.Tensor) and buf.is_cuda:
+                buf.copy_(rbuf)
+            elif isinstance(buf, DNDarray) and buf.larray.is_cuda:
+                buf.larray.copy_(rbuf)
         return ret
 
     Allgatherv.__doc__ = MPI.Comm.Allgatherv.__doc__
@@ -1796,7 +1840,6 @@ class MPICommunication(Communication):
         ...     datatype, tensor_stride, subarray_sizes
         ... )
         """
-        datatype_history = []
         current_datatype = datatype
 
         i = len(tensor_stride) - 1
@@ -1816,25 +1859,21 @@ class MPICommunication(Communication):
                 next_size = subarray_sizes[i]
                 new_vector_datatype = current_datatype.Create_vector(
                     next_size, current_size, current_stride
-                ).Commit()
+                )
 
             else:
                 if i == len(tensor_stride) - 1:
                     new_vector_datatype = current_datatype.Create_vector(
                         current_size, 1, current_stride
-                    ).Commit()
+                    )
                 else:
-                    new_vector_datatype = current_datatype.Create_vector(
-                        current_size, 1, 1
-                    ).Commit()
+                    new_vector_datatype = current_datatype.Create_vector(current_size, 1, 1)
 
-            datatype_history.append(new_vector_datatype)
             # Set extent of the new datatype to the extent of the basic datatype to allow interweaving of data
             next_stride = tensor_stride[i - 1]
             new_resized_vector_datatype = new_vector_datatype.Create_resized(
                 0, datatype.Get_extent()[1] * next_stride
-            ).Commit()
-            datatype_history.append(new_resized_vector_datatype)
+            )
             current_datatype = new_resized_vector_datatype
 
             i -= 1
@@ -1842,8 +1881,6 @@ class MPICommunication(Communication):
         displacement = sum([x * y for x, y in zip(tensor_stride, start)]) * datatype.Get_extent()[1]
         current_datatype = current_datatype.Create_hindexed_block(1, [displacement]).Commit()
 
-        for dt in datatype_history[:-1]:
-            dt.Free()
         return current_datatype
 
     def Ialltoall(
