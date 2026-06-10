@@ -190,7 +190,7 @@ def sanitize_device(device: Optional[Union[str, Device]] = None) -> Device:
         return __device_mapping[device.strip().lower()]
     except (AttributeError, KeyError, TypeError):
         raise ValueError(
-            f"Unknown device {device!r}, must be one of {', '.join(__device_mapping.keys())}"
+            f"Unknown device {device!r}, must be one of {tuple(__device_mapping.keys())}"
         )
 
 
