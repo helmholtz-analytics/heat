@@ -2520,17 +2520,17 @@ class DNDarray:
         """
         return self.split is not None and self.comm.is_distributed()
 
-    @staticmethod
-    def __key_is_singular(key: any, axis: int, self_proxy: torch.Tensor) -> bool:
-        # determine if the key gets a singular item
-        zeros = (0,) * (self_proxy.ndim - 1)
-        return self_proxy[(*zeros[:axis], key[axis], *zeros[axis:])].ndim == 0
+    # @staticmethod
+    # def __key_is_singular(key: any, axis: int, self_proxy: torch.Tensor) -> bool:
+    #     # determine if the key gets a singular item
+    #     zeros = (0,) * (self_proxy.ndim - 1)
+    #     return self_proxy[(*zeros[:axis], key[axis], *zeros[axis:])].ndim == 0
 
-    @staticmethod
-    def __key_adds_dimension(key: any, axis: int, self_proxy: torch.Tensor) -> bool:
-        # determine if the key adds a new dimension
-        zeros = (0,) * (self_proxy.ndim - 1)
-        return self_proxy[(*zeros[:axis], key[axis], *zeros[axis:])].ndim == 2
+    # @staticmethod
+    # def __key_adds_dimension(key: any, axis: int, self_proxy: torch.Tensor) -> bool:
+    #     # determine if the key adds a new dimension
+    #     zeros = (0,) * (self_proxy.ndim - 1)
+    #     return self_proxy[(*zeros[:axis], key[axis], *zeros[axis:])].ndim == 2
 
     def item(self):
         """
@@ -3644,32 +3644,32 @@ class DNDarray:
             .refine_names(*names)
         )
 
-    @staticmethod
-    def __xitem_get_key_start_stop(
-        rank: int,
-        actives: list,
-        key_st: int,
-        key_sp: int,
-        step: int,
-        ends: torch.Tensor,
-        og_key_st: int,
-    ) -> tuple[int, int]:
-        # this does some basic logic for adjusting the starting and stoping of the a key for
-        #   setitem and getitem
-        if step is not None and rank > actives[0]:
-            offset = (ends[rank - 1] - og_key_st) % step
-            if step > 2 and offset > 0:
-                key_st += step - offset
-            elif step == 2 and offset > 0:
-                key_st += (ends[rank - 1] - og_key_st) % step
-        if isinstance(key_st, torch.Tensor):
-            key_st = key_st.item()
-        if isinstance(key_sp, torch.Tensor):
-            key_sp = key_sp.item()
-        return key_st, key_sp
+    # @staticmethod
+    # def __xitem_get_key_start_stop(
+    #     rank: int,
+    #     actives: list,
+    #     key_st: int,
+    #     key_sp: int,
+    #     step: int,
+    #     ends: torch.Tensor,
+    #     og_key_st: int,
+    # ) -> tuple[int, int]:
+    #     # this does some basic logic for adjusting the starting and stoping of the a key for
+    #     #   setitem and getitem
+    #     if step is not None and rank > actives[0]:
+    #         offset = (ends[rank - 1] - og_key_st) % step
+    #         if step > 2 and offset > 0:
+    #             key_st += step - offset
+    #         elif step == 2 and offset > 0:
+    #             key_st += (ends[rank - 1] - og_key_st) % step
+    #     if isinstance(key_st, torch.Tensor):
+    #         key_st = key_st.item()
+    #     if isinstance(key_sp, torch.Tensor):
+    #         key_sp = key_sp.item()
+    #     return key_st, key_sp
 
 
-# HeAT imports at the end to break cyclic dependencies
+# Heat imports at the end to break cyclic dependencies
 from . import complex_math
 from . import devices
 from . import factories
