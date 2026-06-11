@@ -903,50 +903,66 @@ class DNDarray:
 
         return self
 
-    def __process_key(
+    def __resolve_indexing_state(
         arr: "DNDarray",
         key: tuple[int, ...] | list[int],
         return_local_indices: bool | None = False,
         op: str | None = None,
-    ) -> tuple:
+    ) -> tuple["DNDarray", ProcessedKey]:
         """
-        Private method to process the key used for indexing a ``DNDarray`` so that it can be applied to the process-local data, i.e. `key` must be "torch-proof".
-        In a processed key:
-        - any ellipses or newaxis have been replaced with the appropriate number of slice objects
-        - ndarrays and DNDarrays have been converted to torch tensors
-        - the dimensionality is the same as the ``DNDarray`` it indexes
-        This function also manipulates `arr` if necessary, inserting and/or transposing dimensions as indicated by `key`. It calculates the output shape, split axis and balanced status of the indexed array.
+        Private helper function to align the indexing key and the array for distributed indexing operations.
+        This function is used internally by both ``__getitem__`` and ``__setitem__`` pipelines.
+
+        After processing the key, the following conditions are guaranteed:
+        - Any ellipses (`...`) or newaxis (`None`) objects have been replaced with the appropriate number of slice objects.
+        - ``np.ndarray`` and ``DNDarray`` objects have been converted to process-local ``torch.Tensor`` objects.
+        - The dimensionality of the key perfectly matches the (potentially modified) ``DNDarray`` it indexes.
+        - Negative indices have been wrapped appropriately.
+
+        This function also manipulates ``arr`` if necessary, inserting and/or transposing dimensions as dictated
+        by advanced indexing rules. Finally, it calculates the output shape, new split axis, and balanced status
+        of the resulting indexed array.
 
         Parameters
         ----------
         arr : DNDarray
-            The ``DNDarray`` to be indexed
-        key : int, tuple[int, ...], list[int, ...]
-            The key used for indexing
+            The ``DNDarray`` to be indexed.
+        key : int, slice, tuple, list, DNDarray, torch.Tensor, or np.ndarray
+            The raw key used for indexing.
         return_local_indices : bool, optional
-            Whether to return the process-local indices of the key in the split dimension. This is only possible when the indexing key in the split dimension is ordered e.g. `split_key_is_ordered == 1`. Default: False
+            Whether to map the split-axis indices from global to process-local indices. This is only applied
+            when the indexing key along the split dimension is ordered (i.e., ``split_key_is_ordered == 1``).
+            Default: ``False``.
         op : str, optional
-            The indexing operation that the key is being processed for. Get be "get" for `__getitem__` or "set" for `__setitem__`. Default: "get".
+            The indexing context for which the key is being processed. Can be ``"get"`` for ``__getitem__``
+            or ``"set"`` for ``__setitem__``. Default: ``None``.
 
         Returns
         -------
-        arr : DNDarray
-            The ``DNDarray`` to be indexed. Its dimensions might have been modified if advanced, dimensional, broadcasted indexing is used.
-        key : tuple[Any, ...] | "DNDarray" | np.ndarray | torch.Tensor | slice | int | list[int]
-            The processed key ready for indexing ``arr``. Its dimensions match the (potentially modified) dimensions of ``arr``.
-            Note: the key indices along the split axis are LOCAL indices, i.e. refer to the process-local data, if ordered indexing is used. Otherwise, they are GLOBAL indices, referring to the global memory-distributed DNDarray. Communication to extract the non-ordered elements of the input ``DNDarray`` is handled by the ``__getitem__`` function.
-        output_shape : tuple[int, ...]
-            The shape of the output ``DNDarray``
-        new_split : int
-            The new split axis
-        split_key_is_ordered : int
-            Whether the split key is sorted or ordered. Can be 1: ascending, 0: not ordered, -1: descending order.
-        out_is_balanced : bool
-            Whether the output ``DNDarray`` is balanced
-        root : int
-            The root process for the ``MPI.Bcast`` call when single-element indexing along the split axis is used
-        backwards_transpose_axes : tuple[int, ...]
-            The axes to transpose the input ``DNDarray`` back to its original shape if it has been transposed for advanced indexing
+        tuple
+            A tuple containing two elements: ``(arr, processed_key)``.
+
+            - arr (DNDarray):
+              The array to be indexed. Its dimensions may have been transposed or expanded if advanced,
+              dimensional, or broadcasted indexing was used.
+            - processed_key (ProcessedKey):
+              A named tuple containing the resolved state required to execute the indexing operation,
+              consisting of the following fields:
+
+                - key (tuple): The processed, Torch-compatible index. Note: Indices along the split axis
+                  are local if ordered indexing is used, but remain global if unordered indexing is required.
+                - op_type (str): The categorized indexing routing (``"scalar"``, ``"slice"``,
+                  ``"descending_slice"``, ``"distr_mask"``, ``"local_mask"``, ``"advanced"``, or ``"distributed"``).
+                - output_shape (tuple): The global shape of the resulting array.
+                - output_split (int or None): The split axis of the resulting array.
+                - split_key_is_ordered (int): Monotonicity of the split key (``1``: ascending, ``0``: unordered,
+                  ``-1``: descending).
+                - key_is_mask_like (bool): Whether the key acts as a boolean mask.
+                - out_is_balanced (bool): Whether the resulting ``DNDarray`` maintains load balance.
+                - root (int or None): The root MPI process ID if single-element indexing along the split
+                  axis isolate data to one rank.
+                - backwards_transpose_axes (tuple): The axes required to transpose ``arr`` back to its
+                  original shape if advanced indexing triggered a transposition.
         """
         # early out for scalar key
         is_scalar = np.isscalar(key) or getattr(key, "ndim", 1) == 0
@@ -2268,7 +2284,9 @@ class DNDarray:
             return self
 
         # key processing returns a ProcessedKey namedtuple
-        self, processed_key = self.__process_key(key, return_local_indices=True, op="get")
+        self, processed_key = self.__resolve_indexing_state(
+            key, return_local_indices=True, op="get"
+        )
         print(f"DEBUGGING: Processed key: {processed_key}")
 
         # dispatch to appropriate getitem method
@@ -3212,7 +3230,9 @@ class DNDarray:
 
         original_key = key
 
-        self, processed_key = self.__process_key(key, return_local_indices=True, op="set")
+        self, processed_key = self.__resolve_indexing_state(
+            key, return_local_indices=True, op="set"
+        )
         # print(f"DEBUGGING: Processed key: {processed_key}")
 
         op = processed_key.op_type
