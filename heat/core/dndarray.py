@@ -100,6 +100,96 @@ def _process_scalar_key(
     return key, root
 
 
+def _resolve_duplicate_indices(
+    key_in,
+    rhs_in: torch.Tensor,
+    target_shape: tuple[int, ...],
+):
+    """
+    CUDA-safe handling for duplicate advanced indices:
+    enforce NumPy semantics (last assignment wins) by dropping earlier duplicates.
+    Works for:
+        - key_in: torch.Tensor (indexes axis 0)
+        - key_in: tuple/list of torch.Tensors (pure advanced indexing)
+    rhs_in must match the indexing result shape.
+    """
+    # Scalars or single element: no need to deduplicate
+    if rhs_in.numel() <= 1:
+        return key_in, rhs_in
+
+    # Normalize key to either a single tensor or tuple of tensors
+    if torch.is_tensor(key_in):
+        idx_tensors = (key_in,)
+    elif (
+        isinstance(key_in, (tuple, list))
+        and len(key_in) > 0
+        and all(torch.is_tensor(k) for k in key_in)
+    ):
+        idx_tensors = tuple(key_in)
+    else:
+        # Not pure advanced-tensor indexing -> don't touch
+        return key_in, rhs_in
+
+    device = rhs_in.device
+
+    # Broadcast indices to common shape, then flatten
+    try:
+        idx_b = torch.broadcast_tensors(*idx_tensors)
+    except RuntimeError:
+        # If broadcast fails, leave it to PyTorch (will error appropriately)
+        return key_in, rhs_in
+
+    pos_shape = idx_b[0].shape
+    pos_ndim = len(pos_shape)
+    n = idx_b[0].numel()
+
+    idx_flat = [t.to(device=device, dtype=torch.int64).reshape(-1) for t in idx_b]
+
+    # Build linear index for duplicate detection
+    if len(idx_flat) == 1:
+        lin = idx_flat[0]
+    else:
+        lin = idx_flat[0]
+        # linearize across the first len(idx_flat) dimensions of the target tensor
+        for d in range(1, len(idx_flat)):
+            lin = lin * int(target_shape[d]) + idx_flat[d]
+
+    # Fast path: no duplicates
+    if torch.unique(lin).numel() == n:
+        return key_in, rhs_in
+
+    # Determine "last occurrence" per linear index (last wins)
+    pos = torch.arange(n, device=device, dtype=torch.int64)
+
+    # Prefer stable sort by lin if available; otherwise sort by combined key
+    try:
+        order = torch.argsort(lin, stable=True)
+    except TypeError:
+        # combined key sorts by lin, then by pos
+        combined = lin.to(torch.int64) * (n + 1) + pos
+        order = torch.argsort(combined)
+
+    lin_s = lin[order]
+    pos_s = pos[order]
+
+    is_last = torch.ones_like(lin_s, dtype=torch.bool)
+    is_last[:-1] = lin_s[1:] != lin_s[:-1]
+    keep_pos = pos_s[is_last]  # positions in original stream
+
+    # Reduce RHS accordingly:
+    # Flatten leading "pos_ndim" dims into one, keep trailing dims as payload
+    rhs_view = rhs_in.reshape(n, *rhs_in.shape[pos_ndim:])
+    rhs_u = rhs_view[keep_pos].reshape(keep_pos.numel(), *rhs_in.shape[pos_ndim:])
+
+    # Reduce indices accordingly (use flattened 1D indices)
+    if torch.is_tensor(key_in):
+        key_u = idx_flat[0][keep_pos]
+        return key_u, rhs_u
+
+    key_u = tuple(t[keep_pos] for t in idx_flat)
+    return key_u, rhs_u
+
+
 def _resolve_indexing_state(
     arr: "DNDarray",
     key: tuple[int, ...] | list[int],
@@ -1759,96 +1849,6 @@ class DNDarray:
                         )
         return value, is_scalar
 
-    @staticmethod
-    def __dedup_last_wins_advanced_index(
-        key_in,
-        rhs_in: torch.Tensor,
-        target_shape: tuple[int, ...],
-    ):
-        """
-        CUDA-safe handling for duplicate advanced indices:
-        enforce NumPy semantics (last assignment wins) by dropping earlier duplicates.
-        Works for:
-            - key_in: torch.Tensor (indexes axis 0)
-            - key_in: tuple/list of torch.Tensors (pure advanced indexing)
-        rhs_in must match the indexing result shape.
-        """
-        # Scalars or single element: no need to dedup
-        if rhs_in.numel() <= 1:
-            return key_in, rhs_in
-
-        # Normalize key to either a single tensor or tuple of tensors
-        if torch.is_tensor(key_in):
-            idx_tensors = (key_in,)
-        elif (
-            isinstance(key_in, (tuple, list))
-            and len(key_in) > 0
-            and all(torch.is_tensor(k) for k in key_in)
-        ):
-            idx_tensors = tuple(key_in)
-        else:
-            # Not pure advanced-tensor indexing -> don't touch
-            return key_in, rhs_in
-
-        device = rhs_in.device
-
-        # Broadcast indices to common shape, then flatten
-        try:
-            idx_b = torch.broadcast_tensors(*idx_tensors)
-        except RuntimeError:
-            # If broadcast fails, leave it to PyTorch (will error appropriately)
-            return key_in, rhs_in
-
-        pos_shape = idx_b[0].shape
-        pos_ndim = len(pos_shape)
-        n = idx_b[0].numel()
-
-        idx_flat = [t.to(device=device, dtype=torch.int64).reshape(-1) for t in idx_b]
-
-        # Build linear index for duplicate detection
-        if len(idx_flat) == 1:
-            lin = idx_flat[0]
-        else:
-            lin = idx_flat[0]
-            # linearize across the first len(idx_flat) dimensions of the target tensor
-            for d in range(1, len(idx_flat)):
-                lin = lin * int(target_shape[d]) + idx_flat[d]
-
-        # Fast path: no duplicates
-        if torch.unique(lin).numel() == n:
-            return key_in, rhs_in
-
-        # Determine "last occurrence" per linear index (last wins)
-        pos = torch.arange(n, device=device, dtype=torch.int64)
-
-        # Prefer stable sort by lin if available; otherwise sort by combined key
-        try:
-            order = torch.argsort(lin, stable=True)
-        except TypeError:
-            # combined key sorts by lin, then by pos
-            combined = lin.to(torch.int64) * (n + 1) + pos
-            order = torch.argsort(combined)
-
-        lin_s = lin[order]
-        pos_s = pos[order]
-
-        is_last = torch.ones_like(lin_s, dtype=torch.bool)
-        is_last[:-1] = lin_s[1:] != lin_s[:-1]
-        keep_pos = pos_s[is_last]  # positions in original stream
-
-        # Reduce RHS accordingly:
-        # Flatten leading "pos_ndim" dims into one, keep trailing dims as payload
-        rhs_view = rhs_in.reshape(n, *rhs_in.shape[pos_ndim:])
-        rhs_u = rhs_view[keep_pos].reshape(keep_pos.numel(), *rhs_in.shape[pos_ndim:])
-
-        # Reduce indices accordingly (use flattened 1D indices)
-        if torch.is_tensor(key_in):
-            key_u = idx_flat[0][keep_pos]
-            return key_u, rhs_u
-
-        key_u = tuple(t[keep_pos] for t in idx_flat)
-        return key_u, rhs_u
-
     def __set(
         self,
         key: int | tuple[int, ...] | list[int],
@@ -1865,9 +1865,7 @@ class DNDarray:
 
             # CUDA: make advanced indexing assignment deterministic for duplicate indices
             if self.larray.is_cuda:
-                key_to_use, rhs = self.__dedup_last_wins_advanced_index(
-                    key_to_use, rhs, self.larray.shape
-                )
+                key_to_use, rhs = _resolve_duplicate_indices(key_to_use, rhs, self.larray.shape)
 
             self.larray[key_to_use] = rhs
         return
@@ -1931,9 +1929,7 @@ class DNDarray:
             rhs = value_torch[tuple(rhs_index)].to(out_dtype)
 
         if x_local.is_cuda:
-            lhs_index, rhs = DNDarray.__dedup_last_wins_advanced_index(
-                lhs_index, rhs, x_local.shape
-            )
+            lhs_index, rhs = _resolve_duplicate_indices(lhs_index, rhs, x_local.shape)
 
         x_local[lhs_index] = rhs
 
@@ -2957,9 +2953,7 @@ class DNDarray:
                     rhs = rhs_view[local_indices].type(self.dtype.torch_type())
 
                 if self.larray.is_cuda:
-                    key_local, rhs = self.__dedup_last_wins_advanced_index(
-                        key_local, rhs, self.larray.shape
-                    )
+                    key_local, rhs = _resolve_duplicate_indices(key_local, rhs, self.larray.shape)
 
                 self.larray[key_local] = rhs
             return
