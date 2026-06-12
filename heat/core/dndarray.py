@@ -613,7 +613,7 @@ class DNDarray:
 
         """
         if np.prod(self.shape) == 1:
-            if self.split is None:
+            if not self.is_distributed():
                 return cast_function(self.__array)
 
             is_empty = np.prod(self.__array.shape) == 0
@@ -714,7 +714,7 @@ class DNDarray:
         lshape_map = torch.zeros(
             (self.comm.size, self.ndim), dtype=torch.int64, device=self.device.torch_device
         )
-        if not self.is_distributed:
+        if not self.is_distributed():
             lshape_map[:] = torch.tensor(self.gshape, device=self.device.torch_device)
             return lshape_map
         if self.is_balanced(force_check=True):
@@ -852,7 +852,7 @@ class DNDarray:
         if len(self.shape) != 2:
             raise ValueError("Only 2D tensors supported at the moment")
 
-        if self.split is not None and self.comm.is_distributed:
+        if self.is_distributed():
             counts, displ, _ = self.comm.counts_displs_shape(self.shape, self.split)
             k = min(self.shape[0], self.shape[1])
             for p in range(self.comm.size):
