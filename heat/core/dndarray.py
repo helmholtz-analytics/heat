@@ -17,6 +17,10 @@ __all__ = ["DNDarray"]
 
 Communication = TypeVar("Communication")
 
+# Type aliases
+Index = int | slice | type(...) | None | torch.Tensor | np.ndarray | "DNDarray"
+Indexer = Index | tuple[Index, ...] | list[Index]
+
 
 class LocalIndex:
     """
@@ -192,7 +196,7 @@ def _resolve_duplicate_indices(
 
 def _resolve_indexing_state(
     arr: "DNDarray",
-    key: tuple[int, ...] | list[int],
+    key: Indexer,
     return_local_indices: bool | None = False,
     op: str | None = None,
 ) -> tuple["DNDarray", ProcessedKey]:
@@ -2225,7 +2229,7 @@ class DNDarray:
             recv_displs,
         )
 
-    def __getitem__(self, key: int | tuple[int, ...] | list[int]) -> DNDarray:
+    def __getitem__(self, key: Indexer) -> DNDarray:
         """
         Global getter function for DNDarrays.
         Returns a new DNDarray composed of the elements of the original tensor selected by the indices
@@ -3171,7 +3175,7 @@ class DNDarray:
 
     def __setitem__(
         self,
-        key: int | tuple[int, ...] | list[int],
+        key: Indexer,
         value: float | "DNDarray" | torch.Tensor,
     ):
         """
@@ -3179,7 +3183,7 @@ class DNDarray:
 
         Parameters
         ----------
-        key : int | tuple[int, ...] | list[int]
+        key : int, slice, tuple, list, DNDarray, torch.Tensor, or np.ndarray
             Index/indices to be set
         value: float | "DNDarray" | torch.Tensor
             Value to be set to the specified positions in the DNDarray (self)
