@@ -2912,7 +2912,9 @@ class DNDarray:
     def __setitem_advanced_distributed(
         self, p: ProcessedKey, original_key, value: "DNDarray", value_is_scalar: bool
     ) -> None:
-        """Handles advanced indexing assignments where the indexing key is distributed. This method ensures that the value array is properly aligned and redistributed if necessary before performing the local assignment on each process."""
+        """
+        Handles advanced indexing assignments where the indexing key is distributed. This method ensures that the value array is properly aligned and redistributed if necessary before performing the local assignment on each process.
+        """
         # check distribution status of the indexing key
         split_key_orig = (
             original_key[self.split] if isinstance(original_key, tuple) else original_key
