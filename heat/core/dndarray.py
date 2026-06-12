@@ -7,7 +7,7 @@ import torch
 import warnings
 
 from mpi4py import MPI
-from typing import TypeVar, Any
+from typing import TypeVar, Any, Union
 from collections.abc import Iterable
 
 warnings.simplefilter("always", ResourceWarning)
@@ -18,8 +18,8 @@ __all__ = ["DNDarray"]
 Communication = TypeVar("Communication")
 
 # Type aliases
-Index = int | slice | type(...) | None | torch.Tensor | np.ndarray | "DNDarray"
-Indexer = Index | tuple[Index, ...] | list[Index]
+Index = Union[int, slice, type(...), None, torch.Tensor, np.ndarray, "DNDarray"]
+Indexer = Union[Index, tuple[Index, ...], list[Index]]
 
 
 class LocalIndex:
