@@ -19,10 +19,6 @@ from .stride_tricks import sanitize_axis
 
 from ._config import GPU_AWARE_MPI
 
-# DNDarray only used for type hint; break circular dependencies
-if TYPE_CHECKING:
-    from .dndarray import DNDarray
-
 Array: TypeAlias = torch.Tensor | np.ndarray | MPI.InPlaceType
 
 
@@ -2586,3 +2582,7 @@ def use_comm(comm: Communication | None = None):
     """
     global __default_comm
     __default_comm = sanitize_comm(comm)
+
+
+# import at the end of file to break circular dependencies
+from .dndarray import DNDarray
