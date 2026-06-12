@@ -218,7 +218,7 @@ def _resolve_indexing_state(
     ----------
     arr : DNDarray
         The ``DNDarray`` to be indexed.
-    key : int, slice, tuple, list, DNDarray, torch.Tensor, or np.ndarray
+    key : array-like indexer
         The raw key used for indexing.
     return_local_indices : bool, optional
         Whether to map the split-axis indices from global to process-local indices. This is only applied
@@ -2231,11 +2231,11 @@ class DNDarray:
         Returns a new DNDarray composed of the elements of the original tensor selected by the indices
         given. This does *NOT* redistribute or rebalance the resulting tensor. If the selection of values is
         unbalanced then the resultant tensor is also unbalanced!
-        To redistributed the ``DNDarray`` use :func:`balance()` (issue #187)
+        To redistribute the ``DNDarray`` use :func:`balance()` (issue #187)
 
         Parameters
         ----------
-        key : int, slice, tuple[int,...], list[int,...]
+        key : array-like indexer
             Indices to get from the tensor.
 
         Examples
@@ -3179,7 +3179,7 @@ class DNDarray:
 
         Parameters
         ----------
-        key : int, slice, tuple, list, DNDarray, torch.Tensor, or np.ndarray
+        key : array-like indexer
             Index/indices to be set
         value: float | "DNDarray" | torch.Tensor
             Value to be set to the specified positions in the DNDarray (self)
@@ -3242,34 +3242,6 @@ class DNDarray:
             self.__setitem_descending_slice_distributed(processed_key, value, value_is_scalar)
         elif op in ("local_mask", "advanced"):
             self.__setitem_advanced_local(processed_key, original_key, value, value_is_scalar)
-
-    def __setter(
-        self,
-        key: int | tuple[int, ...] | list[int],
-        value: float | "DNDarray" | torch.Tensor,
-    ):
-        """
-        Utility function for checking ``value`` and forwarding to :func:``__setitem__``
-
-        Raises
-        ------
-        NotImplementedError
-            If the type of ``value`` ist not supported
-        """
-        if np.isscalar(value):
-            self.__array.__setitem__(key, value)
-        elif isinstance(value, DNDarray):
-            self.__array.__setitem__(key, value.__array)
-        elif isinstance(value, torch.Tensor):
-            self.__array.__setitem__(key, value.data)
-        elif isinstance(value, (list, tuple)):
-            value = torch.tensor(value, device=self.device.torch_device)
-            self.__array.__setitem__(key, value.data)
-        elif isinstance(value, np.ndarray):
-            value = torch.from_numpy(value)
-            self.__array.__setitem__(key, value.data)
-        else:
-            raise NotImplementedError(f"Not implemented for {value.__class__.__name__}")
 
     def __str__(self) -> str:
         """
