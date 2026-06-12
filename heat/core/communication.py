@@ -12,12 +12,18 @@ import warnings
 from mpi4py import MPI
 
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import Any, TypeAlias, TYPE_CHECKING
 from collections.abc import Callable
 
 from .stride_tricks import sanitize_axis
 
 from ._config import GPU_AWARE_MPI
+
+# DNDarray only used for type hint; break circular dependencies
+if TYPE_CHECKING:
+    from .dndarray import DNDarray
+
+Array: TypeAlias = torch.Tensor | np.ndarray | MPI.InPlaceType
 
 
 class MPIRequest:
@@ -41,8 +47,8 @@ class MPIRequest:
     def __init__(
         self,
         handle: MPI.Request,
-        sendbuf: Any | None = None,
-        recvbuf: Any | None = None,
+        sendbuf: Array | None = None,
+        recvbuf: Array | None = None,
         tensor: torch.Tensor = None,
         permutation: tuple[int, ...] = None,
     ):
@@ -596,7 +602,7 @@ class MPICommunication(Communication):
 
     def Irecv(
         self,
-        buf: Any,
+        buf: DNDarray | Array,
         source: int = MPI.ANY_SOURCE,
         tag: int = MPI.ANY_TAG,
     ) -> MPIRequest:
@@ -624,7 +630,7 @@ class MPICommunication(Communication):
 
     def Recv(
         self,
-        buf: Any,
+        buf: DNDarray | Array,
         source: int = MPI.ANY_SOURCE,
         tag: int = MPI.ANY_TAG,
         status: MPI.Status | None = None,
@@ -658,7 +664,7 @@ class MPICommunication(Communication):
     Recv.__doc__ = MPI.Comm.Recv.__doc__
 
     def __send_like(
-        self, func: Callable, buf: Any, dest: int, tag: int
+        self, func: Callable, buf: DNDarray | Array, dest: int, tag: int
     ) -> tuple[MPI.Request | None, torch.Tensor | None]:
         """
         Generic function for sending a message to process with rank "dest"
@@ -684,7 +690,7 @@ class MPICommunication(Communication):
 
         return func(self.as_buffer(sbuf), dest, tag), sbuf
 
-    def Bsend(self, buf: Any, dest: int, tag: int = 0) -> None:
+    def Bsend(self, buf: DNDarray | Array, dest: int, tag: int = 0) -> None:
         """
         Blocking buffered send
 
@@ -701,7 +707,7 @@ class MPICommunication(Communication):
 
     Bsend.__doc__ = MPI.Comm.Bsend.__doc__
 
-    def Ibsend(self, buf: Any, dest: int, tag: int = 0) -> MPIRequest:
+    def Ibsend(self, buf: DNDarray | Array, dest: int, tag: int = 0) -> MPIRequest:
         """
         Nonblocking buffered send
 
@@ -718,7 +724,7 @@ class MPICommunication(Communication):
 
     Ibsend.__doc__ = MPI.Comm.Ibsend.__doc__
 
-    def Irsend(self, buf: Any, dest: int, tag: int = 0) -> MPIRequest:
+    def Irsend(self, buf: DNDarray | Array, dest: int, tag: int = 0) -> MPIRequest:
         """
         Nonblocking ready send
 
@@ -735,7 +741,7 @@ class MPICommunication(Communication):
 
     Irsend.__doc__ = MPI.Comm.Irsend.__doc__
 
-    def Isend(self, buf: Any, dest: int, tag: int = 0) -> MPIRequest:
+    def Isend(self, buf: DNDarray | Array, dest: int, tag: int = 0) -> MPIRequest:
         """
         Nonblocking send
 
@@ -752,7 +758,7 @@ class MPICommunication(Communication):
 
     Isend.__doc__ = MPI.Comm.Isend.__doc__
 
-    def Issend(self, buf: Any, dest: int, tag: int = 0) -> MPIRequest:
+    def Issend(self, buf: DNDarray | Array, dest: int, tag: int = 0) -> MPIRequest:
         """
         Nonblocking synchronous send
 
@@ -769,7 +775,7 @@ class MPICommunication(Communication):
 
     Issend.__doc__ = MPI.Comm.Issend.__doc__
 
-    def Rsend(self, buf: Any, dest: int, tag: int = 0) -> None:
+    def Rsend(self, buf: DNDarray | Array, dest: int, tag: int = 0) -> None:
         """
         Blocking ready send
 
@@ -786,7 +792,7 @@ class MPICommunication(Communication):
 
     Rsend.__doc__ = MPI.Comm.Rsend.__doc__
 
-    def Ssend(self, buf: Any, dest: int, tag: int = 0) -> None:
+    def Ssend(self, buf: DNDarray | Array, dest: int, tag: int = 0) -> None:
         """
         Blocking synchronous send
 
@@ -803,7 +809,7 @@ class MPICommunication(Communication):
 
     Ssend.__doc__ = MPI.Comm.Ssend.__doc__
 
-    def Send(self, buf: Any, dest: int, tag: int = 0) -> None:
+    def Send(self, buf: DNDarray | Array, dest: int, tag: int = 0) -> None:
         """
         Blocking send
 
@@ -821,7 +827,7 @@ class MPICommunication(Communication):
     Send.__doc__ = MPI.Comm.Send.__doc__
 
     def __broadcast_like(
-        self, func: Callable, buf: Any, root: int
+        self, func: Callable, buf: DNDarray | Array, root: int
     ) -> tuple[MPI.Request | None, torch.Tensor | None, torch.Tensor | None, torch.Tensor | None]:
         """
         Generic function for broadcasting a message from the process with rank "root" to all other processes of the
@@ -849,7 +855,7 @@ class MPICommunication(Communication):
 
         return func(self.as_buffer(srbuf), root), srbuf, srbuf, buf
 
-    def Bcast(self, buf: Any, root: int = 0) -> None:
+    def Bcast(self, buf: DNDarray | Array, root: int = 0) -> None:
         """
         Blocking Broadcast
 
@@ -867,7 +873,7 @@ class MPICommunication(Communication):
 
     Bcast.__doc__ = MPI.Comm.Bcast.__doc__
 
-    def Ibcast(self, buf: Any, root: int = 0) -> MPIRequest:
+    def Ibcast(self, buf: DNDarray | Array, root: int = 0) -> MPIRequest:
         """
         Nonblocking Broadcast
 
@@ -982,8 +988,8 @@ class MPICommunication(Communication):
     def __reduce_like(
         self,
         func: Callable,
-        sendbuf: Any,
-        recvbuf: Any,
+        sendbuf: DNDarray | Array,
+        recvbuf: DNDarray | Array,
         op: MPI.Op,
         *args: Any,
         **kwargs: Any,
@@ -1092,8 +1098,8 @@ class MPICommunication(Communication):
 
     def Allreduce(
         self,
-        sendbuf: Any,
-        recvbuf: Any,
+        sendbuf: DNDarray | Array,
+        recvbuf: DNDarray | Array,
         op: MPI.Op = MPI.SUM,
     ) -> None:
         """
@@ -1117,8 +1123,8 @@ class MPICommunication(Communication):
 
     def Exscan(
         self,
-        sendbuf: Any,
-        recvbuf: Any,
+        sendbuf: DNDarray | Array,
+        recvbuf: DNDarray | Array,
         op: MPI.Op = MPI.SUM,
     ) -> None:
         """
@@ -1142,8 +1148,8 @@ class MPICommunication(Communication):
 
     def Iallreduce(
         self,
-        sendbuf: Any,
-        recvbuf: Any,
+        sendbuf: DNDarray | Array,
+        recvbuf: DNDarray | Array,
         op: MPI.Op = MPI.SUM,
     ) -> MPIRequest:
         """
@@ -1164,8 +1170,8 @@ class MPICommunication(Communication):
 
     def Iexscan(
         self,
-        sendbuf: Any,
-        recvbuf: Any,
+        sendbuf: DNDarray | Array,
+        recvbuf: DNDarray | Array,
         op: MPI.Op = MPI.SUM,
     ) -> MPIRequest:
         """
@@ -1186,8 +1192,8 @@ class MPICommunication(Communication):
 
     def Iscan(
         self,
-        sendbuf: Any,
-        recvbuf: Any,
+        sendbuf: DNDarray | Array,
+        recvbuf: DNDarray | Array,
         op: MPI.Op = MPI.SUM,
     ) -> MPIRequest:
         """
@@ -1208,8 +1214,8 @@ class MPICommunication(Communication):
 
     def Ireduce(
         self,
-        sendbuf: Any,
-        recvbuf: Any,
+        sendbuf: DNDarray | Array,
+        recvbuf: DNDarray | Array,
         op: MPI.Op = MPI.SUM,
         root: int = 0,
     ) -> MPIRequest:
@@ -1233,8 +1239,8 @@ class MPICommunication(Communication):
 
     def Reduce(
         self,
-        sendbuf: Any,
-        recvbuf: Any,
+        sendbuf: DNDarray | Array,
+        recvbuf: DNDarray | Array,
         op: MPI.Op = MPI.SUM,
         root: int = 0,
     ) -> None:
@@ -1261,8 +1267,8 @@ class MPICommunication(Communication):
 
     def Scan(
         self,
-        sendbuf: Any,
-        recvbuf: Any,
+        sendbuf: DNDarray | Array,
+        recvbuf: DNDarray | Array,
         op: MPI.Op = MPI.SUM,
     ) -> None:
         """
@@ -1287,8 +1293,8 @@ class MPICommunication(Communication):
     def __allgather_like(
         self,
         func: Callable,
-        sendbuf: Any,
-        recvbuf: Any,
+        sendbuf: DNDarray | Array,
+        recvbuf: DNDarray | Array,
         axis: int,
         **kwargs,
     ) -> tuple[
@@ -1391,8 +1397,8 @@ class MPICommunication(Communication):
 
     def Allgather(
         self,
-        sendbuf: Any,
-        recvbuf: Any,
+        sendbuf: DNDarray | Array,
+        recvbuf: DNDarray | Array,
         recv_axis: int = 0,
     ) -> None:
         """
@@ -1420,8 +1426,8 @@ class MPICommunication(Communication):
 
     def Allgatherv(
         self,
-        sendbuf: Any,
-        recvbuf: Any,
+        sendbuf: DNDarray | Array,
+        recvbuf: DNDarray | Array,
         recv_axis: int = 0,
     ) -> None:
         """
@@ -1449,8 +1455,8 @@ class MPICommunication(Communication):
 
     def Iallgather(
         self,
-        sendbuf: Any,
-        recvbuf: Any,
+        sendbuf: DNDarray | Array,
+        recvbuf: DNDarray | Array,
         recv_axis: int = 0,
     ) -> MPIRequest:
         """
@@ -1473,8 +1479,8 @@ class MPICommunication(Communication):
 
     def Iallgatherv(
         self,
-        sendbuf: Any,
-        recvbuf: Any,
+        sendbuf: DNDarray | Array,
+        recvbuf: DNDarray | Array,
         recv_axis: int = 0,
     ):
         """
@@ -1498,8 +1504,8 @@ class MPICommunication(Communication):
     def __alltoall_like(
         self,
         func: Callable,
-        sendbuf: Any,
-        recvbuf: Any,
+        sendbuf: DNDarray | Array,
+        recvbuf: DNDarray | Array,
         send_axis: int,
         recv_axis: int,
         **kwargs,
@@ -1645,8 +1651,8 @@ class MPICommunication(Communication):
 
     def Alltoall(
         self,
-        sendbuf: Any,
-        recvbuf: Any,
+        sendbuf: DNDarray | Array,
+        recvbuf: DNDarray | Array,
         send_axis: int = 0,
         recv_axis: int = None,
     ) -> None:
@@ -1681,8 +1687,8 @@ class MPICommunication(Communication):
 
     def Alltoallv(
         self,
-        sendbuf: Any,
-        recvbuf: Any,
+        sendbuf: DNDarray | Array,
+        recvbuf: DNDarray | Array,
         send_axis: int = 0,
         recv_axis: int = None,
     ) -> None:
@@ -1717,8 +1723,8 @@ class MPICommunication(Communication):
 
     def Alltoallw(
         self,
-        sendbuf: Any,
-        recvbuf: Any,
+        sendbuf: DNDarray | Array,
+        recvbuf: DNDarray | Array,
     ) -> None:
         """
         Generalized All-to-All communication allowing different counts, displacements and datatypes for each partner. See MPI standard for more information.
@@ -1914,8 +1920,8 @@ class MPICommunication(Communication):
 
     def Ialltoall(
         self,
-        sendbuf: Any,
-        recvbuf: Any,
+        sendbuf: DNDarray | Array,
+        recvbuf: DNDarray | Array,
         send_axis: int = 0,
         recv_axis: int = None,
     ) -> MPIRequest:
@@ -1944,8 +1950,8 @@ class MPICommunication(Communication):
 
     def Ialltoallv(
         self,
-        sendbuf: Any,
-        recvbuf: Any,
+        sendbuf: DNDarray | Array,
+        recvbuf: DNDarray | Array,
         send_axis: int = 0,
         recv_axis: int = None,
     ) -> MPIRequest:
@@ -1976,8 +1982,8 @@ class MPICommunication(Communication):
     def __gather_like(
         self,
         func: Callable,
-        sendbuf: Any,
-        recvbuf: Any,
+        sendbuf: DNDarray | Array,
+        recvbuf: DNDarray | Array,
         send_axis: int,
         recv_axis: int,
         send_factor: int = 1,
@@ -2045,7 +2051,7 @@ class MPICommunication(Communication):
                     recvbuf.copy_(sendbuf)
                 elif isinstance(recvbuf, np.ndarray):
                     if isinstance(sendbuf, torch.Tensor):
-                        sendbuf = sendbuf.numpy()
+                        sendbuf = sendbuf.cpu().numpy()
                     np.copyto(sendbuf, recvbuf)
 
             return None, None, None, None, None
@@ -2096,8 +2102,8 @@ class MPICommunication(Communication):
 
     def Gather(
         self,
-        sendbuf: Any,
-        recvbuf: Any,
+        sendbuf: DNDarray | Array,
+        recvbuf: DNDarray | Array,
         root: int = 0,
         axis: int = 0,
         recv_axis: int = None,
@@ -2131,8 +2137,8 @@ class MPICommunication(Communication):
 
     def Gatherv(
         self,
-        sendbuf: Any,
-        recvbuf: Any,
+        sendbuf: DNDarray | Array,
+        recvbuf: DNDarray | Array,
         root: int = 0,
         axis: int = 0,
         recv_axis: int = None,
@@ -2166,8 +2172,8 @@ class MPICommunication(Communication):
 
     def Igather(
         self,
-        sendbuf: Any,
-        recvbuf: Any,
+        sendbuf: DNDarray | Array,
+        recvbuf: DNDarray | Array,
         root: int = 0,
         axis: int = 0,
         recv_axis: int = None,
@@ -2204,8 +2210,8 @@ class MPICommunication(Communication):
 
     def Igatherv(
         self,
-        sendbuf: Any,
-        recvbuf: Any,
+        sendbuf: DNDarray | Array,
+        recvbuf: DNDarray | Array,
         root: int = 0,
         axis: int = 0,
         recv_axis: int = None,
@@ -2243,8 +2249,8 @@ class MPICommunication(Communication):
     def __scatter_like(
         self,
         func: Callable,
-        sendbuf: Any,
-        recvbuf: Any,
+        sendbuf: DNDarray | Array,
+        recvbuf: DNDarray | Array,
         send_axis: int,
         recv_axis: int,
         send_factor: int = 1,
@@ -2312,7 +2318,7 @@ class MPICommunication(Communication):
                     recvbuf.copy_(sendbuf)
                 elif isinstance(recvbuf, np.ndarray):
                     if isinstance(sendbuf, torch.Tensor):
-                        sendbuf = sendbuf.numpy()
+                        sendbuf = sendbuf.cpu().numpy()
                     np.copyto(sendbuf, recvbuf)
 
             return None, None, None, None, None
@@ -2366,8 +2372,8 @@ class MPICommunication(Communication):
 
     def Iscatter(
         self,
-        sendbuf: Any,
-        recvbuf: Any,
+        sendbuf: DNDarray | Array,
+        recvbuf: DNDarray | Array,
         root: int = 0,
         axis: int = 0,
         recv_axis: int = None,
@@ -2404,8 +2410,8 @@ class MPICommunication(Communication):
 
     def Iscatterv(
         self,
-        sendbuf: Any,
-        recvbuf: Any,
+        sendbuf: DNDarray | Array,
+        recvbuf: DNDarray | Array,
         root: int = 0,
         axis: int = 0,
         recv_axis: int = None,
@@ -2442,8 +2448,8 @@ class MPICommunication(Communication):
 
     def Scatter(
         self,
-        sendbuf: Any,
-        recvbuf: Any,
+        sendbuf: DNDarray | Array,
+        recvbuf: DNDarray | Array,
         root: int = 0,
         axis: int = 0,
         recv_axis: int = None,
@@ -2477,8 +2483,8 @@ class MPICommunication(Communication):
 
     def Scatterv(
         self,
-        sendbuf: Any,
-        recvbuf: int,
+        sendbuf: DNDarray | Array,
+        recvbuf: DNDarray | Array,
         root: int = 0,
         axis: int = 0,
         recv_axis: int = None,
@@ -2580,7 +2586,3 @@ def use_comm(comm: Communication | None = None):
     """
     global __default_comm
     __default_comm = sanitize_comm(comm)
-
-
-# import at the end of file to break circular dependencies
-from .dndarray import DNDarray
