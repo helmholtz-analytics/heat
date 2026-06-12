@@ -32,11 +32,11 @@ class MPIRequest:
 
     Parameters
     ----------
-    handle: MPI.Communicator
-        Handle for the mpi4py Communicator
-    sendbuf: DNDarray or torch.Tensor or Any
+    handle: MPI.Request
+        Handle for the mpi4py Request
+    sendbuf: torch.Tensor or np.ndarray
         The buffer for the data to be send
-    recvbuf: DNDarray or torch.Tensor or Any
+    recvbuf: torch.Tensor or np.ndarray
         The buffer to the receive data
     tensor: torch.Tensor
         Internal Data
@@ -611,7 +611,7 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        buf: Any
+        buf: DNDarray or torch.Tensor or np.ndarray
             Buffer address where to place the received message
         source: int, optional
             Rank of source process, that send the message
@@ -640,7 +640,7 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        buf: Any
+        buf: DNDarray or torch.Tensor or np.ndarray
             Buffer address where to place the received message
         source: int, optional
             Rank of the source process, that send the message
@@ -673,7 +673,7 @@ class MPICommunication(Communication):
         ----------
         func: Callable
             The respective MPI sending function
-        buf: Any
+        buf: DNDarray or torch.Tensor or np.ndarray
             Buffer address of the message to be send
         dest: int, optional
             Rank of the destination process, that receives the message
@@ -696,7 +696,7 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        buf: Any
+        buf: DNDarray or torch.Tensor or np.ndarray
             Buffer address of the message to be send
         dest: int, optional
             Index of the destination process, that receives the message
@@ -713,7 +713,7 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        buf: Any
+        buf: DNDarray or torch.Tensor or np.ndarray
             Buffer address of the message to be send
         dest: int, optional
             Rank of the destination process, that receives the message
@@ -730,7 +730,7 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        buf: Any
+        buf: DNDarray or torch.Tensor or np.ndarray
             Buffer address of the message to be send
         dest: int, optional
             Rank of the destination process, that receives the message
@@ -747,7 +747,7 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        buf: Any
+        buf: DNDarray or torch.Tensor or np.ndarray
             Buffer address of the message to be send
         dest: int, optional
             Rank of the destination process, that receives the message
@@ -764,7 +764,7 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        buf: Any
+        buf: DNDarray or torch.Tensor or np.ndarray
             Buffer address of the message to be send
         dest: int, optional
             Rank of the destination process, that receives the message
@@ -781,7 +781,7 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        buf: Any
+        buf: DNDarray or torch.Tensor or np.ndarray
             Buffer address of the message to be send
         dest: int, optional
             Rank of the destination process, that receives the message
@@ -798,7 +798,7 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        buf: Any
+        buf: DNDarray or torch.Tensor or np.ndarray
             Buffer address of the message to be send
         dest: int, optional
             Rank of the destination process, that receives the message
@@ -815,7 +815,7 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        buf: Any
+        buf: DNDarray or torch.Tensor or np.ndarray
             Buffer address of the message to be send
         dest: int, optional
             Rank of the destination process, that receives the message
@@ -837,7 +837,7 @@ class MPICommunication(Communication):
         ----------
         func: Callable
             The respective MPI broadcast function
-        buf: Any
+        buf: DNDarray or torch.Tensor or np.ndarray
             Buffer address of the message to be broadcasted
         root: int
             Rank of the root process, that broadcasts the message
@@ -861,7 +861,7 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        buf: Any
+        buf: DNDarray or torch.Tensor or np.ndarray
             Buffer address of the message to be broadcasted
         root: int
             Rank of the root process, that broadcasts the message
@@ -879,7 +879,7 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        buf: Any
+        buf: DNDarray or torch.Tensor or np.ndarray
             Buffer address of the message to be broadcasted
         root: int
             Rank of the root process, that broadcasts the message
@@ -1001,10 +1001,10 @@ class MPICommunication(Communication):
         ----------
         func: Callable
             The respective MPI reduction operation
-        sendbuf: Any
+        sendbuf: DNDarray or torch.Tensor or np.ndarray
             Buffer address of the send message. If MPI.IN_PLACE is set,
             recvbuf is also used as send buffer.
-        recvbuf: Any
+        recvbuf: DNDarray or torch.Tensor or np.ndarray
             Buffer address where to store the result of the reduction
         op: MPI.Op
             Operation to apply during the reduction.
@@ -1107,9 +1107,9 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        sendbuf: Any
+        sendbuf: DNDarray or torch.Tensor or np.ndarray
             Buffer address of the send message
-        recvbuf: Any
+        recvbuf: DNDarray or torch.Tensor or np.ndarray
             Buffer address where to store the result of the reduction
         op: MPI.Op
             The operation to perform upon reduction
@@ -1132,9 +1132,9 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        sendbuf: Any
+        sendbuf: DNDarray or torch.Tensor or np.ndarray
             Buffer address of the send message
-        recvbuf: Any
+        recvbuf: DNDarray or torch.Tensor or np.ndarray
             Buffer address where to store the result of the reduction
         op: MPI.Op
             The operation to perform upon reduction
@@ -1157,9 +1157,9 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        sendbuf: Any
+        sendbuf: DNDarray or torch.Tensor or np.ndarray
             Buffer address of the send message
-        recvbuf: Any
+        recvbuf: DNDarray or torch.Tensor or np.ndarray
             Buffer address where to store the result of the reduction
         op: MPI.Op
             The operation to perform upon reduction
@@ -1179,9 +1179,9 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        sendbuf: Any
+        sendbuf: DNDarray or torch.Tensor or np.ndarray
             Buffer address of the send message
-        recvbuf: Any
+        recvbuf: DNDarray or torch.Tensor or np.ndarray
             Buffer address where to store the result of the reduction
         op: MPI.Op
             The operation to perform upon reduction
@@ -1201,9 +1201,9 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        sendbuf: Any
+        sendbuf: DNDarray or torch.Tensor or np.ndarray
             Buffer address of the send message
-        recvbuf: Any
+        recvbuf: DNDarray or torch.Tensor or np.ndarray
             Buffer address where to store the result of the reduction
         op: MPI.Op
             The operation to perform upon reduction
@@ -1224,9 +1224,9 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        sendbuf: Any
+        sendbuf: DNDarray or torch.Tensor or np.ndarray
             Buffer address of the send message
-        recvbuf: Any
+        recvbuf: DNDarray or torch.Tensor or np.ndarray
             Buffer address where to store the result of the reduction
         op: MPI.Op
             The operation to perform upon reduction
@@ -1249,9 +1249,9 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        sendbuf: Any
+        sendbuf: DNDarray or torch.Tensor or np.ndarray
             Buffer address of the send message
-        recvbuf: Any
+        recvbuf: DNDarray or torch.Tensor or np.ndarray
             Buffer address where to store the result of the reduction
         op: MPI.Op
             The operation to perform upon reduction
@@ -1276,9 +1276,9 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        sendbuf: Any
+        sendbuf: DNDarray or torch.Tensor or np.ndarray
             Buffer address of the send message
-        recvbuf: Any
+        recvbuf: DNDarray or torch.Tensor or np.ndarray
             Buffer address where to store the result of the reduction
         op: MPI.Op
             The operation to perform upon reduction
@@ -1311,9 +1311,9 @@ class MPICommunication(Communication):
         ----------
         func: Callable
             Type of MPI Allgather function (i.e. allgather, allgatherv, iallgather)
-        sendbuf: Any
+        sendbuf: DNDarray or torch.Tensor or np.ndarray
             Buffer address of the send message
-        recvbuf: Any
+        recvbuf: DNDarray or torch.Tensor or np.ndarray
             Buffer address where to store the result
         axis: int
             Concatenation axis: The axis along which ``sendbuf`` is packed and along which ``recvbuf`` puts together individual chunks
@@ -1406,9 +1406,9 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        sendbuf: Any
+        sendbuf: DNDarray or torch.Tensor or np.ndarray
             Buffer address of the send message
-        recvbuf: Any
+        recvbuf: DNDarray or torch.Tensor or np.ndarray
             Buffer address where to store the result
         recv_axis: int
             Concatenation axis: The axis along which ``sendbuf`` is packed and along which ``recvbuf`` puts together individual chunks
@@ -1435,9 +1435,9 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        sendbuf: Any
+        sendbuf: DNDarray or torch.Tensor or np.ndarray
             Buffer address of the send message
-        recvbuf: Any
+        recvbuf: DNDarray or torch.Tensor or np.ndarray
             Buffer address where to store the result
         recv_axis: int
             Concatenation axis: The axis along which ``sendbuf`` is packed and along which ``recvbuf`` puts together individual chunks
@@ -1464,9 +1464,9 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        sendbuf: Any
+        sendbuf: DNDarray or torch.Tensor or np.ndarray
             Buffer address of the send message
-        recvbuf: Any
+        recvbuf: DNDarray or torch.Tensor or np.ndarray
             Buffer address where to store the result
         recv_axis: int
             Concatenation axis: The axis along which ``sendbuf`` is packed and along which ``recvbuf`` puts together individual chunks
@@ -1488,9 +1488,9 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        sendbuf: Any
+        sendbuf: DNDarray or torch.Tensor or np.ndarray
             Buffer address of the send message
-        recvbuf: Any
+        recvbuf: DNDarray or torch.Tensor or np.ndarray
             Buffer address where to store the result
         recv_axis: int
             Concatenation axis: The axis along which ``sendbuf`` is packed and along which ``recvbuf`` puts together individual chunks
@@ -1523,9 +1523,9 @@ class MPICommunication(Communication):
         ----------
         func: Callable
             Specific alltoall function
-        sendbuf: Any
+        sendbuf: DNDarray or torch.Tensor or np.ndarray
             Buffer address of the send message
-        recvbuf: Any
+        recvbuf: DNDarray or torch.Tensor or np.ndarray
             Buffer address where to store the result
         send_axis: int
             Future split axis, along which data blocks will be created that will be send to individual ranks
@@ -1662,9 +1662,9 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        sendbuf: Any
+        sendbuf: DNDarray or torch.Tensor or np.ndarray
             Buffer address of the send message
-        recvbuf: Any
+        recvbuf: DNDarray or torch.Tensor or np.ndarray
             Buffer address where to store the result
         send_axis: int
             Future split axis, along which data blocks will be created that will be send to individual ranks
@@ -1698,9 +1698,9 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        sendbuf: Any
+        sendbuf: DNDarray or torch.Tensor or np.ndarray
             Buffer address of the send message
-        recvbuf: Any
+        recvbuf: DNDarray or torch.Tensor or np.ndarray
             Buffer address where to store the result
         send_axis: int
             Future split axis, along which data blocks will be created that will be send to individual ranks
@@ -1731,9 +1731,9 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        sendbuf: Any
+        sendbuf: DNDarray or torch.Tensor or np.ndarray
             Buffer address of the send message. The buffer is expected to be a tuple of the form (buffer, (counts, displacements), subarray_params_list), where subarray_params_list is a list of tuples of the form (lshape, subsizes, substarts).
-        recvbuf: Any
+        recvbuf: DNDarray or torch.Tensor or np.ndarray
             Buffer address where to store the result. The buffer is expected to be a tuple of the form (buffer, (counts, displacements), subarray_params_list), where subarray_params_list is a list of tuples of the form (lshape, subsizes, substarts).
         """
         # Unpack sendbuffer information
@@ -1930,9 +1930,9 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        sendbuf: Any
+        sendbuf: DNDarray or torch.Tensor or np.ndarray
             Buffer address of the send message
-        recvbuf: Any
+        recvbuf: DNDarray or torch.Tensor or np.ndarray
             Buffer address where to store the result
         send_axis: int
             Future split axis, along which data blocks will be created that will be send to individual ranks
@@ -1961,9 +1961,9 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        sendbuf: Any
+        sendbuf: DNDarray or torch.Tensor or np.ndarray
             Buffer address of the send message
-        recvbuf: Any
+        recvbuf: DNDarray or torch.Tensor or np.ndarray
             Buffer address where to store the result
         send_axis: int
             Future split axis, along which data blocks will be created that will be send to individual ranks
@@ -2003,9 +2003,9 @@ class MPICommunication(Communication):
         ----------
         func: Callable
             Type of MPI Scatter/Gather function
-        sendbuf: Any
+        sendbuf: DNDarray or torch.Tensor or np.ndarray
             Buffer address of the send message
-        recvbuf: Any
+        recvbuf: DNDarray or torch.Tensor or np.ndarray
             Buffer address where to store the result
         send_axis: int
             The axis along which ``sendbuf`` is packed
@@ -2113,9 +2113,9 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        sendbuf: Any
+        sendbuf: DNDarray or torch.Tensor or np.ndarray
             Buffer address of the send message
-        recvbuf: Any
+        recvbuf: DNDarray or torch.Tensor or np.ndarray
             Buffer address where to store the result
         root: int
             Rank of receiving process
@@ -2148,9 +2148,9 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        sendbuf: Any
+        sendbuf: DNDarray or torch.Tensor or np.ndarray
             Buffer address of the send message
-        recvbuf: Any
+        recvbuf: DNDarray or torch.Tensor or np.ndarray
             Buffer address where to store the result
         root: int
             Rank of receiving process
@@ -2183,9 +2183,9 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        sendbuf: Any
+        sendbuf: DNDarray or torch.Tensor or np.ndarray
             Buffer address of the send message
-        recvbuf: Any
+        recvbuf: DNDarray or torch.Tensor or np.ndarray
             Buffer address where to store the result
         root: int
             Rank of receiving process
@@ -2221,9 +2221,9 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        sendbuf: Any
+        sendbuf: DNDarray or torch.Tensor or np.ndarray
             Buffer address of the send message
-        recvbuf: Any
+        recvbuf: DNDarray or torch.Tensor or np.ndarray
             Buffer address where to store the result
         root: int
             Rank of receiving process
@@ -2270,9 +2270,9 @@ class MPICommunication(Communication):
         ----------
         func: Callable
             Type of MPI Scatter/Gather function
-        sendbuf: Any
+        sendbuf: DNDarray or torch.Tensor or np.ndarray
             Buffer address of the send message
-        recvbuf: Any
+        recvbuf: DNDarray or torch.Tensor or np.ndarray
             Buffer address where to store the result
         send_axis: int
             The axis along which ``sendbuf`` is packed
@@ -2383,9 +2383,9 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        sendbuf: Any
+        sendbuf: DNDarray or torch.Tensor or np.ndarray
             Buffer address of the send message
-        recvbuf: Any
+        recvbuf: DNDarray or torch.Tensor or np.ndarray
             Buffer address where to store the result
         root: int
             Rank of sending process
@@ -2421,9 +2421,9 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        sendbuf: Any
+        sendbuf: DNDarray or torch.Tensor or np.ndarray
             Buffer address of the send message
-        recvbuf: Any
+        recvbuf: DNDarray or torch.Tensor or np.ndarray
             Buffer address where to store the result
         root: int
             Rank of sending process
@@ -2459,9 +2459,9 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        sendbuf: Any
+        sendbuf: DNDarray or torch.Tensor or np.ndarray
             Buffer address of the send message
-        recvbuf: Any
+        recvbuf: DNDarray or torch.Tensor or np.ndarray
             Buffer address where to store the result
         root: int
             Rank of sending process
@@ -2494,9 +2494,9 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        sendbuf: Any
+        sendbuf: DNDarray or torch.Tensor or np.ndarray
             Buffer address of the send message
-        recvbuf: Any
+        recvbuf: DNDarray or torch.Tensor or np.ndarray
             Buffer address where to store the result
         root: int
             Rank of sending process
