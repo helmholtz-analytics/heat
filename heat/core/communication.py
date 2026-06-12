@@ -1340,15 +1340,7 @@ class MPICommunication(Communication):
             )
 
         if not self.is_distributed():
-            if isinstance(recvbuf, torch.Tensor):
-                if isinstance(sendbuf, np.ndarray):
-                    sendbuf = torch.from_numpy(sendbuf)
-                recvbuf.copy_(sendbuf)
-            elif isinstance(recvbuf, np.ndarray):
-                if isinstance(sendbuf, torch.Tensor):
-                    sendbuf = sendbuf.cpu().numpy()
-                np.copyto(sendbuf, recvbuf)
-
+            _copyto(sendbuf, recvbuf)
             return None, None, None, None, None
 
         # keep a reference to the original buffer object
@@ -1567,15 +1559,7 @@ class MPICommunication(Communication):
                 )
             if sendbuf.shape != recvbuf.shape:
                 sendbuf = sendbuf.swapaxes(send_axis, recv_axis)
-            if isinstance(recvbuf, torch.Tensor):
-                if isinstance(sendbuf, np.ndarray):
-                    sendbuf = torch.from_numpy(sendbuf)
-                recvbuf.copy_(sendbuf)
-            elif isinstance(recvbuf, np.ndarray):
-                if isinstance(sendbuf, torch.Tensor):
-                    sendbuf = sendbuf.cpu().numpy()
-                np.copyto(sendbuf, recvbuf)
-
+            _copyto(sendbuf, recvbuf)
             return None, None, None, None, None
 
         # keep a reference to the original buffer object
@@ -2041,15 +2025,7 @@ class MPICommunication(Communication):
 
         if not self.is_distributed():
             if sendbuf is not MPI.IN_PLACE:
-                if isinstance(recvbuf, torch.Tensor):
-                    if isinstance(sendbuf, np.ndarray):
-                        sendbuf = torch.from_numpy(sendbuf)
-                    recvbuf.copy_(sendbuf)
-                elif isinstance(recvbuf, np.ndarray):
-                    if isinstance(sendbuf, torch.Tensor):
-                        sendbuf = sendbuf.cpu().numpy()
-                    np.copyto(sendbuf, recvbuf)
-
+                _copyto(sendbuf, recvbuf)
             return None, None, None, None, None
 
         # keep a reference to the original buffer object
@@ -2308,15 +2284,7 @@ class MPICommunication(Communication):
 
         if not self.is_distributed():
             if sendbuf is not MPI.IN_PLACE:
-                if isinstance(recvbuf, torch.Tensor):
-                    if isinstance(sendbuf, np.ndarray):
-                        sendbuf = torch.from_numpy(sendbuf)
-                    recvbuf.copy_(sendbuf)
-                elif isinstance(recvbuf, np.ndarray):
-                    if isinstance(sendbuf, torch.Tensor):
-                        sendbuf = sendbuf.cpu().numpy()
-                    np.copyto(sendbuf, recvbuf)
-
+                _copyto(sendbuf, recvbuf)
             return None, None, None, None, None
 
         # keep a reference to the original buffer object
@@ -2582,6 +2550,18 @@ def use_comm(comm: Communication | None = None):
     """
     global __default_comm
     __default_comm = sanitize_comm(comm)
+
+
+def _copyto(sendbuf, recvbuf):
+    if isinstance(recvbuf, torch.Tensor):
+        if isinstance(sendbuf, np.ndarray):
+            sendbuf = torch.from_numpy(sendbuf)
+        recvbuf.copy_(sendbuf)
+    elif isinstance(recvbuf, np.ndarray):
+        if isinstance(sendbuf, torch.Tensor):
+            sendbuf = sendbuf.cpu().numpy()
+        np.copyto(sendbuf, recvbuf)
+    return
 
 
 # import at the end of file to break circular dependencies
