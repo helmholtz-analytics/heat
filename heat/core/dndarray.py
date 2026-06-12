@@ -2229,11 +2229,19 @@ class DNDarray:
         """
         Global getter function for DNDarrays.
 
-        Returns a new DNDarray corresponding to the selection of values from the original DNDarray as specified by `key`.
-        The `key` can be a variety of indexers, including integers, slices, lists, boolean masks, DNDarrays, ndarrays,
-        torch tensors, and a combination thereof. The function will determine the appropriate method to retrieve the
-        requested data based on the type and structure of `key`, setting up necessary MPI communication if the indexing
-        pattern requires data from multiple processes.
+        Returns a new DNDarray corresponding to the selection of values from the original DNDarray
+        as specified by `key`. The `key` can be a variety of indexers, including integers, slices,
+        lists, boolean masks, DNDarrays, ndarrays, torch tensors, and a combination thereof.
+
+        The function determines the appropriate method to retrieve the requested data based on the
+        type and structure of `key`, executing MPI communication if the indexing pattern requires
+        data from multiple processes.
+
+        Notes
+        -----
+        The returned DNDarray will have its shape, split, and balanced status determined according
+        to the indexing operation performed. For more details on supported indexing behaviors, see
+        the :doc:`indexing documentation <INDEXING>`.
 
         Notes
         -----
@@ -2243,7 +2251,7 @@ class DNDarray:
         Parameters
         ----------
         key : array-like indexer
-            Indices to get from the tensor.
+            Indices to get from the ``DNDarray``.
 
         Examples
         --------
@@ -3181,7 +3189,16 @@ class DNDarray:
         value: float | "DNDarray" | torch.Tensor,
     ):
         """
-        Global item setter
+        Global item setter for DNDarrays.
+
+        Assigns values to the specified positions in the ``DNDarray``. The `key` can be a variety
+        of indexers, including integers, slices, lists, boolean masks, DNDarrays, ndarrays,
+        torch tensors, or a combination thereof.
+
+        If a distributed ``DNDarray`` is given as the `value` to be set, this function will
+        automatically attempt to align its distribution scheme (split axis and local shapes)
+        with the target indexed array via MPI communication. If the distributions cannot be
+        safely aligned, a ``ValueError`` or ``RuntimeError`` is raised.
 
         Parameters
         ----------
@@ -3192,8 +3209,7 @@ class DNDarray:
 
         Notes
         -----
-        If a ``DNDarray`` is given as the value to be set then the split axes are assumed to be equal.
-        If they are not, PyTorch will raise an error when the values are attempted to be set on the local array
+        For more details on supported indexing behaviors, see the :doc:`indexing documentation <INDEXING>`.
 
         Examples
         --------
