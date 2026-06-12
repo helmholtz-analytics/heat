@@ -16,7 +16,6 @@ from ..random import randn
 from ..devices import Device
 from ..manipulations import vstack, hstack, concatenate, diag, balance
 from .. import statistics
-from mpi4py import MPI
 from ..sanitation import sanitize_in_nd_realfloating
 
 
