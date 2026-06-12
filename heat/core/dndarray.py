@@ -2046,9 +2046,9 @@ class DNDarray:
     ) -> DNDarray:
         """
         Handles the MPI communication (Alltoallv) when the key along the
-        split axis is unordered and indices are GLOBAL.
+        split axis is unordered and indices are global.
         """
-        counts, displs = self.counts_displs()
+        _, displs = self.counts_displs()
         rank = self.comm.rank
 
         key_is_single_tensor = isinstance(key, torch.Tensor)
@@ -2063,9 +2063,8 @@ class DNDarray:
                 output_split - (split_key.ndim - 1) if split_key.ndim > 1 else output_split
             )
 
-        # ---------------------------------------------------------------------
-        # Phase 1: Route and Send Index Requests (1st Alltoallv)
-        # ---------------------------------------------------------------------
+        # Step 1: route and send index requests
+
         sort_idx, send_counts_t, send_displs_t, recv_counts_t, recv_displs_t = (
             self.__prepare_unordered_comm(split_key_flat, displs)
         )
@@ -2106,9 +2105,8 @@ class DNDarray:
         else:
             recv_indices = recv_indices_flat
 
-        # ---------------------------------------------------------------------
-        # Phase 2: Local Data Lookup on Owners
-        # ---------------------------------------------------------------------
+        # Step 2: local data lookup based on received indices
+
         if key_is_mask_like:
             recv_indices[:, self.split] -= displs[rank]
             lookup_key = tuple(recv_indices[:, i] for i in range(len(key)))
@@ -2122,10 +2120,9 @@ class DNDarray:
                 lookup_key[self.split] = recv_indices
                 local_vals = self.larray[tuple(lookup_key)]
 
-        # ---------------------------------------------------------------------
-        # Phase 3: Return Requested Data (2nd Alltoallv)
-        # ---------------------------------------------------------------------
-        # Ensure the indexed elements are aligned along axis 0 for contiguous flattening
+        # Step 3: return data to requesting processes
+
+        # Ensure the indexed elements are aligned along axis 0
         transpose_axes = list(range(local_vals.ndim))
         transpose_axes[0], transpose_axes[communication_split] = (
             transpose_axes[communication_split],
@@ -2153,12 +2150,11 @@ class DNDarray:
             (recv_vals_flat, return_recv_counts, return_recv_displs),
         )
 
-        # ---------------------------------------------------------------------
-        # Phase 4: Reassembly & Unsorting
-        # ---------------------------------------------------------------------
+        # Step 4: reshape received values and reorder to match original key order
+
         recv_vals = recv_vals_flat.reshape(-1, *feature_shape)
 
-        # Reverse the sorting applied in Phase 1
+        # Reverse the sorting applied in Step 1
         inv_sort_idx = torch.empty_like(sort_idx)
         inv_sort_idx[sort_idx] = torch.arange(sort_idx.numel(), device=sort_idx.device)
         unsorted_vals = recv_vals[inv_sort_idx]
