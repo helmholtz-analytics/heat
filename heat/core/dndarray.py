@@ -2229,9 +2229,16 @@ class DNDarray:
         """
         Global getter function for DNDarrays.
 
-        Returns a new DNDarray corresponding to the selection of values from the original DNDarray as specified by `key`. The `key` can be a variety of indexers, including integers, slices, lists, boolean masks, DNDarrays, ndarrays, torch tensors, and a combination thereof.
-        The function will determine the appropriate method to retrieve the requested data based on the type and structure of `key`, setting up necessary MPI communication if the indexing pattern requires data from multiple processes.
+        Returns a new DNDarray corresponding to the selection of values from the original DNDarray as specified by `key`.
+        The `key` can be a variety of indexers, including integers, slices, lists, boolean masks, DNDarrays, ndarrays,
+        torch tensors, and a combination thereof. The function will determine the appropriate method to retrieve the
+        requested data based on the type and structure of `key`, setting up necessary MPI communication if the indexing
+        pattern requires data from multiple processes.
+
+        Notes
+        -----
         The returned DNDarray will have its shape, split, and balanced status determined according to the indexing operation performed.
+        For more details see INDEXING.md. #TODO: link to documentation
 
         Parameters
         ----------
