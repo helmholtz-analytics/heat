@@ -868,11 +868,11 @@ def _resolve_indexing_state(
                         + len(advanced_indexing_dims)
                     ] = [None]
             else:
-                split_bookkeeping = (
-                    split_bookkeeping[: advanced_indexing_dims[0]]
-                    + [None] * add_dims
-                    + split_bookkeeping[advanced_indexing_dims[0] :]
-                )
+                split_bookkeeping[
+                    advanced_indexing_dims[0] : advanced_indexing_dims[0]
+                    + len(advanced_indexing_dims)
+                ] = [None] * len(broadcasted_shape)
+
         else:
             # advanced-indexing dimensions are not consecutive:
             # transpose array to make the advanced-indexing dimensions consecutive as the first dimensions
@@ -887,11 +887,7 @@ def _resolve_indexing_state(
             output_shape = list(output_shape[i] for i in transpose_axes)
             output_shape[: len(advanced_indexing_dims)] = broadcasted_shape
             split_bookkeeping = list(split_bookkeeping[i] for i in transpose_axes)
-            split_bookkeeping = [None] * add_dims + split_bookkeeping
-            # modify key to match the new dimension order
-            key = [key[i] for i in advanced_indexing_dims] + [key[i] for i in non_adv_ind_dims]
-            # update advanced-indexing dims
-            advanced_indexing_dims = list(range(len(advanced_indexing_dims)))
+            split_bookkeeping[: len(advanced_indexing_dims)] = [None] * len(broadcasted_shape)
 
     # expand key to match the number of dimensions of the DNDarray
     if arr.ndim > len(key):
