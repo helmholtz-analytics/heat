@@ -1938,6 +1938,11 @@ class DNDarray:
         x_local[lhs_index] = rhs
 
     def __getitem_scalar(self, p: ProcessedKey) -> DNDarray:
+        """
+        Handles single-element extraction. If the scalar index falls on the
+        split axis, the extracted value is broadcasted from the
+        root process to all others.
+        """
         if p.root is not None:
             # Single-element indexing along split axis
             if self.comm.rank == p.root:
@@ -1964,6 +1969,10 @@ class DNDarray:
         )
 
     def __getitem_slice(self, p: ProcessedKey) -> "DNDarray":
+        """
+        Handles standard slicing using process-local views. Requires no cross-process
+        MPI communication.
+        """
         indexed_arr = self.larray[p.key]
         if self.ndim > 0:
             self = self.transpose(p.backwards_transpose_axes)
@@ -1979,6 +1988,9 @@ class DNDarray:
         )
 
     def __getitem_descending_slice_distributed(self, p: ProcessedKey) -> DNDarray:
+        """
+        Handles negative step slicing along the split axis. This is a workaround as torch does not support negative-step slicing.
+        """
         from .manipulations import flip
 
         # local indexing
@@ -1996,11 +2008,16 @@ class DNDarray:
             comm=self.comm,
             balanced=False,
         )
-        # intermediate.balance_()
+
         # global flip to reflect the descending slice
         return flip(intermediate, axis=p.output_split)
 
     def __getitem_mask(self, p: ProcessedKey, original_key) -> "DNDarray":
+        """
+        Handles fast-path boolean masking. Applies the mask locally without
+        requiring MPI communication during extraction, returning a flattened array
+        distributed along the specified split axis.
+        """
         # local masking, then wrap into DNDarray
         local_mask = p.key
         local_result = self.larray[local_mask]
@@ -2010,6 +2027,10 @@ class DNDarray:
         )
 
     def __getitem_advanced_local(self, p: ProcessedKey, original_key) -> "DNDarray":
+        """
+        Handles advanced indexing where no MPI communication is needed
+        (e.g., the split axis is unaffected, or indices are strictly local).
+        """
         indexed_arr = self.larray[p.key]
         if self.ndim > 0:
             self = self.transpose(p.backwards_transpose_axes)
@@ -2025,6 +2046,10 @@ class DNDarray:
         )
 
     def __getitem_advanced_distributed(self, p: ProcessedKey) -> "DNDarray":
+        """
+        Handles advanced indexing with unordered global indices. Defers to
+        ``__getitem_unordered`` to resolve data dependencies via an ``Alltoallv`` exchange.
+        """
         self, indexed_arr = self.__getitem_unordered(
             key=p.key,
             output_shape=p.output_shape,
@@ -2747,6 +2772,9 @@ class DNDarray:
             self.__set(p.key, value)
 
     def __setitem_slice(self, p: ProcessedKey, value: "DNDarray", value_is_scalar: bool) -> None:
+        """
+        Assigns a value array using standard slicing. If `value` is distributed, it might be redistributed to align with the target slice before assignment.
+        """
         if not self.is_distributed() and not value.is_distributed():
             self.__set(p.key, value)
             return
@@ -2782,11 +2810,18 @@ class DNDarray:
     def __setitem_advanced_local(
         self, p: ProcessedKey, original_key, value: "DNDarray", value_is_scalar: bool
     ) -> None:
+        """
+        Handles local advanced indexing assignments.
+        """
         self.__setitem_slice(p, value, value_is_scalar)
 
     def __setitem_descending_slice_distributed(
         self, p: ProcessedKey, value: "DNDarray", value_is_scalar: bool
     ) -> None:
+        """
+        Handles assignment via negative-step slicing. Flips the `value` array and redistributes
+        it to align with the descending split key before performing the local assignment.
+        """
         flipped_value = manipulations.flip(value, axis=p.output_split)
         split_key = factories.array(
             p.key[self.split], is_split=0, device=self.device, comm=self.comm
@@ -2807,6 +2842,9 @@ class DNDarray:
     def __setitem_mask(
         self, p: ProcessedKey, original_key, value: "DNDarray", value_is_scalar: bool
     ) -> None:
+        """
+        Handles assignment using boolean masks. If `value` is distributed, it will be redistributed to match the number of True elements in the local mask before assignment. If `value` is not distributed, it will be assigned directly to the masked positions on each process, with PyTorch handling any necessary broadcasting.
+        """
         pytorch_key = p.key
 
         if isinstance(pytorch_key, tuple):
@@ -2874,6 +2912,7 @@ class DNDarray:
     def __setitem_advanced_distributed(
         self, p: ProcessedKey, original_key, value: "DNDarray", value_is_scalar: bool
     ) -> None:
+        """Handles advanced indexing assignments where the indexing key is distributed. This method ensures that the value array is properly aligned and redistributed if necessary before performing the local assignment on each process."""
         # check distribution status of the indexing key
         split_key_orig = (
             original_key[self.split] if isinstance(original_key, tuple) else original_key
