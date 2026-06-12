@@ -2228,10 +2228,10 @@ class DNDarray:
     def __getitem__(self, key: Indexer) -> DNDarray:
         """
         Global getter function for DNDarrays.
-        Returns a new DNDarray composed of the elements of the original tensor selected by the indices
-        given. This does *NOT* redistribute or rebalance the resulting tensor. If the selection of values is
-        unbalanced then the resultant tensor is also unbalanced!
-        To redistribute the ``DNDarray`` use :func:`balance()` (issue #187)
+
+        Returns a new DNDarray corresponding to the selection of values from the original DNDarray as specified by `key`. The `key` can be a variety of indexers, including integers, slices, lists, boolean masks, DNDarrays, ndarrays, torch tensors, and a combination thereof.
+        The function will determine the appropriate method to retrieve the requested data based on the type and structure of `key`, setting up necessary MPI communication if the indexing pattern requires data from multiple processes.
+        The returned DNDarray will have its shape, split, and balanced status determined according to the indexing operation performed.
 
         Parameters
         ----------
@@ -2255,7 +2255,6 @@ class DNDarray:
         (1/2) >>> tensor([0.])
         (2/2) >>> tensor([0., 0.])
         """
-        # key can be: int, tuple, list, slice, DNDarray, torch tensor, numpy array, or sequence thereof
         if key is None:
             return self.expand_dims(0)
         if (
