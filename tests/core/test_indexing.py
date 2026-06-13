@@ -37,10 +37,7 @@ class TestIndexing(TestCase):
         nz = ht.nonzero(a, as_tuple=False)
         self.assertEqual(nz.gshape, (4, 2))
         self.assertEqual(nz.dtype, ht.int64)
-        if a.is_distributed():
-            self.assertEqual(nz.split, 0)
-        else:
-            self.assertEqual(nz.split, None)
+        self.assertEqual(nz.split, 0)
         t_a =  a.resplit_(None).larray
         t_nz = torch.nonzero(t_a, as_tuple=False)
         self.assertTrue(ht.equal(nz, ht.array(t_nz)))
