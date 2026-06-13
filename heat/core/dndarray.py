@@ -2327,7 +2327,6 @@ class DNDarray:
         self, processed_key = _resolve_indexing_state(
             self, key, return_local_indices=True, op="get"
         )
-        print(f"DEBUGGING: Processed key: {processed_key}")
 
         # dispatch to appropriate getitem method
         op = processed_key.op_type
@@ -3295,7 +3294,6 @@ class DNDarray:
         self, processed_key = _resolve_indexing_state(
             self, key, return_local_indices=True, op="set"
         )
-        # print(f"DEBUGGING: Processed key: {processed_key}")
 
         op = processed_key.op_type
 
