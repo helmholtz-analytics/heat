@@ -868,10 +868,23 @@ def _resolve_indexing_state(
                         + len(advanced_indexing_dims)
                     ] = [None]
             else:
+                # Replace the original slice with a properly sized list representing the broadcasted shape
+                # adv_sb = slice of split_bookkeeping corresponding to advanced_indexing_dims
+                adv_sb = split_bookkeeping[
+                    advanced_indexing_dims[0] : advanced_indexing_dims[-1] + 1
+                ]
+                new_adv_sb = [None] * len(broadcasted_shape)
+                if "split" in adv_sb:
+                    # track 'split', adjust for added dimensions
+                    new_idx = adv_sb.index("split") + add_dims
+                    if new_idx < 0:
+                        new_idx = 0
+                    new_adv_sb[new_idx] = "split"
+
                 split_bookkeeping = (
                     split_bookkeeping[: advanced_indexing_dims[0]]
-                    + [None] * add_dims
-                    + split_bookkeeping[advanced_indexing_dims[0] :]
+                    + new_adv_sb
+                    + split_bookkeeping[advanced_indexing_dims[-1] + 1 :]
                 )
         else:
             # advanced-indexing dimensions are not consecutive:
@@ -886,8 +899,19 @@ def _resolve_indexing_state(
             # output shape and split bookkeeping
             output_shape = list(output_shape[i] for i in transpose_axes)
             output_shape[: len(advanced_indexing_dims)] = broadcasted_shape
+
             split_bookkeeping = list(split_bookkeeping[i] for i in transpose_axes)
-            split_bookkeeping = [None] * add_dims + split_bookkeeping
+            adv_sb = split_bookkeeping[: len(advanced_indexing_dims)]
+            new_adv_sb = [None] * len(broadcasted_shape)
+
+            if "split" in adv_sb:
+                new_idx = adv_sb.index("split") + add_dims
+                if new_idx < 0:
+                    new_idx = 0
+                new_adv_sb[new_idx] = "split"
+
+            split_bookkeeping = new_adv_sb + split_bookkeeping[len(advanced_indexing_dims) :]
+
             # modify key to match the new dimension order
             key = [key[i] for i in advanced_indexing_dims] + [key[i] for i in non_adv_ind_dims]
             # update advanced-indexing dims
@@ -2267,11 +2291,6 @@ class DNDarray:
         The returned DNDarray will have its shape, split, and balanced status determined according
         to the indexing operation performed. For more details on supported indexing behaviors, see
         the :doc:`indexing documentation <INDEXING>`.
-
-        Notes
-        -----
-        The returned DNDarray will have its shape, split, and balanced status determined according to the indexing operation performed.
-        For more details see INDEXING.md. #TODO: link to documentation
 
         Parameters
         ----------
