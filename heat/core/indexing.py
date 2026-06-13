@@ -60,14 +60,19 @@ def nonzero(x: DNDarray, as_tuple: bool = True) -> tuple[DNDarray, ...] | DNDarr
     if not x.is_distributed():
         # nonzero indices as tuple
         nonzero = torch.nonzero(input=local_x, as_tuple=as_tuple)
+        # ensure output split is consistent with distributed execution
+        out_split = 0 if x.split is not None else None
+
         # bookkeeping for final DNDarray construct
         if as_tuple:
             nonzero = list(nonzero)
             for i, nz_tensor in enumerate(nonzero):
-                nonzero[i] = factories.array(nz_tensor, device=x.device, comm=x.comm)
+                nonzero[i] = factories.array(
+                    nz_tensor, split=out_split, device=x.device, comm=x.comm
+                )
             return tuple(nonzero)
         # nonzero indices as single 2D DNDarray
-        return factories.array(nonzero, device=x.device, comm=x.comm)
+        return factories.array(nonzero, split=out_split, device=x.device, comm=x.comm)
 
     # distributed case
     lcl_nonzero = torch.nonzero(input=local_x, as_tuple=False)
