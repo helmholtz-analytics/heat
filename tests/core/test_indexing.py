@@ -64,9 +64,10 @@ class TestIndexing(TestCase):
         a = ht.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]], split=1)
         cond = a > 3
         wh = ht.where(cond)
-        self.assertEqual(wh.gshape, (6, 2))
-        self.assertEqual(wh.dtype, ht.int64)
-        self.assertEqual(wh.split, 0)
+        self.assertEqual(len(wh), 2)
+        self.assertEqual(wh[0].gshape, (6,))
+        self.assertEqual(wh[0].dtype, ht.int64)
+        self.assertEqual(wh[0].split, 0)
 
         # not split cond
         a = ht.array([[0.0, 1.0, 2.0], [0.0, 2.0, 4.0], [0.0, 3.0, 6.0]], split=None)
