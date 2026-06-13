@@ -208,9 +208,6 @@ result = arr[a1, :, a2, :]
 # result.split is 2
 ```
 
-**Distributed Routing**: Under the hood, if non-consecutive indexing is detected, Heat physically transposes the array dimensions (arr.transpose(transpose_axes)) to make the advanced dimensions consecutive. It tracks the reverse operation (backwards_transpose_axes) to ensure that data fetched via MPI collectives (like Alltoallv) can be cleanly transposed back into the user's expected shape before returning.
-
-
 ## Communication overhead
 
 The indexing operations dynamically evaluate the state of the indexing key to determine the most efficient network routing strategy. The communication overhead ranges from completely zero (purely local execution) to heavy all-to-all exchanges for non-sequential advanced indexing.
