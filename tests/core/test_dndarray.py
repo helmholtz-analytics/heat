@@ -967,6 +967,28 @@ class TestDNDarray(TestCase):
         self.assert_array_equal(x_indexed, x_np_indexed)
         self.assertTrue(x_indexed.split == 3)
 
+        # multi-array advanced indexing (consecutive dimensions)
+        arr_np = np.arange(4 * 5 * 6 * 7).reshape((4, 5, 6, 7))
+        arr = ht.array(arr_np, split=3)
+        a1_np = np.array([1, 2])
+        a2_np = np.array([3, 4])
+
+        a1 = ht.array(a1_np)
+        a2 = ht.array(a2_np)
+
+        res_consec_np = arr_np[:, a1_np, a2_np, :]
+        res_consec = arr[:, a1, a2, :]
+        self.assertEqual(res_consec.split, 2)
+        self.assertEqual(res_consec.gshape, (4, 2, 7))
+        self.assert_array_equal(res_consec, res_consec_np)
+
+        # multi-array advanced indexing (non-consecutive dimensions)
+        res_nonconsec_np = arr_np[a1_np, :, a2_np, :]
+        res_nonconsec = arr[a1, :, a2, :]
+        self.assert_array_equal(res_nonconsec, res_nonconsec_np)
+        self.assertEqual(res_nonconsec.split, 2)
+        self.assertEqual(res_nonconsec.gshape, (2, 5, 7))
+
         # boolean mask, local
         arr = ht.arange(3 * 4 * 5).reshape(3, 4, 5)
         np.random.seed(42)
