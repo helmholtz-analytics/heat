@@ -301,6 +301,8 @@ class TestLinalgBasics(TestCase):
         self.assertTupleEqual(ainv.shape, a.shape)
         self.assertTrue(ht.allclose(ainv, ares, atol=1e-6))
 
+        # distributed
+        #        ares = ht.array([[2.0, 2, 1], [3, 4, 1], [0, 1, -1]], split=0)
         a = ht.array([[5.0, -3, 2], [-3, 2, -1], [-3, 2, -2]], split=0)
         ainv = ht.linalg.inv(a)
         self.assertEqual(ainv.split, a.split)
@@ -401,12 +403,8 @@ class TestLinalgBasics(TestCase):
         b_torch[:, 0] = torch.arange(1, j + 1, device=self.device.torch_device)
 
         # splits None None
-        a = ht.ones((n, m), split=None)
-        b = ht.ones((j, k), split=None)
-        a[0] = ht.arange(1, m + 1)
-        a[:, -1] = ht.arange(1, n + 1)
-        b[0] = ht.arange(1, k + 1)
-        b[:, 0] = ht.arange(1, j + 1)
+        a = ht.array(a_torch, split=None, copy=True)
+        b = ht.array(b_torch, split=None, copy=True)
         ret00 = ht.matmul(a, b)
 
         self.assertEqual(ht.all(ret00 == ht.array(a_torch @ b_torch)), 1)
@@ -418,12 +416,8 @@ class TestLinalgBasics(TestCase):
         self.assertEqual(b.split, None)
 
         # splits None None
-        a = ht.ones((n, m), split=None)
-        b = ht.ones((j, k), split=None)
-        a[0] = ht.arange(1, m + 1)
-        a[:, -1] = ht.arange(1, n + 1)
-        b[0] = ht.arange(1, k + 1)
-        b[:, 0] = ht.arange(1, j + 1)
+        a = ht.array(a_torch, split=None, copy=True)
+        b = ht.array(b_torch, split=None, copy=True)
         ret00 = ht.matmul(a, b, allow_resplit=True)
 
         self.assertEqual(ht.all(ret00 == ht.array(a_torch @ b_torch)), 1)
@@ -437,12 +431,8 @@ class TestLinalgBasics(TestCase):
 
         # splits 0 None on 1 process
         if a.comm.size == 1:
-            a = ht.ones((n, m), split=0)
-            b = ht.ones((j, k), split=None)
-            a[0] = ht.arange(1, m + 1)
-            a[:, -1] = ht.arange(1, n + 1)
-            b[0] = ht.arange(1, k + 1)
-            b[:, 0] = ht.arange(1, j + 1)
+            a = ht.array(a_torch, split=0, copy=True)
+            b = ht.array(b_torch, split=None, copy=True)
             ret00 = ht.matmul(a, b, allow_resplit=True)
 
             self.assertEqual(ht.all(ret00 == ht.array(a_torch @ b_torch)), 1)
@@ -455,12 +445,8 @@ class TestLinalgBasics(TestCase):
 
         if a.comm.size > 1:
             # splits 00
-            a = ht.ones((n, m), split=0, dtype=ht.float64)
-            b = ht.ones((j, k), split=0)
-            a[0] = ht.arange(1, m + 1)
-            a[:, -1] = ht.arange(1, n + 1)
-            b[0] = ht.arange(1, k + 1)
-            b[:, 0] = ht.arange(1, j + 1)
+            a = ht.array(a_torch, split=0, dtype=ht.float64, copy=True)
+            b = ht.array(b_torch, split=0, copy=True)
             ret00 = a @ b
 
             ret_comp00 = ht.array(a_torch @ b_torch, split=0)
@@ -487,12 +473,8 @@ class TestLinalgBasics(TestCase):
             self.assertEqual(ret00.split, 0)
 
             # splits 01
-            a = ht.ones((n, m), split=0)
-            b = ht.ones((j, k), split=1, dtype=ht.float64)
-            a[0] = ht.arange(1, m + 1)
-            a[:, -1] = ht.arange(1, n + 1)
-            b[0] = ht.arange(1, k + 1)
-            b[:, 0] = ht.arange(1, j + 1)
+            a = ht.array(a_torch, split=0, copy=True)
+            b = ht.array(b_torch, split=1, dtype=ht.float64, copy=True)
             ret00 = ht.matmul(a, b)
 
             ret_comp01 = ht.array(a_torch @ b_torch, split=0)
@@ -503,12 +485,8 @@ class TestLinalgBasics(TestCase):
             self.assertEqual(ret00.split, 0)
 
             # splits 10
-            a = ht.ones((n, m), split=1)
-            b = ht.ones((j, k), split=0)
-            a[0] = ht.arange(1, m + 1)
-            a[:, -1] = ht.arange(1, n + 1)
-            b[0] = ht.arange(1, k + 1)
-            b[:, 0] = ht.arange(1, j + 1)
+            a = ht.array(a_torch, split=1, copy=True)
+            b = ht.array(b_torch, split=0, copy=True)
             ret00 = ht.matmul(a, b)
 
             ret_comp10 = ht.array(a_torch @ b_torch, split=1)
@@ -519,28 +497,8 @@ class TestLinalgBasics(TestCase):
             self.assertEqual(ret00.split, 1)
 
             # splits 11
-            a = ht.ones((n, m), split=1)
-            b = ht.ones((j, k), split=1)
-            a[0] = ht.arange(1, m + 1)
-            a[:, -1] = ht.arange(1, n + 1)
-            b[0] = ht.arange(1, k + 1)
-            b[:, 0] = ht.arange(1, j + 1)
-            ret00 = ht.matmul(a, b)
-
-            ret_comp11 = ht.array(a_torch @ b_torch, split=1)
-            self.assertTrue(ht.equal(ret00, ret_comp11))
-            self.assertIsInstance(ret00, ht.DNDarray)
-            self.assertEqual(ret00.shape, (n, k))
-            self.assertEqual(ret00.dtype, ht.float)
-            self.assertEqual(ret00.split, 1)
-
-            # splits 11 (torch)
-            a = ht.array(torch.ones((n, m), device=self.device.torch_device), split=1)
-            b = ht.array(torch.ones((j, k), device=self.device.torch_device), split=1)
-            a[0] = ht.arange(1, m + 1)
-            a[:, -1] = ht.arange(1, n + 1)
-            b[0] = ht.arange(1, k + 1)
-            b[:, 0] = ht.arange(1, j + 1)
+            a = ht.array(a_torch, split=1, copy=True)
+            b = ht.array(b_torch, split=1, copy=True)
             ret00 = ht.matmul(a, b)
 
             ret_comp11 = ht.array(a_torch @ b_torch, split=1)
@@ -551,12 +509,8 @@ class TestLinalgBasics(TestCase):
             self.assertEqual(ret00.split, 1)
 
             # splits 0 None
-            a = ht.ones((n, m), split=0)
-            b = ht.ones((j, k), split=None)
-            a[0] = ht.arange(1, m + 1)
-            a[:, -1] = ht.arange(1, n + 1)
-            b[0] = ht.arange(1, k + 1)
-            b[:, 0] = ht.arange(1, j + 1)
+            a = ht.array(a_torch, split=0, copy=True)
+            b = ht.array(b_torch, split=None, copy=True)
             ret00 = ht.matmul(a, b)
 
             ret_comp0 = ht.array(a_torch @ b_torch, split=0)
@@ -566,13 +520,10 @@ class TestLinalgBasics(TestCase):
             self.assertEqual(ret00.dtype, ht.float)
             self.assertEqual(ret00.split, 0)
 
+
             # splits 1 None
-            a = ht.ones((n, m), split=1)
-            b = ht.ones((j, k), split=None)
-            a[0] = ht.arange(1, m + 1)
-            a[:, -1] = ht.arange(1, n + 1)
-            b[0] = ht.arange(1, k + 1)
-            b[:, 0] = ht.arange(1, j + 1)
+            a = ht.array(a_torch, split=1, copy=True)
+            b = ht.array(b_torch, split=None, copy=True)
             ret00 = ht.matmul(a, b)
 
             ret_comp1 = ht.array(a_torch @ b_torch, split=1)
@@ -583,12 +534,8 @@ class TestLinalgBasics(TestCase):
             self.assertEqual(ret00.split, 1)
 
             # splits None 0
-            a = ht.ones((n, m), split=None)
-            b = ht.ones((j, k), split=0)
-            a[0] = ht.arange(1, m + 1)
-            a[:, -1] = ht.arange(1, n + 1)
-            b[0] = ht.arange(1, k + 1)
-            b[:, 0] = ht.arange(1, j + 1)
+            a = ht.array(a_torch, split=None, copy=True)
+            b = ht.array(b_torch, split=0, copy=True)
             ret00 = ht.matmul(a, b)
 
             ret_comp = ht.array(a_torch @ b_torch, split=0)
@@ -599,12 +546,8 @@ class TestLinalgBasics(TestCase):
             self.assertEqual(ret00.split, 0)
 
             # splits None 1
-            a = ht.ones((n, m), split=None)
-            b = ht.ones((j, k), split=1)
-            a[0] = ht.arange(1, m + 1)
-            a[:, -1] = ht.arange(1, n + 1)
-            b[0] = ht.arange(1, k + 1)
-            b[:, 0] = ht.arange(1, j + 1)
+            a = ht.array(a_torch, split=None, copy=True)
+            b = ht.array(b_torch, split=1, copy=True)
             ret00 = ht.matmul(a, b)
 
             ret_comp = ht.array(a_torch @ b_torch, split=1)
@@ -621,10 +564,8 @@ class TestLinalgBasics(TestCase):
             b_torch[0] = torch.arange(1, k + 1, device=self.device.torch_device)
             b_torch[:, 0] = torch.arange(1, j + 1, device=self.device.torch_device)
             # splits None None
-            a = ht.ones((m), split=None)
-            b = ht.ones((j, k), split=None)
-            b[0] = ht.arange(1, k + 1)
-            b[:, 0] = ht.arange(1, j + 1)
+            a = ht.array(a_torch, split=None, copy=True)
+            b = ht.array(b_torch, split=None, copy=True)
             ret00 = ht.matmul(a, b)
 
             ret_comp = ht.array(a_torch @ b_torch, split=None)
@@ -636,10 +577,8 @@ class TestLinalgBasics(TestCase):
             self.assertEqual(ret00.split, None)
 
             # splits None 0
-            a = ht.ones((m), split=None)
-            b = ht.ones((j, k), split=0)
-            b[0] = ht.arange(1, k + 1)
-            b[:, 0] = ht.arange(1, j + 1)
+            a = ht.array(a_torch, split=None, copy=True)
+            b = ht.array(b_torch, split=0, copy=True)
             ret00 = ht.matmul(a, b)
 
             ret_comp = ht.array(a_torch @ b_torch, split=None)
@@ -650,10 +589,8 @@ class TestLinalgBasics(TestCase):
             self.assertEqual(ret00.split, 0)
 
             # splits None 1
-            a = ht.ones((m), split=None)
-            b = ht.ones((j, k), split=1)
-            b[0] = ht.arange(1, k + 1)
-            b[:, 0] = ht.arange(1, j + 1)
+            a = ht.array(a_torch, split=None, copy=True)
+            b = ht.array(b_torch, split=1, copy=True)
             ret00 = ht.matmul(a, b)
             ret_comp = ht.array(a_torch @ b_torch, split=0)
             self.assertTrue(ht.equal(ret00, ret_comp))
@@ -663,10 +600,8 @@ class TestLinalgBasics(TestCase):
             self.assertEqual(ret00.split, 0)
 
             # splits 0 None
-            a = ht.ones((m), split=None)
-            b = ht.ones((j, k), split=0)
-            b[0] = ht.arange(1, k + 1)
-            b[:, 0] = ht.arange(1, j + 1)
+            a = ht.array(a_torch, split=None, copy=True)
+            b = ht.array(b_torch, split=0, copy=True)
             ret00 = ht.matmul(a, b)
 
             ret_comp = ht.array(a_torch @ b_torch, split=None)
@@ -677,10 +612,8 @@ class TestLinalgBasics(TestCase):
             self.assertEqual(ret00.split, 0)
 
             # splits 0 0
-            a = ht.ones((m), split=0)
-            b = ht.ones((j, k), split=0)
-            b[0] = ht.arange(1, k + 1)
-            b[:, 0] = ht.arange(1, j + 1)
+            a = ht.array(a_torch, split=0, copy=True)
+            b = ht.array(b_torch, split=0, copy=True)
             ret00 = ht.matmul(a, b)
 
             ret_comp = ht.array(a_torch @ b_torch, split=None)
@@ -691,10 +624,8 @@ class TestLinalgBasics(TestCase):
             self.assertEqual(ret00.split, 0)
 
             # splits 0 1
-            a = ht.ones((m), split=0)
-            b = ht.ones((j, k), split=1)
-            b[0] = ht.arange(1, k + 1)
-            b[:, 0] = ht.arange(1, j + 1)
+            a = ht.array(a_torch, split=0, copy=True)
+            b = ht.array(b_torch, split=1, copy=True)
             ret00 = ht.matmul(a, b)
 
             ret_comp = ht.array(a_torch @ b_torch, split=None)
@@ -710,10 +641,8 @@ class TestLinalgBasics(TestCase):
             a_torch[:, -1] = torch.arange(1, n + 1, device=self.device.torch_device)
             b_torch = torch.ones((j), device=self.device.torch_device)
             # splits None None
-            a = ht.ones((n, m), split=None)
-            b = ht.ones((j), split=None)
-            a[0] = ht.arange(1, m + 1)
-            a[:, -1] = ht.arange(1, n + 1)
+            a = ht.array(a_torch, split=None, copy=True)
+            b = ht.array(b_torch, split=None, copy=True)
             ret00 = ht.matmul(a, b)
 
             ret_comp = ht.array(a_torch @ b_torch, split=None)
@@ -723,10 +652,8 @@ class TestLinalgBasics(TestCase):
             self.assertEqual(ret00.dtype, ht.float)
             self.assertEqual(ret00.split, None)
 
-            a = ht.ones((n, m), split=None, dtype=ht.int64)
-            b = ht.ones((j), split=None, dtype=ht.int64)
-            a[0] = ht.arange(1, m + 1, dtype=ht.int64)
-            a[:, -1] = ht.arange(1, n + 1, dtype=ht.int64)
+            a = ht.array(a_torch, split=None, dtype=ht.int64, copy=True)
+            b = ht.array(b_torch, split=None, dtype=ht.int64, copy=True)
             ret00 = ht.matmul(a, b)
 
             ret_comp = ht.array((a_torch @ b_torch), split=None)
@@ -737,10 +664,8 @@ class TestLinalgBasics(TestCase):
             self.assertEqual(ret00.split, None)
 
             # splits 0 None
-            a = ht.ones((n, m), split=0)
-            b = ht.ones((j), split=None)
-            a[0] = ht.arange(1, m + 1)
-            a[:, -1] = ht.arange(1, n + 1)
+            a = ht.array(a_torch, split=0, copy=True)
+            b = ht.array(b_torch, split=None, copy=True)
             ret00 = ht.matmul(a, b)
 
             ret_comp = ht.array((a_torch @ b_torch), split=None)
@@ -750,10 +675,8 @@ class TestLinalgBasics(TestCase):
             self.assertEqual(ret00.dtype, ht.float)
             self.assertEqual(ret00.split, 0)
 
-            a = ht.ones((n, m), split=0, dtype=ht.int64)
-            b = ht.ones((j), split=None, dtype=ht.int64)
-            a[0] = ht.arange(1, m + 1, dtype=ht.int64)
-            a[:, -1] = ht.arange(1, n + 1, dtype=ht.int64)
+            a = ht.array(a_torch, split=0, dtype=ht.int64, copy=True)
+            b = ht.array(b_torch, split=None, dtype=ht.int64, copy=True)
             ret00 = ht.matmul(a, b)
 
             ret_comp = ht.array((a_torch @ b_torch), split=None)
@@ -764,10 +687,8 @@ class TestLinalgBasics(TestCase):
             self.assertEqual(ret00.split, 0)
 
             # splits 1 None
-            a = ht.ones((n, m), split=1)
-            b = ht.ones((j), split=None)
-            a[0] = ht.arange(1, m + 1)
-            a[:, -1] = ht.arange(1, n + 1)
+            a = ht.array(a_torch, split=1, copy=True)
+            b = ht.array(b_torch, split=None, copy=True)
             ret00 = ht.matmul(a, b)
 
             ret_comp = ht.array((a_torch @ b_torch), split=None)
@@ -777,10 +698,8 @@ class TestLinalgBasics(TestCase):
             self.assertEqual(ret00.dtype, ht.float)
             self.assertEqual(ret00.split, 0)
 
-            a = ht.ones((n, m), split=1, dtype=ht.int64)
-            b = ht.ones((j), split=None, dtype=ht.int64)
-            a[0] = ht.arange(1, m + 1, dtype=ht.int64)
-            a[:, -1] = ht.arange(1, n + 1, dtype=ht.int64)
+            a = ht.array(a_torch, split=1, dtype=ht.int64, copy=True)
+            b = ht.array(b_torch, split=None, dtype=ht.int64, copy=True)
             ret00 = ht.matmul(a, b)
 
             ret_comp = ht.array((a_torch @ b_torch), split=None)
@@ -791,10 +710,8 @@ class TestLinalgBasics(TestCase):
             self.assertEqual(ret00.split, 0)
 
             # splits None 0
-            a = ht.ones((n, m), split=None)
-            b = ht.ones((j), split=0)
-            a[0] = ht.arange(1, m + 1)
-            a[:, -1] = ht.arange(1, n + 1)
+            a = ht.array(a_torch, split=None, copy=True)
+            b = ht.array(b_torch, split=0, copy=True)
             ret00 = ht.matmul(a, b)
 
             ret_comp = ht.array((a_torch @ b_torch), split=None)
@@ -804,10 +721,8 @@ class TestLinalgBasics(TestCase):
             self.assertEqual(ret00.dtype, ht.float)
             self.assertEqual(ret00.split, 0)
 
-            a = ht.ones((n, m), split=None, dtype=ht.int64)
-            b = ht.ones((j), split=0, dtype=ht.int64)
-            a[0] = ht.arange(1, m + 1, dtype=ht.int64)
-            a[:, -1] = ht.arange(1, n + 1, dtype=ht.int64)
+            a = ht.array(a_torch, split=None, dtype=ht.int64, copy=True)
+            b = ht.array(b_torch, split=0, dtype=ht.int64, copy=True)
             ret00 = ht.matmul(a, b)
 
             ret_comp = ht.array((a_torch @ b_torch), split=None)
@@ -818,10 +733,8 @@ class TestLinalgBasics(TestCase):
             self.assertEqual(ret00.split, 0)
 
             # splits 0 0
-            a = ht.ones((n, m), split=0)
-            b = ht.ones((j), split=0)
-            a[0] = ht.arange(1, m + 1)
-            a[:, -1] = ht.arange(1, n + 1)
+            a = ht.array(a_torch, split=0, copy=True)
+            b = ht.array(b_torch, split=0, copy=True)
             ret00 = ht.matmul(a, b)
 
             ret_comp = ht.array((a_torch @ b_torch), split=None)
@@ -831,10 +744,8 @@ class TestLinalgBasics(TestCase):
             self.assertEqual(ret00.dtype, ht.float)
             self.assertEqual(ret00.split, 0)
 
-            a = ht.ones((n, m), split=0, dtype=ht.int64)
-            b = ht.ones((j), split=0, dtype=ht.int64)
-            a[0] = ht.arange(1, m + 1, dtype=ht.int64)
-            a[:, -1] = ht.arange(1, n + 1, dtype=ht.int64)
+            a = ht.array(a_torch, split=0, dtype=ht.int64, copy=True)
+            b = ht.array(b_torch, split=0, dtype=ht.int64, copy=True)
             ret00 = ht.matmul(a, b)
 
             ret_comp = ht.array((a_torch @ b_torch), split=None)
@@ -845,10 +756,8 @@ class TestLinalgBasics(TestCase):
             self.assertEqual(ret00.split, 0)
 
             # splits 1 0
-            a = ht.ones((n, m), split=1)
-            b = ht.ones((j), split=0)
-            a[0] = ht.arange(1, m + 1)
-            a[:, -1] = ht.arange(1, n + 1)
+            a = ht.array(a_torch, split=1, copy=True)
+            b = ht.array(b_torch, split=0, copy=True)
             ret00 = ht.matmul(a, b)
 
             ret_comp = ht.array((a_torch @ b_torch), split=None)
@@ -858,10 +767,8 @@ class TestLinalgBasics(TestCase):
             self.assertEqual(ret00.dtype, ht.float)
             self.assertEqual(ret00.split, 0)
 
-            a = ht.ones((n, m), split=1, dtype=ht.int64)
-            b = ht.ones((j), split=0, dtype=ht.int64)
-            a[0] = ht.arange(1, m + 1, dtype=ht.int64)
-            a[:, -1] = ht.arange(1, n + 1, dtype=ht.int64)
+            a = ht.array(a_torch, split=1, dtype=ht.int64, copy=True)
+            b = ht.array(b_torch, split=0, dtype=ht.int64, copy=True)
             ret00 = ht.matmul(a, b)
 
             ret_comp = ht.array((a_torch @ b_torch), split=None)
