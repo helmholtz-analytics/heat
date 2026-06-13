@@ -146,34 +146,21 @@ DNDarray.nonzero.__doc__ = nonzero.__doc__
 
 
 def where(
-    cond: DNDarray,
-    x: None | int | float | DNDarray = None,
-    y: None | int | float | DNDarray = None,
-) -> DNDarray:
+    cond: DNDarray, x: None | int | float | DNDarray = None, y: None | int | float | DNDarray = None
+) -> DNDarray | tuple[DNDarray, ...]:
     """
     Return a :class:`~heat.core.dndarray.DNDarray` containing elements chosen from ``x`` or ``y`` depending on condition.
-    Result is a :class:`~heat.core.dndarray.DNDarray` with elements from ``x`` where cond is ``True``,
-    and elements from ``y`` elsewhere (``False``).
+    Result is a :class:`~heat.core.dndarray.DNDarray` with elements from ``x`` where ``cond`` is True, and from ``y`` elsewhere.
+
+    If only ``cond`` is provided, this function acts as a shorthand for :func:`nonzero`.
 
     Parameters
     ----------
-    cond : DNDarray
-        Condition of interest, where true yield ``x`` otherwise yield ``y``
-    x : DNDarray or int or float, optional
-        Values from which to choose. ``x``, ``y`` and condition need to be broadcastable to some shape.
-    y : DNDarray or int or float, optional
-        Values from which to choose. ``x``, ``y`` and condition need to be broadcastable to some shape.
-
-    Raises
-    ------
-    NotImplementedError
-        if splits of the two input :class:`~heat.core.dndarray.DNDarray` differ
-    TypeError
-        if only x or y is given or both are not DNDarrays or numerical scalars
-
-    Notes
-    -----
-    When only condition is provided, this function is a shorthand for :func:`nonzero`.
+    cond: DNDarray
+        When True, yield ``x``, otherwise yield ``y``.
+    x, y: DNDarray or scalar, optional
+        Values from which to choose. ``x``, ``y`` and ``cond`` must be broadcastable to some shape.
+        If ``x`` and ``y`` are distributed, they must have the same split axis as ``cond``.
 
     Examples
     --------
@@ -181,11 +168,12 @@ def where(
     >>> x = ht.arange(10, split=0)
     >>> ht.where(x < 5, x, 10 * x)
     DNDarray([ 0,  1,  2,  3,  4, 50, 60, 70, 80, 90], dtype=ht.int64, device=cpu:0, split=0)
-    >>> y = ht.array([[0, 1, 2], [0, 2, 4], [0, 3, 6]])
-    >>> ht.where(y < 4, y, -1)
-    DNDarray([[ 0,  1,  2],
-              [ 0,  2, -1],
-              [ 0,  3, -1]], dtype=ht.int64, device=cpu:0, split=None)
+
+    >>> # Indices retrieval (shorthand for nonzero)
+    >>> y = ht.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]], split=0)
+    >>> ht.where(y > 3)
+    (DNDarray([1, 1, 1, 2, 2, 2], dtype=ht.int64, device=cpu:0, split=0),
+     DNDarray([0, 1, 2, 0, 1, 2], dtype=ht.int64, device=cpu:0, split=0))
     """
     # ---- binary where(cond, x, y) branch ------------------------------------
     if cond.split is not None and (isinstance(x, DNDarray) or isinstance(y, DNDarray)):
@@ -206,29 +194,9 @@ def where(
 
     # ---- where(cond) "indices only" branch ----------------------------------
     elif x is None and y is None:
-        # General rule: delegate to nonzero(cond), and only wrap into a 2-D
-        # coordinate matrix in the special distributed case where the array
-        # is split along a non-zero axis.
-        nz = nonzero(cond)  # tuple of DNDarrays, one per dimension
-
-        # 1) Non-distributed: behave exactly like ht.nonzero(cond)
-        if cond.split is None:
-            return nz
-
-        # 2) Distributed along axis 0: keep the legacy tuple-of-indices API.
-        #    This is relied upon in several parts of the code base (e.g. KMeans).
-        if cond.split == 0:
-            return nz
-
-        # 3) Distributed along a non-zero axis (split > 0)
-        coords = manipulations.stack(nz, axis=1)
-        coords = coords.astype(types.int64, copy=False)
-
-        # Ensure indices are split along axis 0 for stable distributed behavior
-        if coords.split is None:
-            coords.resplit_(0)
-
-        return coords
+        # nonzero() properly handles all cases
+        nz = nonzero(cond)
+        return nz
 
     # ---- invalid combinations ----------------------------------------------
     else:
