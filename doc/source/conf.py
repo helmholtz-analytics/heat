@@ -199,14 +199,15 @@ todo_include_todos = False
 
 html_theme = "pydata_sphinx_theme"
 html_theme_options = {
-    "github_url": "https://github.com/helmholtz-analytics/heat",
+"github_url": "https://github.com/helmholtz-analytics/heat",
     "show_nav_level": 2,
+    "navbar_align": "left",
     "logo": {
-        "image_light": "_static/images/logo-light.png",
-        "image_dark": "_static/images/logo-dark.png",
+#        "text": "Heat",                       # Explicitly keeps the "Heat" text string active
+        "image_light": "_static/images/logo_emblem.svg", # Points light mode to your emblem
+        "image_dark": "_static/images/logo_emblem.svg",  # Points dark mode to your emblem
     }
 }
-
 
 #html_theme = "sphinx_rtd_theme"
 
@@ -231,7 +232,7 @@ html_theme_options = {
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
 #
-html_logo = "_static/images/logo_emblem.png"
+html_logo = "_static/images/logo_emblem.svg"
 
 # The name of an image file (relative to this directory) to use as a favicon of
 # the docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32

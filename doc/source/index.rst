@@ -1,21 +1,76 @@
+
 .. meta::
-   :description: Scale NumPy based data analysis to HPC
-   :keywords: data analysis, HPC, MPI, GPU
+   :description: Scale NumPy-based data analysis to HPC
+   :keywords: data analysis, HPC, MPI, GPU, multi-GPU, distributed computing, parallel processing, data science, data analytics, machine learning, scientific computing, high-performance computing, Python libraries, NumPy API, PyTorch
 
 ========================
 Heat
 ========================
 
-.. image:: _static/images/logo.png
-   :alt: Heat Logo
+.. ----------------=====================================================
+.. MAIN HERO BANNER PLACEHOLDER (TBD)
+.. Replace this block with banner choice
+.. ----------------=====================================================
+.. image:: _static/images/tbd.png
+   :alt: Heat  Banner
    :align: center
-   :width: 55%
+   :width: 100%
 
 .. div:: text-center
+   :class: mt-4 mb-4
 
    **High-performance data analytics in Python, at scale.**
 
-   Heat is a flexible, distributed tensor framework that lets you scale NumPy code effortlessly across multi-node clusters.
+.. grid:: 1 2 4 4
+   :gutter: 3
+   :class-container: text-center
+
+   .. grid-item::
+      **Distributed**
+
+      .. div:: mt-2
+
+         Multi-node data processing. MPI-based communication.
+
+         .. image:: _static/images/mpi_logo_icon.png
+            :width: 40px
+            :alt: MPI Compatible
+
+   .. grid-item::
+      **Accelerated**
+
+      .. div:: mt-2
+
+         Native multi-GPU support. Out of the box.
+
+         .. image:: _static/images/pytorch_logo_icon.png
+            :width: 35px
+            :alt: PyTorch Engine
+
+   .. grid-item::
+      **Scalable**
+
+      .. div:: mt-2
+
+         Scale beyond single-node memory limits. Effortlessly.
+
+         .. image:: _static/images/cluster_logo_icon.png
+            :width: 35px
+            :alt: Multi-Node Memory Scaling
+
+   .. grid-item::
+      **Interoperable**
+
+      .. div:: mt-2
+
+         Plug & play compatibility with the NumPy API. Minimal code changes.
+
+         .. image:: _static/images/numpy_logo_icon.png
+            :width: 35px
+            :alt: NumPy API Mirror
+
+.. div:: text-center
+   :class: mt-4 mb-4
 
    .. button-link:: https://github.com/helmholtz-analytics/heat
       :color: primary
@@ -50,8 +105,8 @@ Heat
 
 -----
 
-Quick Example
-=============
+Examples
+========
 
 .. grid:: 1 1 2 2
    :gutter: 4
