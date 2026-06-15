@@ -93,7 +93,7 @@ def _remove_slice(A: torch.Tensor, idx: int, dim: int) -> torch.Tensor:
         return A.index_select(dim, rows_before)
 
 
-def to_full_affine(mat):
+def _to_full_affine(mat):
     """
     Convert reduced affine matrices to full homogeneous form.
 
@@ -151,7 +151,14 @@ def _matrix_pixel_to_normalized_coords(M: torch.Tensor, sizes):
 
     # construct coord space transform
     scales = (torch.as_tensor(sizes) - 1) / 2.0
+    # this feels like an ugly hack, I am not quite shure why it is needed here, maybe something to do with scipy being inverse?
+    scales = scales.flip(0)
     M_scales = torch.diag(scales)
+
+    # scales = (sizes[0] - 1) / 2.0
+    # M_scales = torch.eye(len(sizes)) * scales
+    print(f"scales: {M_scales}")
+
     D = len(sizes)
     T_np = torch.zeros((D + 1, D + 1))
     T_np[:D, :D] = M_scales
@@ -159,7 +166,7 @@ def _matrix_pixel_to_normalized_coords(M: torch.Tensor, sizes):
     T_np[:D, D] = scales
     T_pn = T_np.inverse()
     print("construct coord transforms")
-    print(f"{T_np=}")
+    print(f"{T_pn=}")
 
     full_transformed = T_pn @ M @ T_np
     print(f"{full_transformed=}")
@@ -214,46 +221,53 @@ def affine_transform(
     """
     # TODO: Implement cases 3x3, 2x3, 2x2
 
-    matrix_torch: torch.Tensor
-    if input.ndim == 3:  # 2d image where third dimension are color vectors
-        if matrix.shape == (3, 4):
-            # remove axis that represents transforming the color dimension, because
-            # torch does not support that
+    # input setup
+    sample_padding = MODE_TO_PADDING[mode]
+    sample_mode = ORDER_TO_MODE[order]
 
-            matrix_torch = _remove_slice(matrix.larray, 2, 0)
-            matrix_torch = _remove_slice(matrix_torch, 2, 1)
-            matrix_torch = to_full_affine(matrix_torch)
-            matrix_torch = _swap_rows_cols(matrix_torch, (0, 1), (0, 1))
-        elif matrix.shape == (4, 4):
-            # remove axis that represents transforming the color dimension, because
-            # torch does not support that
-            matrix_torch = _remove_slice(matrix.larray, 2, 0)
-            matrix_torch = _remove_slice(matrix_torch, 2, 1)
-            matrix_torch = _swap_rows_cols(matrix_torch, (0, 1), (0, 1))
-        else:
-            raise NotImplementedError()
-    else:
-        raise ValueError("transform matrix has no valid shape")
+    matrix_torch: torch.Tensor
+    matrix_torch = matrix.larray
 
     if matrix_torch.dim() == 2:
         matrix_torch = matrix_torch.unsqueeze(0)
 
+    # 2d image given, third dimension are/would be color vector transforms
+    if input.ndim == 3 and 3 <= matrix.shape[0] <= 4 and 3 <= matrix.shape[1] <= 4:
+        # remove axis that represents transforming the color dimension, because
+        # torch affine_grid does not support that
+        matrix_torch = _remove_slice(matrix_torch, 2, dim=1)
+        matrix_torch = _remove_slice(matrix_torch, 2, dim=2)
+
+        if matrix.shape == (
+            3,
+            3,
+        ):  # translation information missing, using offset value
+            matrix_torch = torch.hstack([matrix_torch, offset[1:3]])
+        if matrix.shape != (4, 4):
+            # remove axis that represents transforming the color dimension, because
+            # torch affine_grid does not support that
+            matrix_torch = _to_full_affine(matrix_torch)
+    else:
+        raise ValueError("transform matrix has no valid shape")
+
     # for now matrix has shape 3x3xB
 
-    t_input = transpose(input, (2, 0, 1))  # to C x H x W
-    matrix_torch = _matrix_pixel_to_normalized_coords(matrix_torch, t_input.shape[1:])
+    t_input = transpose(input, (2, 1, 0))  # to C x W x H
     input_torch = t_input.larray.unsqueeze(0)
 
-    sample_padding = MODE_TO_PADDING[mode]
-    sample_mode = ORDER_TO_MODE[order]
+    matrix_torch = _matrix_pixel_to_normalized_coords(matrix_torch, t_input.shape[1:])
+
     size = torch.Size((1, t_input.shape[0], t_input.shape[1], t_input.shape[2]))
     print(f"{size=}")
     sample_grid: torch.Tensor = affine_grid(matrix_torch, size)
 
     transformed = grid_sample(
-        input_torch, sample_grid, padding_mode=sample_padding, mode=sample_mode
+        input_torch,
+        sample_grid,
+        padding_mode=sample_padding,
+        mode=sample_mode,
     )
-    return ht.array(transformed.squeeze(0).permute(1, 2, 0))
+    return ht.array(transformed.squeeze(0).permute(2, 1, 0))
 
 
 # ============================================================
