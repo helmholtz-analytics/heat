@@ -30,7 +30,7 @@ Heat
 
       .. div:: mt-2
 
-         Multi-node data processing. MPI-based communication.
+         Multi-node data processing. MPI-based performance.
 
          .. image:: _static/images/mpi_logo_icon.png
             :width: 40px
@@ -63,7 +63,7 @@ Heat
 
       .. div:: mt-2
 
-         Plug & play compatibility with the NumPy API. Minimal code changes.
+         Plug & play with the Numpy ecosystem.
 
          .. image:: _static/images/numpy_logo_icon.png
             :width: 35px
@@ -140,6 +140,60 @@ Examples
 
    # Run locally on 4 CPU/GPU workers
    mpirun -np 4 python my_script.py
+
+-----
+
+.. grid:: 1 2 3 3
+   :gutter: 3
+   :class-container: text-center
+
+   .. grid-item-card::
+      :class-card: sd-card
+      :link: tutorials/notebooks/4_matrix_factorizations
+      :link-type: doc
+
+      .. image:: _static/images/hSVD_bench_rank5.png
+         :alt: Matrix Factorizations Example
+         :align: center
+         :height: 140px
+
+      .. div:: mt-3 **Matrix Factorizations**
+
+      .. div:: text-muted small mt-1
+
+         Distributed SVD and PCA pipelines for high-dimensional feature decomposition.
+
+   .. grid-item-card::
+      :class-card: sd-card
+      :link: tutorials/notebooks/2_internals
+      :link-type: doc
+
+      .. image:: _static/images/tutorial_split_dndarray.svg
+         :alt: Massively Parallel Clustering Example
+         :align: center
+         :height: 140px
+
+      .. div:: mt-3 **Massively Parallel Clustering**
+
+      .. div:: text-muted small mt-1
+
+         K-Means and spectral data partitioning across multi-node GPU memories.
+
+   .. grid-item-card::
+      :class-card: sd-card
+      :link: tutorials/notebooks/6_profiling
+      :link-type: doc
+
+      .. image:: _static/images/perun_logo.svg
+         :alt: Performance Profiling Example
+         :align: center
+         :height: 140px
+
+      .. div:: mt-3 **Performance Profiling**
+
+      .. div:: text-muted small mt-1
+
+         Tracking cluster memory consumption and execution efficiency using Perun.
 
 -----
 
