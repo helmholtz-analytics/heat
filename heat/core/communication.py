@@ -114,10 +114,10 @@ class Communication(ABC):
         split : int
             The axis along which to chunk the data
         rank : int, optional
-            Process for which the chunking is calculated for, defaults to ``self.rank``.
+            Process for which the chunking is calculated for.
             Intended for creating chunk maps without communication
         w_size : int, optional
-            The MPI world size, defaults to ``self.size``.
+            The MPI world size.
             Intended for creating chunk maps without communication
         sparse : bool, optional
             Specifies whether the array is a sparse matrix
@@ -998,10 +998,10 @@ class MPICommunication(Communication):
         func: Callable
             The respective MPI reduction operation
         sendbuf: DNDarray or torch.Tensor or np.ndarray
-            Buffer address of the send message. If MPI.IN_PLACE is set,
+            Buffer for the send message. If MPI.IN_PLACE is set,
             recvbuf is also used as send buffer.
         recvbuf: DNDarray or torch.Tensor or np.ndarray
-            Buffer address where to store the result of the reduction
+            Buffer for storing the result of the reduction
         op: MPI.Op
             Operation to apply during the reduction.
         *args: Any
