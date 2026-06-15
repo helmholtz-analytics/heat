@@ -4,24 +4,43 @@ Example for 2D images with 3 operations popup view
 
 import numpy as np
 import matplotlib.pyplot as plt
-from PIL import Image, ImageFile
+import scipy.ndimage as dnimg
+from PIL import Image
 import heat as ht
 from heat.ndimage.affine import affine_transform
-import scipy.ndimage as dnimg
+
+
+def checker_image(w: int, h: int, checker_size: int):
+    new_image = Image.new("RGB", (h, w), (255, 0, 0))  # create a new 15x15 image
+    pixels = new_image.load()  # create the pixel map
+
+    box_size = checker_size
+    for i in range(0, h, box_size):
+        for j in range(0, w, box_size):
+            y = int(i / box_size)
+            x = int(j / box_size)
+            if (y & 1) ^ (x & 1):
+                for di in range(box_size):
+                    for dj in range(box_size):
+                        pixels[i + di, j + dj] = (0, 0, 0)
+            else:
+                for di in range(box_size):
+                    for dj in range(box_size):
+                        pixels[i + di, j + dj] = (0, 0, (50 + i + j) % 255)
+    return new_image
+
 
 # ------------------------------------------------------------
 # Load RGB image
 # ------------------------------------------------------------
-img: ImageFile = Image.open(
-    "/home/leonk/projects/heat/examples/ndimages/test_images/jason-leung-Iwlo4RuPefM-unsplash_small.jpg"
-).convert("RGB")
+img: Image = checker_image(256, 512, 32)
 
 img_np = np.asarray(img, dtype=np.float32)  #
 print(f"shape of image as numpy array {img_np.shape}")  # HWC
 
 # HWC
-x = ht.array(img_np)  # HWC
-print(f"shape of image converted from numpy to heat array {x.shape}")
+heat_img = ht.array(img_np)  # HWC
+print(f"shape of image converted from numpy to heat array {heat_img.shape}")
 
 H, W = img_np.shape[:2]
 cx, cy = W / 2, H / 2  # NOTE: (x, y)
@@ -49,12 +68,12 @@ def apply(M: np.ndarray, title, idx, mode="nearest", constant_value=0.0):
 
     print(f"matrix shape: {M.shape}")
     print(M)
-    print(f"image shape: {x.shape}")
+    print(f"image shape: {heat_img.shape}")
 
     index = idx * 2
 
     result = affine_transform(
-        x, ht.array(M), order=0, mode=mode, cval=constant_value, prefilter=True
+        heat_img, ht.array(M), order=0, mode=mode, cval=constant_value, prefilter=True
     )
 
     compare = dnimg.affine_transform(
