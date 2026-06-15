@@ -799,30 +799,9 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
         return c
 
     else:  # both matrices are split in non-batch dims
-        # get the lshape map to determine what needs to be sent where as well as M and N
-        # lshape map dims -> {node, a=0 | b=1, lshape}
-        lshape_map = np.zeros((comm.size, 2, ndim), dtype=int)
-        lshape_map[comm.rank, 0, :] = a.lshape
-        lshape_map[comm.rank, 1, :] = b.lshape
-        lshape_map_req = comm.Iallreduce(MPI.IN_PLACE, lshape_map, MPI.SUM)
-
-        # index_map dims guide -> {process number, a=0/b=1, relevant 1st index, 2nd index}
-        index_map = np.zeros((comm.size, 2, 2, 2), dtype=int)
-        a_idx = comm.chunk(a.shape, a.split)[2]
-        index_map[comm.rank, 0, 0] = (a_idx[-2].start, a_idx[-2].stop + 1)
-        index_map[comm.rank, 0, 1] = (a_idx[-1].start, a_idx[-1].stop)
-        b_idx = comm.chunk(b.shape, b.split)[2]
-        index_map[comm.rank, 1, 0] = (b_idx[-2].start, b_idx[-2].stop)
-        index_map[comm.rank, 1, 1] = (b_idx[-1].start, b_idx[-1].stop)
-        index_map_req = comm.Iallreduce(MPI.IN_PLACE, index_map, MPI.SUM)
-
         # allocate output: c = a @ b
-        # for the communication scheme, the output array needs to be created
         c_shape = (*batch_shape, a.gshape[-2], b.gshape[-1])
         c = factories.zeros(c_shape, split=a.split, dtype=c_type, device=dev, comm=comm)
-
-        lshape_map_req.Wait()
-        index_map_req.Wait()
 
         # split dims 10 - This is the worst possible case and requires a resplit
         if a.split == ndim - 1 and b.split == ndim - 2:
@@ -831,62 +810,83 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
             c[...] = matmul(a, _b)
             del _b
 
-        # split dims 00 and 01
-        elif (a.split == ndim - 2 and b.split == ndim - 2) or (
-            a.split == ndim - 2 and b.split == ndim - 1
-        ):
-            pre_fetching = 1
-            reqs, b_chunks = {}, {}
-            for proc in range(comm.size + pre_fetching):
-                # broadcast chunks of b
-                if proc < comm.size:
-                    if comm.rank == proc:
-                        b_chunks[proc] = b.larray.clone()
-                    else:
-                        b_chunks[proc] = torch.empty(
-                            (*batch_shape, lshape_map[proc, 1, -2], lshape_map[proc, 1, -1]),
-                            dtype=b.dtype.torch_type(),
-                            device=tdev,
-                        )
-                    reqs[proc] = comm.Ibcast(b_chunks[proc], root=proc)
+        else:
+            # get the lshape map to determine what needs to be sent where as well as M and N
+            # lshape map dims -> {node, a=0 | b=1, lshape}
+            lshape_map = np.zeros((comm.size, 2, ndim), dtype=int)
+            lshape_map[comm.rank, 0, :] = a.lshape
+            lshape_map[comm.rank, 1, :] = b.lshape
+            lshape_map_req = comm.Iallreduce(MPI.IN_PLACE, lshape_map, MPI.SUM)
 
-                # do local matrix multiplications with the chunk of b
-                if proc >= pre_fetching:
-                    _proc = proc - pre_fetching
-                    reqs[_proc].Wait()
-                    if a.split == ndim - 2 and b.split == ndim - 2:  # split 00
-                        b_start, b_stop = index_map[_proc, 1, 0]
-                        c.larray += a.larray[..., b_start:b_stop] @ b_chunks[_proc]
-                    else:  # split 01
-                        st0, sp0 = index_map[_proc, 0, 0]
-                        st1, sp1 = index_map[_proc, 1, 1]
-                        c.larray[..., : sp0 - st0, st1:sp1] += a.larray @ b_chunks[_proc]
-                    del b_chunks[_proc]
+            # index_map dims guide -> {process number, a=0/b=1, relevant 1st index, 2nd index}
+            index_map = np.zeros((comm.size, 2, 2, 2), dtype=int)
+            a_idx = comm.chunk(a.shape, a.split)[2]
+            index_map[comm.rank, 0, 0] = (a_idx[-2].start, a_idx[-2].stop + 1)
+            index_map[comm.rank, 0, 1] = (a_idx[-1].start, a_idx[-1].stop)
+            b_idx = comm.chunk(b.shape, b.split)[2]
+            index_map[comm.rank, 1, 0] = (b_idx[-2].start, b_idx[-2].stop)
+            index_map[comm.rank, 1, 1] = (b_idx[-1].start, b_idx[-1].stop)
+            index_map_req = comm.Iallreduce(MPI.IN_PLACE, index_map, MPI.SUM)
 
-        # split dims 11
-        elif a.split == ndim - 1 and b.split == ndim - 1:
-            pre_fetching = 1
-            reqs, a_chunks = {}, {}
-            for proc in range(comm.size + pre_fetching):
-                # broadcast chunks of a
-                if proc < comm.size:
-                    if comm.rank == proc:
-                        a_chunks[proc] = a.larray.clone()
-                    else:
-                        a_chunks[proc] = torch.empty(
-                            (*batch_shape, lshape_map[proc, 0, -2], lshape_map[proc, 0, -1]),
-                            dtype=a.dtype.torch_type(),
-                            device=tdev,
-                        )
-                    reqs[proc] = comm.Ibcast(a_chunks[proc], root=proc)
+            lshape_map_req.Wait()
+            index_map_req.Wait()
 
-                # do local matrix multiplications with the chunk of a
-                if proc >= pre_fetching:
-                    _proc = proc - pre_fetching
-                    reqs[_proc].Wait()
-                    a_start, a_stop = index_map[_proc, 0, 1]
-                    c.larray += a_chunks[_proc] @ b.larray[..., a_start:a_stop, :]
-                    del a_chunks[_proc]
+            # split dims 00 and 01
+            if (a.split == ndim - 2 and b.split == ndim - 2) or (
+                a.split == ndim - 2 and b.split == ndim - 1
+            ):
+                pre_fetching = 1
+                reqs, b_chunks = {}, {}
+                for proc in range(comm.size + pre_fetching):
+                    # broadcast chunks of b
+                    if proc < comm.size:
+                        if comm.rank == proc:
+                            b_chunks[proc] = b.larray.clone()
+                        else:
+                            b_chunks[proc] = torch.empty(
+                                (*batch_shape, lshape_map[proc, 1, -2], lshape_map[proc, 1, -1]),
+                                dtype=b.dtype.torch_type(),
+                                device=tdev,
+                            )
+                        reqs[proc] = comm.Ibcast(b_chunks[proc], root=proc)
+
+                    # do local matrix multiplications with the chunk of b
+                    if proc >= pre_fetching:
+                        _proc = proc - pre_fetching
+                        reqs[_proc].Wait()
+                        if a.split == ndim - 2 and b.split == ndim - 2:  # split 00
+                            b_start, b_stop = index_map[_proc, 1, 0]
+                            c.larray += a.larray[..., b_start:b_stop] @ b_chunks[_proc]
+                        else:  # split 01
+                            st0, sp0 = index_map[_proc, 0, 0]
+                            st1, sp1 = index_map[_proc, 1, 1]
+                            c.larray[..., : sp0 - st0, st1:sp1] += a.larray @ b_chunks[_proc]
+                        del b_chunks[_proc]
+
+            # split dims 11
+            elif a.split == ndim - 1 and b.split == ndim - 1:
+                pre_fetching = 1
+                reqs, a_chunks = {}, {}
+                for proc in range(comm.size + pre_fetching):
+                    # broadcast chunks of a
+                    if proc < comm.size:
+                        if comm.rank == proc:
+                            a_chunks[proc] = a.larray.clone()
+                        else:
+                            a_chunks[proc] = torch.empty(
+                                (*batch_shape, lshape_map[proc, 0, -2], lshape_map[proc, 0, -1]),
+                                dtype=a.dtype.torch_type(),
+                                device=tdev,
+                            )
+                        reqs[proc] = comm.Ibcast(a_chunks[proc], root=proc)
+
+                    # do local matrix multiplications with the chunk of a
+                    if proc >= pre_fetching:
+                        _proc = proc - pre_fetching
+                        reqs[_proc].Wait()
+                        a_start, a_stop = index_map[_proc, 0, 1]
+                        c.larray += a_chunks[_proc] @ b.larray[..., a_start:a_stop, :]
+                        del a_chunks[_proc]
 
     if vector_flag:  # squeeze only in the non-batch dimensions
         # it could be sensible to resplit/rebalance in case a single node gets the whole vector
