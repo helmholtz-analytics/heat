@@ -97,9 +97,9 @@ class Communication(ABC):
         self,
         shape: tuple[int, ...],
         split: int,
-        rank: int = None,
-        w_size: int = None,
-        sparse: bool = False,
+        rank: int | None,
+        w_size: int | None,
+        sparse: bool,
     ) -> tuple[int, tuple[int, ...], tuple[slice, ...]]:
         """
         Calculates the chunk of data that will be assigned to this compute node given a global data shape and a split
