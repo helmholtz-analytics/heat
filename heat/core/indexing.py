@@ -16,7 +16,7 @@ __all__ = ["nonzero", "where"]
 
 def nonzero(x: DNDarray, as_tuple: bool = True) -> tuple[DNDarray, ...] | DNDarray:
     """
-    Return a Tuple of :class:`~heat.core.dndarray.DNDarray`s, one for each dimension of ``x``,
+    Return a tuple of :class:`~heat.core.dndarray.DNDarray`s, one for each dimension of ``x``,
     containing the indices of the non-zero elements in that dimension. If ``x`` is split then
     the result is split in the first dimension. However, this :class:`~heat.core.dndarray.DNDarray`
     can be UNBALANCED as it contains the indices of the non-zero elements on each node.
@@ -173,19 +173,22 @@ def where(
 
     Notes
     -----
-    When only condition is provided, this function is a shorthand for :func:`nonzero`.
+    When only condition is provided, this function is a shorthand for :func:`nonzero` and the function returns a tuple
+    of :class:`~heat.core.dndarray.DNDarray`, analogously to ``numpy.where``.
 
     Examples
     --------
     >>> import heat as ht
     >>> x = ht.arange(10, split=0)
     >>> ht.where(x < 5, x, 10 * x)
-    DNDarray([ 0,  1,  2,  3,  4, 50, 60, 70, 80, 90], dtype=ht.int64, device=cpu:0, split=0)
+    DNDarray(MPI-rank: 0, Shape: (10,), Split: 0, Local Shape: (10,), Device: cpu:0, Dtype: int32, Data:
+         [ 0,  1,  2,  3,  4, 50, 60, 70, 80, 90])
     >>> y = ht.array([[0, 1, 2], [0, 2, 4], [0, 3, 6]])
     >>> ht.where(y < 4, y, -1)
-    DNDarray([[ 0,  1,  2],
-              [ 0,  2, -1],
-              [ 0,  3, -1]], dtype=ht.int64, device=cpu:0, split=None)
+    DNDarray(MPI-rank: 0, Shape: (3, 3), Split: None, Local Shape: (3, 3), Device: cpu:0, Dtype: int64, Data:
+         [[ 0,  1,  2],
+          [ 0,  2, -1],
+          [ 0,  3, -1]])
     """
     # ---- binary where(cond, x, y) branch ------------------------------------
     if cond.split is not None and (isinstance(x, DNDarray) or isinstance(y, DNDarray)):
