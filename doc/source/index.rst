@@ -1,82 +1,239 @@
 .. meta::
-   :description: Scale NumPy based data analysis to HPC
-   :keywords: data analysis, HPC, MPI, GPU
+   :description: Scale NumPy-based data analysis to HPC
+   :keywords: data analysis, HPC, MPI, GPU, multi-GPU, distributed computing, parallel processing, data science, data analytics, machine learning, scientific computing, high-performance computing, Python libraries, NumPy API, PyTorch
 
-========================
-Heat
-========================
+.. ================================================================================
+.. Heat
+.. ================================================================================
 
-.. image:: _static/images/logo.png
-   :alt: Heat
-   :align: center
-   :width: 80%
+.. div:: text-center mt-5 mb-5
 
------
+   .. image:: _static/images/logo.png
+      :alt: Heat Framework Logo
+      :align: center
+      :width: 70%
 
-Features
-========
+.. div:: text-center mt-4 mb-5
 
-.. grid:: 1 2 2 3
+   **High-performance data analytics in Python, at scale.**
+
+.. grid:: 1 2 4 4
    :gutter: 3
+   :class-container: text-center mb-5
 
-   .. grid-item-card:: Seamless integration
-      :class-card: sd-shadow-sm
+   .. grid-item::
+      **Distributed**
 
-      Port existing NumPy/SciPy code to multi-node clusters with minimal effort
+      .. div:: mt-2
 
-   .. grid-item-card:: Hardware-agnostic
-      :class-card: sd-shadow-sm
+         Multi-node data processing.
+         MPI-based performance.
 
-      Supports CPUs and GPUs (CUDA, ROCm, Apple MPS)
+         .. image:: _static/images/mpi_logo_icon.png
+            :width: 40px
+            :alt: MPI Compatible
 
-   .. grid-item-card:: Efficient scaling
-      :class-card: sd-shadow-sm
+   .. grid-item::
+      **Accelerated**
 
-      Exploit the entire, cumulative RAM of your cluster for memory-intensive operations
+      .. div:: mt-2
+
+         Native multi-GPU support.
+         Out of the box.
+
+         .. image:: _static/images/pytorch_logo_icon.png
+            :width: 35px
+            :alt: PyTorch Engine
+
+   .. grid-item::
+      **Scalable**
+
+      .. div:: mt-2
+
+         Scale beyond single-node memory limits.
+         Effortlessly.
+
+         .. image:: _static/images/cluster_logo_icon.png
+            :width: 35px
+            :alt: Multi-Node Memory Scaling
+
+   .. grid-item::
+      **Interoperable**
+
+      .. div:: mt-2
+
+         Plug & play with the NumPy ecosystem.
+         Familiar API.
+
+         .. image:: _static/images/numpy_logo_icon.png
+            :width: 35px
+            :alt: NumPy API Mirror
 
 -----
 
-Quick Example
-=============
+Heat
+====
 
-Define distribution via the ``split`` argument and specify the device via the ``device`` arguments:
+.. grid:: 1 1 2 2
+   :gutter: 4
+   :class-container: mt-4 mb-4
 
-.. code-block:: python
+   .. grid-item::
+      :columns: 12 12 5 5
 
-   import heat as ht
+      **Write Local Code, Execute Across Clusters**
 
-   A = ht.random.randn(40000, 10000, split=0, device="gpu")
-   B = ht.random.randn(10000, 40000, split=1, device="gpu")
-   C = ht.matmul(A, B)
+      Define your data distribution format via the ``split`` parameter, assign processing hardware using the ``device`` attribute, and let Heat automatically orchestrate data movement and cross-node communication.
 
-Then, run with ``mpirun`` on your laptop or ``srun`` on your cluster
+      Launch the exact same script on your personal workstation using standard Python routines or distributed via infrastructure systems like SLURM.
+
+   .. grid-item::
+      :columns: 12 12 7 7
+
+      .. code-block:: python
+         :caption: my_script.py
+
+         import heat as ht
+
+         # Distributed random matrix generation
+         A = ht.random.randn(40000, 10000, split=0, device="gpu")
+         B = ht.random.randn(10000, 40000, split=1, device="gpu")
+
+         # Hardware-accelerated matrix multiplication
+         C = ht.matmul(A, B)
 
 .. code-block:: bash
+   :caption: Execution
 
+   # Run locally or scale across 4 CPU/GPU cluster nodes via MPI
    mpirun -np 4 python my_script.py
 
+-----
+
+Examples
+========
+
+.. grid:: 1 2 3 3
+   :gutter: 3
+   :class-container: text-center mt-4 mb-4
+
+   .. grid-item-card::
+      :class-card: sd-card
+      :link: /tutorials/notebooks/Loading_preprocessing
+      :link-type: doc
+
+      .. image:: _static/images/tutorial_split_dndarray.svg
+         :alt: Parallel I/O & Preprocessing Example
+         :align: center
+         :height: 140px
+
+      .. div:: mt-3 **Parallel I/O & Preprocessing**
+
+      .. div:: text-muted small mt-1
+
+         **Parallel I/O:** ingest HDF5, Zarr, and NetCDF formats directly into distributed memory.
+
+   .. grid-item-card::
+      :class-card: sd-card
+      :link: /tutorials/notebooks/Linear_algebra
+      :link-type: doc
+
+      .. image:: _static/images/hSVD_bench_rank5.png
+         :alt: Linear algebra
+         :align: center
+         :height: 140px
+
+      .. div:: mt-3 **Linear algebra**
+
+      .. div:: text-muted small mt-1
+
+         **Linear algebra:** Matrix-matrix multiplications, Singular Value Decomposition across multi-GPU.
+
+   .. grid-item-card::
+      :class-card: sd-card
+      :link: /tutorials/notebooks/Clustering_and_PCA
+      :link-type: doc
+
+      .. image::
+         :alt: clustering and PCA
+         :align: center
+         :height: 140px
+
+      .. div:: mt-3 **Clustering and PCA**
+
+      .. div:: text-muted small mt-1
+
+         **Dimensionality reduction:** Distributed clustering algorithms and Principal Component Analysis multi-node.
+
+   .. .. grid-item-card::
+   ..    :class-card: sd-card
+   ..    :link: /tutorials/notebooks/LOF
+   ..    :link-type: doc
+
+   ..    .. image::
+   ..       :alt: Outlier detection
+   ..       :align: center
+   ..       :height: 140px
+
+   ..    .. div:: mt-3 **Outlier detection**
+
+   ..    .. div:: text-muted small mt-1
+
+   ..       **COMING SOON:** Local Outlier Factor (LOF) algorithm for distributed anomaly detection on massive datasets.
+
+   .. .. grid-item-card::
+   ..    :class-card: sd-card
+   ..    :link: /tutorials/notebooks/Profiling_with_perun
+   ..    :link-type: doc
+
+   ..    .. image:: _static/images/perun_logo.svg
+   ..       :alt: Performance Profiling Example
+   ..       :align: center
+   ..       :height: 140px
+
+   ..    .. div:: mt-3 **Performance Profiling**
+
+   ..    .. div:: text-muted small mt-1
+
+   ..       Track cluster memory consumption, execution efficiency, and resource utilization using Perun.
 
 -----
 
-Why Heat?
-=========
+Documentation Portal
+====================
 
-- Mirroring of NumPy interface except for ``split`` and ``device`` attributes removes the learning curve.
-- Implements many functions in parallel that are non-trivially parallelized such as matrix factorizations or PCA.
-- Excellent weak scaling capabilities enable processing of huge datasets.
+.. grid:: 1 1 2 4
+   :gutter: 3
+   :padding: 0
+   :class-container: mt-4 mb-4
 
------
+   .. grid-item-card:: Tutorials
+      :class-card: sd-card
+      :link: tutorials/notebooks/1_basics
+      :link-type: doc
 
-Get Started
-===========
+      **Learning-oriented** pages to guide you through your very first steps, configuration workflows, and basic cluster operations.
 
-.. button-link:: https://github.com/helmholtz-analytics/heat
-   :color: primary
-   :expand:
+   .. grid-item-card:: How-To Guides
+      :class-card: sd-card
+      :link: usage
+      :link-type: doc
 
-   🚀 Get started on GitHub
+      **Task-oriented** recipes showing you how to solve specific analytical problems, load custom data files, and scale specific operations.
 
------
+   .. grid-item-card:: Explanations
+      :class-card: sd-card
+      :link: tutorials/notebooks/2_internals
+      :link-type: doc
+
+      **Understanding-oriented** deep dives into cluster architecture, the inner mechanics of ``DNDarray`` splitting, and parallelization theory.
+
+   .. grid-item-card:: API Reference
+      :class-card: sd-card
+      :link: api
+      :link-type: doc
+
+      **Information-oriented** technical specs covering function definitions, parameters, return types, and class structures.
 
 .. toctree::
    :hidden:
@@ -85,51 +242,152 @@ Get Started
    usage
    api
 
+-----
+
+Partner with Us
+===============
+
+.. div:: mb-4
+
+   Whether you are a motivated student looking for opportunities in computational research, or an institution interested in funding parallel computing infrastructure, we invite you to collaborate with the Heat core development team.
+
+.. tab-set::
+
+   .. tab-item:: Student Projects
+      :sync: student
+
+      .. grid:: 1 1 2 2
+         :gutter: 3
+         :padding: 0
+         :class-container: text-left
+
+         .. grid-item::
+            :columns: 12 12 7 7
+
+            **Kickstart Your Research in HPC & AI**
+
+            We are actively looking for motivated BSc, MSc, and student workers to tackle open challenges in memory-distributed data science.
+
+            * **Core Topic Tracks:** Massively parallel tensor operations, communication backends, algorithm development, user-requested features.
+            * **What We Provide:** Direct mentorship from core open-source maintainers, computing time on top-tier HPC cluster environments, and clear paths to academic publication.
+
+         .. grid-item::
+            :columns: 12 12 5 5
+            :class: text-center
+
+            .. div:: mt-4
+
+               .. button-link:: https://github.com/helmholtz-analytics/heat/discussions/categories/student-projects
+                  :color: primary
+                  :class: sd-btn-primary sd-btn-block mb-2
+
+                  Explore Open Theses & Issues
+
+               .. button-link:: mailto:contact@example.com
+                  :color: secondary
+                  :outline:
+                  :class: sd-btn-block
+
+                  Contact Core Maintainers
+
+   .. tab-item:: Funding Calls
+      :sync: funding
+
+      .. grid:: 1 1 2 2
+         :gutter: 3
+         :padding: 0
+         :class-container: text-left
+
+         .. grid-item::
+            :columns: 12 12 6 6
+
+            **Institutional Backing & Joint Proposals**
+
+            If you are assembling a domain-specific grant or third-party funding proposal (e.g., BMBF, EU, or Helmholtz transfer tracks) and need to scale data workflows to massive cluster environments, let's team up.
+
+            We partner with both scientific institutions and industrial application partners during the proposal stage. If the project is successful, our core engineering team provides **ad-hoc support** to integrate Heat's distributed tensor operations directly into the project's pipeline.
+
+         .. grid-item::
+            :columns: 12 12 6 6
+
+            **How We Integrate Into Project Consortia:**
+
+            * **Technical Work Packages:** We help design dedicated work packages focused on software scaling, parallel acceleration, and performance optimization.
+            * **HPC Middleware Expertise:** We act as the foundational parallel computing layer, helping translate domain-specific algorithms into cluster-ready architectures.
+            * **Transfer Use-Case Co-Design:** We work side-by-side with your researchers or R&D engineers to implement custom distributed tensor operations unique to your scientific or technical discipline.
 
 -----
 
 Latest News
 ===========
 
-.. grid:: 1 1 2 2
+.. grid:: 1 1 3 3
    :gutter: 3
+   :class-container: mt-4
 
-   .. grid-item::
-      :columns: 12 12 7 7
+   .. grid-item-card:: Save the Date
+      :class-card: sd-card
 
-      .. grid-item-card::
-         :class-card: sd-shadow-md
-         :link: https://github.com/helmholtz-analytics/heat/releases/tag/v1.8.0
-         :link-type: url
+      *November 2026*
 
-         **🚀 Version 1.8 released**
+      Registration opens soon for our upcoming virtual workshop on high-performance data analytics.
 
-         *March 2026*
+   .. grid-item-card:: NumFOCUS Affiliation
+      :class-card: sd-card
+      :link: https://www.fz-juelich.de/en/rse/the_latest/the-heat-library-becomes-a-numfocus-affiliated-project
 
-         This is your **featured update**. Use a slightly longer description here
-         to highlight the most important change or announcement.
+      *April 2026*
 
+      Heat is officially a NumFOCUS affiliated project! A big milestone for our domain-agnostic library. Check out the announcement details.
 
-   .. grid-item::
-      :columns: 12 12 5 5
+   .. grid-item-card:: Version 1.8 Released
+      :class-card: sd-card
+      :link: https://github.com/helmholtz-analytics/heat/releases/tag/v1.8.0
 
-      .. grid:: 1
-         :gutter: 2
+      *March 2026*
 
-         .. grid-item-card::
-            :class-card: sd-shadow-sm
+      Our latest featured update is officially live. Check out the updated repository for full performance metrics.
 
-            **Save the date**
+   .. grid-item-card:: HeatHub
+      :class-card: sd-card
+      :link: https://www.fz-juelich.de/en/rse/the_latest/congratulations-scienceserve-recipients
 
-            *November 2026*
+      .. image:: _static/images/ScienceServe_banner.png
+         :alt: ScienceServe Funding Banner
+         :align: center
 
-            Upcoming workshop
+      ^^^
 
-         .. grid-item-card::
-            :class-card: sd-shadow-sm
+      *October 2025*
 
-            **NumFOCUS affiliation**
+      Our project HeatHub has been awarded Helmholtz ScienceServe funding for 2026!
 
-            *April 2026*
+Roadmap
+=======================
 
-            Heat is now a NumFOCUS affiliated project.
+.. div:: mb-4
+
+.. grid:: 1 1 3 3
+   :gutter: 3
+   :class-container: mb-2
+
+   .. grid-item-card:: Active Milestones
+      :class-card: sd-card
+      :link: https://github.com/helmholtz-analytics/heat/milestones
+      :text-align: center
+
+      Track our progress toward upcoming minor and major framework releases.
+
+   .. grid-item-card:: Live Project Board
+      :class-card: sd-card
+      :link: https://github.com/orgs/helmholtz-analytics/projects/13/views/6
+      :text-align: center
+
+      See active pull requests, bug fixes, and feature implementations in real time.
+
+   .. grid-item-card:: Contribute Code
+      :class-card: sd-card
+      :link: https://github.com/helmholtz-analytics/heat/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22
+      :text-align: center
+
+      Explore "good first issues" and open feature requests for new contributors.
