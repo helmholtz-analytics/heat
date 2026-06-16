@@ -85,8 +85,8 @@ class TestIndexing(TestCase):
             ht_res = ht.where(cond)
             np_res = np.where(cond.numpy())
             compare_ht_where_to_numpy_where(ht_res, np_res)
-            if split is None:
-                self.assertEqual(ht_res[0].split, split)
+            if split is None or not cond.is_distributed():
+                self.assertEqual(ht_res[0].split, None)
             else:
                 self.assertEqual(ht_res[0].split, 0)
 
