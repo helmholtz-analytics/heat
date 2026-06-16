@@ -72,8 +72,6 @@ def _check_gpu_aware_mpi(library: MPILibraryInfo) -> tuple[bool, bool]:
                     rocm = cuda
                 elif library.version.startswith("v5."):
                     rocm = "rocm" in extensions or "hip" in extensions
-                # Seems to be broken, disabled by default for now
-                # return cuda, rocm
                 return cuda, rocm
             except Exception as e:  # noqa E722
                 return False, False
