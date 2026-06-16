@@ -397,7 +397,6 @@ class TestStatistics(TestCase):
         self.assertEqual(a.dtype, ht.int64)
         self.assertTrue(a.shape, v.shape)
 
-        torch.manual_seed(42)
         boundaries, _ = torch.sort(torch.rand(5, device=self.device.torch_device))
         v = torch.rand(6, device=self.device.torch_device)
         t = torch.bucketize(v, boundaries, out_int32=True)
@@ -577,7 +576,6 @@ class TestStatistics(TestCase):
         self.assertEqual(res.dtype, ht.float32)
         self.assertEqual(res.device, self.device)
         self.assertEqual(res.split, None)
-        print(f"\n\n ############ Debug ############ \n {res.larray=} \n {comp=} #################### \n\n")
         self.assertTrue(torch.equal(res.larray, comp))
 
         a = ht.array(c, split=1)
