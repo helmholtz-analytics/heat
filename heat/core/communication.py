@@ -1439,7 +1439,6 @@ class MPICommunication(Communication):
         )
         if buf is not None and isinstance(buf, torch.Tensor) and permutation is not None:
             rbuf = rbuf.permute(permutation)
-        print("Unpermuted")
         if buf is not None and not GPU_AWARE_MPI:
             if isinstance(buf, torch.Tensor) and buf.is_cuda:
                 buf.copy_(rbuf)
