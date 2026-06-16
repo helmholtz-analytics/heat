@@ -22,57 +22,54 @@
    :class-container: text-center mb-5
 
    .. grid-item::
-      **Distributed**
+      .. div:: fs-5 fw-bold  mb-2
 
-      .. div:: mt-2
+         Distributed
 
-         Multi-node data processing.
-         MPI-based performance.
+      .. div:: small text-muted
 
-         .. image:: _static/images/mpi_logo_icon.png
-            :width: 40px
-            :alt: MPI Compatible
+         Multi-node data processing powered by optimized MPI communication pipelines.
 
    .. grid-item::
-      **Accelerated**
+      .. div:: fs-5 fw-bold  mb-2
 
-      .. div:: mt-2
+         Accelerated
 
-         Native multi-GPU support.
-         Out of the box.
+      .. div:: small text-muted
 
-         .. image:: _static/images/pytorch_logo_icon.png
-            :width: 35px
-            :alt: PyTorch Engine
+         Native, out-of-the-box multi-GPU hardware acceleration via PyTorch.
 
    .. grid-item::
-      **Scalable**
+      .. div:: fs-5 fw-bold  mb-2
 
-      .. div:: mt-2
+         Scalable
 
-         Scale beyond single-node memory limits.
-         Effortlessly.
+      .. div:: small text-muted
 
-         .. image:: _static/images/cluster_logo_icon.png
-            :width: 35px
-            :alt: Multi-Node Memory Scaling
+         Scale effortlessly beyond single-node memory ceilings.
 
    .. grid-item::
-      **Interoperable**
+      .. div:: fs-5 fw-bold  mb-2
 
-      .. div:: mt-2
+         Interoperable
 
-         Plug & play with the NumPy ecosystem.
-         Familiar API.
+      .. div:: small text-muted
 
-         .. image:: _static/images/numpy_logo_icon.png
-            :width: 35px
-            :alt: NumPy API Mirror
+         Plug & play compatibility built to seamlessly mirror the NumPy API.
 
 -----
 
-Heat
-====
+.. Why Heat?
+.. =========
+
+.. Heat is a distributed tensor framework built on **PyTorch** and **mpi4py**. It provides highly optimized algorithms and data structures for tensor computations using CPUs, GPUs (CUDA/ROCm), and distributed cluster systems. It is designed to handle **massive arrays** that exceed the memory and computational limits of a single machine.
+
+.. * **Seamless integration:** Port existing NumPy/SciPy code to multi-node clusters with minimal effort.
+.. * **Hardware-agnostic:** Supports CPUs and GPUs (CUDA, ROCm, Apple MPS).
+.. * **Efficient scaling:** Exploit the entire, cumulative RAM of your cluster for memory-intensive operations.
+
+Getting started
+===============
 
 .. grid:: 1 1 2 2
    :gutter: 4
@@ -81,11 +78,16 @@ Heat
    .. grid-item::
       :columns: 12 12 5 5
 
-      **Write Local Code, Execute Across Clusters**
+      .. **Prototype on your laptop, execute on any cluster**
 
-      Define your data distribution format via the ``split`` parameter, assign processing hardware using the ``device`` attribute, and let Heat automatically orchestrate data movement and cross-node communication.
+      Heat builds on **PyTorch** and **mpi4py** to process **massive arrays** - huge collections of images, MORE EXAMPLES - that exceed the memory and computational limits of a single machine.
 
-      Launch the exact same script on your personal workstation using standard Python routines or distributed via infrastructure systems like SLURM.
+      Define your data distribution axis via the ``split`` parameter, assign hardware using the ``device`` attribute, and let Heat orchestrate data movement and cross-node communication.
+
+      **Prototype locally, execute on any cluster.**
+
+      You got the expensive compute, but multi-GPU runs seem out of reach?
+      ``pip install heat``
 
    .. grid-item::
       :columns: 12 12 7 7
@@ -102,11 +104,10 @@ Heat
          # Hardware-accelerated matrix multiplication
          C = ht.matmul(A, B)
 
-.. code-block:: bash
-   :caption: Execution
+      .. code-block:: bash
+         :caption: Run locally or scale across cluster nodes via MPI
 
-   # Run locally or scale across 4 CPU/GPU cluster nodes via MPI
-   mpirun -np 4 python my_script.py
+         mpirun -np 4 python my_script.py
 
 -----
 
@@ -165,37 +166,56 @@ Examples
 
          **Dimensionality reduction:** Distributed clustering algorithms and Principal Component Analysis multi-node.
 
-   .. .. grid-item-card::
-   ..    :class-card: sd-card
-   ..    :link: /tutorials/notebooks/LOF
-   ..    :link-type: doc
+   .. grid-item-card::
+      :class-card: sd-card
+      :link: /tutorials/notebooks/Internals
+      :link-type: doc
 
-   ..    .. image::
-   ..       :alt: Outlier detection
-   ..       :align: center
-   ..       :height: 140px
+      .. image:: _static/images/internals.png
+         :alt: Performance Profiling Example
+         :align: center
+         :height: 140px
 
-   ..    .. div:: mt-3 **Outlier detection**
+      .. div:: mt-3 **Heat internal functions**
 
-   ..    .. div:: text-muted small mt-1
+      .. div:: text-muted small mt-1
 
-   ..       **COMING SOON:** Local Outlier Factor (LOF) algorithm for distributed anomaly detection on massive datasets.
+         Heat internal functions for contributors and power users.
 
-   .. .. grid-item-card::
-   ..    :class-card: sd-card
-   ..    :link: /tutorials/notebooks/Profiling_with_perun
-   ..    :link-type: doc
+   .. grid-item-card::
+      :class-card: sd-card
+      :link: /tutorials/notebooks/README
+      :link-type: doc
 
-   ..    .. image:: _static/images/perun_logo.svg
-   ..       :alt: Performance Profiling Example
-   ..       :align: center
-   ..       :height: 140px
+      .. image:: _static/images/internals.png
+         :alt: All tutorials
+         :align: center
+         :height: 140px
 
-   ..    .. div:: mt-3 **Performance Profiling**
+      .. div:: mt-3 **All tutorials**
 
-   ..    .. div:: text-muted small mt-1
+      .. div:: text-muted small mt-1
 
-   ..       Track cluster memory consumption, execution efficiency, and resource utilization using Perun.
+         All of our available tutorials are linked here.
+
+
+
+   .. grid-item-card::
+      :class-card: sd-card
+      :link: /tutorials/notebooks/Profiling_with_perun
+      :link-type: doc
+
+      .. image:: _static/images/perun_logo.svg
+         :alt: Performance Profiling Example
+         :align: center
+         :height: 140px
+
+      .. div:: mt-3 **Performance Profiling**
+
+      .. div:: text-muted small mt-1
+
+         **Profiling:** Track cluster memory consumption, execution efficiency, and resource utilization using Perun.
+
 
 -----
 
