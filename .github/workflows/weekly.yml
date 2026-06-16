@@ -11,43 +11,49 @@ permissions:
     security-events: write
     pull-requests: write
 jobs:
+    fork-guard:
+        name: Fork Guard
+        runs-on: ubuntu-latest
+        if: ${{ !github.event.repository.fork }}
+        steps:
+          - run: echo "Non-fork repository; continuing workflow."
     codeql:
         name: CodeQL Analysis
-        if: ${{ !github.event.repository.fork }}
+        needs: fork-guard
         runs-on: ubuntu-latest
         steps:
           - name: Harden Runner
-            uses: step-security/harden-runner@0634a2670c59f64b4a01f0f96f84700a4088b9f0 # v2.12.0
+            uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
             with:
                 egress-policy: audit
           - name: Checkout repository
-            uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+            uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
             # Initializes the CodeQL tools for scanning.
           - name: Initialize CodeQL
-            uses: github/codeql-action/init@fca7ace96b7d713c7035871441bd52efbe39e27e # v3.28.19
+            uses: github/codeql-action/init@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
             with:
                 languages: python
           - name: Perform CodeQL Analysis
-            uses: github/codeql-action/analyze@fca7ace96b7d713c7035871441bd52efbe39e27e # v3.28.19
+            uses: github/codeql-action/analyze@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
             with:
                 category: "/language:python"
     scorecard:
         name: Code Quality Scorecard
-        if: ${{ !github.event.repository.fork }}
+        needs: fork-guard
         runs-on: ubuntu-latest
         steps:
           - name: Harden Runner
-            uses: step-security/harden-runner@0634a2670c59f64b4a01f0f96f84700a4088b9f0 # v2.12.0
+            uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
             with:
                 egress-policy: audit
 
           - name: "Checkout code"
-            uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+            uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
             with:
                 persist-credentials: false
 
           - name: "Run analysis"
-            uses: ossf/scorecard-action@05b42c624433fc40578a4040d5cf5e36ddca8cde # v2.4.2
+            uses: ossf/scorecard-action@4eaacf0543bb3f2c246792bd56e8cdeffafb205a # v2.4.3
             with:
                 results_file: results.sarif
                 results_format: sarif
@@ -69,7 +75,7 @@ jobs:
             # Upload the results as artifacts (optional). Commenting out will disable uploads of run results in SARIF
             # format to the repository Actions tab.
           - name: "Upload artifact"
-            uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+            uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
             with:
                 name: SARIF file
                 path: results.sarif
@@ -77,19 +83,19 @@ jobs:
 
             # Upload the results to GitHub's code scanning dashboard.
           - name: "Upload to code-scanning"
-            uses: github/codeql-action/upload-sarif@fca7ace96b7d713c7035871441bd52efbe39e27e # v3.28.19
+            uses: github/codeql-action/upload-sarif@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
             with:
                 sarif_file: results.sarif
     check-links:
-        if: ${{ !github.event.repository.fork }}
+        needs: fork-guard
         runs-on: ubuntu-latest
         steps:
           - name: Harden Runner
-            uses: step-security/harden-runner@0634a2670c59f64b4a01f0f96f84700a4088b9f0 # v2.12.0
+            uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
             with:
                 egress-policy: audit
 
-          - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # master
+          - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # master
           - uses: gaurav-nelson/github-action-markdown-link-check@5c5dfc0ac2e225883c0e5f03a85311ec2830d368 # v1
             # checks all markdown files from root but ignores subfolders
             # By Removing the max-depth variable we can modify it -> to check all the .md files in the entire repo.
@@ -102,14 +108,15 @@ jobs:
 
     inactivity:
         name: Inactivity Management
+        needs: fork-guard
         runs-on: ubuntu-latest
         steps:
           - name: Harden Runner
-            uses: step-security/harden-runner@0634a2670c59f64b4a01f0f96f84700a4088b9f0 # v2.12.0
+            uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
             with:
                 egress-policy: audit
 
-          - uses: actions/stale@5bef64f19d7facfb25b37b414482c7164d639639 # v9.1.0
+          - uses: actions/stale@eb5cf3af3ac0a1aa4c9c45633dd1ae542a27a899 # v10.3.0
             with:
                 days-before-issue-stale: 60
                 days-before-issue-close: 60

@@ -99,7 +99,7 @@ dev = [
     # Testing
     "pytest",
     "coverage",
-    "flaky",
+    "pytest-rerunfailures",
 
     # Benchmarking
     "perun",

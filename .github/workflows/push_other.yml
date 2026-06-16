@@ -37,7 +37,6 @@ jobs:
           - '3.11' # Oldest supported
           - '3.14' # Latest stable
         mpi: [ 'mpich' ]
-        install-options: [ '.[dev]' ]
         pytorch-version:
           - 'torch==2.3.1 torchvision==0.18.1 torchaudio==2.3.1'   # Oldest supported
           - 'torch==2.9.1 torchvision==0.24.1 torchaudio==2.9.1'   # JSC Stage 2026
@@ -45,14 +44,14 @@ jobs:
         exclude:
           - py-version: '3.14'
             pytorch-version: 'torch==2.3.1 torchvision==0.18.1 torchaudio==2.3.1'
-    name: Python ${{ matrix.py-version }} with ${{ matrix.pytorch-version }}; options ${{ matrix.install-options }}
+    name: Python ${{ matrix.py-version }} with ${{ matrix.pytorch-version }}
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@6c3c2f2c1c457b00c10c4848d6f5491db3b629df # v2.18.0
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
       - name: Checkout code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           ref: ${{ github.sha }}
       - uses: ./.github/actions/gh_tests
@@ -60,5 +59,4 @@ jobs:
           mode: "full"
           py-version: ${{ matrix.py-version }}
           mpi: ${{ matrix.mpi }}
-          install-options: ${{ matrix.install-options }}
           pytorch-version: ${{ matrix.pytorch-version }}

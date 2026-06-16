@@ -13,11 +13,11 @@ jobs:
 
     steps:
     - name: Checkout
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       with:
         path: heat
     - name: Setup MPI
-      uses: mpi4py/setup-mpi@3969f247e8fceef153418744f9d9ee6fdaeda29f # v1.2.0
+      uses: mpi4py/setup-mpi@f200dce75b64188be849b46657dcf86c721937b2 # v1.4.3
       with:
         mpi: ${{ matrix.mpi }}
     - name: Use Python ${{ matrix.python-version }}
@@ -30,7 +30,7 @@ jobs:
         python -m pip install --upgrade pip
         python -m pip install ${GITHUB_WORKSPACE}/heat/
     - name: Checkout array-api-tests
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       with:
         repository: data-apis/array-api-tests
         path: array-api-tests

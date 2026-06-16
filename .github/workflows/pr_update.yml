@@ -1,7 +1,7 @@
 name: On PR Update
 
 on:
-  pull_request:
+  pull_request_target:
     types: [opened, reopened, synchronize]
     paths:
       - '.github/**'
@@ -12,13 +12,12 @@ jobs:
   quick-tests:
     runs-on: ubuntu-latest
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
         py-version:
           - '3.11' # Oldest supported
           - '3.14' # Latest stable
         mpi: [ 'mpich' ]
-        install-options: [ '.[dev]' ]
         pytorch-version:
           - 'torch==2.3.1 torchvision==0.18.1 torchaudio==2.3.1'   # Oldest supported
           - 'torch==2.11.0 torchvision==0.26.0 torchaudio==2.11.0' # Latest stable
@@ -28,34 +27,33 @@ jobs:
     name: Quick Tests - Py${{ matrix.py-version }} with ${{ matrix.pytorch-version }}"
     steps:
       - name: Harden the runner
-        uses: step-security/harden-runner@6c3c2f2c1c457b00c10c4848d6f5491db3b629df # v2.18.0
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
       - name: Checkout code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           ref: ${{ github.event.pull_request.head.sha }}
       - uses: ./.github/actions/gh_tests
         with:
-          mode: quick
+          mode: medium
           sha: ${{ github.event.pull_request.head.sha }}
           py-version: ${{ matrix.py-version }}
           mpi: ${{ matrix.mpi }}
-          install-options: ${{ matrix.install-options }}
           pytorch-version: ${{ matrix.pytorch-version }}
 
   trigger-tests:
     name: Trigger Codebase Tests
     runs-on: ubuntu-latest
     needs: quick-tests
-    if: ${{ !github.event.repository.fork }}
+    if: ${{ !startsWith(github.head_ref, 'dependabot') }}
     steps:
       - name: Harden the runner
-        uses: step-security/harden-runner@6c3c2f2c1c457b00c10c4848d6f5491db3b629df # v2.18.0
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
       - name: Checkout code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           ref: ${{ github.event.pull_request.head.sha }}
       - uses: ./.github/actions/trigger_codebase_tests
@@ -69,14 +67,14 @@ jobs:
     name: Trigger Codebase Benchmarks
     runs-on: ubuntu-latest
     needs: trigger-tests
-    if: ${{ !github.event.repository.fork && contains(github.event.pull_request.labels.*.name, 'benchmark PR') }}
+    if: ${{ !startsWith(github.head_ref, 'dependabot') && contains(github.event.pull_request.labels.*.name, 'benchmark PR') }}
     steps:
       - name: Harden the runner
-        uses: step-security/harden-runner@6c3c2f2c1c457b00c10c4848d6f5491db3b629df # v2.18.0
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
       - name: Checkout code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           ref: ${{ github.event.pull_request.head.sha }}
       - uses: ./.github/actions/trigger_codebase_benchmarks
@@ -92,10 +90,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Harden the runner
-        uses: step-security/harden-runner@6c3c2f2c1c457b00c10c4848d6f5491db3b629df # v2.18.0
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
       - name: 'Checkout Repository'
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       - name: 'Dependency Review'
-        uses: actions/dependency-review-action@da24556b548a50705dd671f47852072ea4c105d9 # v4.7.1
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
