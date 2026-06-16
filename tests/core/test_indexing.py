@@ -61,51 +61,89 @@ class TestIndexing(TestCase):
             ht.nonzero(a)
 
     def test_where(self):
-        # cases to test
-        # no x and y
-        a = ht.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]], split=None)
-        cond = a > 3
-        wh = ht.where(cond)
-        self.assertEqual(len(wh), 2)
-        self.assertEqual(wh[0].gshape[0], 6)
-        self.assertEqual(wh[0].dtype, ht.int64)
-        self.assertEqual(wh[0].split, None)
-        # split
-        a = ht.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]], split=1)
-        cond = a > 3
-        wh = ht.where(cond)
-        self.assertEqual(wh.gshape, (6, 2))
-        self.assertEqual(wh.dtype, ht.int64)
-        self.assertEqual(wh.split, 0)
+        def compare_ht_where_to_numpy_where(ht_res, np_res):
+            if isinstance(np_res, tuple):
+                self.assertTrue(isinstance(ht_res, tuple))
 
+                self.assertEqual(len(ht_res), len(np_res))
+                for _ht_res, _np_res in zip(ht_res, np_res):
+                    self.assertTrue(ht.equal(_ht_res, ht.array(_np_res)))
+
+                self.assertEqual(ht_res[0].dtype, ht.int64)
+
+            else:
+                self.assertTrue(np.allclose(ht_res.shape, np_res.shape))
+                self.assertTrue(ht.equal(ht_res, ht.array(np_res)))
+                self.assertEqual(ht_res[0].dtype, ht.types.canonical_heat_type(np_res.dtype))
+
+
+        # compare to numpy.where
+        for split in [None, 0, 1]:
+            # no x and y
+            a = ht.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]], split=split)
+            cond = a > 3
+            ht_res = ht.where(cond)
+            np_res = np.where(cond.numpy())
+            compare_ht_where_to_numpy_where(ht_res, np_res)
+            if split is None:
+                self.assertEqual(ht_res[0].split, split)
+            else:
+                self.assertEqual(ht_res[0].split, 0)
+
+            # x and y DNDarray
+            a = ht.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]], split=split, dtype=ht.float32)
+            b = -a
+            cond = a > 3
+            ht_res = ht.where(cond, a, b)
+            np_res = np.where(cond.numpy(), a.numpy(), b.numpy())
+            compare_ht_where_to_numpy_where(ht_res, np_res)
+            self.assertEqual(ht_res.split, split)
+
+            # x and y float
+            a = ht.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]], split=split, dtype=ht.float32)
+            cond = a > 3
+            ht_res = ht.where(cond, 1., -1.)
+            np_res = np.where(cond.numpy(), 1., -1.)
+            compare_ht_where_to_numpy_where(ht_res, np_res.astype(np.float32))
+            self.assertEqual(ht_res.split, split)
+
+            # x and y int
+            a = ht.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]], split=split, dtype=ht.float32)
+            cond = a > 3
+            ht_res = ht.where(cond, 1, -1)
+            np_res = np.where(cond.numpy(), 1, -1)
+            compare_ht_where_to_numpy_where(ht_res, np_res.astype(np.int32))
+            self.assertEqual(ht_res.split, split)
+
+        # test other special cases
         # not split cond
         a = ht.array([[0.0, 1.0, 2.0], [0.0, 2.0, 4.0], [0.0, 3.0, 6.0]], split=None)
         res = ht.array([[0.0, 1.0, 2.0], [0.0, 2.0, -1.0], [0.0, 3.0, -1.0]], split=None)
-        wh = ht.where(a < 4.0, a, -1)
+        ht_res = ht.where(a < 4.0, a, -1)
         self.assertTrue(
             ht.equal(a[ht.nonzero(a < 4)], ht.array([0.0, 1.0, 2.0, 0.0, 2.0, 0.0, 3.0]))
         )
-        self.assertTrue(ht.equal(wh, res))
-        self.assertEqual(wh.gshape, (3, 3))
-        self.assertEqual(wh.dtype, ht.float32)
+        self.assertTrue(ht.equal(ht_res, res))
+        self.assertEqual(ht_res.gshape, (3, 3))
+        self.assertEqual(ht_res.dtype, ht.float32)
 
         # split cond
         a = ht.array([[0.0, 1.0, 2.0], [0.0, 2.0, 4.0], [0.0, 3.0, 6.0]], split=0)
         res = ht.array([[0.0, 1.0, 2.0], [0.0, 2.0, -1.0], [0.0, 3.0, -1.0]], split=0)
-        wh = ht.where(a < 4.0, a, -1)
-        self.assertTrue(ht.all(wh[ht.nonzero(a >= 4)] == -1))
-        self.assertTrue(ht.equal(wh, res))
-        self.assertEqual(wh.gshape, (3, 3))
-        self.assertEqual(wh.dtype, ht.float32)
-        self.assertEqual(wh.split, 0)
+        ht_res = ht.where(a < 4.0, a, -1)
+        self.assertTrue(ht.all(ht_res[ht.nonzero(a >= 4)] == -1))
+        self.assertTrue(ht.equal(ht_res, res))
+        self.assertEqual(ht_res.gshape, (3, 3))
+        self.assertEqual(ht_res.dtype, ht.float32)
+        self.assertEqual(ht_res.split, 0)
 
         a = ht.array([[0.0, 1.0, 2.0], [0.0, 2.0, 4.0], [0.0, 3.0, 6.0]], split=1)
         res = ht.array([[0.0, 1.0, 2.0], [0.0, 2.0, -1.0], [0.0, 3.0, -1.0]], split=1)
-        wh = ht.where(a < 4.0, a, -1.0)
-        self.assertTrue(ht.equal(wh, res))
-        self.assertEqual(wh.gshape, (3, 3))
-        self.assertEqual(wh.dtype, ht.float)
-        self.assertEqual(wh.split, 1)
+        ht_res = ht.where(a < 4.0, a, -1.0)
+        self.assertTrue(ht.equal(ht_res, res))
+        self.assertEqual(ht_res.gshape, (3, 3))
+        self.assertEqual(ht_res.dtype, ht.float)
+        self.assertEqual(ht_res.split, 1)
 
         with self.assertRaises(TypeError):
             ht.where(cond, a)

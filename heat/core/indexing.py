@@ -208,30 +208,8 @@ def where(
         return cond.dtype(cond == 0) * y + cond * x
 
     # ---- where(cond) "indices only" branch ----------------------------------
-    elif x is None and y is None:
-        # General rule: delegate to nonzero(cond), and only wrap into a 2-D
-        # coordinate matrix in the special distributed case where the array
-        # is split along a non-zero axis.
-        nz = nonzero(cond)  # tuple of DNDarrays, one per dimension
-
-        # 1) Non-distributed: behave exactly like ht.nonzero(cond)
-        if cond.split is None:
-            return nz
-
-        # 2) Distributed along axis 0: keep the legacy tuple-of-indices API.
-        #    This is relied upon in several parts of the code base (e.g. KMeans).
-        if cond.split == 0:
-            return nz
-
-        # 3) Distributed along a non-zero axis (split > 0)
-        coords = manipulations.stack(nz, axis=1)
-        coords = coords.astype(types.int64, copy=False)
-
-        # Ensure indices are split along axis 0 for stable distributed behavior
-        if coords.split is None:
-            coords.resplit_(0)
-
-        return coords
+    elif x is None and y is None:  # delegate to nonzero(cond)
+        return nonzero(cond)  # tuple of DNDarrays, one per dimension
 
     # ---- invalid combinations ----------------------------------------------
     else:
