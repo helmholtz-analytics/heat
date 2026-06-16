@@ -17,7 +17,7 @@ jobs:
       with:
         path: heat
     - name: Setup MPI
-      uses: mpi4py/setup-mpi@dbbb80b116bea57fc1788daf7dbbf7ab3df3a0f1 # v1.4.2
+      uses: mpi4py/setup-mpi@f200dce75b64188be849b46657dcf86c721937b2 # v1.4.3
       with:
         mpi: ${{ matrix.mpi }}
     - name: Use Python ${{ matrix.python-version }}
