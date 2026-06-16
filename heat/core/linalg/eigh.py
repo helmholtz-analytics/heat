@@ -75,7 +75,7 @@ def _subspaceiteration(
             device=columnnorms.device,
         )
         * statistics.percentile(columnnorms, 100.0 * (1 - (k + safetyparam) / columnnorms.shape[0]))
-    )
+    )[0]
     X = C[:, idx].balance()
 
     # actual subspace iteration
