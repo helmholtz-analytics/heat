@@ -82,8 +82,21 @@ def nonzero(x: DNDarray, as_tuple: bool = True) -> tuple[DNDarray, ...] | DNDarr
 
     if x.split == 0:
         # for split=0, the local nonzero indices are already globally ordered along the split axis
-        if not as_tuple:
-            # return indices as single 2D DNDarray
+        if as_tuple:  # return indices as tuple of 1D DNDarrays
+            lcl_nonzero = lcl_nonzero.unbind(dim=1)
+            return tuple(
+                DNDarray(
+                    nz_tensor,
+                    gshape=(nonzero_size.item(),),
+                    dtype=nonzero_dtype,
+                    split=0,
+                    device=x.device,
+                    comm=x.comm,
+                    balanced=False,
+                )
+                for nz_tensor in lcl_nonzero
+            )
+        else:  # return indices as single 2D DNDarray
             return DNDarray(
                 lcl_nonzero,
                 gshape=(nonzero_size.item(), x.ndim),
@@ -93,20 +106,6 @@ def nonzero(x: DNDarray, as_tuple: bool = True) -> tuple[DNDarray, ...] | DNDarr
                 comm=x.comm,
                 balanced=False,
             )
-        # return indices as tuple of 1D DNDarrays
-        lcl_nonzero = lcl_nonzero.unbind(dim=1)
-        return tuple(
-            DNDarray(
-                nz_tensor,
-                gshape=(nonzero_size.item(),),
-                dtype=nonzero_dtype,
-                split=0,
-                device=x.device,
-                comm=x.comm,
-                balanced=False,
-            )
-            for nz_tensor in lcl_nonzero
-        )
     else:
         # construct global 2D DNDarray of nz indices:
         shape_2d = (nonzero_size.item(), x.ndim)
@@ -122,23 +121,22 @@ def nonzero(x: DNDarray, as_tuple: bool = True) -> tuple[DNDarray, ...] | DNDarr
         # vectorized sorting of nz indices along axis 0
         global_nonzero.balance_()
         global_nonzero = manipulations.unique(global_nonzero, axis=0)
-        if not as_tuple:
-            # return indices as single 2D DNDarray
-            return global_nonzero
-        # return indices as tuple of 1D DNDarrays
-        lcl_nonzero = global_nonzero.larray.unbind(dim=1)
-        return tuple(
-            DNDarray(
-                nz_tensor,
-                gshape=(nonzero_size.item(),),
-                dtype=nonzero_dtype,
-                split=0,
-                device=x.device,
-                comm=x.comm,
-                balanced=True,
+        if as_tuple:  # return indices as tuple of 1D DNDarrays
+            lcl_nonzero = global_nonzero.larray.unbind(dim=1)
+            return tuple(
+                DNDarray(
+                    nz_tensor,
+                    gshape=(nonzero_size.item(),),
+                    dtype=nonzero_dtype,
+                    split=0,
+                    device=x.device,
+                    comm=x.comm,
+                    balanced=True,
+                )
+                for nz_tensor in lcl_nonzero
             )
-            for nz_tensor in lcl_nonzero
-        )
+        else:  # return indices as single 2D DNDarray
+            return global_nonzero
 
 
 DNDarray.nonzero = lambda self: nonzero(self, as_tuple=True)
