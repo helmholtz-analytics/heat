@@ -460,6 +460,7 @@ class MPICommunication(Communication):
     def _moveToCompDevice(self, x: torch.Tensor, func: Callable | None) -> torch.Tensor:
         """
         Moves the torch tensor to the relevant device, in case the function is not compatible with the MPI+GPU library.
+        If communication happens on GPU, the stream is synchronized in order to prepare for communication.
 
         Parameters
         ----------
