@@ -535,7 +535,7 @@ Roadmap
    :maxdepth: 1
 
    usage
-   api
+   /autoapi/index
 
 .. toctree::
    :caption: Community & Development
