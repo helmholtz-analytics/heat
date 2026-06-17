@@ -517,7 +517,7 @@ Roadmap
       :link: https://github.com/helmholtz-analytics/heat/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22
       :text-align: center
 
-      Explore "good first issues" and open feature requests for new contributors.
+      Explore "good first issues" and feature requests for new contributors.
 
 
 
