@@ -369,7 +369,7 @@ Tutorials
 
 -----
 
-Partner with Us
+Partner with us
 ===============
 
 .. div:: mb-4
@@ -443,7 +443,7 @@ Partner with Us
 
 -----
 
-Latest News
+Latest news
 ===========
 
 .. grid:: 1 1 3 3
@@ -490,7 +490,7 @@ Latest News
       Our project HeatHub has been awarded Helmholtz ScienceServe funding for 2026!
 
 Roadmap
-=======================
+=======
 
 .. div:: mb-4
 
