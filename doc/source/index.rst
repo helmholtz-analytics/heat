@@ -175,6 +175,55 @@ Tutorials
 
    .. grid-item-card::
       :class-card: sd-card
+      :link: /tutorials/tutorial_30_minutes
+      :link-type: doc
+
+      .. image:: _static/images/logo_emblem.svg
+         :alt: welcome tutorial
+         :align: center
+         :height: 140px
+
+      .. div:: mt-3 **30-minute tutorial**
+
+      .. div:: text-muted small mt-1
+
+         **A 30-minute welcome to Heat:** DNDarrays and basic operations.
+
+   .. grid-item-card::
+      :class-card: sd-card
+      :link: /tutorials/tutorial_parallel_computation
+      :link-type: doc
+
+      .. image:: _static/images/logo_emblem.svg
+         :alt: Parallel computation
+         :align: center
+         :height: 140px
+
+      .. div:: mt-3 **Parallel computation**
+
+      .. div:: text-muted small mt-1
+
+         **Parallel computing:** distributed MPI computation and (multi-)GPU acceleration.
+
+   .. grid-item-card::
+      :class-card: sd-card
+      :link: /tutorials/tutorial_clustering
+      :link-type: doc
+
+      .. image:: _static/images/tutorial_clustering.svg
+         :alt: Clustering
+         :align: center
+         :height: 140px
+
+      .. div:: mt-3 **Clustering**
+
+      .. div:: text-muted small mt-1
+
+         **Clustering analysis:** Automatically identify groups of similar data points in massive distributed datasets via unsupervised clustering methods.
+
+
+   .. grid-item-card::
+      :class-card: sd-card
       :link: /tutorials/notebooks/Loading_preprocessing
       :link-type: doc
 
@@ -251,7 +300,7 @@ Tutorials
 
       .. div:: text-muted small mt-1
 
-         All of our available tutorials are linked here.
+         **Interactive:** Check out our GitHub repository for our full set of interactive Jupyter notebooks.
 
 
 
@@ -478,7 +527,6 @@ Roadmap
    :maxdepth: 1
 
    quick_start
-   .. tutorials/tutorials
    .. case_studies
 
 .. toctree::
@@ -488,7 +536,6 @@ Roadmap
 
    usage
    api
-   documentation_howto
 
 .. toctree::
    :caption: Community & Development
@@ -496,4 +543,5 @@ Roadmap
    :maxdepth: 1
 
    CONTRIBUTING
+   documentation_howto
    CODE_OF_CONDUCT
