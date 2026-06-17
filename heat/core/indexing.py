@@ -188,14 +188,10 @@ def where(
           [ 0,  2, -1],
           [ 0,  3, -1]])
     """
-    # ---- binary where(cond, x, y) branch ------------------------------------
-    if cond.split is not None and (isinstance(x, DNDarray) or isinstance(y, DNDarray)):
-        if (isinstance(x, DNDarray) and cond.split != x.split) or (
-            isinstance(y, DNDarray) and cond.split != y.split
-        ):
-            # Only raise if the "other" array has a meaningful first dimension.
-            if isinstance(y, DNDarray) and len(y.shape) >= 1 and y.shape[0] > 1:
-                raise NotImplementedError("binary op not implemented for different split axes")
+    # binary where(cond, x, y) branch
+    if cond.split is not None and isinstance(y, DNDarray) and len(y.shape) >= 1 and y.shape[0] > 1:
+        if (isinstance(x, DNDarray) and cond.split != x.split) or cond.split != y.split:
+            raise NotImplementedError("binary op not implemented for different split axes")
 
     if isinstance(x, (DNDarray, int, float)) and isinstance(y, (DNDarray, int, float)):
         # Simple elementwise selection using arithmetic:
@@ -205,11 +201,10 @@ def where(
                 var = float(var)
         return cond.dtype(cond == 0) * y + cond * x
 
-    # ---- where(cond) "indices only" branch ----------------------------------
+    # where(cond) "indices only" branch
     elif x is None and y is None:  # delegate to nonzero(cond)
         return nonzero(cond)  # tuple of DNDarrays, one per dimension
 
-    # ---- invalid combinations ----------------------------------------------
     else:
         raise TypeError(
             "either both or neither x and y must be given and both must be "
