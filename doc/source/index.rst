@@ -13,7 +13,7 @@
       :align: center
       :width: 70%
 
-.. div:: text-center mt-4 mb-5
+.. div:: fs-5 text-center mt-4 mb-5
 
    **High-performance data analytics in Python, at scale.**
 
@@ -28,7 +28,7 @@
 
       .. div:: small text-muted
 
-         Multi-node data processing powered by optimized MPI communication pipelines.
+         Multi-node data-parallel processing via optimized MPI communication.
 
    .. grid-item::
       .. div:: fs-5 fw-bold  mb-2
@@ -37,7 +37,7 @@
 
       .. div:: small text-muted
 
-         Native, out-of-the-box multi-GPU hardware acceleration via PyTorch.
+         Native, out-of-the-box, multi-GPU hardware acceleration via PyTorch.
 
    .. grid-item::
       .. div:: fs-5 fw-bold  mb-2
@@ -46,7 +46,7 @@
 
       .. div:: small text-muted
 
-         Scale effortlessly beyond single-node memory ceilings.
+         Scale effortlessly beyond single-node RAM limits.
 
    .. grid-item::
       .. div:: fs-5 fw-bold  mb-2
@@ -55,7 +55,7 @@
 
       .. div:: small text-muted
 
-         Plug & play compatibility built to seamlessly mirror the NumPy API.
+         Plug & play compatibility with the Python array ecosystem.
 
 -----
 
@@ -68,7 +68,7 @@
 .. * **Hardware-agnostic:** Supports CPUs and GPUs (CUDA, ROCm, Apple MPS).
 .. * **Efficient scaling:** Exploit the entire, cumulative RAM of your cluster for memory-intensive operations.
 
-Getting started
+In a nutshell
 ===============
 
 .. grid:: 1 1 2 2
@@ -111,8 +111,63 @@ Getting started
 
 -----
 
-Examples
-========
+Getting started
+================
+
+.. grid:: 1 2 3 3
+   :gutter: 3
+   :class-container: text-center mt-4 mb-4
+
+   .. grid-item-card::
+      :class-card: sd-card
+      :link: /quick_start
+      :link-type: doc
+
+      .. image:: _static/images/install_graphics.png
+         :alt: Installation
+         :align: center
+         :height: 140px
+
+      .. div:: mt-3 **Installation**
+
+      .. div:: text-muted mt-1
+
+         **Install guide** from your laptop to HPC systems
+
+   .. grid-item-card::
+      :class-card: sd-card
+      :link: /coverage_tables
+      :link-type: doc
+
+      .. image:: _static/images/tutorial_split_dndarray.svg
+         :alt: Installation
+         :align: center
+         :height: 140px
+
+      .. div:: mt-3 **NumPy API**
+
+      .. div:: text-muted mt-1
+
+         **Numerical data processing**: NumPy/SciPy API compatibility tracking
+
+   .. grid-item-card::
+      :class-card: sd-card
+      :link: /autoapi/index
+      :link-type: doc
+
+      .. image:: _static/images/api_ref_graphics.png
+         :alt: API reference
+         :align: center
+         :height: 140px
+
+      .. div:: mt-3 **API reference**
+
+      .. div:: text-muted mt-1
+
+         **API reference:**  all numerical functions and machine learning algorithms.
+
+Tutorials
+=========
 
 .. grid:: 1 2 3 3
    :gutter: 3
@@ -217,50 +272,51 @@ Examples
          **Profiling:** Track cluster memory consumption, execution efficiency, and resource utilization using Perun.
 
 
------
+.. -----
 
-Documentation Portal
-====================
 
-.. grid:: 1 1 2 4
-   :gutter: 3
-   :padding: 0
-   :class-container: mt-4 mb-4
+.. Documentation Portal
+.. ====================
 
-   .. grid-item-card:: Tutorials
-      :class-card: sd-card
-      :link: tutorials/notebooks/1_basics
-      :link-type: doc
+.. .. grid:: 1 1 2 4
+..    :gutter: 3
+..    :padding: 0
+..    :class-container: mt-4 mb-4
 
-      **Learning-oriented** pages to guide you through your very first steps, configuration workflows, and basic cluster operations.
+..    .. grid-item-card:: Tutorials
+..       :class-card: sd-card
+..       :link: tutorials/notebooks/1_basics
+..       :link-type: doc
 
-   .. grid-item-card:: How-To Guides
-      :class-card: sd-card
-      :link: usage
-      :link-type: doc
+..       **Learning-oriented** pages to guide you through your very first steps, configuration workflows, and basic cluster operations.
 
-      **Task-oriented** recipes showing you how to solve specific analytical problems, load custom data files, and scale specific operations.
+..    .. grid-item-card:: How-To Guides
+..       :class-card: sd-card
+..       :link: usage
+..       :link-type: doc
 
-   .. grid-item-card:: Explanations
-      :class-card: sd-card
-      :link: tutorials/notebooks/2_internals
-      :link-type: doc
+..       **Task-oriented** recipes showing you how to solve specific analytical problems, load custom data files, and scale specific operations.
 
-      **Understanding-oriented** deep dives into cluster architecture, the inner mechanics of ``DNDarray`` splitting, and parallelization theory.
+..    .. grid-item-card:: Explanations
+..       :class-card: sd-card
+..       :link: tutorials/notebooks/2_internals
+..       :link-type: doc
 
-   .. grid-item-card:: API Reference
-      :class-card: sd-card
-      :link: api
-      :link-type: doc
+..       **Understanding-oriented** deep dives into cluster architecture, the inner mechanics of ``DNDarray`` splitting, and parallelization theory.
 
-      **Information-oriented** technical specs covering function definitions, parameters, return types, and class structures.
+..    .. grid-item-card:: API Reference
+..       :class-card: sd-card
+..       :link: api
+..       :link-type: doc
 
-.. toctree::
-   :hidden:
+..       **Information-oriented** technical specs covering function definitions, parameters, return types, and class structures.
 
-   getting_started
-   usage
-   api
+.. .. toctree::
+..    :hidden:
+
+..    getting_started
+..    usage
+..    api
 
 -----
 
@@ -323,7 +379,7 @@ Partner with Us
 
             **Institutional Backing & Joint Proposals**
 
-            If you are assembling a domain-specific grant or third-party funding proposal (e.g., BMBF, EU, or Helmholtz transfer tracks) and need to scale data workflows to massive cluster environments, let's team up.
+            If you are assembling a domain-specific grant or third-party funding proposal (e.g., BMBFTR, EU, or Helmholtz transfer tracks) and need to scale data workflows to massive cluster environments, let's team up.
 
             We partner with both scientific institutions and industrial application partners during the proposal stage. If the project is successful, our core engineering team provides **ad-hoc support** to integrate Heat's distributed tensor operations directly into the project's pipeline.
 
@@ -347,10 +403,12 @@ Latest News
 
    .. grid-item-card:: Save the Date
       :class-card: sd-card
+      :link: https://indico3-jsc.fz-juelich.de/event/327/
 
-      *November 2026*
+      *May 2026*
 
-      Registration opens soon for our upcoming virtual workshop on high-performance data analytics.
+      Registration is open for our upcoming virtual workshop on high-performance data analytics. Join us for hands-on sessions, expert talks, and live demos of Heat in action.
+
 
    .. grid-item-card:: NumFOCUS Affiliation
       :class-card: sd-card
@@ -411,3 +469,31 @@ Roadmap
       :text-align: center
 
       Explore "good first issues" and open feature requests for new contributors.
+
+
+
+.. toctree::
+   :caption: Getting Started
+   :hidden:
+   :maxdepth: 1
+
+   quick_start
+   .. tutorials/tutorials
+   .. case_studies
+
+.. toctree::
+   :caption: Main Documentation
+   :hidden:
+   :maxdepth: 1
+
+   usage
+   api
+   documentation_howto
+
+.. toctree::
+   :caption: Community & Development
+   :hidden:
+   :maxdepth: 1
+
+   CONTRIBUTING
+   CODE_OF_CONDUCT
