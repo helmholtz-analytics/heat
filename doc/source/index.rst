@@ -80,7 +80,7 @@ In a nutshell
 
       .. **Prototype on your laptop, execute on any cluster**
 
-      Heat builds on **PyTorch** and **mpi4py** to process **massive arrays** - huge collections of images, MORE EXAMPLES - that exceed the memory and computational limits of a single machine.
+      Heat builds on **PyTorch** and **mpi4py** to process **massive arrays** - huge collections of images, high-dimensional climate simulation grids, or massive machine learning feature matrices - that exceed the memory and computational limits of a single machine.
 
       Define your data distribution axis via the ``split`` parameter, assign hardware using the ``device`` attribute, and let Heat orchestrate data movement and cross-node communication.
 
