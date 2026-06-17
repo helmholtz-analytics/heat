@@ -10,7 +10,7 @@ import warnings
 from inspect import stack
 from mpi4py import MPI
 from pathlib import Path
-from typing import Union, TypeVar
+from typing import TypeVar
 
 warnings.simplefilter("always", ResourceWarning)
 
@@ -263,7 +263,7 @@ class DNDarray:
         return np.prod(self.__array.shape)
 
     @property
-    def lloc(self) -> "DNDarray" | None:
+    def lloc(self) -> DNDarray | None:
         """
         Local item setter and getter. i.e. this function operates on a local
         level and only on the PyTorch tensors composing the :class:`DNDarray`.
@@ -623,7 +623,7 @@ class DNDarray:
 
         raise TypeError("only size-1 arrays can be converted to Python scalars")
 
-    def collect_(self, target_rank: int | None = 0) -> None:
+    def collect_(self, target_rank: int = 0) -> None:
         """
         A method collecting a distributed DNDarray to one MPI rank, chosen by the `target_rank` variable.
         It is a specific case of the ``redistribute_`` method.
@@ -676,7 +676,7 @@ class DNDarray:
         """
         return self.__cast(complex)
 
-    def counts_displs(self) -> tuple[tuple[int], tuple[int]]:
+    def counts_displs(self) -> tuple[tuple[int, ...], tuple[int, ...]]:
         """
         Returns actual counts (number of items per process) and displacements (offsets) of the DNDarray.
         Does not assume load balance.
@@ -879,7 +879,7 @@ class DNDarray:
 
         return self
 
-    def __getitem__(self, key: Union[int, tuple[int, ...], list[int, ...]]) -> DNDarray:
+    def __getitem__(self, key: int | slice[int | None] | tuple[int, ...] | list[int]) -> DNDarray:
         """
         Global getter function for DNDarrays.
         Returns a new DNDarray composed of the elements of the original tensor selected by the indices
@@ -889,7 +889,7 @@ class DNDarray:
 
         Parameters
         ----------
-        key : int, slice, tuple[int,...], list[int,...]
+        key : int or slice or tuple[int,...] or list[int]
             Indices to get from the tensor.
 
         Examples
@@ -1255,7 +1255,7 @@ class DNDarray:
         """
         return printing.__repr__(self)
 
-    def ravel(self) -> "DNDarray":
+    def ravel(self) -> DNDarray:
         """
         Flattens the ``DNDarray``.
 
@@ -1574,7 +1574,7 @@ class DNDarray:
 
     def __setitem__(
         self,
-        key: Union[int, tuple[int, ...], list[int, ...]],
+        key: int | tuple[int, ...] | list[int],
         value: Union[float, DNDarray, torch.Tensor],
     ):
         """
@@ -1582,7 +1582,7 @@ class DNDarray:
 
         Parameters
         ----------
-        key : Union[int, tuple[int,...], list[int,...]]
+        key : int or tuple[int,...] or list[int]
             Index/indices to be set
         value: Union[float, DNDarray,torch.Tensor]
             Value to be set to the specified positions in the DNDarray (self)
@@ -1863,7 +1863,7 @@ class DNDarray:
 
     def __setter(
         self,
-        key: Union[int, tuple[int, ...], list[int, ...]],
+        key: int | tuple[int, ...] | list[int],
         value: Union[float, DNDarray, torch.Tensor],
     ):
         """
@@ -1895,7 +1895,7 @@ class DNDarray:
         """
         return printing.__str__(self)
 
-    def tolist(self, keepsplit: bool = False) -> list:
+    def tolist(self, keepsplit: bool = False) -> list[int | float]:
         """
         Return a copy of the local array data as a (nested) Python list. For scalars, a standard Python number is returned.
 
