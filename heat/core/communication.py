@@ -1020,16 +1020,6 @@ class MPICommunication(Communication):
         if isinstance(recvbuf, DNDarray):
             recvbuf = recvbuf.larray
 
-        if not self.is_distributed():
-            if sendbuf is not MPI.IN_PLACE:
-                # set the contiguousness like in multiprocess
-                sendbuf.set_(sendbuf.contiguous())
-                if func in (self.handle.Exscan, self.handle.Iexscan):
-                    recvbuf.set_(recvbuf.contiguous())
-                else:
-                    recvbuf.set_(sendbuf.clone())
-            return None, None, None, None
-
         # harmonize the input and output buffers
         # MPI requires send and receive buffers to be of same type and length. If the torch tensors are either not both
         # contiguous or differently strided, they have to be made matching (if possible) first.
@@ -1069,6 +1059,12 @@ class MPICommunication(Communication):
                         recvbuf.set_(
                             tmp.storage(), tmp.storage_offset(), size=tmp.shape, stride=tmp.stride()
                         )
+
+            if not self.is_distributed() and func not in (self.handle.Exscan, self.handle.Iexscan):
+                _copyto(sendbuf, recvbuf)
+
+        if not self.is_distributed():
+            return None, None, None, None
 
         derived_op_flag = False
         if isinstance(recvbuf, torch.Tensor):
