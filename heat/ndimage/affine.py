@@ -37,12 +37,12 @@ The public entry point is `affine_transform`.
 
 import torch
 from torch.nn.functional import affine_grid, grid_sample
-from ..core.communication import MPI
-import warnings
-from ..core.dndarray import DNDarray
-from ..core.linalg.basics import transpose
-from ..core.manipulations import hstack
-from ..core.factories import array
+from heat.core.communication import MPI
+from heat.core.dndarray import DNDarray
+from heat.core.linalg.basics import transpose
+
+# from heat.core.manipulations import hstack
+from heat.core.factories import array
 
 MODE_TO_PADDING = {
     # SciPy mode               # torch padding_mode
