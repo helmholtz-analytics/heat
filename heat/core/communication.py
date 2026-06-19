@@ -1549,9 +1549,12 @@ class MPICommunication(Communication):
             raise TypeError(f"recvbuf of type {type(recvbuf)} does not support send_axis != 0")
 
         if not self.is_distributed():
-            if recv_axis > 1 and send_axis > 1 and recv_axis == send_axis:
-                raise NotImplementedError(
-                    "AllToAll for same axes not supported. Please choose send_axis and recv_axis to be different."
+            # consistenncy with multiprocess
+            if (recv_axis > 1 or send_axis > 1) and recv_axis == send_axis:
+                warnings.warn(
+                    UserWarning(
+                        "AllToAll for same axes is not supported on multiprocess. Please choose send_axis and recv_axis to be different when scaling up."
+                    )
                 )
             if sendbuf.shape != recvbuf.shape:
                 sendbuf = sendbuf.swapaxes(send_axis, recv_axis)
