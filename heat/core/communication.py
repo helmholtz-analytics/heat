@@ -2023,7 +2023,7 @@ class MPICommunication(Communication):
             raise TypeError(f"recvbuf of type {type(recvbuf)} does not support recv_axis != 0")
 
         if not self.is_distributed():
-            if sendbuf is not MPI.IN_PLACE:
+            if sendbuf is not MPI.IN_PLACE or recvbuf is not MPI.IN_PLACE:
                 _copyto(sendbuf, recvbuf)
             return None, None, None, None, None
 
@@ -2282,7 +2282,7 @@ class MPICommunication(Communication):
             raise TypeError(f"recvbuf of type {type(recvbuf)} does not support recv_axis != 0")
 
         if not self.is_distributed():
-            if sendbuf is not MPI.IN_PLACE:
+            if sendbuf is not MPI.IN_PLACE or recvbuf is not MPI.IN_PLACE:
                 _copyto(sendbuf, recvbuf)
             return None, None, None, None, None
 
