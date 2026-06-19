@@ -5,7 +5,7 @@ This module implements backward-warping affine transformations
 (translation, rotation, scaling) for 2D and 3D data stored as
 Heat DNDarrays, using a PyTorch backend.
 
-The affine matrix M is interpreted as a *forward* transform
+The affine matrix M is interpreted as a *b* transform
 in affine (x, y [, z]) coordinates:
 
     out = A @ inp + b
@@ -35,17 +35,14 @@ Distributed arrays:
 The public entry point is `affine_transform`.
 """
 
-import numpy as np
 import torch
-from torch.nn.functional import affine_grid
-from torch.nn.functional import grid_sample
-import heat as ht
-from mpi4py import MPI
+from torch.nn.functional import affine_grid, grid_sample
+from ..core.communication import MPI
 import warnings
 from ..core.dndarray import DNDarray
-from ..core import factories
-from ..core import manipulations
 from ..core.linalg.basics import transpose
+from ..core.manipulations import hstack
+from ..core.factories import array
 
 MODE_TO_PADDING = {
     # SciPy mode               # torch padding_mode
@@ -94,6 +91,7 @@ def _remove_slice(A: torch.Tensor, idx: int, dim: int) -> torch.Tensor:
 
 
 def _to_full_affine(mat):
+    # TODO: make distributed, only local for now!
     """
     Convert reduced affine matrices to full homogeneous form.
 
@@ -129,13 +127,16 @@ def _to_full_affine(mat):
         raise ValueError(f"Expected 2D or 3D tensor, got {mat.dim()}D")
 
 
-def _matrix_pixel_to_normalized_coords(M: torch.Tensor, sizes):
+# TODO: make this able to handle batches of matrices
+def convert_matrix_space(M: torch.Tensor, sizes):
     """
-    Convert scipy affine matrix to PyTorch normalized coordinates.
+    Convert scipy affine matrix to normalized coordinates used by affine_grid.
+    scipy uses pixel coordinate space with origin in the top left,
+    while affine_grid uses -1 to 1 with origin in the center of the image
 
     Args:
-        M: Torch Tensor of shape (D+1, D+1) — [a_ij | t_i]
-        sizes: image sizes [H, W, D, ...] of length D
+        M: Torch Tensor of shape (D+1, D+1)
+        sizes: image sizes [H, W, D, ...] of length D (excluding color dimension)
 
     Returns
     -------
@@ -178,29 +179,6 @@ def _matrix_pixel_to_normalized_coords(M: torch.Tensor, sizes):
     return full_transformed[:, :D, :]
 
 
-def _swap_rows_cols(A, row_pair, col_pair):
-    print()
-    print("swapping stuff")
-    print()
-    print(A)
-    i, j = row_pair
-    k, m = col_pair
-
-    row_idx = torch.arange(A.size(0))
-    row_idx[i] = j
-    row_idx[j] = i
-
-    col_idx = torch.arange(A.size(1))
-    col_idx[k] = m
-    col_idx[m] = k
-    A = A[row_idx[:, None], col_idx[None, :]]
-    print(A)
-    print()
-    print("end swapping stuff")
-    print()
-    return A
-
-
 # ============================================================
 #  main methods
 # ============================================================
@@ -216,8 +194,9 @@ def affine_transform(
     prefilter=True,
 ) -> DNDarray:
     """
-    Input is expected to have shape H x W x C because that is consistent with PIL+Numpy to get Image data
-    -> to be consistent with scipy the Matrix then has to be of shape 3x4 (3x3, 4x4 also valid)
+    Input is expected to have shape [N x] [D x] H x W x C because that is consistent with PIL+Numpy to get Image data.
+    To be consistent with scipy the Matrix then is of shape 3x4 (3x3, 4x4 also valid), while the Row/Column for transforming
+    color data gets ignored for now because it is not supported by affine_grid()
     """
     # TODO: Implement cases 3x3, 2x3, 2x2
 
@@ -225,8 +204,7 @@ def affine_transform(
     sample_padding = MODE_TO_PADDING[mode]
     sample_mode = ORDER_TO_MODE[order]
 
-    matrix_torch: torch.Tensor
-    matrix_torch = matrix.larray
+    matrix_torch: torch.Tensor = matrix.larray
 
     if matrix_torch.dim() == 2:
         matrix_torch = matrix_torch.unsqueeze(0)
@@ -234,7 +212,7 @@ def affine_transform(
     # 2d image given, third dimension are/would be color vector transforms
     if input.ndim == 3 and 3 <= matrix.shape[0] <= 4 and 3 <= matrix.shape[1] <= 4:
         # remove axis that represents transforming the color dimension, because
-        # torch affine_grid does not support that
+        # torch affine_grid does not support tranformaing Color dimension out of the box
         matrix_torch = _remove_slice(matrix_torch, 2, dim=1)
         matrix_torch = _remove_slice(matrix_torch, 2, dim=2)
 
@@ -255,7 +233,7 @@ def affine_transform(
     t_input = transpose(input, (2, 1, 0))  # to C x W x H
     input_torch = t_input.larray.unsqueeze(0)
 
-    matrix_torch = _matrix_pixel_to_normalized_coords(matrix_torch, t_input.shape[1:])
+    matrix_torch = convert_matrix_space(matrix_torch, t_input.shape[1:])
 
     size = torch.Size((1, t_input.shape[0], t_input.shape[1], t_input.shape[2]))
     print(f"{size=}")
@@ -267,109 +245,4 @@ def affine_transform(
         padding_mode=sample_padding,
         mode=sample_mode,
     )
-    return ht.array(transformed.squeeze(0).permute(2, 1, 0))
-
-
-# ============================================================
-# Helper utilities (old, to be determined if still helpful)
-# ============================================================
-
-
-def _is_identity_affine(M, ND):
-    """
-    Check whether an affine matrix represents the identity transform.
-
-    Parameters
-    ----------
-    M : array-like
-        Affine matrix of shape (ND, ND+1).
-    ND : int
-        Number of spatial dimensions.
-
-    Returns
-    -------
-    bool
-        True if A is the identity matrix and b is zero.
-    """
-    A = M[:, :ND]
-    b = M[:, ND:]
-    return np.allclose(A, np.eye(ND)) and np.allclose(b, 0)
-
-
-def _normalize_input(x, ND):
-    """
-    Normalize a Heat array to a unified internal layout.
-
-    For sampling, inputs are reshaped to include synthetic
-    batch and channel dimensions:
-
-      - 2D: (N, C, H, W)
-      - 3D: (N, C, D, H, W)
-
-    These dimensions are internal only and do not imply
-    semantic batching or channels in the input data.
-
-    Parameters
-    ----------
-    x : ht.DNDarray
-        Input array.
-    ND : int
-        Number of spatial dimensions.
-
-    Returns
-    -------
-    torch.Tensor
-        Local torch tensor with added batch/channel dimensions.
-    tuple
-        Original shape of the input array.
-    """
-    orig_shape = x.shape
-    t = x.larray
-
-    if ND == 2:
-        if x.ndim == 2:
-            t = t.unsqueeze(0).unsqueeze(0)
-        elif x.ndim == 3:
-            t = t.unsqueeze(0)
-    else:
-        if x.ndim == 3:
-            t = t.unsqueeze(0).unsqueeze(0)
-        elif x.ndim == 4:
-            t = t.unsqueeze(0)
-
-    return t, orig_shape
-
-
-def _make_grid(spatial, device):
-    """
-    Construct a coordinate grid in Heat spatial axis order.
-
-    The grid contains integer coordinates corresponding to
-    output pixel locations and is later mapped through the
-    inverse affine transform.
-
-    Parameters
-    ----------
-    spatial : tuple
-        Spatial shape (H, W) or (D, H, W).
-    device : torch.device
-        Target device.
-
-    Returns
-    -------
-    torch.Tensor
-        Coordinate grid of shape (ND, *spatial) in Heat order.
-    """
-    if len(spatial) == 2:
-        H, W = spatial
-        y = torch.arange(H, device=device)
-        x = torch.arange(W, device=device)
-        gy, gx = torch.meshgrid(y, x, indexing="ij")
-        return torch.stack([gy, gx], dim=0)
-    else:
-        D, H, W = spatial
-        z = torch.arange(D, device=device)
-        y = torch.arange(H, device=device)
-        x = torch.arange(W, device=device)
-        gz, gy, gx = torch.meshgrid(z, y, x, indexing="ij")
-        return torch.stack([gz, gy, gx], dim=0)
+    return array(transformed.squeeze(0).permute(2, 1, 0))

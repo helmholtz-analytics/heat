@@ -18,8 +18,21 @@ ROTATE = np.deg2rad(30)
 TRANSLATE = (100, 50)
 
 
-def create_checker_image(w: int, h: int, checker_size: int):
-    new_image = Image.new("RGB", (h, w), (255, 0, 0))  # create a new 15x15 image
+def create_checker_image(w: int, h: int, checker_size: int) -> Image.Image:
+    """creates a PIL image for testing
+
+    :param w: _description_
+    :type w: int
+    :param h: _description_
+    :type h: int
+    :param checker_size: _description_
+    :type checker_size: int
+    :return: _description_
+    :rtype: _type_
+    """
+    new_image: Image.Image = Image.new(
+        "RGB", (h, w), (255, 0, 0)
+    )  # create a new 15x15 image
     pixels = new_image.load()  # create the pixel map
 
     box_size = checker_size
@@ -47,8 +60,8 @@ img: Image = create_checker_image(*SIZE, 32)
 img_np = np.asarray(img, dtype=np.float32)  #
 print(f"shape of image as numpy array {img_np.shape}")  # HWC
 
-heat_img = ht.array(img_np)  # HWC
-print(f"shape of image converted from numpy to heat array {heat_img.shape}")
+img_heat = ht.array(img_np)  # HWC
+print(f"shape of image converted from numpy to heat array {img_heat.shape}")
 
 H, W = img_np.shape[:2]
 cx, cy = H / 2, W / 2
@@ -71,17 +84,15 @@ def centered_linear(A_xy):
     return np.hstack([A_xy, b[:, None]]).astype(np.float32)
 
 
-def apply(M: np.ndarray, title, idx, mode="constant", constant_value=0.0):
+def apply(M: np.ndarray, title, row_idx, mode="constant", constant_value=0.0):
 
-    print(f"matrix shape: {M.shape}")
-    print(M)
-    print(f"image shape: {heat_img.shape}")
+    heat_M = ht.array(M)
 
-    index = idx * 2
+    idx = row_idx * 2
 
     result = affine_transform(
-        heat_img,
-        ht.array(M),
+        img_heat,
+        heat_M,
         offset=100,
         order=1,
         mode=mode,
@@ -92,14 +103,16 @@ def apply(M: np.ndarray, title, idx, mode="constant", constant_value=0.0):
     compare = ndimg.affine_transform(
         img_np, M, offset=100, order=1, mode=mode, cval=constant_value, prefilter=True
     )
-    axs[index].imshow(result.larray.permute(0, 1, 2).cpu().numpy().astype(np.uint8))
-    axs[index + 1].imshow(compare.astype(np.uint8))
-    axs[index].set_title(title)
-    axs[index].axis("off")
-    axs[index + 1].set_title("")
-    axs[index + 1].axis("off")
-    axs[index].scatter(img_center[1], img_center[0])
-    axs[index + 1].scatter(img_center[1], img_center[0])
+    print(f"resulting shape: {result.shape}")
+    print(f"compare shape: {compare.shape}")
+    axs[idx].imshow(result.numpy().astype(np.uint8))
+    axs[idx + 1].imshow(compare.astype(np.uint8))
+    axs[idx].set_title(title)
+    axs[idx].axis("off")
+    axs[idx + 1].set_title("")
+    axs[idx + 1].axis("off")
+    axs[idx].scatter(img_center[1], img_center[0])
+    axs[idx + 1].scatter(img_center[1], img_center[0])
 
 
 # ------------------------------------------------------------
