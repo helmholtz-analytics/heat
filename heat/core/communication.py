@@ -15,7 +15,7 @@ from typing import Any, Callable, Optional, List, Tuple, Union
 
 from .stride_tricks import sanitize_axis
 
-from ._config import GPU_AWARE_MPI, mpi_library
+from ._config import GPU_AWARE_MPI, mpi_library as MPI_LIBRARY
 
 
 class MPIRequest:
@@ -475,9 +475,7 @@ class MPICommunication(Communication):
             The tensor on the relevant device for the MPI function
         """
         if x.is_cuda:
-            if GPU_AWARE_MPI and func.__name__ not in mpi_library.incompatible_operations.get(
-                "cuda", []
-            ):
+            if GPU_AWARE_MPI and func.__name__ not in MPI_LIBRARY.incompatible_operations:
                 torch.cuda.synchronize(x.device)
                 return x
             else:
