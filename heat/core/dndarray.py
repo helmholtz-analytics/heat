@@ -10,7 +10,7 @@ import warnings
 from inspect import stack
 from mpi4py import MPI
 from pathlib import Path
-from typing import TypeVar
+from typing import Union, TypeVar
 
 warnings.simplefilter("always", ResourceWarning)
 
