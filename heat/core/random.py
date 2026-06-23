@@ -118,8 +118,8 @@ def __counter_sequence(
 
     # Share this initial local state to update it correctly later
     tmp_counter = __counter
-    rank = comm.Get_rank()
-    size = comm.Get_size()
+    rank = comm.rank
+    size = comm.size
     max_count = 0xFFFFFFFF if dtype == torch.int32 else 0xFFFFFFFFFFFFFFFF
 
     # extract the counter state of the random number generator
