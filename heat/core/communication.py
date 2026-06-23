@@ -62,18 +62,12 @@ class MPIRequest:
 
         # Copy result from CPU back to GPU if needed
         if self.tensor is not None:
-            tensor_device = (
-                self.tensor.device
-                if isinstance(self.tensor, torch.Tensor)
-                else self.tensor.larray.device
-            )
+            tensor = self.tensor if isinstance(self.tensor, torch.Tensor) else self.tensor.larray
+            tensor_device = tensor.device
             recvbuf_device = self.recvbuf.device
 
             if tensor_device != recvbuf_device:
-                if isinstance(self.tensor, torch.Tensor):
-                    self.tensor.copy_(self.recvbuf.to(tensor_device))
-                else:
-                    self.tensor.larray.copy_(self.recvbuf.to(tensor_device))
+                tensor.copy_(self.recvbuf.to(tensor_device))
 
     def __getattr__(self, name: str) -> Callable:
         """

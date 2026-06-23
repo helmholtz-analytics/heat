@@ -3,7 +3,6 @@ Everything you need to know about the configuration of Heat
 """
 
 from mpi4py import MPI
-from numpy import isin
 import torch
 import platform
 import mpi4py
@@ -13,6 +12,8 @@ import warnings
 import re
 import dataclasses
 from enum import Enum
+
+from torch._C import _rocm_is_backward_pass
 
 
 class MPILibrary(Enum):
@@ -90,75 +91,85 @@ def _get_mpi_library() -> MPILibraryInfo:
                 # Check for extensions
                 match = re.search(r"MPI extensions: (.*)", ompi_info)
                 extensions = [ext.strip() for ext in match.group(0).split(":")[1].split(",")]
-                cuda = cuda_support_flag and "cuda" in extensions
+                cuda_is_compatible: bool = cuda_support_flag and "cuda" in extensions
                 if version.startswith("v4."):
-                    rocm = cuda
+                    rocm_is_compatible: bool = cuda_is_compatible
                 elif version.startswith("v5."):
-                    rocm = "rocm" in extensions or "hip" in extensions
+                    rocm_is_compatible: bool = "rocm" in extensions or "hip" in extensions
 
             finally:
-                cuda = False
-                rocm = False
-                gpu_comp = False
+                cuda_is_compatible = False
+                rocm_is_compatible = False
                 device_incompatibilities = None
 
         case ["Intel(R)", "MPI", *_]:
             library = MPILibrary.IntelMPI
             version = library_info[3]
 
-            cuda = False
-            rocm = False
+            cuda_is_compatible = False
+            rocm_is_compatible = False
 
         case ["MPICH", "Version:", *_]:
             library = MPILibrary.MPICH
             version = library_info[2]
 
-            cuda = os.environ.get("MV2_USE_CUDA", "0") == "1"
-            rocm = os.environ.get("MV2_USE_ROCM", "0") == "1"
+            cuda_is_compatible = os.environ.get("MV2_USE_CUDA", "0") == "1"
+            rocm_is_compatible = os.environ.get("MV2_USE_ROCM", "0") == "1"
 
         case ["MVAPICH", "Version:", *_]:
             library = MPILibrary.MVAPICH
             version = library_info[2]
 
-            cuda = os.environ.get("MPIR_CVAR_ENABLE_HCOLL") == "1"
-            rocm = False
+            cuda_is_compatible = os.environ.get("MPIR_CVAR_ENABLE_HCOLL") == "1"
+            rocm_is_compatible = False
 
         case ["CrayMPI", *_]:
             library = MPILibrary.CrayMPI
             version = library_info[1]
             incompatibilities = _match_version_pattern(version, INCOMPATIBILITIES.get(library, {}))
 
-            cuda = os.environ.get("MPICH_GPU_SUPPORT_ENABLED") == "1"
-            rocm = os.environ.get("MPICH_GPU_SUPPORT_ENABLED") == "1"
+            cuda_is_compatible = os.environ.get("MPICH_GPU_SUPPORT_ENABLED") == "1"
+            rocm_is_compatible = os.environ.get("MPICH_GPU_SUPPORT_ENABLED") == "1"
 
         case ["===", "ParaStation", "MPI", *_]:
             library = MPILibrary.ParaStationMPI
             version = library_info[3]
-            cuda = os.environ.get("PSP_CUDA") == "1"
-            rocm = False
+            cuda_is_compatible = os.environ.get("PSP_CUDA") == "1"
+            rocm_is_compatible = False
 
         case _:
             library = MPILibrary.Other
             version = "unknown"
-            cuda = False
-            rocm = False
+            cuda_is_compatible = False
+            rocm_is_compatible = False
 
     incompatibilities = _match_version_pattern(version, INCOMPATIBILITIES.get(library, {}))
+
+    # Passes the incompatibilites of the combination library+device to device_incompatibilities. If the device is not found, it is set to False (non-compatible by default).
     device_incompatibilities = (
         incompatibilities[incompatibilities_list_id]
         if incompatibilities_list_id in incompatibilities
-        else None
+        else False
     )
-    gpu_comp = (rocm and CUDA_IS_ACTUALLY_ROCM) or (cuda and not CUDA_IS_ACTUALLY_ROCM)
-    gpu_comp = gpu_comp and isinstance(device_incompatibilities, list)
+    gpu_is_compatible = (rocm_is_compatible and CUDA_IS_ACTUALLY_ROCM) or (
+        cuda_is_compatible and not CUDA_IS_ACTUALLY_ROCM
+    )
+    gpu_is_compatible = gpu_is_compatible and isinstance(device_incompatibilities, list)
 
-    return MPILibraryInfo(library, version, cuda, rocm, gpu_comp, device_incompatibilities)
+    return MPILibraryInfo(
+        library,
+        version,
+        cuda_is_compatible,
+        rocm_is_compatible,
+        gpu_is_compatible,
+        device_incompatibilities,
+    )
 
 
 # Library / version / device
 # Structure: MPILibrary -> version_pattern -> device -> incompatibilities
 # Incompatibilities can be:
-#   - None: All operations are incompatible for this device
+#   - False: All operations are incompatible for this device
 #   - [] (empty list): All operations are compatible for this device
 #   - [list of operation names]: Only the listed operations are incompatible
 INCOMPATIBILITIES: dict[MPILibrary, dict[str, dict[str, list[str] | None]]] = {
@@ -183,7 +194,7 @@ INCOMPATIBILITIES: dict[MPILibrary, dict[str, dict[str, list[str] | None]]] = {
                 "Rput",
                 "Ireduce",
             ],
-            "rocm": None,
+            "rocm": False,
         },
         "4.1.x": {
             "cuda": [],  # All operations compatible
@@ -199,7 +210,7 @@ INCOMPATIBILITIES: dict[MPILibrary, dict[str, dict[str, list[str] | None]]] = {
     MPILibrary.MPICH: {
         "*": {
             "cuda": [],  # All operations compatible when MPIR_CVAR_ENABLE_HCOLL=1
-            "rocm": None,  # ROCm not supported
+            "rocm": False,  # ROCm not supported
         }
     },
     MPILibrary.CrayMPI: {
@@ -211,12 +222,12 @@ INCOMPATIBILITIES: dict[MPILibrary, dict[str, dict[str, list[str] | None]]] = {
     MPILibrary.ParaStationMPI: {
         "*": {
             "cuda": [],  # All operations compatible when PSP_CUDA=1
-            "rocm": None,  # ROCm not supported
+            "rocm": False,
         }
     },
     MPILibrary.Other: {
-        "*": {"cuda": None, "rocm": None}
-    },  # Unknown library, assume compatibility unless proven otherwise
+        "*": {"cuda": False, "rocm": False}
+    },  # Unknown library, assume incompatibility unless proven otherwise
 }
 
 
