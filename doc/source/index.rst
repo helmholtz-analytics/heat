@@ -82,12 +82,9 @@ In a nutshell
 
       Heat builds on **PyTorch** and **mpi4py** to process **massive arrays** - huge collections of images, high-dimensional climate simulation grids, or massive machine learning feature matrices - that exceed the memory and computational limits of a single machine.
 
-      Define your data distribution axis via the ``split`` parameter, assign hardware using the ``device`` attribute, and let Heat orchestrate data movement and cross-node communication.
+      Define your data distribution axis via the ``split`` parameter, assign hardware using the ``device`` attribute, and let Heat orchestrate the parallel computation.
 
       **Prototype locally, execute on any cluster.**
-
-      You got the expensive compute, but multi-GPU runs seem out of reach?
-      ``pip install heat``
 
    .. grid-item::
       :columns: 12 12 7 7
@@ -101,7 +98,7 @@ In a nutshell
          A = ht.random.randn(40000, 10000, split=0, device="gpu")
          B = ht.random.randn(10000, 40000, split=1, device="gpu")
 
-         # Hardware-accelerated matrix multiplication
+         # Multi-GPU-accelerated matrix multiplication
          C = ht.matmul(A, B)
 
       .. code-block:: bash
@@ -394,7 +391,7 @@ Partner with us
             We are actively looking for motivated BSc, MSc, and student workers to tackle open challenges in memory-distributed data science.
 
             * **Core Topic Tracks:** Massively parallel tensor operations, communication backends, algorithm development, user-requested features.
-            * **What We Provide:** Direct mentorship from core open-source maintainers, computing time on top-tier HPC cluster environments, and clear paths to academic publication.
+            * **What We Provide:** Direct mentorship from the core maintainers, computing time on top-tier HPC cluster environments, and clear paths to academic publication.
 
          .. grid-item::
             :columns: 12 12 5 5
@@ -450,7 +447,7 @@ Latest news
    :gutter: 3
    :class-container: mt-4
 
-   .. grid-item-card:: Save the Date
+   .. grid-item-card:: Workshop registration open
       :class-card: sd-card
       :link: https://indico3-jsc.fz-juelich.de/event/327/
 
