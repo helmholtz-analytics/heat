@@ -173,7 +173,7 @@ def _get_mpi_library() -> MPILibraryInfo:
 #   - [] (empty list): All operations are compatible for this device
 #   - [list of operation names]: Only the listed operations are incompatible
 INCOMPATIBILITIES: dict[MPILibrary, dict[str, dict[str, list[str] | None]]] = {
-    MPILibrary.IntelMPI: {"*": {"cuda": None, "rocm": None}},
+    MPILibrary.IntelMPI: {"*": {"cuda": False, "rocm": False}},
     MPILibrary.OpenMPI: {
         "5.0.x": {
             "cuda": [
