@@ -13,8 +13,6 @@ import re
 import dataclasses
 from enum import Enum
 
-from torch._C import _rocm_is_backward_pass
-
 
 class MPILibrary(Enum):
     OpenMPI = "ompi"
