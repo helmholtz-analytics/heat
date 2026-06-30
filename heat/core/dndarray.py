@@ -1,4 +1,4 @@
-"""Provides HeAT's core data structure, the DNDarray, a distributed n-dimensional array"""
+"""Provides Heat's core data structure, the DNDarray, a distributed n-dimensional array"""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ import warnings
 from inspect import stack
 from mpi4py import MPI
 from pathlib import Path
-from typing import List, Union, Tuple, TypeVar, Optional
+from typing import Union, TypeVar
 
 warnings.simplefilter("always", ResourceWarning)
 
@@ -38,14 +38,14 @@ class LocalIndex:
 
 class DNDarray:
     """
-    Distributed N-Dimensional array. The core element of HeAT. It is composed of
+    Distributed N-Dimensional array. The core element of Heat. It is composed of
     PyTorch tensors local to each process.
 
     Parameters
     ----------
     array : torch.Tensor
         Local array elements
-    gshape : Tuple[int,...]
+    gshape : tuple[int,...]
         The global shape of the array
     dtype : datatype
         The datatype of the array
@@ -64,9 +64,9 @@ class DNDarray:
     def __init__(
         self,
         array: torch.Tensor,
-        gshape: Tuple[int, ...],
+        gshape: tuple[int, ...],
         dtype: datatype,
-        split: Union[int, None],
+        split: int | None,
         device: Device,
         comm: Communication,
         balanced: bool,
@@ -77,10 +77,10 @@ class DNDarray:
         self.__split = split
         self.__device = device
         self.__comm = comm
-        self.__balanced = balanced
+        self.__balanced: bool = balanced
         self.__ishalo = False
-        self.__halo_next = None
-        self.__halo_prev = None
+        self.__halo_next: torch.Tensor | None = None
+        self.__halo_prev: torch.Tensor | None = None
         self.__partitions_dict__ = None
         self.__lshape_map = None
 
@@ -116,7 +116,7 @@ class DNDarray:
         return self.__dtype
 
     @property
-    def gshape(self) -> Tuple:
+    def gshape(self) -> tuple:
         """
         Returns the global shape of the ``DNDarray`` across all processes
         """
@@ -263,7 +263,7 @@ class DNDarray:
         return np.prod(self.__array.shape)
 
     @property
-    def lloc(self) -> Union[DNDarray, None]:
+    def lloc(self) -> DNDarray | None:
         """
         Local item setter and getter. i.e. this function operates on a local
         level and only on the PyTorch tensors composing the :class:`DNDarray`.
@@ -272,7 +272,7 @@ class DNDarray:
 
         Parameters
         ----------
-        key : int or slice or Tuple[int,...]
+        key : int or slice or tuple[int,...]
             Indices of the desired data.
         value : scalar, optional
             All types compatible with pytorch tensors, if none given then this is a getter function
@@ -297,7 +297,7 @@ class DNDarray:
         return LocalIndex(self.__array)
 
     @property
-    def lshape(self) -> Tuple[int]:
+    def lshape(self) -> tuple[int]:
         """
         Returns the shape of the ``DNDarray`` on each node
         """
@@ -318,28 +318,28 @@ class DNDarray:
         return complex_math.real(self)
 
     @property
-    def shape(self) -> Tuple[int]:
+    def shape(self) -> tuple[int]:
         """
         Returns the shape of the ``DNDarray`` as a whole
         """
         return self.__gshape
 
     @property
-    def split(self) -> int:
+    def split(self) -> int | None:
         """
         Returns the axis on which the ``DNDarray`` is split
         """
         return self.__split
 
     @property
-    def stride(self) -> Tuple[int]:
+    def stride(self) -> tuple[int]:
         """
         Returns the steps in each dimension when traversing a ``DNDarray``. torch-like usage: ``self.stride()``
         """
         return self.__array.stride
 
     @property
-    def strides(self) -> Tuple[int]:
+    def strides(self) -> tuple[int]:
         """
         Returns bytes to step in each dimension when traversing a ``DNDarray``. numpy-like usage: ``self.strides()``
         """
@@ -551,7 +551,7 @@ class DNDarray:
 
         return self
 
-    def balance_(self) -> DNDarray:
+    def balance_(self) -> None:
         """
         Function for balancing a :class:`DNDarray` between all nodes. To determine if this is needed use the :func:`is_balanced()` function.
         If the ``DNDarray`` is already balanced this function will do nothing. This function modifies the ``DNDarray``
@@ -597,7 +597,7 @@ class DNDarray:
         """
         return self.__cast(bool)
 
-    def __cast(self, cast_function) -> Union[float, int]:
+    def __cast(self, cast_function) -> float | int:
         """
         Implements a generic cast function for ``DNDarray`` objects.
 
@@ -623,7 +623,7 @@ class DNDarray:
 
         raise TypeError("only size-1 arrays can be converted to Python scalars")
 
-    def collect_(self, target_rank: Optional[int] = 0) -> None:
+    def collect_(self, target_rank: int = 0) -> None:
         """
         A method collecting a distributed DNDarray to one MPI rank, chosen by the `target_rank` variable.
         It is a specific case of the ``redistribute_`` method.
@@ -676,7 +676,7 @@ class DNDarray:
         """
         return self.__cast(complex)
 
-    def counts_displs(self) -> Tuple[Tuple[int], Tuple[int]]:
+    def counts_displs(self) -> tuple[tuple[int, ...], tuple[int, ...]]:
         """
         Returns actual counts (number of items per process) and displacements (offsets) of the DNDarray.
         Does not assume load balance.
@@ -714,10 +714,11 @@ class DNDarray:
         lshape_map = torch.zeros(
             (self.comm.size, self.ndim), dtype=torch.int64, device=self.device.torch_device
         )
-        if not self.is_distributed:
+        if not self.is_distributed():
             lshape_map[:] = torch.tensor(self.gshape, device=self.device.torch_device)
-            return lshape_map
-        if self.is_balanced(force_check=True):
+            self.__lshape_map = lshape_map
+            return lshape_map.clone()
+        elif self.is_balanced(force_check=True):
             for i in range(self.comm.size):
                 _, lshape, _ = self.comm.chunk(self.gshape, self.split, rank=i)
                 lshape_map[i, :] = torch.tensor(lshape, device=self.device.torch_device)
@@ -878,7 +879,7 @@ class DNDarray:
 
         return self
 
-    def __getitem__(self, key: Union[int, Tuple[int, ...], List[int, ...]]) -> DNDarray:
+    def __getitem__(self, key: int | slice[int | None] | tuple[int, ...] | list[int]) -> DNDarray:
         """
         Global getter function for DNDarrays.
         Returns a new DNDarray composed of the elements of the original tensor selected by the indices
@@ -888,7 +889,7 @@ class DNDarray:
 
         Parameters
         ----------
-        key : int, slice, Tuple[int,...], List[int,...]
+        key : int or slice or tuple[int,...] or list[int]
             Indices to get from the tensor.
 
         Examples
@@ -1166,6 +1167,10 @@ class DNDarray:
             If True, the balanced status of the ``DNDarray`` will be assessed via
             collective communication in any case.
         """
+        if not self.is_distributed():
+            self.__balanced = True
+            return self.balanced
+
         if not force_check and self.balanced is not None:
             return self.balanced
 
@@ -1250,7 +1255,7 @@ class DNDarray:
         """
         return printing.__repr__(self)
 
-    def ravel(self):
+    def ravel(self) -> DNDarray:
         """
         Flattens the ``DNDarray``.
 
@@ -1269,8 +1274,8 @@ class DNDarray:
         return manipulations.ravel(self)
 
     def redistribute_(
-        self, lshape_map: Optional[torch.Tensor] = None, target_map: Optional[torch.Tensor] = None
-    ):
+        self, lshape_map: torch.Tensor | None = None, target_map: torch.Tensor | None = None
+    ) -> None:
         """
         Redistributes the data of the :class:`DNDarray` *along the split axis* to match the given target map.
         This function does not modify the non-split dimensions of the ``DNDarray``.
@@ -1422,9 +1427,9 @@ class DNDarray:
 
     def __redistribute_shuffle(
         self,
-        snd_pr: Union[int, torch.Tensor],
-        send_amt: Union[int, torch.Tensor],
-        rcv_pr: Union[int, torch.Tensor],
+        snd_pr: int | torch.Tensor,
+        send_amt: int | torch.Tensor,
+        rcv_pr: int | torch.Tensor,
         snd_dtype: torch.dtype,
     ):
         """
@@ -1569,7 +1574,7 @@ class DNDarray:
 
     def __setitem__(
         self,
-        key: Union[int, Tuple[int, ...], List[int, ...]],
+        key: int | tuple[int, ...] | list[int],
         value: Union[float, DNDarray, torch.Tensor],
     ):
         """
@@ -1577,7 +1582,7 @@ class DNDarray:
 
         Parameters
         ----------
-        key : Union[int, Tuple[int,...], List[int,...]]
+        key : int or tuple[int,...] or list[int]
             Index/indices to be set
         value: Union[float, DNDarray,torch.Tensor]
             Value to be set to the specified positions in the DNDarray (self)
@@ -1858,7 +1863,7 @@ class DNDarray:
 
     def __setter(
         self,
-        key: Union[int, Tuple[int, ...], List[int, ...]],
+        key: int | tuple[int, ...] | list[int],
         value: Union[float, DNDarray, torch.Tensor],
     ):
         """
@@ -1890,7 +1895,7 @@ class DNDarray:
         """
         return printing.__str__(self)
 
-    def tolist(self, keepsplit: bool = False) -> List:
+    def tolist(self, keepsplit: bool = False) -> list[int | float]:
         """
         Return a copy of the local array data as a (nested) Python list. For scalars, a standard Python number is returned.
 
@@ -1952,7 +1957,7 @@ class DNDarray:
         step: int,
         ends: torch.Tensor,
         og_key_st: int,
-    ) -> Tuple[int, int]:
+    ) -> tuple[int, int]:
         # this does some basic logic for adjusting the starting and stoping of the a key for
         #   setitem and getitem
         if step is not None and rank > actives[0]:
@@ -1968,7 +1973,7 @@ class DNDarray:
         return key_st, key_sp
 
 
-# HeAT imports at the end to break cyclic dependencies
+# Heat imports at the end to break cyclic dependencies
 from . import complex_math
 from . import devices
 from . import factories
