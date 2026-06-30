@@ -27,7 +27,7 @@ jobs:
             with:
                 egress-policy: audit
           - name: Checkout repository
-            uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+            uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
             # Initializes the CodeQL tools for scanning.
           - name: Initialize CodeQL
             uses: github/codeql-action/init@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
@@ -48,7 +48,7 @@ jobs:
                 egress-policy: audit
 
           - name: "Checkout code"
-            uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+            uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
             with:
                 persist-credentials: false
 
@@ -95,7 +95,7 @@ jobs:
             with:
                 egress-policy: audit
 
-          - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # master
+          - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # master
           - uses: gaurav-nelson/github-action-markdown-link-check@5c5dfc0ac2e225883c0e5f03a85311ec2830d368 # v1
             # checks all markdown files from root but ignores subfolders
             # By Removing the max-depth variable we can modify it -> to check all the .md files in the entire repo.
