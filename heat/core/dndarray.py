@@ -920,7 +920,7 @@ class DNDarray:
             # TODO: remove this resplit!!
             key = manipulations.resplit(key)
             if key.larray.dtype in [torch.bool, torch.uint8]:
-                key = indexing.nonzero(key)
+                key = indexing.nonzero(key, as_tuple=False)
 
             if key.ndim > 1:
                 key = list(key.larray.split(1, dim=1))
@@ -1626,7 +1626,7 @@ class DNDarray:
             to be used."""
             key = manipulations.resplit(key)
             if key.larray.dtype in [torch.bool, torch.uint8]:
-                key = indexing.nonzero(key)
+                key = indexing.nonzero(key, as_tuple=False)
 
             if key.ndim > 1:
                 key = list(key.larray.split(1, dim=1))
