@@ -20,6 +20,7 @@ Release: |release|
    documentation_howto
    CONTRIBUTING
    CODE_OF_CONDUCT
+   INDEXING
 
 Also visit us on `GitHub <https://github.com/helmholtz-analytics/heat>`_ for more examples, docs, code and contributions.
 

@@ -7475,3 +7475,17 @@ span[id*='MathJax-Span'] {
 	padding: 20px;
 	border-top: 1px solid var(--hgrey-light);
 }
+
+/* ============================================================
+   CUSTOM OVERRIDES: Force hyperlinks to be visible in italics
+   ============================================================ */
+.rst-content a,
+.md-typeset a {
+    color: #2980B9 !important; /* Matches standard RTD blue */
+    text-decoration: none;
+}
+
+.rst-content a:hover,
+.md-typeset a:hover {
+    text-decoration: underline !important;
+}
