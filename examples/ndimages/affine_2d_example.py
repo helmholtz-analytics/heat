@@ -12,7 +12,7 @@ from heat.ndimage.affine import affine_transform
 # ------------------------------------------------------------
 # PARAMETERS
 # ------------------------------------------------------------
-SIZE = (256, 512)
+SIZE = (9, 256)
 SCALE = (1.5, 0.75)
 ROTATE = np.deg2rad(30)
 TRANSLATE = (100, 50)
@@ -31,7 +31,7 @@ def create_checker_image(w: int, h: int, checker_size: int) -> Image.Image:
     :rtype: _type_
     """
     new_image: Image.Image = Image.new(
-        "RGB", (h, w), (255, 0, 0)
+        "RGB", (w, h), (255, 0, 0)
     )  # create a new 15x15 image
     pixels = new_image.load()  # create the pixel map
 
@@ -108,9 +108,9 @@ def apply(M: np.ndarray, title, row_idx, mode="constant", constant_value=0.0):
     axs[idx].imshow(result.numpy().astype(np.uint8))
     axs[idx + 1].imshow(compare.astype(np.uint8))
     axs[idx].set_title(title)
-    axs[idx].axis("off")
+    # axs[idx].axis("off")
     axs[idx + 1].set_title("")
-    axs[idx + 1].axis("off")
+    # axs[idx + 1].axis("off")
     axs[idx].scatter(img_center[1], img_center[0])
     axs[idx + 1].scatter(img_center[1], img_center[0])
 
