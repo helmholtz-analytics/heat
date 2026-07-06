@@ -88,8 +88,8 @@ def _remove_slice(A: torch.Tensor, idx: int, dim: int) -> torch.Tensor:
     return A.index_select(dim, rows_before)
 
 
-def _to_full_affine(mat):
-    # TODO: make distributed, only really benefitial in the bulk axis, since the matrix probably
+def _to_full_affine(M):
+    # TODO: make distributed, only really benefitial in the bulk axis, since the matrix probably always small
     """
     Convert reduced affine matrices to full homogeneous form.
 
@@ -105,29 +105,28 @@ def _to_full_affine(mat):
         Full homogeneous affine tensor
     """
     # Detect if batched by checking number of dimensions
-    if mat.dim() == 2:
+    if M.dim() == 2:
         # Single matrix case: (D, D+1)
-        D = mat.shape[0]  # spatial dimension
-        full = torch.zeros(D + 1, D + 1, dtype=mat.dtype, device=mat.device)
-        full[:D, :] = mat  # copy top D rows
+        D = M.shape[0]  # spatial dimension
+        full = torch.zeros(D + 1, D + 1, dtype=M.dtype, device=M.device)
+        full[:D, :] = M  # copy top D rows
         full[D, D] = 1.0  # set homogeneous coordinate
         return full
 
-    elif mat.dim() == 3:
+    elif M.dim() == 3:
         # Batched case: (N, D, D+1)
-        N, D, _ = mat.shape
-        full = torch.zeros(N, D + 1, D + 1, dtype=mat.dtype, device=mat.device)
-        full[:, :D, :] = mat  # copy top D rows for each batch
+        N, D, _ = M.shape
+        full = torch.zeros(N, D + 1, D + 1, dtype=M.dtype, device=M.device)
+        full[:, :D, :_] = M  # copy top D rows for each batch
         full[:, D, D] = 1.0  # set homogeneous coordinate for each batch
         return full
 
     else:
         raise ValueError(
-            f"Expected affine transformation matrix to be 2D or 3D tensor, got {mat.dim()}D"
+            f"Expected affine transformation matrix to be 2D or 3D tensor, got {M.dim()}D"
         )
 
 
-# TODO: make this able to handle batches of matrices
 def convert_matrix_space(M: torch.Tensor, sizes):
     """
     Convert scipy affine matrix to normalized coordinates used by affine_grid.
@@ -147,15 +146,16 @@ def convert_matrix_space(M: torch.Tensor, sizes):
     M_scales = torch.diag(scales)
 
     D = len(sizes)
-    T_np = torch.zeros((D + 1, D + 1))
+    T_np = torch.zeros(D + 1, D + 1)
     T_np[:D, :D] = M_scales
     T_np[D, D] = 1
     T_np[:D, D] = scales
     T_pn = T_np.inverse()
+    print(M.shape)
+    print(T_np.shape)
+    transformed = T_pn @ M @ T_np
 
-    full_transformed = T_pn @ M @ T_np
-
-    return full_transformed[:, :D, :]
+    return transformed[:, :D, :]
 
 
 # ============================================================
@@ -173,9 +173,40 @@ def affine_transform(
     prefilter=True,
 ) -> DNDarray:
     """
-    Input is expected to have shape [N x] [D x] H x W x C because that is consistent with PIL+Numpy to get Image data.
-    To be consistent with scipy the Matrix then is of shape 3x4 (3x3, 4x4 also valid) for the 2d case, with one Transformation Axis is reserved for
-    transforming the Color, wich the corresponding affine function (affine_grid()) does not support, might be interesting to add in the future
+    Parameters
+    ----------
+    input : DNDarray
+        the image or data array to transform. Input is expected to have shape [N x] [D x] H x W x C because that is consistent
+        with PIL+Numpy to get Image data.
+    matrix : DNDarray
+        afine matrix used to transform input. can be of shape Bx3x4 (3x3, 4x4 also valid) for 2d data,
+        or should be of shape Bx4x5 (4x4, 5x5 also valid) for 3d data
+        B stands for the Bulk axis and can be ommited
+        The row and column corresponding with Transformation of the Color-Axis is ignored right now,
+        because it is not supported by the torch.affine_grid() function.
+    offset : DNDarray
+        offset vector that can be used instead of adding offset into affine matrix directly. only in effect when the matrix
+        given has no transform vector
+    output_shape :
+        shape of the given output. not implemented yet
+    output : DNDarray
+        optional parameter to specify array in wich the output should be placed. currently not implemented yet
+    order :
+        type of interpolation that is used, linear to cubic allowed
+    mode :
+        paddding mode for values outside of array
+    cval :
+        value with wich the padding should be filled. currently not used because of limitation of torch.sample_grid()
+    prefilter : bool
+        if the input should be filtered before transformed, currently not because torch.sample_grid does not have this functionality
+
+
+
+
+    currently not implemented:
+        -cval: not supported by torch.grid_sample
+        -ouput_shape, output: currently not priority
+        -prefilter: not supported by torch.grid_sample, ad no comparable function found yet
     """
     # TODO: Implement cases 3x3, 2x3, 2x2 and 4d(3d) versions
 
@@ -187,15 +218,31 @@ def affine_transform(
 
     if matrix_torch.dim() == 2:
         matrix_torch = matrix_torch.unsqueeze(0)
+        is_bulk = False
+    else:
+        is_bulk = True
+
+    is_2d_operation = (
+        ((input.ndim == 3 and not is_bulk) or (input.ndim == 4 and is_bulk))
+        and 3 <= matrix_torch.shape[1] <= 4
+        and 3 <= matrix_torch.shape[2] <= 4
+    )
+    is_3d_operation = (
+        ((input.ndim == 4 and not is_bulk) or (input.ndim == 5 and is_bulk))
+        and 4 <= matrix_torch.shape[1] <= 5
+        and 4 <= matrix_torch.shape[2] <= 5
+    )
 
     # 2d image given, third dimension are/would be color vector transforms
-    if input.ndim == 3 and 3 <= matrix.shape[0] <= 4 and 3 <= matrix.shape[1] <= 4:
+    if is_2d_operation:
+        print("2d operation")
         # remove axis that represents transforming the color dimension, because
         # torch affine_grid does not support tranformaing Color dimension out of the box
         matrix_torch = _remove_slice(matrix_torch, 2, dim=1)
         matrix_torch = _remove_slice(matrix_torch, 2, dim=2)
 
-        if matrix.shape == (
+        if matrix_torch.shape == (
+            1,
             3,
             3,
         ):
@@ -205,45 +252,58 @@ def affine_transform(
             matrix_torch = _to_full_affine(matrix_torch)
 
     # 3d image given
-    elif input.ndim == 4 and 4 <= matrix.shape[0] <= 5 and 4 <= matrix.shape[1] <= 5:
+    elif is_3d_operation:
+        print("3d operation")
         # remove axis that represents transforming the color dimension, because
         # torch affine_grid does not support tranformaing Color dimension out of the box
         matrix_torch = _remove_slice(matrix_torch, 3, dim=1)
         matrix_torch = _remove_slice(matrix_torch, 3, dim=2)
 
-        if matrix.shape == (
+        if matrix_torch.shape == (
+            1,
             4,
             4,
         ):
             # translation information missing, using offset value
-            matrix_torch = torch.hstack([matrix_torch, offset[1:4]])
-        if matrix.shape != (5, 5):
+            matrix_torch = torch.hstack(
+                [matrix_torch, offset[1:4]]
+            )  # TODO: make this able to handle bulk
+        print(f"shape before full_affine: {matrix_torch.shape}")
+        if matrix_torch.shape[1:] != (4, 4):
             matrix_torch = _to_full_affine(matrix_torch)
 
     else:
         raise ValueError(f"transform matrix has no valid shape {matrix.shape=}")
 
     # i am not quite shure why this transpose below is necessary for the right behaviour,
-    # This should switch wich axis in input data is influenced by wich row/column in the afine matrix and is
-    # the reverse of the expected matching.
-    # But it matches the behaviour of scipy
-    dimension_order = tuple(
-        idx for idx in range(input.ndim - 1, -1, -1)
-    )  # reversed: (3,2,1,0) or (2,1,0)
+    # This switches wich axis in input data is influenced by wich row/column in the
+    # afine matrix and is the reverse of the expected matching.
+    if not is_bulk:
+        dimension_order = tuple(
+            idx for idx in range(input.ndim - 1, -1, -1)
+        )  # reversed: (3,2,1,0) or (2,1,0)
+    else:
+        dimension_order = (0,) + tuple(
+            idx for idx in range(input.ndim - 1, 0, -1)
+        )  # reversed: (0,4,3,2,1) or (0,3,2,1)
+        print(f"{dimension_order=}")
+
     t_input = transpose(input, dimension_order)
-
+    print(f"{t_input.shape=}")
     input_torch = t_input.larray
-
     # input has no bulk axis
-    if matrix_torch.size(1) == input.ndim:
+    if matrix_torch.size(2) == input.ndim:
         input_torch = input_torch.unsqueeze(0)
+        print("adding bulk axis")
 
+    print(f"{input_torch.shape[2:]=}")
     matrix_torch = convert_matrix_space(
-        matrix_torch, input.shape[:-1]
-    )  # excluding color dimension from shape
+        matrix_torch,
+        input_torch.shape[-1:1:-1],  # shape is reversed and without bulk and color dims
+    )
 
-    size = torch.Size((1, *(t_input.shape)))
-    # takes NxCxDxHxW
+    size = torch.Size((input_torch.shape))
+    print(f"{size=}")
     sample_grid: torch.Tensor = affine_grid(matrix_torch, size)
 
     transformed = grid_sample(
@@ -252,9 +312,9 @@ def affine_transform(
         padding_mode=sample_padding,
         mode=sample_mode,
     )
+    if matrix_torch.size(2) == input.ndim:
+        transformed = transformed.squeeze()
 
-    if input.ndim == 3:
-        transformed = array(transformed.squeeze(0).permute(2, 1, 0))
-    if input.ndim == 4:
-        transformed = array(transformed.squeeze(0).permute(3, 2, 1, 0))
-    return transformed
+    transformed_dnd: DNDarray = array(transformed.permute(dimension_order))
+
+    return transformed_dnd
