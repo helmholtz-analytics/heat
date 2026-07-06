@@ -79,20 +79,17 @@ filtering_map = {}
 def _remove_slice(A: torch.Tensor, idx: int, dim: int) -> torch.Tensor:
     # Keep rows before and after the removed row
     rows_before = torch.arange(0, idx)
-    print(f"{A.size(dim)=}")
-    print(f"{idx+1=}")
     if (idx + 1) < A.size(dim):
         rows_after = torch.arange(idx + 1, A.size(dim))
-        print(f"{rows_after=}")
         return torch.cat(
             [A.index_select(dim, rows_before), A.index_select(dim, rows_after)], dim=dim
         )
-    else:
-        return A.index_select(dim, rows_before)
+
+    return A.index_select(dim, rows_before)
 
 
 def _to_full_affine(mat):
-    # TODO: make distributed, only local for now!
+    # TODO: make distributed, only really benefitial in the bulk axis, since the matrix probably
     """
     Convert reduced affine matrices to full homogeneous form.
 
@@ -130,27 +127,6 @@ def _to_full_affine(mat):
         )
 
 
-def _swap_rows_cols(A, row_pair, col_pair):
-    print()
-    print("swapping stuff")
-    print()
-    print(A)
-    i, j = row_pair
-    k, m = col_pair
-    row_idx = torch.arange(A.size(1))
-    row_idx[i] = j
-    row_idx[j] = i
-    col_idx = torch.arange(A.size(2))
-    col_idx[k] = m
-    col_idx[m] = k
-    A = A[:, row_idx[:, None], col_idx[None, :]]
-    print(A)
-    print()
-    print("end swapping stuff")
-    print()
-    return A
-
-
 # TODO: make this able to handle batches of matrices
 def convert_matrix_space(M: torch.Tensor, sizes):
     """
@@ -166,18 +142,9 @@ def convert_matrix_space(M: torch.Tensor, sizes):
     -------
         theta: torch affine matrix of shape (D, D+1)
     """
-    print()
-    print("START NORMALIZATION")
-    print()
-    D = len(sizes)
-    print(f"{D=}")
-    print(f"{sizes=}")
-    print(f"{M.shape}")
-
     # construct coord space transform
     scales = (torch.as_tensor(sizes) - 1) / 2.0
     M_scales = torch.diag(scales)
-    print(f"scales: {M_scales}")
 
     D = len(sizes)
     T_np = torch.zeros((D + 1, D + 1))
@@ -185,15 +152,8 @@ def convert_matrix_space(M: torch.Tensor, sizes):
     T_np[D, D] = 1
     T_np[:D, D] = scales
     T_pn = T_np.inverse()
-    print("construct coord transforms")
-    print(f"{T_pn=}")
 
     full_transformed = T_pn @ M @ T_np
-    print(f"{full_transformed=}")
-
-    print()
-    print("END NORMALIZATION")
-    print()
 
     return full_transformed[:, :D, :]
 
@@ -272,8 +232,6 @@ def affine_transform(
     )  # reversed: (3,2,1,0) or (2,1,0)
     t_input = transpose(input, dimension_order)
 
-    size = torch.Size((1, *(t_input.shape)))
-
     input_torch = t_input.larray
 
     # input has no bulk axis
@@ -284,7 +242,7 @@ def affine_transform(
         matrix_torch, input.shape[:-1]
     )  # excluding color dimension from shape
 
-    print(f"{size=}")
+    size = torch.Size((1, *(t_input.shape)))
     # takes NxCxDxHxW
     sample_grid: torch.Tensor = affine_grid(matrix_torch, size)
 
@@ -299,5 +257,4 @@ def affine_transform(
         transformed = array(transformed.squeeze(0).permute(2, 1, 0))
     if input.ndim == 4:
         transformed = array(transformed.squeeze(0).permute(3, 2, 1, 0))
-    print(f"final array shape: {transformed.shape}")
     return transformed
