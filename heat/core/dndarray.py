@@ -287,8 +287,11 @@ def _resolve_indexing_state(
             backwards_transpose_axes=tuple(range(arr.ndim)),
         )
 
-    # evaluate if this is a distributed fast-path mask before we modify the key
+    # cast any numpy keys to torch tensor
+    if isinstance(key, np.ndarray):
+        key = torch.from_numpy(key)
 
+    # evaluate if this is a distributed fast-path mask before we modify the key
     distr_mask_fast_path = False
     # mask along split axis within tuple?
     if arr.is_distributed():
@@ -346,7 +349,7 @@ def _resolve_indexing_state(
 
     # 1D boolean mask resolution
     first = key[0] if isinstance(key, tuple) and len(key) >= 1 else key
-    if isinstance(first, (DNDarray, torch.Tensor, np.ndarray)) and arr.ndim >= 1:
+    if isinstance(first, (DNDarray, torch.Tensor)) and arr.ndim >= 1:
         first_dtype = getattr(first, "dtype", None)
         first_ndim = getattr(first, "ndim", 0)
         first_shape = tuple(getattr(first, "shape", ()))
@@ -355,7 +358,7 @@ def _resolve_indexing_state(
             not distr_mask_fast_path
             and first_ndim == 1
             and first_shape == (arr.gshape[0],)
-            and first_dtype in (ht_bool, ht_uint8, torch.bool, torch.uint8, np.bool_, np.uint8)
+            and first_dtype in (ht_bool, ht_uint8, torch.bool, torch.uint8)
         ):
             if isinstance(first, DNDarray):
                 nz = first.nonzero()
@@ -366,8 +369,8 @@ def _resolve_indexing_state(
                 idx0 = nz
             elif isinstance(first, torch.Tensor):
                 idx0 = torch.nonzero(first, as_tuple=False).flatten()
-            else:  # np.ndarray
-                idx0 = np.nonzero(first)[0].astype(np.int64)
+            else:
+                raise Exception(f"Unexpected type {type(first)}")
 
             key = (idx0,) + key[1:] if isinstance(key, tuple) else (idx0,)
 
@@ -394,8 +397,8 @@ def _resolve_indexing_state(
         except RuntimeError:
             raise IndexError("Invalid indices: expected a list of integers, got {}".format(key))
 
-    if isinstance(key, (DNDarray, torch.Tensor, np.ndarray)):
-        if key.dtype in (ht_bool, ht_uint8, torch.bool, torch.uint8, np.bool_, np.uint8):
+    if isinstance(key, (DNDarray, torch.Tensor)):
+        if key.dtype in (ht_bool, ht_uint8, torch.bool, torch.uint8):
             # boolean indexing: shape must be consistent with arr.shape
             key_ndim = key.ndim
             if not tuple(key.shape) == arr.shape[:key_ndim]:
@@ -430,10 +433,7 @@ def _resolve_indexing_state(
                 else:
                     # split axis is affected
                     if key.ndim > 1:
-                        try:
-                            key_numel = key.numel()
-                        except AttributeError:
-                            key_numel = key.size
+                        key_numel = key.numel()
                         if key_numel == arr.shape[0]:
                             new_split = tuple(key.shape).index(arr.shape[0])
                         else:
@@ -445,9 +445,6 @@ def _resolve_indexing_state(
                     if isinstance(key, DNDarray):
                         out_is_balanced = key.balanced
                         key = key.larray
-                    elif not isinstance(key, torch.Tensor):
-                        key = torch.as_tensor(key, device=arr.larray.device)
-                        out_is_balanced = True
                     else:
                         out_is_balanced = True
 
@@ -492,7 +489,7 @@ def _resolve_indexing_state(
                     new_split = key.split
                     key = key.larray
                 except AttributeError:
-                    # torch or numpy key, non-distributed indexed array
+                    # torch key, non-distributed indexed array
                     out_is_balanced = True
                     new_split = None
 
@@ -532,8 +529,6 @@ def _resolve_indexing_state(
             ht_uint8,
             torch.bool,
             torch.uint8,
-            np.bool_,
-            np.uint8,
         ):
             if getattr(k, "ndim", 1) == 0:
                 return True
