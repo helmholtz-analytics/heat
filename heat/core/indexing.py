@@ -146,7 +146,7 @@ def nonzero(x: DNDarray, as_tuple: bool = True) -> tuple[DNDarray, ...] | DNDarr
     )
 
 
-DNDarray.nonzero = lambda self: nonzero(self, as_tuple=True)
+DNDarray.nonzero = nonzero
 DNDarray.nonzero.__doc__ = nonzero.__doc__
 
 
