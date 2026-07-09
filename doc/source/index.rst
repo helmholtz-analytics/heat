@@ -344,160 +344,160 @@ Reference material
 
          **API reference:**  all numerical functions and machine learning algorithms.
 
------
+.. -----
 
-Deep dive & architecture
-========================
+.. Deep dive & architecture
+.. ========================
 
-.. grid:: 1 1 3 3
-   :gutter: 3
-   :class-container: text-center mt-4 mb-4
+.. .. grid:: 1 1 3 3
+..    :gutter: 3
+..    :class-container: text-center mt-4 mb-4
 
-   .. grid-item-card:: Framework Architecture
-      :class-card: sd-card
-      :link: https://doi.org/10.1109/BigData50022.2020.9378050
+..    .. grid-item-card:: Framework Architecture
+..       :class-card: sd-card
+..       :link: https://doi.org/10.1109/BigData50022.2020.9378050
 
-      .. div:: mt-2 **Götz et al. (2020)**
+..       .. div:: mt-2 **Götz et al. (2020)**
 
-      .. div:: text-muted small mt-1
+..       .. div:: text-muted small mt-1
 
-         Read our foundational IEEE paper detailing Heat's distributed, GPU-accelerated tensor architecture.
+..          Read our foundational IEEE paper detailing Heat's distributed, GPU-accelerated tensor architecture.
 
-   .. grid-item-card:: Scaling & Performance
-      :class-card: sd-card
-      :link: https://doi.org/10.14279/eceasst.v83.2626
+..    .. grid-item-card:: Scaling & Performance
+..       :class-card: sd-card
+..       :link: https://doi.org/10.14279/eceasst.v83.2626
 
-      .. div:: mt-2 **Hoppe et al. (2025)**
+..       .. div:: mt-2 **Hoppe et al. (2025)**
 
-      .. div:: text-muted small mt-1
+..       .. div:: text-muted small mt-1
 
-         Explore our recent comparative performance analysis demonstrating Heat's memory scaling advantages on HPC multi-node architectures.
+..          Explore our recent comparative performance analysis demonstrating Heat's memory scaling advantages on HPC multi-node architectures.
 
-   .. grid-item-card:: Heat Internal Functions
-      :class-card: sd-card
-      :link: /tutorials/notebooks/Internals
-      :link-type: doc
+..    .. grid-item-card:: Heat Internal Functions
+..       :class-card: sd-card
+..       :link: /tutorials/notebooks/Internals
+..       :link-type: doc
 
-      .. div:: mt-2 **Under the Hood**
+..       .. div:: mt-2 **Under the Hood**
 
-      .. div:: text-muted small mt-1
+..       .. div:: text-muted small mt-1
 
-         Heat internal functions for contributors and power users.
+..          Heat internal functions for contributors and power users.
 
------
+.. -----
 
-Community & support
-===================
+.. Community
+.. =========
 
-.. grid:: 1 1 3 3
-   :gutter: 3
-   :class-container: mt-4 mb-5
+.. .. grid:: 1 1 3 3
+..    :gutter: 3
+..    :class-container: mt-4 mb-5
 
-   .. grid-item-card:: GitHub Discussions
-      :class-card: sd-card
-      :link: https://github.com/helmholtz-analytics/heat/discussions
+..    .. grid-item-card:: GitHub Discussions
+..       :class-card: sd-card
+..       :link: https://github.com/helmholtz-analytics/heat/discussions
 
-      .. div:: mt-2 **Community Forum**
+..       .. div:: mt-2 **Community Forum**
 
-      .. div:: text-muted small mt-1
+..       .. div:: text-muted small mt-1
 
-         Ask questions, share your HPC workflows, and discuss feature requests asynchronously.
+..          Ask questions, share your HPC workflows, and discuss feature requests asynchronously.
 
-   .. grid-item-card:: Matrix Space
-      :class-card: sd-card
-      :link: https://matrix.to/#/#heat:helmholtz.cloud
+..    .. grid-item-card:: Matrix Space
+..       :class-card: sd-card
+..       :link: https://matrix.to/#/#heat:helmholtz.cloud
 
-      .. div:: mt-2 **Real-time Chat**
+..       .. div:: mt-2 **Real-time Chat**
 
-      .. div:: text-muted small mt-1
+..       .. div:: text-muted small mt-1
 
-         Join our Matrix space to chat directly with core developers and other Heat users.
+..          Join our Matrix space to chat directly with core developers and other Heat users.
 
-   .. grid-item-card:: Issue Tracker
-      :class-card: sd-card
-      :link: https://github.com/helmholtz-analytics/heat/issues
+..    .. grid-item-card:: Student Projects
+..       :class-card: sd-card
+..       :link: https://github.com/helmholtz-analytics/heat/discussions/categories/student-projects
 
-      .. div:: mt-2 **Report a Bug**
+..       .. div:: mt-2 **Join the Team**
 
-      .. div:: text-muted small mt-1
+..       .. div:: text-muted small mt-1
 
-         Encountered an issue with multi-GPU scaling or MPI communication? Let us know so we can fix it.
+..          Explore open challenges in data-intensive research, and receive direct mentorship.
 
------
+.. -----
 
-Partner with us
-===============
+.. Partner with us
+.. ===============
 
-.. div:: mb-4
+.. .. div:: mb-4
 
-   Whether you are a motivated student looking for opportunities in computational research, or an institution interested in funding parallel computing infrastructure, we invite you to collaborate with the Heat core development team.
+..    Whether you are a motivated student looking for opportunities in computational research, or an institution interested in funding parallel computing infrastructure, we invite you to collaborate with the Heat core development team.
 
-.. tab-set::
+.. .. tab-set::
 
-   .. tab-item:: Student Projects
-      :sync: student
+..    .. tab-item:: Student Projects
+..       :sync: student
 
-      .. grid:: 1 1 2 2
-         :gutter: 3
-         :padding: 0
-         :class-container: text-left
+..       .. grid:: 1 1 2 2
+..          :gutter: 3
+..          :padding: 0
+..          :class-container: text-left
 
-         .. grid-item::
-            :columns: 12 12 7 7
+..          .. grid-item::
+..             :columns: 12 12 7 7
 
-            **Kickstart Your Research in HPC & AI**
+..             **Kickstart Your Research in HPC & AI**
 
-            We are actively looking for motivated BSc, MSc, and student workers to tackle open challenges in memory-distributed data science.
+..             We are actively looking for motivated BSc, MSc, and student workers to tackle open challenges in memory-distributed data science.
 
-            * **Core Topic Tracks:** Massively parallel tensor operations, communication backends, algorithm development, user-requested features.
-            * **What We Provide:** Direct mentorship from the core maintainers, computing time on top-tier HPC cluster environments, and clear paths to academic publication.
+..             * **Core Topic Tracks:** Massively parallel tensor operations, communication backends, algorithm development, user-requested features.
+..             * **What We Provide:** Direct mentorship from the core maintainers, computing time on top-tier HPC cluster environments, and clear paths to academic publication.
 
-         .. grid-item::
-            :columns: 12 12 5 5
-            :class: text-center
+..          .. grid-item::
+..             :columns: 12 12 5 5
+..             :class: text-center
 
-            .. div:: mt-4
+..             .. div:: mt-4
 
-               .. button-link:: https://github.com/helmholtz-analytics/heat/discussions/categories/student-projects
-                  :color: primary
-                  :class: sd-btn-primary sd-btn-block mb-2
+..                .. button-link:: https://github.com/helmholtz-analytics/heat/discussions/categories/student-projects
+..                   :color: primary
+..                   :class: sd-btn-primary sd-btn-block mb-2
 
-                  Explore Open Theses & Issues
+..                   Explore Open Theses & Issues
 
-               .. button-link:: mailto:contact@example.com
-                  :color: secondary
-                  :outline:
-                  :class: sd-btn-block
+..                .. button-link:: mailto:contact@example.com
+..                   :color: secondary
+..                   :outline:
+..                   :class: sd-btn-block
 
-                  Contact Core Maintainers
+..                   Contact Core Maintainers
 
-   .. tab-item:: Funding Calls
-      :sync: funding
+..    .. tab-item:: Funding Calls
+..       :sync: funding
 
-      .. grid:: 1 1 2 2
-         :gutter: 3
-         :padding: 0
-         :class-container: text-left
+..       .. grid:: 1 1 2 2
+..          :gutter: 3
+..          :padding: 0
+..          :class-container: text-left
 
-         .. grid-item::
-            :columns: 12 12 6 6
+..          .. grid-item::
+..             :columns: 12 12 6 6
 
-            **Institutional Backing & Joint Proposals**
+..             **Institutional Backing & Joint Proposals**
 
-            If you are assembling a domain-specific grant or third-party funding proposal (e.g., BMBFTR, EU, or Helmholtz transfer tracks) and need to scale data workflows to massive cluster environments, let's team up.
+..             If you are assembling a domain-specific grant or third-party funding proposal (e.g., BMBFTR, EU, or Helmholtz transfer tracks) and need to scale data workflows to massive cluster environments, let's team up.
 
-            We partner with both scientific institutions and industrial application partners during the proposal stage. If the project is successful, our core engineering team provides **ad-hoc support** to integrate Heat's distributed tensor operations directly into the project's pipeline.
+..             We partner with both scientific institutions and industrial application partners during the proposal stage. If the project is successful, our core engineering team provides **ad-hoc support** to integrate Heat's distributed tensor operations directly into the project's pipeline.
 
-         .. grid-item::
-            :columns: 12 12 6 6
+..          .. grid-item::
+..             :columns: 12 12 6 6
 
-            **How We Integrate Into Project Consortia:**
+..             **How We Integrate Into Project Consortia:**
 
-            * **Technical Work Packages:** We help design dedicated work packages focused on software scaling, parallel acceleration, and performance optimization.
-            * **HPC Middleware Expertise:** We act as the foundational parallel computing layer, helping translate domain-specific algorithms into cluster-ready architectures.
-            * **Transfer Use-Case Co-Design:** We work side-by-side with your researchers or R&D engineers to implement custom distributed tensor operations unique to your scientific or technical discipline.
+..             * **Technical Work Packages:** We help design dedicated work packages focused on software scaling, parallel acceleration, and performance optimization.
+..             * **HPC Middleware Expertise:** We act as the foundational parallel computing layer, helping translate domain-specific algorithms into cluster-ready architectures.
+..             * **Transfer Use-Case Co-Design:** We work side-by-side with your researchers or R&D engineers to implement custom distributed tensor operations unique to your scientific or technical discipline.
 
------
+.. -----
 
 Latest news
 ===========
@@ -544,35 +544,35 @@ Latest news
 
       Our project HeatHub has been awarded Helmholtz ScienceServe funding for 2026!
 
-Roadmap
-=======
+.. Roadmap
+.. =======
 
-.. div:: mb-4
+.. .. div:: mb-4
 
-.. grid:: 1 1 3 3
-   :gutter: 3
-   :class-container: mb-2
+.. .. grid:: 1 1 3 3
+..    :gutter: 3
+..    :class-container: mb-2
 
-   .. grid-item-card:: Active Milestones
-      :class-card: sd-card
-      :link: https://github.com/helmholtz-analytics/heat/milestones
-      :text-align: center
+..    .. grid-item-card:: Active Milestones
+..       :class-card: sd-card
+..       :link: https://github.com/helmholtz-analytics/heat/milestones
+..       :text-align: center
 
-      Track our progress toward upcoming minor and major framework releases.
+..       Track our progress toward upcoming minor and major framework releases.
 
-   .. grid-item-card:: Live Project Board
-      :class-card: sd-card
-      :link: https://github.com/orgs/helmholtz-analytics/projects/13/views/6
-      :text-align: center
+..    .. grid-item-card:: Live Project Board
+..       :class-card: sd-card
+..       :link: https://github.com/orgs/helmholtz-analytics/projects/13/views/6
+..       :text-align: center
 
-      See active pull requests, bug fixes, and feature implementations in real time.
+..       See active pull requests, bug fixes, and feature implementations in real time.
 
-   .. grid-item-card:: Contribute Code
-      :class-card: sd-card
-      :link: https://github.com/helmholtz-analytics/heat/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22
-      :text-align: center
+..    .. grid-item-card:: Contribute Code
+..       :class-card: sd-card
+..       :link: https://github.com/helmholtz-analytics/heat/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22
+..       :text-align: center
 
-      Explore "good first issues" and feature requests for new contributors.
+..       Explore "good first issues" and feature requests for new contributors.
 
 .. toctree::
    :caption: Getting Started

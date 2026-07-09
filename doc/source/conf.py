@@ -198,15 +198,35 @@ todo_include_todos = False
 #
 
 html_theme = "pydata_sphinx_theme"
+
 html_theme_options = {
-"github_url": "https://github.com/helmholtz-analytics/heat",
+    "github_url": "https://github.com/helmholtz-analytics/heat",
     "show_nav_level": 2,
     "navbar_align": "left",
     "logo": {
-#        "text": "Heat",                       # Explicitly keeps the "Heat" text string active
-        "image_light": "_static/images/logo_emblem.svg", # Points light mode to your emblem
-        "image_dark": "_static/images/logo_emblem.svg",  # Points dark mode to your emblem
-    }
+        "image_light": "_static/images/logo_emblem.svg",
+        "image_dark": "_static/images/logo_emblem.svg",
+    },
+    "icon_links": [
+        {
+            "name": "GitHub Discussions",
+            "url": "https://github.com/helmholtz-analytics/heat/discussions",
+            "icon": "fa-solid fa-comments", # Generic forum icon
+            "type": "fontawesome",
+        },
+        {
+            "name": "Matrix Space",
+            "url": "https://matrix.to/#/#heat:helmholtz.cloud",
+            "icon": "fa-solid fa-message", # Generic chat icon
+            "type": "fontawesome",
+        },
+        {
+            "name": "LinkedIn",
+            "url": "https://www.linkedin.com/company/heat-framework",
+            "icon": "fa-brands fa-linkedin", # Native LinkedIn logo
+            "type": "fontawesome",
+        },
+    ]
 }
 
 #html_theme = "sphinx_rtd_theme"
