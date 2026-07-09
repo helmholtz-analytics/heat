@@ -349,21 +349,36 @@ Reference material
 Deep dive & architecture
 ========================
 
-.. grid:: 1 1 1 1
+.. grid:: 1 1 3 3
    :gutter: 3
    :class-container: text-center mt-4 mb-4
 
-   .. grid-item-card::
+   .. grid-item-card:: Framework Architecture
+      :class-card: sd-card
+      :link: https://doi.org/10.1109/BigData50022.2020.9378050
+
+      .. div:: mt-2 **Götz et al. (2020)**
+
+      .. div:: text-muted small mt-1
+
+         Read our foundational IEEE paper detailing Heat's distributed, GPU-accelerated tensor architecture.
+
+   .. grid-item-card:: Scaling & Performance
+      :class-card: sd-card
+      :link: https://doi.org/10.14279/eceasst.v83.2626
+
+      .. div:: mt-2 **Hoppe et al. (2025)**
+
+      .. div:: text-muted small mt-1
+
+         Explore our recent comparative performance analysis demonstrating Heat's memory scaling advantages on HPC multi-node architectures.
+
+   .. grid-item-card:: Heat Internal Functions
       :class-card: sd-card
       :link: /tutorials/notebooks/Internals
       :link-type: doc
 
-      .. image:: _static/images/internals.png
-         :alt: Performance Profiling Example
-         :align: center
-         :height: 140px
-
-      .. div:: mt-3 **Heat internal functions**
+      .. div:: mt-2 **Under the Hood**
 
       .. div:: text-muted small mt-1
 
