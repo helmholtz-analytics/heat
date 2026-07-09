@@ -59,15 +59,6 @@
 
 -----
 
-.. Why Heat?
-.. =========
-
-.. Heat is a distributed tensor framework built on **PyTorch** and **mpi4py**. It provides highly optimized algorithms and data structures for tensor computations using CPUs, GPUs (CUDA/ROCm), and distributed cluster systems. It is designed to handle **massive arrays** that exceed the memory and computational limits of a single machine.
-
-.. * **Seamless integration:** Port existing NumPy/SciPy code to multi-node clusters with minimal effort.
-.. * **Hardware-agnostic:** Supports CPUs and GPUs (CUDA, ROCm, Apple MPS).
-.. * **Efficient scaling:** Exploit the entire, cumulative RAM of your cluster for memory-intensive operations.
-
 In a nutshell
 ===============
 
@@ -77,8 +68,6 @@ In a nutshell
 
    .. grid-item::
       :columns: 12 12 5 5
-
-      .. **Prototype on your laptop, execute on any cluster**
 
       Heat builds on **PyTorch** and **mpi4py** to process **massive arrays** - huge collections of images, high-dimensional climate simulation grids, or massive machine learning feature matrices - that exceed the memory and computational limits of a single machine.
 
@@ -111,7 +100,7 @@ In a nutshell
 Getting started
 ================
 
-.. grid:: 1 2 3 3
+.. grid:: 1 1 1 1
    :gutter: 3
    :class-container: text-center mt-4 mb-4
 
@@ -131,44 +120,49 @@ Getting started
 
          **Install guide** from your laptop to HPC systems
 
+-----
+
+Tutorials & courses
+===================
+
+.. grid:: 1 2 2 2
+   :gutter: 3
+   :class-container: text-center mt-4 mb-4
+
    .. grid-item-card::
       :class-card: sd-card
-      :link: /coverage_tables
+      :link: https://hub.nfdi-jupyter.de/v2/gh/helmholtz-analytics/heat/jupyter4nfdi?labpath=tutorials%2FJupyter4NFDI_landing_notebook.ipynb&system=deNBI-Cloud&flavor=l1&localstoragepath=%2Fhome%2Fjovyan%2Fwork
+
+      .. image:: _static/images/jupyter.png
+         :alt: Jupyter4NFDI Interactive Course
+         :align: center
+         :height: 140px
+
+      .. div:: mt-3 **Take the Course in the Cloud**
+
+      .. div:: text-muted small mt-1
+
+         Run our tutorials on |j4nfdi_badge|
+
+      .. |j4nfdi_badge| image:: https://nfdi-jupyter.de/images/jupyter4nfdi_badge.svg
+         :alt: Jupyter4NFDI
+         :height: 22px
+
+   .. grid-item-card::
+      :class-card: sd-card
+      :link: /tutorials/notebooks/README
       :link-type: doc
 
       .. image:: _static/images/tutorial_split_dndarray.svg
-         :alt: Installation
+         :alt: Download Course
          :align: center
          :height: 140px
 
-      .. div:: mt-3 **NumPy API**
+      .. div:: mt-3 **Run the Course Locally**
 
-      .. div:: text-muted mt-1
+      .. div:: text-muted small mt-1
 
-         **Numerical data processing**: NumPy/SciPy API compatibility tracking
-
-   .. grid-item-card::
-      :class-card: sd-card
-      :link: /autoapi/index
-      :link-type: doc
-
-      .. image:: _static/images/api_ref_graphics.png
-         :alt: API reference
-         :align: center
-         :height: 140px
-
-      .. div:: mt-3 **API reference**
-
-      .. div:: text-muted mt-1
-
-         **API reference:**  all numerical functions and machine learning algorithms.
-
-Tutorials
-=========
-
-.. grid:: 1 2 3 3
-   :gutter: 3
-   :class-container: text-center mt-4 mb-4
+         Download the full suite of interactive Jupyter notebooks to run on your own hardware or cluster.
 
    .. grid-item-card::
       :class-card: sd-card
@@ -202,22 +196,15 @@ Tutorials
 
          **Parallel computing:** distributed MPI computation and (multi-)GPU acceleration.
 
-   .. grid-item-card::
-      :class-card: sd-card
-      :link: /tutorials/tutorial_clustering
-      :link-type: doc
 
-      .. image:: _static/images/tutorial_clustering.svg
-         :alt: Clustering
-         :align: center
-         :height: 140px
+-----
 
-      .. div:: mt-3 **Clustering**
+How-to guides
+=============
 
-      .. div:: text-muted small mt-1
-
-         **Clustering analysis:** Automatically identify groups of similar data points in massive distributed datasets via unsupervised clustering methods.
-
+.. grid:: 1 2 3 3
+   :gutter: 3
+   :class-container: text-center mt-4 mb-4
 
    .. grid-item-card::
       :class-card: sd-card
@@ -234,6 +221,23 @@ Tutorials
       .. div:: text-muted small mt-1
 
          **Parallel I/O:** ingest HDF5, Zarr, and NetCDF formats directly into distributed memory.
+
+
+   .. grid-item-card::
+      :class-card: sd-card
+      :link: /tutorials/tutorial_clustering
+      :link-type: doc
+
+      .. image:: _static/images/tutorial_clustering.svg
+         :alt: Clustering
+         :align: center
+         :height: 140px
+
+      .. div:: mt-3 **Clustering**
+
+      .. div:: text-muted small mt-1
+
+         **Clustering analysis:** Automatically identify groups of similar data points in massive distributed datasets via unsupervised clustering methods.
 
    .. grid-item-card::
       :class-card: sd-card
@@ -269,40 +273,6 @@ Tutorials
 
    .. grid-item-card::
       :class-card: sd-card
-      :link: /tutorials/notebooks/Internals
-      :link-type: doc
-
-      .. image:: _static/images/internals.png
-         :alt: Performance Profiling Example
-         :align: center
-         :height: 140px
-
-      .. div:: mt-3 **Heat internal functions**
-
-      .. div:: text-muted small mt-1
-
-         Heat internal functions for contributors and power users.
-
-   .. grid-item-card::
-      :class-card: sd-card
-      :link: /tutorials/notebooks/README
-      :link-type: doc
-
-      .. image:: _static/images/internals.png
-         :alt: All tutorials
-         :align: center
-         :height: 140px
-
-      .. div:: mt-3 **All tutorials**
-
-      .. div:: text-muted small mt-1
-
-         **Interactive:** Check out our GitHub repository for our full set of interactive Jupyter notebooks.
-
-
-
-   .. grid-item-card::
-      :class-card: sd-card
       :link: /tutorials/notebooks/Profiling_with_perun
       :link-type: doc
 
@@ -317,52 +287,110 @@ Tutorials
 
          **Profiling:** Track cluster memory consumption, execution efficiency, and resource utilization using Perun.
 
+-----
 
-.. -----
+Reference material
+==================
 
+.. grid:: 1 2 2 2
+   :gutter: 3
+   :class-container: text-center mt-4 mb-4
 
-.. Documentation Portal
-.. ====================
+   .. grid-item-card::
+      :class-card: sd-card
+      :link: /coverage_tables
+      :link-type: doc
 
-.. .. grid:: 1 1 2 4
-..    :gutter: 3
-..    :padding: 0
-..    :class-container: mt-4 mb-4
+      .. image:: _static/images/tutorial_split_dndarray.svg
+         :alt: Installation
+         :align: center
+         :height: 140px
 
-..    .. grid-item-card:: Tutorials
-..       :class-card: sd-card
-..       :link: tutorials/notebooks/1_basics
-..       :link-type: doc
+      .. div:: mt-3 **NumPy API**
 
-..       **Learning-oriented** pages to guide you through your very first steps, configuration workflows, and basic cluster operations.
+      .. div:: text-muted mt-1
 
-..    .. grid-item-card:: How-To Guides
-..       :class-card: sd-card
-..       :link: usage
-..       :link-type: doc
+         **Numerical data processing**: NumPy/SciPy API compatibility tracking
 
-..       **Task-oriented** recipes showing you how to solve specific analytical problems, load custom data files, and scale specific operations.
+   .. grid-item-card::
+      :class-card: sd-card
+      :link: /autoapi/index
+      :link-type: doc
 
-..    .. grid-item-card:: Explanations
-..       :class-card: sd-card
-..       :link: tutorials/notebooks/2_internals
-..       :link-type: doc
+      .. image:: _static/images/api_ref_graphics.png
+         :alt: API reference
+         :align: center
+         :height: 140px
 
-..       **Understanding-oriented** deep dives into cluster architecture, the inner mechanics of ``DNDarray`` splitting, and parallelization theory.
+      .. div:: mt-3 **API reference**
 
-..    .. grid-item-card:: API Reference
-..       :class-card: sd-card
-..       :link: api
-..       :link-type: doc
+      .. div:: text-muted mt-1
 
-..       **Information-oriented** technical specs covering function definitions, parameters, return types, and class structures.
+         **API reference:**  all numerical functions and machine learning algorithms.
 
-.. .. toctree::
-..    :hidden:
+-----
 
-..    getting_started
-..    usage
-..    api
+Deep dive & architecture
+========================
+
+.. grid:: 1 1 1 1
+   :gutter: 3
+   :class-container: text-center mt-4 mb-4
+
+   .. grid-item-card::
+      :class-card: sd-card
+      :link: /tutorials/notebooks/Internals
+      :link-type: doc
+
+      .. image:: _static/images/internals.png
+         :alt: Performance Profiling Example
+         :align: center
+         :height: 140px
+
+      .. div:: mt-3 **Heat internal functions**
+
+      .. div:: text-muted small mt-1
+
+         Heat internal functions for contributors and power users.
+
+-----
+
+Community & support
+===================
+
+.. grid:: 1 1 3 3
+   :gutter: 3
+   :class-container: mt-4 mb-5
+
+   .. grid-item-card:: GitHub Discussions
+      :class-card: sd-card
+      :link: https://github.com/helmholtz-analytics/heat/discussions
+
+      .. div:: mt-2 **Community Forum**
+
+      .. div:: text-muted small mt-1
+
+         Ask questions, share your HPC workflows, and discuss feature requests asynchronously.
+
+   .. grid-item-card:: Matrix Space
+      :class-card: sd-card
+      :link: https://matrix.to/#/#heat:helmholtz.cloud
+
+      .. div:: mt-2 **Real-time Chat**
+
+      .. div:: text-muted small mt-1
+
+         Join our Matrix space to chat directly with core developers and other Heat users.
+
+   .. grid-item-card:: Issue Tracker
+      :class-card: sd-card
+      :link: https://github.com/helmholtz-analytics/heat/issues
+
+      .. div:: mt-2 **Report a Bug**
+
+      .. div:: text-muted small mt-1
+
+         Encountered an issue with multi-GPU scaling or MPI communication? Let us know so we can fix it.
 
 -----
 
@@ -455,7 +483,6 @@ Latest news
 
       Registration is open for our upcoming virtual workshop on high-performance data analytics. Join us for hands-on sessions, expert talks, and live demos of Heat in action.
 
-
    .. grid-item-card:: NumFOCUS Affiliation
       :class-card: sd-card
       :link: https://www.fz-juelich.de/en/rse/the_latest/the-heat-library-becomes-a-numfocus-affiliated-project
@@ -516,15 +543,12 @@ Roadmap
 
       Explore "good first issues" and feature requests for new contributors.
 
-
-
 .. toctree::
    :caption: Getting Started
    :hidden:
    :maxdepth: 1
 
    quick_start
-   .. case_studies
 
 .. toctree::
    :caption: Main Documentation
