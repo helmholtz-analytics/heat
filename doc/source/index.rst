@@ -98,27 +98,43 @@ In a nutshell
 -----
 
 Getting started
-================
+===============
 
-.. grid:: 1 1 1 1
-   :gutter: 3
-   :class-container: text-center mt-4 mb-4
+.. grid:: 1 1 2 2
+   :gutter: 4
+   :class-container: mt-4 mb-5
 
-   .. grid-item-card::
-      :class-card: sd-card
-      :link: /quick_start
-      :link-type: doc
+   .. grid-item::
+      :columns: 12 12 6 6
 
-      .. image:: _static/images/install_graphics.png
-         :alt: Installation
-         :align: center
-         :height: 140px
+      **Quick Install**
 
-      .. div:: mt-3 **Installation**
+      .. tab-set::
 
-      .. div:: text-muted mt-1
+         .. tab-item:: pip
 
-         **Install guide** from your laptop to HPC systems
+            .. code-block:: bash
+
+               pip install heat
+
+         .. tab-item:: conda
+
+            .. code-block:: bash
+
+               conda install -c conda-forge heat
+
+   .. grid-item::
+      :columns: 12 12 6 6
+
+      **HPC & Multi-GPU Deployments**
+
+      For Spack, EasyBuild, and containerized setups, refer to our comprehensive deployment guide.
+
+      .. button-link:: /quick_start.html
+         :color: primary
+         :class: sd-btn-primary sd-btn-block mt-3
+
+         View Full Installation Guide
 
 -----
 
