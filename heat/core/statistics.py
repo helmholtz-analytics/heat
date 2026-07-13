@@ -1302,9 +1302,9 @@ def __moment_w_axis(
     """
     # helper for calculating a statistical moment with a given axis
     kwargs = {"dim": axis}
-    if unbiased:
+    if unbiased is not None:
         kwargs["unbiased"] = unbiased
-    if Fischer:
+    if Fischer is not None:
         kwargs["Fischer"] = Fischer
 
     output_shape = list(x.shape)
@@ -2119,7 +2119,7 @@ def var(
     axis : None or int or iterable
         Axis which the std is taken in. Default ``None`` calculates std of all data items.
     ddof : int, optional
-        Delta Degrees of Freedom: the denominator implicitely used in the calculation is N - ddof, where N
+        Delta Degrees of Freedom: the denominator implicitly used in the calculation is N - ddof, where N
         represents the number of elements. If ``ddof=1``, the Bessel correction will be applied.
         Setting ``ddof>1`` raises a ``NotImplementedError``.
     **kwargs
