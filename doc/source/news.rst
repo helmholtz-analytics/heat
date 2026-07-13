@@ -6,6 +6,12 @@ Latest News
    <ul class="heat-timeline">
 
        <li class="timeline-item">
+           <div class="timeline-date">Jul 2026</div>
+           <h4><a href="https://heat.readthedocs.io/">New webpage launched</a></h4>
+           <p>We overhauled our website, let us know what you think!</p>
+       </li>
+
+       <li class="timeline-item">
            <div class="timeline-date">May 2026</div>
            <h4><a href="https://indico3-jsc.fz-juelich.de/event/327/">Workshop registration open</a></h4>
            <p>Registration is open for our upcoming virtual workshop on high-performance data analytics. Join us for hands-on sessions, expert talks, and live demos of Heat in action.</p>
