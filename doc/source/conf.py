@@ -230,7 +230,7 @@ html_theme_options = {
             "type": "fontawesome",
         },
     ],
-    "footer_start": ["copyright", "custom_footer_links"],
+    "footer_start": ["copyright", "custom-footer-links"],
     "footer_end": ["sphinx-version", "theme-version"],
 }
 
