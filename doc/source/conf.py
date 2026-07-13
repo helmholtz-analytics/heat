@@ -120,8 +120,8 @@ master_doc = "index"
 from datetime import datetime
 
 project = "Heat"
-copyright = f"{datetime.now().year}, Helmholtz Analytics Framework Consortium"
-author = "Helmholtz Analytics Framework Consortium"
+copyright = f"{datetime.now().year}, The Heat developers"
+author = "The Heat developers"
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -230,7 +230,8 @@ html_theme_options = {
             "type": "fontawesome",
         },
     ],
-    "footer_end": ["theme-version", "custom_footer_links"],
+    "footer_start": ["copyright", "custom_footer_links"],
+    "footer_end": ["sphinx-version", "theme-version"],
 }
 
 html_context = {
