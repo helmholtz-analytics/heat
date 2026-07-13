@@ -207,6 +207,9 @@ html_theme_options = {
         "image_light": "_static/images/logo_emblem.svg",
         "image_dark": "_static/images/logo_emblem.svg",
     },
+
+    "navbar_end": ["navbar-icon-links"],
+
     "icon_links": [
         {
             "name": "GitHub Discussions",
@@ -217,8 +220,8 @@ html_theme_options = {
         {
             "name": "Matrix Space",
             "url": "https://matrix.to/#/#heat:helmholtz.cloud",
-            "icon": "fa-solid fa-message", # Generic chat icon
-            "type": "fontawesome",
+            "icon": "_static/images/matrix-icon.svg",
+            "type": "local",
         },
         {
             "name": "LinkedIn",
@@ -227,6 +230,10 @@ html_theme_options = {
             "type": "fontawesome",
         },
     ]
+}
+
+html_context = {
+    "default_mode": "light"
 }
 
 #html_theme = "sphinx_rtd_theme"
