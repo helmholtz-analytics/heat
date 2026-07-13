@@ -148,3 +148,43 @@ code,
 .highlight-text>.highlight {
     background-color: #fbe4d2 !important; /* Matches your brand --horange-light token */
 }
+
+.heat-timeline {
+    margin-top: 4rem;
+    border-left: 3px solid #dee2e6;
+    padding-left: 25px;
+    margin-left: 15px;
+    list-style: none;
+}
+
+.heat-timeline .timeline-item {
+    position: relative;
+    margin-bottom: 2.5rem;
+}
+
+/* The dots on the timeline */
+.heat-timeline .timeline-item::before {
+    content: "";
+    position: absolute;
+    left: -34px; /* Centers the dot exactly on the border line */
+    top: 32px;
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    background-color: #005aa9;
+    border: 3px solid #ffffff; /* Creates a clean cutout ring effect */
+}
+
+.timeline-date {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #6c757d;
+    margin-bottom: 0.25rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.heat-timeline h4 {
+    margin-top: 0.2rem !important; /* Overrides the Sphinx theme gap */
+    margin-bottom: 0.5rem;
+}

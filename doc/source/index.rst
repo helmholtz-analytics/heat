@@ -595,5 +595,4 @@ Latest news
    :maxdepth: 1
 
    CONTRIBUTING
-   .. copyright Heat core team
-   .. latest news header top right
+   news
