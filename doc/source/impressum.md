@@ -5,8 +5,7 @@ The Heat framework is a joint open-source software project developed by research
 
 Provider Identification
 -----------------------
-
-For full provider identification, commercial registry details, authorized representatives, and privacy policies, please refer to the official legal notices of our partner institutions:
+According to § 5 TMG (Telemediengesetz), the legal responsibility for institutional web presences falls to the respective research centers. For full provider identification, commercial registry details, authorized representatives, and privacy policies, please refer to the official legal notices of our partner institutions:
 
 * **Forschungszentrum Jülich GmbH:** [Official Legal Notice](https://www.fz-juelich.de/en/legal-notice)
 * **Karlsruhe Institute of Technology (KIT):** [Official Legal Notice](https://www.kit.edu/legals.php)
