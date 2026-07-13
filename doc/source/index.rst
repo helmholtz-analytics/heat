@@ -595,5 +595,5 @@ Latest news
    :maxdepth: 1
 
    CONTRIBUTING
-   documentation_howto
-   CODE_OF_CONDUCT
+   .. copyright Heat core team
+   .. latest news header top right

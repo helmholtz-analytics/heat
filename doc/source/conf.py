@@ -229,7 +229,8 @@ html_theme_options = {
             "icon": "fa-brands fa-linkedin", # Native LinkedIn logo
             "type": "fontawesome",
         },
-    ]
+    ],
+    "footer_end": ["theme-version", "custom_footer_links"],
 }
 
 html_context = {
