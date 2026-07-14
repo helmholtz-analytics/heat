@@ -746,7 +746,7 @@ def histogram(
 
 
 def kurtosis(
-    x: DNDarray, axis: Optional[int] = None, unbiased: bool = True, Fischer: bool = True
+    x: DNDarray, axis: Optional[int] = None, unbiased: bool = True, fischer: bool = True
 ) -> DNDarray:
     """
     Compute the kurtosis (Fisher or Pearson) of a dataset.
@@ -764,7 +764,7 @@ def kurtosis(
         Axis along which skewness is calculated, Default is to compute over the whole array `x`
     unbiased : Bool
         if True (default) the calculations are corrected for bias
-    Fischer : bool
+    fischer : bool
         Whether use Fischer's definition or not. If true 3. is subtracted from the result.
 
     Warnings
@@ -784,17 +784,17 @@ def kurtosis(
         res = m4 / arithmetics.pow(m2, 2.0)
         if unbiased:
             res = ((n - 1.0) / ((n - 2.0) * (n - 3.0))) * ((n + 1.0) * res - 3 * (n - 1.0)) + 3.0
-        if Fischer:
+        if fischer:
             res -= 3.0
         return res.item() if res.gnumel == 1 else res
     elif isinstance(axis, (list, tuple)):
         raise TypeError(f"axis cannot be a list or a tuple, currently {type(axis)}")
     else:
-        return __moment_w_axis(__torch_kurtosis, x, axis, None, unbiased, Fischer)
+        return __moment_w_axis(__torch_kurtosis, x, axis, None, unbiased, fischer)
 
 
 DNDarray.kurtosis: Callable[[DNDarray, int, bool, bool], DNDarray] = (
-    lambda x, axis=None, unbiased=True, Fischer=True: kurtosis(x, axis, unbiased, Fischer)
+    lambda x, axis=None, unbiased=True, fischer=True: kurtosis(x, axis, unbiased, fischer)
 )
 DNDarray.kurtosis.__doc__ = average.__doc__
 
@@ -1280,7 +1280,7 @@ def __moment_w_axis(
     axis: Optional[Union[int, Tuple[int, ...]]],
     elementwise_function: Callable,
     correction: Optional[bool] = None,
-    Fischer: Optional[bool] = None,
+    fischer: Optional[bool] = None,
 ) -> DNDarray:
     """
     Helper function for calculating a statistical moment along a given axis.
@@ -1297,15 +1297,15 @@ def __moment_w_axis(
         function to merge the moment across processes
     correction : bool
         if the moment should be unbiased
-    Fischer : bool
+    fischer : bool
         if the Fischer correction is to be applied (only used in skew and Kurtosis)
     """
     # helper for calculating a statistical moment with a given axis
     kwargs = {"dim": axis}
     if correction is not None:
         kwargs["correction"] = correction
-    if Fischer is not None:
-        kwargs["Fischer"] = Fischer
+    if fischer is not None:
+        kwargs["fischer"] = fischer
 
     output_shape = list(x.shape)
     if isinstance(axis, int):
@@ -2068,7 +2068,7 @@ def __torch_skew(
 
 
 def __torch_kurtosis(
-    torch_tensor: torch.Tensor, dim: int = None, Fischer: bool = True, correction: bool = False
+    torch_tensor: torch.Tensor, dim: int = None, fischer: bool = True, correction: bool = False
 ) -> torch.Tensor:
     """
     Calculate the sample kurtosis of a dataset
@@ -2081,7 +2081,7 @@ def __torch_kurtosis(
     dim : int, optional
         dimension along which to do calculate
         If None, then the kurtosis of the full dataset is calculated
-    Fischer : bool
+    fischer : bool
         if to apply the Fischer correction
     correction : bool
         if the returned value/s should be biased or correction
@@ -2099,7 +2099,7 @@ def __torch_kurtosis(
     res = torch.true_divide(m4, torch.pow(m2, 2.0))
     if correction:
         res = ((n - 1.0) / ((n - 2.0) * (n - 3.0))) * ((n + 1.0) * res - 3.0 * (n - 1.0)) + 3.0
-    if Fischer:
+    if fischer:
         res -= 3.0
     return res
 
