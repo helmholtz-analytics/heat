@@ -9,7 +9,7 @@ from typing import Callable, Iterable, Optional, Sequence, Tuple, Type, Union, L
 from .communication import MPI, sanitize_comm, Communication
 from .devices import Device
 from .dndarray import DNDarray
-from .memory import sanitize_memory_layout
+from .memory import sanitize_memory_layout, copy as memory_copy
 from .sanitation import sanitize_in, sanitize_sequence
 from .stride_tricks import sanitize_axis, sanitize_shape
 from .types import datatype
@@ -59,15 +59,12 @@ def arange(
 
     Parameters
     ----------
-    start : scalar, optional
-        Start of interval.  The interval includes this value.  The default start value is 0.
-    stop : scalar
-        End of interval.  The interval does not include this value, except in some cases where ``step`` is not an
-        integer and floating point round-off affects the length of ``out``.
-    step : scalar, optional
-        Spacing between values.  For any output ``out``, this is the distance between two adjacent values,
-        ``out[i+1]-out[i]``. The default step size is 1. If ``step`` is specified as a position argument, ``start``
-        must also be given.
+    *args : int or float, optional
+        Positional arguments defining the interval. Can be:
+        - A single argument: interpreted as `stop`, with `start=0` and `step=1`.
+        - Two arguments: interpreted as `start` and `stop`, with `step=1`.
+        - Three arguments: interpreted as `start`, `stop`, and `step`.
+        The function raises a `TypeError` if more than three arguments are provided.
     dtype : datatype, optional
         The type of the output array.  If `dtype` is not given, it is automatically inferred from the other input
         arguments.
@@ -138,10 +135,12 @@ def arange(
     # compose the local tensor
     start += offset * step
     stop = start + lshape[0] * step
-    data = torch.arange(start, stop, step, device=device.torch_device)
-
     htype = types.canonical_heat_type(dtype)
-    data = data.type(htype.torch_type())
+    if types.issubdtype(htype, types.floating):
+        data = torch.arange(start, stop, step, dtype=htype.torch_type(), device=device.torch_device)
+    else:
+        data = torch.arange(start, stop, step, device=device.torch_device)
+        data = data.type(htype.torch_type())
 
     return DNDarray(data, gshape, htype, split, device, comm, balanced)
 
@@ -245,7 +244,7 @@ def array(
      4
      5
     [torch.LongStorage of size 6]
-    >>> c = ht.array(a, order='F')
+    >>> c = ht.array(a, order="F")
     >>> c
     DNDarray([[0, 1, 2],
               [3, 4, 5]], dtype=ht.int64, device=cpu:0, split=None)
@@ -262,7 +261,7 @@ def array(
     >>> a = np.arange(4 * 3).reshape(4, 3)
     >>> a.strides
     (24, 8)
-    >>> b = ht.array(a, order='F', split=0)
+    >>> b = ht.array(a, order="F", split=0)
     >>> b
     DNDarray([[ 0,  1,  2],
               [ 3,  4,  5],
@@ -287,26 +286,51 @@ def array(
           11
          [torch.LongStorage of size 6]
     """
-    # array already exists; no copy
-    if isinstance(obj, DNDarray):
-        if not copy:
-            if (
-                (dtype is None or dtype == obj.dtype)
-                and (split is None or split == obj.split)
-                and (is_split is None or is_split == obj.split)
-                and (device is None or device == obj.device)
-            ):
-                return obj
-        # extract the internal tensor
-        obj = obj.larray
-
     # sanitize the data type
-    if dtype is not None:
+    if dtype is None:
+        torch_dtype = None
+    else:
         dtype = types.canonical_heat_type(dtype)
+        torch_dtype = dtype.torch_type()
+
+    # use device of obj if obj is a torch tensor
+    if device is None and isinstance(obj, torch.Tensor):
+        device = obj.device.type
 
     # sanitize device
     if device is not None:
         device = devices.sanitize_device(device)
+
+    if split is not None and is_split is not None:
+        raise ValueError("split and is_split are mutually exclusive parameters")
+
+    # array already exists; no copy
+    if isinstance(obj, DNDarray):
+        if (
+            (dtype is None or dtype == obj.dtype)
+            and (split is None or split == obj.split)
+            and (is_split is None or is_split == obj.split)
+            and (device is None or device == obj.device)
+        ):
+            if copy is True:
+                return memory_copy(obj)
+            else:
+                return obj
+        elif split is not None and obj.split is not None and split != obj.split:
+            raise ValueError(
+                f"'split' argument does not match existing 'split' dimention ({split} != {obj.split}).\nIf you are trying to create a new DNDarray with a new split from an existing DNDarray, use the function `ht.resplit()` instead."
+            )
+        elif is_split is not None and obj.split is not None and is_split != obj.split:
+            raise ValueError(
+                f"'is_split' and the split axis of the object do not match ({is_split} != {obj.split}).\nIf you are trying to resplit an existing DNDarray in-place, use the method `DNDarray.resplit_()` instead."
+            )
+        elif device is not None and device != obj.device and copy is False:
+            raise ValueError(
+                "argument `copy` is set to False, but copy of input object is necessary as the array is being copied across devices.\nUse the method `DNDarray.cpu()` or  `DNDarray.gpu()` to move the array to the desired device."
+            )
+
+        # extract the internal tensor
+        obj = obj.larray
 
     # initialize the array
     if bool(copy):
@@ -318,9 +342,12 @@ def array(
             try:
                 obj = torch.tensor(
                     obj,
-                    device=device.torch_device
-                    if device is not None
-                    else devices.get_device().torch_device,
+                    dtype=torch_dtype,
+                    device=(
+                        device.torch_device
+                        if device is not None
+                        else devices.get_device().torch_device
+                    ),
                 )
             except RuntimeError:
                 raise TypeError(f"invalid data of type {type(obj)}")
@@ -331,8 +358,8 @@ def array(
                 (dtype is None or dtype == types.canonical_heat_type(obj.dtype))
                 and (
                     device is None
-                    or device.torch_device
-                    == str(getattr(obj, "device", devices.get_device().torch_device))
+                    or device.torch_device.split(":")[0]
+                    == str(getattr(obj, "device", devices.get_device().torch_device)).split(":")[0]
                 )
             ):
                 raise ValueError(
@@ -341,9 +368,10 @@ def array(
         try:
             obj = torch.as_tensor(
                 obj,
-                device=device.torch_device
-                if device is not None
-                else devices.get_device().torch_device,
+                dtype=torch_dtype,
+                device=(
+                    device.torch_device if device is not None else devices.get_device().torch_device
+                ),
             )
         except RuntimeError:
             raise TypeError(f"invalid data of type {type(obj)}")
@@ -352,12 +380,11 @@ def array(
     if dtype is None:
         dtype = types.canonical_heat_type(obj.dtype)
     else:
-        torch_dtype = dtype.torch_type()
         if obj.dtype != torch_dtype:
             obj = obj.type(torch_dtype)
 
     # infer device from obj if not explicitly given
-    if device is None:
+    if device is None and hasattr(obj, "device"):
         device = devices.sanitize_device(obj.device.type)
 
     if str(obj.device) != device.torch_device:
@@ -381,8 +408,6 @@ def array(
     # sanitize the split axes, ensure mutual exclusiveness
     split = sanitize_axis(obj.shape, split)
     is_split = sanitize_axis(obj.shape, is_split)
-    if split is not None and is_split is not None:
-        raise ValueError("split and is_split are mutually exclusive parameters")
 
     # sanitize comm object
     comm = sanitize_comm(comm)
@@ -400,7 +425,7 @@ def array(
     elif split is not None:
         # only keep local slice
         _, _, slices = comm.chunk(gshape, split)
-        _ = obj[slices].clone()
+        _ = obj[slices].contiguous()
         del obj
 
         obj = sanitize_memory_layout(_, order=order)
@@ -491,24 +516,24 @@ def asarray(
 
     Examples
     --------
-    >>> a = [1,2]
+    >>> a = [1, 2]
     >>> ht.asarray(a)
     DNDarray([1, 2], dtype=ht.int64, device=cpu:0, split=None)
-    >>> a = np.array([1,2,3])
+    >>> a = np.array([1, 2, 3])
     >>> n = ht.asarray(a)
     >>> n
     DNDarray([1, 2, 3], dtype=ht.int64, device=cpu:0, split=None)
     >>> n[0] = 0
     >>> a
     DNDarray([0, 2, 3], dtype=ht.int64, device=cpu:0, split=None)
-    >>> a = torch.tensor([1,2,3])
+    >>> a = torch.tensor([1, 2, 3])
     >>> t = ht.asarray(a)
     >>> t
     DNDarray([1, 2, 3], dtype=ht.int64, device=cpu:0, split=None)
     >>> t[0] = 0
     >>> a
     DNDarray([0, 2, 3], dtype=ht.int64, device=cpu:0, split=None)
-    >>> a = ht.array([1,2,3,4], dtype=ht.float32)
+    >>> a = ht.array([1, 2, 3, 4], dtype=ht.float32)
     >>> ht.asarray(a, dtype=ht.float32) is a
     True
     >>> ht.asarray(a, dtype=ht.float64) is a
@@ -558,7 +583,12 @@ def empty(
     DNDarray([0., 0., 0.], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.empty(3, dtype=ht.int)
     DNDarray([59140784,        0, 59136816], dtype=ht.int32, device=cpu:0, split=None)
-    >>> ht.empty((2, 3,))
+    >>> ht.empty(
+    ...     (
+    ...         2,
+    ...         3,
+    ...     )
+    ... )
     DNDarray([[-1.7206e-10,  4.5905e-41, -1.7206e-10],
               [ 4.5905e-41,  4.4842e-44,  0.0000e+00]], dtype=ht.float32, device=cpu:0, split=None)
     """
@@ -576,13 +606,13 @@ def empty_like(
 ) -> DNDarray:
     """
     Returns a new uninitialized :class:`~heat.core.dndarray.DNDarray` with the same type, shape and data distribution
-    of given object. Data type and data distribution strategy can be explicitly overriden.
+    of given object. Data type, data distribution axis, and device can be explicitly overridden.
 
     Parameters
     ----------
     a : DNDarray
-        The shape and data-type of ``a`` define these same attributes of the returned array. Uninitialized array with
-        the same shape, type and split axis as ``a`` unless overriden.
+        The shape, data-type, split axis and device of ``a`` define these same attributes of the returned array. Uninitialized array with
+        the same shape, type, split axis and device as ``a`` unless overriden.
     dtype : datatype, optional
         Overrides the data type of the result.
     split: int or None, optional
@@ -604,7 +634,12 @@ def empty_like(
 
     Examples
     --------
-    >>> x = ht.ones((2, 3,))
+    >>> x = ht.ones(
+    ...     (
+    ...         2,
+    ...         3,
+    ...     )
+    ... )
     >>> x
     DNDarray([[1., 1., 1.],
               [1., 1., 1.]], dtype=ht.float32, device=cpu:0, split=None)
@@ -711,7 +746,7 @@ def __factory(
     shape : int or Sequence[ints,...]
         Desired shape of the output array, e.g. 1 or (1, 2, 3,).
     dtype : datatype
-        The desired HeAT data type for the array, defaults to ht.float32.
+        The desired Heat data type for the array, defaults to ht.float32.
     split : int or None
         The axis along which the array is split and distributed.
     local_factory : callable
@@ -772,14 +807,15 @@ def __factory_like(
     factory : function
         Function that creates a DNDarray.
     device : str
-        Specifies the :class:`~heat.core.devices.Device` the array shall be allocated on, defaults to globally set
-        default device.
+        Specifies the :class:`~heat.core.devices.Device` the array shall be allocated on, defaults to the same device as ``a``.
     comm: Communication
         Handle to the nodes holding distributed parts or copies of this array.
     order: str, optional
         Options: ``'C'`` or ``'F'``. Specifies the memory layout of the newly created array. Default is ``order='C'``,
         meaning the array will be stored in row-major order (C-like). If ``order=‘F’``, the array will be stored in
         column-major order (Fortran-like).
+    **kwargs
+        Keyword arguments for the factory method.
 
     Raises
     ------
@@ -812,6 +848,13 @@ def __factory_like(
             # do not split at all
             pass
 
+    # infer the device, otherwise default to a.device
+    if device is None:
+        try:
+            device = a.device
+        except AttributeError:
+            device = devices.get_device()
+
     # use the default communicator, if not set
     comm = sanitize_comm(comm)
 
@@ -836,7 +879,7 @@ def from_partitioned(x, comm: Optional[Communication] = None) -> DNDarray:
     comm: Communication, optional
         Handle to the nodes holding distributed parts or copies of this array.
 
-    See also
+    See Also
     --------
     :func:`ht.core.DNDarray.create_partition_interface <ht.core.DNDarray.create_partition_interface>`.
 
@@ -852,11 +895,11 @@ def from_partitioned(x, comm: Optional[Communication] = None) -> DNDarray:
     Examples
     --------
     >>> import heat as ht
-    >>> a = ht.ones((44,55), split=0)
+    >>> a = ht.ones((44, 55), split=0)
     >>> b = ht.from_partitioned(a)
-    >>> assert (a==b).all()
+    >>> assert (a == b).all()
     >>> a[40] = 4711
-    >>> assert (a==b).all()
+    >>> assert (a == b).all()
     """
     comm = sanitize_comm(comm)
     parted = x.__partitioned__
@@ -881,7 +924,7 @@ def from_partition_dict(parted: dict, comm: Optional[Communication] = None) -> D
     comm: Communication, optional
         Handle to the nodes holding distributed parts or copies of this array.
 
-    See also
+    See Also
     --------
     :func:`ht.core.DNDarray.create_partition_interface <ht.core.DNDarray.create_partition_interface>`.
 
@@ -897,11 +940,11 @@ def from_partition_dict(parted: dict, comm: Optional[Communication] = None) -> D
     Examples
     --------
     >>> import heat as ht
-    >>> a = ht.ones((44,55), split=0)
+    >>> a = ht.ones((44, 55), split=0)
     >>> b = ht.from_partition_dict(a.__partitioned__)
-    >>> assert (a==b).all()
+    >>> assert (a == b).all()
     >>> a[40] = 4711
-    >>> assert (a==b).all()
+    >>> assert (a == b).all()
     """
     comm = sanitize_comm(comm)
     return __from_partition_dict_helper(parted, comm)
@@ -940,7 +983,7 @@ def __from_partition_dict_helper(parted: dict, comm: Communication):
     gshape_list = list(gshape)
     lshape_list = list(data.shape)
     shape_diff = torch.tensor(
-        [g - l for g, l in zip(gshape_list, lshape_list)]
+        [g_shape - l_shape for g_shape, l_shape in zip(gshape_list, lshape_list)]
     )  # dont care about device
     nz = torch.nonzero(shape_diff)
 
@@ -1035,21 +1078,20 @@ def full_like(
     order: str = "C",
 ) -> DNDarray:
     """
-    Return a full :class:`~heat.core.dndarray.DNDarray` with the same shape and type as a given array.
+    Return a full :class:`~heat.core.dndarray.DNDarray` with the same shape and type as a given array. Data type, data distribution axis, and device can be explicitly overridden.
 
     Parameters
     ----------
     a : DNDarray
-        The shape and data-type of ``a`` define these same attributes of the returned array.
+        The shape, data-type, split axis and device of ``a`` define these same attributes of the returned array.
     fill_value : scalar
         Fill value.
     dtype : datatype, optional
-        Overrides the data type of the result.
+        The data type of the result, defaults to `a.dtype`.
     split: int or None, optional
-        The axis along which the array is split and distributed; ``None`` means no distribution.
+        The axis along which the array is split and distributed; defaults to `a.split`.
     device : str or Device, optional
-        Specifies the :class:`~heat.core.devices.Device` the array shall be allocated on, defaults to globally set
-        default device.
+        Specifies the :class:`~heat.core.devices.Device` the array shall be allocated on, defaults to `a.device`.
     comm: Communication, optional
         Handle to the nodes holding distributed parts or copies of this array.
     order: str, optional
@@ -1064,7 +1106,12 @@ def full_like(
 
     Examples
     --------
-    >>> x = ht.zeros((2, 3,))
+    >>> x = ht.zeros(
+    ...     (
+    ...         2,
+    ...         3,
+    ...     )
+    ... )
     >>> x
     DNDarray([[0., 0., 0.],
               [0., 0., 0.]], dtype=ht.float32, device=cpu:0, split=None)
@@ -1145,9 +1192,18 @@ def linspace(
     # compose the local tensor
     start += offset * step
     stop = start + lshape[0] * step - step
-    data = torch.linspace(start, stop, lshape[0], device=device.torch_device)
-    if dtype is not None:
-        data = data.type(types.canonical_heat_type(dtype).torch_type())
+    if dtype is not None and types.issubdtype(dtype, types.floating):
+        data = torch.linspace(
+            start,
+            stop,
+            lshape[0],
+            dtype=types.canonical_heat_type(dtype).torch_type(),
+            device=device.torch_device,
+        )
+    else:
+        data = torch.linspace(start, stop, lshape[0], device=device.torch_device)
+        if dtype is not None:
+            data = data.type(types.canonical_heat_type(dtype).torch_type())
 
     # construct the resulting global tensor
     ht_tensor = DNDarray(
@@ -1230,7 +1286,7 @@ def meshgrid(*arrays: Sequence[DNDarray], indexing: str = "xy") -> List[DNDarray
     ----------
     arrays : Sequence[ DNDarray ]
         one-dimensional arrays representing grid coordinates. If exactly one vector is distributed, the returned matrices will
-        be distributed along the axis equal to the index of this vector in the input list.
+        reflect this distribution.
     indexing : str, optional
         Cartesian ‘xy’ or matrix ‘ij’ indexing of output. It is ignored if zero or one one-dimensional arrays are provided. Default: 'xy' .
 
@@ -1245,17 +1301,35 @@ def meshgrid(*arrays: Sequence[DNDarray], indexing: str = "xy") -> List[DNDarray
     --------
     >>> x = ht.arange(4)
     >>> y = ht.arange(3)
-    >>> xx, yy = ht.meshgrid(x,y)
+    >>> xx, yy = ht.meshgrid(x, y)
     >>> xx
-    DNDarray([[0, 1, 2, 3],
+    DNDarray(MPI-rank: 0, Shape: [3, 4], Split: None, Local Shape: (3, 4), Device: cpu:0, Dtype: int32, Data:
+         [[0, 1, 2, 3],
           [0, 1, 2, 3],
-          [0, 1, 2, 3]], dtype=ht.int32, device=cpu:0, split=None)
+          [0, 1, 2, 3]])
     >>> yy
-    DNDarray([[0, 0, 0, 0],
+    DNDarray(MPI-rank: 0, Shape: [3, 4], Split: None, Local Shape: (3, 4), Device: cpu:0, Dtype: int32, Data:
+         [[0, 0, 0, 0],
           [1, 1, 1, 1],
-          [2, 2, 2, 2]], dtype=ht.int32, device=cpu:0, split=None)
+          [2, 2, 2, 2]])
+
+    >>> x = ht.arange(4, split=0)
+    >>> xx, yy = ht.meshgrid(x, y)
+    >>> xx
+    DNDarray(MPI-rank: 0, Shape: [3, 4], Split: 1, Local Shape: (3, 4), Device: cpu:0, Dtype: int32, Data:
+         [[0, 1, 2, 3],
+          [0, 1, 2, 3],
+          [0, 1, 2, 3]])
+
+    >>> xx, yy = ht.meshgrid(x, y, indexing="ij")
+    >>> xx
+    DNDarray(MPI-rank: 0, Shape: (4, 3), Split: 0, Local Shape: (4, 3), Device: cpu:0, Dtype: int32, Data:
+         [[0, 0, 0],
+          [1, 1, 1],
+          [2, 2, 2],
+          [3, 3, 3]])
     """
-    splitted = None
+    split = None
 
     if indexing not in ["xy", "ij"]:
         raise ValueError("Valid values for `indexing` are 'xy' and 'ij'.")
@@ -1268,35 +1342,27 @@ def meshgrid(*arrays: Sequence[DNDarray], indexing: str = "xy") -> List[DNDarray
     for idx, array in enumerate(arrays):
         sanitize_in(array)
         if array.split is not None:
-            if splitted is not None:
-                raise ValueError("split != None are not supported.")
-            splitted = idx
+            if split is not None:
+                raise ValueError("Only one input array can be distributed!")
+            split = idx
 
-    # pytorch does not support the indexing keyword: switch vectors
-    if indexing == "xy" and len(arrays) > 1:
-        arrays[0], arrays[1] = arrays[1], arrays[0]
-        if splitted == 0:
-            arrays[0] = arrays[0].resplit(0)
-            arrays[1] = arrays[1].resplit(None)
-        elif splitted == 1:
-            arrays[0] = arrays[0].resplit(None)
-            arrays[1] = arrays[1].resplit(0)
-
-    grids = torch.meshgrid(*(array.larray for array in arrays))
-
-    # pytorch does not support indexing keyword: switch back
-    if indexing == "xy" and len(arrays) > 1:
-        grids = list(grids)
-        grids[0], grids[1] = grids[1], grids[0]
+    grids = torch.meshgrid(*(array.larray for array in arrays), indexing=indexing)
 
     shape = tuple(array.size for array in arrays)
+    if indexing == "xy" and len(shape) > 1:
+        shape = list(shape)
+        shape[0], shape[1] = shape[1], shape[0]
+        if split == 0:
+            split = 1
+        elif split == 1:
+            split = 0
 
     return [
         DNDarray(
             array=grid,
             gshape=shape,
             dtype=types.heat_type_of(grid),
-            split=splitted,
+            split=split,
             device=devices.sanitize_device(grid.device.type),
             comm=sanitize_comm(None),
             balanced=True,
@@ -1346,7 +1412,12 @@ def ones(
     DNDarray([1., 1., 1.], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.ones(3, dtype=ht.int)
     DNDarray([1, 1, 1], dtype=ht.int32, device=cpu:0, split=None)
-    >>> ht.ones((2, 3,))
+    >>> ht.ones(
+    ...     (
+    ...         2,
+    ...         3,
+    ...     )
+    ... )
     DNDarray([[1., 1., 1.],
           [1., 1., 1.]], dtype=ht.float32, device=cpu:0, split=None)
     """
@@ -1364,19 +1435,18 @@ def ones_like(
 ) -> DNDarray:
     """
     Returns a new :class:`~heat.core.dndarray.DNDarray` filled with ones with the same type,
-    shape and data distribution of given object. Data type and data distribution strategy can be explicitly overriden.
+    shape, data distribution and device of the input object. Data type, data distribution axis, and device can be explicitly overridden.
 
     Parameters
     ----------
     a : DNDarray
-        The shape and data-type of ``a`` define these same attributes of the returned array.
+        The shape, data-type, split axis and device of ``a`` define these same attributes of the returned array.
     dtype : datatype, optional
         Overrides the data type of the result.
     split: int or None, optional
-        The axis along which the array is split and distributed; ``None`` means no distribution.
+        The axis along which the array is split and distributed; defaults to `a.split`.
     device : str or Device, optional
-        Specifies the :class:`~heat.core.devices.Device` the array shall be allocated on, defaults to globally set
-        default device.
+        Specifies the :class:`~heat.core.devices.Device` the array shall be allocated on, defaults to `a.device`.
     comm: Communication, optional
         Handle to the nodes holding distributed parts or copies of this array.
     order: str, optional
@@ -1391,7 +1461,12 @@ def ones_like(
 
     Examples
     --------
-    >>> x = ht.zeros((2, 3,))
+    >>> x = ht.zeros(
+    ...     (
+    ...         2,
+    ...         3,
+    ...     )
+    ... )
     >>> x
     DNDarray([[0., 0., 0.],
               [0., 0., 0.]], dtype=ht.float32, device=cpu:0, split=None)
@@ -1443,7 +1518,12 @@ def zeros(
     DNDarray([0., 0., 0.], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.zeros(3, dtype=ht.int)
     DNDarray([0, 0, 0], dtype=ht.int32, device=cpu:0, split=None)
-    >>> ht.zeros((2, 3,))
+    >>> ht.zeros(
+    ...     (
+    ...         2,
+    ...         3,
+    ...     )
+    ... )
     DNDarray([[0., 0., 0.],
               [0., 0., 0.]], dtype=ht.float32, device=cpu:0, split=None)
     """
@@ -1460,20 +1540,19 @@ def zeros_like(
     order: str = "C",
 ) -> DNDarray:
     """
-    Returns a new :class:`~heat.core.dndarray.DNDarray` filled with zeros with the same type, shape and data
-    distribution of given object. Data type and data distribution strategy can be explicitly overriden.
+    Returns a new :class:`~heat.core.dndarray.DNDarray` filled with zeros with the same type, shape, data
+    distribution, and device of the input object. Data type, data distribution axis, and device can be explicitly overridden.
 
     Parameters
     ----------
     a : DNDarray
-        The shape and data-type of ``a`` define these same attributes of the returned array.
+        The shape, data-type, split axis, and device  of ``a`` define these same attributes of the returned array.
     dtype : datatype, optional
         Overrides the data type of the result.
     split: int or None, optional
-        The axis along which the array is split and distributed; ``None`` means no distribution.
+        The axis along which the array is split and distributed; defaults to `a.split`.
     device : str or Device, optional
-        Specifies the :class:`~heat.core.devices.Device` the array shall be allocated on, defaults to globally set
-        default device.
+        Specifies the :class:`~heat.core.devices.Device` the array shall be allocated on, defaults to `a.device`.
     comm: Communication, optional
         Handle to the nodes holding distributed parts or copies of this array.
     order: str, optional
@@ -1488,7 +1567,12 @@ def zeros_like(
 
     Examples
     --------
-    >>> x = ht.ones((2, 3,))
+    >>> x = ht.ones(
+    ...     (
+    ...         2,
+    ...         3,
+    ...     )
+    ... )
     >>> x
     DNDarray([[1., 1., 1.],
               [1., 1., 1.]], dtype=ht.float32, device=cpu:0, split=None)

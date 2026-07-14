@@ -2,13 +2,14 @@
 Tiling functions/classes. With these classes, you can classes you can address blocks of data in a DNDarray
 """
 
-
 from __future__ import annotations
 import itertools
 import torch
+from mpi4py import MPI
 from typing import List, Tuple, Union
 
 from .dndarray import DNDarray
+from .communication import MPICommunication
 
 __all__ = ["SplitTiles", "SquareDiagTiles"]
 
@@ -38,7 +39,13 @@ class SplitTiles:
 
     Examples
     --------
-    >>> a = ht.zeros((10, 11,), split=None)
+    >>> a = ht.zeros(
+    ...     (
+    ...         10,
+    ...         11,
+    ...     ),
+    ...     split=None,
+    ... )
     >>> a.create_split_tiles()
     >>> print(a.tiles.tile_ends_g)
     [0/2] tensor([[ 4,  7, 10],
@@ -189,7 +196,9 @@ class SplitTiles:
 
         Examples
         --------
-        >>> test = torch.arange(np.prod([i + 6 for i in range(2)])).reshape([i + 6 for i in range(2)])
+        >>> test = torch.arange(np.prod([i + 6 for i in range(2)])).reshape(
+        ...     [i + 6 for i in range(2)]
+        ... )
         >>> a = ht.array(test, split=0).larray
         [0/2] tensor([[ 0.,  1.,  2.,  3.,  4.,  5.,  6.],
         [0/2]         [ 7.,  8.,  9., 10., 11., 12., 13.]])
@@ -252,7 +261,6 @@ class SplitTiles:
             # todo: implement advanced indexing (lists of positions to iterate through)
             lkey = key
             stop = self.tile_ends_g[d][lkey[d]].max().item()
-            # print(stop, self.lshape_map[end_rank][d].max())
             stop = (
                 stop
                 if d != arr.split or stop is None
@@ -327,6 +335,45 @@ class SplitTiles:
         arr = self.__getitem__(key)
         arr.__setitem__(slice(0, None), value)
 
+    def get_subarray_params(
+        self, from_axis: int, to_axis: int
+    ) -> List[Tuple[List[int], List[int], List[int]]]:
+        """Create subarray types of the local array along a new split axis. For use with Alltoallw.
+
+        Based on the work by Dalcin et al. (https://arxiv.org/abs/1804.09536)
+        Return type is a list of tuples, each tuple containing the shape of the local array, the shape of the subarray, and the start index of the subarray.
+
+        Parameters
+        ----------
+        from_axis : int
+            Current split axis of global array.
+        to_axis : int
+            New split axis of of subarrays array.
+        """
+        arr = self.__DNDarray
+        world_size = arr.comm.Get_size()
+        gshape = arr.gshape
+        from_shape = list(gshape)
+        from_shape[from_axis] = int(self.tile_dimensions[from_axis][arr.comm.rank].item())
+
+        subsizes = from_shape
+        substarts = [0] * len(from_shape)
+
+        tile_dimensions = self.tile_dimensions[to_axis].to(torch.int64).tolist()
+        tile_starts = [0] + self.tile_ends_g[to_axis][:-1].to(torch.int64).tolist()
+
+        subarray_param_list = []
+        lshape = from_shape.copy()
+        for i in range(world_size):
+            chunk_size = tile_dimensions[i]
+            chunk_start = tile_starts[i]
+
+            subsizes[to_axis] = chunk_size
+            substarts[to_axis] = chunk_start
+            subarray_param_list.append((lshape, subsizes.copy(), substarts.copy()))
+
+        return subarray_param_list
+
 
 class SquareDiagTiles:
     """
@@ -347,7 +394,7 @@ class SquareDiagTiles:
         Default: 2
 
     Attributes
-    -----------
+    ----------
     __col_per_proc_list : List
         List is length of the number of processes, each element has the number of tile
         columns on the process whos rank equals the index
@@ -364,11 +411,11 @@ class SquareDiagTiles:
         rows on the process whos rank equals the index
 
     Warnings
-    -----------
+    --------
     The generation of these tiles may unbalance the original ``DNDarray``!
 
     Notes
-    -----------
+    -----
     This tiling scheme is intended for use with the :func:`~heat.core.linalg.qr.qr` function.
     """
 
@@ -469,7 +516,6 @@ class SquareDiagTiles:
         # if arr.split == 1:  # adjust the 0th dim to be the cumsum
         row_inds = [0] + row_inds[:-1]
         row_inds = torch.tensor(row_inds, device=arr.larray.device).cumsum(dim=0)
-
         for num, c in enumerate(col_inds):  # set columns
             tile_map[:, num, 1] = c
         for num, r in enumerate(row_inds):  # set rows
@@ -972,7 +1018,9 @@ class SquareDiagTiles:
         >>> a = ht.zeros((11, 10), split=0)
         >>> a_tiles = tiling.SquareDiagTiles(a, tiles_per_proc=2)  # type: tiling.SquareDiagTiles
         >>> local = a_tiles.local_get(key=slice(None))
-        >>> a_tiles.local_set(key=slice(None), value=torch.arange(local.numel()).reshape(local.shape))
+        >>> a_tiles.local_set(
+        ...     key=slice(None), value=torch.arange(local.numel()).reshape(local.shape)
+        ... )
         >>> print(a.larray)
         [0/1] tensor([[ 0.,  1.,  2.,  3.,  4.,  5.,  6.,  7.,  8.,  9.],
         [0/1]         [10., 11., 12., 13., 14., 15., 16., 17., 18., 19.],

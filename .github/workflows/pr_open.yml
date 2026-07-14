@@ -1,0 +1,26 @@
+name: On PR Open
+on:
+  pull_request:
+    types: [opened, reopened]
+permissions:
+  contents: read
+
+jobs:
+  update_release_drafter:
+    permissions:
+      contents: write  # for release-drafter/release-drafter to create a github release
+      pull-requests: write  # for release-drafter/release-drafter to add label to PR
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: audit
+
+      - uses: release-drafter/release-drafter@4d75298e00d9e34c483e5ff8c68d0ea1c1940c1e # v7.5.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          commitish: 'stable'
+          name: ${{ github.ref_name }} - Draft release
+          config-name: rd-release-config.yml

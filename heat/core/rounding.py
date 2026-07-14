@@ -45,14 +45,14 @@ def abs(
         precision.
 
     Raises
-    -------
+    ------
     TypeError
         If dtype is not a heat type.
     """
     if dtype is not None and not issubclass(dtype, dtype):
         raise TypeError("dtype must be a heat data type")
 
-    absolute_values = _operations.__local_op(torch.abs, x, out)
+    absolute_values = _operations.__local_op(torch.abs, x, out, no_cast=True)
     if dtype is not None:
         absolute_values.larray = absolute_values.larray.type(dtype.torch_type())
         absolute_values._DNDarray__dtype = dtype
@@ -60,9 +60,9 @@ def abs(
     return absolute_values
 
 
-DNDarray.abs: Callable[
-    [DNDarray, Optional[DNDarray], Optional[datatype]], DNDarray
-] = lambda self, out=None, dtype=None: abs(self, out, dtype)
+DNDarray.abs: Callable[[DNDarray, Optional[DNDarray], Optional[datatype]], DNDarray] = (
+    lambda self, out=None, dtype=None: abs(self, out, dtype)
+)
 DNDarray.abs.__doc__ = abs.__doc__
 
 
@@ -87,9 +87,9 @@ def absolute(
     return abs(x, out, dtype)
 
 
-DNDarray.absolute: Callable[
-    [DNDarray, Optional[DNDarray], Optional[datatype]], DNDarray
-] = lambda self, out=None, dtype=None: absolute(self, out, dtype)
+DNDarray.absolute: Callable[[DNDarray, Optional[DNDarray], Optional[datatype]], DNDarray] = (
+    lambda self, out=None, dtype=None: absolute(self, out, dtype)
+)
 DNDarray.absolute.__doc__ = absolute.__doc__
 
 
@@ -143,7 +143,7 @@ def clip(x: DNDarray, min, max, out: Optional[DNDarray] = None) -> DNDarray:
         the right shape to hold the output. Its type is preserved.
 
     Raises
-    -------
+    ------
     ValueError
         if either min or max is not set
     """
@@ -154,7 +154,13 @@ def clip(x: DNDarray, min, max, out: Optional[DNDarray] = None) -> DNDarray:
 
     if out is None:
         return dndarray.DNDarray(
-            x.larray.clamp(min, max), x.shape, x.dtype, x.split, x.device, x.comm, x.balanced
+            x.larray.clamp(min, max),
+            x.shape,
+            x.dtype,
+            x.split,
+            x.device,
+            x.comm,
+            x.balanced,
         )
 
     sanitation.sanitize_out(out, x.gshape, x.split, x.device)
@@ -181,7 +187,11 @@ def fabs(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
         If not provided or ``None``, a freshly-allocated array is returned.
 
     """
-    return abs(x, out, dtype=None)
+    if isinstance(x, DNDarray):
+        dtype = types.promote_types(x.dtype, types.float32)
+    else:
+        dtype = types.float32
+    return abs(x, out, dtype=dtype)
 
 
 DNDarray.fabs: Callable[[DNDarray, Optional[DNDarray]], DNDarray] = lambda self, out=None: fabs(
@@ -233,7 +243,7 @@ def modf(x: DNDarray, out: Optional[Tuple[DNDarray, DNDarray]] = None) -> Tuple[
         If not provided or ``None``, a freshly-allocated array is returned.
 
     Raises
-    -------
+    ------
     TypeError
         if ``x`` is not a :class:`~heat.core.dndarray.DNDarray`
     TypeError
@@ -301,7 +311,7 @@ def round(
         precision.
 
     Raises
-    -------
+    ------
     TypeError
         if dtype is not a heat data type
 
@@ -330,9 +340,9 @@ def round(
     return rounded_values
 
 
-DNDarray.round: Callable[
-    [DNDarray, int, Optional[DNDarray], Optional[datatype]], DNDarray
-] = lambda self, decimals=0, out=None, dtype=None: round(self, decimals, out, dtype)
+DNDarray.round: Callable[[DNDarray, int, Optional[DNDarray], Optional[datatype]], DNDarray] = (
+    lambda self, decimals=0, out=None, dtype=None: round(self, decimals, out, dtype)
+)
 DNDarray.round.__doc__ = round.__doc__
 
 
@@ -357,7 +367,7 @@ def sgn(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     >>> a = ht.array([-1, -0.5, 0, 0.5, 1])
     >>> ht.sign(a)
     DNDarray([-1., -1.,  0.,  1.,  1.], dtype=ht.float32, device=cpu:0, split=None)
-    >>> ht.sgn(ht.array([5-2j, 3+4j]))
+    >>> ht.sgn(ht.array([5 - 2j, 3 + 4j]))
     DNDarray([(0.9284766912460327-0.3713906705379486j),  (0.6000000238418579+0.800000011920929j)], dtype=ht.complex64, device=cpu:0, split=None)
     """
     return _operations.__local_op(torch.sgn, x, out)
@@ -384,7 +394,7 @@ def sign(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     >>> a = ht.array([-1, -0.5, 0, 0.5, 1])
     >>> ht.sign(a)
     DNDarray([-1., -1.,  0.,  1.,  1.], dtype=ht.float32, device=cpu:0, split=None)
-    >>> ht.sign(ht.array([5-2j, 3+4j]))
+    >>> ht.sign(ht.array([5 - 2j, 3 + 4j]))
     DNDarray([(1+0j), (1+0j)], dtype=ht.complex64, device=cpu:0, split=None)
     """
     # special case for complex values

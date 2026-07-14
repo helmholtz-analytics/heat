@@ -5,7 +5,7 @@ Case Studies
 
     .. container:: case-image
 
-        .. image:: ../images/fzj_logo.svg
+        .. image:: _static/images/fzj_logo.svg
 
     .. container:: case-text
 
@@ -17,7 +17,7 @@ Case Studies
 
     .. container:: case-image
 
-        .. image:: ../images/dlr_logo.svg
+        .. image:: _static/images/dlr_logo.svg
 
     .. container:: case-text
 
@@ -29,7 +29,7 @@ Case Studies
 
     .. container:: case-image
 
-        .. image:: ../images/kit_logo.svg
+        .. image:: _static/images/kit_logo.svg
 
     .. container:: case-text
 

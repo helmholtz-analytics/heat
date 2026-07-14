@@ -10,29 +10,29 @@ from perun import monitor
 @monitor()
 def apply_inplace_standard_scaler_and_inverse(X):
     scaler = ht.preprocessing.StandardScaler(copy=False)
-    Y = scaler.fit_transform(X)
-    X = scaler.inverse_transform(Y)
+    scaler.fit_transform(X)
+    scaler.inverse_transform(X)
 
 
 @monitor()
 def apply_inplace_min_max_scaler_and_inverse(X):
     scaler = ht.preprocessing.MinMaxScaler(copy=False)
-    Y = scaler.fit_transform(X)
-    X = scaler.inverse_transform(Y)
+    scaler.fit_transform(X)
+    scaler.inverse_transform(X)
 
 
 @monitor()
 def apply_inplace_max_abs_scaler_and_inverse(X):
     scaler = ht.preprocessing.MaxAbsScaler(copy=False)
-    Y = scaler.fit_transform(X)
-    X = scaler.inverse_transform(Y)
+    scaler.fit_transform(X)
+    scaler.inverse_transform(X)
 
 
 @monitor()
 def apply_inplace_robust_scaler_and_inverse(X):
     scaler = ht.preprocessing.RobustScaler(copy=False)
-    Y = scaler.fit_transform(X)
-    X = scaler.inverse_transform(Y)
+    X = scaler.fit_transform(X)
+    X = scaler.inverse_transform(X)
 
 
 @monitor()

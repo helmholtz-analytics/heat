@@ -12,10 +12,10 @@ mpirun --version
 
 # Install heat from source.
 git clone https://github.com/helmholtz-analytics/heat.git
-cd heat
+cd heat || exit
 pip install --upgrade pip
 pip install mpi4py --no-binary :all:
-pip install .[netcdf,hdf5,dev]
+pip install '.[netcdf,hdf5,dev]'
 
 # Run tests
 HEAT_TEST_USE_DEVICE=gpu mpirun -n 1 pytest heat/

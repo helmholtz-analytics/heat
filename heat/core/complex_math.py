@@ -1,5 +1,5 @@
 """
-This module handles operations focussing on complex numbers.
+Complex numbers module.
 """
 
 import torch
@@ -30,9 +30,9 @@ def angle(x: DNDarray, deg: bool = False, out: Optional[DNDarray] = None) -> DND
 
     Examples
     --------
-    >>> ht.angle(ht.array([1.0, 1.0j, 1+1j, -2+2j, 3 - 3j]))
+    >>> ht.angle(ht.array([1.0, 1.0j, 1 + 1j, -2 + 2j, 3 - 3j]))
     DNDarray([ 0.0000,  1.5708,  0.7854,  2.3562, -0.7854], dtype=ht.float32, device=cpu:0, split=None)
-    >>> ht.angle(ht.array([1.0, 1.0j, 1+1j, -2+2j, 3 - 3j]), deg=True)
+    >>> ht.angle(ht.array([1.0, 1.0j, 1 + 1j, -2 + 2j, 3 - 3j]), deg=True)
     DNDarray([  0.,  90.,  45., 135., -45.], dtype=ht.float32, device=cpu:0, split=None)
     """
     a = _operations.__local_op(torch.angle, x, out)
@@ -56,7 +56,7 @@ def conjugate(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
 
     Examples
     --------
-    >>> ht.conjugate(ht.array([1.0, 1.0j, 1+1j, -2+2j, 3 - 3j]))
+    >>> ht.conjugate(ht.array([1.0, 1.0j, 1 + 1j, -2 + 2j, 3 - 3j]))
     DNDarray([ (1-0j),     -1j,  (1-1j), (-2-2j),  (3+3j)], dtype=ht.complex64, device=cpu:0, split=None)
     """
     return _operations.__local_op(torch.conj, x, out)
@@ -81,7 +81,7 @@ def imag(x: DNDarray) -> DNDarray:
 
     Examples
     --------
-    >>> ht.imag(ht.array([1.0, 1.0j, 1+1j, -2+2j, 3 - 3j]))
+    >>> ht.imag(ht.array([1.0, 1.0j, 1 + 1j, -2 + 2j, 3 - 3j]))
     DNDarray([ 0.,  1.,  1.,  2., -3.], dtype=ht.float32, device=cpu:0, split=None)
     """
     if types.heat_type_is_complexfloating(x.dtype):
@@ -101,7 +101,7 @@ def real(x: DNDarray) -> DNDarray:
 
     Examples
     --------
-    >>> ht.real(ht.array([1.0, 1.0j, 1+1j, -2+2j, 3 - 3j]))
+    >>> ht.real(ht.array([1.0, 1.0j, 1 + 1j, -2 + 2j, 3 - 3j]))
     DNDarray([ 1.,  0.,  1., -2.,  3.], dtype=ht.float32, device=cpu:0, split=None)
     """
     if types.heat_type_is_complexfloating(x.dtype):

@@ -1,6 +1,7 @@
 """
 Module Implementing the Kmedoids Algorithm
 """
+
 import heat as ht
 from heat.cluster._kcluster import _KCluster
 from heat.core.dndarray import DNDarray
@@ -9,9 +10,9 @@ from typing import Optional, Union, TypeVar
 
 class KMedoids(_KCluster):
     """
-    This is not the original implementation of k-medoids using PAM as originally proposed by in [1].
-    This is kmedoids with the Manhattan distance as fixed metric, calculating the median of the assigned cluster points as new cluster center
+    Kmedoids with the Manhattan distance as fixed metric, calculating the median of the assigned cluster points as new cluster center
     and snapping the centroid to the the nearest datapoint afterwards.
+    This is not the original implementation of k-medoids using PAM as originally proposed by in [1].
 
     Parameters
     ----------
@@ -29,7 +30,7 @@ class KMedoids(_KCluster):
         Determines random number generation for centroid initialization.
 
     References
-    -----------
+    ----------
     [1] Kaufman, L. and Rousseeuw, P.J. (1987), Clustering by means of Medoids, in Statistical Data Analysis Based on the L1 Norm and Related Methods, edited by Y. Dodge, North-Holland, 405416.
 
     """
@@ -113,7 +114,7 @@ class KMedoids(_KCluster):
 
         return new_cluster_centers
 
-    def fit(self, x: DNDarray):
+    def fit(self, x: DNDarray, oversampling: float = 2, iter_multiplier: float = 1):
         """
         Computes the centroid of a k-medoids clustering.
 
@@ -121,15 +122,20 @@ class KMedoids(_KCluster):
         ----------
         x : DNDarray
             Training instances to cluster. Shape = (n_samples, n_features)
+        oversampling : float
+            oversampling factor used in the k-means|| initializiation of centroids
+
+        iter_multiplier : float
+            factor that increases the number of iterations used in the initialization of centroids
         """
         # input sanitation
         if not isinstance(x, DNDarray):
             raise ValueError(f"input needs to be a ht.DNDarray, but was {type(x)}")
 
         # initialize the clustering
-        self._initialize_cluster_centers(x)
+        self._initialize_cluster_centers(x, oversampling, iter_multiplier)
         self._n_iter = 0
-        matching_centroids = ht.zeros((x.shape[0]), split=x.split, device=x.device, comm=x.comm)
+
         # iteratively fit the points to the centroids
         for epoch in range(self.max_iter):
             # increment the iteration count

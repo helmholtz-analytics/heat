@@ -1,6 +1,7 @@
 """
 Basic linear algebra operations on distributed ``DNDarray``
 """
+
 import itertools
 import numpy as np
 import torch
@@ -23,14 +24,20 @@ from .. import sanitation
 from .. import statistics
 from .. import stride_tricks
 from .. import types
+from ..random import randn
+from .qr import qr
+from .solver import solve_triangular
 
 __all__ = [
+    "condest",
     "cross",
     "det",
     "dot",
     "inv",
     "matmul",
     "matrix_norm",
+    "matrix_exp",
+    "expm",
     "norm",
     "outer",
     "projection",
@@ -42,6 +49,116 @@ __all__ = [
     "vecdot",
     "vector_norm",
 ]
+
+
+def _estimate_largest_singularvalue(A: DNDarray, algorithm: str = "fro") -> DNDarray:
+    """
+    Computes an upper estimate for the largest singular value of the input 2D DNDarray.
+
+    Parameters
+    ----------
+    A : DNDarray
+        The matrix, i.e., a 2D DNDarray, for which the largest singular value should be estimated.
+    algorithm : str
+        The algorithm to use for the estimation. Currently, only "fro" (default) is implemented.
+        If "fro" is chosen, the Frobenius norm of the matrix is used as an upper estimate.
+    """
+    if not isinstance(algorithm, str):
+        raise TypeError(
+            f"Parameter 'algorithm' needs to be a string, but is {algorithm} with data type {type(algorithm)}."
+        )
+    if algorithm == "fro":
+        return matrix_norm(A, ord="fro").squeeze()
+    else:
+        raise NotImplementedError("So far only algorithm='fro' implemented.")
+
+
+def condest(
+    A: DNDarray, p: Union[int, str] = None, algorithm: str = "randomized", params: list = None
+) -> DNDarray:
+    """
+    Computes a (possibly randomized) upper estimate of the l2-condition number of the input 2D DNDarray.
+
+    Parameters
+    ----------
+    A : DNDarray
+        The matrix, i.e., a 2D DNDarray, for which the condition number shall be estimated.
+    p : int or str (optional)
+        The norm to use for the condition number computation. If None, the l2-norm (default, p=2) is used.
+        So far, only p=2 is implemented.
+    algorithm : str
+        The algorithm to use for the estimation. Currently, only "randomized" (default) is implemented.
+    params : dict (optional)
+        A list of parameters required for the chosen algorithm; if not provided, default values for the respective algorithm are chosen.
+        If `algorithm="randomized"` the number of random samples to use can be specified under the key "nsamples"; default is 10.
+
+    Notes
+    -----
+    The "randomized" algorithm follows the approach described in [1]; note that in the paper actually the condition number w.r.t. the Frobenius norm is estimated.
+    However, this yields an upper bound for the condition number w.r.t. the l2-norm as well.
+
+    References
+    ----------
+    [1] T. Gudmundsson, C. S. Kenney, and A. J. Laub. Small-Sample Statistical Estimates for Matrix Norms. SIAM Journal on Matrix Analysis and Applications 1995 16:3, 776-792.
+    """
+    if p is None:
+        p = 2
+    if p != 2:
+        raise ValueError(
+            f"Only the case p=2 (condition number w.r.t. the euclidean norm) is implemented so far, but input was p={p} (type: {type(p)})."
+        )
+    if not isinstance(algorithm, str):
+        raise TypeError(
+            f"Parameter 'algorithm' needs to be a string, but is {algorithm} with data type {type(algorithm)}."
+        )
+    if algorithm == "randomized":
+        if params is None:
+            nsamples = 10  # set default value
+        else:
+            if not isinstance(params, dict) or "nsamples" not in params:
+                raise TypeError(
+                    "If not None, 'params' needs to be a dictionary containing the number of samples under the key 'nsamples'."
+                )
+            if not isinstance(params["nsamples"], int) or params["nsamples"] <= 0:
+                raise ValueError(
+                    f"The number of samples needs to be a positive integer, but is {params['nsamples']} with data type {type(params['nsamples'])}."
+                )
+            nsamples = params["nsamples"]
+
+        m = A.shape[0]
+        n = A.shape[1]
+
+        if n > m:
+            # the algorithm only works for m >= n, but fortunately, the condition number (w.r.t. l2-norm) is invariant under transposition
+            return condest(A.T, p=p, algorithm=algorithm, params=params)
+
+        _, R = qr(A, mode="r")  # only R factor is computed in QR
+
+        # random samples from unit sphere
+        # regarding the split: if A.split == 1, then n is probably large and we should split along an axis of size n; otherwise, both n and nsamples should be small
+        Q, R_not_used = qr(
+            randn(
+                n,
+                nsamples,
+                dtype=A.dtype,
+                split=0 if A.split == 1 else None,
+                device=A.device,
+                comm=A.comm,
+            )
+        )
+        del R_not_used
+
+        est = (
+            matrix_norm(R @ Q)
+            * A.dtype((m / nsamples) ** 0.5, comm=A.comm)
+            * matrix_norm(solve_triangular(R, Q))
+        )
+
+        return est.squeeze()
+    else:
+        raise NotImplementedError(
+            "So far only algorithm='randomized' is implemented. Please open an issue on GitHub if you would like to suggest implementing another algorithm."
+        )
 
 
 def cross(
@@ -147,7 +264,7 @@ def cross(
     if a_2d and b_2d:
         z_slice = [slice(None, None, None)] * ret.ndim
         z_slice[axisc] = -1
-        ret = ret[z_slice]
+        ret = ret[tuple(z_slice)]
     else:
         output_shape = output_shape[:axis] + (3,) + output_shape[axis:]
 
@@ -173,7 +290,7 @@ def det(a: DNDarray) -> DNDarray:
 
     Examples
     --------
-    >>> a = ht.array([[-2,-1,2],[2,1,4],[-3,3,-1]])
+    >>> a = ht.array([[-2, -1, 2], [2, 1, 4], [-3, 3, -1]])
     >>> ht.linalg.det(a)
     DNDarray(54., dtype=ht.float64, device=cpu:0, split=None)
     """
@@ -327,7 +444,7 @@ def inv(a: DNDarray) -> DNDarray:
 
     Examples
     --------
-    >>> a = ht.array([[1., 2], [2, 3]])
+    >>> a = ht.array([[1.0, 2], [2, 3]])
     >>> ht.linalg.inv(a)
     DNDarray([[-3.,  2.],
               [ 2., -1.]], dtype=ht.float32, device=cpu:0, split=None)
@@ -346,7 +463,13 @@ def inv(a: DNDarray) -> DNDarray:
 
     # no split in the square matrices
     if not a.is_distributed() or a.split < a.ndim - 2:
-        data = torch.inverse(a.larray)
+        try:
+            data = torch.inverse(a.larray)
+        except RuntimeError as e:
+            raise RuntimeError(e)
+        # torch.linalg.inv does not raise RuntimeError on MPS when inversion fails
+        if data.is_mps and torch.any(data.isnan()):
+            raise RuntimeError("linalg.inv: inversion could not be performed")
         return DNDarray(
             data,
             a.shape,
@@ -422,23 +545,25 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
     """
     Matrix multiplication of two ``DNDarrays``: ``a@b=c`` or ``A@B=c``.
     Returns a tensor with the result of ``a@b``. The split dimension of the returned array is
-    typically the split dimension of a. However, if ``a.split=None`` then the the ``c.split`` will be
-    set as the split dimension of ``b``. If both are ``None`` then ``c.split`` is also ``None``.
+    typically the split dimension of a. If both are ``None`` and if ``allow_resplit=False`` then ``c.split`` is also ``None``.
+
+    Batched inputs (with batch dimensions being leading dimensions) are allowed; see also the Notes below.
 
     Parameters
     ----------
     a : DNDarray
-        2 dimensional: :math:`L \\times P`
+        matrix :math:`L \\times P` or vector :math:`P` or batch of matrices: :math:`B_1 \\times ... \\times B_k \\times L \\times P`
     b : DNDarray
-        2 dimensional: :math:`P \\times Q`
+        matrix :math:`P \\times Q` or vector :math:`P` or batch of matrices: :math:`B_1 \\times ... \\times B_k \\times P \\times Q`
     allow_resplit : bool, optional
         Whether to distribute ``a`` in the case that both ``a.split is None`` and ``b.split is None``.
         Default is ``False``. If ``True``, if both are not split then ``a`` will be distributed in-place along axis 0.
 
     Notes
     -----
-    - If ``a`` is a split vector then the returned vector will be of shape (:math:`1xQ`) and will be split in the 1st dimension
-    - If ``b`` is a vector and either ``a`` or ``b`` is split, then the returned vector will be of shape (:math:`Lx1`) and will be split in the 0th dimension
+    - For batched inputs, batch dimensions must coincide and if one matrix is split along a batch axis the other must be split along the same axis.
+    - If ``a`` or ``b`` is a vector the result will also be a vector.
+    - We recommend to avoid the particular split combinations ``1``-``0``, ``None``-``0``, and ``1``-``None`` (for ``a.split``-``b.split``) due to their comparably high memory consumption, if possible. Applying ``DNDarray.resplit_`` or ``heat.resplit`` on one of the two factors before calling ``matmul`` in these situations might improve performance of your code / might avoid memory bottlenecks.
 
     References
     ----------
@@ -449,8 +574,8 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
     Accelerators," 2018 IEEE International Parallel and Distributed Processing Symposium
     Workshops (IPDPSW), Vancouver, BC, 2018, pp. 877-882.
 
-    Example
-    -------
+    Examples
+    --------
     >>> a = ht.ones((n, m), split=1)
     >>> a[0] = ht.arange(1, m + 1)
     >>> a[:, -1] = ht.arange(1, n + 1).larray
@@ -472,7 +597,6 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
     [1/1] tensor([[3., 1., 1., 1., 1., 1., 1.],
                   [4., 1., 1., 1., 1., 1., 1.]])
     >>> linalg.matmul(a, b).larray
-
     [0/1] tensor([[18.,  8.,  9., 10.],
                   [14.,  6.,  7.,  8.],
                   [18.,  7.,  8.,  9.],
@@ -487,15 +611,60 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
     sanitation.sanitize_in(a)
     sanitation.sanitize_in(b)
 
-    if a.gshape[-1] != b.gshape[0]:
-        raise ValueError(
-            f"If the last dimension of a ({a.gshape[-1]}) is not the same size as the second-to-last dimension of b. ({b.gshape[-2]})"
-        )
+    batch_dim = max(a.ndim, b.ndim) - 2  # -1 for vector vector multiplication
+    batched = batch_dim > 0
+
+    if batched and a.gshape[:batch_dim] != b.gshape[:batch_dim]:
+        raise ValueError("Batch dimensions must have the same shape!")
+
+    batch_shape = a.gshape[:batch_dim]
+
+    # if they are vectors they need to be expanded to be the proper dimensions
+    vector_flag_a = vector_flag_b = False
+    # if a.ndim >= 2 or b.ndim >= 2: # other case gets early out
+    if a.ndim == b.ndim - 1:
+        vector_flag_a = True
+    elif b.ndim == a.ndim - 1:
+        vector_flag_b = True
+    vector_flag = vector_flag_a or vector_flag_b  # run squeeze at the end
+
+    if not vector_flag and a.ndim != b.ndim:
+        raise ValueError("Number of batch dimensions must be the same!")
+
+    if batch_dim >= 0:  # not vector vector mult
+        na = a.gshape[-1]
+        mb = b.gshape[-2] if not vector_flag_b else b.gshape[-1]
+        if na != mb:
+            raise ValueError(
+                f"The last dimension of a ({a.gshape[-1]}) is not the same size as the second-to-last dimension of b. ({b.gshape[-2]})"
+            )
+
+    if batched:
+        # check for valid batched split of a and b
+        # if one is split along a batch axis, both matrices must be split along that axis
+        if (
+            a.split is not None
+            and a.split < batch_dim
+            or b.split is not None
+            and b.split < batch_dim
+        ) and a.split != b.split:  # not the same batch axis for split
+            raise NotImplementedError(
+                "Both input matrices have to be split along the same batch axis!"
+            )
+        if vector_flag:  # batched matrix vector multiplication not supported
+            raise NotImplementedError(
+                "Batched matrix-vector multiplication is not supported, try using expand_dims to make it a batched matrix-matrix multiplication."
+            )
+
+    comm = a.comm
+    ndim = max(a.ndim, b.ndim)
+    dev = a.device
+    tdev = dev.torch_device
 
     # determine if a larger type is needed for c
     c_type = types.promote_types(a.dtype, b.dtype)
     gpu_int_flag = False
-    if str(a.device)[:3] == "gpu":
+    if str(dev)[:3] == "gpu":
         og_type = c_type
         if c_type in [types.uint8, types.int8, types.int16, types.int32]:
             c_type = types.float32
@@ -505,596 +674,236 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
             gpu_int_flag = True
 
     if a.dtype != c_type:
-        a = c_type(a, device=a.device)
+        a = c_type(a, device=dev)
     if b.dtype != c_type:
-        b = c_type(b, device=b.device)
+        b = c_type(b, device=dev)
 
-    # early out for single-process setup, torch matmul
+    c = None
+
+    # early out with torch matmul if input is not distributed
     if a.comm.size == 1:
-        ret = factories.array(torch.matmul(a.larray, b.larray), device=a.device)
-        if gpu_int_flag:
-            ret = og_type(ret, device=a.device)
-        return ret
+        c = factories.array(torch.matmul(a.larray, b.larray), dtype=c_type, device=dev)
 
-    if a.split is None and b.split is None:  # matmul from torch
-        if len(a.gshape) < 2 or len(b.gshape) < 2 or not allow_resplit:
-            # if either of A or B is a vector
-            ret = factories.array(torch.matmul(a.larray, b.larray), device=a.device, comm=a.comm)
-            if gpu_int_flag:
-                ret = og_type(ret, device=a.device)
-            return ret
-
-        a.resplit_(0)
-        slice_0 = a.comm.chunk(a.shape, a.split)[2][0]
-        hold = a.larray @ b.larray
-
-        c = factories.zeros((a.gshape[-2], b.gshape[1]), dtype=c_type, device=a.device, comm=a.comm)
-        c.larray[slice_0.start : slice_0.stop, :] += hold
-        c.comm.Allreduce(MPI.IN_PLACE, c, MPI.SUM)
-        if gpu_int_flag:
-            c = og_type(c, device=a.device)
-        return c
-
-    # if they are vectors they need to be expanded to be the proper dimensions
-    vector_flag = False  # flag to run squeeze at the end of the function
-    if len(a.gshape) < 2 and len(b.gshape) < 2:
+    # early out for vector vector multiplication
+    elif a.ndim == 1 and b.ndim == 1:
         # make both split 0, do a local mm then a sum
         a.resplit_(0)
         b.resplit_(0)
         res = a.larray @ b.larray
         a.comm.Allreduce(MPI.IN_PLACE, res, MPI.SUM)
-        ret = factories.array(res, split=None, device=a.device, comm=a.comm)
+        c = factories.array(res, split=None, device=dev, comm=comm)
+
+    elif a.split is None and b.split is None:
+        if allow_resplit and not vector_flag:  # resplit a to 0
+            a.resplit_(ndim - 2)
+            slice_0 = a.comm.chunk(a.shape, a.split)[2][0]
+            hold = a.larray @ b.larray
+
+            c = factories.zeros(
+                (*batch_shape, a.gshape[-2], b.gshape[-1]), dtype=c_type, device=dev, comm=comm
+            )
+            c.larray[..., slice_0.start : slice_0.stop, :] += hold
+            c.comm.Allreduce(MPI.IN_PLACE, c, MPI.SUM)
+        else:  # torch matmul
+            c = factories.array(
+                torch.matmul(a.larray, b.larray),
+                dtype=c_type,
+                device=dev,
+                comm=comm,
+            )
+    elif a.split is not None and a.split < batch_dim:  # split in batch dimension
+        c = factories.array(
+            torch.matmul(a.larray, b.larray),
+            is_split=a.split,
+            dtype=c_type,
+            device=dev,
+            comm=comm,
+        )
+
+    if c is not None:  # early out
         if gpu_int_flag:
-            ret = og_type(ret, device=a.device)
-        return ret
-    elif len(a.gshape) < 2:
-        a = manipulations.expand_dims(a, axis=0)
-        vector_flag = True
-    elif len(b.gshape) < 2:
-        b = manipulations.expand_dims(b, axis=1)
-        vector_flag = True
+            c = og_type(c, device=dev)
 
-    split_0_flag = False
-    split_1_flag = False
-    split_01_flag = False
-    split_10_flag = False
+        return c
 
-    tdev = a.device.torch_device
+    # vector expansions
+    if vector_flag_a:
+        a = manipulations.expand_dims(a, axis=batch_dim)
+    if vector_flag_b:
+        b = manipulations.expand_dims(b, axis=batch_dim + 1)
 
-    if (
-        (a.split == 0 and b.split is None) or (a.split is None and b.split == 1)
-    ) and not vector_flag:
-        split = a.split if a.split is not None else b.split
-        split = split if not vector_flag else 0
-        c = factories.zeros(
-            (a.gshape[-2], b.gshape[1]), split=split, dtype=c_type, device=a.device, comm=a.comm
-        )
-        c.larray += a.larray @ b.larray
+    c_shape = (*batch_shape, a.gshape[-2], b.gshape[-1])
 
-        ret = c if not vector_flag else c.squeeze()
-        if gpu_int_flag:
-            ret = og_type(ret, device=a.device)
-        return ret
+    # one split None => other one is non-batch dimension
+    if a.split is None or b.split is None:
+        split = None
+        is_split = False
 
-    elif a.split == 1 and b.split is None:
-        c = torch.zeros((a.gshape[-2], b.gshape[1]), dtype=c_type.torch_type(), device=tdev)
+        if (a.split == ndim - 2 and b.split is None) or (
+            a.split is None and b.split == ndim - 1
+        ):  # 0-None, None-1
+            split = a.split if a.split is not None else b.split
+            is_split = True
 
-        a_idx = a.comm.chunk(a.shape, a.split)[2]
-        c += a.larray @ b.larray[a_idx[1].start : a_idx[1].start + a.lshape[-1], :]
-        a.comm.Allreduce(MPI.IN_PLACE, c, MPI.SUM)
-        c = c if not vector_flag else c.squeeze()
-        ret = factories.array(
-            c, split=a.split if b.gshape[1] > 1 else 0, device=a.device, comm=a.comm
-        )
-        if gpu_int_flag:
-            ret = og_type(ret, device=a.device)
-        return ret
+            c = a.larray @ b.larray
 
-    elif a.split is None and b.split == 0:
-        c = torch.zeros((a.gshape[-2], b.gshape[1]), dtype=c_type.torch_type(), device=tdev)
-        b_idx = b.comm.chunk(b.shape, b.split)[2]
-        c += a.larray[:, b_idx[0].start : b_idx[0].start + b.lshape[0]] @ b.larray
-        b.comm.Allreduce(MPI.IN_PLACE, c, MPI.SUM)
-        c = c if not vector_flag else c.squeeze()
-        ret = factories.array(
-            c, split=b.split if a.gshape[-2] > 1 else 0, device=a.device, comm=a.comm
-        )
-        if gpu_int_flag:
-            ret = og_type(ret, device=a.device)
-        return ret
+        elif a.split == ndim - 1 and b.split is None:  # 1-None
+            split = a.split
 
-    elif (
-        a.split == 0 and b.split is None
-    ):  # this case and the one below will only be reaching if one of them is a vector
-        c = torch.zeros((a.gshape[-2], b.lshape[1]), dtype=c_type.torch_type(), device=tdev)
-        a_idx = a.comm.chunk(a.shape, a.split)[2]
-        c[a_idx[0]] += a.larray @ b.larray
-        a.comm.Allreduce(MPI.IN_PLACE, c, MPI.SUM)
-        c = c if not vector_flag else c.squeeze()
-        split = a.split if b.gshape[1] > 1 else 0
-        split = split if not vector_flag else 0
-        ret = factories.array(c, split=split, device=a.device, comm=a.comm)
-        if gpu_int_flag:
-            ret = og_type(ret, device=a.device)
-        return ret
+            c = torch.zeros(c_shape, dtype=c_type.torch_type(), device=tdev)
 
-    elif a.split is None and b.split == 1:
-        c = torch.zeros((a.gshape[-2], b.lshape[1]), dtype=c_type.torch_type(), device=tdev)
-        c += a.larray @ b.larray
-        c = c if not vector_flag else c.squeeze()
-        split = b.split if a.gshape[1] > 1 else 0
-        split = split if not vector_flag else 0
-        ret = factories.array(c, is_split=split, device=a.device, comm=a.comm)
-        if gpu_int_flag:
-            ret = og_type(ret, device=a.device)
-        return ret
+            a_idx = comm.chunk(a.shape, a.split)[2]
+            c += (
+                a.larray
+                @ b.larray[
+                    ..., a_idx[ndim - 1].start : a_idx[ndim - 1].start + a.lshape[ndim - 1], :
+                ]
+            )
+            comm.Allreduce(MPI.IN_PLACE, c, MPI.SUM)
 
-    elif a.split == 0 and b.split == 0:
-        split_0_flag = True
-    elif a.split == 1 and b.split == 1:
-        split_1_flag = True
-    elif a.split == 0 and b.split == 1:
-        split_01_flag = True
-    elif a.split == 1 and b.split == 0:
-        split_10_flag = True
-    else:
-        raise NotImplementedError("splits > 1 not implemented")
+        elif a.split is None and b.split == ndim - 2:  # None-0
+            split = b.split
 
-    # block sizes dont need to be the same. thy just need the same inner dimension (kB)
-    kB = 0
-    rem_a, rem_b = [0] * 2
-    if a.split == len(a.gshape) - 1 and b.split == len(a.gshape) - 2:
-        # if the split direction is the last dim in a and the first dim in b
-        # the max inner dim (kB) is the min value from the result of the integer division
-        # of the last dim of a/world size and the first dim of b/world size
-        kB = min([a.gshape[-1] // a.comm.size, b.gshape[0] // b.comm.size])
-    elif a.split == len(a.gshape) - 2 and b.split == len(a.gshape) - 1:
-        kB = a.gshape[-1]
-    elif a.split == len(a.gshape) - 1:
-        kB = a.gshape[-1] // a.comm.size
-    elif b.split == len(a.gshape) - 2:
-        kB = b.gshape[0] // b.comm.size
-        kB = min(kB, a.gshape[-1])
+            c = torch.zeros(c_shape, dtype=c_type.torch_type(), device=tdev)
+            b_idx = b.comm.chunk(b.shape, b.split)[2]
+            c += (
+                a.larray[..., b_idx[ndim - 2].start : b_idx[ndim - 2].start + b.lshape[ndim - 2]]
+                @ b.larray
+            )
+            b.comm.Allreduce(MPI.IN_PLACE, c, MPI.SUM)
 
-    if a.lshape[-1] % kB != 0 or (kB == 1 and a.lshape[-1] != 1):
-        rem_a = 1
-    if b.lshape[0] % kB != 0 or (kB == 1 and b.lshape[-2] != 1):
-        rem_b = 1
-
-    # get the lshape map to determine what needs to be sent where as well as M and N
-    # lshape map dims -> {node, a=0, b=1, lshape}
-    lshape_map = torch.zeros((a.comm.size, 2, len(a.gshape)), dtype=int, device=tdev)
-    lshape_map[a.comm.rank, 0, :] = torch.tensor(a.lshape, device=tdev)
-    lshape_map[b.comm.rank, 1, :] = torch.tensor(b.lshape, device=tdev)
-    a.comm.Allreduce(MPI.IN_PLACE, lshape_map, MPI.SUM)
-
-    # find mB (first blocking dim for a) and nB (2nd blocking dim for b)
-    mB = lshape_map[:, 0, -2].min().item()
-    nB = lshape_map[:, 1, -1].min().item()
-
-    # check for remaining dims in the outside dimensions
-    rem_a_out, rem_b_out = 0, 0
-    if a.lshape[-2] % mB != 0 or (kB == 1 and a.lshape[-2] != 1):
-        rem_a_out = 1
-    if b.lshape[-1] % nB != 0 or (kB == 1 and b.lshape[-1] != 1):
-        rem_b_out = 1
-
-    # get the flags from all processes
-    # rem_map dims guide -> {process number, a/b (0/1), True/False (1/0)
-    #   if there is a remainder in this dimension
-    rem_map = torch.zeros((a.comm.size, 2, 2))
-    rem_map[a.comm.rank, 0, :] = torch.tensor((rem_a_out, rem_a), device=tdev)
-    rem_map[a.comm.rank, 1, :] = torch.tensor((rem_b, rem_b_out), device=tdev)
-    rem_map_comm = a.comm.Iallreduce(MPI.IN_PLACE, rem_map, MPI.SUM)
-
-    # index_map dims guide -> {process number, a=0/b=1, relevent 1st index, 2nd index}
-    index_map = torch.zeros((a.comm.size, 2, 2, 2), dtype=int, device=tdev)
-    a_idx = a.comm.chunk(a.shape, a.split)[2]
-    index_map[a.comm.rank, 0, 0] = torch.tensor((a_idx[0].start, a_idx[0].stop), device=tdev)
-    index_map[a.comm.rank, 0, 1] = torch.tensor((a_idx[1].start, a_idx[1].stop), device=tdev)
-    b_idx = b.comm.chunk(b.shape, b.split)[2]
-    index_map[b.comm.rank, 1, 0] = torch.tensor((b_idx[0].start, b_idx[0].stop), device=tdev)
-    index_map[b.comm.rank, 1, 1] = torch.tensor((b_idx[1].start, b_idx[1].stop), device=tdev)
-
-    index_map_comm = a.comm.Iallreduce(MPI.IN_PLACE, index_map, MPI.SUM)
-
-    # for the communication scheme, the output array needs to be created
-    c_shape = (a.gshape[-2], b.gshape[1])
-    c = factories.zeros(c_shape, split=a.split, dtype=c_type, device=a.device, comm=a.comm)
-
-    # get the index map for c
-    c_index_map = factories.zeros((c.comm.size, 2, 2), device=a.device, comm=a.comm)
-    c_idx = c.comm.chunk(c.shape, c.split)[2]
-    c_index_map[c.comm.rank, 0, :] = (c_idx[0].start, c_idx[0].stop)
-    c_index_map[c.comm.rank, 1, :] = (c_idx[1].start, c_idx[1].stop)
-    c_wait = c.comm.Iallreduce(MPI.IN_PLACE, c_index_map, MPI.SUM)
-
-    if a.split == 0:
-        a_block_map = torch.zeros(
-            (a.comm.size, a.shape[-2] // mB // a.comm.size, a.shape[-1] // kB, 2),
-            dtype=torch.int,
-            device=tdev,
-        )
-    elif a.split == 1:
-        a_block_map = torch.zeros(
-            (a.comm.size, a.shape[-2] // mB, a.shape[-1] // kB // a.comm.size, 2),
-            dtype=torch.int,
-            device=tdev,
-        )
-    # units-> [process, dim0 block number, dim1 block number, start coord] **indices are local
-
-    # below is to handle the edge case where there is only one element in one dimension of a
-    a_d0_1s_flag, a_d1_1s_flag = False, False
-    if any(lshape_map[:, 0, :][:, 0] == 1):
-        a_d0_1s_flag = True
-    if any(lshape_map[:, 0, :][:, 1] == 1):
-        a_d1_1s_flag = True
-
-    index_map_comm.Wait()
-    for pr in range(a.comm.size):
-        start0 = index_map[pr, 0, 0, 0].item()
-        stop0 = index_map[pr, 0, 0, 1].item()
-        start1 = index_map[pr, 0, 1, 0].item()
-        stop1 = index_map[pr, 0, 1, 1].item()
-
-        for dim0 in range(
-            (stop0 - start0) // mB // a.comm.size if a_d0_1s_flag else (stop0 - start0) // mB
-        ):
-            # loop over the number of blocks in the 0th dimension
-            for dim1 in range(
-                (stop1 - start1) // kB // a.comm.size if a_d1_1s_flag else (stop1 - start1) // kB
-            ):
-                # loop over the number of blocks in the 1st dimension
-                a_block_map[pr, dim0, dim1] = torch.tensor(
-                    (dim0 * mB, dim1 * kB), dtype=torch.int, device=tdev
-                )
-    rem_map_comm.Wait()
-    if b.split == 0:
-        # the blocks are shifted in the 2nd dimension of A for as many remainders
-        # there are between the blocks in the first dim of B
-        cnt = 0
-        for r in rem_map[:, 1, 0]:
-            if r.item():
-                cnt += 1
-                a_block_map[:, :, cnt:, 1] += 1
-
-    if b.split == 0:
-        b_block_map = torch.zeros(
-            (b.comm.size, b.shape[-2] // kB // b.comm.size, b.shape[-1] // nB, 2),
-            dtype=torch.int,
-            device=tdev,
-        )
-    elif b.split == 1:
-        b_block_map = torch.zeros(
-            (b.comm.size, b.shape[-2] // kB, b.shape[-1] // nB // b.comm.size, 2),
-            dtype=torch.int,
-            device=tdev,
-        )
-    # units-> [process, dim0 block number, dim1 block number, start coord] **indices are local
-
-    # below is to handle the edge case where there is only one element in one dimension of b
-    b_d0_1s_flag, b_d1_1s_flag = False, False
-    if any(lshape_map[:, 1, :][:, 0] == 1):
-        b_d0_1s_flag = True
-    if any(lshape_map[:, 1, :][:, 1] == 1):
-        b_d1_1s_flag = True
-
-    for pr in range(b.comm.size):
-        start0 = index_map[pr, 1, 0, 0].item()
-        stop0 = index_map[pr, 1, 0, 1].item()
-        start1 = index_map[pr, 1, 1, 0].item()
-        stop1 = index_map[pr, 1, 1, 1].item()
-
-        # loop over the number of blocks in the 0th dimension
-        for dim0 in range(
-            (stop0 - start0) // kB // b.comm.size if b_d0_1s_flag else (stop0 - start0) // kB
-        ):
-            # loop over the number of blocks in the 1st dimension
-            for dim1 in range(
-                (stop1 - start1) // nB // b.comm.size if b_d1_1s_flag else (stop1 - start1) // nB
-            ):
-                b_block_map[pr, dim0, dim1] = torch.tensor(
-                    (dim0 * kB, dim1 * nB), dtype=torch.int, device=tdev
-                )
-
-    if a.split == 1:
-        cnt = 0
-        # this loop will push the blocks in B to adjust for the remainders in A
-        for r in rem_map[:, 0, 1]:
-            if r.item():
-                cnt += 1
-                b_block_map[:, cnt:, :, 0] += 1
-
-    # work loop: loop over all processes (also will incorporate the remainder calculations)
-    c_wait.Wait()
-
-    if split_0_flag:
-        # need to send b here and not a
-        #   the rows on 'a' are complete, and the columns of 'b' are split
-        # locations of the remainders in b
-        b_rem_locs0 = torch.nonzero(rem_map[:, 1, 0] == 1, as_tuple=False)
-        a_rem_locs0 = torch.nonzero(rem_map[:, 0, 0] == 1, as_tuple=False)
-        # remainders for a in the
-        a_node_rem_s0 = a.larray[:mB, kB : (kB + 1) * b_rem_locs0.numel() : kB + 1]
-        b_rem = torch.empty(
-            b_rem_locs0.numel(), b.lshape[-1], dtype=a.dtype.torch_type(), device=tdev
-        )
-
-        # this if/elif/else loop is for the handling of
-        if a.comm.rank in a_rem_locs0:
-            # if A is split in dim0 and the rank has a remainder in this direction
-            r = a.larray[-1]
-            r_loc = index_map[a.comm.rank, 0, 0, 1] - index_map[a.comm.rank, 0, 0, 0] - 1
-        else:
-            r = None
-            r_loc = None
-
-        req = {}
-        b_lp_data = {}
-        for pr in range(b.comm.size):
-            # ibcast data on node first
-            if b.comm.rank == pr:
-                b_lp_data[pr] = b.larray.clone()
+        # early out
+        if vector_flag:  # squeeze only in the non-batch dimensions
+            # it could be sensible to resplit/rebalance in case a single node gets the whole vector
+            if split is not None and split > batch_dim:  # split in dimension that gets squeezed
+                split = batch_dim
+            if c.numel() == 0:  # empty tensor cannot be squeezed
+                c = torch.zeros((*batch_shape, 0), dtype=c_type.torch_type(), device=tdev)
             else:
-                b_lp_data[pr] = torch.zeros(
-                    (lshape_map[pr, 1, 0].item(), lshape_map[pr, 1, 1].item()),
-                    dtype=b.dtype.torch_type(),
-                    device=tdev,
-                )
+                c = c.squeeze(batch_dim)
+                if c.ndim >= batch_dim + 2:
+                    c = c.squeeze(batch_dim + 1)
 
-            # sending a to all nodes for b to operate with
-            req[pr] = b.comm.Ibcast(b_lp_data[pr], root=pr)
+        c = factories.array(
+            c,
+            split=split if not is_split else None,
+            is_split=split if is_split else None,
+            dtype=c_type,
+            device=dev,
+            comm=comm,
+        )
 
-            # receive the data from the last loop and do the calculation with that
-            if pr != 0:
-                req[pr - 1].Wait()
-                # after receiving the last loop's bcast
-                __mm_c_block_setter(
-                    b_proc=pr - 1,
-                    a_proc=a.comm.rank,
-                    a_data=a.larray,
-                    b_data=b_lp_data[pr - 1],
-                    b_block_map=b_block_map,
-                    a_block_map=a_block_map,
-                    b_split=b.split,
-                    a_split=a.split,
-                    mB=mB,
-                    kB=kB,
-                    nB=nB,
-                    c=c.larray,
-                )
+        if gpu_int_flag:
+            c = og_type(c, device=dev)
 
-                # check if there is a remainder on b in the previous node
-                # this loop is intended to get the remainders of b since it is the one being passed
-                if pr - 1 in b_rem_locs0:
-                    # takes care of the remainders in b as well as dim0 of a
-                    b_rem[pr - 1] = b_lp_data[pr - 1][-1]
+        return c
 
-                # this loop is to take care of the remainders in dim0 of A
-                if a_rem_locs0.nelement() != 0 and r_loc is not None:
-                    st = index_map[pr - 1, 1, 0, 0].item()
-                    sp = index_map[pr - 1, 1, 0, 1].item()
-                    c.larray[r_loc.item(), :] += r[st:sp] @ b_lp_data[pr - 1]
-                del b_lp_data[pr - 1]
+    else:  # both matrices are split in non-batch dims
+        # split dims 10 - This is the worst possible case and requires a resplit
+        if a.split == ndim - 1 and b.split == ndim - 2:
+            _b = b.copy()
+            _b.resplit_(a.split)
+            b = _b
 
-            # need to wait if its the last loop, also need to collect the remainders
-            if pr == b.comm.size - 1:
-                req[pr].Wait()
-                __mm_c_block_setter(
-                    b_proc=pr,
-                    a_proc=a.comm.rank,
-                    a_data=a.larray,
-                    b_data=b_lp_data[pr],
-                    b_block_map=b_block_map,
-                    a_block_map=a_block_map,
-                    b_split=b.split,
-                    a_split=a.split,
-                    mB=mB,
-                    kB=kB,
-                    nB=nB,
-                    c=c.larray,
-                )
-                # check if there is a remainder on b on the last node (there shouldnt be)
-                if pr in b_rem_locs0:
-                    # this is to save the data from B required by the remainders from dim1 of A
-                    b_rem[pr] = b_lp_data[pr][-1]
+        # get the lshape map to determine what needs to be sent where as well as M and N
+        # lshape map dims -> {node, a=0 | b=1, lshape}
+        lshape_map = np.zeros((comm.size, 2, ndim), dtype=int)
+        lshape_map[comm.rank, 0, :] = a.lshape
+        lshape_map[comm.rank, 1, :] = b.lshape
+        lshape_map_req = comm.Iallreduce(MPI.IN_PLACE, lshape_map, MPI.SUM)
 
-                # this loop is to take care of the remainders in the 0th dimension of A
-                if a_rem_locs0.nelement() != 0 and r_loc is not None:
-                    st = index_map[pr, 1, 0, 0].item()
-                    sp = index_map[pr, 1, 0, 1].item()
+        # index_map dims guide -> {process number, a=0/b=1, relevant 1st index, 2nd index}
+        index_map = np.zeros((comm.size, 2, 2, 2), dtype=int)
+        a_idx = comm.chunk(a.shape, a.split)[2]
+        index_map[comm.rank, 0, 0] = (a_idx[-2].start, a_idx[-2].stop + 1)
+        index_map[comm.rank, 0, 1] = (a_idx[-1].start, a_idx[-1].stop)
+        b_idx = comm.chunk(b.shape, b.split)[2]
+        index_map[comm.rank, 1, 0] = (b_idx[-2].start, b_idx[-2].stop)
+        index_map[comm.rank, 1, 1] = (b_idx[-1].start, b_idx[-1].stop)
+        index_map_req = comm.Iallreduce(MPI.IN_PLACE, index_map, MPI.SUM)
 
-                    if split_01_flag:
-                        st1 = index_map[pr, 1, 1, 0].item()
-                        sp1 = index_map[pr, 1, 1, 1].item()
-                        c.larray[r_loc.item(), st1:sp1] += r[st:sp] @ b_lp_data[pr]
+        # allocate output: c = a @ b
+        c_shape = (*batch_shape, a.gshape[-2], b.gshape[-1])
+        c = factories.zeros(c_shape, split=a.split, dtype=c_type, device=dev, comm=comm)
+
+        lshape_map_req.Wait()
+        index_map_req.Wait()
+
+        # split dims 00 and 01
+        if (a.split == ndim - 2 and b.split == ndim - 2) or (
+            a.split == ndim - 2 and b.split == ndim - 1
+        ):
+            pre_fetching = 1
+            reqs, b_chunks = {}, {}
+            for proc in range(comm.size + pre_fetching):
+                # broadcast chunks of b
+                if proc < comm.size:
+                    if comm.rank == proc:
+                        b_chunks[proc] = b.larray.clone()
                     else:
-                        c.larray[r_loc.item(), :] += r[st:sp] @ b_lp_data[pr]
+                        b_chunks[proc] = torch.empty(
+                            (*batch_shape, lshape_map[proc, 1, -2], lshape_map[proc, 1, -1]),
+                            dtype=b.dtype.torch_type(),
+                            device=tdev,
+                        )
+                    reqs[proc] = comm.Ibcast(b_chunks[proc], root=proc)
 
-                # set the final blocks on the last loop, then adjust for the
-                # the remainders which were collected in b_rem
-                if b_rem_locs0.numel():
-                    c.larray[: a_node_rem_s0.shape[0]] += a_node_rem_s0 @ b_rem
-                del b_lp_data[pr]
+                # do local matrix multiplications with the chunk of b
+                if proc >= pre_fetching:
+                    _proc = proc - pre_fetching
+                    reqs[_proc].Wait()
+                    if a.split == ndim - 2 and b.split == ndim - 2:  # split 00
+                        b_start, b_stop = index_map[_proc, 1, 0]
+                        c.larray += a.larray[..., b_start:b_stop] @ b_chunks[_proc]
+                    else:  # split 01
+                        st0, sp0 = index_map[_proc, 0, 0]
+                        st1, sp1 = index_map[_proc, 1, 1]
+                        c.larray[..., : sp0 - st0, st1:sp1] += a.larray @ b_chunks[_proc]
+                    del b_chunks[_proc]
 
-        if vector_flag:
-            c_loc = c.larray.squeeze()
-            if c_loc.nelement() == 1:
-                c_loc = torch.tensor(c_loc, device=tdev)
+        # split dims 11
+        elif a.split == ndim - 1 and b.split == ndim - 1:
+            pre_fetching = 1
+            reqs, a_chunks = {}, {}
+            for proc in range(comm.size + pre_fetching):
+                # broadcast chunks of a
+                if proc < comm.size:
+                    if comm.rank == proc:
+                        a_chunks[proc] = a.larray.clone()
+                    else:
+                        a_chunks[proc] = torch.empty(
+                            (*batch_shape, lshape_map[proc, 0, -2], lshape_map[proc, 0, -1]),
+                            dtype=a.dtype.torch_type(),
+                            device=tdev,
+                        )
+                    reqs[proc] = comm.Ibcast(a_chunks[proc], root=proc)
 
-            c = factories.array(c_loc, is_split=0, device=a.device, comm=a.comm)
-        if gpu_int_flag:
-            c = og_type(c, device=a.device)
-        return c
+                # do local matrix multiplications with the chunk of a
+                if proc >= pre_fetching:
+                    _proc = proc - pre_fetching
+                    reqs[_proc].Wait()
+                    a_start, a_stop = index_map[_proc, 0, 1]
+                    c.larray += a_chunks[_proc] @ b.larray[..., a_start:a_stop, :]
+                    del a_chunks[_proc]
 
-    elif split_1_flag:
-        # for this case, a is sent to b
-        #   this is because 'b' has complete columns and the rows of 'a' are split
-        # locations of the remainders in b
-        b_rem_locs1 = torch.nonzero(rem_map[:, 1, 1] == 1, as_tuple=False)
-        a_rem_locs1 = torch.nonzero(rem_map[:, 0, 1] == 1, as_tuple=False)
-        b_node_rem_s1 = b.larray[kB : (kB + 1) * a_rem_locs1.numel() : kB + 1, :nB]
-        # b_node_rem_s1 -> remainders for a in the
-
-        a_rem = torch.empty(
-            a.lshape[-2], a_rem_locs1.numel(), dtype=b.dtype.torch_type(), device=tdev
-        )
-        # this if/elif/else loop is for the handling of
-        if b.comm.rank in b_rem_locs1:
-            # if b is split in dim1 and the rank has a remainder in this direction
-            r = b.larray[:, -1]
-            r_loc = index_map[a.comm.rank, 1, 1, 1] - index_map[a.comm.rank, 1, 1, 0] - 1
+    if vector_flag:  # squeeze only in the non-batch dimensions
+        # it could be sensible to resplit/rebalance in case a single node gets the whole vector
+        split = c.split
+        if split is not None and split > batch_dim:
+            split = batch_dim
+        c_loc = c.larray
+        if c_loc.numel() == 0:  # empty tensor cannot be squeezed
+            c_loc = torch.zeros((*batch_shape, 0), dtype=c_type.torch_type(), device=tdev)
         else:
-            r = None
-            r_loc = None
-        req = {}
-        a_lp_data = {}
-        for pr in range(a.comm.size):
-            # ibcast data on node first
-            if a.comm.rank == pr:
-                a_lp_data[pr] = a.larray.clone()
-            else:
-                a_lp_data[pr] = torch.zeros(
-                    (lshape_map[pr, 0, 0].item(), lshape_map[pr, 0, 1].item()),
-                    dtype=a.dtype.torch_type(),
-                    device=tdev,
-                )
-            # sending a to all nodes for b to operate with
-            req[pr] = a.comm.Ibcast(a_lp_data[pr], root=pr)
-            # receive the data from the last loop and do the calculation with that
-            if pr != 0:
-                # after receiving the last loop's bcast
-                req[pr - 1].Wait()
-                __mm_c_block_setter(
-                    a_proc=pr - 1,
-                    b_proc=b.comm.rank,
-                    a_data=a_lp_data[pr - 1],
-                    b_data=b.larray,
-                    b_block_map=b_block_map,
-                    a_block_map=a_block_map,
-                    b_split=b.split,
-                    a_split=a.split,
-                    mB=mB,
-                    kB=kB,
-                    nB=nB,
-                    c=c.larray,
-                )
-                # check if there is a remainder on b in the previous node
-                # this loop is intended to get the remainders of b since it is the one being passed
-                if pr - 1 in a_rem_locs1:
-                    # takes care of the remainders in b as well as dim0 of a
-                    a_rem[:, pr - 1] = a_lp_data[pr - 1][:, -1]
-                # this loop is to take care of the remainders in dim1 of B
-                if b_rem_locs1.nelement() != 0 and r_loc is not None:
-                    st = index_map[pr - 1, 0, 1, 0].item()
-                    sp = index_map[pr - 1, 0, 1, 1].item()
+            c_loc = c_loc.squeeze(batch_dim)
+            if c_loc.ndim >= batch_dim + 2:
+                c_loc = c_loc.squeeze(batch_dim + 1)
+        c = factories.array(c_loc, is_split=split, device=dev, comm=comm)
 
-                    c.larray[:, r_loc.item()] += (a_lp_data[pr - 1] @ r[st:sp, None]).flatten()
+    if gpu_int_flag:
+        c = og_type(c, device=dev)
 
-                del a_lp_data[pr - 1]
-
-            # need to wait if its the last loop, also need to collect the remainders
-            if pr == b.comm.size - 1:
-                req[pr].Wait()
-                __mm_c_block_setter(
-                    a_proc=pr,
-                    b_proc=a.comm.rank,
-                    a_data=a_lp_data[pr],
-                    b_data=b.larray,
-                    b_block_map=b_block_map,
-                    a_block_map=a_block_map,
-                    b_split=b.split,
-                    a_split=a.split,
-                    mB=mB,
-                    kB=kB,
-                    nB=nB,
-                    c=c.larray,
-                )
-                # check if there is a remainder on b on the last node (there shouldnt be)
-                if pr in a_rem_locs1:
-                    # this is to save the data from B required by the remainders from dim1 of A
-                    a_rem[:, pr] = a_lp_data[pr][:, -1]
-                # this loop is to take care of the remainders in the 0th dimension of A
-                if b_rem_locs1.nelement() != 0 and r_loc is not None:
-                    st = index_map[pr, 0, 1, 0].item()
-                    sp = index_map[pr, 0, 1, 1].item()
-                    c.larray[:, r_loc.item()] += (a_lp_data[pr] @ r[st:sp, None]).flatten()
-                # set the final blocks on the last loop, then adjust for the the remainders which were collected in b_rem
-                if a_rem_locs1.numel():
-                    c.larray[:, : b_node_rem_s1.shape[1]] += a_rem @ b_node_rem_s1
-                del a_lp_data[pr]
-        if vector_flag:
-            c = factories.array(c.larray.squeeze(), is_split=0, device=a.device, comm=a.comm)
-        if gpu_int_flag:
-            c = og_type(c, device=a.device)
-        return c
-
-    elif split_01_flag:
-        # for this case there are no remainders which need to be taken care of
-        req = {}
-        b_lp_data = {}
-        for pr in range(a.comm.size):
-            # ibcast data on node first
-            if b.comm.rank == pr:
-                b_lp_data[pr] = b.larray.clone()
-            else:
-                b_lp_data[pr] = torch.empty(
-                    (lshape_map[pr, 1, 0].item(), lshape_map[pr, 1, 1].item()),
-                    dtype=b.dtype.torch_type(),
-                    device=tdev,
-                )
-            # sending a to all nodes for b to operate with
-            req[pr] = b.comm.Ibcast(b_lp_data[pr], root=pr)
-
-            # receive the data from the last loop and do the calculation with that
-            if pr != 0:
-                req[pr - 1].Wait()
-                # after receiving the last loop's bcast
-                st0 = index_map[pr - 1, 0, 0, 0].item()
-                sp0 = index_map[pr - 1, 0, 0, 1].item() + 1
-                st1 = index_map[pr - 1, 1, 1, 0].item()
-                sp1 = index_map[pr - 1, 1, 1, 1].item()
-
-                c.larray[: sp0 - st0, st1:sp1] += a.larray @ b_lp_data[pr - 1]
-
-                del b_lp_data[pr - 1]
-            if pr == b.comm.size - 1:
-                req[pr].Wait()
-                st0 = index_map[pr, 0, 0, 0].item()
-                sp0 = index_map[pr, 0, 0, 1].item() + 1
-                st1 = index_map[pr, 1, 1, 0].item()
-                sp1 = index_map[pr, 1, 1, 1].item()
-                c.larray[: sp0 - st0, st1:sp1] += a.larray @ b_lp_data[pr]
-                del b_lp_data[pr]
-        if vector_flag:
-            c = factories.array(c.larray.squeeze(), is_split=0, device=a.device, comm=a.comm)
-        if gpu_int_flag:
-            c = og_type(c, device=a.device)
-
-        return c
-
-    elif split_10_flag:
-        # todo: this may create the full matrix on evey process, issue #360
-        # for this case, only a sum is needed at the end
-        a_rem_locs1 = torch.nonzero(rem_map[:, 0, 1] == 1, as_tuple=False)
-        # locations of the remainders in b
-        b_rem_locs0 = torch.nonzero(rem_map[:, 1, 0] == 1, as_tuple=False)
-        res = torch.zeros((a.gshape[-2], b.gshape[1]), dtype=c_type.torch_type(), device=tdev)
-        for i in range(a.lshape[-1] // kB):
-            res += a.larray[:mB, i * kB : i * kB + kB] @ b.larray[i * kB : i * kB + kB, :nB]
-        if a.comm.rank in a_rem_locs1 and b.comm.rank in b_rem_locs0 and kB > 1:
-            # these Nones are used to change the dims if the full process is not covered
-            res += a.larray[:, -1, None] @ b.larray[None, -1, :]
-
-        a.comm.Allreduce(MPI.IN_PLACE, res, MPI.SUM)
-        split = a.split if b.gshape[1] > 1 else 0
-        if vector_flag:
-            split = 0
-            res = res.squeeze()
-        c = factories.array(res, split=split, device=a.device, comm=a.comm)
-        if gpu_int_flag:
-            c = og_type(c, device=a.device)
-        return c
+    return c
 
 
 def _matmul(self, other):
@@ -1171,9 +980,9 @@ def matrix_norm(
 
     Examples
     --------
-    >>> ht.matrix_norm(ht.array([[1,2],[3,4]]))
+    >>> ht.matrix_norm(ht.array([[1, 2], [3, 4]]))
     DNDarray([[5.4772]], dtype=ht.float64, device=cpu:0, split=None)
-    >>> ht.matrix_norm(ht.array([[1,2],[3,4]]), keepdims=True, ord=-1)
+    >>> ht.matrix_norm(ht.array([[1, 2], [3, 4]]), keepdims=True, ord=-1)
     DNDarray([[4.]], dtype=ht.float64, device=cpu:0, split=None)
     """
     sanitation.sanitize_in(x)
@@ -1191,6 +1000,8 @@ def matrix_norm(
         raise TypeError("'axis' must be a 2-tuple.")
 
     row_axis, col_axis = axis
+
+    # dtype = types.promote_types(x.dtype, types.float32)
 
     if ord == 1:
         if col_axis > row_axis and not keepdims:
@@ -1236,6 +1047,59 @@ def matrix_norm(
         raise NotImplementedError("The nuclear norm can't be computed yet.")
     else:
         raise ValueError("Invalid norm order for matrices.")
+
+
+def matrix_exp(A: DNDarray) -> DNDarray:
+    r"""
+    Computes the matrix exponential of a square matrix.
+
+    Letting :math:`\mathbb{K}` be :math:`\mathbb{R}` or :math:`\mathbb{C}`,
+    this function computes the **matrix exponential** of :math:`A \in \mathbb{K}^{n \times n}`, which is defined as
+
+    .. math::
+        \mathrm{matrix\_exp}(A) = \sum_{k=0}^\infty \frac{1}{k!}A^k \in \mathbb{K}^{n \times n}.
+
+    If the matrix :math:`A` has eigenvalues :math:`\lambda_i \in \mathbb{C}`,
+    the matrix :math:`\mathrm{matrix\_exp}(A)` has eigenvalues :math:`e^{\lambda_i} \in \mathbb{C}`.
+
+    Supports input of bfloat16, float, double, cfloat and cdouble dtypes.
+    Also supports batches of matrices, and if :attr:`A` is a batch of matrices then
+    the output has the same batch dimensions.
+
+    .. note::
+         A may only be distributed in the batch dimensions.
+
+    .. seealso::
+             :func:`torch.linalg.matrix_exp` is called under the hood on the local data.
+
+    Args:
+        A (DNDarray): DNDarray of shape `(*, n, n)` where `*` is zero or more batch dimensions.
+
+    Example::
+
+        >>> A = ht.empty((2, 2, 2), split=0)
+        >>> A[0, :, :] = ht.eye((2, 2))
+        >>> A[1, :, :] = 2 * ht.eye((2, 2))
+        >>> ht.linalg.matrix_exp(A)
+        DNDarray([[[2.7183, 0.0000],
+           [0.0000, 2.7183]],
+
+          [[7.3891, 0.0000],
+           [0.0000, 7.3891]]], dtype=ht.float32, device=cpu:0, split=0)
+    """
+    sanitation.sanitize_in(A)
+
+    if A.is_distributed() and A.split >= A.ndim - 2:
+        raise ValueError(
+            f"A of shape {A.shape} may only be distributed in batched dimensions but is distributed in {A.split}"
+        )
+    out = factories.empty_like(A)
+    out.larray[...] = torch.linalg.matrix_exp(A.larray)
+    return out
+
+
+expm = matrix_exp  # provide alias with name of scipy equivalent
+"""Alias for :py:func:`matrix_exp`"""
 
 
 def norm(
@@ -1315,9 +1179,9 @@ def norm(
     DNDarray(7.7460, dtype=ht.float32, device=cpu:0, split=None)
     >>> LA.norm(b)
     DNDarray(7.7460, dtype=ht.float32, device=cpu:0, split=None)
-    >>> LA.norm(b, ord='fro')
+    >>> LA.norm(b, ord="fro")
     DNDarray(7.7460, dtype=ht.float32, device=cpu:0, split=None)
-    >>> LA.norm(a, float('inf'))
+    >>> LA.norm(a, float("inf"))
     DNDarray([4.], dtype=ht.float32, device=cpu:0, split=None)
     >>> LA.norm(b, ht.inf)
     DNDarray([9.], dtype=ht.float32, device=cpu:0, split=None)
@@ -1349,8 +1213,8 @@ def norm(
     DNDarray([3.7417, 4.2426], dtype=ht.float64, device=cpu:0, split=None)
     >>> LA.norm(c, axis=1, ord=1)
     DNDarray([6., 6.], dtype=ht.float64, device=cpu:0, split=None)
-    >>> m = ht.arange(8).reshape(2,2,2)
-    >>> LA.norm(m, axis=(1,2))
+    >>> m = ht.arange(8).reshape(2, 2, 2)
+    >>> LA.norm(m, axis=(1, 2))
     DNDarray([ 3.7417, 11.2250], dtype=ht.float32, device=cpu:0, split=None)
     >>> LA.norm(m[0, :, :]), LA.norm(m[1, :, :])
     (DNDarray(3.7417, dtype=ht.float32, device=cpu:0, split=None), DNDarray(11.2250, dtype=ht.float32, device=cpu:0, split=None))
@@ -1557,7 +1421,7 @@ def outer(
             t_outer_slice[0] = local_slice[0]
         t_outer = torch.zeros(t_outer_shape, dtype=t_outer_dtype, device=t_a.device)
         if lshape_map[rank] != 0:
-            t_outer[t_outer_slice] = torch.einsum("i,j->ij", t_a, t_b)
+            t_outer[tuple(t_outer_slice)] = torch.einsum("i,j->ij", t_a, t_b)
 
         # Ring: fill in missing slices of outer product
         # allocate memory for traveling data
@@ -1593,7 +1457,7 @@ def outer(
                     a.gshape, a.split, rank=actual_origin, w_size=size
                 )
                 t_outer_slice[0] = remote_slice[0]
-            t_outer[t_outer_slice] = torch.einsum("i,j->ij", t_a, t_b)
+            t_outer[tuple(t_outer_slice)] = torch.einsum("i,j->ij", t_a, t_b)
     else:
         # outer product, all local
         t_outer = torch.einsum("i,j->ij", t_a, t_b)
@@ -1967,92 +1831,6 @@ DNDarray.trace: Callable[
 DNDarray.trace.__doc__ = trace.__doc__
 
 
-@torch.jit.script
-def __mm_c_block_setter(
-    b_proc: int,
-    a_proc: int,
-    a_data: torch.Tensor,
-    b_data: torch.Tensor,
-    b_block_map: torch.Tensor,
-    a_block_map: torch.Tensor,
-    b_split: int,
-    a_split: int,
-    mB: int,
-    kB: int,
-    nB: int,
-    c: torch.Tensor,
-) -> None:
-    """
-    Helper function for multiplying elements of A and B (see :func:'matmul <matmul>') and putting the results into the
-    correct place in C.
-
-    Parameters
-    ----------
-    b_proc : int
-        process with the data for the data for element b
-    a_proc : int
-        process with the data for the data for element a
-    a_data : torch.Tensor
-        data from A
-    b_data : torch.Tensor
-        data from B
-    b_block_map : torch.Tensor
-        block map for B
-    a_block_map : torch.Tensor
-        block map for A
-    b_split : int
-        split of B
-    a_split : int
-        split of A
-    mB : int
-        block size of m
-    kB : int
-        block size of K
-    nB : int
-        block size of n
-    c : torch.Tensor
-        the local data for C
-    """
-    # # (int, int, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, int, int, int, int, int, torch.Tensor) -> None
-    shp_b = b_block_map.shape
-    offset_a = b_proc * shp_b[1] if b_proc != 0 else 0
-    shp_a = a_block_map.shape
-    offset_b = a_proc * shp_a[2] if a_proc != 0 else 0
-    # offsets are the number of blocks in the multiplication direction on previous nodes
-    # print(a_block_map[a_proc].shape[0])
-    for bl_1_a in (
-        torch.arange(offset_a, offset_a + shp_b[1], dtype=torch.long, device=c.device)
-        if b_split == 0
-        else torch.arange(a_block_map[a_proc].shape[0], dtype=torch.long, device=c.device)
-    ):
-        # offset is the number of blocks on the previous node in the direction of multiplication
-        for bl_0_a in torch.arange(
-            a_block_map[a_proc].shape[0], dtype=torch.long, device=c.device
-        ):  # dim0
-            for bl_1_b in torch.arange(
-                b_block_map[b_proc].shape[1], dtype=torch.long, device=c.device
-            ):
-                for bl_0_b in (
-                    torch.arange(offset_b, offset_b + shp_a[1], dtype=torch.long, device=c.device)
-                    if a_split == 1
-                    else torch.arange(
-                        b_block_map[b_proc].shape[0], dtype=torch.long, device=c.device
-                    )
-                ):
-                    # this offset is the same as before but for b
-                    a_start1 = int(a_block_map[a_proc, bl_0_a, bl_1_a, 1].item())
-                    a_start0 = int(a_block_map[a_proc, bl_0_a, bl_1_a, 0].item())
-                    a_block = a_data[a_start0 : a_start0 + mB, a_start1 : a_start1 + kB]
-
-                    b_start0 = int(b_block_map[b_proc, bl_0_b, bl_1_b, 0].item())
-                    b_start1 = int(b_block_map[b_proc, bl_0_b, bl_1_b, 1].item())
-                    b_block = b_data[b_start0 : b_start0 + kB, b_start1 : b_start1 + nB]
-
-                    c_start0 = a_start0
-                    c_start1 = b_start1
-                    c[c_start0 : c_start0 + mB, c_start1 : c_start1 + nB] += a_block @ b_block
-
-
 def transpose(a: DNDarray, axes: Optional[List[int]] = None) -> DNDarray:
     """
     Permute the dimensions of an array.
@@ -2261,11 +2039,11 @@ def vdot(x1: DNDarray, x2: DNDarray) -> DNDarray:
 
     Examples
     --------
-    >>> a = ht.array([1+1j, 2+2j])
-    >>> b = ht.array([1+2j, 3+4j])
-    >>> ht.vdot(a,b)
+    >>> a = ht.array([1 + 1j, 2 + 2j])
+    >>> b = ht.array([1 + 2j, 3 + 4j])
+    >>> ht.vdot(a, b)
     DNDarray([(17+3j)], dtype=ht.complex64, device=cpu:0, split=None)
-    >>> ht.vdot(b,a)
+    >>> ht.vdot(b, a)
     DNDarray([(17-3j)], dtype=ht.complex64, device=cpu:0, split=None)
     """
     x1 = manipulations.flatten(x1)
@@ -2298,7 +2076,7 @@ def vecdot(
 
     Examples
     --------
-    >>> ht.vecdot(ht.full((3,3,3),3), ht.ones((3,3)), axis=0)
+    >>> ht.vecdot(ht.full((3, 3, 3), 3), ht.ones((3, 3)), axis=0)
     DNDarray([[9., 9., 9.],
               [9., 9., 9.],
               [9., 9., 9.]], dtype=ht.float32, device=cpu:0, split=None)
@@ -2365,9 +2143,9 @@ def vector_norm(
 
     Examples
     --------
-    >>> ht.vector_norm(ht.array([1,2,3,4]))
+    >>> ht.vector_norm(ht.array([1, 2, 3, 4]))
     DNDarray([5.4772], dtype=ht.float64, device=cpu:0, split=None)
-    >>> ht.vector_norm(ht.array([[1,2],[3,4]]), axis=0, ord=1)
+    >>> ht.vector_norm(ht.array([[1, 2], [3, 4]]), axis=0, ord=1)
     DNDarray([[4., 6.]], dtype=ht.float64, device=cpu:0, split=None)
     """
     sanitation.sanitize_in(x)

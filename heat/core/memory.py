@@ -1,5 +1,5 @@
 """
-This module changes the internal memory of an array.
+Utilities to manage the internal memory of an array.
 """
 
 import torch
@@ -21,7 +21,7 @@ def copy(x: DNDarray) -> DNDarray:
 
     Examples
     --------
-    >>> a = ht.array([1,2,3])
+    >>> a = ht.array([1, 2, 3])
     >>> b = ht.copy(a)
     >>> b
     DNDarray([1, 2, 3], dtype=ht.int64, device=cpu:0, split=None)
@@ -44,7 +44,7 @@ def sanitize_memory_layout(x: torch.Tensor, order: str = "C") -> torch.Tensor:
     Return the given object with memory layout as defined below. The default memory distribution is assumed.
 
     Parameters
-    -----------
+    ----------
     x: torch.Tensor
         Input data
     order: str, optional.

@@ -1,5 +1,5 @@
 """
-This is the heat.nn submodule.
+Neural network submodule.
 
 It contains data parallel specific nn modules. It also includes all of the modules in the torch.nn namespace
 """

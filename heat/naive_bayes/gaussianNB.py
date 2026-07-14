@@ -1,6 +1,7 @@
 """
 Distributed Gaussian Naive-Bayes classifier.
 """
+
 from __future__ import annotations
 
 from typing import Tuple, Union, Optional
@@ -107,7 +108,7 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
         set on :class:`GaussianNB`.
         """
         if getattr(self, "classes_", None) is None and classes is None:
-            raise ValueError("classes must be passed on the first call " "to partial_fit.")
+            raise ValueError("classes must be passed on the first call to partial_fit.")
 
         elif classes is not None:
             unique_labels = classes
@@ -272,7 +273,7 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
                 raise ValueError("Sample weights must be 1D tensor")
             if sample_weight.shape != (n_samples,):
                 raise ValueError(
-                    f"sample_weight.shape == {sample_weight.shape}, expected {(n_samples, )}!"
+                    f"sample_weight.shape == {sample_weight.shape}, expected {(n_samples,)}!"
                 )
 
         # If the ratio of data variance between dimensions is too small, it
@@ -292,8 +293,12 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
             self.theta_ = ht.zeros((n_classes, n_features), dtype=x.dtype, device=x.device)
             self.sigma_ = ht.zeros((n_classes, n_features), dtype=x.dtype, device=x.device)
 
+            if x.larray.is_mps:
+                class_count_dtype = ht.float32
+            else:
+                class_count_dtype = ht.types.promote_types(x.dtype, ht.float)
             self.class_count_ = ht.zeros(
-                (x.comm.size, n_classes), dtype=ht.float64, device=x.device, split=0
+                (x.comm.size, n_classes), dtype=class_count_dtype, device=x.device, split=0
             )
             # Initialise the class prior
             # Take into account the priors
@@ -304,7 +309,7 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
                     priors = self.priors
                 # Check that the provide prior match the number of classes
                 if len(priors) != n_classes:
-                    raise ValueError("Number of priors must match number of" " classes.")
+                    raise ValueError("Number of priors must match number of classes.")
                 # Check that the sum is 1
                 if not ht.isclose(priors.sum(), ht.array(1.0, dtype=priors.dtype)):
                     raise ValueError("The sum of the priors should be 1.")
@@ -315,7 +320,7 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
             else:
                 # Initialize the priors to zeros for each class
                 self.class_prior_ = ht.zeros(
-                    len(self.classes_), dtype=ht.float64, split=None, device=x.device
+                    len(self.classes_), dtype=class_count_dtype, split=None, device=x.device
                 )
         else:
             if x.shape[1] != self.theta_.shape[1]:
@@ -390,8 +395,9 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
         joint_log_likelihood = ht.empty(jll_shape, dtype=x.dtype, split=x.split, device=x.device)
         for i in range(jll_size):
             jointi = ht.log(self.class_prior_[i])
-            n_ij = -0.5 * ht.sum(ht.log(2.0 * ht.pi * self.sigma_[i, :]))
-            n_ij -= 0.5 * ht.sum(((x - self.theta_[i, :]) ** 2) / (self.sigma_[i, :]), 1)
+            n_ij = -0.5 * ht.sum(ht.log(2.0 * ht.pi * self.sigma_[i, :])) - 0.5 * ht.sum(
+                ((x - self.theta_[i, :]) ** 2) / (self.sigma_[i, :]), 1
+            )
             joint_log_likelihood[:, i] = jointi + n_ij
         return joint_log_likelihood
 

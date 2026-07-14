@@ -22,20 +22,27 @@ def broadcast_shape(shape_a: Tuple[int, ...], shape_b: Tuple[int, ...]) -> Tuple
         Shape of second operand
 
     Raises
-    -------
+    ------
     ValueError
         If the two shapes cannot be broadcast.
 
     Examples
     --------
     >>> import heat as ht
-    >>> ht.core.stride_tricks.broadcast_shape((5,4),(4,))
+    >>> ht.core.stride_tricks.broadcast_shape((5, 4), (4,))
     (5, 4)
-    >>> ht.core.stride_tricks.broadcast_shape((1,100,1),(10,1,5))
+    >>> ht.core.stride_tricks.broadcast_shape((1, 100, 1), (10, 1, 5))
     (10, 100, 5)
-    >>> ht.core.stride_tricks.broadcast_shape((8,1,6,1),(7,1,5,))
+    >>> ht.core.stride_tricks.broadcast_shape(
+    ...     (8, 1, 6, 1),
+    ...     (
+    ...         7,
+    ...         1,
+    ...         5,
+    ...     ),
+    ... )
     (8,7,6,5))
-    >>> ht.core.stride_tricks.broadcast_shape((2,1),(8,4,3))
+    >>> ht.core.stride_tricks.broadcast_shape((2, 1), (8, 4, 3))
     Traceback (most recent call last):
       File "<stdin>", line 1, in <module>
       File "heat/core/stride_tricks.py", line 42, in broadcast_shape
@@ -44,19 +51,6 @@ def broadcast_shape(shape_a: Tuple[int, ...], shape_b: Tuple[int, ...]) -> Tuple
     """
     try:
         resulting_shape = torch.broadcast_shapes(shape_a, shape_b)
-    except AttributeError:  # torch < 1.8
-        it = itertools.zip_longest(shape_a[::-1], shape_b[::-1], fillvalue=1)
-        resulting_shape = max(len(shape_a), len(shape_b)) * [None]
-        for i, (a, b) in enumerate(it):
-            if a == 0 and b == 1 or b == 0 and a == 1:
-                resulting_shape[i] = 0
-            elif a == 1 or b == 1 or a == b:
-                resulting_shape[i] = max(a, b)
-            else:
-                raise ValueError(
-                    f"operands could not be broadcast, input shapes {shape_a} {shape_b}"
-                )
-        return tuple(resulting_shape[::-1])
     except TypeError:
         raise TypeError(f"operand 1 must be tuple of ints, not {type(shape_a)}")
     except NameError:
@@ -82,20 +76,27 @@ def broadcast_shapes(*shapes: Tuple[int, ...]) -> Tuple[int, ...]:
         The broadcast output shape.
 
     Raises
-    -------
+    ------
     ValueError
         If the shapes cannot be broadcast.
 
     Examples
     --------
     >>> import heat as ht
-    >>> ht.broadcast_shapes((5,4),(4,))
+    >>> ht.broadcast_shapes((5, 4), (4,))
     (5, 4)
-    >>> ht.broadcast_shapes((1,100,1),(10,1,5))
+    >>> ht.broadcast_shapes((1, 100, 1), (10, 1, 5))
     (10, 100, 5)
-    >>> ht.broadcast_shapes((8,1,6,1),(7,1,5,))
+    >>> ht.broadcast_shapes(
+    ...     (8, 1, 6, 1),
+    ...     (
+    ...         7,
+    ...         1,
+    ...         5,
+    ...     ),
+    ... )
     (8,7,6,5))
-    >>> ht.broadcast_shapes((2,1),(8,4,3))
+    >>> ht.broadcast_shapes((2, 1), (8, 4, 3))
     Traceback (most recent call last):
       File "<stdin>", line 1, in <module>
       File "heat/core/stride_tricks.py", line 100, in broadcast_shapes
@@ -127,18 +128,18 @@ def sanitize_axis(
         The axis to be sanitized
 
     Raises
-    -------
+    ------
     ValueError
         if the axis cannot be sanitized, i.e. out of bounds.
     TypeError
         if the axis is not integral.
 
     Examples
-    -------
+    --------
     >>> import heat as ht
-    >>> ht.core.stride_tricks.sanitize_axis((5,4,4),1)
+    >>> ht.core.stride_tricks.sanitize_axis((5, 4, 4), 1)
     1
-    >>> ht.core.stride_tricks.sanitize_axis((5,4,4),-1)
+    >>> ht.core.stride_tricks.sanitize_axis((5, 4, 4), -1)
     2
     >>> ht.core.stride_tricks.sanitize_axis((5, 4), (1,))
     (1,)
@@ -191,7 +192,7 @@ def sanitize_shape(shape: Union[int, Tuple[int, ...]], lval: int = 0) -> Tuple[i
         Lowest legal value
 
     Raises
-    -------
+    ------
     ValueError
         If the shape contains illegal values, e.g. negative numbers.
     TypeError

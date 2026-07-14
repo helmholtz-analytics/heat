@@ -1,6 +1,7 @@
 """
 Module Implementing the Kmeans Algorithm
 """
+
 from typing import Optional, Union, TypeVar
 
 import heat as ht
@@ -23,6 +24,7 @@ class KMeans(_KCluster):
 
         - ‘k-means++’ : selects initial cluster centers for the clustering in a smart way to speed up convergence [2].
         - ‘random’: choose k observations (rows) at random from data for the initial centroids.
+        - 'batchparallel': initialize by using the batch parallel algorithm (see BatchParallelKMeans for more information).
         - DNDarray: it should be of shape (n_clusters, n_features) and gives the initial centers.
     max_iter : int
         Maximum number of iterations of the k-means algorithm for a single run.
@@ -69,6 +71,7 @@ class KMeans(_KCluster):
             tol=tol,
             random_state=random_state,
         )
+        self._p = 2
 
     def _update_centroids(self, x: DNDarray, matching_centroids: DNDarray):
         """
@@ -99,24 +102,30 @@ class KMeans(_KCluster):
 
         return new_cluster_centers
 
-    def fit(self, x: DNDarray) -> self:
+    def fit(self, x: DNDarray, oversampling: float = 2, iter_multiplier: float = 1) -> self:
         """
-        Computes the centroid of a k-means clustering.
+        Computes the centroid of a k-means clustering. Reduce the values of the parameters 'oversampling'
+        and 'iter_multiplier' to speed up the computation, if necessary. However, for too low values the
+        initialization of cluster centers might fail and raise a corresponding ValueError.
 
         Parameters
         ----------
         x : DNDarray
             Training instances to cluster. Shape = (n_samples, n_features)
 
+        oversampling : float
+            oversampling factor used for the k-means|| initializiation of centroids
+
+        iter_multiplier : float
+            factor that increases the number of iterations used in the initialization of centroids
         """
         # input sanitation
         if not isinstance(x, DNDarray):
-            raise ValueError(f"input needs to be a ht.DNDarray, but was {type(x)}")
+            raise TypeError(f"Input needs to be a ht.DNDarray, but was {type(x)}")
 
         # initialize the clustering
-        self._initialize_cluster_centers(x)
+        self._initialize_cluster_centers(x, oversampling, iter_multiplier)
         self._n_iter = 0
-        matching_centroids = ht.zeros((x.shape[0]), split=x.split, device=x.device, comm=x.comm)
 
         # iteratively fit the points to the centroids
         for epoch in range(self.max_iter):

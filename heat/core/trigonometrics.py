@@ -59,7 +59,7 @@ def arccos(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
 
     Examples
     --------
-    >>> ht.arccos(ht.array([-1.,-0., 0.83]))
+    >>> ht.arccos(ht.array([-1.0, -0.0, 0.83]))
     DNDarray([3.1416, 1.5708, 0.5917], dtype=ht.float32, device=cpu:0, split=None)
     """
     return local_op(torch.acos, x, out)
@@ -91,7 +91,7 @@ def acosh(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
 
     Examples
     --------
-    >>> ht.acosh(ht.array([1., 10., 20.]))
+    >>> ht.acosh(ht.array([1.0, 10.0, 20.0]))
     DNDarray([0.0000, 2.9932, 3.6883], dtype=ht.float32, device=cpu:0, split=None)
     """
     return local_op(torch.acosh, x, out)
@@ -117,7 +117,7 @@ def arcsin(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
 
     Examples
     --------
-    >>> ht.arcsin(ht.array([-1.,-0., 0.83]))
+    >>> ht.arcsin(ht.array([-1.0, -0.0, 0.83]))
     DNDarray([-1.5708, -0.0000,  0.9791], dtype=ht.float32, device=cpu:0, split=None)
     """
     return local_op(torch.asin, x, out)
@@ -149,7 +149,7 @@ def asinh(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
 
     Examples
     --------
-    >>> ht.asinh(ht.array([-10., 0., 10.]))
+    >>> ht.asinh(ht.array([-10.0, 0.0, 10.0]))
     DNDarray([-2.9982,  0.0000,  2.9982], dtype=ht.float32, device=cpu:0, split=None)
     """
     return local_op(torch.asinh, x, out)
@@ -211,10 +211,6 @@ def arctan2(x1: DNDarray, x2: DNDarray) -> DNDarray:
     >>> ht.arctan2(y, x) * 180 / ht.pi
     DNDarray([-135.0000,  -45.0000,   45.0000,  135.0000], dtype=ht.float64, device=cpu:0, split=None)
     """
-    # Cast integer to float because torch.atan2() only supports integer types on PyTorch 1.5.0.
-    x1 = x1.astype(types.promote_types(x1.dtype, types.float))
-    x2 = x2.astype(types.promote_types(x2.dtype, types.float))
-
     return binary_op(torch.atan2, x1, x2)
 
 
@@ -243,7 +239,7 @@ def atanh(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
 
     Examples
     --------
-    >>> ht.atanh(ht.array([-1.,-0., 0.83]))
+    >>> ht.atanh(ht.array([-1.0, -0.0, 0.83]))
     DNDarray([  -inf, -0.0000, 1.1881], dtype=ht.float32, device=cpu:0, split=None)
     """
     return local_op(torch.atanh, x, out)
@@ -321,7 +317,7 @@ def deg2rad(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
 
     Examples
     --------
-    >>> ht.deg2rad(ht.array([0.,20.,45.,78.,94.,120.,180., 270., 311.]))
+    >>> ht.deg2rad(ht.array([0.0, 20.0, 45.0, 78.0, 94.0, 120.0, 180.0, 270.0, 311.0]))
     DNDarray([0.0000, 0.3491, 0.7854, 1.3614, 1.6406, 2.0944, 3.1416, 4.7124, 5.4280], dtype=ht.float32, device=cpu:0, split=None)
     """
     return local_op(torch.deg2rad, x, out)
@@ -341,7 +337,7 @@ def degrees(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
 
     Examples
     --------
-    >>> ht.degrees(ht.array([0.,0.2,0.6,0.9,1.2,2.7,3.14]))
+    >>> ht.degrees(ht.array([0.0, 0.2, 0.6, 0.9, 1.2, 2.7, 3.14]))
     DNDarray([  0.0000,  11.4592,  34.3775,  51.5662,  68.7549, 154.6986, 179.9088], dtype=ht.float32, device=cpu:0, split=None)
     """
     return rad2deg(x, out=out)
@@ -361,7 +357,7 @@ def rad2deg(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
 
     Examples
     --------
-    >>> ht.rad2deg(ht.array([0.,0.2,0.6,0.9,1.2,2.7,3.14]))
+    >>> ht.rad2deg(ht.array([0.0, 0.2, 0.6, 0.9, 1.2, 2.7, 3.14]))
     DNDarray([  0.0000,  11.4592,  34.3775,  51.5662,  68.7549, 154.6986, 179.9088], dtype=ht.float32, device=cpu:0, split=None)
     """
     return local_op(torch.rad2deg, x, out=out)
@@ -381,7 +377,7 @@ def radians(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
 
     Examples
     --------
-    >>> ht.radians(ht.array([0., 20., 45., 78., 94., 120., 180., 270., 311.]))
+    >>> ht.radians(ht.array([0.0, 20.0, 45.0, 78.0, 94.0, 120.0, 180.0, 270.0, 311.0]))
     DNDarray([0.0000, 0.3491, 0.7854, 1.3614, 1.6406, 2.0944, 3.1416, 4.7124, 5.4280], dtype=ht.float32, device=cpu:0, split=None)
     """
     return deg2rad(x, out)

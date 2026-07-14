@@ -42,7 +42,7 @@ class Lasso(ht.RegressionMixin, ht.BaseEstimator):
     Examples
     --------
     >>> X = ht.random.randn(10, 4, split=0)
-    >>> y = ht.random.randn(10,1, split=0)
+    >>> y = ht.random.randn(10, 1, split=0)
     >>> estimator = ht.regression.lasso.Lasso(max_iter=100, tol=None)
     >>> estimator.fit(X, y)
     """
@@ -136,6 +136,10 @@ class Lasso(ht.RegressionMixin, ht.BaseEstimator):
             raise ValueError(f"y.ndim must <= 2, currently: {y.ndim}")
         if x.ndim != 2:
             raise ValueError(f"X.ndim must == 2, currently: {x.ndim}")
+        if x.split is not None and x.split != 0 or y.split is not None and y.split != 0:
+            raise NotImplementedError(
+                f"Distribution along the feature axis is not supported, currently x.split = {x.split}, y.split = {y.split}."
+            )
 
         if len(y.shape) == 1:
             y = ht.expand_dims(y, axis=1)

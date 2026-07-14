@@ -1,6 +1,7 @@
 """
 Module for graph-based classes
 """
+
 from __future__ import annotations
 
 from typing import Callable

@@ -5,6 +5,7 @@ ignore:
   - "heat/utils/data/mnist.py"
   - "heat/utils/data/_utils.py"
   - "heat/**/test_*.py"
+  - "heat/array_api/**"
 
 coverage:
   status:
@@ -15,8 +16,7 @@ coverage:
         threshold: 3%
         flags:
           - unit
-        paths:
-          - "heat"
+
     patch:
       default:
         # basic
@@ -24,5 +24,9 @@ coverage:
         threshold: 3%
         flags:
           - "unit"
-        paths:
-          - "heat"
+
+flags:
+  unit:
+    carryforward: true
+    paths:
+      - "heat"

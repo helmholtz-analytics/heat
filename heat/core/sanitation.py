@@ -1,6 +1,7 @@
 """
 Collection of validation/sanitation routines.
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -25,6 +26,7 @@ __all__ = [
     "sanitize_out",
     "sanitize_sequence",
     "scalar_to_1d",
+    "sanitize_in_min_max_nd",
 ]
 
 
@@ -57,7 +59,7 @@ def sanitize_distribution(
         When the split-axes or sizes along the split-axis do not match.
 
     See Also
-    ---------
+    --------
     :func:`~heat.core.dndarray.create_lshape_map`
         Function to create the lshape_map.
     """
@@ -138,8 +140,7 @@ def sanitize_distribution(
             )
         elif not (
             # False
-            target_balanced
-            and arg.is_balanced(force_check=False)
+            target_balanced and arg.is_balanced(force_check=False)
         ):  # Split axes are the same and atleast one is not balanced
             current_map = arg.lshape_map
             out_map = current_map.clone()
@@ -173,12 +174,45 @@ def sanitize_in(x: Any):
         raise TypeError(f"Input must be a DNDarray, is {type(x)}")
 
 
+def sanitize_in_min_max_nd(
+    input: Any, min_nd: Union[int, None] = None, max_nd: Union[int, None] = None
+) -> None:
+    """
+    Verify that input object ``input`` is a ``DNDarray`` with at least ``min_nd`` or at most ``max_nd`` dimensions.
+    If not raise ValueError
+    If not DNDarray raise TypeError
+    """
+    sanitize_in(input)
+
+    if min_nd is not None and input.ndim < min_nd:
+        raise ValueError(f"Input needs to be a DNDarray with at least {min_nd} dimensions.")
+    if max_nd is not None and input.ndim > max_nd:
+        raise ValueError(f"Input needs to be a DNDarray with at most {max_nd} dimensions.")
+
+
+def sanitize_in_nd_realfloating(input: Any, inputname: str, allowed_ns: List[int]) -> None:
+    """
+    Verify that input object ``input`` is a real floating point ``DNDarray`` with number of dimensions contained in ``allowed_ns``.
+    The argument ``inputname`` is used for error messages.
+    """
+    if not isinstance(input, DNDarray):
+        raise TypeError(f"Argument {inputname} needs to be a DNDarray but is {type(input)}.")
+    if input.ndim not in allowed_ns:
+        raise ValueError(
+            f"Argument {inputname} needs to be a {allowed_ns}-dimensional, but is {input.ndim}-dimensional."
+        )
+    if not types.heat_type_is_realfloating(input.dtype):
+        raise TypeError(
+            f"Argument {inputname} needs to be a DNDarray with datatype float32 or float64, but data type is {input.dtype}."
+        )
+
+
 def sanitize_infinity(x: Union[DNDarray, torch.Tensor]) -> Union[int, float]:
     """
     Returns largest possible value for the ``dtype`` of the input array.
 
     Parameters
-    -----------
+    ----------
     x: Union[DNDarray, torch.Tensor]
         Input object.
     """
@@ -311,7 +345,7 @@ def sanitize_out(
 
 
 def sanitize_sequence(
-    seq: Union[Sequence[int, ...], Sequence[float, ...], DNDarray, torch.Tensor]
+    seq: Union[Sequence[int, ...], Sequence[float, ...], DNDarray, torch.Tensor],
 ) -> List:
     """
     Check if sequence is valid, return list.

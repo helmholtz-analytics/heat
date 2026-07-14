@@ -1,6 +1,7 @@
 """
 Module Implementing the Kmedians Algorithm
 """
+
 import heat as ht
 from heat.cluster._kcluster import _KCluster
 from heat.core.dndarray import DNDarray
@@ -21,6 +22,7 @@ class KMedians(_KCluster):
 
              - ‘k-medians++’ : selects initial cluster centers for the clustering in a smart way to speed up convergence [2].
              - ‘random’: choose k observations (rows) at random from data for the initial centroids.
+             - 'batchparallel': initialize by using the batch parallel algorithm (see BatchParallelKMedians for more information).
              - DNDarray: gives the initial centers, should be of Shape = (n_clusters, n_features)
     max_iter : int, default: 300
         Maximum number of iterations of the k-means algorithm for a single run.
@@ -30,7 +32,7 @@ class KMedians(_KCluster):
         Determines random number generation for centroid initialization.
 
     References
-    -------------
+    ----------
     [1] Hakimi, S., and O. Kariv. "An algorithmic approach to network location problems II: The p-medians." SIAM Journal on Applied Mathematics 37.3 (1979): 539-560.
     """
 
@@ -53,6 +55,7 @@ class KMedians(_KCluster):
             tol=tol,
             random_state=random_state,
         )
+        self._p = 1
 
     def _update_centroids(self, x: DNDarray, matching_centroids: DNDarray):
         """
@@ -62,6 +65,7 @@ class KMedians(_KCluster):
         ----------
         x :  DNDarray
             Input data
+
         matching_centroids : DNDarray
             Array filled with indeces ``i`` indicating to which cluster ``ci`` each sample point in x is assigned
 
@@ -100,7 +104,7 @@ class KMedians(_KCluster):
 
         return new_cluster_centers
 
-    def fit(self, x: DNDarray):
+    def fit(self, x: DNDarray, oversampling: float = 2, iter_multiplier: float = 1):
         """
         Computes the centroid of a k-medians clustering.
 
@@ -108,15 +112,21 @@ class KMedians(_KCluster):
         ----------
         x : DNDarray
             Training instances to cluster. Shape = (n_samples, n_features)
+
+        oversampling : float
+            oversampling factor used in the k-means|| initializiation of centroids
+
+        iter_multiplier : float
+            factor that increases the number of iterations used in the initialization of centroids
         """
         # input sanitation
         if not isinstance(x, ht.DNDarray):
             raise ValueError(f"input needs to be a ht.DNDarray, but was {type(x)}")
 
         # initialize the clustering
-        self._initialize_cluster_centers(x)
+        self._initialize_cluster_centers(x, oversampling, iter_multiplier)
         self._n_iter = 0
-        matching_centroids = ht.zeros((x.shape[0]), split=x.split, device=x.device, comm=x.comm)
+
         # iteratively fit the points to the centroids
         for epoch in range(self.max_iter):
             # increment the iteration count
