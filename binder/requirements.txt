@@ -4,4 +4,5 @@ h5py
 ipykernel==7.2.0
 ipyparallel
 perun
+matplotlib
 -e .
