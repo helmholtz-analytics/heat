@@ -1092,7 +1092,7 @@ DNDarray.median.__doc__ = median.__doc__
 
 
 def __merge_moments(
-    m1: torch.Tensor, m2: torch.Tensor, unbiased: bool = True
+    m1: torch.Tensor, m2: torch.Tensor, correction: bool = True
 ) -> Tuple[torch.Tensor, ...]:
     """
     Merge two statistical moments.
@@ -1108,7 +1108,7 @@ def __merge_moments(
     m2 : Tuple
         Tuple of the moments to merge together, the 0th element is the moment to be merged. The tuple must be
         sorted in descending order of moments
-    unbiased : bool
+    correction : bool
         Flag for the use of unbiased estimators (when available)
 
     References
@@ -1128,7 +1128,7 @@ def __merge_moments(
         return mu, n
 
     var1, var2 = m1[-3], m2[-3]
-    if unbiased:
+    if correction:
         var_m = (var1 * (n1 - 1) + var2 * (n2 - 1) + (delta**2) * n1 * n2 / n) / (n - 1)
     else:
         var_m = (var1 * n1 + var2 * n2 + (delta**2) * n1 * n2 / n) / n
@@ -1279,7 +1279,7 @@ def __moment_w_axis(
     x: DNDarray,
     axis: Optional[Union[int, Tuple[int, ...]]],
     elementwise_function: Callable,
-    unbiased: Optional[bool] = None,
+    correction: Optional[bool] = None,
     Fischer: Optional[bool] = None,
 ) -> DNDarray:
     """
@@ -1295,15 +1295,15 @@ def __moment_w_axis(
         axis/axes to calculate the moment
     elementwise_function : Callable
         function to merge the moment across processes
-    unbiased : bool
+    correction : bool
         if the moment should be unbiased
     Fischer : bool
         if the Fischer correction is to be applied (only used in skew and Kurtosis)
     """
     # helper for calculating a statistical moment with a given axis
     kwargs = {"dim": axis}
-    if unbiased is not None:
-        kwargs["unbiased"] = unbiased
+    if correction is not None:
+        kwargs["correction"] = correction
     if Fischer is not None:
         kwargs["Fischer"] = Fischer
 
@@ -1953,7 +1953,7 @@ def skew(x: DNDarray, axis: int = None, unbiased: bool = True) -> DNDarray:
         raise TypeError(f"axis cannot be a list or a tuple, currently {type(axis)}")
     else:
         # if multiple axes are required, need to add a reduce_skews_elementwise function
-        return __moment_w_axis(__torch_skew, x, axis, None, unbiased)
+        return __moment_w_axis(__torch_skew, x, axis, None, correction=unbiased)
 
 
 DNDarray.skew: Callable[[DNDarray, int, bool], DNDarray] = lambda self, axis=None, unbiased=True: (
@@ -2016,10 +2016,10 @@ def std(
         raise ValueError(f"Expected ddof >= 0, got {ddof}")
     else:
         if kwargs.get("bessel"):
-            unbiased = kwargs.get("bessel")
+            correction = kwargs.get("bessel")
         else:
-            unbiased = bool(ddof)
-        ddof = 1 if unbiased else ddof
+            correction = bool(ddof)
+        ddof = 1 if correction else ddof
     if not x.is_distributed() and str(x.device).startswith("cpu"):
         loc = np.std(x.larray.numpy(), axis=axis, ddof=ddof)
         if loc.size == 1:
@@ -2035,7 +2035,7 @@ DNDarray.std.__doc__ = std.__doc__
 
 
 def __torch_skew(
-    torch_tensor: torch.Tensor, dim: int = None, unbiased: bool = False
+    torch_tensor: torch.Tensor, dim: int = None, correction: bool = False
 ) -> torch.Tensor:
     """
     Calculate the sample skewness of a torch tensor
@@ -2048,7 +2048,7 @@ def __torch_skew(
     dim : int
         dimension along which to calculate the skew
         If None, then the skew of the full dataset is calculated
-    unbiased : bool
+    correction : bool
         return the unbiased estimator
     """
     if dim is not None:
@@ -2061,18 +2061,18 @@ def __torch_skew(
         diff = torch_tensor - torch.mean(torch_tensor)
         m3 = torch.true_divide(torch.sum(torch.pow(diff, 3)), n)
         m2 = torch.true_divide(torch.sum(torch.pow(diff, 2)), n)
-    if not unbiased:
+    if not correction:
         return torch.true_divide(m3, torch.pow(m2, 1.5))
     coeff = ((n * (n - 1)) ** 0.5) / (n - 2.0)
     return coeff * torch.true_divide(m3, torch.pow(m2, 1.5))
 
 
 def __torch_kurtosis(
-    torch_tensor: torch.Tensor, dim: int = None, Fischer: bool = True, unbiased: bool = False
+    torch_tensor: torch.Tensor, dim: int = None, Fischer: bool = True, correction: bool = False
 ) -> torch.Tensor:
     """
     Calculate the sample kurtosis of a dataset
-    default is unbiased and with the Fischer correction
+    default is no correction and with the Fischer correction
 
     Parameters
     ----------
@@ -2083,8 +2083,8 @@ def __torch_kurtosis(
         If None, then the kurtosis of the full dataset is calculated
     Fischer : bool
         if to apply the Fischer correction
-    unbiased : bool
-        if the returned value/s should be biased or unbiased
+    correction : bool
+        if the returned value/s should be biased or correction
     """
     if dim is not None:
         n = torch_tensor.shape[dim]
@@ -2097,7 +2097,7 @@ def __torch_kurtosis(
         m4 = torch.true_divide(torch.pow(diff, 4.0), n)
         m2 = torch.true_divide(torch.pow(diff, 2.0), n)
     res = torch.true_divide(m4, torch.pow(m2, 2.0))
-    if unbiased:
+    if correction:
         res = ((n - 1.0) / ((n - 2.0) * (n - 3.0))) * ((n + 1.0) * res - 3.0 * (n - 1.0)) + 3.0
     if Fischer:
         res -= 3.0
@@ -2174,9 +2174,9 @@ def var(
         raise ValueError(f"Expected ddof=0 or ddof=1, got {ddof}")
     else:
         if kwargs.get("bessel"):
-            unbiased = kwargs.get("bessel")
+            correction = kwargs.get("bessel")
         else:
-            unbiased = bool(ddof)
+            correction = bool(ddof)
 
     def reduce_vars_elementwise(output_shape_i: torch.Tensor) -> DNDarray:
         """
@@ -2191,7 +2191,7 @@ def var(
         """
         if x.lshape[x.split] != 0:
             mu = torch.mean(x.larray, dim=axis)
-            var = torch.var(x.larray, dim=axis, unbiased=unbiased)
+            var = torch.var(x.larray, dim=axis, correction=correction)
         else:
             mu = factories.zeros(output_shape_i, dtype=x.dtype, device=x.device)
             var = factories.zeros(output_shape_i, dtype=x.dtype, device=x.device)
@@ -2208,21 +2208,21 @@ def var(
             var_tot[0, 0, :], var_tot[0, 1, :], var_tot[0, 2, :] = __merge_moments(
                 (var_tot[0, 0, :], var_tot[0, 1, :], var_tot[0, 2, :]),
                 (var_tot[i, 0, :], var_tot[i, 1, :], var_tot[i, 2, :]),
-                unbiased=unbiased,
+                correction=correction,
             )
         return var_tot[0, 0, :][0] if var_tot[0, 0, :].size == 1 else var_tot[0, 0, :]
 
     # ----------------------------------------------------------------------------------------------
     if axis is None:  # no axis given
         if not x.is_distributed():  # not distributed (full tensor on one node)
-            ret = torch.var(x.larray.float(), unbiased=unbiased)
+            ret = torch.var(x.larray.float(), correction=correction)
             return DNDarray(
                 ret, tuple(ret.shape), types.heat_type_of(ret), None, x.device, x.comm, True
             )
 
         else:  # case for full matrix calculation (axis is None)
             mu_in = torch.mean(x.larray)
-            var_in = torch.var(x.larray, unbiased=unbiased)
+            var_in = torch.var(x.larray, correction=correction)
             # Nan is returned when local tensor is empty
             if torch.isnan(var_in):
                 var_in = 0.0
@@ -2239,12 +2239,12 @@ def var(
                 var_tot[0, 0], var_tot[0, 1], var_tot[0, 2] = __merge_moments(
                     (var_tot[0, 0], var_tot[0, 1], var_tot[0, 2]),
                     (var_tot[i, 0], var_tot[i, 1], var_tot[i, 2]),
-                    unbiased=unbiased,
+                    correction=correction,
                 )
             return var_tot[0][0]
 
     else:  # axis is given
-        return __moment_w_axis(torch.var, x, axis, reduce_vars_elementwise, unbiased)
+        return __moment_w_axis(torch.var, x, axis, reduce_vars_elementwise, correction)
 
 
 DNDarray.var: Callable[[DNDarray, Union[int, Tuple[int], List[int]], int, object], DNDarray] = (
