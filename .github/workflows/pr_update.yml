@@ -35,6 +35,7 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           allow-unsafe-pr-checkout: true
+          persist-credentials: false
       - uses: ./.github/actions/gh_tests
         with:
           mode: medium
@@ -57,7 +58,7 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           ref: ${{ github.event.pull_request.head.sha }}
-          allow-unsafe-pr-checkout: true
+          allow-unsafe-pr-checkout: false
       - uses: ./.github/actions/trigger_codebase_tests
         with:
           branch: ${{ github.head_ref }}
@@ -79,7 +80,7 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           ref: ${{ github.event.pull_request.head.sha }}
-          allow-unsafe-pr-checkout: true
+          allow-unsafe-pr-checkout: false
       - uses: ./.github/actions/trigger_codebase_benchmarks
         with:
           branch: ${{ github.head_ref }}
