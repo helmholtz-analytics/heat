@@ -361,6 +361,47 @@ Reference material
          **API reference:**  all numerical functions and machine learning algorithms.
 
 
+-----
+
+Get in touch
+============
+
+.. grid:: 1 1 3 3
+   :gutter: 4
+   :class-container: text-center mt-4 mb-5
+
+   .. grid-item::
+
+      .. raw:: html
+
+         <a href="https://github.com/helmholtz-analytics/heat/discussions" style="text-decoration: none;">
+            <i class="fa-solid fa-comments fa-4x mb-3" style="color: var(--pst-color-primary);"></i>
+         </a>
+
+      **GitHub Discussions**
+
+   .. grid-item::
+
+      .. raw:: html
+
+         <a href="https://matrix.to/#/#heat:helmholtz.cloud" style="text-decoration: none;">
+            <img src="_static/images/matrix-icon.svg" height="64px" alt="Matrix Space" class="mb-3" />
+         </a>
+
+      **Heat Matrix Space**
+
+   .. grid-item::
+
+      .. raw:: html
+
+         <a href="https://www.linkedin.com/company/heat-framework" style="text-decoration: none;">
+            <i class="fa-brands fa-linkedin fa-4x mb-3" style="color: var(--pst-color-primary);"></i>
+         </a>
+
+      **LinkedIn**
+
+
+
 .. toctree::
    :caption: Getting Started
    :hidden:
