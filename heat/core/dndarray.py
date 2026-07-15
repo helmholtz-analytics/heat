@@ -335,18 +335,6 @@ def _resolve_indexing_state(
                     backwards_transpose_axes=tuple(range(arr.ndim)),
                 )
 
-    # normalize index components
-    if isinstance(key, DNDarray):
-        if key.dtype not in (ht_bool, ht_uint8) and key.split is None:
-            key = key.larray.to(torch.int64)
-    elif isinstance(key, (list, tuple)):
-        key = type(key)(
-            k.larray.to(torch.int64)
-            if isinstance(k, DNDarray) and k.dtype not in (ht_bool, ht_uint8) and k.split is None
-            else k
-            for k in key
-        )
-
     # 1D boolean mask resolution
     first = key[0] if isinstance(key, tuple) and len(key) >= 1 else key
     if isinstance(first, (DNDarray, torch.Tensor)) and arr.ndim >= 1:
