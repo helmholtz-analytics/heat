@@ -1,10 +1,9 @@
+.. title:: Heat
+
 .. meta::
    :description: Scale NumPy-based data analysis to HPC
    :keywords: data analysis, HPC, MPI, GPU, multi-GPU, distributed computing, parallel processing, data science, data analytics, machine learning, scientific computing, high-performance computing, Python libraries, NumPy API, PyTorch
 
-.. ================================================================================
-.. Heat
-.. ================================================================================
 
 .. div:: text-center mt-5 mb-5
 
