@@ -60,11 +60,6 @@ html[data-theme="light"] {
     transition: background-color 0.2s ease-in-out !important;
 }
 
-/* .sd-btn-primary:hover {
-    background-color: var(--pst-color-primary-hover) !important;
-    color: #ffffff !important;
-} */
-
 /* ==========================================================================
    3. CUSTOM LAYOUT UTILITIES & CASE STUDY MODULES
    ========================================================================== */
