@@ -188,3 +188,12 @@ code,
     margin-top: 0.2rem !important; /* Overrides the Sphinx theme gap */
     margin-bottom: 0.5rem;
 }
+
+/* ==========================================================================
+   4. FRONTPAGE NEWS TIMELINE OVERRIDES
+   ========================================================================== */
+
+/* Hide any timeline items beyond the 4th on the main landing page */
+.frontpage-news .timeline-item:nth-child(n+5) {
+    display: none;
+}

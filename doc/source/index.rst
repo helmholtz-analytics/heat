@@ -126,7 +126,7 @@ Getting started
    .. grid-item::
       :columns: 12 12 6 6
 
-      **HPC & Multi-GPU Deployments**
+      **HPC & multi-GPU deployments**
 
       For Spack, EasyBuild, and containerized setups, refer to our comprehensive deployment guide.
 
@@ -134,7 +134,23 @@ Getting started
          :color: primary
          :class: sd-btn-primary sd-btn-block mt-3
 
-         View Full Installation Guide
+         View full installation guide
+
+-----
+
+Latest news
+===========
+
+.. container:: frontpage-news
+
+   .. include:: _timeline.rst
+
+.. button-ref:: news
+   :color: primary
+   :outline:
+   :class: mt-3
+
+   View full news history
 
 -----
 
