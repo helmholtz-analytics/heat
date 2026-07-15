@@ -22,9 +22,6 @@ documentation root, use os.path.abspath to make it absolute, like shown here.
 import os
 import sys
 
-import pip
-
-# sys.path.insert(0, os.path.abspath('.'))
 sys.path.insert(0, os.path.abspath("../../heat"))
 
 
@@ -238,26 +235,6 @@ html_context = {
     "default_mode": "light"
 }
 
-#html_theme = "sphinx_rtd_theme"
-
-# Theme options are theme-specific and customize the look and feel of a theme
-# further.  For a list of options available for each theme, see the
-# documentation.
-#
-#html_theme_options = {"logo_only": True, "style_nav_header_background": "white"}
-
-# Add any paths that contain custom themes here, relative to this directory.
-# html_theme_path = []
-
-# The name for this set of Sphinx documents.
-# "<project> v<release> documentation" by default.
-#
-# html_title = 'Heat v0.0.1'
-
-# A shorter title for the navigation bar.  Default is the same as html_title.
-#
-# html_short_title = None
-
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
 #
@@ -445,22 +422,6 @@ texinfo_documents = [
         "Miscellaneous",
     )
 ]
-
-# Documents to append as an appendix to all manuals.
-#
-# texinfo_appendices = []
-
-# If false, no module index is generated.
-#
-# texinfo_domain_indices = True
-
-# How to display URL addresses: 'footnote', 'no', or 'inline'.
-#
-# texinfo_show_urls = 'footnote'
-
-# If true, do not generate a @detailmenu in the "Top" node's menu.
-#
-# texinfo_no_detailmenu = False
 
 # NBSPHINX
 nbsphinx_execute = "never"
