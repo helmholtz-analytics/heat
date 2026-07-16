@@ -197,7 +197,7 @@ def random_known_rank(
         raise RuntimeError("rank must not exceed matrix dimensions.")
 
     singular_values = rand(r, dtype=dtype, comm=comm, device=device)
-    singular_values = sort(quantile_function(singular_values), descending=True)[0]
+    singular_values = sort(quantile_function(singular_values), descending=True, return_sort_indices=True)[0]
 
     return random_known_singularvalues(
         m, n, singular_values, split=split, device=device, comm=comm, dtype=dtype

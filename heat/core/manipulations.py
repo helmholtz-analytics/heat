@@ -66,7 +66,15 @@ __all__ = [
 ]
 
 
-def argsort(a: DNDarray, axis: int = -1, descending: bool = False) -> DNDarray:
+def argsort(
+    a: DNDarray,
+    axis: int = -1,
+    kind: str | None = None,
+    order: str | list[str] | None = None,
+    *,
+    stable: bool | None = None,
+    descending: bool | None = None
+) -> DNDarray:
     """
     Returns the indices that would sort an array. This is the distributed equivalent of `np.argsort`.
     The sorting is not stable which means that equal elements in the result may have a different ordering than in the
@@ -80,6 +88,12 @@ def argsort(a: DNDarray, axis: int = -1, descending: bool = False) -> DNDarray:
     axis : int, optional
         The dimension to sort along.
         Default is the last axis.
+    kind : str, optional
+        Sorting algorithm. Gets ignored. 
+    order : str, list[str], optional
+        Used in numpy for array with fields, which are not possible in HeAT. Gets ignored.
+    stable : bool, optional
+        Sort stability, currenty not supported.
     descending : bool, optional
         If set to `True`, indices are sorted in descending order.
 
@@ -102,7 +116,7 @@ def argsort(a: DNDarray, axis: int = -1, descending: bool = False) -> DNDarray:
     (array([[0, 1],
             [1, 0]]))
     """
-    _, indices = sort(a=a, axis=axis, descending=descending, out=None)
+    _, indices = sort(a=a, axis=axis, kind=kind, order=order, stable=stable, descending=descending, out=None, return_sort_indices=True)
     return indices
 
 
@@ -2590,7 +2604,17 @@ def shape(a: DNDarray) -> Tuple[int, ...]:
     return a.gshape
 
 
-def sort(a: DNDarray, axis: int = -1, descending: bool = False, out: Optional[DNDarray] = None):
+def sort(
+    a: DNDarray,
+    axis: int = -1,
+    kind: str | None = None,
+    order: str | list[str] | None = None,
+    *,
+    stable: bool | None = None,
+    descending: bool | None = False, 
+    out: Optional[DNDarray] = None,
+    return_sort_indices: bool | None = None
+):
     """
     Sorts the elements of `a` along the given dimension (by default in ascending order) by their value.
     The sorting is not stable which means that equal elements in the result may have a different ordering than in the
@@ -2605,11 +2629,20 @@ def sort(a: DNDarray, axis: int = -1, descending: bool = False, out: Optional[DN
     axis : int, optional
         The dimension to sort along.
         Default is the last axis.
+    kind : str, optional
+        Sorting algorithm. Gets ignored. 
+    order : str, list[str], optional
+        Used in numpy for array with fields, which are not possible in HeAT. Gets ignored.
+    stable : bool, optional
+        Sort stability, currenty not supported.
     descending : bool, optional
         If set to `True`, values are sorted in descending order.
     out : DNDarray, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
         or set to `None`, a fresh array is allocated.
+    return_sort_indices: bool, optional
+        Wether to return the indices by which the array was sorted. 
+        If ``out`` is provided, returns the indices if ``True``, otherwise ``None``.
 
     Raises
     ------
@@ -2637,6 +2670,14 @@ def sort(a: DNDarray, axis: int = -1, descending: bool = False, out: Optional[DN
         message=r".*__array_wrap__ must accept context and return_scalar arguments.*",
     )
     stride_tricks.sanitize_axis(a.shape, axis)
+    
+    if axis is None:
+        a = flatten(a)
+        axis = 0
+
+    descending = descending or False
+    return_sort_indices = return_sort_indices or False
+    
 
     if not a.is_distributed() or axis != a.split:
         # sorting is not affected by split -> we can just sort along the axis
@@ -2848,12 +2889,16 @@ def sort(a: DNDarray, axis: int = -1, descending: bool = False, out: Optional[DN
     )
     if out is not None:
         out.larray = final_result
-        return return_indices
+        if return_sort_indices:
+            return return_indices
+        return None
     else:
         tensor = factories.array(
             final_result, dtype=a.dtype, is_split=a.split, device=a.device, comm=a.comm
         )
-        return tensor, return_indices
+        if return_sort_indices:
+            return tensor, return_indices
+        return tensor
 
 
 def split(x: DNDarray, indices_or_sections: Iterable, axis: int = 0) -> List[DNDarray, ...]:
