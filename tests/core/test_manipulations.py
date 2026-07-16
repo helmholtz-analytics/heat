@@ -114,7 +114,7 @@ class TestManipulations(TestCase):
         indices = ht.argsort(data, axis=0)
         result = ht.resplit(data, None)[indices]
         arr = ht.resplit(result.flatten(), axis=None)
-        
+
         self.assertTrue((arr.larray[:-1] <= arr.larray[1:]).all())
 
     def test_broadcast_arrays(self):

@@ -73,7 +73,7 @@ def argsort(
     order: str | list[str] | None = None,
     *,
     stable: bool | None = None,
-    descending: bool | None = None
+    descending: bool | None = None,
 ) -> DNDarray:
     """
     Returns the indices that would sort an array. This is the distributed equivalent of `np.argsort`.
@@ -89,7 +89,7 @@ def argsort(
         The dimension to sort along.
         Default is the last axis.
     kind : str, optional
-        Sorting algorithm. Gets ignored. 
+        Sorting algorithm. Gets ignored.
     order : str, list[str], optional
         Used in numpy for array with fields, which are not possible in HeAT. Gets ignored.
     stable : bool, optional
@@ -116,7 +116,16 @@ def argsort(
     (array([[0, 1],
             [1, 0]]))
     """
-    _, indices = sort(a=a, axis=axis, kind=kind, order=order, stable=stable, descending=descending, out=None, return_sort_indices=True)
+    _, indices = sort(
+        a=a,
+        axis=axis,
+        kind=kind,
+        order=order,
+        stable=stable,
+        descending=descending,
+        out=None,
+        return_sort_indices=True,
+    )
     return indices
 
 
@@ -2611,9 +2620,9 @@ def sort(
     order: str | list[str] | None = None,
     *,
     stable: bool | None = None,
-    descending: bool | None = False, 
+    descending: bool | None = False,
     out: Optional[DNDarray] = None,
-    return_sort_indices: bool | None = None
+    return_sort_indices: bool | None = None,
 ):
     """
     Sorts the elements of `a` along the given dimension (by default in ascending order) by their value.
@@ -2630,7 +2639,7 @@ def sort(
         The dimension to sort along.
         Default is the last axis.
     kind : str, optional
-        Sorting algorithm. Gets ignored. 
+        Sorting algorithm. Gets ignored.
     order : str, list[str], optional
         Used in numpy for array with fields, which are not possible in HeAT. Gets ignored.
     stable : bool, optional
@@ -2641,7 +2650,7 @@ def sort(
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
         or set to `None`, a fresh array is allocated.
     return_sort_indices: bool, optional
-        Wether to return the indices by which the array was sorted. 
+        Wether to return the indices by which the array was sorted.
         If ``out`` is provided, returns the indices if ``True``, otherwise ``None``.
 
     Raises
@@ -2670,14 +2679,13 @@ def sort(
         message=r".*__array_wrap__ must accept context and return_scalar arguments.*",
     )
     stride_tricks.sanitize_axis(a.shape, axis)
-    
+
     if axis is None:
         a = flatten(a)
         axis = 0
 
     descending = descending or False
     return_sort_indices = return_sort_indices or False
-    
 
     if not a.is_distributed() or axis != a.split:
         # sorting is not affected by split -> we can just sort along the axis
