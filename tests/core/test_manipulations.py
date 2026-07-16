@@ -112,9 +112,9 @@ class TestManipulations(TestCase):
         ht.random.seed(1)
         data = ht.random.randn(100, 1, split=0)
         indices = ht.argsort(data, axis=0)
-        result = data[indices]
-        
+        result = ht.resplit(data, None)[indices]
         arr = ht.resplit(result.flatten(), axis=None)
+        
         self.assertTrue((arr.larray[:-1] <= arr.larray[1:]).all())
 
     def test_broadcast_arrays(self):
