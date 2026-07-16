@@ -1,1 +1,0 @@
-../../coverage_tables.md

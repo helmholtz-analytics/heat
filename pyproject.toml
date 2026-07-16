@@ -121,8 +121,6 @@ docs = [
     "sphinx-copybutton",
     "myst-parser",
     "sphinxcontrib-mermaid",
-    "sphinx-design",
-    "pydata-sphinx-theme",
 ]
 
 [project.scripts]
