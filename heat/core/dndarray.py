@@ -361,12 +361,7 @@ def _resolve_indexing_state(
             and first_dtype in (ht_bool, ht_uint8, torch.bool, torch.uint8)
         ):
             if isinstance(first, DNDarray):
-                nz = first.nonzero()
-                if isinstance(nz, tuple):
-                    nz = nz[0]
-                if getattr(nz, "ndim", 1) > 1 and nz.shape[-1] == 1:
-                    nz = nz.squeeze(-1)
-                idx0 = nz
+                idx0 = first.nonzero(as_tuple=False).flatten()
             elif isinstance(first, torch.Tensor):
                 idx0 = torch.nonzero(first, as_tuple=False).flatten()
             else:
