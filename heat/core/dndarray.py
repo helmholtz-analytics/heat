@@ -79,8 +79,8 @@ class DNDarray:
         self.__comm = comm
         self.__balanced: bool = balanced
         self.__ishalo = False
-        self.__halo_next: torch.Tensor | None = None
-        self.__halo_prev: torch.Tensor | None = None
+        self.__halo_next = None
+        self.__halo_prev = None
         self.__partitions_dict__ = None
         self.__lshape_map = None
 
