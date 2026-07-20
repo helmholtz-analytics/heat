@@ -2620,7 +2620,7 @@ def sort(
     descending: bool | None = False,
     out: Optional[DNDarray] = None,
     return_sort_indices: bool = False,
-    **kwargs
+    **kwargs,
 ):
     """
     Sorts the elements of `a` along the given dimension (by default in ascending order) by their value.
