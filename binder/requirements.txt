@@ -3,7 +3,7 @@ mpi4py
 h5py
 ipykernel==7.2.0
 ipyparallel
-torch==2.12.0
+torch==2.13.0
 torchvision==0.27.0
 heat
 perun
