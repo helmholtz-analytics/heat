@@ -2616,19 +2616,17 @@ def shape(a: DNDarray) -> Tuple[int, ...]:
 def sort(
     a: DNDarray,
     axis: int = -1,
-    kind: str | None = None,
-    order: str | list[str] | None = None,
-    *,
-    stable: bool | None = None,
+    *args,
     descending: bool | None = False,
     out: Optional[DNDarray] = None,
-    return_sort_indices: bool | None = None,
+    return_sort_indices: bool = False,
+    **kwargs
 ):
     """
     Sorts the elements of `a` along the given dimension (by default in ascending order) by their value.
     The sorting is not stable which means that equal elements in the result may have a different ordering than in the
     original array.
-    Sorting where `axis==a.split` needs a lot of communication between the processes of MPI.
+    Sorting with `axis==a.split` needs a lot of communication between the processes of MPI.
     Returns a tuple `(values, indices)` with the sorted local results and the indices of the elements in the original data
 
     Parameters
@@ -2638,12 +2636,6 @@ def sort(
     axis : int, optional
         The dimension to sort along.
         Default is the last axis.
-    kind : str, optional
-        Sorting algorithm. Gets ignored.
-    order : str, list[str], optional
-        Used in numpy for array with fields, which are not possible in HeAT. Gets ignored.
-    stable : bool, optional
-        Sort stability, currenty not supported.
     descending : bool, optional
         If set to `True`, values are sorted in descending order.
     out : DNDarray, optional
@@ -2680,12 +2672,17 @@ def sort(
     )
     stride_tricks.sanitize_axis(a.shape, axis)
 
+    for arg in args:
+        warnings.warn(f"[ht.sort] Argument: '{arg}' gets ignored.")
+
+    for k in kwargs.keys():
+        warnings.warn(f"[ht.sort] Keyword Argument: '{k}' gets ignored.")
+
     if axis is None:
         a = flatten(a)
         axis = 0
 
     descending = descending or False
-    return_sort_indices = return_sort_indices or False
 
     if not a.is_distributed() or axis != a.split:
         # sorting is not affected by split -> we can just sort along the axis
