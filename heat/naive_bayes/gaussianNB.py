@@ -76,7 +76,7 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
         ----------
         x : DNDarray
             Training set, where n_samples is the number of samples
-            and n_features is the number of features.  Shape = (n_classes, n_features)
+            and n_features is the number of features.  Shape = (n_samples, n_features)
         y : DNDarray
             Labels for training set. Shape = (n_samples, )
         sample_weight : DNDarray, optional
