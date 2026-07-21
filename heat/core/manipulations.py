@@ -67,11 +67,7 @@ __all__ = [
 
 
 def argsort(
-    a: DNDarray,
-    axis: int = -1,
-    *args,
-    descending: bool | None = None,
-    **kwargs
+    a: DNDarray, axis: int = -1, *args, descending: bool | None = None, **kwargs
 ) -> DNDarray:
     """
     Returns the indices that would sort an array. This is the distributed equivalent of `np.argsort`.
