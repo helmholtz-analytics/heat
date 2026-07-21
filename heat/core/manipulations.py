@@ -69,11 +69,9 @@ __all__ = [
 def argsort(
     a: DNDarray,
     axis: int = -1,
-    kind: str | None = None,
-    order: str | list[str] | None = None,
-    *,
-    stable: bool | None = None,
+    *args,
     descending: bool | None = None,
+    **kwargs
 ) -> DNDarray:
     """
     Returns the indices that would sort an array. This is the distributed equivalent of `np.argsort`.
@@ -88,12 +86,6 @@ def argsort(
     axis : int, optional
         The dimension to sort along.
         Default is the last axis.
-    kind : str, optional
-        Sorting algorithm. Gets ignored.
-    order : str, list[str], optional
-        Used in numpy for array with fields, which are not possible in HeAT. Gets ignored.
-    stable : bool, optional
-        Sort stability, currenty not supported.
     descending : bool, optional
         If set to `True`, indices are sorted in descending order.
 
@@ -116,12 +108,15 @@ def argsort(
     (array([[0, 1],
             [1, 0]]))
     """
+    for arg in args:
+        warnings.warn(f"[ht.argsort] Argument: '{arg}' gets ignored.")
+
+    for k in kwargs.keys():
+        warnings.warn(f"[ht.argsort] Keyword Argument: '{k}' gets ignored.")
+
     _, indices = sort(
         a=a,
         axis=axis,
-        kind=kind,
-        order=order,
-        stable=stable,
         descending=descending,
         out=None,
         return_sort_indices=True,
