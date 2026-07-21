@@ -30,12 +30,12 @@ def qr_split_1(a):
 
 
 @monitor()
-def hierachical_svd_rank(data, r):
+def hierarchical_svd_rank(data, r):
     approx_svd = ht.linalg.hsvd_rank(data, maxrank=r, compute_sv=True, silent=True)
 
 
 @monitor()
-def hierachical_svd_tol(data, tol):
+def hierarchical_svd_tol(data, tol):
     approx_svd = ht.linalg.hsvd_rtol(data, rtol=tol, compute_sv=True, silent=True)
 
 
@@ -135,8 +135,8 @@ def run_linalg_benchmarks():
     data = ht.utils.data.matrixgallery.random_known_rank(
         1000, 500 * MPI.COMM_WORLD.Get_size(), 10, split=1, dtype=ht.float32
     )[0]
-    hierachical_svd_rank(data, 10)
-    hierachical_svd_tol(data, 1e-2)
+    hierarchical_svd_rank(data, 10)
+    hierarchical_svd_tol(data, 1e-2)
     del data
 
     n = 1000
