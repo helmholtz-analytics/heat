@@ -170,3 +170,19 @@ class TestGaussianNB(TestCase):
     def test_exception(self):
         with self.assertRaises(ValueError):
             ht.naive_bayes.GaussianNB().set_params(foo="bar")
+
+    def test_distributed_classes(self):
+        X = ht.array([[1.], [2.]])
+        y = ht.array([1, 2])
+        classes_not_distributed = ht.array([1, 2])
+        classes_distributed = ht.array([1, 2], split=0)
+
+        gnb_classes_not_distributed = ht.naive_bayes.GaussianNB()
+        gnb_classes_not_distributed.partial_fit(X, y, classes_not_distributed)
+
+        gnb_classes_distributed = ht.naive_bayes.GaussianNB()
+        gnb_classes_distributed.partial_fit(X, y, classes=classes_distributed)
+
+        self.assertTrue(ht.equal(gnb_classes_distributed.classes_, gnb_classes_not_distributed.classes_))
+        self.assertTrue(ht.isclose(gnb_classes_distributed.theta_, gnb_classes_not_distributed.theta_).all())
+        self.assertTrue(ht.isclose(gnb_classes_distributed.sigma_, gnb_classes_not_distributed.sigma_).all())

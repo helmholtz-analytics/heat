@@ -94,8 +94,6 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
                 f"sample_weight needs to be a ht.DNDarray, but was {type(sample_weight)}"
             )
         classes = ht.unique(y, sorted=True)
-        if classes.split is not None:
-            classes = ht.resplit(classes, axis=None)
 
         return self.__partial_fit(x, y, classes, _refit=True, sample_weight=sample_weight)
 
@@ -282,6 +280,9 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
         # deviation of the largest dimension.
         self.epsilon_ = self.var_smoothing * ht.var(x, axis=0).max()
 
+        if classes is not None and classes.split is not None:
+            classes = ht.resplit(classes, axis=None)
+
         if _refit:
             self.classes_ = None
 
@@ -343,11 +344,7 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
         # DNDarrays for distributed operations only
         for y_i in unique_y.larray:
             # assuming classes.split is None
-            if y_i in classes.larray:
-                i = torch.where(classes.larray == y_i)[0].item()
-            else:
-                classes_ext = torch.cat((classes.larray, y_i.larray.unsqueeze(0)))
-                i = torch.argsort(classes_ext)[-1].item()
+            i = torch.where(classes.larray == y_i)[0].item()
             eq_y_i = y == y_i.item()
             X_i = x[eq_y_i, :]
 
