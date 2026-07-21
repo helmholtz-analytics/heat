@@ -76,8 +76,8 @@ class TestGaussianNB(TestCase):
         self.assert_array_equal(gnb_heat.class_prior_, sklearn_class_prior)
         self.assert_array_equal(gnb_heat.epsilon_, sklearn_epsilon)
         self.assertTrue(ht.isclose(gnb_heat.theta_, sklearn_theta).all())
-        self.assertTrue(ht.isclose(gnb_heat.sigma_, sklearn_sigma, atol=1e-1).all())
-        self.assertTrue(ht.isclose(y_pred_proba_sklearn, y_pred_proba_local, atol=1e-1).all())
+        self.assertTrue(ht.isclose(gnb_heat.sigma_, sklearn_sigma).all())
+        self.assertTrue(ht.isclose(y_pred_proba_sklearn, y_pred_proba_local).all())
 
         # test GaussianNB when sample_weight is not None, sample_weight not distributed
         sample_weight = ht.ones((y_train.gshape[0]), dtype=ht.float32, split=None)
@@ -88,7 +88,7 @@ class TestGaussianNB(TestCase):
         self.assert_array_equal(gnb_heat.class_prior_, sklearn_class_prior)
         self.assert_array_equal(gnb_heat.epsilon_, sklearn_epsilon)
         self.assertTrue(ht.isclose(gnb_heat.theta_, sklearn_theta).all())
-        self.assertTrue(ht.isclose(gnb_heat.sigma_, sklearn_sigma, atol=1e-1).all())
+        self.assertTrue(ht.isclose(gnb_heat.sigma_, sklearn_sigma).all())
         self.assert_array_equal(y_pred_local_weight, y_pred_local.numpy())
         self.assertTrue(ht.isclose(y_pred_proba_sklearn, y_pred_proba_local_weight).all())
 
@@ -102,7 +102,7 @@ class TestGaussianNB(TestCase):
         self.assert_array_equal(gnb_heat.epsilon_, sklearn_epsilon)
         # TODO: clean up gnb Issue #771
         self.assertTrue(ht.isclose(gnb_heat.theta_, sklearn_theta).all())
-        self.assertTrue(ht.isclose(gnb_heat.sigma_, sklearn_sigma, atol=1e-1).all())
+        self.assertTrue(ht.isclose(gnb_heat.sigma_, sklearn_sigma).all())
         self.assert_array_equal(y_pred_split, y_pred_local.numpy())
         self.assertEqual((y_pred_split != y_test_split).sum(), ht.array(4))
         sample_weight_split = ht.ones(y_train_split.gshape[0], dtype=ht.float32, split=0)
