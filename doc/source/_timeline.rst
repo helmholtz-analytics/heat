@@ -12,7 +12,7 @@
        <li class="timeline-item">
            <div class="timeline-date">May 2026</div>
            <h4><a href="https://indico3-jsc.fz-juelich.de/event/327/">Workshop registration open</a></h4>
-           <p>Registration is open for our upcoming virtual workshop on high-performance data analytics. Join us for hands-on sessions, expert talks, and live demos of Heat in action.</p>
+           <p>Registration is open for our upcoming workshop on high-performance data analytics. Join us for hands-on sessions, expert talks, and live demos of Heat in action. Also register for the <a href="https://www.fz-juelich.de/en/jsc/news/events/training-courses/training-courses-2026/massive-data-processing">tutorial</a> right before the hackathon.</p>
        </li>
 
        <li class="timeline-item">
