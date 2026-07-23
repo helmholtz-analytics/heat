@@ -1,7 +1,7 @@
 name: On PR Update
 
 on:
-  pull_request_target:
+  pull_request:
     types: [opened, reopened, synchronize]
     paths:
       - '.github/**'
@@ -44,44 +44,44 @@ jobs:
           mpi: ${{ matrix.mpi }}
           pytorch-version: ${{ matrix.pytorch-version }}
 
-  trigger-tests:
-    name: Trigger Codebase Tests
-    runs-on: ubuntu-latest
-    needs: quick-tests
-    if: ${{ !startsWith(github.head_ref, 'dependabot') }}
-    steps:
-      - name: Harden the runner
-        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
-        with:
-          egress-policy: audit
-      - name: Checkout code
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-      - uses: ./.github/actions/trigger_codebase_tests
-        with:
-          branch: ${{ github.head_ref }}
-          sha: ${{ github.event.pull_request.head.sha }}
-          pr_number: ${{ github.event.pull_request.number }}
-          trigger_token: ${{ secrets.CX_TRIGGER_TOKEN }}
-
-  trigger-benchmarks:
-    name: Trigger Codebase Benchmarks
-    runs-on: ubuntu-latest
-    needs: trigger-tests
-    if: ${{ !startsWith(github.head_ref, 'dependabot') && contains(github.event.pull_request.labels.*.name, 'benchmark PR') }}
-    steps:
-      - name: Harden the runner
-        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
-        with:
-          egress-policy: audit
-      - name: Checkout code
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-      - uses: ./.github/actions/trigger_codebase_benchmarks
-        with:
-          branch: ${{ github.head_ref }}
-          sha: ${{ github.event.pull_request.head.sha }}
-          author: ${{ github.event.pull_request.assignee.login || 'heat_team' }}
-          pr_number: ${{ github.event.pull_request.number }}
-          trigger_token: ${{ secrets.CX_TRIGGER_TOKEN }}
+#  trigger-tests:
+#    name: Trigger Codebase Tests
+#    runs-on: ubuntu-latest
+#    needs: quick-tests
+#    if: ${{ !startsWith(github.head_ref, 'dependabot') }}
+#    steps:
+#      - name: Harden the runner
+#        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+#        with:
+#          egress-policy: audit
+#      - name: Checkout code
+#        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+#      - uses: ./.github/actions/trigger_codebase_tests
+#        with:
+#          branch: ${{ github.head_ref }}
+#          sha: ${{ github.event.pull_request.head.sha }}
+#          pr_number: ${{ github.event.pull_request.number }}
+#          trigger_token: ${{ secrets.CX_TRIGGER_TOKEN }}
+#
+#  trigger-benchmarks:
+#    name: Trigger Codebase Benchmarks
+#    runs-on: ubuntu-latest
+#    needs: trigger-tests
+#    if: ${{ !startsWith(github.head_ref, 'dependabot') && contains(github.event.pull_request.labels.*.name, 'benchmark PR') }}
+#    steps:
+#      - name: Harden the runner
+#        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+#        with:
+#          egress-policy: audit
+#      - name: Checkout code
+#        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+#      - uses: ./.github/actions/trigger_codebase_benchmarks
+#        with:
+#          branch: ${{ github.head_ref }}
+#          sha: ${{ github.event.pull_request.head.sha }}
+#          author: ${{ github.event.pull_request.assignee.login || 'heat_team' }}
+#          pr_number: ${{ github.event.pull_request.number }}
+#          trigger_token: ${{ secrets.CX_TRIGGER_TOKEN }}
 
   dependency-review:
     name: Dependency Review
