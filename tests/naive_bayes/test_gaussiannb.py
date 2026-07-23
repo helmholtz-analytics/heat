@@ -94,23 +94,23 @@ class TestGaussianNB(TestCase):
 
         # test GaussianNB, data and labels distributed along split axis 0
         X_train_split = ht.resplit(X_train, axis=0)
-        # X_test_split = ht.resplit(X_test, axis=0)
+        X_test_split = ht.resplit(X_test, axis=0)
         y_train_split = ht.resplit(y_train, axis=0)
-        # y_test_split = ht.resplit(y_test, axis=0)
-        # y_pred_split = gnb_heat.fit(X_train_split, y_train_split).predict(X_test_split)
+        y_test_split = ht.resplit(y_test, axis=0)
+        y_pred_split = gnb_heat.fit(X_train_split, y_train_split).predict(X_test_split)
         self.assert_array_equal(gnb_heat.class_prior_, sklearn_class_prior)
         self.assert_array_equal(gnb_heat.epsilon_, sklearn_epsilon)
         # TODO: clean up gnb Issue #771
-        # self.assertTrue(ht.isclose(gnb_heat.theta_, sklearn_theta).all())
-        # self.assertTrue(ht.isclose(gnb_heat.sigma_, sklearn_sigma).all())
-        # self.assert_array_equal(y_pred_split, y_pred_local.numpy())
-        # self.assertEqual((y_pred_split != y_test_split).sum(), ht.array(4))
-        # sample_weight_split = ht.ones(y_train_split.gshape[0], dtype=ht.float32, split=0)
-        # y_pred_split_weight = gnb_heat.fit(
-        #     X_train_split, y_train_split, sample_weight=sample_weight_split
-        # ).predict(X_test_split)
-        # self.assertIsInstance(y_pred_split_weight, ht.DNDarray)
-        # self.assert_array_equal(y_pred_split_weight, y_pred_split.numpy())
+        self.assertTrue(ht.isclose(gnb_heat.theta_, sklearn_theta).all())
+        self.assertTrue(ht.isclose(gnb_heat.sigma_, sklearn_sigma).all())
+        self.assert_array_equal(y_pred_split, y_pred_local.numpy())
+        self.assertEqual((y_pred_split != y_test_split).sum(), ht.array(4))
+        sample_weight_split = ht.ones(y_train_split.gshape[0], dtype=ht.float32, split=0)
+        y_pred_split_weight = gnb_heat.fit(
+            X_train_split, y_train_split, sample_weight=sample_weight_split
+        ).predict(X_test_split)
+        self.assertIsInstance(y_pred_split_weight, ht.DNDarray)
+        self.assert_array_equal(y_pred_split_weight, y_pred_split.numpy())
 
         # test exceptions
         X_torch = torch.ones(75, 4)
@@ -170,3 +170,19 @@ class TestGaussianNB(TestCase):
     def test_exception(self):
         with self.assertRaises(ValueError):
             ht.naive_bayes.GaussianNB().set_params(foo="bar")
+
+    def test_distributed_classes(self):
+        X = ht.array([[1.], [2.]])
+        y = ht.array([1, 2])
+        classes_not_distributed = ht.array([1, 2])
+        classes_distributed = ht.array([1, 2], split=0)
+
+        gnb_classes_not_distributed = ht.naive_bayes.GaussianNB()
+        gnb_classes_not_distributed.partial_fit(X, y, classes_not_distributed)
+
+        gnb_classes_distributed = ht.naive_bayes.GaussianNB()
+        gnb_classes_distributed.partial_fit(X, y, classes=classes_distributed)
+
+        self.assertTrue(ht.equal(gnb_classes_distributed.classes_, gnb_classes_not_distributed.classes_))
+        self.assertTrue(ht.isclose(gnb_classes_distributed.theta_, gnb_classes_not_distributed.theta_).all())
+        self.assertTrue(ht.isclose(gnb_classes_distributed.sigma_, gnb_classes_not_distributed.sigma_).all())
