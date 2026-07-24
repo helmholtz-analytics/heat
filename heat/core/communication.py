@@ -19,7 +19,7 @@ from .stride_tricks import sanitize_axis
 
 from ._config import GPU_AWARE_MPI
 
-BufferType: TypeAlias = torch.Tensor | np.ndarray | MPI.InPlaceType
+BufferType: TypeAlias = torch.Tensor | np.ndarray
 
 
 class MPIRequest:
@@ -984,7 +984,7 @@ class MPICommunication(Communication):
     def __reduce_like(
         self,
         func: Callable,
-        sendbuf: DNDarray | BufferType,
+        sendbuf: DNDarray | BufferType | MPI.InPlaceType,
         recvbuf: DNDarray | BufferType,
         op: MPI.Op,
         *args: Any,
@@ -1961,8 +1961,8 @@ class MPICommunication(Communication):
     def __gather_like(
         self,
         func: Callable,
-        sendbuf: DNDarray | BufferType,
-        recvbuf: DNDarray | BufferType,
+        sendbuf: DNDarray | BufferType | MPI.InPlaceType,
+        recvbuf: DNDarray | BufferType | MPI.InPlaceType,
         send_axis: int,
         recv_axis: int,
         send_factor: int = 1,
@@ -2220,8 +2220,8 @@ class MPICommunication(Communication):
     def __scatter_like(
         self,
         func: Callable,
-        sendbuf: DNDarray | BufferType,
-        recvbuf: DNDarray | BufferType,
+        sendbuf: DNDarray | BufferType | MPI.InPlaceType,
+        recvbuf: DNDarray | BufferType | MPI.InPlaceType,
         send_axis: int,
         recv_axis: int,
         send_factor: int = 1,
