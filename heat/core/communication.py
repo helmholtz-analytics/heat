@@ -1336,7 +1336,7 @@ class MPICommunication(Communication):
 
         if not isinstance(sendbuf, torch.Tensor) and not isinstance(recvbuf, torch.Tensor):
             return func(sendbuf, recvbuf, **kwargs), None, None, None, None
-        
+
         if not isinstance(recvbuf, torch.Tensor) and axis != 0:
             raise TypeError(
                 f"recvbuf of type {type(recvbuf)} does not support concatenation axis != 0"
@@ -1556,7 +1556,17 @@ class MPICommunication(Communication):
             raise TypeError(f"recvbuf of type {type(recvbuf)} does not support send_axis != 0")
 
         if not isinstance(sendbuf, torch.Tensor) and not isinstance(recvbuf, torch.Tensor):
-            return func((sendbuf, send_counts, send_displs), (recvbuf, recv_counts, recv_displs), **kwargs), None, None, None, None
+            return (
+                func(
+                    (sendbuf, send_counts, send_displs),
+                    (recvbuf, recv_counts, recv_displs),
+                    **kwargs,
+                ),
+                None,
+                None,
+                None,
+                None,
+            )
 
         if not self.is_distributed():
             # consistenncy with multiprocess
@@ -2033,7 +2043,17 @@ class MPICommunication(Communication):
             raise TypeError(f"recvbuf of type {type(recvbuf)} does not support recv_axis != 0")
 
         if not isinstance(sendbuf, torch.Tensor) and not isinstance(recvbuf, torch.Tensor):
-            return func((sendbuf, send_counts, send_displs), (recvbuf, recv_counts, recv_displs), **kwargs), None, None, None, None
+            return (
+                func(
+                    (sendbuf, send_counts, send_displs),
+                    (recvbuf, recv_counts, recv_displs),
+                    **kwargs,
+                ),
+                None,
+                None,
+                None,
+                None,
+            )
 
         if not self.is_distributed():
             if sendbuf is not MPI.IN_PLACE or recvbuf is not MPI.IN_PLACE:
@@ -2295,7 +2315,17 @@ class MPICommunication(Communication):
             raise TypeError(f"recvbuf of type {type(recvbuf)} does not support recv_axis != 0")
 
         if not isinstance(sendbuf, torch.Tensor) and not isinstance(recvbuf, torch.Tensor):
-            return func((sendbuf, send_counts, send_displs), (recvbuf, recv_counts, recv_displs), **kwargs), None, None, None, None
+            return (
+                func(
+                    (sendbuf, send_counts, send_displs),
+                    (recvbuf, recv_counts, recv_displs),
+                    **kwargs,
+                ),
+                None,
+                None,
+                None,
+                None,
+            )
 
         if not self.is_distributed():
             if sendbuf is not MPI.IN_PLACE or recvbuf is not MPI.IN_PLACE:
