@@ -1013,17 +1013,19 @@ class MPICommunication(Communication):
         sbuf = None
         rbuf = None
         buf = None
-        # unpack the send buffer if it is a HeAT tensor
+        # unpack the send buffer if it is a Heat tensor
         if isinstance(sendbuf, DNDarray):
             sendbuf = sendbuf.larray
-        # unpack the receive buffer if it is a HeAT tensor
+        # unpack the receive buffer if it is a Heat tensor
         if isinstance(recvbuf, DNDarray):
             recvbuf = recvbuf.larray
+        if not isinstance(sendbuf, torch.Tensor) and isinstance(recvbuf, torch.Tensor):
+            return func(sendbuf, recvbuf, op, *args, **kwargs), sbuf, rbuf, buf
 
         # harmonize the input and output buffers
         # MPI requires send and receive buffers to be of same type and length. If the torch tensors are either not both
         # contiguous or differently strided, they have to be made matching (if possible) first.
-        if sendbuf is not MPI.IN_PLACE:
+        if sendbuf is not MPI.IN_PLACE and not isinstance(sendbuf, np.ndarray):
             # Send and recv buffer need the same number of elements.
             if sendbuf.numel() != recvbuf.numel():
                 raise ValueError("Send and recv buffers need the same number of elements.")
@@ -1325,11 +1327,16 @@ class MPICommunication(Communication):
             raise TypeError(
                 f"sendbuf of type {type(sendbuf)} does not support concatenation axis != 0"
             )
+
         # unpack the receive buffer
         if isinstance(recvbuf, tuple):
             recvbuf, recv_counts, recv_displs = recvbuf
         if isinstance(recvbuf, DNDarray):
             recvbuf = recvbuf.larray
+
+        if not isinstance(sendbuf, torch.Tensor) and not isinstance(recvbuf, torch.Tensor):
+            return func(sendbuf, recvbuf, **kwargs), None, None, None, None
+        
         if not isinstance(recvbuf, torch.Tensor) and axis != 0:
             raise TypeError(
                 f"recvbuf of type {type(recvbuf)} does not support concatenation axis != 0"
@@ -1547,6 +1554,9 @@ class MPICommunication(Communication):
             recvbuf = recvbuf.larray
         if not isinstance(recvbuf, torch.Tensor) and send_axis != 0:
             raise TypeError(f"recvbuf of type {type(recvbuf)} does not support send_axis != 0")
+
+        if not isinstance(sendbuf, torch.Tensor) and not isinstance(recvbuf, torch.Tensor):
+            return func((sendbuf, send_counts, send_displs), (recvbuf, recv_counts, recv_displs), **kwargs), None, None, None, None
 
         if not self.is_distributed():
             # consistenncy with multiprocess
@@ -2022,6 +2032,9 @@ class MPICommunication(Communication):
         if not isinstance(recvbuf, torch.Tensor) and recv_axis != 0:
             raise TypeError(f"recvbuf of type {type(recvbuf)} does not support recv_axis != 0")
 
+        if not isinstance(sendbuf, torch.Tensor) and not isinstance(recvbuf, torch.Tensor):
+            return func((sendbuf, send_counts, send_displs), (recvbuf, recv_counts, recv_displs), **kwargs), None, None, None, None
+
         if not self.is_distributed():
             if sendbuf is not MPI.IN_PLACE or recvbuf is not MPI.IN_PLACE:
                 _copyto(sendbuf, recvbuf)
@@ -2274,12 +2287,15 @@ class MPICommunication(Communication):
             raise TypeError(f"sendbuf of type {type(sendbuf)} does not support send_axis != 0")
 
         # unpack the receive buffer
-        # if isinstance(recvbuf, tuple):
-        #     recvbuf, recv_counts, recv_displs = recvbuf
+        if isinstance(recvbuf, tuple):
+            recvbuf, recv_counts, recv_displs = recvbuf
         if isinstance(recvbuf, DNDarray):
             recvbuf = recvbuf.larray
         if not isinstance(recvbuf, torch.Tensor) and recv_axis != 0:
             raise TypeError(f"recvbuf of type {type(recvbuf)} does not support recv_axis != 0")
+
+        if not isinstance(sendbuf, torch.Tensor) and not isinstance(recvbuf, torch.Tensor):
+            return func((sendbuf, send_counts, send_displs), (recvbuf, recv_counts, recv_displs), **kwargs), None, None, None, None
 
         if not self.is_distributed():
             if sendbuf is not MPI.IN_PLACE or recvbuf is not MPI.IN_PLACE:
