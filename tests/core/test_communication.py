@@ -2616,11 +2616,8 @@ class TestCommunication(TestCase):
     )
     def test_largecount_workaround_Allreduce(self):
         shape = (2**10, 2**11, 2**10)
-        data = (
-            torch.zeros(shape, dtype=torch.bool)
-            if ht.MPI_WORLD.rank % 2 == 0
-            else torch.ones(shape, dtype=torch.bool)
-        )
+        data = torch.zeros(shape, dtype=torch.bool) if ht.MPI_WORLD.rank % 2 == 0 else torch.ones(shape, dtype=torch.bool)
+
         ht.MPI_WORLD.Allreduce(ht.MPI.IN_PLACE, data, op=ht.MPI.SUM)
         self.assertTrue(data.all())
 
