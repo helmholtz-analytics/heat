@@ -17,6 +17,7 @@
 [![OpenSSF Best Practices](https://bestpractices.coreinfrastructure.org/projects/7688/badge)](https://bestpractices.coreinfrastructure.org/projects/7688)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.2531472.svg)](https://doi.org/10.5281/zenodo.2531472)
 [![Benchmarks](https://img.shields.io/badge/Grafana-Benchmarks-2ea44f)](https://930000e0-e69a-4939-912e-89a92316b420.ka.bw-cloud-instance.org/grafana)
+[![REUSE status](https://api.reuse.software/badge/github.com/helmholtz-analytics/heat)](https://api.reuse.software/info/github.com/helmholtz-analytics/heat)
 
 # Heat
 **High-performance data analytics in Python, at scale.**
@@ -31,6 +32,10 @@ Heat is a distributed tensor framework built on **PyTorch** and **mpi4py**. It p
 * **Seamless integration:** Port existing NumPy/SciPy code to multi-node clusters with minimal effort.
 * **Hardware-agnostic:** Supports CPUs and GPUs (CUDA, ROCm, Apple MPS).
 * **Efficient scaling:** Exploit the entire, cumulative RAM of your cluster for memory-intensive operations.
+
+[![Jupyter4NFDI](https://nfdi-jupyter.de/images/jupyter4nfdi_badge.svg)](https://hub.nfdi-jupyter.de/v2/gh/helmholtz-analytics/heat/jupyter4nfdi?labpath=tutorials%2FJupyter4NFDI_landing_notebook.ipynb&system=deNBI-Cloud&flavor=l1&localstoragepath=%2Fhome%2Fjovyan%2Fwork)
+:point_left: Try Heat right in your browser without any installations!
+
 
 ### Requirements
 * **Python:** >= 3.11
@@ -96,7 +101,7 @@ We welcome contributions from the community. Please see our [Contribution Guidel
 
 For bug reports, feature requests, or general questions, please use [GitHub Issues](https://github.com/helmholtz-analytics/heat/issues) or [Discussions](https://github.com/helmholtz-analytics/heat/discussions).
 
-### Citations
+### How to cite
 Citations are essential for the sustainability of this project. If Heat supports your work, please cite our main paper:
 
 Götz, M., et al. (2020). HeAT - a Distributed and GPU-accelerated Tensor Framework for Data Analytics. In *2020 IEEE International Conference on Big Data (Big Data)* (pp. 276-287). IEEE. DOI: [10.1109/BigData50022.2020.9378050](https://doi.org/10.1109/BigData50022.2020.9378050).
@@ -124,4 +129,4 @@ This work was funded by the **Helmholtz Association Initiative and Networking Fu
 Heat is a [NumFOCUS](https://numfocus.org) affiliated project.
 
 ### License
-Heat is distributed under the **MIT license**. See the [LICENSE](https://github.com/helmholtz-analytics/heat/blob/main/LICENSE) file for details.
+Heat is distributed under the **MIT license**. See the [LICENSE](https://github.com/helmholtz-analytics/heat/blob/main/LICENSES/MIT.txt) file for details.

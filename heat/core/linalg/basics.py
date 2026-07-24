@@ -680,13 +680,11 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
 
     c = None
 
-    # single-process setup, torch matmul
+    # early out with torch matmul if input is not distributed
     if a.comm.size == 1:
         c = factories.array(torch.matmul(a.larray, b.larray), dtype=c_type, device=dev)
 
     # early out for vector vector multiplication
-    # is this even covered in the tests?
-    # seems to be used in test_qr
     elif a.ndim == 1 and b.ndim == 1:
         # make both split 0, do a local mm then a sum
         a.resplit_(0)
@@ -695,7 +693,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
         a.comm.Allreduce(MPI.IN_PLACE, res, MPI.SUM)
         c = factories.array(res, split=None, device=dev, comm=comm)
 
-    elif a.split is None and b.split is None:  # None-None
+    elif a.split is None and b.split is None:
         if allow_resplit and not vector_flag:  # resplit a to 0
             a.resplit_(ndim - 2)
             slice_0 = a.comm.chunk(a.shape, a.split)[2][0]
@@ -736,7 +734,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
 
     c_shape = (*batch_shape, a.gshape[-2], b.gshape[-1])
 
-    # one split None => other one is la dimension
+    # one split None => other one is non-batch dimension
     if a.split is None or b.split is None:
         split = None
         is_split = False
@@ -775,7 +773,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
             b.comm.Allreduce(MPI.IN_PLACE, c, MPI.SUM)
 
         # early out
-        if vector_flag:  # squeeze only in the la dimensions
+        if vector_flag:  # squeeze only in the non-batch dimensions
             # it could be sensible to resplit/rebalance in case a single node gets the whole vector
             if split is not None and split > batch_dim:  # split in dimension that gets squeezed
                 split = batch_dim
@@ -800,475 +798,95 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
 
         return c
 
-    else:
-        # block sizes dont need to be the same. they just need the same inner dimension (kB)
-        kB = 0  # redundant?
-        rem_a, rem_b = 0, 0
-        if a.split == ndim - 1 and b.split == ndim - 2:  # split 10
-            # if the split direction is the last dim in a and the first dim in b
-            # the max inner dim (kB) is the min value from the result of the integer division
-            # of the last dim of a/world size and the first dim of b/world size
-            kB = min(
-                [a.gshape[-1] // comm.size, b.gshape[-2] // comm.size]
-            )  # a.gshape[-1] == b.gshape[-2]
-        elif a.split == ndim - 2 and b.split == ndim - 1:  # split 01
-            kB = a.gshape[-1]
-        elif a.split == ndim - 1:  # split 11
-            kB = a.gshape[-1] // comm.size
-        elif b.split == ndim - 2:  # split 00
-            kB = b.gshape[-2] // comm.size
-            kB = min(
-                kB, a.gshape[-1]
-            )  # shouldnt this always be kB and be the same as for split 11?
-
-        if (kB == 1 and a.lshape[-1] != 1) or a.lshape[
-            -1
-        ] % kB != 0:  # does kb == 1 imply a.lshape[-1] > 1?
-            rem_a = 1
-        if (kB == 1 and b.lshape[-2] != 1) or b.lshape[-2] % kB != 0:
-            rem_b = 1
+    else:  # both matrices are split in non-batch dims
+        # split dims 10 - This is the worst possible case and requires a resplit
+        if a.split == ndim - 1 and b.split == ndim - 2:
+            _b = b.copy()
+            _b.resplit_(a.split)
+            b = _b
 
         # get the lshape map to determine what needs to be sent where as well as M and N
         # lshape map dims -> {node, a=0 | b=1, lshape}
-        lshape_map = torch.zeros((comm.size, 2, ndim), dtype=int, device=tdev)
-        lshape_map[comm.rank, 0, :] = torch.tensor(a.lshape, device=tdev)
-        lshape_map[comm.rank, 1, :] = torch.tensor(b.lshape, device=tdev)
-        comm.Allreduce(MPI.IN_PLACE, lshape_map, MPI.SUM)
-
-        # find mB (first blocking dim for a) and nB (2nd blocking dim for b)
-        mB = lshape_map[:, 0, -2].min().item()  # smallest number of local rows of a on a node
-        nB = lshape_map[:, 1, -1].min().item()  # smallest number of local columns of b on a node
-
-        # check for remaining dims in the outside dimensions
-        rem_a_out, rem_b_out = 0, 0
-        if a.lshape[-2] % mB != 0 or (mB == 1 and a.lshape[-2] != 1):
-            rem_a_out = 1
-        if b.lshape[-1] % nB != 0 or (nB == 1 and b.lshape[-1] != 1):
-            rem_b_out = 1
-
-        # get the flags from all processes
-        # rem_map dims guide -> {process number, a/b (0/1), dim0/dim1 (0/1), True/False (1/0)
-        #   if there is a remainder in this dimension
-        rem_map = torch.zeros((comm.size, 2, 2))
-        rem_map[comm.rank, 0, :] = torch.tensor((rem_a_out, rem_a), device=tdev)
-        rem_map[comm.rank, 1, :] = torch.tensor((rem_b, rem_b_out), device=tdev)
-        rem_map_comm = comm.Iallreduce(MPI.IN_PLACE, rem_map, MPI.SUM)
+        lshape_map = np.zeros((comm.size, 2, ndim), dtype=int)
+        lshape_map[comm.rank, 0, :] = a.lshape
+        lshape_map[comm.rank, 1, :] = b.lshape
+        lshape_map_req = comm.Iallreduce(MPI.IN_PLACE, lshape_map, MPI.SUM)
 
         # index_map dims guide -> {process number, a=0/b=1, relevant 1st index, 2nd index}
-        index_map = torch.zeros((comm.size, 2, 2, 2), dtype=int, device=tdev)
+        index_map = np.zeros((comm.size, 2, 2, 2), dtype=int)
         a_idx = comm.chunk(a.shape, a.split)[2]
-        index_map[comm.rank, 0, 0] = torch.tensor((a_idx[-2].start, a_idx[-2].stop), device=tdev)
-        index_map[comm.rank, 0, 1] = torch.tensor((a_idx[-1].start, a_idx[-1].stop), device=tdev)
+        index_map[comm.rank, 0, 0] = (a_idx[-2].start, a_idx[-2].stop + 1)
+        index_map[comm.rank, 0, 1] = (a_idx[-1].start, a_idx[-1].stop)
         b_idx = comm.chunk(b.shape, b.split)[2]
-        index_map[comm.rank, 1, 0] = torch.tensor((b_idx[-2].start, b_idx[-2].stop), device=tdev)
-        index_map[comm.rank, 1, 1] = torch.tensor((b_idx[-1].start, b_idx[-1].stop), device=tdev)
-        index_map_comm = comm.Iallreduce(MPI.IN_PLACE, index_map, MPI.SUM)
+        index_map[comm.rank, 1, 0] = (b_idx[-2].start, b_idx[-2].stop)
+        index_map[comm.rank, 1, 1] = (b_idx[-1].start, b_idx[-1].stop)
+        index_map_req = comm.Iallreduce(MPI.IN_PLACE, index_map, MPI.SUM)
 
-        # output: c = a @ b
-        # for the communication scheme, the output array needs to be created
+        # allocate output: c = a @ b
         c_shape = (*batch_shape, a.gshape[-2], b.gshape[-1])
         c = factories.zeros(c_shape, split=a.split, dtype=c_type, device=dev, comm=comm)
 
-        # get the index map for c
-        c_index_map = factories.zeros((c.comm.size, 2, 2), device=dev, comm=comm)
-        c_idx = comm.chunk(c.shape, c.split)[2]
-        c_index_map[comm.rank, 0, :] = (c_idx[-2].start, c_idx[-2].stop)
-        c_index_map[comm.rank, 1, :] = (c_idx[-1].start, c_idx[-1].stop)
-        c_index_map_comm = comm.Iallreduce(MPI.IN_PLACE, c_index_map, MPI.SUM)
+        lshape_map_req.Wait()
+        index_map_req.Wait()
 
-        if a.split == ndim - 2:
-            a_block_map = torch.zeros(
-                (comm.size, a.shape[-2] // mB // comm.size, a.shape[-1] // kB, 2),
-                dtype=torch.int,
-                device=tdev,
-            )
-        elif a.split == ndim - 1:  # else should be equivalent at this point
-            a_block_map = torch.zeros(
-                (comm.size, a.shape[-2] // mB, a.shape[-1] // kB // comm.size, 2),
-                dtype=torch.int,
-                device=tdev,
-            )
-        # units-> [process, dim0 block number, dim1 block number, start coord] **indices are local
-
-        # below is to handle the edge case where there is only one element in one dimension of a
-        a_d0_1s_flag, a_d1_1s_flag = False, False
-        if any(lshape_map[:, 0, :][:, -2] == 1):
-            a_d0_1s_flag = True
-        if any(lshape_map[:, 0, :][:, -1] == 1):
-            a_d1_1s_flag = True
-
-        index_map_comm.Wait()
-        for pr in range(comm.size):
-            start0 = index_map[pr, 0, 0, 0].item()
-            stop0 = index_map[pr, 0, 0, 1].item()
-            start1 = index_map[pr, 0, 1, 0].item()
-            stop1 = index_map[pr, 0, 1, 1].item()
-
-            # maybe we could use torch.arange instead of this nested loop
-            for dim0 in range(
-                (stop0 - start0) // mB // comm.size if a_d0_1s_flag else (stop0 - start0) // mB
-            ):
-                # loop over the number of blocks in the 0th dimension
-                for dim1 in range(
-                    (stop1 - start1) // kB // comm.size if a_d1_1s_flag else (stop1 - start1) // kB
-                ):
-                    # loop over the number of blocks in the 1st dimension
-                    a_block_map[pr, dim0, dim1] = torch.tensor(
-                        (dim0 * mB, dim1 * kB), dtype=torch.int, device=tdev
-                    )
-        rem_map_comm.Wait()
-
-        if b.split == ndim - 2:
-            # the blocks are shifted in the 2nd dimension of A for as many remainders
-            # there are between the blocks in the first dim of B
-            cnt = 0
-            for r in rem_map[:, 1, 0]:
-                if r.item():
-                    cnt += 1
-                    # why increment by exactly 1? what can we assume about the lshapes on different nodes?
-                    # can the sizes in the split dimension differ by more than 1?
-                    a_block_map[:, :, cnt:, 1] += 1
-
-            b_block_map = torch.zeros(
-                (comm.size, b.shape[-2] // kB // comm.size, b.shape[-1] // nB, 2),
-                dtype=torch.int,
-                device=tdev,
-            )
-        else:  # b split 1
-            b_block_map = torch.zeros(
-                (comm.size, b.shape[-2] // kB, b.shape[-1] // nB // comm.size, 2),
-                dtype=torch.int,
-                device=tdev,
-            )
-        # units-> [process, dim0 block number, dim1 block number, start coord] **indices are local
-
-        # below is to handle the edge case where there is only one element in one dimension of b
-        b_d0_1s_flag, b_d1_1s_flag = False, False
-        if any(lshape_map[:, 1, :][:, -2] == 1):
-            b_d0_1s_flag = True
-        if any(lshape_map[:, 1, :][:, -1] == 1):
-            b_d1_1s_flag = True
-
-        for pr in range(b.comm.size):
-            start0 = index_map[pr, 1, 0, 0].item()
-            stop0 = index_map[pr, 1, 0, 1].item()
-            start1 = index_map[pr, 1, 1, 0].item()
-            stop1 = index_map[pr, 1, 1, 1].item()
-
-            # loop over the number of blocks in the 0th dimension
-            for dim0 in range(
-                (stop0 - start0) // kB // b.comm.size if b_d0_1s_flag else (stop0 - start0) // kB
-            ):
-                # loop over the number of blocks in the 1st dimension
-                for dim1 in range(
-                    (stop1 - start1) // nB // b.comm.size
-                    if b_d1_1s_flag
-                    else (stop1 - start1) // nB
-                ):
-                    b_block_map[pr, dim0, dim1] = torch.tensor(
-                        (dim0 * kB, dim1 * nB), dtype=torch.int, device=tdev
-                    )
-
-        if a.split == ndim - 1:
-            cnt = 0
-            # this loop will push the blocks in B to adjust for the remainders in A
-            for r in rem_map[:, 0, 1]:
-                if r.item():
-                    cnt += 1
-                    b_block_map[:, cnt:, :, 0] += 1
-
-        # work loop: loop over all processes (also will incorporate the remainder calculations)
-        c_index_map_comm.Wait()
-
-        # split la dims 00
-        if a.split == ndim - 2 and b.split == ndim - 2:
-            # need to send b here and not a
-            #   the rows on 'a' are complete, and the columns of 'b' are split
-            # locations of the remainders in b
-            b_rem_locs0 = torch.nonzero(rem_map[:, 1, 0] == 1, as_tuple=False)
-            a_rem_locs0 = torch.nonzero(rem_map[:, 0, 0] == 1, as_tuple=False)
-            # remainders for a in the
-            a_node_rem_s0 = a.larray[..., :mB, kB : (kB + 1) * b_rem_locs0.numel() : kB + 1]
-            b_rem = torch.empty(
-                (*batch_shape, b_rem_locs0.numel(), b.lshape[-1]),
-                dtype=a.dtype.torch_type(),
-                device=tdev,
-            )
-
-            # this if/elif/else loop is for the handling of
-            if comm.rank in a_rem_locs0:
-                # if A is split in dim0 and the rank has a remainder in this direction
-                r = a.larray[..., -1, :].unsqueeze(-2)
-                # can we not just set r_loc = -1 instead?
-                r_loc = index_map[comm.rank, 0, 0, 1] - index_map[comm.rank, 0, 0, 0] - 1
-            else:
-                r = None
-                r_loc = None
-
-            req = {}
-            b_lp_data = {}
-            for pr in range(comm.size):
-                # ibcast data on node first
-                if comm.rank == pr:
-                    b_lp_data[pr] = b.larray.clone()
-                else:
-                    b_lp_data[pr] = torch.zeros(
-                        (*batch_shape, lshape_map[pr, 1, -2].item(), lshape_map[pr, 1, -1].item()),
-                        dtype=b.dtype.torch_type(),
-                        device=tdev,
-                    )
-
-                # sending a to all nodes for b to operate with
-                req[pr] = comm.Ibcast(b_lp_data[pr], root=pr)
-
-                # receive the data from the last loop and do the calculation with that
-                if pr != 0:
-                    req[pr - 1].Wait()
-                    # after receiving the last loop's bcast
-                    __mm_c_block_setter(
-                        b_proc=pr - 1,
-                        a_proc=comm.rank,
-                        a_data=a.larray,
-                        b_data=b_lp_data[pr - 1],
-                        b_block_map=b_block_map,
-                        a_block_map=a_block_map,
-                        b_split=0,
-                        a_split=0,
-                        mB=mB,
-                        kB=kB,
-                        nB=nB,
-                        c=c.larray,
-                    )
-
-                    # check if there is a remainder on b in the previous node
-                    # this loop is intended to get the remainders of b since it is the one being passed
-                    if pr - 1 in b_rem_locs0:
-                        # takes care of the remainders in b as well as dim0 of a
-                        b_rem[..., pr - 1, :] = b_lp_data[pr - 1][..., -1, :]
-
-                    # this loop is to take care of the remainders in dim0 of a
-                    if a_rem_locs0.nelement() != 0 and r_loc is not None:
-                        st = index_map[pr - 1, 1, 0, 0].item()
-                        sp = index_map[pr - 1, 1, 0, 1].item()
-
-                        c.larray[..., r_loc.item(), :] += (
-                            r[..., st:sp] @ b_lp_data[pr - 1]
-                        ).squeeze(-2)
-                    del b_lp_data[pr - 1]
-
-                # need to wait if its the last loop, also need to collect the remainders
-                if pr == comm.size - 1:
-                    req[pr].Wait()
-                    __mm_c_block_setter(
-                        b_proc=pr,
-                        a_proc=comm.rank,
-                        a_data=a.larray,
-                        b_data=b_lp_data[pr],
-                        b_block_map=b_block_map,
-                        a_block_map=a_block_map,
-                        b_split=0,
-                        a_split=0,
-                        mB=mB,
-                        kB=kB,
-                        nB=nB,
-                        c=c.larray,
-                    )
-                    # check if there is a remainder on b on the last node (there shouldnt be)
-                    if pr in b_rem_locs0:
-                        # this is to save the data from B required by the remainders from dim1 of A
-                        b_rem[..., pr, :] = b_lp_data[pr][..., -1, :]
-
-                    # this loop is to take care of the remainders in the 0th dimension of A
-                    if a_rem_locs0.nelement() != 0 and r_loc is not None:
-                        st = index_map[pr, 1, 0, 0].item()
-                        sp = index_map[pr, 1, 0, 1].item()  # linear algebra dimension 0/1
-
-                        # code not reachable?
-                        # if split_01_flag:
-                        if False:
-                            st1 = index_map[pr, 1, 1, 0].item()
-                            sp1 = index_map[pr, 1, 1, 1].item()
-                            c.larray[..., r_loc.item(), st1:sp1] += r[..., st:sp] @ b_lp_data[pr]
-                        else:
-                            c.larray[..., r_loc.item(), :] += (
-                                r[..., st:sp] @ b_lp_data[pr]
-                            ).squeeze(-2)
-
-                    # set the final blocks on the last loop, then adjust for the
-                    # the remainders which were collected in b_rem
-                    if b_rem_locs0.numel():
-                        c.larray[..., : a_node_rem_s0.shape[-2], :] += (
-                            a_node_rem_s0 @ b_rem
-                        )  # shouldnt shape[0] always be mB?
-                    del b_lp_data[pr]
-
-        # split la dims 01
-        elif a.split == ndim - 2 and b.split == ndim - 1:
-            # for this case there are no remainders which need to be taken care of
-            req = {}
-            b_lp_data = {}
-            for pr in range(comm.size):
-                # ibcast data on node first
-                if comm.rank == pr:
-                    b_lp_data[pr] = b.larray.clone()
-                else:
-                    b_lp_data[pr] = torch.empty(
-                        (*batch_shape, lshape_map[pr, 1, -2].item(), lshape_map[pr, 1, -1].item()),
-                        dtype=b.dtype.torch_type(),
-                        device=tdev,
-                    )
-                # sending a to all nodes for b to operate with
-                req[pr] = comm.Ibcast(b_lp_data[pr], root=pr)
-
-                # receive the data from the last loop and do the calculation with that
-                if pr != 0:
-                    req[pr - 1].Wait()
-                    # after receiving the last loop's bcast
-                    st0 = index_map[pr - 1, 0, 0, 0].item()
-                    sp0 = index_map[pr - 1, 0, 0, 1].item() + 1
-                    st1 = index_map[pr - 1, 1, 1, 0].item()
-                    sp1 = index_map[pr - 1, 1, 1, 1].item()
-
-                    c.larray[..., : sp0 - st0, st1:sp1] += a.larray @ b_lp_data[pr - 1]
-
-                    del b_lp_data[pr - 1]
-                if pr == comm.size - 1:
-                    req[pr].Wait()
-                    st0 = index_map[pr, 0, 0, 0].item()
-                    sp0 = index_map[pr, 0, 0, 1].item() + 1
-                    st1 = index_map[pr, 1, 1, 0].item()
-                    sp1 = index_map[pr, 1, 1, 1].item()
-                    c.larray[..., : sp0 - st0, st1:sp1] += a.larray @ b_lp_data[pr]
-                    del b_lp_data[pr]
-
-        # split la dims 11
-        elif a.split == ndim - 1 and b.split == ndim - 1:
-            # for this case, a is sent to b
-            #   this is because 'b' has complete columns and the rows of 'a' are split
-            # locations of the remainders in b
-            b_rem_locs1 = torch.nonzero(rem_map[:, 1, 1] == 1, as_tuple=False)
-            a_rem_locs1 = torch.nonzero(rem_map[:, 0, 1] == 1, as_tuple=False)
-            b_node_rem_s1 = b.larray[..., kB : (kB + 1) * a_rem_locs1.numel() : kB + 1, :nB]
-            # b_node_rem_s1 -> remainders for a in the
-
-            a_rem = torch.empty(
-                (*batch_shape, a.lshape[-2], a_rem_locs1.numel()),
-                dtype=b.dtype.torch_type(),
-                device=tdev,
-            )
-            # this if/elif/else loop is for the handling of
-            if comm.rank in b_rem_locs1:
-                # if b is split in dim1 and the rank has a remainder in this direction
-                r = b.larray[..., -1].unsqueeze(-1)
-                r_loc = index_map[comm.rank, 1, 1, 1] - index_map[comm.rank, 1, 1, 0] - 1
-            else:
-                r = None
-                r_loc = None
-            req = {}
-            a_lp_data = {}
-            for pr in range(comm.size):
-                # ibcast data on node first
-                if a.comm.rank == pr:
-                    a_lp_data[pr] = a.larray.clone()
-                else:
-                    a_lp_data[pr] = torch.zeros(
-                        (*batch_shape, lshape_map[pr, 0, -2].item(), lshape_map[pr, 0, -1].item()),
-                        dtype=a.dtype.torch_type(),
-                        device=tdev,
-                    )
-                # sending a to all nodes for b to operate with
-                req[pr] = comm.Ibcast(a_lp_data[pr], root=pr)
-                # receive the data from the last loop and do the calculation with that
-                if pr != 0:
-                    # after receiving the last loop's bcast
-                    req[pr - 1].Wait()
-                    __mm_c_block_setter(
-                        a_proc=pr - 1,
-                        b_proc=comm.rank,
-                        a_data=a_lp_data[pr - 1],
-                        b_data=b.larray,
-                        b_block_map=b_block_map,
-                        a_block_map=a_block_map,
-                        a_split=1,
-                        b_split=1,
-                        mB=mB,
-                        kB=kB,
-                        nB=nB,
-                        c=c.larray,
-                    )
-                    # check if there is a remainder on b in the previous node
-                    # this loop is intended to get the remainders of b since it is the one being passed
-                    if pr - 1 in a_rem_locs1:
-                        # takes care of the remainders in b as well as dim0 of a
-                        a_rem[..., pr - 1] = a_lp_data[pr - 1][..., -1]
-                    # this loop is to take care of the remainders in dim1 of B
-                    if b_rem_locs1.nelement() != 0 and r_loc is not None:
-                        st = index_map[pr - 1, 0, 1, 0].item()
-                        sp = index_map[pr - 1, 0, 1, 1].item()
-
-                        c.larray[..., r_loc.item()] += (
-                            a_lp_data[pr - 1] @ r[..., st:sp, :]
-                        ).squeeze(-1)
-
-                    del a_lp_data[pr - 1]
-
-                # need to wait if its the last loop, also need to collect the remainders
-                if pr == b.comm.size - 1:
-                    req[pr].Wait()
-                    __mm_c_block_setter(
-                        a_proc=pr,
-                        b_proc=a.comm.rank,
-                        a_data=a_lp_data[pr],
-                        b_data=b.larray,
-                        b_block_map=b_block_map,
-                        a_block_map=a_block_map,
-                        a_split=1,
-                        b_split=1,
-                        mB=mB,
-                        kB=kB,
-                        nB=nB,
-                        c=c.larray,
-                    )
-                    # check if there is a remainder on b on the last node (there shouldnt be)
-                    if pr in a_rem_locs1:
-                        # this is to save the data from B required by the remainders from dim1 of A
-                        a_rem[..., pr] = a_lp_data[pr][..., -1]
-                    # this loop is to take care of the remainders in the 0th dimension of A
-                    if b_rem_locs1.nelement() != 0 and r_loc is not None:
-                        st = index_map[pr, 0, 1, 0].item()
-                        sp = index_map[pr, 0, 1, 1].item()
-                        c.larray[..., r_loc.item()] += (a_lp_data[pr] @ r[..., st:sp, :]).squeeze(
-                            -1
+        # split dims 00 and 01
+        if (a.split == ndim - 2 and b.split == ndim - 2) or (
+            a.split == ndim - 2 and b.split == ndim - 1
+        ):
+            pre_fetching = 1
+            reqs, b_chunks = {}, {}
+            for proc in range(comm.size + pre_fetching):
+                # broadcast chunks of b
+                if proc < comm.size:
+                    if comm.rank == proc:
+                        b_chunks[proc] = b.larray.clone()
+                    else:
+                        b_chunks[proc] = torch.empty(
+                            (*batch_shape, lshape_map[proc, 1, -2], lshape_map[proc, 1, -1]),
+                            dtype=b.dtype.torch_type(),
+                            device=tdev,
                         )
-                    # set the final blocks on the last loop, then adjust for the the remainders which were collected in b_rem
-                    if a_rem_locs1.numel():
-                        c.larray[..., : b_node_rem_s1.shape[-1]] += a_rem @ b_node_rem_s1
-                    del a_lp_data[pr]
+                    reqs[proc] = comm.Ibcast(b_chunks[proc], root=proc)
 
-        # split la dims 10
-        elif a.split == ndim - 1 and b.split == ndim - 2:
-            # todo: this may create the full matrix on evey process, issue #360
-            # for this case, only a sum is needed at the end
-            a_rem_locs1 = torch.nonzero(rem_map[:, 0, 1] == 1, as_tuple=False)
-            # locations of the remainders in b
-            b_rem_locs0 = torch.nonzero(rem_map[:, 1, 0] == 1, as_tuple=False)
-            res = torch.zeros(
-                (*batch_shape, a.gshape[-2], b.gshape[-1]), dtype=c_type.torch_type(), device=tdev
-            )
-            for i in range(a.lshape[-1] // kB):
-                res += (
-                    a.larray[..., :mB, i * kB : i * kB + kB]
-                    @ b.larray[..., i * kB : i * kB + kB, :nB]
-                )
-            if a.comm.rank in a_rem_locs1 and b.comm.rank in b_rem_locs0 and kB > 1:
-                # these Nones are used to change the dims if the full process is not covered
-                res += a.larray[..., :, -1, None] @ b.larray[..., None, -1, :]
+                # do local matrix multiplications with the chunk of b
+                if proc >= pre_fetching:
+                    _proc = proc - pre_fetching
+                    reqs[_proc].Wait()
+                    if a.split == ndim - 2 and b.split == ndim - 2:  # split 00
+                        b_start, b_stop = index_map[_proc, 1, 0]
+                        c.larray += a.larray[..., b_start:b_stop] @ b_chunks[_proc]
+                    else:  # split 01
+                        st0, sp0 = index_map[_proc, 0, 0]
+                        st1, sp1 = index_map[_proc, 1, 1]
+                        c.larray[..., : sp0 - st0, st1:sp1] += a.larray @ b_chunks[_proc]
+                    del b_chunks[_proc]
 
-            comm.Allreduce(MPI.IN_PLACE, res, MPI.SUM)
-            split = a.split if b.gshape[-1] > 1 else ndim - 2
-            c = factories.array(res, split=split, device=dev, comm=comm)
+        # split dims 11
+        elif a.split == ndim - 1 and b.split == ndim - 1:
+            pre_fetching = 1
+            reqs, a_chunks = {}, {}
+            for proc in range(comm.size + pre_fetching):
+                # broadcast chunks of a
+                if proc < comm.size:
+                    if comm.rank == proc:
+                        a_chunks[proc] = a.larray.clone()
+                    else:
+                        a_chunks[proc] = torch.empty(
+                            (*batch_shape, lshape_map[proc, 0, -2], lshape_map[proc, 0, -1]),
+                            dtype=a.dtype.torch_type(),
+                            device=tdev,
+                        )
+                    reqs[proc] = comm.Ibcast(a_chunks[proc], root=proc)
 
-    if vector_flag:  # squeeze only in the la dimensions
+                # do local matrix multiplications with the chunk of a
+                if proc >= pre_fetching:
+                    _proc = proc - pre_fetching
+                    reqs[_proc].Wait()
+                    a_start, a_stop = index_map[_proc, 0, 1]
+                    c.larray += a_chunks[_proc] @ b.larray[..., a_start:a_stop, :]
+                    del a_chunks[_proc]
+
+    if vector_flag:  # squeeze only in the non-batch dimensions
         # it could be sensible to resplit/rebalance in case a single node gets the whole vector
         split = c.split
         if split is not None and split > batch_dim:
@@ -2213,93 +1831,6 @@ DNDarray.trace: Callable[
 DNDarray.trace.__doc__ = trace.__doc__
 
 
-@torch.jit.script
-def __mm_c_block_setter(
-    b_proc: int,
-    a_proc: int,
-    a_data: torch.Tensor,
-    b_data: torch.Tensor,
-    b_block_map: torch.Tensor,
-    a_block_map: torch.Tensor,
-    b_split: int,
-    a_split: int,
-    mB: int,
-    kB: int,
-    nB: int,
-    c: torch.Tensor,
-) -> None:
-    """
-    Helper function for multiplying elements of A and B (see :func:'matmul <matmul>') and putting the results into the
-    correct place in C.
-
-    Parameters
-    ----------
-    b_proc : int
-        process with the data for the data for element b
-    a_proc : int
-        process with the data for the data for element a
-    a_data : torch.Tensor
-        data from A
-    b_data : torch.Tensor
-        data from B
-    b_block_map : torch.Tensor
-        block map for B
-    a_block_map : torch.Tensor
-        block map for A
-    b_split : int
-        split of B (0 or 1)
-    a_split : int
-        split of A (0 or 1)
-    mB : int
-        block size of m
-    kB : int
-        block size of K
-    nB : int
-        block size of n
-    c : torch.Tensor
-        the local data for C
-    """
-    # # (int, int, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, int, int, int, int, int, torch.Tensor) -> None
-    shp_b = b_block_map.shape
-    offset_a = b_proc * shp_b[1] if b_proc != 0 else 0
-    shp_a = a_block_map.shape
-    offset_b = a_proc * shp_a[2] if a_proc != 0 else 0
-    # offsets are the number of blocks in the multiplication direction on previous nodes
-
-    for bl_1_a in (
-        torch.arange(offset_a, offset_a + shp_b[1], dtype=torch.long, device=c.device)
-        if b_split == 0
-        else torch.arange(a_block_map[a_proc].shape[0], dtype=torch.long, device=c.device)
-    ):
-        # offset is the number of blocks on the previous node in the direction of multiplication
-        for bl_0_a in torch.arange(
-            a_block_map[a_proc].shape[0], dtype=torch.long, device=c.device
-        ):  # dim0
-            for bl_1_b in torch.arange(
-                b_block_map[b_proc].shape[1], dtype=torch.long, device=c.device
-            ):
-                for bl_0_b in (
-                    torch.arange(offset_b, offset_b + shp_a[1], dtype=torch.long, device=c.device)
-                    if a_split == 1
-                    else torch.arange(
-                        b_block_map[b_proc].shape[0], dtype=torch.long, device=c.device
-                    )
-                ):
-                    # this offset is the same as before but for b
-                    a_start1 = int(a_block_map[a_proc, bl_0_a, bl_1_a, 1].item())
-                    a_start0 = int(a_block_map[a_proc, bl_0_a, bl_1_a, 0].item())
-                    a_block = a_data[..., a_start0 : a_start0 + mB, a_start1 : a_start1 + kB]
-
-                    b_start0 = int(b_block_map[b_proc, bl_0_b, bl_1_b, 0].item())
-                    b_start1 = int(b_block_map[b_proc, bl_0_b, bl_1_b, 1].item())
-                    b_block = b_data[..., b_start0 : b_start0 + kB, b_start1 : b_start1 + nB]
-
-                    c_start0 = a_start0
-                    c_start1 = b_start1
-
-                    c[..., c_start0 : c_start0 + mB, c_start1 : c_start1 + nB] += a_block @ b_block
-
-
 def transpose(a: DNDarray, axes: Optional[List[int]] = None) -> DNDarray:
     """
     Permute the dimensions of an array.
@@ -2347,12 +1878,12 @@ def transpose(a: DNDarray, axes: Optional[List[int]] = None) -> DNDarray:
 
         return DNDarray(
             transposed_data,
-            transposed_shape,
-            a.dtype,
-            transposed_split,
-            a.device,
-            a.comm,
-            a.balanced,
+            gshape=transposed_shape,
+            dtype=a.dtype,
+            split=transposed_split,
+            device=a.device,
+            comm=a.comm,
+            balanced=a.balanced,
         )
     # if not possible re- raise any torch exception as ValueError
     except (RuntimeError, IndexError) as exception:
