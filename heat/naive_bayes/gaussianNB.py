@@ -287,7 +287,7 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
         if _refit:
             self.classes_ = None
 
-        if self.__check_partial_fit_first_call(classes):
+        if self.__check_partial_fit_first_call(classes) or _refit:
             # This is the first call to partial_fit:
             self.classes_ = classes
             n_features = x.shape[1]
