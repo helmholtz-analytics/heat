@@ -118,7 +118,7 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
                 raise ValueError(
                     f"`classes={classes}` is not the same as on last call to partial_fit, was: {self.classes_}"
                 )
-        # classes is None and self.classes_ has already previously been set:
+        # classes is None or self.classes_ has already previously been set:
         # nothing to do
         return False
 
@@ -280,10 +280,8 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
         # deviation of the largest dimension.
         self.epsilon_ = self.var_smoothing * ht.var(x, axis=0).max()
 
-        if classes is not None and classes.split is not None:
         if classes is not None and classes.is_distributed():
             classes = ht.resplit(classes, axis=None)
-
 
         if self.__check_partial_fit_first_call(classes) or _refit:
             # This is the first call to partial_fit:
