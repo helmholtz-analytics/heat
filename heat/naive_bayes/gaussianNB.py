@@ -289,7 +289,7 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
 
         if self.__check_partial_fit_first_call(classes):
             # This is the first call to partial_fit:
-            # initialize various cumulative counters
+            self.classes_ = classes
             n_features = x.shape[1]
             n_classes = len(self.classes_)
             self.theta_ = ht.zeros((n_classes, n_features), dtype=x.dtype, device=x.device)
