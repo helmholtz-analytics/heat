@@ -284,8 +284,6 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
         if classes is not None and classes.is_distributed():
             classes = ht.resplit(classes, axis=None)
 
-        if _refit:
-            self.classes_ = None
 
         if self.__check_partial_fit_first_call(classes) or _refit:
             # This is the first call to partial_fit:
