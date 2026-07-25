@@ -111,7 +111,6 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
         elif classes is not None:
             unique_labels = classes
             if getattr(self, "classes_", None) is None:
-                self.classes_ = unique_labels
                 # This is the first call to partial_fit
                 return True
             if not ht.equal(self.classes_, unique_labels):
@@ -285,6 +284,7 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
 
         if self.__check_partial_fit_first_call(classes) or _refit:
             # This is the first call to partial_fit:
+            # initialize various cumulative counters
             self.classes_ = classes
             n_features = x.shape[1]
             n_classes = len(self.classes_)
