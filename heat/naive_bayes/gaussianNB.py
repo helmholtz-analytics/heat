@@ -281,6 +281,7 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
         self.epsilon_ = self.var_smoothing * ht.var(x, axis=0).max()
 
         if classes is not None and classes.split is not None:
+        if classes is not None and classes.is_distributed():
             classes = ht.resplit(classes, axis=None)
 
         if _refit:
