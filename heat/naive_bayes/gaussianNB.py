@@ -344,7 +344,7 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
         # from now on: extract torch tensors for local operations
         # DNDarrays for distributed operations only
         for y_i in unique_y.larray:
-            # assuming classes.split is None
+            assert not classes.is_distributed()
             i = torch.where(classes.larray == y_i)[0].item()
             eq_y_i = y == y_i.item()
             X_i = x[eq_y_i, :]
