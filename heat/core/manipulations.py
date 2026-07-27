@@ -73,7 +73,7 @@ def argsort(
     Returns the indices that would sort an array. This is the distributed equivalent of `np.argsort`.
     The sorting is not stable which means that equal elements in the result may have a different ordering than in the
     original array.
-    Sorting where `axis==a.split` needs a lot of communication between the processes of MPI.
+    Sorting with `axis==a.split` needs a lot of communication between the processes.
 
     Parameters
     ----------
