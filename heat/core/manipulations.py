@@ -82,8 +82,12 @@ def argsort(
     axis : int, optional
         The dimension to sort along.
         Default is the last axis.
+    *args: Any
+        Any arguments that are not specified in the function header will be ignored.
     descending : bool, optional
         If set to `True`, indices are sorted in descending order.
+    **kwargs: Any
+        Any keyword arguments that are not specified in the function header will be ignored.
 
     Raises
     ------
@@ -2627,6 +2631,8 @@ def sort(
     axis : int, optional
         The dimension to sort along.
         Default is the last axis.
+    *args: Any
+        Any arguments that are not specified in the function header will be ignored.
     descending : bool, optional
         If set to `True`, values are sorted in descending order.
     out : DNDarray, optional
@@ -2635,6 +2641,8 @@ def sort(
     return_sort_indices: bool, optional
         Wether to return the indices by which the array was sorted.
         If ``out`` is provided, returns the indices if ``True``, otherwise ``None``.
+    **kwargs: Any
+        Any keyword arguments that are not specified in the function header will be ignored.
 
     Raises
     ------
