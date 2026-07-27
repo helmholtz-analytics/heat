@@ -117,8 +117,7 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
                 raise ValueError(
                     f"`classes={classes}` is not the same as on last call to partial_fit, was: {self.classes_}"
                 )
-        # classes is None or self.classes_ has already previously been set:
-        # nothing to do
+        # classes is None or self.classes_ has already previously been set
         return False
 
     @staticmethod

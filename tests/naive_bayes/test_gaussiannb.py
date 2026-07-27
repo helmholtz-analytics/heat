@@ -100,7 +100,6 @@ class TestGaussianNB(TestCase):
         y_pred_split = gnb_heat.fit(X_train_split, y_train_split).predict(X_test_split)
         self.assert_array_equal(gnb_heat.class_prior_, sklearn_class_prior)
         self.assert_array_equal(gnb_heat.epsilon_, sklearn_epsilon)
-        # TODO: clean up gnb Issue #771
         self.assertTrue(ht.isclose(gnb_heat.theta_, sklearn_theta).all())
         self.assertTrue(ht.isclose(gnb_heat.sigma_, sklearn_sigma).all())
         self.assert_array_equal(y_pred_split, y_pred_local.numpy())
