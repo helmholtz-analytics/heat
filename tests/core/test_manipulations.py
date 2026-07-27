@@ -41,7 +41,7 @@ class TestManipulations(TestCase):
             with self.assertRaises(ValueError):
                 ht.broadcast_arrays(a, b)
 
-    def tests_broadcast_to(self):
+    def test_broadcast_to(self):
         a = ht.array([1, 2, 3])
         broadcasted = ht.broadcast_to(a, (3, 3))
         self.assertTrue(ht.equal(broadcasted, ht.array([[1, 2, 3], [1, 2, 3], [1, 2, 3]])))

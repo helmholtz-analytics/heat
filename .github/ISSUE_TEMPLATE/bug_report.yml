@@ -56,6 +56,8 @@ body:
       label: PyTorch version
       description: What PyTorch version?
       options:
+        - '2.13'
+        - '2.12'
         - '2.11'
         - '2.10'
         - '2.9'
@@ -64,7 +66,6 @@ body:
         - '2.6'
         - '2.5'
         - '2.4'
-        - '2.3'
         - 'other'
     validations:
       required: true
