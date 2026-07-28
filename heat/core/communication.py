@@ -19,8 +19,6 @@ from .stride_tricks import sanitize_axis
 
 from ._config import GPU_AWARE_MPI
 
-BufferType: TypeAlias = torch.Tensor | np.ndarray
-
 
 class MPIRequest:
     """
@@ -30,9 +28,9 @@ class MPIRequest:
     ----------
     handle: MPI.Request
         Handle for the mpi4py Request
-    sendbuf: torch.Tensor or np.ndarray
+    sendbuf: DNDarray or torch.Tensor or Any
         The buffer for the data to be send
-    recvbuf: torch.Tensor or np.ndarray
+    recvbuf: DNDarray or torch.Tensor or Any
         The buffer to the receive data
     tensor: torch.Tensor
         Internal Data
@@ -43,8 +41,8 @@ class MPIRequest:
     def __init__(
         self,
         handle: MPI.Request,
-        sendbuf: BufferType | None = None,
-        recvbuf: BufferType | None = None,
+        sendbuf: Any | None = None,
+        recvbuf: Any | None = None,
         tensor: torch.Tensor = None,
         permutation: tuple[int, ...] = None,
     ):
@@ -598,7 +596,7 @@ class MPICommunication(Communication):
 
     def Irecv(
         self,
-        buf: DNDarray | BufferType,
+        buf: Any,
         source: int = MPI.ANY_SOURCE,
         tag: int = MPI.ANY_TAG,
     ) -> MPIRequest:
@@ -607,7 +605,7 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        buf: DNDarray or torch.Tensor or np.ndarray
+        buf: DNDarray or torch.Tensor or Any
             Buffer address where to place the received message
         source: int, optional
             Rank of source process, that send the message
@@ -626,7 +624,7 @@ class MPICommunication(Communication):
 
     def Recv(
         self,
-        buf: DNDarray | BufferType,
+        buf: Any,
         source: int = MPI.ANY_SOURCE,
         tag: int = MPI.ANY_TAG,
         status: MPI.Status | None = None,
@@ -636,7 +634,7 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        buf: DNDarray or torch.Tensor or np.ndarray
+        buf: DNDarray or torch.Tensor or Any
             Buffer address where to place the received message
         source: int, optional
             Rank of the source process, that send the message
@@ -660,7 +658,7 @@ class MPICommunication(Communication):
     Recv.__doc__ = MPI.Comm.Recv.__doc__
 
     def __send_like(
-        self, func: Callable, buf: DNDarray | BufferType, dest: int, tag: int
+        self, func: Callable, buf: Any, dest: int, tag: int
     ) -> tuple[MPI.Request | None, torch.Tensor | None]:
         """
         Generic function for sending a message to process with rank "dest"
@@ -669,7 +667,7 @@ class MPICommunication(Communication):
         ----------
         func: Callable
             The respective MPI sending function
-        buf: DNDarray or torch.Tensor or np.ndarray
+        buf: DNDarray or torch.Tensor or Any
             Buffer address of the message to be send
         dest: int, optional
             Rank of the destination process, that receives the message
@@ -686,13 +684,13 @@ class MPICommunication(Communication):
 
         return func(self.as_buffer(sbuf), dest, tag), sbuf
 
-    def Bsend(self, buf: DNDarray | BufferType, dest: int, tag: int = 0) -> None:
+    def Bsend(self, buf: Any, dest: int, tag: int = 0) -> None:
         """
         Blocking buffered send
 
         Parameters
         ----------
-        buf: DNDarray or torch.Tensor or np.ndarray
+        buf: DNDarray or torch.Tensor or Any
             Buffer address of the message to be send
         dest: int, optional
             Index of the destination process, that receives the message
@@ -703,13 +701,13 @@ class MPICommunication(Communication):
 
     Bsend.__doc__ = MPI.Comm.Bsend.__doc__
 
-    def Ibsend(self, buf: DNDarray | BufferType, dest: int, tag: int = 0) -> MPIRequest:
+    def Ibsend(self, buf: Any, dest: int, tag: int = 0) -> MPIRequest:
         """
         Nonblocking buffered send
 
         Parameters
         ----------
-        buf: DNDarray or torch.Tensor or np.ndarray
+        buf: DNDarray or torch.Tensor or Any
             Buffer address of the message to be send
         dest: int, optional
             Rank of the destination process, that receives the message
@@ -720,13 +718,13 @@ class MPICommunication(Communication):
 
     Ibsend.__doc__ = MPI.Comm.Ibsend.__doc__
 
-    def Irsend(self, buf: DNDarray | BufferType, dest: int, tag: int = 0) -> MPIRequest:
+    def Irsend(self, buf: Any, dest: int, tag: int = 0) -> MPIRequest:
         """
         Nonblocking ready send
 
         Parameters
         ----------
-        buf: DNDarray or torch.Tensor or np.ndarray
+        buf: DNDarray or torch.Tensor or Any
             Buffer address of the message to be send
         dest: int, optional
             Rank of the destination process, that receives the message
@@ -737,13 +735,13 @@ class MPICommunication(Communication):
 
     Irsend.__doc__ = MPI.Comm.Irsend.__doc__
 
-    def Isend(self, buf: DNDarray | BufferType, dest: int, tag: int = 0) -> MPIRequest:
+    def Isend(self, buf: Any, dest: int, tag: int = 0) -> MPIRequest:
         """
         Nonblocking send
 
         Parameters
         ----------
-        buf: DNDarray or torch.Tensor or np.ndarray
+        buf: DNDarray or torch.Tensor or Any
             Buffer address of the message to be send
         dest: int, optional
             Rank of the destination process, that receives the message
@@ -754,13 +752,13 @@ class MPICommunication(Communication):
 
     Isend.__doc__ = MPI.Comm.Isend.__doc__
 
-    def Issend(self, buf: DNDarray | BufferType, dest: int, tag: int = 0) -> MPIRequest:
+    def Issend(self, buf: Any, dest: int, tag: int = 0) -> MPIRequest:
         """
         Nonblocking synchronous send
 
         Parameters
         ----------
-        buf: DNDarray or torch.Tensor or np.ndarray
+        buf: DNDarray or torch.Tensor or Any
             Buffer address of the message to be send
         dest: int, optional
             Rank of the destination process, that receives the message
@@ -771,13 +769,13 @@ class MPICommunication(Communication):
 
     Issend.__doc__ = MPI.Comm.Issend.__doc__
 
-    def Rsend(self, buf: DNDarray | BufferType, dest: int, tag: int = 0) -> None:
+    def Rsend(self, buf: Any, dest: int, tag: int = 0) -> None:
         """
         Blocking ready send
 
         Parameters
         ----------
-        buf: DNDarray or torch.Tensor or np.ndarray
+        buf: DNDarray or torch.Tensor or Any
             Buffer address of the message to be send
         dest: int, optional
             Rank of the destination process, that receives the message
@@ -788,13 +786,13 @@ class MPICommunication(Communication):
 
     Rsend.__doc__ = MPI.Comm.Rsend.__doc__
 
-    def Ssend(self, buf: DNDarray | BufferType, dest: int, tag: int = 0) -> None:
+    def Ssend(self, buf: Any, dest: int, tag: int = 0) -> None:
         """
         Blocking synchronous send
 
         Parameters
         ----------
-        buf: DNDarray or torch.Tensor or np.ndarray
+        buf: DNDarray or torch.Tensor or Any
             Buffer address of the message to be send
         dest: int, optional
             Rank of the destination process, that receives the message
@@ -805,13 +803,13 @@ class MPICommunication(Communication):
 
     Ssend.__doc__ = MPI.Comm.Ssend.__doc__
 
-    def Send(self, buf: DNDarray | BufferType, dest: int, tag: int = 0) -> None:
+    def Send(self, buf: Any, dest: int, tag: int = 0) -> None:
         """
         Blocking send
 
         Parameters
         ----------
-        buf: DNDarray or torch.Tensor or np.ndarray
+        buf: DNDarray or torch.Tensor or Any
             Buffer address of the message to be send
         dest: int, optional
             Rank of the destination process, that receives the message
@@ -823,7 +821,7 @@ class MPICommunication(Communication):
     Send.__doc__ = MPI.Comm.Send.__doc__
 
     def __broadcast_like(
-        self, func: Callable, buf: DNDarray | BufferType, root: int
+        self, func: Callable, buf: Any, root: int
     ) -> tuple[MPI.Request | None, torch.Tensor | None, torch.Tensor | None, torch.Tensor | None]:
         """
         Generic function for broadcasting a message from the process with rank "root" to all other processes of the
@@ -833,7 +831,7 @@ class MPICommunication(Communication):
         ----------
         func: Callable
             The respective MPI broadcast function
-        buf: DNDarray or torch.Tensor or np.ndarray
+        buf: DNDarray or torch.Tensor or Any
             Buffer address of the message to be broadcasted
         root: int
             Rank of the root process, that broadcasts the message
@@ -851,13 +849,13 @@ class MPICommunication(Communication):
 
         return func(self.as_buffer(srbuf), root), srbuf, srbuf, buf
 
-    def Bcast(self, buf: DNDarray | BufferType, root: int = 0) -> None:
+    def Bcast(self, buf: Any, root: int = 0) -> None:
         """
         Blocking Broadcast
 
         Parameters
         ----------
-        buf: DNDarray or torch.Tensor or np.ndarray
+        buf: DNDarray or torch.Tensor or Any
             Buffer address of the message to be broadcasted
         root: int
             Rank of the root process, that broadcasts the message
@@ -869,13 +867,13 @@ class MPICommunication(Communication):
 
     Bcast.__doc__ = MPI.Comm.Bcast.__doc__
 
-    def Ibcast(self, buf: DNDarray | BufferType, root: int = 0) -> MPIRequest:
+    def Ibcast(self, buf: Any, root: int = 0) -> MPIRequest:
         """
         Nonblocking Broadcast
 
         Parameters
         ----------
-        buf: DNDarray or torch.Tensor or np.ndarray
+        buf: DNDarray or torch.Tensor or Any
             Buffer address of the message to be broadcasted
         root: int
             Rank of the root process, that broadcasts the message
@@ -984,8 +982,8 @@ class MPICommunication(Communication):
     def __reduce_like(
         self,
         func: Callable,
-        sendbuf: DNDarray | BufferType | MPI.InPlaceType,
-        recvbuf: DNDarray | BufferType,
+        sendbuf: Any,
+        recvbuf: Any,
         op: MPI.Op,
         *args: Any,
         **kwargs: Any,
@@ -997,10 +995,10 @@ class MPICommunication(Communication):
         ----------
         func: Callable
             The respective MPI reduction operation
-        sendbuf: DNDarray or torch.Tensor or np.ndarray
+        sendbuf: DNDarray or torch.Tensor or Any
             Buffer for the send message. If MPI.IN_PLACE is set,
             recvbuf is also used as send buffer.
-        recvbuf: DNDarray or torch.Tensor or np.ndarray
+        recvbuf: DNDarray or torch.Tensor or Any
             Buffer for storing the result of the reduction
         op: MPI.Op
             Operation to apply during the reduction.
@@ -1090,8 +1088,8 @@ class MPICommunication(Communication):
 
     def Allreduce(
         self,
-        sendbuf: DNDarray | BufferType,
-        recvbuf: DNDarray | BufferType,
+        sendbuf: Any,
+        recvbuf: Any,
         op: MPI.Op = MPI.SUM,
     ) -> None:
         """
@@ -1099,9 +1097,9 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        sendbuf: DNDarray or torch.Tensor or np.ndarray
+        sendbuf: DNDarray or torch.Tensor or Any
             Buffer address of the send message
-        recvbuf: DNDarray or torch.Tensor or np.ndarray
+        recvbuf: DNDarray or torch.Tensor or Any
             Buffer address where to store the result of the reduction
         op: MPI.Op
             The operation to perform upon reduction
@@ -1115,8 +1113,8 @@ class MPICommunication(Communication):
 
     def Exscan(
         self,
-        sendbuf: DNDarray | BufferType,
-        recvbuf: DNDarray | BufferType,
+        sendbuf: Any,
+        recvbuf: Any,
         op: MPI.Op = MPI.SUM,
     ) -> None:
         """
@@ -1124,9 +1122,9 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        sendbuf: DNDarray or torch.Tensor or np.ndarray
+        sendbuf: DNDarray or torch.Tensor or Any
             Buffer address of the send message
-        recvbuf: DNDarray or torch.Tensor or np.ndarray
+        recvbuf: DNDarray or torch.Tensor or Any
             Buffer address where to store the result of the reduction
         op: MPI.Op
             The operation to perform upon reduction
@@ -1140,8 +1138,8 @@ class MPICommunication(Communication):
 
     def Iallreduce(
         self,
-        sendbuf: DNDarray | BufferType,
-        recvbuf: DNDarray | BufferType,
+        sendbuf: Any,
+        recvbuf: Any,
         op: MPI.Op = MPI.SUM,
     ) -> MPIRequest:
         """
@@ -1149,9 +1147,9 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        sendbuf: DNDarray or torch.Tensor or np.ndarray
+        sendbuf: DNDarray or torch.Tensor or Any
             Buffer address of the send message
-        recvbuf: DNDarray or torch.Tensor or np.ndarray
+        recvbuf: DNDarray or torch.Tensor or Any
             Buffer address where to store the result of the reduction
         op: MPI.Op
             The operation to perform upon reduction
@@ -1162,8 +1160,8 @@ class MPICommunication(Communication):
 
     def Iexscan(
         self,
-        sendbuf: DNDarray | BufferType,
-        recvbuf: DNDarray | BufferType,
+        sendbuf: Any,
+        recvbuf: Any,
         op: MPI.Op = MPI.SUM,
     ) -> MPIRequest:
         """
@@ -1171,9 +1169,9 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        sendbuf: DNDarray or torch.Tensor or np.ndarray
+        sendbuf: DNDarray or torch.Tensor or Any
             Buffer address of the send message
-        recvbuf: DNDarray or torch.Tensor or np.ndarray
+        recvbuf: DNDarray or torch.Tensor or Any
             Buffer address where to store the result of the reduction
         op: MPI.Op
             The operation to perform upon reduction
@@ -1184,8 +1182,8 @@ class MPICommunication(Communication):
 
     def Iscan(
         self,
-        sendbuf: DNDarray | BufferType,
-        recvbuf: DNDarray | BufferType,
+        sendbuf: Any,
+        recvbuf: Any,
         op: MPI.Op = MPI.SUM,
     ) -> MPIRequest:
         """
@@ -1193,9 +1191,9 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        sendbuf: DNDarray or torch.Tensor or np.ndarray
+        sendbuf: DNDarray or torch.Tensor or Any
             Buffer address of the send message
-        recvbuf: DNDarray or torch.Tensor or np.ndarray
+        recvbuf: DNDarray or torch.Tensor or Any
             Buffer address where to store the result of the reduction
         op: MPI.Op
             The operation to perform upon reduction
@@ -1206,8 +1204,8 @@ class MPICommunication(Communication):
 
     def Ireduce(
         self,
-        sendbuf: DNDarray | BufferType,
-        recvbuf: DNDarray | BufferType,
+        sendbuf: Any,
+        recvbuf: Any,
         op: MPI.Op = MPI.SUM,
         root: int = 0,
     ) -> MPIRequest:
@@ -1216,9 +1214,9 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        sendbuf: DNDarray or torch.Tensor or np.ndarray
+        sendbuf: DNDarray or torch.Tensor or Any
             Buffer address of the send message
-        recvbuf: DNDarray or torch.Tensor or np.ndarray
+        recvbuf: DNDarray or torch.Tensor or Any
             Buffer address where to store the result of the reduction
         op: MPI.Op
             The operation to perform upon reduction
@@ -1231,8 +1229,8 @@ class MPICommunication(Communication):
 
     def Reduce(
         self,
-        sendbuf: DNDarray | BufferType,
-        recvbuf: DNDarray | BufferType,
+        sendbuf: Any,
+        recvbuf: Any,
         op: MPI.Op = MPI.SUM,
         root: int = 0,
     ) -> None:
@@ -1241,9 +1239,9 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        sendbuf: DNDarray or torch.Tensor or np.ndarray
+        sendbuf: DNDarray or torch.Tensor or Any
             Buffer address of the send message
-        recvbuf: DNDarray or torch.Tensor or np.ndarray
+        recvbuf: DNDarray or torch.Tensor or Any
             Buffer address where to store the result of the reduction
         op: MPI.Op
             The operation to perform upon reduction
@@ -1259,8 +1257,8 @@ class MPICommunication(Communication):
 
     def Scan(
         self,
-        sendbuf: DNDarray | BufferType,
-        recvbuf: DNDarray | BufferType,
+        sendbuf: Any,
+        recvbuf: Any,
         op: MPI.Op = MPI.SUM,
     ) -> None:
         """
@@ -1268,9 +1266,9 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        sendbuf: DNDarray or torch.Tensor or np.ndarray
+        sendbuf: DNDarray or torch.Tensor or Any
             Buffer address of the send message
-        recvbuf: DNDarray or torch.Tensor or np.ndarray
+        recvbuf: DNDarray or torch.Tensor or Any
             Buffer address where to store the result of the reduction
         op: MPI.Op
             The operation to perform upon reduction
@@ -1285,8 +1283,8 @@ class MPICommunication(Communication):
     def __allgather_like(
         self,
         func: Callable,
-        sendbuf: DNDarray | BufferType,
-        recvbuf: DNDarray | BufferType,
+        sendbuf: Any,
+        recvbuf: Any,
         axis: int,
         **kwargs,
     ) -> tuple[
@@ -1303,9 +1301,9 @@ class MPICommunication(Communication):
         ----------
         func: Callable
             Type of MPI Allgather function (i.e. allgather, allgatherv, iallgather)
-        sendbuf: DNDarray or torch.Tensor or np.ndarray
+        sendbuf: DNDarray or torch.Tensor or Any
             Buffer address of the send message
-        recvbuf: DNDarray or torch.Tensor or np.ndarray
+        recvbuf: DNDarray or torch.Tensor or Any
             Buffer address where to store the result
         axis: int
             Concatenation axis: The axis along which ``sendbuf`` is packed and along which ``recvbuf`` puts together individual chunks
@@ -1382,8 +1380,8 @@ class MPICommunication(Communication):
 
     def Allgather(
         self,
-        sendbuf: DNDarray | BufferType,
-        recvbuf: DNDarray | BufferType,
+        sendbuf: Any,
+        recvbuf: Any,
         recv_axis: int = 0,
     ) -> None:
         """
@@ -1391,9 +1389,9 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        sendbuf: DNDarray or torch.Tensor or np.ndarray
+        sendbuf: DNDarray or torch.Tensor or Any
             Buffer address of the send message
-        recvbuf: DNDarray or torch.Tensor or np.ndarray
+        recvbuf: DNDarray or torch.Tensor or Any
             Buffer address where to store the result
         recv_axis: int
             Concatenation axis: The axis along which ``sendbuf`` is packed and along which ``recvbuf`` puts together individual chunks
@@ -1411,8 +1409,8 @@ class MPICommunication(Communication):
 
     def Allgatherv(
         self,
-        sendbuf: DNDarray | BufferType,
-        recvbuf: DNDarray | BufferType,
+        sendbuf: Any,
+        recvbuf: Any,
         recv_axis: int = 0,
     ) -> None:
         """
@@ -1420,9 +1418,9 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        sendbuf: DNDarray or torch.Tensor or np.ndarray
+        sendbuf: DNDarray or torch.Tensor or Any
             Buffer address of the send message
-        recvbuf: DNDarray or torch.Tensor or np.ndarray
+        recvbuf: DNDarray or torch.Tensor or Any
             Buffer address where to store the result
         recv_axis: int
             Concatenation axis: The axis along which ``sendbuf`` is packed and along which ``recvbuf`` puts together individual chunks
@@ -1440,8 +1438,8 @@ class MPICommunication(Communication):
 
     def Iallgather(
         self,
-        sendbuf: DNDarray | BufferType,
-        recvbuf: DNDarray | BufferType,
+        sendbuf: Any,
+        recvbuf: Any,
         recv_axis: int = 0,
     ) -> MPIRequest:
         """
@@ -1449,9 +1447,9 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        sendbuf: DNDarray or torch.Tensor or np.ndarray
+        sendbuf: DNDarray or torch.Tensor or Any
             Buffer address of the send message
-        recvbuf: DNDarray or torch.Tensor or np.ndarray
+        recvbuf: DNDarray or torch.Tensor or Any
             Buffer address where to store the result
         recv_axis: int
             Concatenation axis: The axis along which ``sendbuf`` is packed and along which ``recvbuf`` puts together individual chunks
@@ -1464,8 +1462,8 @@ class MPICommunication(Communication):
 
     def Iallgatherv(
         self,
-        sendbuf: DNDarray | BufferType,
-        recvbuf: DNDarray | BufferType,
+        sendbuf: Any,
+        recvbuf: Any,
         recv_axis: int = 0,
     ):
         """
@@ -1473,9 +1471,9 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        sendbuf: DNDarray or torch.Tensor or np.ndarray
+        sendbuf: DNDarray or torch.Tensor or Any
             Buffer address of the send message
-        recvbuf: DNDarray or torch.Tensor or np.ndarray
+        recvbuf: DNDarray or torch.Tensor or Any
             Buffer address where to store the result
         recv_axis: int
             Concatenation axis: The axis along which ``sendbuf`` is packed and along which ``recvbuf`` puts together individual chunks
@@ -1489,8 +1487,8 @@ class MPICommunication(Communication):
     def __alltoall_like(
         self,
         func: Callable,
-        sendbuf: DNDarray | BufferType,
-        recvbuf: DNDarray | BufferType,
+        sendbuf: Any,
+        recvbuf: Any,
         send_axis: int,
         recv_axis: int,
         **kwargs,
@@ -1508,9 +1506,9 @@ class MPICommunication(Communication):
         ----------
         func: Callable
             Specific alltoall function
-        sendbuf: DNDarray or torch.Tensor or np.ndarray
+        sendbuf: DNDarray or torch.Tensor or Any
             Buffer address of the send message
-        recvbuf: DNDarray or torch.Tensor or np.ndarray
+        recvbuf: DNDarray or torch.Tensor or Any
             Buffer address where to store the result
         send_axis: int
             Future split axis, along which data blocks will be created that will be send to individual ranks
@@ -1631,8 +1629,8 @@ class MPICommunication(Communication):
 
     def Alltoall(
         self,
-        sendbuf: DNDarray | BufferType,
-        recvbuf: DNDarray | BufferType,
+        sendbuf: Any,
+        recvbuf: Any,
         send_axis: int = 0,
         recv_axis: int = None,
     ) -> None:
@@ -1642,9 +1640,9 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        sendbuf: DNDarray or torch.Tensor or np.ndarray
+        sendbuf: DNDarray or torch.Tensor or Any
             Buffer address of the send message
-        recvbuf: DNDarray or torch.Tensor or np.ndarray
+        recvbuf: DNDarray or torch.Tensor or Any
             Buffer address where to store the result
         send_axis: int
             Future split axis, along which data blocks will be created that will be send to individual ranks
@@ -1667,8 +1665,8 @@ class MPICommunication(Communication):
 
     def Alltoallv(
         self,
-        sendbuf: DNDarray | BufferType,
-        recvbuf: DNDarray | BufferType,
+        sendbuf: Any,
+        recvbuf: Any,
         send_axis: int = 0,
         recv_axis: int = None,
     ) -> None:
@@ -1678,9 +1676,9 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        sendbuf: DNDarray or torch.Tensor or np.ndarray
+        sendbuf: DNDarray or torch.Tensor or Any
             Buffer address of the send message
-        recvbuf: DNDarray or torch.Tensor or np.ndarray
+        recvbuf: DNDarray or torch.Tensor or Any
             Buffer address where to store the result
         send_axis: int
             Future split axis, along which data blocks will be created that will be send to individual ranks
@@ -1703,17 +1701,17 @@ class MPICommunication(Communication):
 
     def Alltoallw(
         self,
-        sendbuf: DNDarray | BufferType,
-        recvbuf: DNDarray | BufferType,
+        sendbuf: Any,
+        recvbuf: Any,
     ) -> None:
         """
         Generalized All-to-All communication allowing different counts, displacements and datatypes for each partner. See MPI standard for more information.
 
         Parameters
         ----------
-        sendbuf: DNDarray or torch.Tensor or np.ndarray
+        sendbuf: DNDarray or torch.Tensor or Any
             Buffer address of the send message. The buffer is expected to be a tuple of the form (buffer, (counts, displacements), subarray_params_list), where subarray_params_list is a list of tuples of the form (lshape, subsizes, substarts).
-        recvbuf: DNDarray or torch.Tensor or np.ndarray
+        recvbuf: DNDarray or torch.Tensor or Any
             Buffer address where to store the result. The buffer is expected to be a tuple of the form (buffer, (counts, displacements), subarray_params_list), where subarray_params_list is a list of tuples of the form (lshape, subsizes, substarts).
         """
         # Unpack sendbuffer information
@@ -1900,8 +1898,8 @@ class MPICommunication(Communication):
 
     def Ialltoall(
         self,
-        sendbuf: DNDarray | BufferType,
-        recvbuf: DNDarray | BufferType,
+        sendbuf: Any,
+        recvbuf: Any,
         send_axis: int = 0,
         recv_axis: int = None,
     ) -> MPIRequest:
@@ -1910,9 +1908,9 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        sendbuf: DNDarray or torch.Tensor or np.ndarray
+        sendbuf: DNDarray or torch.Tensor or Any
             Buffer address of the send message
-        recvbuf: DNDarray or torch.Tensor or np.ndarray
+        recvbuf: DNDarray or torch.Tensor or Any
             Buffer address where to store the result
         send_axis: int
             Future split axis, along which data blocks will be created that will be send to individual ranks
@@ -1930,8 +1928,8 @@ class MPICommunication(Communication):
 
     def Ialltoallv(
         self,
-        sendbuf: DNDarray | BufferType,
-        recvbuf: DNDarray | BufferType,
+        sendbuf: Any,
+        recvbuf: Any,
         send_axis: int = 0,
         recv_axis: int = None,
     ) -> MPIRequest:
@@ -1941,9 +1939,9 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        sendbuf: DNDarray or torch.Tensor or np.ndarray
+        sendbuf: DNDarray or torch.Tensor or Any
             Buffer address of the send message
-        recvbuf: DNDarray or torch.Tensor or np.ndarray
+        recvbuf: DNDarray or torch.Tensor or Any
             Buffer address where to store the result
         send_axis: int
             Future split axis, along which data blocks will be created that will be send to individual ranks
@@ -1962,8 +1960,8 @@ class MPICommunication(Communication):
     def __gather_like(
         self,
         func: Callable,
-        sendbuf: DNDarray | BufferType | MPI.InPlaceType,
-        recvbuf: DNDarray | BufferType | MPI.InPlaceType,
+        sendbuf: Any,
+        recvbuf: Any,
         send_axis: int,
         recv_axis: int,
         send_factor: int = 1,
@@ -1983,9 +1981,9 @@ class MPICommunication(Communication):
         ----------
         func: Callable
             Type of MPI Scatter/Gather function
-        sendbuf: DNDarray or torch.Tensor or np.ndarray
+        sendbuf: DNDarray or torch.Tensor or Any
             Buffer address of the send message
-        recvbuf: DNDarray or torch.Tensor or np.ndarray
+        recvbuf: DNDarray or torch.Tensor or Any
             Buffer address where to store the result
         send_axis: int
             The axis along which ``sendbuf`` is packed
@@ -2074,8 +2072,8 @@ class MPICommunication(Communication):
 
     def Gather(
         self,
-        sendbuf: DNDarray | BufferType,
-        recvbuf: DNDarray | BufferType,
+        sendbuf: Any,
+        recvbuf: Any,
         root: int = 0,
         axis: int = 0,
         recv_axis: int = None,
@@ -2085,9 +2083,9 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        sendbuf: DNDarray or torch.Tensor or np.ndarray
+        sendbuf: DNDarray or torch.Tensor or Any
             Buffer address of the send message
-        recvbuf: DNDarray or torch.Tensor or np.ndarray
+        recvbuf: DNDarray or torch.Tensor or Any
             Buffer address where to store the result
         root: int
             Rank of receiving process
@@ -2109,8 +2107,8 @@ class MPICommunication(Communication):
 
     def Gatherv(
         self,
-        sendbuf: DNDarray | BufferType,
-        recvbuf: DNDarray | BufferType,
+        sendbuf: Any,
+        recvbuf: Any,
         root: int = 0,
         axis: int = 0,
         recv_axis: int = None,
@@ -2120,9 +2118,9 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        sendbuf: DNDarray or torch.Tensor or np.ndarray
+        sendbuf: DNDarray or torch.Tensor or Any
             Buffer address of the send message
-        recvbuf: DNDarray or torch.Tensor or np.ndarray
+        recvbuf: DNDarray or torch.Tensor or Any
             Buffer address where to store the result
         root: int
             Rank of receiving process
@@ -2144,8 +2142,8 @@ class MPICommunication(Communication):
 
     def Igather(
         self,
-        sendbuf: DNDarray | BufferType,
-        recvbuf: DNDarray | BufferType,
+        sendbuf: Any,
+        recvbuf: Any,
         root: int = 0,
         axis: int = 0,
         recv_axis: int = None,
@@ -2155,9 +2153,9 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        sendbuf: DNDarray or torch.Tensor or np.ndarray
+        sendbuf: DNDarray or torch.Tensor or Any
             Buffer address of the send message
-        recvbuf: DNDarray or torch.Tensor or np.ndarray
+        recvbuf: DNDarray or torch.Tensor or Any
             Buffer address where to store the result
         root: int
             Rank of receiving process
@@ -2182,8 +2180,8 @@ class MPICommunication(Communication):
 
     def Igatherv(
         self,
-        sendbuf: DNDarray | BufferType,
-        recvbuf: DNDarray | BufferType,
+        sendbuf: Any,
+        recvbuf: Any,
         root: int = 0,
         axis: int = 0,
         recv_axis: int = None,
@@ -2193,9 +2191,9 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        sendbuf: DNDarray or torch.Tensor or np.ndarray
+        sendbuf: DNDarray or torch.Tensor or Any
             Buffer address of the send message
-        recvbuf: DNDarray or torch.Tensor or np.ndarray
+        recvbuf: DNDarray or torch.Tensor or Any
             Buffer address where to store the result
         root: int
             Rank of receiving process
@@ -2221,8 +2219,8 @@ class MPICommunication(Communication):
     def __scatter_like(
         self,
         func: Callable,
-        sendbuf: DNDarray | BufferType | MPI.InPlaceType,
-        recvbuf: DNDarray | BufferType | MPI.InPlaceType,
+        sendbuf: Any,
+        recvbuf: Any,
         send_axis: int,
         recv_axis: int,
         send_factor: int = 1,
@@ -2242,9 +2240,9 @@ class MPICommunication(Communication):
         ----------
         func: Callable
             Type of MPI Scatter/Gather function
-        sendbuf: DNDarray or torch.Tensor or np.ndarray
+        sendbuf: DNDarray or torch.Tensor or Any
             Buffer address of the send message
-        recvbuf: DNDarray or torch.Tensor or np.ndarray
+        recvbuf: DNDarray or torch.Tensor or Any
             Buffer address where to store the result
         send_axis: int
             The axis along which ``sendbuf`` is packed
@@ -2336,8 +2334,8 @@ class MPICommunication(Communication):
 
     def Iscatter(
         self,
-        sendbuf: DNDarray | BufferType,
-        recvbuf: DNDarray | BufferType,
+        sendbuf: Any,
+        recvbuf: Any,
         root: int = 0,
         axis: int = 0,
         recv_axis: int = None,
@@ -2347,9 +2345,9 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        sendbuf: DNDarray or torch.Tensor or np.ndarray
+        sendbuf: DNDarray or torch.Tensor or Any
             Buffer address of the send message
-        recvbuf: DNDarray or torch.Tensor or np.ndarray
+        recvbuf: DNDarray or torch.Tensor or Any
             Buffer address where to store the result
         root: int
             Rank of sending process
@@ -2374,8 +2372,8 @@ class MPICommunication(Communication):
 
     def Iscatterv(
         self,
-        sendbuf: DNDarray | BufferType,
-        recvbuf: DNDarray | BufferType,
+        sendbuf: Any,
+        recvbuf: Any,
         root: int = 0,
         axis: int = 0,
         recv_axis: int = None,
@@ -2385,9 +2383,9 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        sendbuf: DNDarray or torch.Tensor or np.ndarray
+        sendbuf: DNDarray or torch.Tensor or Any
             Buffer address of the send message
-        recvbuf: DNDarray or torch.Tensor or np.ndarray
+        recvbuf: DNDarray or torch.Tensor or Any
             Buffer address where to store the result
         root: int
             Rank of sending process
@@ -2412,8 +2410,8 @@ class MPICommunication(Communication):
 
     def Scatter(
         self,
-        sendbuf: DNDarray | BufferType,
-        recvbuf: DNDarray | BufferType,
+        sendbuf: Any,
+        recvbuf: Any,
         root: int = 0,
         axis: int = 0,
         recv_axis: int = None,
@@ -2423,9 +2421,9 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        sendbuf: DNDarray or torch.Tensor or np.ndarray
+        sendbuf: DNDarray or torch.Tensor or Any
             Buffer address of the send message
-        recvbuf: DNDarray or torch.Tensor or np.ndarray
+        recvbuf: DNDarray or torch.Tensor or Any
             Buffer address where to store the result
         root: int
             Rank of sending process
@@ -2447,8 +2445,8 @@ class MPICommunication(Communication):
 
     def Scatterv(
         self,
-        sendbuf: DNDarray | BufferType,
-        recvbuf: DNDarray | BufferType,
+        sendbuf: Any,
+        recvbuf: Any,
         root: int = 0,
         axis: int = 0,
         recv_axis: int = None,
@@ -2458,9 +2456,9 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        sendbuf: DNDarray or torch.Tensor or np.ndarray
+        sendbuf: DNDarray or torch.Tensor or Any
             Buffer address of the send message
-        recvbuf: DNDarray or torch.Tensor or np.ndarray
+        recvbuf: DNDarray or torch.Tensor or Any
             Buffer address where to store the result
         root: int
             Rank of sending process
