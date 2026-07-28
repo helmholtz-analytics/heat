@@ -10,54 +10,15 @@ class TestManipulations(TestCase):
     def test_argsort(self):
         size = ht.MPI_WORLD.size
         rank = ht.MPI_WORLD.rank
-        tensor = (
-            torch.arange(size, device=self.device.torch_device).repeat(size).reshape(size, size)
-        )
 
-        data = ht.array(tensor, split=None)
-        result_indices = ht.argsort(data, axis=0, descending=True)
-        exp_indices = torch.argsort(tensor, dim=0, descending=True)
-        self.assertTrue(torch.equal(result_indices.larray, exp_indices.int()))
-
-        result_indices = ht.argsort(data, axis=1, descending=True)
-        exp_indices = torch.argsort(tensor, dim=1, descending=True)
-        self.assertTrue(torch.equal(result_indices.larray, exp_indices.int()))
-
-        data = ht.array(tensor, split=0)
-
-        exp_indices = torch.tensor([[rank] * size], device=self.device.torch_device)
-        result_indices = ht.argsort(data, descending=True, axis=0)
-        self.assertTrue(torch.equal(result_indices.larray, exp_indices.int()))
-
-        exp_indices = (
-            torch.arange(size, device=self.device.torch_device)
-            .reshape(1, size)
-            .argsort(dim=1, descending=True)
-        )
-        result_indices = ht.argsort(data, descending=True, axis=1)
-        self.assertTrue(torch.equal(result_indices.larray, exp_indices.int()))
-
-        indices1 = ht.argsort(data, axis=1, descending=True)
-        indices2 = ht.argsort(data, descending=True)
-        self.assertTrue(ht.equal(indices1, indices2))
-
-        data = ht.array(tensor, split=1)
-
-        indices_axis_zero = torch.arange(
-            size, dtype=torch.int64, device=self.device.torch_device
-        ).reshape(size, 1)
-        result_indices = ht.argsort(data, axis=0, descending=True)
-        # comparison value is only true on CPU
-        if result_indices.larray.is_cuda is False:
-            self.assertTrue(torch.equal(result_indices.larray, indices_axis_zero.int()))
-
-        exp_axis_one = (
-            torch.tensor(size - rank - 1, device=self.device.torch_device)
-            .repeat(size)
-            .reshape(size, 1)
-        )
-        result_indices = ht.argsort(data, descending=True, axis=1)
-        self.assertTrue(torch.equal(result_indices.larray, exp_axis_one.int()))
+        data = ht.random.rand(2, 3, 4)
+        for axis in [None, 0, 1, 2]:
+            for descending in [True, False]:
+                for split in [0, 1, 2]:
+                    data.resplit_(split)
+                    result_indices = ht.argsort(data, axis=axis, descending=descending)
+                    exp_indices = np.argsort(data.numpy(), axis=axis, descending=descending)
+                    self.assertTrue(np.allclose(result_indices.numpy(), exp_indices))
 
         tensor = torch.tensor(
             [
