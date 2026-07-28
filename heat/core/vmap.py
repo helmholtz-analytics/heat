@@ -8,7 +8,6 @@ import torch
 
 from .dndarray import DNDarray
 from .factories import array
-from .communication import MPI_WORLD
 from typing import Union, Tuple, Optional, Callable
 
 __all__ = ["vmap"]

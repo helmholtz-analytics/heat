@@ -6,7 +6,7 @@ import numpy as np
 import torch
 from typing import Any, Callable, Union, Tuple, List, Optional
 
-from .communication import MPI
+from .communication import MPI, MPI_WORLD
 from . import arithmetics
 from . import exponential
 from . import factories
@@ -1050,7 +1050,7 @@ def median(
     axis: Optional[int] = None,
     keepdims: bool = False,
     sketched: bool = False,
-    sketch_size: Optional[float] = 1.0 / MPI.COMM_WORLD.size,
+    sketch_size: float = 1.0 / MPI_WORLD.size,
 ) -> DNDarray:
     """
     Compute the median of the data along the specified axis.
@@ -1084,8 +1084,8 @@ def median(
 
 
 DNDarray.median: Callable[[DNDarray, int, bool, bool, float], DNDarray] = (
-    lambda x, axis=None, keepdims=False, sketched=False, sketch_size=1.0 / MPI.COMM_WORLD.size: (
-        median(x, axis, keepdims, sketched=sketched, sketch_size=sketch_size)
+    lambda x, axis=None, keepdims=False, sketched=False, sketch_size=1.0 / MPI_WORLD.size: median(
+        x, axis, keepdims, sketched=sketched, sketch_size=sketch_size
     )
 )
 DNDarray.median.__doc__ = median.__doc__
@@ -1465,7 +1465,7 @@ def percentile(
     interpolation: str = "linear",
     keepdims: bool = False,
     sketched: bool = False,
-    sketch_size: Optional[float] = 1.0 / MPI.COMM_WORLD.size,
+    sketch_size: float = 1.0 / MPI_WORLD.size,
 ) -> DNDarray:
     r"""
     Compute the q-th percentile of the data along the specified axis/axes.
@@ -1668,7 +1668,7 @@ def percentile(
         if (
             not isinstance(sketch_size, float)
             or sketch_size <= 0
-            or (MPI.COMM_WORLD.size > 1 and sketch_size == 1)
+            or (MPI_WORLD.size > 1 and sketch_size == 1)
             or sketch_size > 1
         ):
             raise ValueError(
