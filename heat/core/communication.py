@@ -2560,7 +2560,7 @@ def _copyto(sendbuf, recvbuf):
             sendbuf = sendbuf.cpu().numpy()
         np.copyto(sendbuf, recvbuf)
     else:
-        raise NotImplementedError(f'Don\'t know how to copy {type(sendbuf)} to {type(recvbuf)}')
+        raise NotImplementedError(f"Don't know how to copy {type(sendbuf)} to {type(recvbuf)}")
     return
 
 
