@@ -2559,6 +2559,8 @@ def _copyto(sendbuf, recvbuf):
         if isinstance(sendbuf, torch.Tensor):
             sendbuf = sendbuf.cpu().numpy()
         np.copyto(sendbuf, recvbuf)
+    else:
+        raise NotImplementedError(f'Don\'t know how to copy {type(sendbuf)} to {type(recvbuf)}')
     return
 
 
