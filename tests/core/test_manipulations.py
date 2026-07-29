@@ -7,14 +7,29 @@ from heat.testing.basic_test import TestCase
 
 
 class TestManipulations(TestCase):
+    def test_sort(self):
+        size = ht.MPI_WORLD.size
+        rank = ht.MPI_WORLD.rank
+
+        data = ht.random.rand(2, 3, 4)
+        for axis in [None, 0, 1, 2]:
+            for descending in [None, True, False]:
+                for split in [None, 0, 1, 2]:
+                    data.resplit_(split)
+                    result, idx = ht.sort(data, axis=axis, descending=descending, return_sort_indices=True)
+                    exp = np.sort(data.numpy(), axis=axis, descending=descending)
+                    exp_idx = np.argsort(data.numpy(), axis=axis, descending=descending)
+                    self.assertTrue(np.allclose(result.numpy(), exp))
+                    self.assertTrue(np.allclose(idx.numpy(), exp_idx))
+
     def test_argsort(self):
         size = ht.MPI_WORLD.size
         rank = ht.MPI_WORLD.rank
 
         data = ht.random.rand(2, 3, 4)
         for axis in [None, 0, 1, 2]:
-            for descending in [True, False]:
-                for split in [0, 1, 2]:
+            for descending in [None, True, False]:
+                for split in [None, 0, 1, 2]:
                     data.resplit_(split)
                     result_indices = ht.argsort(data, axis=axis, descending=descending)
                     exp_indices = np.argsort(data.numpy(), axis=axis, descending=descending)
