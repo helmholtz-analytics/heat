@@ -46,6 +46,7 @@
 - `testing`- Unit tests with the same structure as `heat/`
 
 ## PR Instructions
+- General guidelines in `CONTRIBUTING.md`
 - Title format: [component] Brief description
 - Fill out the template `.github/PULL_REQUEST_TEMPLATE.md` for the description. If a part is unsure, ask the user.
 - Write `AI Support 🦾` at the end of the description after a newline
