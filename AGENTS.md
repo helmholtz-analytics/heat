@@ -6,7 +6,7 @@
 - Dependencies: mpi4py >= 3.1, pytorch >= 2.4
 - create conda environment: `conda env create -f scripts/heat_dev.yml && conda activate heat_dev`
 - create pip environment: `python -m venv heat_venv && source heat_venv/bin/activate`
-- install: `pip install -e '.[dev]`
+- install: `pip install -e '.[dev]'`
 - Use `git remote add upstream https://github.com/helmholtz-analytics/heat.git` to add the main repository for synchronizing from a fork.
 
 ## Code Style
@@ -41,7 +41,7 @@
 - `heat/regression` - Regression techniques
 - `heat/sparse` - Sparse arrays
 - `heat/spatial`- Distance functions
-- `heat/testing` - Class for testing setup
+- `heat/testing` - Class for testing infrastructure
 - `heat/utils` - Helper functions
 - `testing`- Unit tests with the same structure as `heat/`
 
