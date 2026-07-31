@@ -19,7 +19,7 @@ jobs:
         with:
           egress-policy: audit
       - name: Checkout code
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
       - uses: ./.github/actions/trigger_codebase_tests
@@ -46,7 +46,6 @@ jobs:
           - '3.14'
         mpi: [ 'mpich' ]
         pytorch-version:
-          - 'torch==2.3.1 torchvision==0.18.1 torchaudio==2.3.1'
           - 'torch==2.4.1 torchvision==0.19.1 torchaudio==2.4.1'
           - 'torch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1'
           - 'torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0'
@@ -55,9 +54,9 @@ jobs:
           - 'torch==2.9.1 torchvision==0.24.1 torchaudio==2.9.1'
           - 'torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0'
           - 'torch==2.11.0 torchvision==0.26.0 torchaudio==2.11.0'
+          - 'torch==2.12.1 torchvision==0.27.1'
+          - 'torch==2.13.0 torchvision==0.28.0'
         exclude:
-          - py-version: '3.14'
-            pytorch-version: 'torch==2.3.1 torchvision==0.18.1 torchaudio==2.3.1'
           - py-version: '3.14'
             pytorch-version: 'torch==2.4.1 torchvision==0.19.1 torchaudio==2.4.1'
           - py-version: '3.14'
@@ -68,8 +67,6 @@ jobs:
             pytorch-version: 'torch==2.7.1 torchvision==0.22.1 torchaudio==2.7.1'
           - py-version: '3.14'
             pytorch-version: 'torch==2.8.0 torchvision==0.23.0 torchaudio==2.8.0'
-          - py-version: '3.13'
-            pytorch-version: 'torch==2.3.1 torchvision==0.18.1 torchaudio==2.3.1'
           - py-version: '3.13'
             pytorch-version: 'torch==2.4.1 torchvision==0.19.1 torchaudio==2.4.1'
           - py-version: '3.13'
@@ -82,7 +79,7 @@ jobs:
         with:
           egress-policy: audit
       - name: Checkout code
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
       - uses: ./.github/actions/gh_tests
@@ -102,10 +99,10 @@ jobs:
           egress-policy: audit
 
       - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Setup Python
-        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.14'
           architecture: x64

@@ -202,30 +202,24 @@ def broadcast_to(x: DNDarray, shape: Tuple[int, ...]) -> DNDarray:
     """
     sanitation.sanitize_in(x)
 
-    # figure out the output split axis via dndarray.__torch_proxy__ and named tensors functionality
-    torch_proxy = x.__torch_proxy__()
-    split_tags = [None] * x.ndim
+    # Verify that the target shape is broadcast‑compatible with the original global shape.
+    try:
+        torch.broadcast_shapes(x.gshape, shape)
+    except RuntimeError:
+        raise ValueError(
+            f"Shape mismatch: object cannot be broadcast to the given shape. Original shape: {x.gshape}, target shape: {shape}"
+        )
+
+    # Determine the output split axis.
     if x.split is not None:
-        split_tags[x.split] = "split"
-        torch_proxy = torch_proxy.detach().clone().rename_(*split_tags)
-        try:
-            torch_proxy = torch_proxy.broadcast_to(shape)
-        except RuntimeError:
-            raise ValueError(
-                f"Shape mismatch: object cannot be broadcast to the given shape. Original shape: {x.shape}, target shape: {shape}"
-            )
-        output_split = torch_proxy.names.index("split")
+        # Number of leading dimensions added when aligning shapes for broadcasting.
+        lead_dims = len(shape) - len(x.gshape)
+        output_split = x.split + lead_dims
     else:
-        try:
-            torch_proxy = torch_proxy.broadcast_to(shape)
-        except RuntimeError:
-            raise ValueError(
-                f"Shape mismatch: object cannot be broadcast to the given shape. Original shape: {x.shape}, target shape: {shape}"
-            )
         output_split = None
 
     if not x.is_distributed():
-        # return a view of the input data
+        # Return a view of the input data (non‑distributed case).
         broadcasted = DNDarray(
             x.larray.broadcast_to(shape),
             gshape=shape,
@@ -236,8 +230,8 @@ def broadcast_to(x: DNDarray, shape: Tuple[int, ...]) -> DNDarray:
             balanced=True,
         )
     else:
-        # input is distributed, return a broadcasted copy of input
-        # exploit binary operations broadcasting
+        # Distributed case: create a zero‑filled DNDarray with the target shape and appropriate split,
+        # then rely on element‑wise addition to broadcast the values.
         broadcasted = factories.zeros(
             shape, dtype=x.dtype, split=output_split, device=x.device, comm=x.comm
         )
