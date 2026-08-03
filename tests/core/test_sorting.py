@@ -14,7 +14,7 @@ class TestSorting:
         if not torch.cuda.is_available() and device == "gpu":
             pytest.skip("No gpu available for testing.")
 
-        if np.lib.NumpyVersion(np.__version__) < '2.5.0' and descending is not None:
+        if np.lib.NumpyVersion(np.__version__) < np.lib.NumpyVersion('2.5.0') and descending is not None:
             pytest.skip(f"NumPy {np.__version__} does not support the 'descending' keyword.")
 
         data = ht.random.rand(2, 3, 4, split=split)
@@ -33,7 +33,7 @@ class TestSorting:
         if not torch.cuda.is_available() and device == "gpu":
             pytest.skip("No gpu available for testing.")
 
-        if np.lib.NumpyVersion(np.__version__) < '2.5.0' and descending is not None:
+        if np.lib.NumpyVersion(np.__version__) < np.lib.NumpyVersion('2.5.0') and descending is not None:
             pytest.skip(f"NumPy {np.__version__} does not support the 'descending' keyword.")
 
         data = ht.random.rand(2, 3, 4, split=split, device=device)
