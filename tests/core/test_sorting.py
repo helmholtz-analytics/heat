@@ -16,10 +16,11 @@ class TestSorting:
     def test_sort(self, axis, descending, split):
         kwargs = {"axis": axis}
 
-        if np.lib.NumpyVersion(np.__version__) < np.lib.NumpyVersion('2.5.0'):
-            pytest.skip(f"NumPy {np.__version__} does not support the 'descending' keyword.")
-        else:
-            kwargs["descending"] = descending
+        if descending in [True, False]:
+            if np.lib.NumpyVersion(np.__version__) < np.lib.NumpyVersion('2.5.0'):
+                pytest.skip(f"NumPy {np.__version__} does not support the 'descending' keyword.")
+            else:
+                kwargs["descending"] = descending
 
         data = ht.random.rand(2, 3, 4, split=split)
         result, idx = ht.sort(data, return_sort_indices=True, **kwargs)
