@@ -4,7 +4,7 @@ Constants module.
 
 import torch
 
-__all__ = ["e", "Euler", "inf", "Inf", "Infty", "Infinity", "nan", "NaN", "pi"]
+__all__ = ["e", "Euler", "inf", "Inf", "Infty", "Infinity", "nan", "NaN", "pi", "newaxis"]
 
 # infinity
 INF = float("inf")
