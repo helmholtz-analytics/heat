@@ -37,3 +37,5 @@ e = E
 """Euler's number, Euler's constant (:math:`e`)."""
 Euler = E
 """Euler's number, Euler's constant (:math:`e`)."""
+newaxis = None
+"""An alias for ``None`` which is useful for indexing arrays."""
