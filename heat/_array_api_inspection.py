@@ -29,7 +29,7 @@ class __array_namespace_info__:
     def default_dtypes(self, *, device=None):
         """Returns a dictionary containing default data types."""
         if device is None:
-            device = default_device()
+            device = self.default_device()
 
         if not isinstance(device, ht_devices.Device):
             raise ValueError(f"Device not understood: {device}")
@@ -61,7 +61,7 @@ class __array_namespace_info__:
     def dtypes(self, *, device=None, kind=None):
         """Returns a dictionary of supported Array API data types"""
         if device is None:
-            device = default_device()
+            device = self.default_device()
 
         if not isinstance(device, ht_devices.Device):
             raise ValueError(f"Device not understood: {device}")
@@ -177,6 +177,6 @@ class __array_namespace_info__:
         if isinstance(kind, tuple):
             res = {}
             for k in kind:
-                res |= dtypes(device=device, kind=k)
+                res |= self.dtypes(device=device, kind=k)
             return res
         raise ValueError(f"Unsupported kind: {kind}")
