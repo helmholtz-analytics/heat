@@ -14,13 +14,17 @@ class TestSorting:
         if not torch.cuda.is_available() and device == "gpu":
             pytest.skip("No gpu available for testing.")
 
-        if np.lib.NumpyVersion(np.__version__) < np.lib.NumpyVersion('2.5.0') and descending is not None:
+        kwargs = {"axis": axis}
+
+        if np.lib.NumpyVersion(np.__version__) < np.lib.NumpyVersion('2.5.0'):
             pytest.skip(f"NumPy {np.__version__} does not support the 'descending' keyword.")
+        else:
+            kwargs["descending"] = descending
 
         data = ht.random.rand(2, 3, 4, split=split)
-        result, idx = ht.sort(data, axis=axis, descending=descending, return_sort_indices=True)
-        exp = np.sort(data.numpy(), axis=axis, descending=descending)
-        exp_idx = np.argsort(data.numpy(), axis=axis, descending=descending)
+        result, idx = ht.sort(data, return_sort_indices=True, **kwargs)
+        exp = np.sort(data.numpy(), **kwargs)
+        exp_idx = np.argsort(data.numpy(), **kwargs)
 
         assert np.allclose(result.numpy(), exp)
         assert np.allclose(idx.numpy(), exp_idx)
@@ -33,12 +37,16 @@ class TestSorting:
         if not torch.cuda.is_available() and device == "gpu":
             pytest.skip("No gpu available for testing.")
 
-        if np.lib.NumpyVersion(np.__version__) < np.lib.NumpyVersion('2.5.0') and descending is not None:
+        kwargs = {"axis": axis}
+
+        if np.lib.NumpyVersion(np.__version__) < np.lib.NumpyVersion('2.5.0'):
             pytest.skip(f"NumPy {np.__version__} does not support the 'descending' keyword.")
+        else:
+            kwargs["descending"] = descending
 
         data = ht.random.rand(2, 3, 4, split=split, device=device)
-        result_indices = ht.argsort(data, axis=axis, descending=descending)
-        exp_indices = np.argsort(data.numpy(), axis=axis, descending=descending)
+        result_indices = ht.argsort(data, **kwargs)
+        exp_indices = np.argsort(data.numpy(), **kwargs)
         assert np.allclose(result_indices.numpy(), exp_indices)
 
     @pytest.mark.parametrize("device", ["cpu", "gpu"])
