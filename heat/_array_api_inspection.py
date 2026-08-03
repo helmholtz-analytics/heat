@@ -14,6 +14,7 @@ from heat.core.types import (
     uint8,
 )
 
+
 class __array_namespace_info__:
     """Get the array API inspection namespace for Heat."""
 
@@ -21,11 +22,9 @@ class __array_namespace_info__:
         """Returns a dictionary of array library capabilities."""
         return {"boolean indexing": True, "data-dependent shapes": True, "max dimensions": 64}
 
-
     def default_device(self):
         """Returns the default device."""
         return ht_devices.get_device()
-
 
     def default_dtypes(self, *, device=None):
         """Returns a dictionary containing default data types."""
@@ -52,14 +51,12 @@ class __array_namespace_info__:
 
         raise ValueError(f"Unsupported device: {device}")
 
-
     def devices(self):
         """Returns a list of supported devices which are available at runtime."""
         if hasattr(ht_devices, "gpu"):
             return (ht_devices.cpu, ht_devices.gpu)
         else:
             return (ht_devices.cpu,)
-
 
     def dtypes(self, *, device=None, kind=None):
         """Returns a dictionary of supported Array API data types"""
