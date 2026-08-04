@@ -3027,7 +3027,7 @@ def vectorized_sort(
         else:
             gather_column(i)
 
-    comm.Bcast(indices)
+    comm.Bcast(indices, root=0)
 
     if return_sort_indices_only:
         return factories.array(indices, split=None)
