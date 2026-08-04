@@ -2918,8 +2918,6 @@ def vectorized_sort(
     columns first, which acts as the primary sort key, with subsequent
     columns acting as secondary, tertiary, etc., keys.
 
-    Behaves like `sort` for one dimensional data.
-
     Parameters
     ----------
     a : DNDarray
@@ -2966,12 +2964,6 @@ def vectorized_sort(
         sort_idx = torch.argsort(data[idx], stable=stable, descending=descending)
         return idx[sort_idx]
 
-    if len(a.gshape) == 1:
-        arr, idx = sort(a, axis=axis, descending=descending, return_sort_indices=True)
-        if return_sort_indices_only:
-            return idx
-        return arr.resplit_(a.split) if resplit_result else arr
-
     if not a.is_distributed():
         data = a.larray.transpose(axis, 0)
         shape = data.shape
@@ -2981,8 +2973,9 @@ def vectorized_sort(
         for i in range(data.shape[-1] - 1, -1, -1):
             indices = _permute_indices(data[:, i], indices)
 
-        data = data.reshape(shape)[indices]
-        return factories.array(data.transpose(axis, 0), split=None)
+        data = data.reshape(shape)[indices].transpose(axis, 0)
+        return factories.array(data, split=None)
+
     original_split = a.split
     if axis != a.split:
         a = resplit(a, axis)
@@ -2992,6 +2985,11 @@ def vectorized_sort(
     size = comm.Get_size()
 
     data = a.larray.transpose(axis, 0)
+
+    is_1d = data.ndim == 1
+    if is_1d:
+        data = data.reshape(-1, 1)
+
     original_shape = data.shape
     inner_shape = original_shape[1:]
 
@@ -3093,6 +3091,9 @@ def vectorized_sort(
     inv_sort_idx[sort_idx] = np.arange(sort_idx.size)
 
     recv_buf = recv_buf.view(-1, *inner_shape)[inv_sort_idx]
+
+    if is_1d:
+        recv_buf = recv_buf.squeeze(-1)
 
     sorted_array = factories.array(recv_buf.transpose(0, axis), is_split=a.split)
 
