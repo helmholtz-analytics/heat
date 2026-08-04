@@ -1,3 +1,5 @@
+# NOTE: All additions have been ported. Will be removed soon.
+
 import heat as ht
 
 e = ht.e
