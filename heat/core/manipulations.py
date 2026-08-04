@@ -3020,10 +3020,7 @@ def vectorized_sort(
         comm.Gatherv(local_col, recv_args)
         return buffer
 
-    if rank == 0:
-        indices = torch.arange(0, total_rows, dtype=torch.int64)
-    else:
-        indices = torch.empty(total_rows, dtype=torch.int64)
+    indices = torch.arange(0, total_rows, dtype=torch.int64)
 
     for i in range(block_length - 1, -1, -1):
         if rank == 0:
