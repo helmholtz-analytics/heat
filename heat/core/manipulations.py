@@ -2964,6 +2964,7 @@ def vectorized_sort(
         sort_idx = torch.argsort(data[idx], stable=stable, descending=descending)
         return idx[sort_idx]
 
+    # early out for non-distributed input
     if not a.is_distributed():
         data = a.larray.transpose(axis, 0)
         shape = data.shape
