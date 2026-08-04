@@ -11,8 +11,7 @@ __array_api_version__ = "2025.12"
 __all__ = ["__array_api_version__"]
 
 from ._inspection import __array_namespace_info__
-
-from ._constants import e, inf, nan, newaxis, pi
+from .core.constants import e, inf, nan, newaxis, pi
 
 __all__ += ["e", "inf", "nan", "newaxis", "pi"]
 
