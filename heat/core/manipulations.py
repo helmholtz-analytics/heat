@@ -2995,7 +2995,7 @@ def vectorized_sort(
 
     local_count = data.shape[0]
     total_rows = sum(comm.allgather(local_count))
-    block_length = np.prod(inner_shape) if len(inner_shape) > 0 else 1
+    block_length = np.prod(inner_shape)
 
     mpi_type: MPI.Datatype = a.comm.mpi_type_of(data.dtype)
 
