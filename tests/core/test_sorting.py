@@ -52,7 +52,7 @@ class TestSorting:
     @pytest.mark.parametrize("descending", [False, True])
     @pytest.mark.parametrize("stable", [False, True])
     @pytest.mark.parametrize("axis", [0, 1, -1])
-    @pytest.mark.parametrize("split", [0, 1])
+    @pytest.mark.parametrize("split", [None, 0, 1])
     @pytest.mark.parametrize("orig_shape", [(10, 1), (1, 10), (10, 10), (20, 5, 10), (5, 10, 30, 2)])
     def test_vectorized_sort_multi_dim(self, orig_shape, split, axis, stable, descending):
         a = ht.random.randn(*orig_shape, split=split)
