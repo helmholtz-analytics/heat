@@ -2907,7 +2907,7 @@ def vectorized_sort(
     stable: bool = True,
     descending: bool = False,
     resplit_result: bool = True,
-    return_sort_indices_only: bool = False,
+    return_sort_indices_instead: bool = False,
 ) -> DNDarray:
     """
     Performs a lexicographical sort along the specified axis.
@@ -2933,32 +2933,32 @@ def vectorized_sort(
     resplit_result : bool, optional
         Whether to resplit the final sorted array back to the original split
         axis of the input array after rows are distributed. Default is True.
-    return_sort_indices_only : bool, optional
+    return_sort_indices_instead : bool, optional
         If True, bypasses the row exchange and returns only the global sort indices. Default is False.
 
     Returns
     -------
     DNDarray
-        Either the final sorted array, or if `return_sort_indices_only` is True, the global sort indices.
+        Either the final sorted array, or if `return_sort_indices_instead` is True, the global sort indices.
     """
     sanitation.sanitize_in(a)
 
     if not isinstance(axis, int):
-        raise ValueError("'axis' must be an int.")
+        raise ValueError(f"'axis' must be integer, not {type(axis)}.")
     if not isinstance(stable, bool):
-        raise ValueError("'stable' must be a bool.")
+        raise ValueError(f"'stable' must be bool, not {type(stable)}.")
     if not isinstance(descending, bool):
-        raise ValueError("'descending' must be a bool.")
+        raise ValueError(f"'descending' must be bool, not {type(descending)}.")
     if not isinstance(resplit_result, bool):
-        raise ValueError("'resplit_result' must be a bool.")
-    if not isinstance(return_sort_indices_only, bool):
-        raise ValueError("'return_sort_indices_only' must be a bool.")
+        raise ValueError(f"'resplit_result' must be bool, not {type(resplit_result)}.")
+    if not isinstance(return_sort_indices_instead, bool):
+        raise ValueError(f"'return_sort_indices_instead' must be bool, not {type(return_sort_indices_instead)}.")
 
-    if len(a.gshape) == 0:
-        raise ValueError("dndarray must have atleast one dimension.")
+    if a.ndim == 0:
+        raise ValueError("dndarray must have at least one dimension.")
 
-    if axis >= len(a.gshape) or (axis < 0 and abs(axis) > len(a.gshape)):
-        raise ValueError(f"'axis'={axis} does not exist for '{len(a.gshape)}' dimenions.")
+    if not (-a.ndim <= axis < a.ndim):
+        raise ValueError(f"{axis=} does not exist for array with {a.ndim} dimensions.")
 
     def _permute_indices(data, idx):
         sort_idx = torch.argsort(data[idx], stable=stable, descending=descending)
@@ -2966,45 +2966,46 @@ def vectorized_sort(
 
     # early out for non-distributed input
     if not a.is_distributed():
-        data = a.larray.transpose(axis, 0)
-        shape = data.shape
+        local_data = a.larray.transpose(axis, 0)
+        shape = local_data.shape
 
-        data = data.reshape(shape[0], -1)
-        indices = torch.arange(0, data.shape[0])
-        for i in range(data.shape[-1] - 1, -1, -1):
-            indices = _permute_indices(data[:, i], indices)
+        local_data = local_data.reshape(shape[0], -1)
+        indices = torch.arange(0, local_data.shape[0])
+        for i in range(local_data.shape[-1] - 1, -1, -1):
+            indices = _permute_indices(local_data[:, i], indices)
 
-        data = data.reshape(shape)[indices].transpose(axis, 0)
-        return factories.array(data, split=None)
+        local_data = local_data.reshape(shape)[indices].transpose(axis, 0)
+        return factories.array(local_data, split=None)
 
+    # distributed vectorized sort
     original_split = a.split
     if axis != a.split:
         a = resplit(a, axis)
 
     comm = MPI.COMM_WORLD
-    rank = comm.Get_rank()
-    size = comm.Get_size()
+    rank = comm.rank
+    size = comm.size
 
-    data = a.larray.transpose(axis, 0)
+    local_data = a.larray.transpose(axis, 0)
 
-    is_1d = data.ndim == 1
+    is_1d = local_data.ndim == 1
     if is_1d:
-        data = data.reshape(-1, 1)
+        local_data = local_data.reshape(-1, 1)
 
-    original_shape = data.shape
+    original_shape = local_data.shape
     inner_shape = original_shape[1:]
 
-    local_count = data.shape[0]
-    total_rows = sum(comm.allgather(local_count))
+    local_count = local_data.shape[0]
+    total_rows = a.gshape[axis]
     block_length = np.prod(inner_shape)
 
-    mpi_type: MPI.Datatype = a.comm.mpi_type_of(data.dtype)
+    mpi_type: MPI.Datatype = a.comm.mpi_type_of(local_data.dtype)
 
     if rank == 0:
         send_counts = np.array(comm.gather(local_count), dtype=int)
         send_displ = np.insert(np.cumsum(send_counts)[:-1], 0, 0)
 
-        buffer = torch.empty((total_rows,), dtype=data.dtype)
+        buffer = torch.empty((total_rows,), dtype=local_data.dtype)
         recv_args = [buffer, send_counts, send_displ, mpi_type]
     else:
         comm.gather(local_count)
@@ -3012,25 +3013,24 @@ def vectorized_sort(
         buffer = None
         recv_args = None
 
-    def gather_column(flat_idx: int):
+    def _gather_column(flat_idx: int):
         idx = np.unravel_index(flat_idx, inner_shape)
         slice_tuple = (slice(None),) + tuple(idx)
 
-        local_col = data[slice_tuple].contiguous()
+        local_col = local_data[slice_tuple].contiguous()
         comm.Gatherv(local_col, recv_args)
         return buffer
 
     indices = torch.arange(0, total_rows, dtype=torch.int64)
 
     for i in range(block_length - 1, -1, -1):
+        buffer = _gather_column(i)
         if rank == 0:
-            indices = _permute_indices(gather_column(i), indices)
-        else:
-            gather_column(i)
+            indices = _permute_indices(buffer, indices)
 
     comm.Bcast(indices, root=0)
 
-    if return_sort_indices_only:
+    if return_sort_indices_instead:
         return factories.array(indices, split=None)
 
     offset, _, _ = a.comm.chunk((total_rows,), split=0, rank=rank)
@@ -3076,8 +3076,8 @@ def vectorized_sort(
     send_displ = np.insert(np.cumsum(send_counts)[:-1], 0, 0)
     recv_displ = np.insert(np.cumsum(recv_counts)[:-1], 0, 0)
 
-    send_data = data[torch.cat(send_indices).tolist()].reshape(-1).contiguous()
-    recv_buf = torch.empty((recv_counts.sum().item(),), dtype=data.dtype)
+    send_data = local_data[torch.cat(send_indices).tolist()].reshape(-1).contiguous()
+    recv_buf = torch.empty((recv_counts.sum().item(),), dtype=local_data.dtype)
 
     comm.Alltoallv(
         [send_data, send_counts, send_displ, mpi_type],
