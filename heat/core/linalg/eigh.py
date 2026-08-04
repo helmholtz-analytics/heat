@@ -16,7 +16,6 @@ from ..random import randn
 from ..devices import Device
 from ..manipulations import vstack, hstack, concatenate, diag, balance
 from .. import statistics
-from mpi4py import MPI
 from ..sanitation import sanitize_in_nd_realfloating
 
 
@@ -140,7 +139,7 @@ def _eigh(
     """
     n = A.shape[0]
     global_comm = A.comm
-    nprocs = global_comm.Get_size()
+    nprocs = global_comm.size
     rank = global_comm.rank
 
     # direct solution in torch if the problem is small enough
