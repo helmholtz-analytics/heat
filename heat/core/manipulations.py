@@ -2944,19 +2944,31 @@ def vectorized_sort(
     sanitation.sanitize_in(a)
 
     if not isinstance(axis, int):
-        raise ValueError("'axis' must be an int")
+        raise ValueError("'axis' must be an int.")
     if not isinstance(stable, bool):
-        raise ValueError("'stable' must be a bool")
+        raise ValueError("'stable' must be a bool.")
     if not isinstance(descending, bool):
-        raise ValueError("'descending' must be a bool")
+        raise ValueError("'descending' must be a bool.")
     if not isinstance(resplit_result, bool):
-        raise ValueError("'resplit_result' must be a bool")
+        raise ValueError("'resplit_result' must be a bool.")
     if not isinstance(return_sort_indices_only, bool):
-        raise ValueError("'return_sort_indices_only' must be a bool")
+        raise ValueError("'return_sort_indices_only' must be a bool.")
+
+    if len(a.gshape) == 0:
+        raise ValueError("dndarray must have atleast one dimension.")
+
+    if axis >= len(a.gshape) or (axis < 0 and abs(axis) > len(a.gshape)):
+        raise ValueError(f"'axis'={axis} does not exist for '{len(a.gshape)}' dimenions.")
 
     def _permute_indices(data, idx):
         sort_idx = torch.argsort(data[idx], stable=stable, descending=descending)
         return idx[sort_idx]
+
+    if len(a.gshape) == 1:
+        arr, idx = sort(a, axis=axis, descending=descending, return_sort_indices=True)
+        if return_sort_indices_only:
+            return idx
+        return arr
 
     if not a.is_distributed():
         data = a.larray.transpose(axis, 0)
