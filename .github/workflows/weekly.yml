@@ -83,7 +83,7 @@ jobs:
 
             # Upload the results to GitHub's code scanning dashboard.
           - name: "Upload to code-scanning"
-            uses: github/codeql-action/upload-sarif@99df26d4f13ea111d4ec1a7dddef6063f76b97e9 # v4.37.0
+            uses: github/codeql-action/upload-sarif@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4.37.3
             with:
                 sarif_file: results.sarif
     check-links:
@@ -116,7 +116,7 @@ jobs:
             with:
                 egress-policy: audit
 
-          - uses: actions/stale@1e223db275d687790206a7acac4d1a11bd6fe629 # v10.4.0
+          - uses: actions/stale@4391f3da665fdf50b6810c1a66712fb9ba21aa93 # v11.0.0
             with:
                 days-before-issue-stale: 60
                 days-before-issue-close: 60
