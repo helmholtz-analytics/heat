@@ -1596,3 +1596,6 @@ class TestStatistics(TestCase):
         for sp in [None, 0, 1]:
             iris = ht.load(get_dataset_path('iris.csv'), sep=";", split=sp)
             self.assertTrue(ht.allclose(ht.var(iris, bessel=True), 3.90318519755147))
+
+        # edge case from #2374
+        self.assertEqual(ht.var(ht.array([0.], split=None), axis=0, ddof=0), 0)

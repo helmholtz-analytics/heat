@@ -24,6 +24,7 @@ from . import types
 from . import _operations
 
 __all__ = [
+    "argsort",
     "balance",
     "broadcast_arrays",
     "broadcast_to",
@@ -64,6 +65,64 @@ __all__ = [
     "vsplit",
     "vstack",
 ]
+
+
+def argsort(
+    a: DNDarray, axis: int = -1, *args, descending: bool | None = None, **kwargs
+) -> DNDarray:
+    """
+    Returns the indices that would sort an array. This is the distributed equivalent of `np.argsort`.
+    The sorting is not stable which means that equal elements in the result may have a different ordering than in the
+    original array.
+    Sorting with `axis==a.split` needs a lot of communication between the processes.
+
+    Parameters
+    ----------
+    a : DNDarray
+        Input array to be sorted.
+    axis : int, optional
+        The dimension to sort along.
+        Default is the last axis.
+    *args: Any
+        Any arguments that are not specified in the function header will be ignored.
+    descending : bool, optional
+        If set to `True`, indices are sorted in descending order.
+    **kwargs: Any
+        Any keyword arguments that are not specified in the function header will be ignored.
+
+    Raises
+    ------
+    ValueError
+        If `axis` is not consistent with the available dimensions.
+
+    Examples
+    --------
+    >>> x = ht.array([[4, 1], [2, 3]], split=0)
+    >>> x.shape
+    (1, 2)
+    (1, 2)
+    >>> y = ht.argsort(x, axis=0)
+    >>> y
+    (array([[1, 0],
+            [0, 1]]))
+    >>> ht.argsort(x, descending=True)
+    (array([[0, 1],
+            [1, 0]]))
+    """
+    for arg in args:
+        warnings.warn(f"[ht.argsort] Argument: '{arg}' gets ignored.")
+
+    for k in kwargs.keys():
+        warnings.warn(f"[ht.argsort] Keyword Argument: '{k}' gets ignored.")
+
+    _, indices = sort(
+        a=a,
+        axis=axis,
+        descending=descending,
+        out=None,
+        return_sort_indices=True,
+    )
+    return indices
 
 
 def balance(array: DNDarray, copy=False) -> DNDarray:
@@ -203,30 +262,24 @@ def broadcast_to(x: DNDarray, shape: Tuple[int, ...]) -> DNDarray:
     """
     sanitation.sanitize_in(x)
 
-    # figure out the output split axis via dndarray.__torch_proxy__ and named tensors functionality
-    torch_proxy = x.__torch_proxy__()
-    split_tags = [None] * x.ndim
+    # Verify that the target shape is broadcast‑compatible with the original global shape.
+    try:
+        torch.broadcast_shapes(x.gshape, shape)
+    except RuntimeError:
+        raise ValueError(
+            f"Shape mismatch: object cannot be broadcast to the given shape. Original shape: {x.gshape}, target shape: {shape}"
+        )
+
+    # Determine the output split axis.
     if x.split is not None:
-        split_tags[x.split] = "split"
-        torch_proxy = torch_proxy.detach().clone().rename_(*split_tags)
-        try:
-            torch_proxy = torch_proxy.broadcast_to(shape)
-        except RuntimeError:
-            raise ValueError(
-                f"Shape mismatch: object cannot be broadcast to the given shape. Original shape: {x.shape}, target shape: {shape}"
-            )
-        output_split = torch_proxy.names.index("split")
+        # Number of leading dimensions added when aligning shapes for broadcasting.
+        lead_dims = len(shape) - len(x.gshape)
+        output_split = x.split + lead_dims
     else:
-        try:
-            torch_proxy = torch_proxy.broadcast_to(shape)
-        except RuntimeError:
-            raise ValueError(
-                f"Shape mismatch: object cannot be broadcast to the given shape. Original shape: {x.shape}, target shape: {shape}"
-            )
         output_split = None
 
     if not x.is_distributed():
-        # return a view of the input data
+        # Return a view of the input data (non‑distributed case).
         broadcasted = DNDarray(
             x.larray.broadcast_to(shape),
             gshape=shape,
@@ -237,8 +290,8 @@ def broadcast_to(x: DNDarray, shape: Tuple[int, ...]) -> DNDarray:
             balanced=True,
         )
     else:
-        # input is distributed, return a broadcasted copy of input
-        # exploit binary operations broadcasting
+        # Distributed case: create a zero‑filled DNDarray with the target shape and appropriate split,
+        # then rely on element‑wise addition to broadcast the values.
         broadcasted = factories.zeros(
             shape, dtype=x.dtype, split=output_split, device=x.device, comm=x.comm
         )
@@ -2550,12 +2603,20 @@ def shape(a: DNDarray) -> Tuple[int, ...]:
     return a.gshape
 
 
-def sort(a: DNDarray, axis: int = -1, descending: bool = False, out: Optional[DNDarray] = None):
+def sort(
+    a: DNDarray,
+    axis: int = -1,
+    *args,
+    descending: bool | None = False,
+    out: Optional[DNDarray] = None,
+    return_sort_indices: bool = False,
+    **kwargs,
+):
     """
     Sorts the elements of `a` along the given dimension (by default in ascending order) by their value.
     The sorting is not stable which means that equal elements in the result may have a different ordering than in the
     original array.
-    Sorting where `axis==a.split` needs a lot of communication between the processes of MPI.
+    Sorting with `axis==a.split` needs a lot of communication between the processes of MPI.
     Returns a tuple `(values, indices)` with the sorted local results and the indices of the elements in the original data
 
     Parameters
@@ -2565,11 +2626,18 @@ def sort(a: DNDarray, axis: int = -1, descending: bool = False, out: Optional[DN
     axis : int, optional
         The dimension to sort along.
         Default is the last axis.
+    *args: Any
+        Any arguments that are not specified in the function header will be ignored.
     descending : bool, optional
         If set to `True`, values are sorted in descending order.
     out : DNDarray, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
         or set to `None`, a fresh array is allocated.
+    return_sort_indices: bool, optional
+        Wether to return the indices by which the array was sorted.
+        If ``out`` is provided, returns the indices if ``True``, otherwise ``None``.
+    **kwargs: Any
+        Any keyword arguments that are not specified in the function header will be ignored.
 
     Raises
     ------
@@ -2597,6 +2665,18 @@ def sort(a: DNDarray, axis: int = -1, descending: bool = False, out: Optional[DN
         message=r".*__array_wrap__ must accept context and return_scalar arguments.*",
     )
     stride_tricks.sanitize_axis(a.shape, axis)
+
+    for arg in args:
+        warnings.warn(f"[ht.sort] Argument: '{arg}' gets ignored.")
+
+    for k in kwargs.keys():
+        warnings.warn(f"[ht.sort] Keyword Argument: '{k}' gets ignored.")
+
+    if axis is None:
+        a = flatten(a)
+        axis = 0
+
+    descending = descending or False
 
     if not a.is_distributed() or axis != a.split:
         # sorting is not affected by split -> we can just sort along the axis
@@ -2808,12 +2888,16 @@ def sort(a: DNDarray, axis: int = -1, descending: bool = False, out: Optional[DN
     )
     if out is not None:
         out.larray = final_result
-        return return_indices
+        if return_sort_indices:
+            return return_indices
+        return None
     else:
         tensor = factories.array(
             final_result, dtype=a.dtype, is_split=a.split, device=a.device, comm=a.comm
         )
-        return tensor, return_indices
+        if return_sort_indices:
+            return tensor, return_indices
+        return tensor
 
 
 def vectorized_sort(
