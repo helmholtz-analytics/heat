@@ -120,7 +120,7 @@ def nonzero(x: DNDarray, as_tuple: bool = True) -> tuple[DNDarray, ...] | DNDarr
         )
         # vectorized sorting of nz indices along axis 0
         global_nonzero.balance_()
-        global_nonzero = manipulations.unique(global_nonzero, axis=0)
+        global_nonzero = manipulations.vectorized_sort(global_nonzero, axis=0)
         if as_tuple:  # return indices as tuple of 1D DNDarrays
             lcl_nonzero = global_nonzero.larray.unbind(dim=1)
             return tuple(
