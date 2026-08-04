@@ -2967,7 +2967,7 @@ def vectorized_sort(
         arr, idx = sort(a, axis=axis, descending=descending, return_sort_indices=True)
         if return_sort_indices_only:
             return idx
-        return arr
+        return arr.resplit_(a.split) if resplit_result else arr
 
     if not a.is_distributed():
         data = a.larray.transpose(axis, 0)
