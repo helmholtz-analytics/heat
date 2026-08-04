@@ -2907,15 +2907,15 @@ def vectorized_sort(
     stable: bool = True,
     descending: bool = False,
     resplit_result: bool = True,
-    return_sort_indices_only: bool = False
+    return_sort_indices_only: bool = False,
 ) -> DNDarray:
     """
-    Performs a lexicographical sort along the specified axis. 
+    Performs a lexicographical sort along the specified axis.
 
-    The array is transposed into an MxN matrix, where M is the 
-    number of elements along the target `axis`, and N is the product of all 
-    remaining dimensions. The lexicographical sorting prioritizes the leftmost 
-    columns first, which acts as the primary sort key, with subsequent 
+    The array is transposed into an MxN matrix, where M is the
+    number of elements along the target `axis`, and N is the product of all
+    remaining dimensions. The lexicographical sorting prioritizes the leftmost
+    columns first, which acts as the primary sort key, with subsequent
     columns acting as secondary, tertiary, etc., keys.
 
     Parameters
@@ -2923,7 +2923,7 @@ def vectorized_sort(
     a : DNDarray
         The array to be sorted.
     axis : int, optional
-        The axis along which to sort. If the split dimension of the array does 
+        The axis along which to sort. If the split dimension of the array does
         not match this axis, the array is resplit.
         Default is -1 (last axis).
     stable : bool, optional
@@ -2991,7 +2991,7 @@ def vectorized_sort(
         send_counts = np.array(comm.gather(local_count), dtype=int)
         send_displ = np.insert(np.cumsum(send_counts)[:-1], 0, 0)
 
-        buffer = torch.empty((total_rows, ), dtype=data.dtype)
+        buffer = torch.empty((total_rows,), dtype=data.dtype)
         recv_args = [buffer, send_counts, send_displ, mpi_type]
     else:
         comm.gather(local_count)
@@ -3023,16 +3023,13 @@ def vectorized_sort(
     if return_sort_indices_only:
         return factories.array(indices, split=None)
 
-    offset, _, _ = a.comm.chunk((total_rows, ), split=0, rank=rank)
+    offset, _, _ = a.comm.chunk((total_rows,), split=0, rank=rank)
 
-    rank_slices = [
-        a.comm.chunk((total_rows, ), split=0, rank=i)[-1][0]
-        for i in range(size)
-    ]
+    rank_slices = [a.comm.chunk((total_rows,), split=0, rank=i)[-1][0] for i in range(size)]
 
     local_slice = rank_slices[rank]
 
-    assert all([s.step is None for s in rank_slices]) # Sanity check
+    assert all([s.step is None for s in rank_slices])  # Sanity check
 
     send_counts = np.zeros(size, dtype=np.int64)
     send_indices = []
@@ -3050,7 +3047,7 @@ def vectorized_sort(
     recv_counts = np.zeros(size, dtype=np.int64)
     recv_indices = [list() for _ in range(size)]
 
-    rank_indices_mapping = np.empty((local_slice.stop - local_slice.start, ), dtype=np.int64)
+    rank_indices_mapping = np.empty((local_slice.stop - local_slice.start,), dtype=np.int64)
 
     for i, idx in enumerate(indices[local_slice]):
         for src_rank, src_slice in enumerate(rank_slices):
@@ -3069,13 +3066,12 @@ def vectorized_sort(
     send_displ = np.insert(np.cumsum(send_counts)[:-1], 0, 0)
     recv_displ = np.insert(np.cumsum(recv_counts)[:-1], 0, 0)
 
-
     send_data = data[torch.cat(send_indices).tolist()].reshape(-1).contiguous()
-    recv_buf = torch.empty((recv_counts.sum().item(), ), dtype=data.dtype)
+    recv_buf = torch.empty((recv_counts.sum().item(),), dtype=data.dtype)
 
     comm.Alltoallv(
         [send_data, send_counts, send_displ, mpi_type],
-        [recv_buf, recv_counts, recv_displ, mpi_type]
+        [recv_buf, recv_counts, recv_displ, mpi_type],
     )
 
     sort_idx = np.argsort(rank_indices_mapping, stable=True)
@@ -3089,6 +3085,7 @@ def vectorized_sort(
     if original_split != a.split and resplit_result:
         return resplit(sorted_array, original_split)
     return sorted_array
+
 
 def split(x: DNDarray, indices_or_sections: Iterable, axis: int = 0) -> List[DNDarray, ...]:
     """
