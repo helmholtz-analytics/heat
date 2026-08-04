@@ -2917,6 +2917,8 @@ def vectorized_sort(
     columns first, which acts as the primary sort key, with subsequent
     columns acting as secondary, tertiary, etc., keys.
 
+    Behaves like `sort` for one dimensional data.
+
     Parameters
     ----------
     a : DNDarray
