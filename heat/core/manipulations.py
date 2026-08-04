@@ -3003,7 +3003,7 @@ def vectorized_sort(
     mpi_type: MPI.Datatype = a.comm.mpi_type_of(local_data.dtype)
 
     local_counts = comm.gather(local_count, root=0)
-    
+
     if rank == 0:
         send_counts = np.array(local_counts, dtype=int)
         send_displ = np.insert(np.cumsum(send_counts)[:-1], 0, 0)
