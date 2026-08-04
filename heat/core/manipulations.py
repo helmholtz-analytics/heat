@@ -2951,7 +2951,9 @@ def vectorized_sort(
     if not isinstance(resplit_result, bool):
         raise ValueError(f"'resplit_result' must be bool, not {type(resplit_result)}.")
     if not isinstance(return_sort_indices_instead, bool):
-        raise ValueError(f"'return_sort_indices_instead' must be bool, not {type(return_sort_indices_instead)}.")
+        raise ValueError(
+            f"'return_sort_indices_instead' must be bool, not {type(return_sort_indices_instead)}."
+        )
 
     if a.ndim == 0:
         raise ValueError("dndarray must have at least one dimension.")
