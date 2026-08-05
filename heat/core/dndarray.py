@@ -10,7 +10,7 @@ import warnings
 from inspect import stack
 from mpi4py import MPI
 from pathlib import Path
-from typing import Union, TypeVar
+from typing import Union, TypeVar, Any
 
 warnings.simplefilter("always", ResourceWarning)
 
@@ -1894,6 +1894,25 @@ class DNDarray:
         Computes a string representation of the passed ``DNDarray``.
         """
         return printing.__str__(self)
+
+    def to_device(self, device: Device, /, stream: int | Any | None = None) -> DNDarray:
+        """
+        Copy the array from the device on which it currently resides to the specified ``device``.
+
+        Parameters
+        ----------
+        device : Device
+            A ``Device`` object.
+        stream : Int or Any, optional
+            Stream object to use during copy.
+        """
+        if stream is not None:
+            raise ValueError("The stream argument to to_device() is not supported")
+        if device.device_type == "cpu":
+            return self.cpu()
+        elif device.device_type == "gpu":
+            return self.gpu()
+        raise ValueError(f"Unsupported device {device!r}")
 
     def tolist(self, keepsplit: bool = False) -> list[int | float]:
         """
