@@ -2984,7 +2984,7 @@ def vectorized_sort(
     if axis != a.split:
         a = resplit(a, axis)
 
-    comm = MPI.COMM_WORLD
+    comm = a.comm
     rank = comm.rank
     size = comm.size
 
@@ -3001,26 +3001,26 @@ def vectorized_sort(
     total_rows = a.gshape[axis]
     block_length = np.prod(inner_shape)
 
-    mpi_type: MPI.Datatype = a.comm.mpi_type_of(local_data.dtype)
-
-    local_counts = comm.gather(local_count, root=0)
+    send_buf = torch.tensor([local_count], dtype=torch.int64)
+    local_counts = torch.empty(size, dtype=torch.int64)
+    comm.Gather(send_buf, local_counts, root=0)
 
     if rank == 0:
         send_counts = np.array(local_counts, dtype=int)
         send_displ = np.insert(np.cumsum(send_counts)[:-1], 0, 0)
 
         buffer = torch.empty((total_rows,), dtype=local_data.dtype)
-        recv_args = [buffer, send_counts, send_displ, mpi_type]
+        recv_args = buffer, send_counts, send_displ#, mpi_type]
     else:
         buffer = None
-        recv_args = None
+        recv_args = torch.empty(0, dtype=torch.int64), None, None
 
     def _gather_column(flat_idx: int):
         idx = np.unravel_index(flat_idx, inner_shape)
         slice_tuple = (slice(None),) + tuple(idx)
 
         local_col = local_data[slice_tuple].contiguous()
-        comm.Gatherv(local_col, recv_args)
+        comm.Gatherv(local_col, recv_args, root=0)
         return buffer
 
     indices = torch.arange(0, total_rows, dtype=torch.int64)
@@ -3035,9 +3035,9 @@ def vectorized_sort(
     if return_sort_indices_instead:
         return factories.array(indices, split=None)
 
-    offset, _, _ = a.comm.chunk((total_rows,), split=0, rank=rank)
+    offset, _, _ = comm.chunk((total_rows,), split=0, rank=rank)
 
-    rank_slices = [a.comm.chunk((total_rows,), split=0, rank=i)[-1][0] for i in range(size)]
+    rank_slices = [comm.chunk((total_rows,), split=0, rank=i)[-1][0] for i in range(size)]
 
     local_slice = rank_slices[rank]
 
@@ -3082,8 +3082,8 @@ def vectorized_sort(
     recv_buf = torch.empty((recv_counts.sum().item(),), dtype=local_data.dtype)
 
     comm.Alltoallv(
-        [send_data, send_counts, send_displ, mpi_type],
-        [recv_buf, recv_counts, recv_displ, mpi_type],
+        (send_data, send_counts, send_displ),
+        (recv_buf, recv_counts, recv_displ)
     )
 
     sort_idx = np.argsort(rank_indices_mapping, stable=True)
