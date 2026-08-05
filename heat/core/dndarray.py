@@ -1895,7 +1895,7 @@ class DNDarray:
         """
         return printing.__str__(self)
 
-    def to_device(self, device: Device, /, stream: int | Any | None = None) -> DNDarray:
+    def to_device(self, device: Device, /, *, stream: int | Any | None = None) -> DNDarray:
         """
         Copy the array from the device on which it currently resides to the specified ``device``.
 
