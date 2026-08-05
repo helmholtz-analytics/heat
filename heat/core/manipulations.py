@@ -3009,7 +3009,7 @@ def vectorized_sort(
         send_displ = np.insert(np.cumsum(send_counts)[:-1], 0, 0)
 
         buffer = torch.empty((total_rows,), dtype=local_data.dtype)
-        recv_args = buffer, send_counts, send_displ#, mpi_type]
+        recv_args = buffer, send_counts, send_displ  # , mpi_type]
     else:
         buffer = None
         recv_args = torch.empty(0, dtype=torch.int64), None, None
@@ -3080,10 +3080,7 @@ def vectorized_sort(
     send_data = local_data[torch.cat(send_indices).tolist()].reshape(-1).contiguous()
     recv_buf = torch.empty((recv_counts.sum().item(),), dtype=local_data.dtype)
 
-    comm.Alltoallv(
-        (send_data, send_counts, send_displ),
-        (recv_buf, recv_counts, recv_displ)
-    )
+    comm.Alltoallv((send_data, send_counts, send_displ), (recv_buf, recv_counts, recv_displ))
 
     sort_idx = np.argsort(rank_indices_mapping, stable=True)
     inv_sort_idx = np.empty_like(sort_idx)
