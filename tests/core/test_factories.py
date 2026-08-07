@@ -600,37 +600,27 @@ class TestFactories(TestCase):
         self.assertEqual(eye.split, 1)
 
     def test_from_dlpack(self):
-        a = ht.ones([4,4])
-        b = ht.from_dlpack(a)
+        a_ht = ht.ones([4,4])
 
-        self.assertIsInstance(b, ht.DNDarray)
-        self.assertEqual(b.dtype, a.dtype)
-        self.assertEqual(b.shape, a.shape)
-        self.assertEqual(b.device, a.device)
-        self.assertIsNone(b.split)
-        self.assertTrue(torch.equal(b.larray, a.larray))
+        for a in [a_ht, a_ht.numpy(), a_ht.larray]:
+            b = ht.from_dlpack(a)
 
-        a = np.arange(8.)
-        b = ht.from_dlpack(a)
+            self.assertIsInstance(b, ht.DNDarray)
+            self.assertEqual(b.dtype, ht.canonical_heat_type(a.dtype))
+            self.assertEqual(b.shape, a.shape)
+            self.assertIsNone(b.split)
 
-        self.assertIsInstance(b, ht.DNDarray)
-        self.assertEqual(b.dtype, ht.core.types.canonical_heat_type(a.dtype))
-        self.assertEqual(b.shape, a.shape)
-        self.assertEqual(b.device, ht.cpu)
-        self.assertIsNone(b.split)
-        self.assertTrue(np.all(np.equal(b.larray.numpy(), a)))
-
-        a = torch.eye(4, device=self.device.torch_device)
-        b = ht.from_dlpack(a)
-
-        self.assertIsInstance(b, ht.DNDarray)
-        self.assertEqual(b.dtype, ht.core.types.canonical_heat_type(a.dtype))
-        self.assertEqual(b.shape, a.shape)
-        self.assertEqual(b.device, ht.devices.sanitize_device(a.device.type))
-        if b.device.device_type == 'gpu':
-            self.assertEqual(b.device.device_id, a.device.index)
-        self.assertIsNone(b.split)
-        self.assertTrue(torch.equal(b.larray, a))
+            if isinstance(a, np.ndarray):
+                self.assertEqual(b.device, ht.cpu)
+                self.assertTrue(np.all(np.equal(b.larray.numpy(), a)))
+            elif isinstance(a, torch.Tensor):
+                self.assertEqual(b.device, ht.devices.sanitize_device(a.device.type))
+                if b.device.device_type == 'gpu':
+                    self.assertEqual(b.device.device_id, a.device.index)
+                self.assertTrue(torch.equal(b.larray, a))
+            else:
+                self.assertEqual(b.device, a.device)
+                self.assertTrue(torch.equal(b.larray, a.larray))
 
         a = ht.zeros([4,4], split=0)
         if a.is_distributed():
