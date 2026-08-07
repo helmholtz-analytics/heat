@@ -10,7 +10,8 @@ import warnings
 from inspect import stack
 from mpi4py import MPI
 from pathlib import Path
-from typing import Union, TypeVar
+from enum import Enum
+from typing import Any, Union, TypeVar
 
 warnings.simplefilter("always", ResourceWarning)
 
@@ -828,6 +829,47 @@ class DNDarray:
         self.__partitions_dict__ = partition_dict
 
         return partition_dict
+
+    def __dlpack__(
+        self,
+        *,
+        stream: int | Any | None = None,
+        max_version: tuple[int, int] | None = None,
+        dl_device: tuple[Enum, int] | None = None,
+        copy: bool | None = None,
+    ) -> Any:
+        """
+        Exports the array for consumption by ``from_dlpack()`` as a DLPack capsule.
+
+        Parameters
+        ----------
+        self: DNDarray
+            array instance.
+        stream : int or Any, optional
+            For CUDA and ROCm, a Python integer representing a pointer to a stream,
+            on devices that support streams.
+        max_version: tuple[int, int], optional
+            the maximum DLPack version that the consumer supports, in the form of a 2-tuple ``(major, minor)``.
+        dl_device: tuple[enum.Enum, int], optional
+            the DLPack device type. If ``None``, use same device as self. Default: None
+        copy: bool, optional
+            If ``True``, the input is copied. If ``False``, the input will not be copied, and a ``BufferError`` is
+            raised in the case a copy would be necessary. If ``None``, the existing memory buffer is used if possible,
+            and is copied otherwise.
+        """
+        if self.is_distributed():
+            raise BufferError("DLPack export works for undistributed arrays only.")
+
+        return self.larray.__dlpack__(
+            stream=stream, max_version=max_version, dl_device=dl_device, copy=copy
+        )
+
+    def __dlpack_device__(self) -> tuple[Enum, int]:
+        """
+        Returns device type and device ID in DLPack format. Meant for use
+        within ``from_dlpack()``.
+        """
+        return self.larray.__dlpack_device__()
 
     def __float__(self) -> DNDarray:
         """

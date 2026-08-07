@@ -24,6 +24,7 @@ __all__ = [
     "empty",
     "empty_like",
     "eye",
+    "from_dlpack",
     "from_partitioned",
     "from_partition_dict",
     "full",
@@ -876,6 +877,25 @@ def __factory_like(
     comm = sanitize_comm(comm)
 
     return factory(shape, dtype=dtype, split=split, device=device, comm=comm, order=order, **kwargs)
+
+
+def from_dlpack(
+    x: object, /, *, device: Device | None = None, copy: bool | None = None
+) -> DNDarray:
+    """
+    Returns a new array containing the data from another (array) object with a
+    ``__dlpack__`` method.
+
+    Parameters
+    ----------
+    x : object
+        Input (array) object.
+    device: Device, optional
+        device on which to place the created array. Default: None.
+    copy: bool, optional
+        boolean indicating whether or not to copy the input. Default: None.
+    """
+    return array(torch.from_dlpack(x))
 
 
 def from_partitioned(x, comm: Optional[Communication] = None) -> DNDarray:

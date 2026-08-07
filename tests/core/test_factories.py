@@ -599,6 +599,22 @@ class TestFactories(TestCase):
         self.assertEqual(eye.shape, shape)
         self.assertEqual(eye.split, 1)
 
+    def test_from_dlpack(self):
+        a = ht.ones([4,4])
+        b = ht.from_dlpack(a)
+
+        self.assertIsInstance(b, ht.DNDarray)
+        self.assertEqual(b.dtype, a.dtype)
+        self.assertEqual(b.shape, a.shape)
+        self.assertEqual(b.device, a.device)
+        self.assertIsNone(b.split)
+        self.assertTrue(torch.equal(b.larray, a.larray))
+
+        a = ht.zeros([4,4], split=0)
+        if a.is_distributed():
+            with self.assertRaises(BufferError):
+                b = ht.from_dlpack(a)
+
     def test_from_partitioned(self):
         a = ht.zeros((120, 120), split=0)
         if not self.is_mps:
