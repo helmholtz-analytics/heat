@@ -610,6 +610,28 @@ class TestFactories(TestCase):
         self.assertIsNone(b.split)
         self.assertTrue(torch.equal(b.larray, a.larray))
 
+        a = np.arange(8.)
+        b = ht.from_dlpack(a)
+
+        self.assertIsInstance(b, ht.DNDarray)
+        self.assertEqual(b.dtype, ht.core.types.canonical_heat_type(a.dtype))
+        self.assertEqual(b.shape, a.shape)
+        self.assertEqual(b.device, ht.cpu)
+        self.assertIsNone(b.split)
+        self.assertTrue(np.all(np.equal(b.larray.numpy(), a)))
+
+        a = torch.eye(4, device=self.device.torch_device)
+        b = ht.from_dlpack(a)
+
+        self.assertIsInstance(b, ht.DNDarray)
+        self.assertEqual(b.dtype, ht.core.types.canonical_heat_type(a.dtype))
+        self.assertEqual(b.shape, a.shape)
+        self.assertEqual(b.device, ht.devices.sanitize_device(a.device.type))
+        if b.device.device_type == 'gpu':
+            self.assertEqual(b.device.device_id, a.device.index)
+        self.assertIsNone(b.split)
+        self.assertTrue(torch.equal(b.larray, a))
+
         a = ht.zeros([4,4], split=0)
         if a.is_distributed():
             with self.assertRaises(BufferError):
