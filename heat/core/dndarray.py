@@ -839,7 +839,7 @@ class DNDarray:
         copy: bool | None = None,
     ) -> Any:
         """
-        Exports the array for consumption by ``from_dlpack()`` as a DLPack capsule.
+        Exports the undistributed array for consumption by ``from_dlpack()`` as a DLPack capsule.
 
         Parameters
         ----------
@@ -856,6 +856,11 @@ class DNDarray:
             If ``True``, the input is copied. If ``False``, the input will not be copied, and a ``BufferError`` is
             raised in the case a copy would be necessary. If ``None``, the existing memory buffer is used if possible,
             and is copied otherwise.
+
+        Raises
+        ------
+        BufferError
+            if the DNDarray is distributed as it is not supported by DLPack.
         """
         if self.is_distributed():
             raise BufferError("DLPack export works for undistributed arrays only.")
