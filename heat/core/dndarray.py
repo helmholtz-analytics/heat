@@ -865,6 +865,9 @@ class DNDarray:
         if self.is_distributed():
             raise BufferError("DLPack export works for undistributed arrays only.")
 
+        if torch.__version__ < "2.13.0":
+            return self.larray.__dlpack__(stream=stream, dl_device=dl_device, copy=copy)
+
         return self.larray.__dlpack__(
             stream=stream, max_version=max_version, dl_device=dl_device, copy=copy
         )
