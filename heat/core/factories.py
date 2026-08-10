@@ -900,11 +900,11 @@ def from_dlpack(
     if Version(torch.__version__) <= Version("2.8"):
         if device is not None:
             warnings.warn(
-                f"Argument {device=} is ignored in `heat.from_dlpack` with {torch.__version__}. Upgrade your torch version to past 2.8 to use it."
+                f"Argument {device=} is ignored in `heat.from_dlpack` with {torch.__version__=}. Upgrade your torch version past 2.8 to use it."
             )
         if copy is not None:
             warnings.warn(
-                f"Argument {copy=} is ignored in `heat.from_dlpack` with {torch.__version__}. Upgrade your torch version to past 2.8 to use it."
+                f"Argument {copy=} is ignored in `heat.from_dlpack` with {torch.__version__=}. Upgrade your torch version past 2.8 to use it."
             )
         return array(torch.from_dlpack(x))
 
