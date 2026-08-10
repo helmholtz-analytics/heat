@@ -3,6 +3,7 @@
 import numpy as np
 import torch
 import warnings
+from packaging.version import Version
 
 from typing import Callable, Iterable, Optional, Sequence, Tuple, Type, Union, List
 
@@ -895,6 +896,18 @@ def from_dlpack(
     copy: bool, optional
         boolean indicating whether or not to copy the input. Default: None.
     """
+    # TODO: Remove below if block when minimum torch version is newer than 2.8
+    if Version(torch.__version__) <= Version("2.8"):
+        if device is not None:
+            warnings.warn(
+                f"Argument {device=} is ignored in `heat.from_dlpack` with {torch.__version__}. Upgrade your torch version to past 2.8 to use it."
+            )
+        if copy is not None:
+            warnings.warn(
+                f"Argument {copy=} is ignored in `heat.from_dlpack` with {torch.__version__}. Upgrade your torch version to past 2.8 to use it."
+            )
+        return array(torch.from_dlpack(x))
+
     if device is not None:
         device = torch.device(device.torch_device)
 
