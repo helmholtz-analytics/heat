@@ -895,7 +895,10 @@ def from_dlpack(
     copy: bool, optional
         boolean indicating whether or not to copy the input. Default: None.
     """
-    return array(torch.from_dlpack(x))
+    if device is not None:
+        device = torch.device(device.torch_device)
+
+    return array(torch.from_dlpack(x, device=device, copy=copy))
 
 
 def from_partitioned(x, comm: Optional[Communication] = None) -> DNDarray:
