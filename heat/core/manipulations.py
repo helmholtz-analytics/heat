@@ -61,6 +61,7 @@ __all__ = [
     "topk",
     "unfold",
     "unique",
+    "unique_values",
     "vsplit",
     "vstack",
 ]
@@ -3640,6 +3641,19 @@ DNDarray.unique: Callable[[DNDarray, bool, bool, int], Tuple[DNDarray, torch.ten
     )
 )
 DNDarray.unique.__doc__ = unique.__doc__
+
+
+def unique_values(x: DNDarray, /) -> DNDarray:
+    """
+    Returns the unique elements of an input array ``x``.
+
+    Parameters
+    ----------
+    x : DNDarray
+        Input array. If ``x`` has more than one dimension, the function flattens ``x``
+        and returns the unique elements of the flattened array.
+    """
+    return unique(x)
 
 
 def unfold(a: DNDarray, axis: int, size: int, step: int = 1):

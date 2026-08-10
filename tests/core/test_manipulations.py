@@ -3731,6 +3731,11 @@ class TestManipulations(TestCase):
             (inv == ht.array(exp_inv.to(dtype=inv.larray.dtype), split=inv.split)).all()
         )
 
+    def test_unique_values(self):
+        # unique_values calls unique internally
+        array = ht.array([1, 1, 2])
+        self.assertTrue(ht.equal(ht.unique_values(array), ht.unique(array)))
+
     def test_vsplit(self):
         # for further testing, see test_split
         data_ht = ht.arange(24).reshape((4, 3, 2))
