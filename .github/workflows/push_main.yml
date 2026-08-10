@@ -8,6 +8,11 @@ on:
       - 'heat/**'
       - 'tests/**'
       - 'pyproject.toml'
+
+concurrency:
+  group: main-ci
+  cancel-in-progress: true
+
 jobs:
   codebase-test-and-bench-main:
     name: Codebase Tests and Benchmarks
