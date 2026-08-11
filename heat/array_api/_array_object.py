@@ -860,6 +860,7 @@ class Array:
         res = self._array.__rtruediv__(other._array)
         return self.__class__._new(res)
 
+    # TODO: Ready to Remove
     def to_device(
         self: Array, device: Device, /, stream: Optional[Union[int, Any]] = None
     ) -> Array:
