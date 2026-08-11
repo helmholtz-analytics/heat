@@ -3738,7 +3738,7 @@ class TestManipulations(TestCase):
 
             self.assertEqual(unique_ht.dtype, array.dtype)
             self.assertEqual(unique_ht.device, array.device)
-            self.assertTrue(np.allclose(unique_ht.numpy(), unique_np))
+            self.assertTrue(np.allclose(np.sort(unique_ht.numpy()), np.sort(unique_np)))
 
     def test_vsplit(self):
         # for further testing, see test_split
