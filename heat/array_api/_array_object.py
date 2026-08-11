@@ -336,6 +336,7 @@ class Array:
             raise ValueError(f"Unrecognized array API version: {api_version}")
         return array_api
 
+    # TODO: Ready to remove
     def __bool__(self: Array, /) -> bool:
         """
         Converts a zero-dimensional boolean array to a Python ``bool`` object.
@@ -385,6 +386,7 @@ class Array:
         res = self._array.__eq__(other._array)
         return self.__class__._new(res)
 
+    # TODO: Ready to remove
     def __float__(self: Array, /) -> float:
         """
         Converts a zero-dimensional floating-point array to a Python ``float`` object.
@@ -467,12 +469,14 @@ class Array:
         res = self._array.__gt__(other._array)
         return self.__class__._new(res)
 
+    # TODO: Ready to remove
     def __index__(self: Array, /) -> int:
         """
         Converts a zero-dimensional integer array to a Python ``int`` object.
         """
         return self.__int__()
 
+    # TODO: Ready to remove
     def __int__(self: Array, /) -> int:
         """
         Converts a zero-dimensional integer array to a Python ``int`` object.
@@ -857,6 +861,7 @@ class Array:
         res = self._array.__rtruediv__(other._array)
         return self.__class__._new(res)
 
+    # TODO: Ready to Remove
     def to_device(
         self: Array, device: Device, /, stream: Optional[Union[int, Any]] = None
     ) -> Array:

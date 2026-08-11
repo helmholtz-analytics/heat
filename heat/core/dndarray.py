@@ -352,14 +352,6 @@ class DNDarray:
         return strides
 
     @property
-    def T(self):
-        """
-        Reverse the dimensions of a DNDarray.
-        """
-        # specialty docs for this version of transpose. The transpose function is in heat/core/linalg/basics
-        return linalg.transpose(self, axes=None)
-
-    @property
     def array_with_halos(self) -> torch.Tensor:
         """
         Fetch halos of size ``halo_size`` from neighboring ranks and save them in ``self.halo_next``/``self.halo_prev``
@@ -847,7 +839,7 @@ class DNDarray:
 
         return partition_dict
 
-    def __float__(self) -> DNDarray:
+    def __float__(self) -> float:
         """
         Float scalar casting.
 
@@ -1165,7 +1157,15 @@ class DNDarray:
             self.__device = devices.gpu
             return self
 
-    def __int__(self) -> DNDarray:
+    def __index__(self) -> int:
+        """
+        Converts a zero-dimensional integer array to a Python ``int`` object.
+        """
+        if not issubclass(self.dtype, integer):
+            raise TypeError("only integer scalar arrays can be converted to a scalar index")
+        return self.__cast(int)
+
+    def __int__(self) -> int:
         """
         Integer scalar casting.
         """
@@ -1913,6 +1913,25 @@ class DNDarray:
         """
         return printing.__str__(self)
 
+    def to_device(self, device: Device, /, *, stream: int | Any | None = None) -> DNDarray:
+        """
+        Copy the array from the device on which it currently resides to the specified ``device``.
+
+        Parameters
+        ----------
+        device : Device
+            A ``Device`` object.
+        stream : Int or Any, optional
+            Stream object to use during copy.
+        """
+        if stream is not None:
+            raise ValueError("The stream argument to to_device() is not supported")
+        if device.device_type == "cpu":
+            return self.cpu()
+        elif device.device_type == "gpu":
+            return self.gpu()
+        raise ValueError(f"Unsupported device {device!r}")
+
     def tolist(self, keepsplit: bool = False) -> list[int | float]:
         """
         Return a copy of the local array data as a (nested) Python list. For scalars, a standard Python number is returned.
@@ -2008,4 +2027,4 @@ from . import types
 
 from .devices import Device
 from .stride_tricks import sanitize_axis
-from .types import datatype, canonical_heat_type
+from .types import datatype, integer, canonical_heat_type
