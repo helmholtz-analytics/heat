@@ -3732,25 +3732,13 @@ class TestManipulations(TestCase):
         )
 
     def test_unique_values(self):
-        # 1D array
-        array_ht = ht.array([1, 1, 2])
-        array_np = np.array([1, 1, 2])
-
-        unique_ht = ht.unique_values(array_ht)
-        unique_np = np.unique_values(array_np)
-
-        self.assertEqual(unique_ht.dtype, array_ht.dtype)
-        self.assertTrue(np.all(np.equal(ht.sort(array_ht).numpy(), np.sort(array_np))))
-
-        # 2D array
-        array_ht = ht.array([[1., 1], [2, 3]], split=0)
-        array_np = np.array([[1., 1], [2, 3]])
-
-        unique_ht = ht.unique_values(array_ht)
-        unique_np = np.unique_values(array_np)
-
-        self.assertEqual(unique_ht.dtype, array_ht.dtype)
-        self.assertTrue(np.all(np.equal(ht.sort(array_ht).numpy(), np.sort(array_np))))
+        for array in [ht.array([1, 1, 2]), ht.array([[1., 1], [2, 3]], split=0)]:
+            unique_ht = ht.unique_values(array)
+            unique_np = np.unique_values(array.numpy())
+            
+            self.assertEqual(unique_ht.dtype, array.dtype)
+            self.assertEqual(unique_ht.device, array.device)
+            self.assertTrue(np.allclose(unique_ht.numpy(), unique_np))
 
     def test_vsplit(self):
         # for further testing, see test_split
