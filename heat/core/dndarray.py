@@ -352,14 +352,6 @@ class DNDarray:
         return strides
 
     @property
-    def T(self):
-        """
-        Reverse the dimensions of a DNDarray.
-        """
-        # specialty docs for this version of transpose. The transpose function is in heat/core/linalg/basics
-        return linalg.transpose(self, axes=None)
-
-    @property
     def array_with_halos(self) -> torch.Tensor:
         """
         Fetch halos of size ``halo_size`` from neighboring ranks and save them in ``self.halo_next``/``self.halo_prev``
