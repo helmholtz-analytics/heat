@@ -3732,9 +3732,25 @@ class TestManipulations(TestCase):
         )
 
     def test_unique_values(self):
-        # unique_values calls unique internally
-        array = ht.array([1, 1, 2])
-        self.assertTrue(ht.equal(ht.unique_values(array), ht.unique(array)))
+        # 1D array
+        array_ht = ht.array([1, 1, 2])
+        array_np = np.array([1, 1, 2])
+
+        unique_ht = ht.unique_values(array_ht)
+        unique_np = np.unique_values(array_np)
+
+        self.assertEqual(unique_ht.dtype, array_ht.dtype)
+        self.assertTrue(np.all(np.equal(ht.sort(array_ht).numpy(), np.sort(array_np))))
+
+        # 2D array
+        array_ht = ht.array([[1., 1], [2, 3]], split=0)
+        array_np = np.array([[1., 1], [2, 3]])
+
+        unique_ht = ht.unique_values(array_ht)
+        unique_np = np.unique_values(array_np)
+
+        self.assertEqual(unique_ht.dtype, array_ht.dtype)
+        self.assertTrue(np.all(np.equal(ht.sort(array_ht).numpy(), np.sort(array_np))))
 
     def test_vsplit(self):
         # for further testing, see test_split
