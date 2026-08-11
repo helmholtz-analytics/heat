@@ -3735,7 +3735,7 @@ class TestManipulations(TestCase):
         for array in [ht.array([1, 1, 2]), ht.array([[1., 1], [2, 3]], split=0)]:
             unique_ht = ht.unique_values(array)
             unique_np = np.unique_values(array.numpy())
-            
+
             self.assertEqual(unique_ht.dtype, array.dtype)
             self.assertEqual(unique_ht.device, array.device)
             self.assertTrue(np.allclose(unique_ht.numpy(), unique_np))
