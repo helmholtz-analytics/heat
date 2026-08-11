@@ -821,7 +821,7 @@ class DNDarray:
 
         return partition_dict
 
-    def __float__(self) -> DNDarray:
+    def __float__(self) -> float:
         """
         Float scalar casting.
 
@@ -1139,7 +1139,15 @@ class DNDarray:
             self.__device = devices.gpu
             return self
 
-    def __int__(self) -> DNDarray:
+    def __index__(self) -> int:
+        """
+        Converts a zero-dimensional integer array to a Python ``int`` object.
+        """
+        if not issubclass(self.dtype, integer):
+            raise TypeError("only integer scalar arrays can be converted to a scalar index")
+        return self.__cast(int)
+
+    def __int__(self) -> int:
         """
         Integer scalar casting.
         """
@@ -1982,4 +1990,4 @@ from . import types
 
 from .devices import Device
 from .stride_tricks import sanitize_axis
-from .types import datatype, canonical_heat_type
+from .types import datatype, integer, canonical_heat_type
