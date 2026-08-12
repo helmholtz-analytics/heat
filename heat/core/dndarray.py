@@ -842,45 +842,26 @@ class DNDarray:
 
     def __dlpack__(
         self,
-        *,
-        stream: int | Any | None = None,
-        max_version: tuple[int, int] | None = None,
-        dl_device: tuple[Enum, int] | None = None,
-        copy: bool | None = None,
+        *args,
+        **kwargs,
     ) -> Any:
         """
         Exports the undistributed array for consumption by ``from_dlpack()`` as a DLPack capsule.
+        Any positional arguments ``*args`` and keyword arguments ``**kwargs`` are directly forwarded to torch ``__dlpack__``.
 
-        Parameters
-        ----------
-        self: DNDarray
-            array instance.
-        stream : int or Any, optional
-            For CUDA and ROCm, a Python integer representing a pointer to a stream,
-            on devices that support streams.
-        max_version: tuple[int, int], optional
-            the maximum DLPack version that the consumer supports, in the form of a 2-tuple ``(major, minor)``.
-        dl_device: tuple[enum.Enum, int], optional
-            the DLPack device type. If ``None``, use same device as self. Default: None
-        copy: bool, optional
-            If ``True``, the input is copied. If ``False``, the input will not be copied, and a ``BufferError`` is
-            raised in the case a copy would be necessary. If ``None``, the existing memory buffer is used if possible,
-            and is copied otherwise.
+        Note
+        ----
+        See `Array API <https://data-apis.org/array-api/2025.12/API_specification/generated/array_api.array.__dlpack__.html>`_ for details and the function signature as implemented by torch.
 
         Raises
         ------
         BufferError
-            if the DNDarray is distributed as it is not supported by DLPack.
+            if the DNDarray is distributed, as this is not supported by DLPack.
         """
         if self.is_distributed():
             raise BufferError("DLPack export works for undistributed arrays only.")
 
-        if torch.__version__ < "2.9.0":
-            return self.larray.__dlpack__(stream=stream)
-
-        return self.larray.__dlpack__(
-            stream=stream, max_version=max_version, dl_device=dl_device, copy=copy
-        )
+        return self.larray.__dlpack__(*args, **kwargs)
 
     def __dlpack_device__(self) -> tuple[Enum, int]:
         """
