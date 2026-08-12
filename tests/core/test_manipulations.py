@@ -2724,7 +2724,7 @@ class TestManipulations(TestCase):
         self.assertTrue((np_rstack == ht_rstack.numpy()).all())
 
         # 2-D and 1-D arrays
-        c = np.arange(5, dtype=np.float32):
+        c = np.arange(5, dtype=np.float32)
         np_rstack = np.vstack((a, b, c))
         ht_c = ht.array(c)
         ht_rstack = ht.row_stack((ht_a, ht_b, ht_c))
