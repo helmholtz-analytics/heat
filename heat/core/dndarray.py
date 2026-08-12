@@ -837,11 +837,16 @@ class DNDarray:
     ) -> Any:
         """
         Exports the undistributed array for consumption by ``from_dlpack()`` as a DLPack capsule.
+        Any positional arguments ``*args`` and keyword arguments ``**kwargs`` are directly forwarded to torch ``__dlpack__``.
+
+        Note
+        ----
+        See `Array API <https://data-apis.org/array-api/2025.12/API_specification/generated/array_api.array.__dlpack__.html>`_ for details and the function signature as implemented by torch.
 
         Raises
         ------
         BufferError
-            if the DNDarray is distributed as it is not supported by DLPack.
+            if the DNDarray is distributed, as this is not supported by DLPack.
         """
         if self.is_distributed():
             raise BufferError("DLPack export works for undistributed arrays only.")
