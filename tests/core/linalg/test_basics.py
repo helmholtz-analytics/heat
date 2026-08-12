@@ -1129,6 +1129,25 @@ class TestLinalgBasics(TestCase):
         with self.assertRaises(NotImplementedError):
             ht.linalg.matrix_norm(ht.ones((2, 2)), ord="nuc")
 
+    def test_matrix_transpose(self):
+        # Simple 2D matrix transpose
+        a = ht.arange(6).reshape((2, 3))
+        a_t = ht.linalg.matrix_transpose(a)
+        np_t = np.matrix_transpose(a.numpy())
+        self.assertTrue(ht.equal(a_t, ht.array(np_t)))
+        # Property alias .mT
+        self.assertTrue(ht.equal(a.mT, a_t))
+
+        # Batched matrices (stack of matrices)
+        b = ht.arange(12).reshape((2, 2, 3))
+        b_t = ht.linalg.matrix_transpose(b)
+        np_t = np.matrix_transpose(b.numpy())
+        self.assertTrue(ht.equal(b_t, ht.array(np_t)))
+
+        # Error for inputs with less than 2 dimensions
+        with self.assertRaises(ValueError):
+            ht.matrix_transpose(ht.arange(5))
+
     def test_norm(self):
         a = ht.arange(9, dtype=ht.float) - 4
         a0 = ht.array([1 + 1j, 2 - 2j, 0 + 1j, 2 + 1j], dtype=ht.complex64, split=0)
