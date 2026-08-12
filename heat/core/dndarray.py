@@ -10,6 +10,7 @@ import warnings
 from inspect import stack
 from mpi4py import MPI
 from pathlib import Path
+from enum import Enum
 from typing import Any, Union, TypeVar
 
 warnings.simplefilter("always", ResourceWarning)
@@ -838,6 +839,36 @@ class DNDarray:
         self.__partitions_dict__ = partition_dict
 
         return partition_dict
+
+    def __dlpack__(
+        self,
+        *args,
+        **kwargs,
+    ) -> Any:
+        """
+        Exports the undistributed array for consumption by ``from_dlpack()`` as a DLPack capsule.
+        Any positional arguments ``*args`` and keyword arguments ``**kwargs`` are directly forwarded to torch ``__dlpack__``.
+
+        Note
+        ----
+        See `Array API <https://data-apis.org/array-api/2025.12/API_specification/generated/array_api.array.__dlpack__.html>`_ for details and the function signature as implemented by torch.
+
+        Raises
+        ------
+        BufferError
+            if the DNDarray is distributed, as this is not supported by DLPack.
+        """
+        if self.is_distributed():
+            raise BufferError("DLPack export works for undistributed arrays only.")
+
+        return self.larray.__dlpack__(*args, **kwargs)
+
+    def __dlpack_device__(self) -> tuple[Enum, int]:
+        """
+        Returns device type and device ID in DLPack format. Meant for use
+        within ``from_dlpack()``.
+        """
+        return self.larray.__dlpack_device__()
 
     def __float__(self) -> float:
         """

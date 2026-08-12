@@ -599,6 +599,34 @@ class TestFactories(TestCase):
         self.assertEqual(eye.shape, shape)
         self.assertEqual(eye.split, 1)
 
+    def test_from_dlpack(self):
+        a_ht = ht.ones([4,4])
+
+        for a in [a_ht, a_ht.numpy(), a_ht.larray]:
+            b = ht.from_dlpack(a)
+
+            self.assertIsInstance(b, ht.DNDarray)
+            self.assertEqual(b.dtype, ht.canonical_heat_type(a.dtype))
+            self.assertEqual(b.shape, a.shape)
+            self.assertIsNone(b.split)
+
+            if isinstance(a, np.ndarray):
+                self.assertEqual(b.device, ht.cpu)
+                self.assertTrue(np.all(np.equal(b.larray.numpy(), a)))
+            elif isinstance(a, torch.Tensor):
+                self.assertEqual(b.device, ht.devices.sanitize_device(a.device.type))
+                if b.device.device_type == 'gpu':
+                    self.assertEqual(b.device.device_id, a.device.index)
+                self.assertTrue(torch.equal(b.larray, a))
+            else:
+                self.assertEqual(b.device, a.device)
+                self.assertTrue(torch.equal(b.larray, a.larray))
+
+        a = ht.zeros([4,4], split=0)
+        if a.is_distributed():
+            with self.assertRaises(BufferError):
+                b = ht.from_dlpack(a)
+
     def test_from_partitioned(self):
         a = ht.zeros((120, 120), split=0)
         if not self.is_mps:
