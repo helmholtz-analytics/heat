@@ -319,6 +319,7 @@ class Array:
         res = self._array.__and__(other._array)
         return self.__class__._new(res)
 
+    # TODO: Ready to Remove
     def __array_namespace__(self: Array, /, *, api_version: Optional[str] = None) -> Any:
         """
         Returns an object that has all the array API functions on it.
@@ -860,6 +861,7 @@ class Array:
         res = self._array.__rtruediv__(other._array)
         return self.__class__._new(res)
 
+    # TODO: Ready to Remove
     def to_device(
         self: Array, device: Device, /, stream: Optional[Union[int, Any]] = None
     ) -> Array:

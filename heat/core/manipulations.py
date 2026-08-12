@@ -62,6 +62,7 @@ __all__ = [
     "unfold",
     "unique",
     "unique_inverse",
+    "unique_values",
     "vsplit",
     "vstack",
 ]
@@ -3674,6 +3675,19 @@ def unique_inverse(x: DNDarray, /) -> Tuple[DNDarray, DNDarray]:
     return NamedTuple("UniqueInverseResult", [("values", DNDarray), ("inverse_indices", DNDarray)])(
         *result
     )
+
+
+def unique_values(x: DNDarray, /) -> DNDarray:
+    """
+    Returns the unique elements of an input array ``x``.
+
+    Parameters
+    ----------
+    x : DNDarray
+        Input array. If ``x`` has more than one dimension, the function flattens ``x``
+        and returns the unique elements of the flattened array.
+    """
+    return unique(x)
 
 
 def unfold(a: DNDarray, axis: int, size: int, step: int = 1):
