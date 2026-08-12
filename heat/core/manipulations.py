@@ -8,7 +8,7 @@ import numpy as np
 import torch
 import warnings
 
-from typing import Any, Iterable, Type, List, Callable, Union, Tuple, Sequence, Optional
+from typing import Any, Iterable, Type, List, Callable, Union, Tuple, Sequence, Optional, NamedTuple
 
 from .communication import MPI, Communication
 from .dndarray import DNDarray
@@ -61,6 +61,7 @@ __all__ = [
     "topk",
     "unfold",
     "unique",
+    "unique_inverse",
     "unique_values",
     "vsplit",
     "vstack",
@@ -3641,6 +3642,39 @@ DNDarray.unique: Callable[[DNDarray, bool, bool, int], Tuple[DNDarray, torch.ten
     )
 )
 DNDarray.unique.__doc__ = unique.__doc__
+
+
+def unique_inverse(x: DNDarray, /) -> Tuple[DNDarray, DNDarray]:
+    """
+    Returns the unique elements of an input array ``x`` and the indices from the
+    set of unique elements that reconstruct ``x``.
+
+    Parameters
+    ----------
+    x : Array
+        Input array. If ``x`` has more than one dimension, the function flattens ``x``
+        and returns the unique elements of the flattened array.
+
+    See Also
+    --------
+    :func:`unique`
+
+    Examples
+    --------
+    >>> x = ht.array([[3, 2], [1, 3]])
+    >>> uniq = ht.unique_inverse(x)
+    >>> uniq.values
+    DNDarray(MPI-rank: 0, Shape: (3,), Split: None, Local Shape: (3,), Device: cpu:0, Dtype: int64, Data:
+         [1, 2, 3])
+    >>> uniq.inverse_indices
+    DNDarray(MPI-rank: 0, Shape: (2, 2), Split: None, Local Shape: (2, 2), Device: cpu:0, Dtype: int64, Data:
+         [[2, 1],
+          [0, 2]])
+    """
+    result = unique(x, return_inverse=True)
+    return NamedTuple("UniqueInverseResult", [("values", DNDarray), ("inverse_indices", DNDarray)])(
+        *result
+    )
 
 
 def unique_values(x: DNDarray, /) -> DNDarray:
