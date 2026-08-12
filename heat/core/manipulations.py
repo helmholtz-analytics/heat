@@ -3643,16 +3643,7 @@ DNDarray.unique: Callable[[DNDarray, bool, bool, int], Tuple[DNDarray, torch.ten
 DNDarray.unique.__doc__ = unique.__doc__
 
 
-class UniqueInverseResult(NamedTuple):
-    """
-    Internal object for return type of ``unique_inverse``.
-    """
-
-    values: DNDarray
-    inverse_indices: DNDarray
-
-
-def unique_inverse(x: DNDarray, /) -> UniqueInverseResult:
+def unique_inverse(x: DNDarray, /) -> Tuple[DNDarray, DNDarray]:
     """
     Returns the unique elements of an input array ``x`` and the indices from the
     set of unique elements that reconstruct ``x``.
@@ -3680,7 +3671,9 @@ def unique_inverse(x: DNDarray, /) -> UniqueInverseResult:
           [0, 2]])
     """
     result = unique(x, return_inverse=True)
-    return UniqueInverseResult(*result)
+    return NamedTuple("UniqueInverseResult", [("values", DNDarray), ("inverse_indices", DNDarray)])(
+        *result
+    )
 
 
 def unfold(a: DNDarray, axis: int, size: int, step: int = 1):

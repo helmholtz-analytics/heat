@@ -3740,7 +3740,9 @@ class TestManipulations(TestCase):
             self.assertEqual(unique_ht.inverse_indices.dtype, ht.int64)
             self.assertEqual(unique_ht.values.device, array.device)
             self.assertTrue(np.allclose(np.sort(unique_ht.values.numpy()), np.sort(unique_np.values)))
+            self.assertTrue(np.allclose(np.sort(unique_ht[0].numpy()), np.sort(unique_np[0])))
             self.assertTrue(np.allclose(np.sort(unique_ht.inverse_indices.numpy()), np.sort(unique_np.inverse_indices)))
+            self.assertTrue(np.allclose(np.sort(unique_ht[1].numpy()), np.sort(unique_np[1])))
 
     def test_vsplit(self):
         # for further testing, see test_split
