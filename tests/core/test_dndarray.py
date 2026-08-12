@@ -1930,3 +1930,20 @@ class TestDNDarray(TestCase):
         self.assertTrue(
             ht.equal(int16_tensor ^ int16_vector, ht.bitwise_xor(int16_tensor, int16_vector))
         )
+
+    def test_to_device(self):
+        cpu_array = ht.ones([4,4], device='cpu')
+        array_cpu = cpu_array.to_device(ht.cpu)
+        self.assertIs(array_cpu, cpu_array)
+
+        if hasattr(ht, 'gpu'):
+            array_gpu = cpu_array.to_device(ht.gpu)
+            self.assertTrue(array_gpu.device, ht.gpu)
+            gpu_array = ht.ones([4,4], device='gpu')
+            array_gpu = gpu_array.to_device(ht.gpu)
+            self.assertIs(array_gpu, gpu_array)
+            array_cpu = gpu_array.to_device(ht.cpu)
+            self.assertTrue(array_cpu.device, ht.cpu)
+
+        with self.assertRaises(ValueError):
+            cpu_array.to_device("cpu", stream=0)

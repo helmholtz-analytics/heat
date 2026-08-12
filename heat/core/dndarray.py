@@ -10,7 +10,7 @@ import warnings
 from inspect import stack
 from mpi4py import MPI
 from pathlib import Path
-from typing import Union, TypeVar
+from typing import Any, Union, TypeVar
 
 warnings.simplefilter("always", ResourceWarning)
 
@@ -501,6 +501,24 @@ class DNDarray:
             return NotImplemented
         return ht_func(*args, **kwargs)
 
+    def __array_namespace__(self, *, api_version: str | None = None) -> Any:
+        """
+        Returns an object that has all the array API functions on it.
+
+        Parameters
+        ----------
+        api_version : Optional[str]
+            string representing the version of the array API specification to
+            be returned, in ``'YYYY.MM'`` form. If it is ``None`` (default), it
+            returns the namespace corresponding to latest version of the
+            array API specification.
+        """
+        if api_version is not None and api_version != "2025.12":
+            raise ValueError(f"Unrecognized array API version: {api_version}")
+        import heat
+
+        return heat
+
     def astype(self, dtype, copy=True) -> DNDarray:
         """
         Returns a casted version of this array.
@@ -821,7 +839,7 @@ class DNDarray:
 
         return partition_dict
 
-    def __float__(self) -> DNDarray:
+    def __float__(self) -> float:
         """
         Float scalar casting.
 
@@ -1139,7 +1157,15 @@ class DNDarray:
             self.__device = devices.gpu
             return self
 
-    def __int__(self) -> DNDarray:
+    def __index__(self) -> int:
+        """
+        Converts a zero-dimensional integer array to a Python ``int`` object.
+        """
+        if not issubclass(self.dtype, integer):
+            raise TypeError("only integer scalar arrays can be converted to a scalar index")
+        return self.__cast(int)
+
+    def __int__(self) -> int:
         """
         Integer scalar casting.
         """
@@ -1887,6 +1913,25 @@ class DNDarray:
         """
         return printing.__str__(self)
 
+    def to_device(self, device: Device, /, *, stream: int | Any | None = None) -> DNDarray:
+        """
+        Copy the array from the device on which it currently resides to the specified ``device``.
+
+        Parameters
+        ----------
+        device : Device
+            A ``Device`` object.
+        stream : Int or Any, optional
+            Stream object to use during copy.
+        """
+        if stream is not None:
+            raise ValueError("The stream argument to to_device() is not supported")
+        if device.device_type == "cpu":
+            return self.cpu()
+        elif device.device_type == "gpu":
+            return self.gpu()
+        raise ValueError(f"Unsupported device {device!r}")
+
     def tolist(self, keepsplit: bool = False) -> list[int | float]:
         """
         Return a copy of the local array data as a (nested) Python list. For scalars, a standard Python number is returned.
@@ -1982,4 +2027,4 @@ from . import types
 
 from .devices import Device
 from .stride_tricks import sanitize_axis
-from .types import datatype, canonical_heat_type
+from .types import datatype, integer, canonical_heat_type

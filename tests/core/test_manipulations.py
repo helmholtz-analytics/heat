@@ -3731,6 +3731,28 @@ class TestManipulations(TestCase):
             (inv == ht.array(exp_inv.to(dtype=inv.larray.dtype), split=inv.split)).all()
         )
 
+    def test_unique_inverse(self):
+        for array in [ht.array([1, 1, 2]), ht.array([[1., 1], [2, 3]], split=0)]:
+            unique_ht = ht.unique_inverse(array)
+            unique_np = np.unique_inverse(array.numpy())
+
+            self.assertEqual(unique_ht.values.dtype, array.dtype)
+            self.assertEqual(unique_ht.inverse_indices.dtype, ht.int64)
+            self.assertEqual(unique_ht.values.device, array.device)
+            self.assertTrue(np.allclose(np.sort(unique_ht.values.numpy()), np.sort(unique_np.values)))
+            self.assertTrue(np.allclose(np.sort(unique_ht[0].numpy()), np.sort(unique_np[0])))
+            self.assertTrue(np.allclose(np.sort(unique_ht.inverse_indices.numpy()), np.sort(unique_np.inverse_indices)))
+            self.assertTrue(np.allclose(np.sort(unique_ht[1].numpy()), np.sort(unique_np[1])))
+
+    def test_unique_values(self):
+        for array in [ht.array([1, 1, 2]), ht.array([[1., 1], [2, 3]], split=0)]:
+            unique_ht = ht.unique_values(array)
+            unique_np = np.unique_values(array.numpy())
+
+            self.assertEqual(unique_ht.dtype, array.dtype)
+            self.assertEqual(unique_ht.device, array.device)
+            self.assertTrue(np.allclose(np.sort(unique_ht.numpy()), np.sort(unique_np)))
+
     def test_vsplit(self):
         # for further testing, see test_split
         data_ht = ht.arange(24).reshape((4, 3, 2))
