@@ -897,7 +897,7 @@ def from_dlpack(
         boolean indicating whether or not to copy the input. Default: None.
     """
     # TODO: Remove below if block when minimum torch version is newer than 2.8
-    if Version(torch.__version__) <= Version("2.8"):
+    if Version(torch.__version__) < Version("2.9"):
         if device is not None:
             warnings.warn(
                 f"Argument {device=} is ignored in `heat.from_dlpack` with {torch.__version__=}. Upgrade your torch version past 2.8 to use it."
