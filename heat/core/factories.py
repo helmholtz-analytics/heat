@@ -3,6 +3,7 @@
 import numpy as np
 import torch
 import warnings
+from packaging.version import Version
 
 from typing import Callable, Iterable, Optional, Sequence, Tuple, Type, Union, List
 
@@ -24,6 +25,7 @@ __all__ = [
     "empty",
     "empty_like",
     "eye",
+    "from_dlpack",
     "from_partitioned",
     "from_partition_dict",
     "full",
@@ -876,6 +878,40 @@ def __factory_like(
     comm = sanitize_comm(comm)
 
     return factory(shape, dtype=dtype, split=split, device=device, comm=comm, order=order, **kwargs)
+
+
+def from_dlpack(
+    x: object, /, *, device: Device | None = None, copy: bool | None = None
+) -> DNDarray:
+    """
+    Returns a new array containing the data from another (array) object with a
+    ``__dlpack__`` method.
+
+    Parameters
+    ----------
+    x : object
+        Input (array) object.
+    device: Device, optional
+        device on which to place the created array. Default: None.
+    copy: bool, optional
+        boolean indicating whether or not to copy the input. Default: None.
+    """
+    # TODO: Remove below if block when minimum torch version is newer than 2.8
+    if Version(torch.__version__) <= Version("2.8"):
+        if device is not None:
+            warnings.warn(
+                f"Argument {device=} is ignored in `heat.from_dlpack` with {torch.__version__=}. Upgrade your torch version past 2.8 to use it."
+            )
+        if copy is not None:
+            warnings.warn(
+                f"Argument {copy=} is ignored in `heat.from_dlpack` with {torch.__version__=}. Upgrade your torch version past 2.8 to use it."
+            )
+        return array(torch.from_dlpack(x))
+
+    if device is not None:
+        device = torch.device(device.torch_device)
+
+    return array(torch.from_dlpack(x, device=device, copy=copy))
 
 
 def from_partitioned(x, comm: Optional[Communication] = None) -> DNDarray:
