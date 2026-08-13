@@ -150,7 +150,7 @@ DNDarray.balance = lambda self, copy=False: balance(self, copy)
 DNDarray.balance.__doc__ = balance.__doc__
 
 
-def broadcast_arrays(*arrays: DNDarray) -> List[DNDarray]:
+def broadcast_arrays(*arrays: DNDarray) -> tuple[DNDarray]:
     """
     Broadcasts one or more arrays against one another. Returns the broadcasted arrays, distributed along the split dimension of the first array in the list. If the first array is not distributed, the output will not be distributed.
 
@@ -216,19 +216,18 @@ def broadcast_arrays(*arrays: DNDarray) -> List[DNDarray]:
     # broadcast the local torch tensors: this is a view of the original data
     broadcasted = torch.broadcast_tensors(*t_arrays)
 
-    out = []
-    for i in range(len(broadcasted)):
-        out.append(
-            DNDarray(
-                broadcasted[i],
-                gshape=output_shape,
-                dtype=arrays[i].dtype,
-                split=output_split,
-                device=arrays[i].device,
-                comm=output_comm,
-                balanced=output_balanced,
-            )
+    out = (
+        DNDarray(
+            broadcasted[i],
+            gshape=output_shape,
+            dtype=arrays[i].dtype,
+            split=output_split,
+            device=arrays[i].device,
+            comm=output_comm,
+            balanced=output_balanced,
         )
+        for i in range(len(broadcasted))
+    )
 
     return out
 
