@@ -407,12 +407,9 @@ def sign(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
         data = out.larray
     else:
         data = torch.clone(x.larray)
-    # NOTE remove when min version >= 1.9
-    if "1.8" in torch.__version__:  # pragma: no cover
-        pos = data != 0
-    else:
-        indices = torch.nonzero(data)
-        pos = torch.split(indices, 1, 1)
+
+    indices = torch.nonzero(data)
+    pos = torch.split(indices, 1, 1)
     data[pos] = x.larray[pos] / torch.sqrt(torch.square(x.larray[pos]))
 
     if out is not None:
