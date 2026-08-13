@@ -216,7 +216,7 @@ def broadcast_arrays(*arrays: DNDarray) -> tuple[DNDarray]:
     # broadcast the local torch tensors: this is a view of the original data
     broadcasted = torch.broadcast_tensors(*t_arrays)
 
-    out = (
+    out = tuple(
         DNDarray(
             broadcasted[i],
             gshape=output_shape,
