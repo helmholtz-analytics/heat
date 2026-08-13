@@ -150,7 +150,7 @@ DNDarray.balance = lambda self, copy=False: balance(self, copy)
 DNDarray.balance.__doc__ = balance.__doc__
 
 
-def broadcast_arrays(*arrays: DNDarray) -> tuple[DNDarray]:
+def broadcast_arrays(*arrays: DNDarray) -> tuple[DNDarray, ...]:
     """
     Broadcasts one or more arrays against one another. Returns the broadcasted arrays, distributed along the split dimension of the first array in the list. If the first array is not distributed, the output will not be distributed.
 
