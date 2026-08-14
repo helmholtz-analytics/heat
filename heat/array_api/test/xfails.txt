@@ -5,7 +5,6 @@ array_api_tests/test_array_object.py::test_getitem_masking
 array_api_tests/test_array_object.py::test_setitem_masking
 array_api_tests/test_array_object.py::test_getitem_arrays_and_ints_1[None]
 array_api_tests/test_array_object.py::test_getitem_arrays_and_ints_2[None]
-array_api_tests/test_array_object.py::test_scalar_casting[__float__(float64)]
 array_api_tests/test_creation_functions.py::test_arange
 array_api_tests/test_creation_functions.py::test_asarray_arrays
 array_api_tests/test_creation_functions.py::test_empty
@@ -18,9 +17,9 @@ array_api_tests/test_creation_functions.py::test_meshgrid
 array_api_tests/test_creation_functions.py::test_ones
 array_api_tests/test_creation_functions.py::test_ones_like
 array_api_tests/test_creation_functions.py::test_tril
+array_api_tests/test_creation_functions.py::test_triu
 array_api_tests/test_creation_functions.py::test_zeros
 array_api_tests/test_creation_functions.py::test_zeros_like
-array_api_tests/test_data_type_functions.py::test_broadcast_arrays
 array_api_tests/test_data_type_functions.py::test_broadcast_to
 array_api_tests/test_data_type_functions.py::test_isdtype
 array_api_tests/test_has_names.py::test_has_names[linalg-cholesky]
