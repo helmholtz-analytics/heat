@@ -1,9 +1,12 @@
+import os
 import numpy as np
 import unittest
 import torch
 
 import heat as ht
 from heat.testing.basic_test import TestCase
+
+IN_GITHUB_ACTIONS = os.getenv("GITHUB_ACTIONS") == "true"
 
 class TestManipulations(TestCase):
     def test_broadcast_arrays(self):
@@ -3245,7 +3248,8 @@ class TestManipulations(TestCase):
                             del a
                             del resplit_a
 
-    @unittest.skipIf(ht.MPI_WORLD.size != 2, "Test requires exactly 2 MPI processes")
+    # This test runs ~1h on Github Actions
+    @unittest.skipIf(IN_GITHUB_ACTIONS or ht.MPI_WORLD.size != 2, "Test requires exactly 2 MPI processes")
     def test_resplit_large_count_limit(self):
         if not self.is_mps:
             # Test resplit with large dimensions
