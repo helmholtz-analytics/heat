@@ -2900,7 +2900,6 @@ def sort(
             return tensor, return_indices
         return tensor
 
-
 def vectorized_sort(
     a: DNDarray,
     axis: int = -1,
@@ -2976,6 +2975,9 @@ def vectorized_sort(
         for i in range(local_data.shape[-1] - 1, -1, -1):
             indices = _permute_indices(local_data[:, i], indices)
 
+        if return_sort_indices_instead:
+            return factories.array(indices, split=None)
+
         local_data = local_data.reshape(shape)[indices].transpose(axis, 0)
         return factories.array(local_data, split=None)
 
@@ -3006,7 +3008,7 @@ def vectorized_sort(
     comm.Gather(send_buf, local_counts, root=0)
 
     if rank == 0:
-        send_counts = np.array(local_counts, dtype=int)
+        send_counts = local_counts.numpy()
         send_displ = np.insert(np.cumsum(send_counts)[:-1], 0, 0)
 
         buffer = torch.empty((total_rows,), dtype=local_data.dtype)
