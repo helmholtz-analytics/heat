@@ -2972,7 +2972,7 @@ def vectorized_sort(
         shape = local_data.shape
 
         local_data = local_data.reshape(shape[0], -1)
-        indices = torch.arange(0, local_data.shape[0])
+        indices = torch.arange(0, local_data.shape[0]).to(local_data.device)
         for i in range(local_data.shape[-1] - 1, -1, -1):
             indices = _permute_indices(local_data[:, i], indices)
 
