@@ -820,6 +820,7 @@ def heat_type_of(
 def can_cast(
     from_: Union[str, Type[datatype], Any],
     to: Union[str, Type[datatype], Any],
+    /,
     casting: str = "intuitive",
 ) -> bool:
     """
