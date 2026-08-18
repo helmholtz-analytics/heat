@@ -69,8 +69,10 @@ class TestSorting:
         expected_res = arr[sort_idx].reshape(shape).swapaxes(0, axis)
 
         res = ht.vectorized_sort(a, axis=axis, stable=stable, descending=descending).numpy()
+        res_idxs = ht.vectorized_sort(a, axis=axis, stable=stable, descending=descending, return_sort_indices_instead=True).numpy()
 
         assert np.isclose(res, expected_res).all()
+        assert np.equal(sort_idx, res_idxs).all()
 
     @pytest.mark.parametrize("descending", [False, True])
     @pytest.mark.parametrize("stable", [False, True])
@@ -81,15 +83,16 @@ class TestSorting:
         a_np = a.numpy()
 
         res = ht.vectorized_sort(a, axis=axis, stable=stable, descending=descending).numpy()
+        res_idxs = ht.vectorized_sort(a, axis=axis, stable=stable, descending=descending, return_sort_indices_instead=True).numpy()
 
         if NUMPY_HAS_NO_DESCENDING_KWARG:
+            expected_res_idxs = np.argsort(a_np, axis=axis, stable=stable)
             if descending:
-                a_np *= -1
-
-            expected_res = np.sort(a_np, axis=axis, stable=stable)
-
-            if descending:
-                expected_res *= -1
+                expected_res_idxs = np.flip(expected_res_idxs)
         else:
-            expected_res = np.sort(a_np, axis=axis, stable=stable, descending=descending)
+            expected_res_idxs = np.argsort(a_np, axis=axis, stable=stable, descending=descending)
+
+        expected_res = a_np[expected_res_idxs]
+
         assert np.isclose(res, expected_res).all()
+        assert np.equal(expected_res_idxs, res_idxs).all()
