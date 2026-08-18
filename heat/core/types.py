@@ -45,6 +45,7 @@ __all__ = [
     "float64",
     "double",
     "flexible",
+    "astype",
     "can_cast",
     "canonical_heat_type",
     "heat_type_is_exact",
@@ -637,6 +638,47 @@ def __get_all_heat_types():
     return [me for me in type_related_classes if len(me.__subclasses__()) == 0]
 
 
+def astype(
+    x: dndarray.DNDarray,
+    dtype: datatype,
+    /,
+    *,
+    copy: bool = True,
+    device: devices.Device | None = None,
+):
+    """
+    Copies an array to a specified data type irrespective of Type Promotion Rules.
+
+    Parameters
+    ----------
+    x : Array
+        Array to cast.
+    dtype : Dtype
+        Desired data type.
+    copy : bool
+        If ``True``, a newly allocated array is returned. If ``False`` and the
+        specified ``dtype`` matches the data type of the input array, the
+        input array is returned; otherwise, a newly allocated is returned.
+        Default: ``True``.
+    device : ht.Device, optional
+        The device on which to place the returned array. If ``None``, infers device from ``x``. Default: None.
+
+    Examples
+    --------
+    >>> import heat as ht
+    >>> arr = ht.array([1, 2, 3])
+    >>> arr
+    DNDarray(MPI-rank: 0, Shape: (3,), Split: None, Local Shape: (3,), Device: cpu:0, Dtype: int64, Data:
+         [1, 2, 3])
+    >>> ht.astype(arr, ht.float64)
+    DNDarray(MPI-rank: 0, Shape: (3,), Split: None, Local Shape: (3,), Device: cpu:0, Dtype: float64, Data:
+         [1., 2., 3.])
+    """
+    sanitation.sanitize_in(x)
+
+    return x.astype(dtype, copy)
+
+
 def canonical_heat_type(a_type: Union[str, Type[datatype], Any]) -> Type[datatype]:
     """
     Canonicalize the builtin Python type, type string or HeAT type into a canonical HeAT type.
@@ -778,6 +820,7 @@ def heat_type_of(
 def can_cast(
     from_: Union[str, Type[datatype], Any],
     to: Union[str, Type[datatype], Any],
+    /,
     casting: str = "intuitive",
 ) -> bool:
     """
