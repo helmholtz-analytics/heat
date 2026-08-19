@@ -232,7 +232,7 @@ def broadcast_arrays(*arrays: DNDarray) -> tuple[DNDarray, ...]:
     return out
 
 
-def broadcast_to(x: DNDarray, shape: Tuple[int, ...]) -> DNDarray:
+def broadcast_to(x: DNDarray, /, shape: tuple[int, ...]) -> DNDarray:
     """
     Broadcasts an array to a specified shape. Returns a view of ``x`` if ``x`` is not distributed, otherwise it returns a broadcasted, distributed, load-balanced copy of ``x``.
 
