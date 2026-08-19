@@ -20,8 +20,6 @@ array_api_tests/test_creation_functions.py::test_tril
 array_api_tests/test_creation_functions.py::test_triu
 array_api_tests/test_creation_functions.py::test_zeros
 array_api_tests/test_creation_functions.py::test_zeros_like
-array_api_tests/test_data_type_functions.py::test_broadcast_to
-array_api_tests/test_data_type_functions.py::test_isdtype
 array_api_tests/test_has_names.py::test_has_names[linalg-cholesky]
 array_api_tests/test_has_names.py::test_has_names[linalg-cross]
 array_api_tests/test_has_names.py::test_has_names[linalg-det]
