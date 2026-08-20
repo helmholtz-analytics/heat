@@ -41,11 +41,15 @@ __all__ = [
 
 
 def arange(
-    *args: Union[int, float],
-    dtype: Optional[Type[datatype]] = None,
-    split: Optional[int] = None,
-    device: Optional[Union[str, Device]] = None,
-    comm: Optional[Communication] = None,
+    start: int | float,
+    /,
+    stop: int | float | None = None,
+    step: int | float = 1,
+    *,
+    dtype: datatype | None = None,
+    split: int | None = None,
+    device: str | Device | None = None,
+    comm: Communication | None = None,
 ) -> DNDarray:
     """
     Return evenly spaced values within a given interval.
@@ -61,12 +65,13 @@ def arange(
 
     Parameters
     ----------
-    *args : int or float, optional
-        Positional arguments defining the interval. Can be:
-        - A single argument: interpreted as `stop`, with `start=0` and `step=1`.
-        - Two arguments: interpreted as `start` and `stop`, with `step=1`.
-        - Three arguments: interpreted as `start`, `stop`, and `step`.
-        The function raises a `TypeError` if more than three arguments are provided.
+    start : int or float
+        if ``stop`` is specified, the start of the interval (inclusive); otherwise, the end of the interval (exclusive).
+        If ``stop`` is not specified, the default starting value is ``0``.
+    stop : int or float, optional
+        the end of the interval. Default: None.
+    step : int or float, optional
+        the distance between two adjacent elements (``out[i+1] - out[i]``). Default: ``1``.
     dtype : datatype, optional
         The type of the output array.  If `dtype` is not given, it is automatically inferred from the other input
         arguments.
@@ -92,42 +97,43 @@ def arange(
     >>> ht.arange(3, 7, 2)
     DNDarray([3, 5], dtype=ht.int32, device=cpu:0, split=None)
     """
-    num_of_param = len(args)
+    # invariance
+    if not isinstance(start, (int, float)):
+        raise TypeError(f"'start' must be int or float. Got {type(start)}")
 
-    # check if all positional arguments are integers
-    all_ints = all([isinstance(_, int) for _ in args])
+    # set start, stop if
+    if stop is None:
+        start, stop = 0, start
 
-    # set start, stop, step, num according to *args
-    if num_of_param == 1:
-        if dtype is None:
-            # use int32 as default instead of int64 used in numpy
-            dtype = types.int32 if all_ints else types.float32
-        start = 0
-        stop = int(np.ceil(args[0]))
-        step = 1
-        num = stop
-    elif num_of_param == 2:
-        if dtype is None:
-            dtype = types.int32 if all_ints else types.float32
-        start = args[0]
-        stop = args[1]
-        step = 1
-        num = int(np.ceil(stop - start))
-    elif num_of_param == 3:
-        if dtype is None:
-            dtype = types.int32 if all_ints else types.float32
-        start = args[0]
-        stop = args[1]
-        step = args[2]
-        num = int(np.ceil((stop - start) / step))
-    else:
-        raise TypeError(
-            f"function takes minimum one and at most 3 positional arguments ({num_of_param} given)"
-        )
+    if not isinstance(stop, (int, float)):
+        raise TypeError(f"'stop' must be int or float. Got {type(stop)}")
+
+    if not isinstance(step, (int, float)):
+        raise TypeError(f"'step' must be int or float. Got {type(step)}")
+
+    if step == 0:
+        raise ValueError("'step' cannot be 0.")
 
     # sanitize device and comm
     device = devices.sanitize_device(device)
     comm = sanitize_comm(comm)
+
+    if dtype is None:
+        dtype = types.float32 if float in (type(start), type(stop), type(step)) else types.int64
+
+    dtype = types.canonical_heat_type(dtype)
+
+    num = int(np.ceil((stop - start) / step))
+    if np.sign(num) < 1:
+        return DNDarray(
+            torch.tensor([], dtype=dtype.torch_type(), device=device.torch_device),
+            gshape=(0,),
+            dtype=dtype,
+            split=split,
+            device=device,
+            comm=comm,
+            balanced=True,
+        )
 
     gshape = (num,)
     split = sanitize_axis(gshape, split)
@@ -137,12 +143,10 @@ def arange(
     # compose the local tensor
     start += offset * step
     stop = start + lshape[0] * step
-    htype = types.canonical_heat_type(dtype)
-    if types.issubdtype(htype, types.floating):
-        data = torch.arange(start, stop, step, dtype=htype.torch_type(), device=device.torch_device)
-    else:
-        data = torch.arange(start, stop, step, device=device.torch_device)
-        data = data.type(htype.torch_type())
+
+    data = torch.arange(start, stop, step, dtype=dtype.torch_type(), device=device.torch_device)
+    htype = types.canonical_heat_type(data.dtype)
+
     return DNDarray(
         data, gshape=gshape, dtype=htype, split=split, device=device, comm=comm, balanced=balanced
     )
