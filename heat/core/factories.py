@@ -143,12 +143,15 @@ def arange(
     # compose the local tensor
     start += offset * step
     stop = start + lshape[0] * step
-
-    data = torch.arange(start, stop, step, dtype=dtype.torch_type(), device=device.torch_device)
-    htype = types.canonical_heat_type(data.dtype)
+        
+    if types.issubdtype(dtype, types.floating):
+        data = torch.arange(start, stop, step, dtype=dtype.torch_type(), device=device.torch_device)
+    else:
+        data = torch.arange(start, stop, step, device=device.torch_device)
+        data = data.type(dtype.torch_type())
 
     return DNDarray(
-        data, gshape=gshape, dtype=htype, split=split, device=device, comm=comm, balanced=balanced
+        data, gshape=gshape, dtype=dtype, split=split, device=device, comm=comm, balanced=balanced
     )
 
 
