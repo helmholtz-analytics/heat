@@ -143,7 +143,7 @@ def arange(
     # compose the local tensor
     start += offset * step
     stop = start + lshape[0] * step
-        
+
     if types.issubdtype(dtype, types.floating):
         data = torch.arange(start, stop, step, dtype=dtype.torch_type(), device=device.torch_device)
     else:
