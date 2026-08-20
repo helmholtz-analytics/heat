@@ -1807,7 +1807,7 @@ class TestLinalgBasics(TestCase):
 
     def test_transpose(self):
         # vector transpose, not distributed
-        vector = ht.arange(10)
+        vector = ht.arange(10, dtype=ht.int32)
         vector_t = vector.T
         self.assertIsInstance(vector_t, ht.DNDarray)
         self.assertEqual(vector_t.dtype, ht.int32)
@@ -1833,7 +1833,7 @@ class TestLinalgBasics(TestCase):
         self.assertEqual(array_4d_t.larray.shape, (5, 2, 4, 3))
 
         # vector transpose, distributed
-        vector_split = ht.arange(10, split=0)
+        vector_split = ht.arange(10, dtype=ht.int32, split=0)
         vector_split_t = vector_split.T
         self.assertIsInstance(vector_split_t, ht.DNDarray)
         self.assertEqual(vector_split_t.dtype, ht.int32)
