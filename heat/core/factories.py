@@ -3,6 +3,7 @@
 import numpy as np
 import torch
 import warnings
+from packaging.version import Version
 
 from typing import Callable, Iterable, Optional, Sequence, Tuple, Type, Union, List
 
@@ -24,6 +25,7 @@ __all__ = [
     "empty",
     "empty_like",
     "eye",
+    "from_dlpack",
     "from_partitioned",
     "from_partition_dict",
     "full",
@@ -141,8 +143,9 @@ def arange(
     else:
         data = torch.arange(start, stop, step, device=device.torch_device)
         data = data.type(htype.torch_type())
-
-    return DNDarray(data, gshape, htype, split, device, comm, balanced)
+    return DNDarray(
+        data, gshape=gshape, dtype=htype, split=split, device=device, comm=comm, balanced=balanced
+    )
 
 
 def array(
@@ -480,7 +483,15 @@ def array(
         if gmatch != comm.size:
             balanced = False
 
-    return DNDarray(obj, tuple(gshape), dtype, split, device, comm, balanced)
+    return DNDarray(
+        obj,
+        gshape=tuple(gshape),
+        dtype=dtype,
+        split=split,
+        device=device,
+        comm=comm,
+        balanced=balanced,
+    )
 
 
 def asarray(
@@ -725,7 +736,13 @@ def eye(
     data = sanitize_memory_layout(data, order=order)
 
     return DNDarray(
-        data, gshape, types.canonical_heat_type(data.dtype), split, device, comm, balanced
+        data,
+        gshape=gshape,
+        dtype=types.canonical_heat_type(data.dtype),
+        split=split,
+        device=device,
+        comm=comm,
+        balanced=balanced,
     )
 
 
@@ -780,7 +797,9 @@ def __factory(
     data = local_factory(local_shape, dtype=dtype.torch_type(), device=device.torch_device)
     data = sanitize_memory_layout(data, order=order)
 
-    return DNDarray(data, shape, dtype, split, device, comm, balanced=True)
+    return DNDarray(
+        data, gshape=shape, dtype=dtype, split=split, device=device, comm=comm, balanced=True
+    )
 
 
 def __factory_like(
@@ -859,6 +878,40 @@ def __factory_like(
     comm = sanitize_comm(comm)
 
     return factory(shape, dtype=dtype, split=split, device=device, comm=comm, order=order, **kwargs)
+
+
+def from_dlpack(
+    x: object, /, *, device: Device | None = None, copy: bool | None = None
+) -> DNDarray:
+    """
+    Returns a new array containing the data from another (array) object with a
+    ``__dlpack__`` method.
+
+    Parameters
+    ----------
+    x : object
+        Input (array) object.
+    device: Device, optional
+        device on which to place the created array. Default: None.
+    copy: bool, optional
+        boolean indicating whether or not to copy the input. Default: None.
+    """
+    # TODO: Remove below if block when minimum torch version is newer than 2.8
+    if Version(torch.__version__) < Version("2.9"):
+        if device is not None:
+            warnings.warn(
+                f"Argument {device=} is ignored in `heat.from_dlpack` with {torch.__version__=}. Upgrade your torch version past 2.8 to use it."
+            )
+        if copy is not None:
+            warnings.warn(
+                f"Argument {copy=} is ignored in `heat.from_dlpack` with {torch.__version__=}. Upgrade your torch version past 2.8 to use it."
+            )
+        return array(torch.from_dlpack(x))
+
+    if device is not None:
+        device = torch.device(device.torch_device)
+
+    return array(torch.from_dlpack(x, device=device, copy=copy))
 
 
 def from_partitioned(x, comm: Optional[Communication] = None) -> DNDarray:
@@ -1004,7 +1057,13 @@ def __from_partition_dict_helper(parted: dict, comm: Communication):
     balanced = all(x[0][0] == x[1][0] for x in expected.values())
 
     ret = DNDarray(
-        data, gshape, htype, split, devices.sanitize_device(None), sanitize_comm(comm), balanced
+        data,
+        gshape=gshape,
+        dtype=htype,
+        split=split,
+        device=devices.sanitize_device(None),
+        comm=sanitize_comm(comm),
+        balanced=balanced,
     )
     ret.__partitions_dict__ = parted
 
@@ -1207,7 +1266,13 @@ def linspace(
 
     # construct the resulting global tensor
     ht_tensor = DNDarray(
-        data, gshape, types.canonical_heat_type(data.dtype), split, device, comm, balanced
+        data,
+        gshape=gshape,
+        dtype=types.canonical_heat_type(data.dtype),
+        split=split,
+        device=device,
+        comm=comm,
+        balanced=balanced,
     )
 
     if retstep:
