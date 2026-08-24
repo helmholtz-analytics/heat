@@ -3013,10 +3013,10 @@ def vectorized_sort(
         send_displ = np.insert(np.cumsum(send_counts)[:-1], 0, 0)
 
         buffer = torch.empty((total_rows,), dtype=local_data.dtype)
-        recv_args = buffer, send_counts, send_displ  # , mpi_type]
+        recv_args = (buffer, send_counts, send_displ)
     else:
         buffer = None
-        recv_args = torch.empty(0, dtype=torch.int64), None, None
+        recv_args = (torch.empty(0, dtype=torch.int64), None, None)
 
     def _gather_column(flat_idx: int):
         idx = np.unravel_index(flat_idx, inner_shape)
