@@ -1,6 +1,28 @@
 # Contributing to Heat
 
-Thank you for your interest in contributing. To maintain project quality and support our distributed (no pun intended!) team, please follow this structured workflow.
+Thank you for your interest in contributing. To maintain project quality and support our distributed (no pun intended!) team, please follow these instructions.
+
+## Project Governance and Roles
+
+As a project hosted under Linux Foundation Europe, Heat's technical oversight is managed by a Technical Steering Committee (TSC)[cite: 6]. The TSC has the authority to define and amend community roles as long as they are publicly documented here in the CONTRIBUTING file[cite: 6].
+
+### Maintainers
+
+For the Heat project, we use the title **Maintainer** to represent the "Committer" role defined in the project's Technical Charter[cite: 6].
+
+* **Definition:** Maintainers are Contributors who have earned the ability to modify ("commit") source code, documentation, and other technical artifacts directly within the project's repository[cite: 6]. The Maintainers also serve as the voting members of the TSC[cite: 6].
+* **Becoming a Maintainer:** Participation is open to anyone who abides by the project charter[cite: 6]. A Contributor may be promoted to a Maintainer through a majority approval vote by the existing Maintainers[cite: 6].
+* **Removal:** If necessary, a Maintainer may be removed from their role by a majority approval vote of the other existing Maintainers[cite: 6].
+
+## Legal and Intellectual Property Requirements
+
+To comply with the Heat Technical Charter under Linux Foundation Europe, all contributions to the Project are subject to the following policies:
+
+* **Copyright Retention:** The copyright in all new contributions will be retained by the copyright holder as independent works of authorship. No contributor or copyright holder will be required to assign copyrights to the Project.
+* **Code Licensing:** All new inbound code contributions to the Project must be made using the MIT License.
+* **Developer Certificate of Origin (DCO):** All new inbound code contributions must also be accompanied by a Developer Certificate of Origin (http://developercertificate.org) sign-off in the source code system. This binds the authorized contributor and, if not self-employed, their employer to the applicable license.
+* **Documentation Licensing:** Documentation will be received and made available by the Project under the Creative Commons Attribution 4.0 International License.
+* **Trademarks:** LF Europe holds title to all Project Trademarks. Any use of Project Trademarks by Collaborators in the Project must be in accordance with the license from LF Europe.
 
 ---
 
