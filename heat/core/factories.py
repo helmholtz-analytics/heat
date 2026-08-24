@@ -97,11 +97,10 @@ def arange(
     >>> ht.arange(3, 7, 2)
     DNDarray([3, 5], dtype=ht.int32, device=cpu:0, split=None)
     """
-    # invariance
     if not isinstance(start, (int, float)):
         raise TypeError(f"'start' must be int or float. Got {type(start)}")
 
-    # set start, stop if
+    # set start and stop if no stop is specified
     if stop is None:
         start, stop = 0, start
 

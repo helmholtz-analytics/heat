@@ -1807,10 +1807,10 @@ class TestLinalgBasics(TestCase):
 
     def test_transpose(self):
         # vector transpose, not distributed
-        vector = ht.arange(10, dtype=ht.int32)
+        vector = ht.arange(10)
         vector_t = vector.T
         self.assertIsInstance(vector_t, ht.DNDarray)
-        self.assertEqual(vector_t.dtype, ht.int32)
+        self.assertEqual(vector_t.dtype, ht.int64)
         self.assertEqual(vector_t.split, None)
         self.assertEqual(vector_t.shape, (10,))
 
