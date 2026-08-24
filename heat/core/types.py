@@ -647,7 +647,7 @@ def astype(
     device: devices.Device | None = None,
 ):
     """
-    Copies an array to a specified data type irrespective of Type Promotion Rules.
+    Copies an array to a specified data type irrespective of type promotion rules.
 
     Parameters
     ----------
