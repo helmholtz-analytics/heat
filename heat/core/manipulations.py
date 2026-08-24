@@ -53,7 +53,9 @@ __all__ = [
     "row_stack",
     "shape",
     "sort",
+    "sort_complex",
     "vectorized_sort",
+    "reorder",
     "split",
     "squeeze",
     "stack",
@@ -2901,6 +2903,19 @@ def sort(
         return tensor
 
 
+def sort_complex(a: DNDarray, axis: int = -1):
+    sanitation.sanitize_in(a)
+
+    if not isinstance(axis, int):
+        raise ValueError(f"'axis' must be integer, not {type(axis)}.")
+    if a.ndim == 0:
+        raise ValueError("dndarray must have at least one dimension.")
+    if not (-a.ndim <= axis < a.ndim):
+        raise ValueError(f"{axis=} does not exist for array with {a.ndim} dimensions.")
+    if not isinstance(a.dtype, types.complex):
+        raise ValueError(f"{a.dtype=} is not a complex type.")
+
+
 def vectorized_sort(
     a: DNDarray,
     axis: int = -1,
@@ -3013,10 +3028,10 @@ def vectorized_sort(
         send_displ = np.insert(np.cumsum(send_counts)[:-1], 0, 0)
 
         buffer = torch.empty((total_rows,), dtype=local_data.dtype)
-        recv_args = (buffer, send_counts, send_displ)
+        recv_args = buffer, send_counts, send_displ  # , mpi_type]
     else:
         buffer = None
-        recv_args = (torch.empty(0, dtype=torch.int64), None, None)
+        recv_args = torch.empty(0, dtype=torch.int64), None, None
 
     def _gather_column(flat_idx: int):
         idx = np.unravel_index(flat_idx, inner_shape)
@@ -3038,68 +3053,112 @@ def vectorized_sort(
     if return_sort_indices_instead:
         return factories.array(indices, split=None)
 
-    offset, _, _ = comm.chunk((total_rows,), split=0, rank=rank)
+    return reorder(a, indices, axis=axis, resplit_result=resplit_result)
 
-    rank_slices = [comm.chunk((total_rows,), split=0, rank=i)[-1][0] for i in range(size)]
+def reorder(
+    a: DNDarray,
+    indices: torch.Tensor,
+    axis: int = -1,
+    resplit_result: bool = True,
+) -> DNDarray:
+    """
+    Redistributes the dndarray along the specified axis using a global indice tensor.
+    Does a `resplit`, if `axis != a.split`. 
 
-    local_slice = rank_slices[rank]
+    Parameters
+    ----------
+    a : DNDarray
+        The array whose slices along `axis` are to be rearranged.
+    indices : torch.Tensor
+        A 1D tensor of length `a.gshape[axis]` defining the new global order.
+    axis : int, optional
+        The axis along which to permute. Default is -1.
+    resplit_result : bool, optional
+        Whether to resplit the result back to the original split axis of `a`. Default is True.
 
-    assert all([s.step is None for s in rank_slices])  # Sanity check
+    Returns
+    -------
+    DNDarray
+        The reordered array.
+    """
+    sanitation.sanitize_in(a)
 
-    send_counts = np.zeros(size, dtype=np.int64)
-    send_indices = []
+    if not isinstance(axis, int):
+        raise ValueError(f"'axis' must be integer, not {type(axis)}.")
+    if not (-a.ndim <= axis < a.ndim):
+        raise ValueError(f"{axis=} does not exist for array with {a.ndim} dimensions.")
 
-    for recv_rank, s in enumerate(rank_slices):
-        recv_indices = indices[s]
+    if axis < 0:
+        axis += a.ndim
 
-        mask = (recv_indices >= offset) & (recv_indices < rank_slices[rank].stop)
+    if not a.is_distributed():
+        local_data = a.larray.transpose(axis, 0)
+        local_data = local_data[indices].transpose(axis, 0)
+        return factories.array(local_data, split=None)
 
-        local_indices = recv_indices[mask] - offset
+    original_split = a.split
+    if axis != a.split:
+        a = resplit(a, axis)
 
-        send_counts[recv_rank] += mask.sum()
-        send_indices.append(local_indices)
+    comm = a.comm
+    rank = comm.rank
+    size = comm.size
 
-    recv_counts = np.zeros(size, dtype=np.int64)
-    recv_indices = [list() for _ in range(size)]
+    local_data = a.larray.transpose(axis, 0)
 
-    rank_indices_mapping = np.empty((local_slice.stop - local_slice.start,), dtype=np.int64)
+    original_shape = local_data.shape
+    inner_shape = original_shape[1:]
 
-    for i, idx in enumerate(indices[local_slice]):
-        for src_rank, src_slice in enumerate(rank_slices):
-            if not (src_slice.start <= idx < src_slice.stop):
-                continue
-            recv_counts[src_rank] += 1
-            recv_indices[src_rank].append(idx.item())
-            rank_indices_mapping[i] = src_rank
-            break
-        else:
-            raise RuntimeError(f"Index could not be resolved to a rank. Info: {i}, {idx}")
+    total_rows = a.gshape[axis]
+    block_length = math.prod(inner_shape)
 
-    send_counts *= block_length
-    recv_counts *= block_length
+    boundaries = [comm.chunk((total_rows,), split=0, rank=i)[0] for i in range(size)]
+    boundaries.append(total_rows)
+    boundaries_tensor = torch.tensor(boundaries, device=indices.device)
+
+    local_start = boundaries[rank]
+    local_stop = boundaries[rank + 1]
+    local_slice = slice(local_start, local_stop)
+
+    send_counts_tensor = torch.zeros(size, dtype=torch.int64, device=indices.device)
+    send_indices_list = []
+
+    for r in range(size):
+        r_wants = indices[boundaries[r] : boundaries[r + 1]]
+        mask = (r_wants >= local_start) & (r_wants < local_stop)
+
+        send_counts_tensor[r] = mask.sum()
+        send_indices_list.append(r_wants[mask] - local_start)
+
+    send_indices_tensor = torch.cat(send_indices_list)
+
+    needed_indices = indices[local_slice]
+    src_ranks = torch.bucketize(needed_indices, boundaries_tensor, right=True) - 1
+    recv_counts_tensor = torch.bincount(src_ranks, minlength=size)
+
+    send_counts = (send_counts_tensor * block_length).cpu().numpy()
+    recv_counts = (recv_counts_tensor * block_length).cpu().numpy()
 
     send_displ = np.insert(np.cumsum(send_counts)[:-1], 0, 0)
     recv_displ = np.insert(np.cumsum(recv_counts)[:-1], 0, 0)
 
-    send_data = local_data[torch.cat(send_indices).tolist()].reshape(-1).contiguous()
+    send_data = local_data[send_indices_tensor].reshape(-1).contiguous()
     recv_buf = torch.empty((recv_counts.sum().item(),), dtype=local_data.dtype)
 
     comm.Alltoallv((send_data, send_counts, send_displ), (recv_buf, recv_counts, recv_displ))
 
-    sort_idx = np.argsort(rank_indices_mapping, stable=True)
-    inv_sort_idx = np.empty_like(sort_idx)
-    inv_sort_idx[sort_idx] = np.arange(sort_idx.size)
+    sort_idx = torch.argsort(src_ranks, stable=True)
+    inv_sort_idx = torch.empty_like(sort_idx)
+    inv_sort_idx[sort_idx] = torch.arange(sort_idx.size(0), device=sort_idx.device)
 
     recv_buf = recv_buf.view(-1, *inner_shape)[inv_sort_idx]
 
-    if is_1d:
-        recv_buf = recv_buf.squeeze(-1)
-
-    sorted_array = factories.array(recv_buf.transpose(0, axis), is_split=a.split)
+    reordered_array = factories.array(recv_buf.transpose(0, axis), is_split=a.split)
 
     if original_split != a.split and resplit_result:
-        return resplit(sorted_array, original_split)
-    return sorted_array
+        return resplit(reordered_array, original_split)
+
+    return reordered_array
 
 
 def split(x: DNDarray, indices_or_sections: Iterable, axis: int = 0) -> List[DNDarray, ...]:
