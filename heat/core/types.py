@@ -676,7 +676,7 @@ def astype(
     """
     sanitation.sanitize_in(x)
 
-    return x.astype(dtype, copy)
+    return x.astype(dtype, copy=copy, device=device)
 
 
 def canonical_heat_type(a_type: Union[str, Type[datatype], Any]) -> Type[datatype]:
