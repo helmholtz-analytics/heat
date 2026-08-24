@@ -3055,6 +3055,7 @@ def vectorized_sort(
 
     return reorder(a, indices, axis=axis, resplit_result=resplit_result)
 
+
 def reorder(
     a: DNDarray,
     indices: torch.Tensor,
@@ -3063,7 +3064,7 @@ def reorder(
 ) -> DNDarray:
     """
     Redistributes the dndarray along the specified axis using a global indice tensor.
-    Does a `resplit`, if `axis != a.split`. 
+    Does a `resplit`, if `axis != a.split`.
 
     Parameters
     ----------
