@@ -1,7 +1,3 @@
-ignore:
-  - "heat/utils/data/mnist.py"
-  - "heat/utils/data/_utils.py"
-
 coverage:
   status:
     project:
