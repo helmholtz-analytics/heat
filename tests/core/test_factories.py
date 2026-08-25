@@ -12,8 +12,8 @@ class TestFactories(TestCase):
         self.assertIsInstance(one_arg_arange_int, ht.DNDarray)
         self.assertEqual(one_arg_arange_int.shape, (10,))
         self.assertLessEqual(one_arg_arange_int.lshape[0], 10)
-        self.assertEqual(one_arg_arange_int.dtype, ht.int32)
-        self.assertEqual(one_arg_arange_int.larray.dtype, torch.int32)
+        self.assertEqual(one_arg_arange_int.dtype, ht.int64)
+        self.assertEqual(one_arg_arange_int.larray.dtype, torch.int64)
         self.assertEqual(one_arg_arange_int.split, None)
         # make an in direct check for the sequence, compare against the gaussian sum
         self.assertEqual(one_arg_arange_int.sum(), 45)
@@ -34,8 +34,8 @@ class TestFactories(TestCase):
         self.assertIsInstance(two_arg_arange_int, ht.DNDarray)
         self.assertEqual(two_arg_arange_int.shape, (10,))
         self.assertLessEqual(two_arg_arange_int.lshape[0], 10)
-        self.assertEqual(two_arg_arange_int.dtype, ht.int32)
-        self.assertEqual(two_arg_arange_int.larray.dtype, torch.int32)
+        self.assertEqual(two_arg_arange_int.dtype, ht.int64)
+        self.assertEqual(two_arg_arange_int.larray.dtype, torch.int64)
         self.assertEqual(two_arg_arange_int.split, None)
         # make an in direct check for the sequence, compare against the gaussian sum
         self.assertEqual(two_arg_arange_int.sum(), 45)
@@ -56,8 +56,8 @@ class TestFactories(TestCase):
         self.assertIsInstance(three_arg_arange_int, ht.DNDarray)
         self.assertEqual(three_arg_arange_int.shape, (5,))
         self.assertLessEqual(three_arg_arange_int.lshape[0], 5)
-        self.assertEqual(three_arg_arange_int.dtype, ht.int32)
-        self.assertEqual(three_arg_arange_int.larray.dtype, torch.int32)
+        self.assertEqual(three_arg_arange_int.dtype, ht.int64)
+        self.assertEqual(three_arg_arange_int.larray.dtype, torch.int64)
         self.assertEqual(three_arg_arange_int.split, None)
         # make an in direct check for the sequence, compare against the gaussian sum
         self.assertEqual(three_arg_arange_int.sum(), 20)
@@ -85,7 +85,7 @@ class TestFactories(TestCase):
         self.assertEqual(three_arg_arange_dtype_float32.sum(axis=0, keepdims=True), 20.0)
 
         # testing setting dtype to int16
-        three_arg_arange_dtype_short = ht.arange(0, 10, 2.0, dtype=torch.int16)
+        three_arg_arange_dtype_short = ht.arange(0, 10, 2.0, dtype=ht.int16)
         self.assertIsInstance(three_arg_arange_dtype_short, ht.DNDarray)
         self.assertEqual(three_arg_arange_dtype_short.shape, (5,))
         self.assertLessEqual(three_arg_arange_dtype_short.lshape[0], 5)
@@ -97,7 +97,7 @@ class TestFactories(TestCase):
 
         # testing setting dtype to float64
         if not self.is_mps:
-            three_arg_arange_dtype_float64 = ht.arange(0, 10, 2, dtype=torch.float64)
+            three_arg_arange_dtype_float64 = ht.arange(0, 10, 2, dtype=ht.float64)
             self.assertIsInstance(three_arg_arange_dtype_float64, ht.DNDarray)
             self.assertEqual(three_arg_arange_dtype_float64.shape, (5,))
             self.assertLessEqual(three_arg_arange_dtype_float64.lshape[0], 5)
@@ -110,6 +110,15 @@ class TestFactories(TestCase):
             check_precision = ht.arange(16777217.0, 16777218, 1, dtype=ht.float64)
             self.assertEqual(check_precision.sum(), 16777217)
 
+        # empty array
+        empty_array = ht.arange(5, 0, 1, dtype=ht.int32)
+        self.assertIsInstance(empty_array, ht.DNDarray)
+        self.assertEqual(empty_array.shape, (0,))
+        self.assertEqual(empty_array.dtype, ht.int32)
+        self.assertEqual(empty_array.larray.dtype, torch.int32)
+        self.assertEqual(empty_array.split, None)
+        self.assertTrue(ht.equal(empty_array, ht.array([], dtype=ht.int32)))
+
         # exceptions
         with self.assertRaises(ValueError):
             ht.arange(-5, 3, split=1)
@@ -117,6 +126,12 @@ class TestFactories(TestCase):
             ht.arange()
         with self.assertRaises(TypeError):
             ht.arange(1, 2, 3, 4)
+        with self.assertRaises(ValueError):
+            ht.arange(5, step=0)
+        with self.assertRaises(TypeError):
+            ht.arange("A")
+        with self.assertRaises(TypeError):
+            ht.arange(0, "A")
 
     def test_array(self):
         # basic array function, unsplit data
