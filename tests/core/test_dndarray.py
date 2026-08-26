@@ -455,7 +455,7 @@ class TestDNDarray(TestCase):
             self.assertIs(as_float64, data)
 
         # check device case for complex
-        as_complex64 = ht.astype(data, ht.complex64, device=ht.cpu)
+        as_complex64 = data.astype(ht.complex64, device=ht.cpu)
         array_type_check(as_complex64, ht.complex64)
         self.assertEqual(as_complex64.device, ht.cpu)
 

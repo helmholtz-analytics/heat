@@ -558,11 +558,13 @@ class DNDarray:
         )
         if copy:
             return DNDarray(
-                casted_array, self.shape, dtype, self.split, self.device, self.comm, self.balanced
+                casted_array, self.shape, dtype, self.split, device, self.comm, self.balanced
             )
 
         self.__array = casted_array
         self.__dtype = dtype
+        self.__device = device
+
 
         return self
 
