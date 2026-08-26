@@ -565,7 +565,6 @@ class DNDarray:
         self.__dtype = dtype
         self.__device = device
 
-
         return self
 
     def balance_(self) -> None:
