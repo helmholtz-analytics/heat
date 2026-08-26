@@ -193,39 +193,26 @@ class TestTypes(TestCase):
 
 class TestTypeConversion(TestCase):
     def test_astype(self):
-        def array_type_check(array, dtype):
-            self.assertIsInstance(array, ht.DNDarray)
-            self.assertEqual(array.dtype, dtype)
-            self.assertEqual(array.larray.dtype, dtype.torch_type())
-
-
+        # check the call to DNDarray.astype
         data = ht.float32([[1, 2, 3], [4, 5, 6]])
 
         # check starting invariant
         self.assertEqual(data.dtype, ht.float32)
 
-        # check the copy case for uint8
-        as_uint8_f = ht.astype(data, ht.uint8)
-        array_type_check(as_uint8_f, ht.uint8)
-        self.assertIsNot(as_uint8_f, data)
+        # check the copy case for int16
+        as_int16_f = ht.astype(data, ht.int16)
+        self.assertIsInstance(as_int16_f, ht.DNDarray)
+        self.assertIsNot(as_int16_f, data)
 
         # DNDarray method
-        as_uint8 = data.astype(ht.uint8)
-        array_type_check(as_uint8, ht.uint8)
-        self.assertIsNot(as_uint8, data)
+        as_int16 = data.astype(ht.int16)
 
-        self.assertTrue(ht.equal(as_uint8, as_uint8_f))
+        self.assertTrue(ht.equal(as_int16_f, as_int16))
+        self.assertEqual(as_int16_f.dtype, as_int16.dtype)
+        self.assertEqual(as_int16_f.device, as_int16.device)
 
-        # check the copy case for float64
-        if not self.is_mps:
-            as_float64 = data.astype(ht.float64, copy=False)
-            array_type_check(as_float64, ht.float64)
-            self.assertIs(as_float64, data)
-
-        # check device case for complex
-        as_complex64 = ht.astype(data, ht.complex64, device=ht.cpu)
-        array_type_check(as_complex64, ht.complex64)
-        self.assertEqual(as_complex64.device, ht.cpu)
+        with self.assertRaises(TypeError):
+            ht.astype("A", ht.int32)
 
     def test_can_cast(self):
         zeros_array = np.zeros((3,), dtype=np.int16)

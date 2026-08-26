@@ -432,6 +432,33 @@ class TestDNDarray(TestCase):
         with self.assertRaises(TypeError):
             x.larray = "[1, 2, 3]"
 
+    def test_astype(self):
+        def array_type_check(array, dtype):
+            self.assertIsInstance(array, ht.DNDarray)
+            self.assertEqual(array.dtype, dtype)
+            self.assertEqual(array.larray.dtype, dtype.torch_type())
+
+        data = ht.float32([[1, 2, 3], [4, 5, 6]])
+
+        # check starting invariant
+        self.assertEqual(data.dtype, ht.float32)
+
+        # check the copy case for uint8
+        as_uint8 = data.astype(ht.uint8)
+        array_type_check(as_uint8, ht.uint8)
+        self.assertIsNot(as_uint8, data)
+
+        # check the copy case for float64
+        if not self.is_mps:
+            as_float64 = data.astype(ht.float64, copy=False)
+            array_type_check(as_float64, ht.float64)
+            self.assertIs(as_float64, data)
+
+        # check device case for complex
+        as_complex64 = ht.astype(data, ht.complex64, device=ht.cpu)
+        array_type_check(as_complex64, ht.complex64)
+        self.assertEqual(as_complex64.device, ht.cpu)
+
     def test_balance_and_lshape_map(self):
         data = ht.zeros((70, 20), split=0)
         data = data[:50]
