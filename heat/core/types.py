@@ -52,6 +52,7 @@ __all__ = [
     "heat_type_is_realfloating",
     "heat_type_is_complexfloating",
     "iscomplex",
+    "isdtype",
     "isreal",
     "issubdtype",
     "heat_type_of",
@@ -860,6 +861,58 @@ def iscomplex(x: dndarray.DNDarray) -> dndarray.DNDarray:
         return x.imag != 0
     else:
         return factories.zeros(x.shape, bool, split=x.split, device=x.device, comm=x.comm)
+
+
+def isdtype(dtype: datatype, kind: datatype | str | tuple[datatype | str, ...]) -> bool:
+    """
+    Returns a boolean indicating whether a provided dtype is of a specified data type “kind”.
+
+    Parameters
+    ----------
+    dtype : datatype
+        the input dtype.
+    kind : str or dtype or Tuple[str, dtype], ...]
+        data type kind.
+    """
+    dtype = canonical_heat_type(dtype)
+
+    input_kinds = kind if isinstance(kind, tuple) else (kind,)
+
+    processed_kinds = set()
+
+    for kind in input_kinds:
+        match kind:
+            case "bool":
+                processed_kinds.add(bool)
+            case "signed integer":
+                processed_kinds.update((int8, int16, int32, int64))
+            case "unsigned integer":
+                processed_kinds.add(uint8)
+            case "integral":
+                processed_kinds.update((int8, int16, int32, int64, uint8))
+            case "real floating":
+                processed_kinds.update((float16, float32, float64))
+            case "complex floating":
+                processed_kinds.update((complex64, complex128))
+            case "numeric":
+                processed_kinds.update(
+                    (
+                        int8,
+                        int16,
+                        int32,
+                        int64,
+                        uint8,
+                        float16,
+                        float32,
+                        float64,
+                        complex64,
+                        complex128,
+                    )
+                )
+            case _:
+                processed_kinds.add(canonical_heat_type(kind))
+
+    return dtype in processed_kinds
 
 
 def isreal(x: dndarray.DNDarray) -> dndarray.DNDarray:
