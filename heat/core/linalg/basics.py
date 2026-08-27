@@ -37,6 +37,7 @@ __all__ = [
     "matmul",
     "matrix_norm",
     "matrix_exp",
+    "matrix_transpose",
     "expm",
     "norm",
     "outer",
@@ -1102,6 +1103,24 @@ expm = matrix_exp  # provide alias with name of scipy equivalent
 """Alias for :py:func:`matrix_exp`"""
 
 
+def matrix_transpose(x: DNDarray):
+    """
+    Transposes a matrix (or a stack of matrices) ``x``.
+
+    Parameters
+    ----------
+    x : DNDarray
+        Input array having shape ``(..., M, N)`` and whose innermost two
+        dimensions form ``MxN`` matrices.
+    """
+    if x.ndim < 2:
+        raise ValueError("x must be at least 2-dimensional.")
+    return manipulations.swapaxes(x, -1, -2)
+
+
+DNDarray.mT = property(matrix_transpose, doc="Transposes a matrix (or a stack of matrices).")
+
+
 def norm(
     x: DNDarray,
     axis: Optional[Union[int, Tuple[int, int]]] = None,
@@ -1878,12 +1897,12 @@ def transpose(a: DNDarray, axes: Optional[List[int]] = None) -> DNDarray:
 
         return DNDarray(
             transposed_data,
-            transposed_shape,
-            a.dtype,
-            transposed_split,
-            a.device,
-            a.comm,
-            a.balanced,
+            gshape=transposed_shape,
+            dtype=a.dtype,
+            split=transposed_split,
+            device=a.device,
+            comm=a.comm,
+            balanced=a.balanced,
         )
     # if not possible re- raise any torch exception as ValueError
     except (RuntimeError, IndexError) as exception:
@@ -1895,7 +1914,7 @@ DNDarray.transpose: Callable[[DNDarray, List[int]], DNDarray] = lambda self, axe
 )
 DNDarray.transpose.__doc__ = transpose.__doc__
 
-DNDarray.T = property(transpose)
+DNDarray.T = property(transpose, doc="Permute the dimensions of an array.")
 
 # statically allocated index slices for non-iterable dimensions in triangular operations
 __index_base = (slice(None), slice(None))

@@ -1,3 +1,5 @@
+# NOTE: Ported over. Will be removed.
+
 import heat.core.devices as ht_devices
 
 from types import SimpleNamespace

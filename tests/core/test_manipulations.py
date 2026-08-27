@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import unittest
 import torch
@@ -5,6 +6,7 @@ import torch
 import heat as ht
 from heat.testing.basic_test import TestCase
 
+IN_GITHUB_ACTIONS = os.getenv("GITHUB_ACTIONS") == "true"
 
 class TestManipulations(TestCase):
     def test_broadcast_arrays(self):
@@ -41,7 +43,7 @@ class TestManipulations(TestCase):
             with self.assertRaises(ValueError):
                 ht.broadcast_arrays(a, b)
 
-    def tests_broadcast_to(self):
+    def test_broadcast_to(self):
         a = ht.array([1, 2, 3])
         broadcasted = ht.broadcast_to(a, (3, 3))
         self.assertTrue(ht.equal(broadcasted, ht.array([[1, 2, 3], [1, 2, 3], [1, 2, 3]])))
@@ -2718,10 +2720,7 @@ class TestManipulations(TestCase):
         # test local row_stack, 2-D arrays
         a = np.arange(10, dtype=np.float32).reshape(2, 5)
         b = np.arange(15, dtype=np.float32).reshape(3, 5)
-        if np.lib.NumpyVersion(np.__version__) >= "2.0.0b1":
-            np_rstack = np.vstack((a, b))
-        else:
-            np_rstack = np.row_stack((a, b))
+        np_rstack = np.vstack((a, b))
         ht_a = ht.array(a)
         ht_b = ht.array(b)
         ht_rstack = ht.row_stack((ht_a, ht_b))
@@ -2729,20 +2728,14 @@ class TestManipulations(TestCase):
 
         # 2-D and 1-D arrays
         c = np.arange(5, dtype=np.float32)
-        if np.lib.NumpyVersion(np.__version__) >= "2.0.0b1":
-            np_rstack = np.vstack((a, b, c))
-        else:
-            np_rstack = np.row_stack((a, b, c))
+        np_rstack = np.vstack((a, b, c))
         ht_c = ht.array(c)
         ht_rstack = ht.row_stack((ht_a, ht_b, ht_c))
         self.assertTrue((np_rstack == ht_rstack.numpy()).all())
 
         # 2-D and 1-D arrays, distributed
         c = np.arange(5, dtype=np.float32)
-        if np.lib.NumpyVersion(np.__version__) >= "2.0.0b1":
-            np_rstack = np.vstack((a, b, c))
-        else:
-            np_rstack = np.row_stack((a, b, c))
+        np_rstack = np.vstack((a, b, c))
         ht_a = ht.array(a, split=0)
         ht_b = ht.array(b, split=0)
         ht_c = ht.array(c, split=0)
@@ -2753,10 +2746,7 @@ class TestManipulations(TestCase):
         # 1-D arrays, distributed, different dtypes
         d = np.arange(10).astype(np.float32)
         e = np.arange(10)
-        if np.lib.NumpyVersion(np.__version__) >= "2.0.0b1":
-            np_rstack = np.vstack((d, e))
-        else:
-            np_rstack = np.row_stack((d, e))
+        np_rstack = np.vstack((d, e))
         ht_d = ht.array(d, split=0)
         ht_e = ht.array(e, split=0)
         ht_rstack = ht.row_stack((ht_d, ht_e))
@@ -2787,12 +2777,12 @@ class TestManipulations(TestCase):
         )
 
         data = ht.array(tensor, split=None)
-        result, result_indices = ht.sort(data, axis=0, descending=True)
+        result, result_indices = ht.sort(data, axis=0, descending=True, return_sort_indices=True)
         expected, exp_indices = torch.sort(tensor, dim=0, descending=True)
         self.assertTrue(torch.equal(result.larray, expected))
         self.assertTrue(torch.equal(result_indices.larray, exp_indices.int()))
 
-        result, result_indices = ht.sort(data, axis=1, descending=True)
+        result, result_indices = ht.sort(data, axis=1, descending=True, return_sort_indices=True)
         expected, exp_indices = torch.sort(tensor, dim=1, descending=True)
         self.assertTrue(torch.equal(result.larray, expected))
         self.assertTrue(torch.equal(result_indices.larray, exp_indices.int()))
@@ -2801,7 +2791,7 @@ class TestManipulations(TestCase):
 
         exp_axis_zero = torch.arange(size, device=self.device.torch_device).reshape(1, size)
         exp_indices = torch.tensor([[rank] * size], device=self.device.torch_device)
-        result, result_indices = ht.sort(data, descending=True, axis=0)
+        result, result_indices = ht.sort(data, descending=True, axis=0, return_sort_indices=True)
         self.assertTrue(torch.equal(result.larray, exp_axis_zero))
         self.assertTrue(torch.equal(result_indices.larray, exp_indices.int()))
 
@@ -2810,12 +2800,12 @@ class TestManipulations(TestCase):
             .reshape(1, size)
             .sort(dim=1, descending=True)
         )
-        result, result_indices = ht.sort(data, descending=True, axis=1)
+        result, result_indices = ht.sort(data, descending=True, axis=1, return_sort_indices=True)
         self.assertTrue(torch.equal(result.larray, exp_axis_one))
         self.assertTrue(torch.equal(result_indices.larray, exp_indices.int()))
 
-        result1 = ht.sort(data, axis=1, descending=True)
-        result2 = ht.sort(data, descending=True)
+        result1 = ht.sort(data, axis=1, descending=True, return_sort_indices=True)
+        result2 = ht.sort(data, descending=True, return_sort_indices=True)
         self.assertTrue(ht.equal(result1[0], result2[0]))
         self.assertTrue(ht.equal(result1[1], result2[1]))
 
@@ -2827,7 +2817,7 @@ class TestManipulations(TestCase):
         indices_axis_zero = torch.arange(
             size, dtype=torch.int64, device=self.device.torch_device
         ).reshape(size, 1)
-        result, result_indices = ht.sort(data, axis=0, descending=True)
+        result, result_indices = ht.sort(data, axis=0, descending=True, return_sort_indices=True)
         self.assertTrue(torch.equal(result.larray, exp_axis_zero))
         # comparison value is only true on CPU
         if result_indices.larray.is_cuda is False:
@@ -2838,7 +2828,7 @@ class TestManipulations(TestCase):
             .repeat(size)
             .reshape(size, 1)
         )
-        result, result_indices = ht.sort(data, descending=True, axis=1)
+        result, result_indices = ht.sort(data, descending=True, axis=1, return_sort_indices=True)
         self.assertTrue(torch.equal(result.larray, exp_axis_one))
         self.assertTrue(torch.equal(result_indices.larray, exp_axis_one.int()))
 
@@ -2860,7 +2850,7 @@ class TestManipulations(TestCase):
         indices_axis_zero = torch.tensor(
             [[0, 2, 2], [3, 0, 0]], dtype=torch.int32, device=self.device.torch_device
         )
-        result, result_indices = ht.sort(data, axis=0)
+        result, result_indices = ht.sort(data, axis=0, return_sort_indices=True)
         first = result[0].larray
         first_indices = result_indices[0].larray
         if rank == 0:
@@ -2879,7 +2869,7 @@ class TestManipulations(TestCase):
         indices_axis_one = torch.tensor(
             [[0, 1, 1]], dtype=torch.int32, device=self.device.torch_device
         )
-        result, result_indices = ht.sort(data, axis=1)
+        result, result_indices = ht.sort(data, axis=1, return_sort_indices=True)
         first = result[0].larray[:1]
         first_indices = result_indices[0].larray[:1]
         if rank == 0:
@@ -2891,7 +2881,7 @@ class TestManipulations(TestCase):
         indices_axis_two = torch.tensor(
             [[0], [1]], dtype=torch.int32, device=self.device.torch_device
         )
-        result, result_indices = ht.sort(data, axis=2)
+        result, result_indices = ht.sort(data, axis=2, return_sort_indices=True)
         first = result[0].larray[:, :1]
         first_indices = result_indices[0].larray[:, :1]
         if rank == 0:
@@ -2899,7 +2889,7 @@ class TestManipulations(TestCase):
             self.assertTrue(torch.equal(first_indices, indices_axis_two))
         #
         out = ht.empty_like(data)
-        indices = ht.sort(data, axis=2, out=out)
+        indices = ht.sort(data, axis=2, out=out, return_sort_indices=True)
         self.assertTrue(ht.equal(out, result))
         self.assertTrue(ht.equal(indices, result_indices))
 
@@ -2911,7 +2901,7 @@ class TestManipulations(TestCase):
         rank = ht.MPI_WORLD.rank
         ht.random.seed(1)
         data = ht.random.randn(100, 1, split=0)
-        result, _ = ht.sort(data, axis=0)
+        result, _ = ht.sort(data, axis=0, return_sort_indices=True)
         counts, _, _ = ht.get_comm().counts_displs_shape(data.gshape, axis=0)
         for i, c in enumerate(counts):
             for idx in range(c - 1):
@@ -3258,7 +3248,8 @@ class TestManipulations(TestCase):
                             del a
                             del resplit_a
 
-    @unittest.skipIf(ht.MPI_WORLD.size != 2, "Test requires exactly 2 MPI processes")
+    # This test runs ~1h on Github Actions
+    @unittest.skipIf(IN_GITHUB_ACTIONS or ht.MPI_WORLD.size != 2, "Test requires exactly 2 MPI processes")
     def test_resplit_large_count_limit(self):
         if not self.is_mps:
             # Test resplit with large dimensions
@@ -3731,6 +3722,28 @@ class TestManipulations(TestCase):
         self.assertTrue(
             (inv == ht.array(exp_inv.to(dtype=inv.larray.dtype), split=inv.split)).all()
         )
+
+    def test_unique_inverse(self):
+        for array in [ht.array([1, 1, 2]), ht.array([[1., 1], [2, 3]], split=0)]:
+            unique_ht = ht.unique_inverse(array)
+            unique_np = np.unique_inverse(array.numpy())
+
+            self.assertEqual(unique_ht.values.dtype, array.dtype)
+            self.assertEqual(unique_ht.inverse_indices.dtype, ht.int64)
+            self.assertEqual(unique_ht.values.device, array.device)
+            self.assertTrue(np.allclose(np.sort(unique_ht.values.numpy()), np.sort(unique_np.values)))
+            self.assertTrue(np.allclose(np.sort(unique_ht[0].numpy()), np.sort(unique_np[0])))
+            self.assertTrue(np.allclose(np.sort(unique_ht.inverse_indices.numpy()), np.sort(unique_np.inverse_indices)))
+            self.assertTrue(np.allclose(np.sort(unique_ht[1].numpy()), np.sort(unique_np[1])))
+
+    def test_unique_values(self):
+        for array in [ht.array([1, 1, 2]), ht.array([[1., 1], [2, 3]], split=0)]:
+            unique_ht = ht.unique_values(array)
+            unique_np = np.unique_values(array.numpy())
+
+            self.assertEqual(unique_ht.dtype, array.dtype)
+            self.assertEqual(unique_ht.device, array.device)
+            self.assertTrue(np.allclose(np.sort(unique_ht.numpy()), np.sort(unique_np)))
 
     def test_vsplit(self):
         # for further testing, see test_split
