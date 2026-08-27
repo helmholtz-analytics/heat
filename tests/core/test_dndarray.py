@@ -712,7 +712,7 @@ class TestDNDarray(TestCase):
         x = ht.arange(10)
         self.assertTrue(x[2].item() == 2)
         self.assertTrue(x[-2].item() == 8)
-        self.assertTrue(x[2].dtype == ht.int32)
+        self.assertTrue(x[2].dtype == ht.int64)
         # 1D, distributed
         x = ht.arange(10, split=0, dtype=ht.float64)
         self.assertTrue(x[2].item() == 2.0)
@@ -722,14 +722,14 @@ class TestDNDarray(TestCase):
         # 2D, local
         x = ht.arange(10).reshape(2, 5)
         self.assertTrue((x[0] == ht.arange(5)).all().item())
-        self.assertTrue(x[0].dtype == ht.int32)
+        self.assertTrue(x[0].dtype == ht.int64)
         # 2D, distributed
         x_split0 = ht.array(x, split=0)
         self.assertTrue((x_split0[0] == ht.arange(5, split=None)).all().item())
         x_split1 = ht.array(x, split=1)
         self.assertTrue((x_split1[-2] == ht.arange(5, split=0)).all().item())
         # 3D, local
-        x = ht.arange(27).reshape(3, 3, 3)
+        x = ht.arange(27, dtype=ht.int32).reshape(3, 3, 3)
         key = -2
         indexed = x[key]
         self.assertTrue((indexed.larray == x.larray[key]).all())
