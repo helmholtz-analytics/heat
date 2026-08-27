@@ -520,7 +520,7 @@ class DNDarray:
 
         return heat
 
-    def astype(self, dtype, copy=True) -> DNDarray:
+    def astype(self, dtype, copy=True, device: Device = None) -> DNDarray:
         """
         Returns a casted version of this array.
         Casted array is a new array of the same shape but with given type of this array. If copy is ``True``, the
@@ -533,9 +533,11 @@ class DNDarray:
         copy : bool, optional
             By default the operation returns a copy of this array. If copy is set to ``False`` the cast is performed
             in-place and this array is returned
-
+        device: ht.Device, optional
+            The device on which to place the array. If ``None``, keep device. Default: None.
         """
         dtype = canonical_heat_type(dtype)
+        device = self.__device if device is None else devices.sanitize_device(device)
         if self.__array.is_mps:
             if dtype == types.float64:
                 # print warning
@@ -551,14 +553,17 @@ class DNDarray:
                     ResourceWarning,
                 )
                 dtype = types.complex64
-        casted_array = self.__array.type(dtype.torch_type())
+        casted_array = self.__array.to(
+            device=device.torch_device, dtype=dtype.torch_type(), copy=copy
+        )
         if copy:
             return DNDarray(
-                casted_array, self.shape, dtype, self.split, self.device, self.comm, self.balanced
+                casted_array, self.shape, dtype, self.split, device, self.comm, self.balanced
             )
 
         self.__array = casted_array
         self.__dtype = dtype
+        self.__device = device
 
         return self
 
