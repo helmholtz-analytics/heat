@@ -192,3 +192,17 @@ code,
 .frontpage-news .timeline-item:nth-child(n+5) {
     display: none;
 }
+
+/* ============================================================
+   CUSTOM OVERRIDES: Force hyperlinks to be visible in italics
+   ============================================================ */
+.rst-content a,
+.md-typeset a {
+    color: #2980B9 !important; /* Matches standard RTD blue */
+    text-decoration: none;
+}
+
+.rst-content a:hover,
+.md-typeset a:hover {
+    text-decoration: underline !important;
+}

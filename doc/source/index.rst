@@ -422,4 +422,9 @@ Get in touch
    :maxdepth: 1
 
    CONTRIBUTING
+
+* :ref:`genindex`
+* :ref:`modindex`
+* :ref:`search`
+=======
    news
