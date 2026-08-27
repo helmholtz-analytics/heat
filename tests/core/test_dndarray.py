@@ -335,7 +335,7 @@ class TestDNDarray(TestCase):
 
     def test_array(self):
         # undistributed case
-        x = ht.arange(6 * 7 * 8).reshape((6, 7, 8))
+        x = ht.arange(6 * 7 * 8, dtype=ht.int32).reshape((6, 7, 8))
         x_np = np.arange(6 * 7 * 8, dtype=np.int32).reshape((6, 7, 8))
 
         self.assertTrue((x.__array__() == x_np).all())
