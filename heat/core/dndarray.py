@@ -20,22 +20,6 @@ __all__ = ["DNDarray"]
 Communication = TypeVar("Communication")
 
 
-class LocalIndex:
-    """
-    Indexing class for local operations (primarily for :func:`lloc` function)
-    For docs on ``__getitem__`` and ``__setitem__`` see :func:`lloc`
-    """
-
-    def __init__(self, obj):
-        self.obj = obj
-
-    def __getitem__(self, key):
-        return self.obj[key]
-
-    def __setitem__(self, key, value):
-        self.obj[key] = value
-
-
 class DNDarray:
     """
     Distributed N-Dimensional array. The core element of Heat. It is composed of
@@ -261,40 +245,6 @@ class DNDarray:
         Number of elements of the ``DNDarray`` on each process
         """
         return np.prod(self.__array.shape)
-
-    @property
-    def lloc(self) -> DNDarray | None:
-        """
-        Local item setter and getter. i.e. this function operates on a local
-        level and only on the PyTorch tensors composing the :class:`DNDarray`.
-        This function uses the LocalIndex class. As getter, it returns a ``DNDarray``
-        with the indices selected at a *local* level
-
-        Parameters
-        ----------
-        key : int or slice or tuple[int,...]
-            Indices of the desired data.
-        value : scalar, optional
-            All types compatible with pytorch tensors, if none given then this is a getter function
-
-        Examples
-        --------
-        >>> a = ht.zeros((4, 5), split=0)
-        DNDarray([[0., 0., 0., 0., 0.],
-                  [0., 0., 0., 0., 0.],
-                  [0., 0., 0., 0., 0.],
-                  [0., 0., 0., 0., 0.]], dtype=ht.float32, device=cpu:0, split=0)
-        >>> a.lloc[1, 0:4]
-        (1/2) tensor([0., 0., 0., 0.])
-        (2/2) tensor([0., 0., 0., 0.])
-        >>> a.lloc[1, 0:4] = torch.arange(1, 5)
-        >>> a
-        DNDarray([[0., 0., 0., 0., 0.],
-                  [1., 2., 3., 4., 0.],
-                  [0., 0., 0., 0., 0.],
-                  [1., 2., 3., 4., 0.]], dtype=ht.float32, device=cpu:0, split=0)
-        """
-        return LocalIndex(self.__array)
 
     @property
     def lshape(self) -> tuple[int]:
