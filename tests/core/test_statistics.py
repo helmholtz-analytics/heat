@@ -1596,3 +1596,10 @@ class TestStatistics(TestCase):
         for sp in [None, 0, 1]:
             iris = ht.load(get_dataset_path('iris.csv'), sep=";", split=sp)
             self.assertTrue(ht.allclose(ht.var(iris, bessel=True), 3.90318519755147))
+
+    def test_first_two_leading_ranks_empty(self):
+        data_all = ht.arange(100., split=0)
+        data = data_all[data_all >= 50.]
+
+        self.assertEqual(ht.mean(data), 74.5)
+        self.assertEqual(ht.var(data), 208.25)
