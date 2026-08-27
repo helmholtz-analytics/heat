@@ -1561,7 +1561,7 @@ def percentile(
     else:
         try:
             q = torch.tensor(q, device=x.device.torch_device)
-        except (TypeError, IndexError):
+        except (TypeError, IndexError, BufferError):
             if isinstance(q, DNDarray):
                 # q must be local for now. TODO: support distributed q after indexing update
                 q.resplit_(axis=None)
