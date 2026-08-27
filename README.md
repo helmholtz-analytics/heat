@@ -33,10 +33,14 @@ Heat is a distributed tensor framework built on **PyTorch** and **mpi4py**. It p
 * **Hardware-agnostic:** Supports CPUs and GPUs (CUDA, ROCm, Apple MPS).
 * **Efficient scaling:** Exploit the entire, cumulative RAM of your cluster for memory-intensive operations.
 
+[![Jupyter4NFDI](https://nfdi-jupyter.de/images/jupyter4nfdi_badge.svg)](https://hub.nfdi-jupyter.de/share/BJYT-w5DPNo)
+:point_left: Try Heat right in your browser without any installations!
+
+
 ### Requirements
 * **Python:** >= 3.11
 * **MPI:** OpenMPI, MPICH, or Intel MPI
-* **Frameworks:** mpi4py >= 3.1, pytorch >= 2.3
+* **Frameworks:** mpi4py >= 3.1, pytorch >= 2.4
 
 ### Installation
 ```bash

@@ -1059,6 +1059,9 @@ class finfo:
     ----------
     bits : int
         The number of bits occupied by the type.
+    dtype : datatype
+        Returns the dtype for which ``finfo`` returns information. For complex input, the
+        returned dtype is the associated ``float*`` dtype for its real and complex components.
     eps : float
         The smallest representable positive number such that
         ``1.0 + eps != 1.0``.  Type of ``eps`` is an appropriate floating
@@ -1070,6 +1073,10 @@ class finfo:
     tiny : float
         The smallest positive usable number.  Type of ``tiny`` is an
         appropriate floating point type.
+    smallest_normal : float
+        The smallest positive usable number. Array API compatible name for ``tiny``
+    resolution : float
+        The approximate decimal resolution of this type, i.e., ``10**-precision``.
 
     Parameters
     ----------
@@ -1096,11 +1103,15 @@ class finfo:
         if not heat_type_is_inexact(dtype):
             raise TypeError(f"Data type {dtype} not inexact, not supported")
 
+        if heat_type_is_complexfloating(dtype):
+            dtype = float32 if dtype == complex64 else float64
+
         return super(finfo, cls).__new__(cls)._init(dtype)
 
     def _init(self, dtype: Type[datatype]):
+        self.dtype = dtype
         _torch_finfo = torch.finfo(dtype.torch_type())
-        for word in ["bits", "eps", "max", "min", "tiny"]:
+        for word in ["bits", "eps", "max", "min", "tiny", "smallest_normal", "resolution"]:
             setattr(self, word, getattr(_torch_finfo, word))
 
         return self
@@ -1114,6 +1125,8 @@ class iinfo:
     ----------
     bits : int
         The number of bits occupied by the type.
+    dtype : datatype
+        Returns the dtype for which ``iinfo`` returns information.
     max : float
         The largest representable number.
     min : float
@@ -1145,6 +1158,7 @@ class iinfo:
         return super(iinfo, cls).__new__(cls)._init(dtype)
 
     def _init(self, dtype: Type[datatype]):
+        self.dtype = dtype
         _torch_iinfo = torch.iinfo(dtype.torch_type())
         for word in ["bits", "min", "max"]:
             setattr(self, word, getattr(_torch_iinfo, word))

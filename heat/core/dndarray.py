@@ -1,4 +1,4 @@
-"""Provides HeAT's core data structure, the DNDarray, a distributed n-dimensional array"""
+"""Provides Heat's core data structure, the DNDarray, a distributed n-dimensional array"""
 
 from __future__ import annotations
 
@@ -7,7 +7,9 @@ import torch
 import warnings
 
 from mpi4py import MPI
-from typing import TypeVar, Any, Union
+from pathlib import Path
+from enum import Enum
+from typing import Any, Union, TypeVar
 from collections.abc import Iterable
 
 warnings.simplefilter("always", ResourceWarning)
@@ -1175,7 +1177,7 @@ class DNDarray:
         return np.prod(self.__array.shape)
 
     @property
-    def lloc(self) -> "DNDarray" | None:
+    def lloc(self) -> DNDarray | None:
         """
         Local item setter and getter. i.e. this function operates on a local
         level and only on the PyTorch tensors composing the :class:`DNDarray`.
@@ -1230,7 +1232,7 @@ class DNDarray:
         return complex_math.real(self)
 
     @property
-    def shape(self) -> tuple[int, ...]:
+    def shape(self) -> tuple[int]:
         """
         Returns the shape of the ``DNDarray`` as a whole
         """
@@ -1243,14 +1245,15 @@ class DNDarray:
         """
         return self.__split
 
-    def stride(self) -> tuple[int, ...]:
+    @property
+    def stride(self) -> tuple[int]:
         """
         Returns the steps in each dimension when traversing a ``DNDarray``. torch-like usage: ``self.stride()``
         """
         return self.__array.stride()
 
     @property
-    def strides(self) -> tuple[int, ...]:
+    def strides(self) -> tuple[int]:
         """
         Returns bytes to step in each dimension when traversing a ``DNDarray``. numpy-like usage: ``self.strides()``
         """
@@ -1261,14 +1264,6 @@ class DNDarray:
             itemsize = self.__array.storage().element_size()
         strides = tuple(step * itemsize for step in steps)
         return strides
-
-    @property
-    def T(self):
-        """
-        Reverse the dimensions of a DNDarray.
-        """
-        # specialty docs for this version of transpose. The transpose function is in heat/core/linalg/basics
-        return linalg.transpose(self, axes=None)
 
     @property
     def array_with_halos(self) -> torch.Tensor:
@@ -1420,6 +1415,24 @@ class DNDarray:
             return NotImplemented
         return ht_func(*args, **kwargs)
 
+    def __array_namespace__(self, *, api_version: str | None = None) -> Any:
+        """
+        Returns an object that has all the array API functions on it.
+
+        Parameters
+        ----------
+        api_version : Optional[str]
+            string representing the version of the array API specification to
+            be returned, in ``'YYYY.MM'`` form. If it is ``None`` (default), it
+            returns the namespace corresponding to latest version of the
+            array API specification.
+        """
+        if api_version is not None and api_version != "2025.12":
+            raise ValueError(f"Unrecognized array API version: {api_version}")
+        import heat
+
+        return heat
+
     def astype(self, dtype, copy=True) -> DNDarray:
         """
         Returns a casted version of this array.
@@ -1532,7 +1545,7 @@ class DNDarray:
 
         """
         if np.prod(self.shape) == 1:
-            if self.split is None:
+            if not self.is_distributed():
                 return cast_function(self.__array)
 
             is_empty = np.prod(self.__array.shape) == 0
@@ -1542,7 +1555,7 @@ class DNDarray:
 
         raise TypeError("only size-1 arrays can be converted to Python scalars")
 
-    def collect_(self, target_rank: int | None = 0) -> None:
+    def collect_(self, target_rank: int = 0) -> None:
         """
         A method collecting a distributed DNDarray to one MPI rank, chosen by the `target_rank` variable.
         It is a specific case of the ``redistribute_`` method.
@@ -1595,7 +1608,7 @@ class DNDarray:
         """
         return self.__cast(complex)
 
-    def counts_displs(self) -> tuple[tuple[int], tuple[int]]:
+    def counts_displs(self) -> tuple[tuple[int, ...], tuple[int, ...]]:
         """
         Returns actual counts (number of items per process) and displacements (offsets) of the DNDarray.
         Does not assume load balance.
@@ -1637,7 +1650,7 @@ class DNDarray:
             lshape_map[:] = torch.tensor(self.gshape, device=self.device.torch_device)
             self.__lshape_map = lshape_map
             return lshape_map.clone()
-        if self.is_balanced(force_check=True):
+        elif self.is_balanced(force_check=True):
             for i in range(self.comm.size):
                 _, lshape, _ = self.comm.chunk(self.gshape, self.split, rank=i)
                 lshape_map[i, :] = torch.tensor(lshape, device=self.device.torch_device)
@@ -1748,7 +1761,37 @@ class DNDarray:
 
         return partition_dict
 
-    def __float__(self) -> DNDarray:
+    def __dlpack__(
+        self,
+        *args,
+        **kwargs,
+    ) -> Any:
+        """
+        Exports the undistributed array for consumption by ``from_dlpack()`` as a DLPack capsule.
+        Any positional arguments ``*args`` and keyword arguments ``**kwargs`` are directly forwarded to torch ``__dlpack__``.
+
+        Note
+        ----
+        See `Array API <https://data-apis.org/array-api/2025.12/API_specification/generated/array_api.array.__dlpack__.html>`_ for details and the function signature as implemented by torch.
+
+        Raises
+        ------
+        BufferError
+            if the DNDarray is distributed, as this is not supported by DLPack.
+        """
+        if self.is_distributed():
+            raise BufferError("DLPack export works for undistributed arrays only.")
+
+        return self.larray.__dlpack__(*args, **kwargs)
+
+    def __dlpack_device__(self) -> tuple[Enum, int]:
+        """
+        Returns device type and device ID in DLPack format. Meant for use
+        within ``from_dlpack()``.
+        """
+        return self.larray.__dlpack_device__()
+
+    def __float__(self) -> float:
         """
         Float scalar casting.
 
@@ -1772,7 +1815,7 @@ class DNDarray:
         if len(self.shape) != 2:
             raise ValueError("Only 2D tensors supported at the moment")
 
-        if self.split is not None and self.comm.is_distributed:
+        if self.is_distributed():
             counts, displ, _ = self.comm.counts_displs_shape(self.shape, self.split)
             k = min(self.shape[0], self.shape[1])
             for p in range(self.comm.size):
@@ -2352,7 +2395,15 @@ class DNDarray:
             self.__device = devices.gpu
             return self
 
-    def __int__(self) -> DNDarray:
+    def __index__(self) -> int:
+        """
+        Converts a zero-dimensional integer array to a Python ``int`` object.
+        """
+        if not issubclass(self.dtype, integer):
+            raise TypeError("only integer scalar arrays can be converted to a scalar index")
+        return self.__cast(int)
+
+    def __int__(self) -> int:
         """
         Integer scalar casting.
         """
@@ -2372,6 +2423,10 @@ class DNDarray:
             If True, the balanced status of the ``DNDarray`` will be assessed via
             collective communication in any case.
         """
+        if not self.is_distributed():
+            self.__balanced = True
+            return self.balanced
+
         if not force_check and self.balanced is not None:
             return self.balanced
 
@@ -2448,7 +2503,7 @@ class DNDarray:
         """
         return printing.__repr__(self)
 
-    def ravel(self) -> "DNDarray":
+    def ravel(self) -> DNDarray:
         """
         Flattens the ``DNDarray``.
 
@@ -3324,7 +3379,26 @@ class DNDarray:
         """
         return printing.__str__(self)
 
-    def tolist(self, keepsplit: bool = False) -> list:
+    def to_device(self, device: Device, /, *, stream: int | Any | None = None) -> DNDarray:
+        """
+        Copy the array from the device on which it currently resides to the specified ``device``.
+
+        Parameters
+        ----------
+        device : Device
+            A ``Device`` object.
+        stream : Int or Any, optional
+            Stream object to use during copy.
+        """
+        if stream is not None:
+            raise ValueError("The stream argument to to_device() is not supported")
+        if device.device_type == "cpu":
+            return self.cpu()
+        elif device.device_type == "gpu":
+            return self.gpu()
+        raise ValueError(f"Unsupported device {device!r}")
+
+    def tolist(self, keepsplit: bool = False) -> list[int | float]:
         """
         Return a copy of the local array data as a (nested) Python list. For scalars, a standard Python number is returned.
 
@@ -3400,5 +3474,5 @@ from . import types
 
 from .devices import Device
 from .stride_tricks import sanitize_axis
-from .types import datatype, canonical_heat_type
+from .types import datatype, integer, canonical_heat_type
 from .types import bool as ht_bool, uint8 as ht_uint8
