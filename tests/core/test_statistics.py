@@ -1602,8 +1602,10 @@ class TestStatistics(TestCase):
 
 @unittest.skipUnless(ht.communication.MPI_WORLD.size >= 3, "Test requires at least 3 tasks")
     def test_first_two_leading_ranks_empty(self):
-        data_all = ht.arange(100., split=0)
-        data = data_all[data_all >= 50.]
+        comm = self.comm
+        local_data = torch.tensor([], dtype=torch.float32) if comm.rank < 2 else torch.tensor([comm.rank], dtype=torch.float32)
+        data = ht.DNDarray(local_data, gshape=(comm.size-2,), dtype=ht.float32, split=0, device=ht.devices.cpu, comm=comm, balanced=False)
 
-        self.assertEqual(ht.mean(data), 74.5)
-        self.assertEqual(ht.var(data), 208.25)
+        self.assertEqual(ht.mean(data), np.mean(data.numpy()))
+        self.assertEqual(ht.var(data), np.var(data.numpy()))
+
