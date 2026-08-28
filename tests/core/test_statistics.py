@@ -1600,7 +1600,7 @@ class TestStatistics(TestCase):
         # edge case from #2374
         self.assertEqual(ht.var(ht.array([0.], split=None), axis=0, ddof=0), 0)
 
-@unittest.skipUnless(ht.communication.MPI_WORLD.size >= 3, "Test requires at least 3 tasks")
+    @unittest.skipUnless(ht.communication.MPI_WORLD.size >= 3, "Test requires at least 3 tasks")
     def test_first_two_leading_ranks_empty(self):
         comm = self.comm
         local_data = torch.tensor([], dtype=torch.float32) if comm.rank < 2 else torch.tensor([comm.rank], dtype=torch.float32)
