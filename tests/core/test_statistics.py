@@ -1608,4 +1608,3 @@ class TestStatistics(TestCase):
 
         self.assertEqual(ht.mean(data), np.mean(data.numpy()))
         self.assertEqual(ht.var(data), np.var(data.numpy()))
-

@@ -1091,9 +1091,7 @@ DNDarray.median: Callable[[DNDarray, int, bool, bool, float], DNDarray] = (
 DNDarray.median.__doc__ = median.__doc__
 
 
-def __merge_moments(
-    m1: Tuple, m2: Tuple, correction: bool = True
-) -> Tuple[torch.Tensor, ...]:
+def __merge_moments(m1: Tuple, m2: Tuple, correction: bool = True) -> Tuple[torch.Tensor, ...]:
     """
     Merge two statistical moments.
     If the length of ``m1`` and ``m2`` (must be equal) is ``==3`` then the second moment (variance)
