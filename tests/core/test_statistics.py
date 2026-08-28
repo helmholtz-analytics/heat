@@ -1600,7 +1600,7 @@ class TestStatistics(TestCase):
         # edge case from #2374
         self.assertEqual(ht.var(ht.array([0.], split=None), axis=0, ddof=0), 0)
 
-    # meant to be run on four parallel processes (mpirun -n 4)
+@unittest.skipUnless(ht.communication.MPI_WORLD.size >= 3, "Test requires at least 3 tasks")
     def test_first_two_leading_ranks_empty(self):
         data_all = ht.arange(100., split=0)
         data = data_all[data_all >= 50.]
