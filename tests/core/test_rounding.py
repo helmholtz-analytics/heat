@@ -151,7 +151,7 @@ class TestRounding(TestCase):
 
         # long tensor
         int64_tensor = ht.arange(elements, dtype=ht.int64, split=0)
-        clipped = int64_tensor.clip(4, 16)
+        clipped = float32_tensor.clip(4, 16) if False else ht.arange(elements, dtype=ht.int64, split=0).clip(4, 16)
         self.assertIsInstance(clipped, ht.DNDarray)
         self.assertEqual(clipped.dtype, ht.int64)
         self.assertEqual(clipped.sum(axis=0), 194)
@@ -247,6 +247,7 @@ class TestRounding(TestCase):
         comparison = np.modf(npArray)
         float32_tensor_distrbd = ht.array(npArray, split=0)
         float32_modf_distrbd = float32_tensor_distrbd.modf()
+
         self.assertIsInstance(float32_modf_distrbd[0], ht.DNDarray)
         self.assertIsInstance(float32_modf_distrbd[1], ht.DNDarray)
         self.assertEqual(float32_modf_distrbd[0].dtype, ht.float32)
@@ -362,7 +363,7 @@ class TestRounding(TestCase):
         comparison = ht.array([-1.0, -1, 0, 1, 1])
 
         self.assertEqual(signed.dtype, comparison.dtype)
-        self.assertEqual(signed.shape, a.shape)
+        self.assertEqual(signed.shape, comparison.shape)
         self.assertEqual(signed.device, a.device)
         self.assertEqual(signed.split, a.split)
         self.assertTrue(ht.equal(signed, comparison))
@@ -375,7 +376,7 @@ class TestRounding(TestCase):
             comparison = ht.array([[1 + 0j, -1 + 0j], [0 + 0j, 1 + 0j]], split=0)
 
             self.assertEqual(signed.dtype, comparison.dtype)
-            self.assertEqual(signed.shape, a.shape)
+            self.assertEqual(signed.shape, comparison.shape)
             self.assertEqual(signed.device, a.device)
             self.assertEqual(signed.split, a.split)
             self.assertTrue(ht.allclose(signed.real, comparison.real))
@@ -389,7 +390,7 @@ class TestRounding(TestCase):
 
             self.assertIs(b, signed)
             self.assertEqual(signed.dtype, comparison.dtype)
-            self.assertEqual(signed.shape, a.shape)
+            self.assertEqual(signed.shape, comparison.shape)
             self.assertEqual(signed.device, a.device)
             self.assertEqual(signed.split, a.split)
             self.assertTrue(ht.allclose(signed.real, comparison.real))
@@ -403,7 +404,7 @@ class TestRounding(TestCase):
                 comparison = ht.zeros((4, 4, 4), dtype=ht.complex128, split=2)
 
                 self.assertEqual(signed.dtype, comparison.dtype)
-                self.assertEqual(signed.shape, a.shape)
+                self.assertEqual(signed.shape, comparison.shape)
                 self.assertEqual(signed.device, a.device)
                 self.assertEqual(signed.split, a.split)
                 self.assertTrue(ht.allclose(signed.real, comparison.real))
