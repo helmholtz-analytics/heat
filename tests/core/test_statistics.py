@@ -1599,3 +1599,9 @@ class TestStatistics(TestCase):
 
         # edge case from #2374
         self.assertEqual(ht.var(ht.array([0.], split=None), axis=0, ddof=0), 0)
+
+    def test_corrected_var_single_element(self):
+        data = ht.array([0.], split=0)
+
+        self.assertTrue(ht.isnan(ht.var(data, ddof=1)))
+        self.assertTrue(ht.isnan(ht.var(data, axis=0, ddof=1)))
