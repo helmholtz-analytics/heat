@@ -151,7 +151,7 @@ class TestRounding(TestCase):
 
         # long tensor
         int64_tensor = ht.arange(elements, dtype=ht.int64, split=0)
-        clipped = float32_tensor.clip(4, 16) if False else ht.arange(elements, dtype=ht.int64, split=0).clip(4, 16)
+        clipped = int64_tensor.clip(4, 16)
         self.assertIsInstance(clipped, ht.DNDarray)
         self.assertEqual(clipped.dtype, ht.int64)
         self.assertEqual(clipped.sum(axis=0), 194)
