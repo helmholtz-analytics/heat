@@ -65,7 +65,7 @@ DNDarray.abs: Callable[[DNDarray, Optional[DNDarray], Optional[datatype]], DNDar
 )
 DNDarray.abs.__doc__ = abs.__doc__
 
-DNDarray.__abs__: Callable[[DNDarray], DNDarray] = lambda self: abs(self)
+DNDarray.__abs__ = lambda self: abs(self)
 DNDarray.__abs__.__doc__ = abs.__doc__
 
 
