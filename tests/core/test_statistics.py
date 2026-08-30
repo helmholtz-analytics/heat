@@ -1619,10 +1619,10 @@ class TestStatistics(TestCase):
         ltensor_data = torch.tensor([0.], dtype=torch.float32)
 
         ldata_on_first_rank = ltensor_data if comm.rank == 0 else ltensor_empty
-        data_on_first_rank = ht.DNDarray(ldata_on_first_rank, gshape=(2,), dtype=ht.float32, split=0, device=ht.devices.cpu, comm=comm, balanced=False)
+        data_on_first_rank = ht.DNDarray(ldata_on_first_rank, gshape=(1,), dtype=ht.float32, split=0, device=ht.devices.cpu, comm=comm, balanced=None)
 
         ldata_on_second_rank = ltensor_empty if comm.rank == 0 else ltensor_data
-        data_on_second_rank = ht.DNDarray(ldata_on_second_rank, gshape=(2,), dtype=ht.float32, split=0, device=ht.devices.cpu, comm=comm, balanced=False)
+        data_on_second_rank = ht.DNDarray(ldata_on_second_rank, gshape=(1,), dtype=ht.float32, split=0, device=ht.devices.cpu, comm=comm, balanced=False)
 
         self.assertTrue(ht.isnan(ht.var(data_on_first_rank, ddof=1)))
         self.assertTrue(ht.isnan(ht.var(data_on_first_rank, axis=0, ddof=1)))
@@ -1639,7 +1639,7 @@ class TestStatistics(TestCase):
         elif comm.rank <= 1:
             local_data = torch.tensor([comm.rank], dtype=torch.float32)
 
-        data = ht.DNDarray(local_data, gshape=(comm.size,), dtype=ht.float32, split=0, device=ht.devices.cpu, comm=comm, balanced=True)
+        data = ht.DNDarray(local_data, gshape=(2,), dtype=ht.float32, split=0, device=ht.devices.cpu, comm=comm, balanced=None)
 
         self.assertEqual(ht.var(data, ddof=1), np.var(data.numpy(), ddof=1))
         self.assertEqual(ht.var(data, axis=0, ddof=1), np.var(data.numpy(), axis=0, ddof=1))
