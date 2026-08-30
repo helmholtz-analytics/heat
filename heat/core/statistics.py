@@ -2202,7 +2202,7 @@ def var(
         M2_tot[x.comm.rank, 0, :] = M2
         M2_tot[x.comm.rank, 1, :] = mu
         M2_tot[x.comm.rank, 2, :] = n
-        x.comm.Allreduce(MPI.IN_PLACE, var_tot, MPI.SUM)
+        x.comm.Allreduce(MPI.IN_PLACE, M2_tot, MPI.SUM)
 
         for i in range(1, x.comm.size):
             M2_tot[0, 0, :], M2_tot[0, 1, :], M2_tot[0, 2, :] = __merge_moments(
