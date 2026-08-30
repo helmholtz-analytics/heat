@@ -1091,13 +1091,12 @@ DNDarray.median: Callable[[DNDarray, int, bool, bool, float], DNDarray] = (
 DNDarray.median.__doc__ = median.__doc__
 
 
-def __merge_moments(
-    m1: torch.Tensor, m2: torch.Tensor, correction: bool = True
-) -> Tuple[torch.Tensor, ...]:
+def __merge_moments(m1: torch.Tensor, m2: torch.Tensor) -> Tuple[torch.Tensor, ...]:
     """
     Merge two statistical moments.
-    If the length of ``m1`` and ``m2`` (must be equal) is ``==3`` then the second moment (variance)
-    is merged. This function can be expanded to merge other moments according to Reference [1] as well.
+    If the length of ``m1`` and ``m2`` (must be equal) is ``==3`` then the second moment (sum of squared
+    differences between sample data and estimated mean) is merged. This function can be expanded to merge
+    other moments according to Reference [1] as well.
     Note: all arrays must be either the same size or individual values
 
     Parameters
@@ -1108,8 +1107,6 @@ def __merge_moments(
     m2 : Tuple
         Tuple of the moments to merge together, the 0th element is the moment to be merged. The tuple must be
         sorted in descending order of moments
-    correction : bool
-        Flag for the use of unbiased estimators (when available)
 
     References
     ----------
@@ -1127,14 +1124,12 @@ def __merge_moments(
     if len(m1) == 2:  # merge means
         return mu, n
 
-    var1, var2 = m1[-3], m2[-3]
-    if correction:
-        var_m = (var1 * (n1 - 1) + var2 * (n2 - 1) + (delta**2) * n1 * n2 / n) / (n - 1)
-    else:
-        var_m = (var1 * n1 + var2 * n2 + (delta**2) * n1 * n2 / n) / n
+    M2_1, M2_2 = m1[-3], m2[-3]
+    # this is formula (II.4) in [1]:
+    M2 = M2_1 + M2_2 + (delta**2) * n1 * n2 / n
 
-    if len(m1) == 3:  # merge vars
-        return var_m, mu, n
+    if len(m1) == 3:  # merge second moments
+        return M2, mu, n
 
     # TODO: This code block can be added if skew or kurtosis support multiple axes:
     # sk1, sk2 = m1[-4], m2[-4]
@@ -2190,28 +2185,30 @@ def var(
         output_shape_i : iterable
             Iterable with the dimensions of the output of the var function.
         """
+        n = float(x.lshape[x.split])
+
         if x.lshape[x.split] != 0:
             mu = torch.mean(x.larray, dim=axis)
-            var = torch.var(x.larray, dim=axis, correction=correction)
+            M2 = torch.var(x.larray, dim=axis, correction=False) * n
         else:
             mu = factories.zeros(output_shape_i, dtype=x.dtype, device=x.device)
-            var = factories.zeros(output_shape_i, dtype=x.dtype, device=x.device)
+            M2 = factories.zeros(output_shape_i, dtype=x.dtype, device=x.device)
 
-        var_shape = list(var.shape) if list(var.shape) else [1]
+        var_shape = list(M2.shape) if list(M2.shape) else [1]
 
-        var_tot = factories.zeros(([x.comm.size, 3] + var_shape), dtype=x.dtype, device=x.device)
-        var_tot[x.comm.rank, 0, :] = var
-        var_tot[x.comm.rank, 1, :] = mu
-        var_tot[x.comm.rank, 2, :] = float(x.lshape[x.split])
+        M2_tot = factories.zeros(([x.comm.size, 3] + var_shape), dtype=x.dtype, device=x.device)
+        M2_tot[x.comm.rank, 0, :] = M2
+        M2_tot[x.comm.rank, 1, :] = mu
+        M2_tot[x.comm.rank, 2, :] = n
         x.comm.Allreduce(MPI.IN_PLACE, var_tot, MPI.SUM)
 
         for i in range(1, x.comm.size):
-            var_tot[0, 0, :], var_tot[0, 1, :], var_tot[0, 2, :] = __merge_moments(
-                (var_tot[0, 0, :], var_tot[0, 1, :], var_tot[0, 2, :]),
-                (var_tot[i, 0, :], var_tot[i, 1, :], var_tot[i, 2, :]),
-                correction=correction,
+            M2_tot[0, 0, :], M2_tot[0, 1, :], M2_tot[0, 2, :] = __merge_moments(
+                (M2_tot[0, 0, :], M2_tot[0, 1, :], M2_tot[0, 2, :]),
+                (M2_tot[i, 0, :], M2_tot[i, 1, :], M2_tot[i, 2, :]),
             )
-        return var_tot[0, 0, :][0] if var_tot[0, 0, :].size == 1 else var_tot[0, 0, :]
+        var = M2_tot[0, 0, :] / (M2_tot[0, 2, :] - int(correction))
+        return var[0] if var.size == 1 else var
 
     # ----------------------------------------------------------------------------------------------
     if axis is None:  # no axis given
@@ -2222,27 +2219,26 @@ def var(
             )
 
         else:  # case for full matrix calculation (axis is None)
+            n = x.lnumel
             mu_in = torch.mean(x.larray)
-            var_in = torch.var(x.larray, correction=correction)
-            # Nan is returned when local tensor is empty
-            if torch.isnan(var_in):
-                var_in = 0.0
+            M2_in = torch.var(x.larray, correction=False) * n
+            # NaN is returned when local tensor is empty
+            if torch.isnan(M2_in):
+                M2_in = 0.0
             if torch.isnan(mu_in):
                 mu_in = 0.0
 
-            n = x.lnumel
             var_tot = factories.zeros((x.comm.size, 3), dtype=x.dtype, device=x.device)
             var_proc = factories.zeros((x.comm.size, 3), dtype=x.dtype, device=x.device)
-            var_proc[x.comm.rank] = var_in, mu_in, float(n)
+            var_proc[x.comm.rank] = M2_in, mu_in, float(n)
             x.comm.Allreduce(var_proc, var_tot, MPI.SUM)
 
             for i in range(1, x.comm.size):
                 var_tot[0, 0], var_tot[0, 1], var_tot[0, 2] = __merge_moments(
                     (var_tot[0, 0], var_tot[0, 1], var_tot[0, 2]),
                     (var_tot[i, 0], var_tot[i, 1], var_tot[i, 2]),
-                    correction=correction,
                 )
-            return var_tot[0][0]
+            return var_tot[0][0] / (var_tot[0][2] - int(correction))
 
     else:  # axis is given
         return __moment_w_axis(torch.var, x, axis, reduce_vars_elementwise, correction)

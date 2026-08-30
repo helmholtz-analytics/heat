@@ -1619,3 +1619,17 @@ class TestStatistics(TestCase):
 
         self.assertTrue(ht.isnan(ht.var(data_on_second_rank, ddof=1)))
         self.assertTrue(ht.isnan(ht.var(data_on_second_rank, axis=0, ddof=1)))
+
+    def test_corrected_var_ranks_with_single_elements(self):
+        comm = self.comm
+
+        local_data = torch.tensor([], dtype=torch.float32)
+        if ht.communication.MPI_WORLD.size == 1:
+            local_data = torch.tensor([0., 1.], dtype=torch.float32)
+        elif comm.rank <= 1:
+            local_data = torch.tensor([comm.rank], dtype=torch.float32)
+
+        data = ht.DNDarray(local_data, gshape=(comm.size,), dtype=ht.float32, split=0, device=ht.devices.cpu, comm=comm, balanced=True)
+
+        self.assertEqual(ht.var(data, ddof=1), np.var(data.numpy(), ddof=1))
+        self.assertEqual(ht.var(data, axis=0, ddof=1), np.var(data.numpy(), axis=0, ddof=1))
