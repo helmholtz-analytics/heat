@@ -2230,17 +2230,17 @@ def var(
             if torch.isnan(mu_in):
                 mu_in = 0.0
 
-            var_tot = factories.zeros((x.comm.size, 3), dtype=x.dtype, device=x.device)
+            M2_tot = factories.zeros((x.comm.size, 3), dtype=x.dtype, device=x.device)
             var_proc = factories.zeros((x.comm.size, 3), dtype=x.dtype, device=x.device)
             var_proc[x.comm.rank] = M2_in, mu_in, float(n)
-            x.comm.Allreduce(var_proc, var_tot, MPI.SUM)
+            x.comm.Allreduce(var_proc, M2_tot, MPI.SUM)
 
             for i in range(1, x.comm.size):
-                var_tot[0, 0], var_tot[0, 1], var_tot[0, 2] = __merge_moments(
-                    (var_tot[0, 0], var_tot[0, 1], var_tot[0, 2]),
-                    (var_tot[i, 0], var_tot[i, 1], var_tot[i, 2]),
+                M2_tot[0, 0], M2_tot[0, 1], M2_tot[0, 2] = __merge_moments(
+                    (M2_tot[0, 0], M2_tot[0, 1], M2_tot[0, 2]),
+                    (M2_tot[i, 0], M2_tot[i, 1], M2_tot[i, 2]),
                 )
-            return var_tot[0][0] / (var_tot[0][2] - int(correction))
+            return M2_tot[0][0] / (M2_tot[0][2] - int(correction))
 
     else:  # axis is given
         return __moment_w_axis(torch.var, x, axis, reduce_vars_elementwise, correction)
