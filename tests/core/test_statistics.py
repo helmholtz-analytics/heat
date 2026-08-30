@@ -1,3 +1,5 @@
+import unittest
+
 import numpy as np
 import torch
 import os
@@ -1600,8 +1602,20 @@ class TestStatistics(TestCase):
         # edge case from #2374
         self.assertEqual(ht.var(ht.array([0.], split=None), axis=0, ddof=0), 0)
 
+    @unittest.skipUnless(ht.communication.MPI_WORLD.size == 2, "Test for two tasks")
     def test_corrected_var_single_element(self):
-        data = ht.array([0.], split=0)
+        comm = self.comm
+        ltensor_empty = torch.tensor([], dtype=torch.float32)
+        ltensor_data = torch.tensor([0.], dtype=torch.float32)
 
-        self.assertTrue(ht.isnan(ht.var(data, ddof=1)))
-        self.assertTrue(ht.isnan(ht.var(data, axis=0, ddof=1)))
+        ldata_on_first_rank = ltensor_data if comm.rank == 0 else ltensor_empty
+        data_on_first_rank = ht.DNDarray(ldata_on_first_rank, gshape=(2,), dtype=ht.float32, split=0, device=ht.devices.cpu, comm=comm, balanced=False)
+
+        ldata_on_second_rank = ltensor_empty if comm.rank == 0 else ltensor_data
+        data_on_second_rank = ht.DNDarray(ldata_on_second_rank, gshape=(2,), dtype=ht.float32, split=0, device=ht.devices.cpu, comm=comm, balanced=False)
+
+        self.assertTrue(ht.isnan(ht.var(data_on_first_rank, ddof=1)))
+        self.assertTrue(ht.isnan(ht.var(data_on_first_rank, axis=0, ddof=1)))
+
+        self.assertTrue(ht.isnan(ht.var(data_on_second_rank, ddof=1)))
+        self.assertTrue(ht.isnan(ht.var(data_on_second_rank, axis=0, ddof=1)))
