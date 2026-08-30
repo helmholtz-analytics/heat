@@ -1091,7 +1091,7 @@ DNDarray.median: Callable[[DNDarray, int, bool, bool, float], DNDarray] = (
 DNDarray.median.__doc__ = median.__doc__
 
 
-def __merge_moments(m1: torch.Tensor, m2: torch.Tensor) -> Tuple[torch.Tensor, ...]:
+def __merge_moments(m1: Tuple, m2: Tuple) -> Tuple[torch.Tensor, ...]:
     """
     Merge two statistical moments.
     If the length of ``m1`` and ``m2`` (must be equal) is ``==3`` then the second moment (sum of squared
@@ -1117,6 +1117,8 @@ def __merge_moments(m1: torch.Tensor, m2: torch.Tensor) -> Tuple[torch.Tensor, .
     if len(m1) != len(m2):
         raise ValueError(f"m1 and m2 must be same length, currently {len(m1)} and {len(m2)}")
     n1, n2 = m1[-1], m2[-1]
+    if n2.sum() == 0:
+        return m1
     mu1, mu2 = m1[-2], m2[-2]
     n = n1 + n2
     delta = mu2 - mu1

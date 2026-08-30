@@ -3,6 +3,7 @@ import unittest
 import numpy as np
 import torch
 import os
+import unittest
 
 from itertools import combinations
 from scipy import stats as ss
@@ -1601,6 +1602,15 @@ class TestStatistics(TestCase):
 
         # edge case from #2374
         self.assertEqual(ht.var(ht.array([0.], split=None), axis=0, ddof=0), 0)
+
+    @unittest.skipUnless(ht.communication.MPI_WORLD.size >= 3, "Test requires at least 3 tasks")
+    def test_first_two_leading_ranks_empty(self):
+        comm = self.comm
+        local_data = torch.tensor([], dtype=torch.float32) if comm.rank < 2 else torch.tensor([comm.rank], dtype=torch.float32)
+        data = ht.DNDarray(local_data, gshape=(comm.size-2,), dtype=ht.float32, split=0, device=ht.devices.cpu, comm=comm, balanced=False)
+
+        self.assertEqual(ht.mean(data), np.mean(data.numpy()))
+        self.assertEqual(ht.var(data), np.var(data.numpy()))
 
     @unittest.skipUnless(ht.communication.MPI_WORLD.size == 2, "Test for two tasks")
     def test_corrected_var_single_element(self):
