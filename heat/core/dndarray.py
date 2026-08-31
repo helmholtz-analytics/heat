@@ -262,6 +262,14 @@ class DNDarray:
         return self.create_lshape_map()
 
     @property
+    def lloc(self):
+        """Deprecated function for local indexing. Use `DNDarray.larray` for local indexing instead"""
+        # TODO: Remove this entirely by heat v2.5
+        raise Exception(
+            "`DNDarray.lloc` is deprecated. Use `DNDarray.larray` for local indexing instead."
+        )
+
+    @property
     def real(self) -> DNDarray:
         """
         Return the real part of the ``DNDarray``.
