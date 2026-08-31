@@ -74,7 +74,7 @@ class TestSorting:
         assert np.isclose(res.numpy(), expected_res).all()
         assert a.device == res.device
         assert np.equal(sort_idx, res_idxs.numpy()).all()
-        assert a.device == res_idx.device
+        assert a.device == res_idxs.device
 
     @pytest.mark.parametrize("descending", [False, True])
     @pytest.mark.parametrize("stable", [False, True])
