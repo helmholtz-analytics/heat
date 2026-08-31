@@ -8,7 +8,7 @@ import numpy as np
 import torch
 import warnings
 
-from typing import Any, Iterable, Type, List, Callable, Union, Tuple, Sequence, Optional
+from typing import Any, Iterable, Type, List, Callable, Union, Tuple, Sequence, Optional, NamedTuple
 
 from .communication import MPI, Communication
 from .dndarray import DNDarray
@@ -62,6 +62,8 @@ __all__ = [
     "topk",
     "unfold",
     "unique",
+    "unique_inverse",
+    "unique_values",
     "vsplit",
     "vstack",
 ]
@@ -149,7 +151,7 @@ DNDarray.balance = lambda self, copy=False: balance(self, copy)
 DNDarray.balance.__doc__ = balance.__doc__
 
 
-def broadcast_arrays(*arrays: DNDarray) -> List[DNDarray]:
+def broadcast_arrays(*arrays: DNDarray) -> tuple[DNDarray, ...]:
     """
     Broadcasts one or more arrays against one another. Returns the broadcasted arrays, distributed along the split dimension of the first array in the list. If the first array is not distributed, the output will not be distributed.
 
@@ -215,24 +217,23 @@ def broadcast_arrays(*arrays: DNDarray) -> List[DNDarray]:
     # broadcast the local torch tensors: this is a view of the original data
     broadcasted = torch.broadcast_tensors(*t_arrays)
 
-    out = []
-    for i in range(len(broadcasted)):
-        out.append(
-            DNDarray(
-                broadcasted[i],
-                gshape=output_shape,
-                dtype=arrays[i].dtype,
-                split=output_split,
-                device=arrays[i].device,
-                comm=output_comm,
-                balanced=output_balanced,
-            )
+    out = tuple(
+        DNDarray(
+            broadcasted[i],
+            gshape=output_shape,
+            dtype=arrays[i].dtype,
+            split=output_split,
+            device=arrays[i].device,
+            comm=output_comm,
+            balanced=output_balanced,
         )
+        for i in range(len(broadcasted))
+    )
 
     return out
 
 
-def broadcast_to(x: DNDarray, shape: Tuple[int, ...]) -> DNDarray:
+def broadcast_to(x: DNDarray, /, shape: tuple[int, ...]) -> DNDarray:
     """
     Broadcasts an array to a specified shape. Returns a view of ``x`` if ``x`` is not distributed, otherwise it returns a broadcasted, distributed, load-balanced copy of ``x``.
 
@@ -2906,7 +2907,7 @@ def vectorized_sort(
     stable: bool = True,
     descending: bool = False,
     resplit_result: bool = True,
-    return_sort_indices_only: bool = False,
+    return_sort_indices_instead: bool = False,
 ) -> DNDarray:
     """
     Performs a lexicographical sort along the specified axis.
@@ -2932,111 +2933,114 @@ def vectorized_sort(
     resplit_result : bool, optional
         Whether to resplit the final sorted array back to the original split
         axis of the input array after rows are distributed. Default is True.
-    return_sort_indices_only : bool, optional
+    return_sort_indices_instead : bool, optional
         If True, bypasses the row exchange and returns only the global sort indices. Default is False.
 
     Returns
     -------
     DNDarray
-        Either the final sorted array, or if `return_sort_indices_only` is True, the global sort indices.
+        Either the final sorted array, or if `return_sort_indices_instead` is True, the global sort indices.
     """
     sanitation.sanitize_in(a)
 
     if not isinstance(axis, int):
-        raise ValueError("'axis' must be an int.")
+        raise ValueError(f"'axis' must be integer, not {type(axis)}.")
     if not isinstance(stable, bool):
-        raise ValueError("'stable' must be a bool.")
+        raise ValueError(f"'stable' must be bool, not {type(stable)}.")
     if not isinstance(descending, bool):
-        raise ValueError("'descending' must be a bool.")
+        raise ValueError(f"'descending' must be bool, not {type(descending)}.")
     if not isinstance(resplit_result, bool):
-        raise ValueError("'resplit_result' must be a bool.")
-    if not isinstance(return_sort_indices_only, bool):
-        raise ValueError("'return_sort_indices_only' must be a bool.")
+        raise ValueError(f"'resplit_result' must be bool, not {type(resplit_result)}.")
+    if not isinstance(return_sort_indices_instead, bool):
+        raise ValueError(
+            f"'return_sort_indices_instead' must be bool, not {type(return_sort_indices_instead)}."
+        )
 
-    if len(a.gshape) == 0:
-        raise ValueError("dndarray must have atleast one dimension.")
+    if a.ndim == 0:
+        raise ValueError("dndarray must have at least one dimension.")
 
-    if axis >= len(a.gshape) or (axis < 0 and abs(axis) > len(a.gshape)):
-        raise ValueError(f"'axis'={axis} does not exist for '{len(a.gshape)}' dimenions.")
+    if not (-a.ndim <= axis < a.ndim):
+        raise ValueError(f"{axis=} does not exist for array with {a.ndim} dimensions.")
 
     def _permute_indices(data, idx):
         sort_idx = torch.argsort(data[idx], stable=stable, descending=descending)
         return idx[sort_idx]
 
-    if len(a.gshape) == 1:
-        arr, idx = sort(a, axis=axis, descending=descending, return_sort_indices=True)
-        if return_sort_indices_only:
-            return idx
-        return arr.resplit_(a.split) if resplit_result else arr
-
+    # early out for non-distributed input
     if not a.is_distributed():
-        data = a.larray.transpose(axis, 0)
-        shape = data.shape
+        local_data = a.larray.transpose(axis, 0)
+        shape = local_data.shape
 
-        data = data.reshape(shape[0], -1)
-        indices = torch.arange(0, data.shape[0])
-        for i in range(data.shape[-1] - 1, -1, -1):
-            indices = _permute_indices(data[:, i], indices)
+        local_data = local_data.reshape(shape[0], -1)
+        indices = torch.arange(0, local_data.shape[0]).to(local_data.device)
+        for i in range(local_data.shape[-1] - 1, -1, -1):
+            indices = _permute_indices(local_data[:, i], indices)
 
-        data = data.reshape(shape)[indices]
-        return factories.array(data.transpose(axis, 0), split=None)
+        if return_sort_indices_instead:
+            return factories.array(indices, split=None)
+
+        local_data = local_data.reshape(shape)[indices].transpose(axis, 0)
+        return factories.array(local_data, split=None)
+
+    # distributed vectorized sort
     original_split = a.split
     if axis != a.split:
         a = resplit(a, axis)
 
-    comm = MPI.COMM_WORLD
-    rank = comm.Get_rank()
-    size = comm.Get_size()
+    comm = a.comm
+    rank = comm.rank
+    size = comm.size
 
-    data = a.larray.transpose(axis, 0)
-    original_shape = data.shape
+    local_data = a.larray.transpose(axis, 0)
+
+    is_1d = local_data.ndim == 1
+    if is_1d:
+        local_data = local_data.reshape(-1, 1)
+
+    original_shape = local_data.shape
     inner_shape = original_shape[1:]
 
-    local_count = data.shape[0]
-    total_rows = sum(comm.allgather(local_count))
-    block_length = np.prod(inner_shape) if len(inner_shape) > 0 else 1
+    local_count = local_data.shape[0]
+    total_rows = a.gshape[axis]
+    block_length = np.prod(inner_shape)
 
-    mpi_type: MPI.Datatype = a.comm.mpi_type_of(data.dtype)
+    send_buf = torch.tensor([local_count], dtype=torch.int64)
+    local_counts = torch.empty(size, dtype=torch.int64)
+    comm.Gather(send_buf, local_counts, root=0)
 
     if rank == 0:
-        send_counts = np.array(comm.gather(local_count), dtype=int)
+        send_counts = local_counts.numpy()
         send_displ = np.insert(np.cumsum(send_counts)[:-1], 0, 0)
 
-        buffer = torch.empty((total_rows,), dtype=data.dtype)
-        recv_args = [buffer, send_counts, send_displ, mpi_type]
+        buffer = torch.empty((total_rows,), dtype=local_data.dtype)
+        recv_args = (buffer, send_counts, send_displ)
     else:
-        comm.gather(local_count)
-
         buffer = None
-        recv_args = None
+        recv_args = (torch.empty(0, dtype=torch.int64), None, None)
 
-    def gather_column(flat_idx: int):
+    def _gather_column(flat_idx: int):
         idx = np.unravel_index(flat_idx, inner_shape)
         slice_tuple = (slice(None),) + tuple(idx)
 
-        local_col = data[slice_tuple].contiguous()
-        comm.Gatherv(local_col, recv_args)
+        local_col = local_data[slice_tuple].contiguous()
+        comm.Gatherv(local_col, recv_args, root=0)
         return buffer
 
-    if rank == 0:
-        indices = torch.arange(0, total_rows, dtype=torch.int64)
-    else:
-        indices = torch.empty(total_rows, dtype=torch.int64)
+    indices = torch.arange(0, total_rows, dtype=torch.int64)
 
     for i in range(block_length - 1, -1, -1):
+        buffer = _gather_column(i)
         if rank == 0:
-            indices = _permute_indices(gather_column(i), indices)
-        else:
-            gather_column(i)
+            indices = _permute_indices(buffer, indices)
 
-    comm.Bcast(indices)
+    comm.Bcast(indices, root=0)
 
-    if return_sort_indices_only:
+    if return_sort_indices_instead:
         return factories.array(indices, split=None)
 
-    offset, _, _ = a.comm.chunk((total_rows,), split=0, rank=rank)
+    offset, _, _ = comm.chunk((total_rows,), split=0, rank=rank)
 
-    rank_slices = [a.comm.chunk((total_rows,), split=0, rank=i)[-1][0] for i in range(size)]
+    rank_slices = [comm.chunk((total_rows,), split=0, rank=i)[-1][0] for i in range(size)]
 
     local_slice = rank_slices[rank]
 
@@ -3077,19 +3081,19 @@ def vectorized_sort(
     send_displ = np.insert(np.cumsum(send_counts)[:-1], 0, 0)
     recv_displ = np.insert(np.cumsum(recv_counts)[:-1], 0, 0)
 
-    send_data = data[torch.cat(send_indices).tolist()].reshape(-1).contiguous()
-    recv_buf = torch.empty((recv_counts.sum().item(),), dtype=data.dtype)
+    send_data = local_data[torch.cat(send_indices).tolist()].reshape(-1).contiguous()
+    recv_buf = torch.empty((recv_counts.sum().item(),), dtype=local_data.dtype)
 
-    comm.Alltoallv(
-        [send_data, send_counts, send_displ, mpi_type],
-        [recv_buf, recv_counts, recv_displ, mpi_type],
-    )
+    comm.Alltoallv((send_data, send_counts, send_displ), (recv_buf, recv_counts, recv_displ))
 
     sort_idx = np.argsort(rank_indices_mapping, stable=True)
     inv_sort_idx = np.empty_like(sort_idx)
     inv_sort_idx[sort_idx] = np.arange(sort_idx.size)
 
     recv_buf = recv_buf.view(-1, *inner_shape)[inv_sort_idx]
+
+    if is_1d:
+        recv_buf = recv_buf.squeeze(-1)
 
     sorted_array = factories.array(recv_buf.transpose(0, axis), is_split=a.split)
 
@@ -3839,6 +3843,52 @@ DNDarray.unique: Callable[[DNDarray, bool, bool, int], Tuple[DNDarray, torch.ten
     )
 )
 DNDarray.unique.__doc__ = unique.__doc__
+
+
+def unique_inverse(x: DNDarray, /) -> Tuple[DNDarray, DNDarray]:
+    """
+    Returns the unique elements of an input array ``x`` and the indices from the
+    set of unique elements that reconstruct ``x``.
+
+    Parameters
+    ----------
+    x : Array
+        Input array. If ``x`` has more than one dimension, the function flattens ``x``
+        and returns the unique elements of the flattened array.
+
+    See Also
+    --------
+    :func:`unique`
+
+    Examples
+    --------
+    >>> x = ht.array([[3, 2], [1, 3]])
+    >>> uniq = ht.unique_inverse(x)
+    >>> uniq.values
+    DNDarray(MPI-rank: 0, Shape: (3,), Split: None, Local Shape: (3,), Device: cpu:0, Dtype: int64, Data:
+         [1, 2, 3])
+    >>> uniq.inverse_indices
+    DNDarray(MPI-rank: 0, Shape: (2, 2), Split: None, Local Shape: (2, 2), Device: cpu:0, Dtype: int64, Data:
+         [[2, 1],
+          [0, 2]])
+    """
+    result = unique(x, return_inverse=True)
+    return NamedTuple("UniqueInverseResult", [("values", DNDarray), ("inverse_indices", DNDarray)])(
+        *result
+    )
+
+
+def unique_values(x: DNDarray, /) -> DNDarray:
+    """
+    Returns the unique elements of an input array ``x``.
+
+    Parameters
+    ----------
+    x : DNDarray
+        Input array. If ``x`` has more than one dimension, the function flattens ``x``
+        and returns the unique elements of the flattened array.
+    """
+    return unique(x)
 
 
 def unfold(a: DNDarray, axis: int, size: int, step: int = 1):
