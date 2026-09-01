@@ -1016,13 +1016,13 @@ def diff(
             arb_slice[axis] = 0
         # send the first element of the array to rank - 1
         if rank > 0:
-            snd = ret.comm.Isend(ret.lloc[arb_slice].clone(), dest=rank - 1, tag=rank)
+            snd = ret.comm.Isend(ret.larray[arb_slice].clone(), dest=rank - 1, tag=rank)
 
         # standard logic for the diff with the next element
-        dif = ret.lloc[axis_slice] - ret.lloc[axis_slice_end]
+        dif = ret.larray[axis_slice] - ret.larray[axis_slice_end]
         # need to slice out to select the proper elements of out
         diff_slice = [slice(x) for x in dif.shape]
-        ret.lloc[diff_slice] = dif
+        ret.larray[diff_slice] = dif
 
         if rank > 0:
             snd.Wait()  # wait for the send to finish
@@ -1032,7 +1032,9 @@ def diff(
             if ret.lshape[axis] > 1:
                 cr_slice[axis] = 1
             recv_data = torch.ones(
-                ret.lloc[cr_slice].shape, dtype=ret.dtype.torch_type(), device=a.device.torch_device
+                ret.larray[cr_slice].shape,
+                dtype=ret.dtype.torch_type(),
+                device=a.device.torch_device,
             )
             rec = ret.comm.Irecv(recv_data, source=rank + 1, tag=rank + 1)
             axis_slice_end = [slice(None)] * len(a.shape)
@@ -1040,8 +1042,8 @@ def diff(
             axis_slice_end[axis] = slice(-1, None)
             rec.Wait()
             # diff logic
-            ret.lloc[axis_slice_end] = (
-                recv_data.reshape(ret.lloc[axis_slice_end].shape) - ret.lloc[axis_slice_end]
+            ret.larray[axis_slice_end] = (
+                recv_data.reshape(ret.larray[axis_slice_end].shape) - ret.larray[axis_slice_end]
             )
 
     axis_slice_end = [slice(None, None, None)] * len(a.shape)
