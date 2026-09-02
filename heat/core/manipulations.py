@@ -3056,8 +3056,10 @@ def vectorized_sort(
 
         if return_sort_indices_instead:
             return factories.array(indices, split=None, device=a.device)
+            return factories.array(indices, split=None, device=a.device)
 
         local_data = local_data.reshape(shape)[indices].transpose(axis, 0)
+        return factories.array(local_data, split=None, device=a.device)
         return factories.array(local_data, split=None, device=a.device)
 
     # distributed vectorized sort
@@ -3083,6 +3085,7 @@ def vectorized_sort(
     block_length = np.prod(inner_shape)
 
     send_buf = torch.tensor([local_count], dtype=torch.int64, device=local_data.device)
+    send_buf = torch.tensor([local_count], dtype=torch.int64, device=local_data.device)
     local_counts = torch.empty(size, dtype=torch.int64)
     comm.Gather(send_buf, local_counts, root=0)
 
@@ -3090,6 +3093,7 @@ def vectorized_sort(
         send_counts = local_counts.numpy()
         send_displ = np.insert(np.cumsum(send_counts)[:-1], 0, 0)
 
+        buffer = torch.empty((total_rows,), dtype=local_data.dtype, device=local_data.device)
         buffer = torch.empty((total_rows,), dtype=local_data.dtype, device=local_data.device)
         recv_args = (buffer, send_counts, send_displ)
     else:
@@ -3104,6 +3108,7 @@ def vectorized_sort(
         comm.Gatherv(local_col, recv_args, root=0)
         return buffer
 
+    indices = torch.arange(0, total_rows, dtype=torch.int64, device=local_data.device)
     indices = torch.arange(0, total_rows, dtype=torch.int64, device=local_data.device)
 
     for i in range(block_length - 1, -1, -1):
