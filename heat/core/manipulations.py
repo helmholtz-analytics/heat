@@ -2940,8 +2940,16 @@ def sort_complex(a: DNDarray, axis: int = -1, resplit_result: bool = True):
 
     if a.ndim == 1:
         view = torch.view_as_real(a.larray)
-        shape = a.gshape + (2, )
-        temp = DNDarray(view, gshape=shape, dtype=a.dtype, split=a.split, device=a.device, comm=a.comm, balanced=a.balanced)
+        shape = a.gshape + (2,)
+        temp = DNDarray(
+            view,
+            gshape=shape,
+            dtype=a.dtype,
+            split=a.split,
+            device=a.device,
+            comm=a.comm,
+            balanced=a.balanced,
+        )
         idx = vectorized_sort(temp, axis=0, return_sort_indices_instead=True)
         return reorder(a, idx.larray)
 
@@ -2965,13 +2973,13 @@ def sort_complex(a: DNDarray, axis: int = -1, resplit_result: bool = True):
     larr = larr_2d.reshape(original_shape)
 
     res_dnd = DNDarray(
-        larr.transpose(0, axis), 
-        gshape=a.gshape, 
-        dtype=a.dtype, 
-        split=a.split, 
-        device=a.device, 
-        comm=a.comm, 
-        balanced=a.balanced
+        larr.transpose(0, axis),
+        gshape=a.gshape,
+        dtype=a.dtype,
+        split=a.split,
+        device=a.device,
+        comm=a.comm,
+        balanced=a.balanced,
     )
 
     if needs_resplit:
@@ -3121,7 +3129,9 @@ def vectorized_sort(
     if return_sort_indices_instead:
         return factories.array(indices, split=None, device=a.device)
 
-    return reorder(a, indices, axis=axis, resplit_result=resplit_result, original_split=original_split)
+    return reorder(
+        a, indices, axis=axis, resplit_result=resplit_result, original_split=original_split
+    )
 
 
 def reorder(
@@ -3129,7 +3139,7 @@ def reorder(
     indices: torch.Tensor,
     axis: int = -1,
     resplit_result: bool = True,
-    original_split: int | None = None
+    original_split: int | None = None,
 ) -> DNDarray:
     """
     Redistributes the dndarray along the specified axis using a global indice tensor.
@@ -3229,7 +3239,9 @@ def reorder(
 
     recv_buf = recv_buf.view(-1, *inner_shape)[inv_sort_idx]
 
-    reordered_array = factories.array(recv_buf.transpose(0, axis), is_split=a.split, device=a.device)
+    reordered_array = factories.array(
+        recv_buf.transpose(0, axis), is_split=a.split, device=a.device
+    )
 
     if original_split != a.split and resplit_result:
         return resplit(reordered_array, original_split)
