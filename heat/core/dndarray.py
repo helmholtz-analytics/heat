@@ -21,22 +21,6 @@ __all__ = ["DNDarray"]
 Communication = TypeVar("Communication")
 
 
-class LocalIndex:
-    """
-    Indexing class for local operations (primarily for :func:`lloc` function)
-    For docs on ``__getitem__`` and ``__setitem__`` see :func:`lloc`
-    """
-
-    def __init__(self, obj):
-        self.obj = obj
-
-    def __getitem__(self, key):
-        return self.obj[key]
-
-    def __setitem__(self, key, value):
-        self.obj[key] = value
-
-
 class DNDarray:
     """
     Distributed N-Dimensional array. The core element of Heat. It is composed of
@@ -275,40 +259,6 @@ class DNDarray:
         return np.prod(self.__array.shape)
 
     @property
-    def lloc(self) -> DNDarray | None:
-        """
-        Local item setter and getter. i.e. this function operates on a local
-        level and only on the PyTorch tensors composing the :class:`DNDarray`.
-        This function uses the LocalIndex class. As getter, it returns a ``DNDarray``
-        with the indices selected at a *local* level
-
-        Parameters
-        ----------
-        key : int or slice or tuple[int,...]
-            Indices of the desired data.
-        value : scalar, optional
-            All types compatible with pytorch tensors, if none given then this is a getter function
-
-        Examples
-        --------
-        >>> a = ht.zeros((4, 5), split=0)
-        DNDarray([[0., 0., 0., 0., 0.],
-                  [0., 0., 0., 0., 0.],
-                  [0., 0., 0., 0., 0.],
-                  [0., 0., 0., 0., 0.]], dtype=ht.float32, device=cpu:0, split=0)
-        >>> a.lloc[1, 0:4]
-        (1/2) tensor([0., 0., 0., 0.])
-        (2/2) tensor([0., 0., 0., 0.])
-        >>> a.lloc[1, 0:4] = torch.arange(1, 5)
-        >>> a
-        DNDarray([[0., 0., 0., 0., 0.],
-                  [1., 2., 3., 4., 0.],
-                  [0., 0., 0., 0., 0.],
-                  [1., 2., 3., 4., 0.]], dtype=ht.float32, device=cpu:0, split=0)
-        """
-        return LocalIndex(self.__array)
-
-    @property
     def lshape(self) -> tuple[int]:
         """
         Returns the shape of the ``DNDarray`` on each node
@@ -321,6 +271,14 @@ class DNDarray:
         Returns the lshape map. If it hasn't been previously created then it will be created here.
         """
         return self.create_lshape_map()
+
+    @property
+    def lloc(self):
+        """Deprecated function for local indexing. Use `DNDarray.larray` for local indexing instead"""
+        # TODO: Remove this entirely by heat v2.5
+        raise Exception(
+            "`DNDarray.lloc` is deprecated. Use `DNDarray.larray` for local indexing instead."
+        )
 
     @property
     def real(self) -> DNDarray:
@@ -531,7 +489,7 @@ class DNDarray:
 
         return heat
 
-    def astype(self, dtype, copy=True) -> DNDarray:
+    def astype(self, dtype, copy=True, device: Device = None) -> DNDarray:
         """
         Returns a casted version of this array.
         Casted array is a new array of the same shape but with given type of this array. If copy is ``True``, the
@@ -544,9 +502,11 @@ class DNDarray:
         copy : bool, optional
             By default the operation returns a copy of this array. If copy is set to ``False`` the cast is performed
             in-place and this array is returned
-
+        device: ht.Device, optional
+            The device on which to place the array. If ``None``, keep device. Default: None.
         """
         dtype = canonical_heat_type(dtype)
+        device = self.__device if device is None else devices.sanitize_device(device)
         if self.__array.is_mps:
             if dtype == types.float64:
                 # print warning
@@ -562,14 +522,17 @@ class DNDarray:
                     ResourceWarning,
                 )
                 dtype = types.complex64
-        casted_array = self.__array.type(dtype.torch_type())
+        casted_array = self.__array.to(
+            device=device.torch_device, dtype=dtype.torch_type(), copy=copy
+        )
         if copy:
             return DNDarray(
-                casted_array, self.shape, dtype, self.split, self.device, self.comm, self.balanced
+                casted_array, self.shape, dtype, self.split, device, self.comm, self.balanced
             )
 
         self.__array = casted_array
         self.__dtype = dtype
+        self.__device = device
 
         return self
 

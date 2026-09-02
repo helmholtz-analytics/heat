@@ -45,6 +45,7 @@ __all__ = [
     "float64",
     "double",
     "flexible",
+    "astype",
     "can_cast",
     "canonical_heat_type",
     "heat_type_is_exact",
@@ -52,6 +53,7 @@ __all__ = [
     "heat_type_is_realfloating",
     "heat_type_is_complexfloating",
     "iscomplex",
+    "isdtype",
     "isreal",
     "issubdtype",
     "heat_type_of",
@@ -637,6 +639,47 @@ def __get_all_heat_types():
     return [me for me in type_related_classes if len(me.__subclasses__()) == 0]
 
 
+def astype(
+    x: dndarray.DNDarray,
+    dtype: datatype,
+    /,
+    *,
+    copy: bool = True,
+    device: devices.Device | None = None,
+):
+    """
+    Copies an array to a specified data type irrespective of type promotion rules.
+
+    Parameters
+    ----------
+    x : Array
+        Array to cast.
+    dtype : Dtype
+        Desired data type.
+    copy : bool
+        If ``True``, a newly allocated array is returned. If ``False`` and the
+        specified ``dtype`` matches the data type of the input array, the
+        input array is returned; otherwise, a newly allocated is returned.
+        Default: ``True``.
+    device : ht.Device, optional
+        The device on which to place the returned array. If ``None``, infers device from ``x``. Default: None.
+
+    Examples
+    --------
+    >>> import heat as ht
+    >>> arr = ht.array([1, 2, 3])
+    >>> arr
+    DNDarray(MPI-rank: 0, Shape: (3,), Split: None, Local Shape: (3,), Device: cpu:0, Dtype: int64, Data:
+         [1, 2, 3])
+    >>> ht.astype(arr, ht.float64)
+    DNDarray(MPI-rank: 0, Shape: (3,), Split: None, Local Shape: (3,), Device: cpu:0, Dtype: float64, Data:
+         [1., 2., 3.])
+    """
+    sanitation.sanitize_in(x)
+
+    return x.astype(dtype, copy=copy, device=device)
+
+
 def canonical_heat_type(a_type: Union[str, Type[datatype], Any]) -> Type[datatype]:
     """
     Canonicalize the builtin Python type, type string or HeAT type into a canonical HeAT type.
@@ -778,6 +821,7 @@ def heat_type_of(
 def can_cast(
     from_: Union[str, Type[datatype], Any],
     to: Union[str, Type[datatype], Any],
+    /,
     casting: str = "intuitive",
 ) -> bool:
     """
@@ -860,6 +904,58 @@ def iscomplex(x: dndarray.DNDarray) -> dndarray.DNDarray:
         return x.imag != 0
     else:
         return factories.zeros(x.shape, bool, split=x.split, device=x.device, comm=x.comm)
+
+
+def isdtype(dtype: datatype, kind: datatype | str | tuple[datatype | str, ...]) -> bool:
+    """
+    Returns a boolean indicating whether a provided dtype is of a specified data type “kind”.
+
+    Parameters
+    ----------
+    dtype : datatype
+        the input dtype.
+    kind : str or dtype or Tuple[str, dtype], ...]
+        data type kind.
+    """
+    dtype = canonical_heat_type(dtype)
+
+    input_kinds = kind if isinstance(kind, tuple) else (kind,)
+
+    processed_kinds = set()
+
+    for kind in input_kinds:
+        match kind:
+            case "bool":
+                processed_kinds.add(bool)
+            case "signed integer":
+                processed_kinds.update((int8, int16, int32, int64))
+            case "unsigned integer":
+                processed_kinds.add(uint8)
+            case "integral":
+                processed_kinds.update((int8, int16, int32, int64, uint8))
+            case "real floating":
+                processed_kinds.update((float16, float32, float64))
+            case "complex floating":
+                processed_kinds.update((complex64, complex128))
+            case "numeric":
+                processed_kinds.update(
+                    (
+                        int8,
+                        int16,
+                        int32,
+                        int64,
+                        uint8,
+                        float16,
+                        float32,
+                        float64,
+                        complex64,
+                        complex128,
+                    )
+                )
+            case _:
+                processed_kinds.add(canonical_heat_type(kind))
+
+    return dtype in processed_kinds
 
 
 def isreal(x: dndarray.DNDarray) -> dndarray.DNDarray:

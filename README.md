@@ -70,8 +70,8 @@ Here an example from our [Linear Algebra tutorial](https://github.com/helmholtz-
 ```python
 import heat as ht
 
-split_A=0
-split_B=1
+split_A = 0
+split_B = 1
 M = 10000
 N = 10000
 K = 10000
@@ -79,7 +79,6 @@ A = ht.random.randn(M, N, split=split_A, device="gpu")
 B = ht.random.randn(N, K, split=split_B, device="gpu")
 C = ht.matmul(A, B)
 print(C)
-
 ```
 **2. Run with MPI:**
 
