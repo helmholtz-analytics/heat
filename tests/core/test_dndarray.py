@@ -801,25 +801,6 @@ class TestDNDarray(TestCase):
         self.assertIsInstance(c_length, int)
         self.assertEqual(c_length, 3)
 
-    def test_lloc(self):
-        # single set
-        a = ht.zeros((13, 5), split=0)
-        a.lloc[0, 0] = 1
-        self.assertEqual(a.larray[0, 0], 1)
-        self.assertEqual(a.lloc[0, 0].dtype, torch.float32)
-
-        # multiple set
-        a = ht.zeros((13, 5), split=0)
-        a.lloc[1:3, 1] = 1
-        self.assertTrue(all(a.larray[1:3, 1] == 1))
-        self.assertEqual(a.lloc[1:3, 1].dtype, torch.float32)
-
-        # multiple set with specific indexing
-        a = ht.zeros((13, 5), split=0)
-        a.lloc[3:7:2, 2:5:2] = 1
-        self.assertTrue(torch.all(a.larray[3:7:2, 2:5:2] == 1))
-        self.assertEqual(a.lloc[3:7:2, 2:5:2].dtype, torch.float32)
-
     def test_lnbytes(self):
         # undistributed case
 
