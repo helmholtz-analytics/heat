@@ -255,7 +255,7 @@ class TestStatistics(TestCase):
         self.assertEqual(avg_volume.dtype, ht.types.canonical_heat_type(dtype))
         self.assertEqual(avg_volume.larray.dtype, dtype)
         self.assertEqual(avg_volume.split, None)
-        self.assertAlmostEqual(avg_volume.numpy().all(), np_avg_volume.all())
+        self.assertTrue(ht.allclose(avg_volume, ht.array(np_avg_volume, dtype=avg_volume.dtype)))
         avg_volume_with_cumwgt = ht.average(
             random_volume, weights=random_weights, axis=1, returned=True
         )
@@ -270,14 +270,14 @@ class TestStatistics(TestCase):
             torch.randn((3, 3, 3), dtype=dtype, device=self.device.torch_device), is_split=1
         )
         avg_volume = ht.average(random_volume, weights=random_weights_3d, axis=1)
-        np_avg_volume = np.average(random_volume.numpy(), weights=random_weights.numpy(), axis=1)
+        np_avg_volume = np.average(random_volume.numpy(), weights=random_weights_3d.numpy(), axis=1)
         self.assertIsInstance(avg_volume, ht.DNDarray)
         self.assertEqual(avg_volume.shape, (3, 3))
         self.assertEqual(avg_volume.lshape, (3, 3))
         self.assertEqual(avg_volume.dtype, ht.types.canonical_heat_type(dtype))
         self.assertEqual(avg_volume.larray.dtype, dtype)
         self.assertEqual(avg_volume.split, None)
-        self.assertAlmostEqual(avg_volume.numpy().all(), np_avg_volume.all())
+        self.assertTrue(ht.allclose(avg_volume, ht.array(np_avg_volume, dtype=avg_volume.dtype)))
         avg_volume_with_cumwgt = ht.average(
             random_volume, weights=random_weights, axis=1, returned=True
         )
@@ -1224,8 +1224,8 @@ class TestStatistics(TestCase):
         p_ht = ht.percentile(x_ht, q, axis=axis, interpolation="lower", keepdims=True)
         out = ht.empty(p_np.shape, dtype=out_dtype, split=None, device=x_ht.device)
         ht.percentile(x_ht, q, axis=axis, out=out, interpolation="lower", keepdims=True)
-        self.assertEqual(p_ht.numpy()[5].all(), p_np[5].all())
-        self.assertEqual(out.numpy()[2].all(), p_np[2].all())
+        self.assertTrue(ht.allclose(p_ht, ht.array(p_np, dtype=p_ht.dtype)))
+        self.assertTrue(ht.allclose(out, ht.array(p_np, dtype=out.dtype)))
         self.assertTrue(p_ht.shape == p_np.shape)
         axis = None
         try:
@@ -1256,7 +1256,7 @@ class TestStatistics(TestCase):
         x_sc = ht.array(4.5)
         p_ht = ht.percentile(x_sc, q=q)
         p_np = np.percentile(4.5, q=q)
-        self.assertEqual(p_ht.numpy().all(), p_np.all())
+        self.assertTrue(ht.allclose(p_ht, ht.array(p_np, dtype=p_ht.dtype)))
 
         # test tuple axis and out buffer
         q = (20, 50, 80)
@@ -1596,3 +1596,6 @@ class TestStatistics(TestCase):
         for sp in [None, 0, 1]:
             iris = ht.load(get_dataset_path('iris.csv'), sep=";", split=sp)
             self.assertTrue(ht.allclose(ht.var(iris, bessel=True), 3.90318519755147))
+
+        # edge case from #2374
+        self.assertEqual(ht.var(ht.array([0.], split=None), axis=0, ddof=0), 0)

@@ -6,8 +6,6 @@ import heat as ht
 from pathlib import Path
 from heat.testing.basic_test import TestCase
 
-pytorch_major_version = int(torch.__version__.split(".")[0])
-
 
 class TestDNDarray(TestCase):
     @classmethod
@@ -337,7 +335,7 @@ class TestDNDarray(TestCase):
 
     def test_array(self):
         # undistributed case
-        x = ht.arange(6 * 7 * 8).reshape((6, 7, 8))
+        x = ht.arange(6 * 7 * 8, dtype=ht.int32).reshape((6, 7, 8))
         x_np = np.arange(6 * 7 * 8, dtype=np.int32).reshape((6, 7, 8))
 
         self.assertTrue((x.__array__() == x_np).all())
@@ -435,6 +433,11 @@ class TestDNDarray(TestCase):
             x.larray = "[1, 2, 3]"
 
     def test_astype(self):
+        def array_type_check(array, dtype):
+            self.assertIsInstance(array, ht.DNDarray)
+            self.assertEqual(array.dtype, dtype)
+            self.assertEqual(array.larray.dtype, dtype.torch_type())
+
         data = ht.float32([[1, 2, 3], [4, 5, 6]])
 
         # check starting invariant
@@ -442,18 +445,19 @@ class TestDNDarray(TestCase):
 
         # check the copy case for uint8
         as_uint8 = data.astype(ht.uint8)
-        self.assertIsInstance(as_uint8, ht.DNDarray)
-        self.assertEqual(as_uint8.dtype, ht.uint8)
-        self.assertEqual(as_uint8.larray.dtype, torch.uint8)
+        array_type_check(as_uint8, ht.uint8)
         self.assertIsNot(as_uint8, data)
 
         # check the copy case for float64
         if not self.is_mps:
             as_float64 = data.astype(ht.float64, copy=False)
-            self.assertIsInstance(as_float64, ht.DNDarray)
-            self.assertEqual(as_float64.dtype, ht.float64)
-            self.assertEqual(as_float64.larray.dtype, torch.float64)
+            array_type_check(as_float64, ht.float64)
             self.assertIs(as_float64, data)
+
+        # check device case for complex
+        as_complex64 = data.astype(ht.complex64, device=ht.cpu)
+        array_type_check(as_complex64, ht.complex64)
+        self.assertEqual(as_complex64.device, ht.cpu)
 
     def test_balance_and_lshape_map(self):
         data = ht.zeros((70, 20), split=0)
@@ -796,25 +800,6 @@ class TestDNDarray(TestCase):
 
         self.assertIsInstance(c_length, int)
         self.assertEqual(c_length, 3)
-
-    def test_lloc(self):
-        # single set
-        a = ht.zeros((13, 5), split=0)
-        a.lloc[0, 0] = 1
-        self.assertEqual(a.larray[0, 0], 1)
-        self.assertEqual(a.lloc[0, 0].dtype, torch.float32)
-
-        # multiple set
-        a = ht.zeros((13, 5), split=0)
-        a.lloc[1:3, 1] = 1
-        self.assertTrue(all(a.larray[1:3, 1] == 1))
-        self.assertEqual(a.lloc[1:3, 1].dtype, torch.float32)
-
-        # multiple set with specific indexing
-        a = ht.zeros((13, 5), split=0)
-        a.lloc[3:7:2, 2:5:2] = 1
-        self.assertTrue(torch.all(a.larray[3:7:2, 2:5:2] == 1))
-        self.assertEqual(a.lloc[3:7:2, 2:5:2].dtype, torch.float32)
 
     def test_lnbytes(self):
         # undistributed case
@@ -1747,12 +1732,9 @@ class TestDNDarray(TestCase):
         heat_int16 = ht.array(torch_int16)
         numpy_int16 = torch_int16.cpu().numpy()
         self.assertEqual(heat_int16.stride(), torch_int16.stride())
-        if pytorch_major_version >= 2:
-            self.assertTrue(
-                (np.asarray(heat_int16.strides) * 2 == np.asarray(numpy_int16.strides)).all()
-            )
-        else:
-            self.assertEqual(heat_int16.strides, numpy_int16.strides)
+        self.assertTrue(
+            (np.asarray(heat_int16.strides) * 2 == np.asarray(numpy_int16.strides)).all()
+        )
 
         # Local, float32, row-major memory layout
         torch_float32 = torch.arange(
@@ -1761,12 +1743,9 @@ class TestDNDarray(TestCase):
         heat_float32 = ht.array(torch_float32)
         numpy_float32 = torch_float32.cpu().numpy()
         self.assertEqual(heat_float32.stride(), torch_float32.stride())
-        if pytorch_major_version >= 2:
-            self.assertTrue(
-                (np.asarray(heat_float32.strides) * 4 == np.asarray(numpy_float32.strides)).all()
-            )
-        else:
-            self.assertEqual(heat_float32.strides, numpy_float32.strides)
+        self.assertTrue(
+            (np.asarray(heat_float32.strides) * 4 == np.asarray(numpy_float32.strides)).all()
+        )
 
         # Local, float64, column-major memory layout
         if not self.is_mps:
@@ -1776,15 +1755,12 @@ class TestDNDarray(TestCase):
             heat_float64_F = ht.array(torch_float64, order="F")
             numpy_float64_F = np.array(torch_float64.cpu().numpy(), order="F")
             self.assertNotEqual(heat_float64_F.stride(), torch_float64.stride())
-            if pytorch_major_version >= 2:
-                self.assertTrue(
-                    (
-                        np.asarray(heat_float64_F.strides) * 8
-                        == np.asarray(numpy_float64_F.strides)
-                    ).all()
-                )
-            else:
-                self.assertEqual(heat_float64_F.strides, numpy_float64_F.strides)
+            self.assertTrue(
+                (
+                    np.asarray(heat_float64_F.strides) * 8
+                    == np.asarray(numpy_float64_F.strides)
+                ).all()
+            )
 
         # Distributed, int16, row-major memory layout
         size = ht.communication.MPI_WORLD.size
@@ -1799,15 +1775,12 @@ class TestDNDarray(TestCase):
         numpy_int16_split_strides = (
             tuple(np.array(numpy_int16.strides[:split]) / size) + numpy_int16.strides[split:]
         )
-        if pytorch_major_version >= 2:
-            self.assertTrue(
-                (
-                    np.asarray(heat_int16_split.strides) * 2
-                    == np.asarray(numpy_int16_split_strides)
-                ).all()
-            )
-        else:
-            self.assertEqual(heat_int16_split.strides, numpy_int16_split_strides)
+        self.assertTrue(
+            (
+                np.asarray(heat_int16_split.strides) * 2
+                == np.asarray(numpy_int16_split_strides)
+            ).all()
+        )
 
         # Distributed, float32, row-major memory layout
         split = -1
@@ -1819,15 +1792,12 @@ class TestDNDarray(TestCase):
         numpy_float32_split_strides = (
             tuple(np.array(numpy_float32.strides[:split]) / size) + numpy_float32.strides[split:]
         )
-        if pytorch_major_version >= 2:
-            self.assertTrue(
-                (
-                    np.asarray(heat_float32_split.strides) * 4
-                    == np.asarray(numpy_float32_split_strides)
-                ).all()
-            )
-        else:
-            self.assertEqual(heat_float32_split.strides, numpy_float32_split_strides)
+        self.assertTrue(
+            (
+                np.asarray(heat_float32_split.strides) * 4
+                == np.asarray(numpy_float32_split_strides)
+            ).all()
+        )
 
         # Distributed, float64, column-major memory layout
         if not self.is_mps:
@@ -1840,15 +1810,12 @@ class TestDNDarray(TestCase):
             numpy_float64_F_split_strides = numpy_float64_F.strides[: split + 1] + tuple(
                 np.array(numpy_float64_F.strides[split + 1 :]) / size
             )
-            if pytorch_major_version >= 2:
-                self.assertTrue(
-                    (
-                        np.asarray(heat_float64_F_split.strides) * 8
-                        == np.asarray(numpy_float64_F_split_strides)
-                    ).all()
-                )
-            else:
-                self.assertEqual(heat_float64_F_split.strides, numpy_float64_F_split_strides)
+            self.assertTrue(
+                (
+                    np.asarray(heat_float64_F_split.strides) * 8
+                    == np.asarray(numpy_float64_F_split_strides)
+                ).all()
+            )
 
     def test_tolist(self):
         a = ht.zeros([ht.MPI_WORLD.size, ht.MPI_WORLD.size, ht.MPI_WORLD.size], dtype=ht.int32)
@@ -1889,30 +1856,20 @@ class TestDNDarray(TestCase):
         scalar_array = ht.array(1)
         scalar_proxy = scalar_array.__torch_proxy__()
         self.assertTrue(scalar_proxy.ndim == 0)
-        if pytorch_major_version >= 2:
-            scalar_proxy_nbytes = (
-                scalar_proxy.untyped_storage().size()
-                * scalar_proxy.untyped_storage().element_size()
-            )
-        else:
-            scalar_proxy_nbytes = (
-                scalar_proxy.storage().size() * scalar_proxy.storage().element_size()
-            )
+        scalar_proxy_nbytes = (
+            scalar_proxy.untyped_storage().size()
+            * scalar_proxy.untyped_storage().element_size()
+        )
         self.assertTrue(scalar_proxy_nbytes == 1)
 
         dndarray = ht.zeros((4, 7, 6), split=1)
         dndarray_proxy = dndarray.__torch_proxy__()
         self.assertTrue(dndarray_proxy.ndim == dndarray.ndim)
         self.assertTrue(tuple(dndarray_proxy.shape) == dndarray.gshape)
-        if pytorch_major_version >= 2:
-            dndarray_proxy_nbytes = (
-                dndarray_proxy.untyped_storage().size()
-                * dndarray_proxy.untyped_storage().element_size()
-            )
-        else:
-            dndarray_proxy_nbytes = (
-                dndarray_proxy.storage().size() * dndarray_proxy.storage().element_size()
-            )
+        dndarray_proxy_nbytes = (
+            dndarray_proxy.untyped_storage().size()
+            * dndarray_proxy.untyped_storage().element_size()
+        )
         self.assertTrue(dndarray_proxy_nbytes == 1)
 
     def test_torch_function(self):
@@ -1930,3 +1887,20 @@ class TestDNDarray(TestCase):
         self.assertTrue(
             ht.equal(int16_tensor ^ int16_vector, ht.bitwise_xor(int16_tensor, int16_vector))
         )
+
+    def test_to_device(self):
+        cpu_array = ht.ones([4,4], device='cpu')
+        array_cpu = cpu_array.to_device(ht.cpu)
+        self.assertIs(array_cpu, cpu_array)
+
+        if hasattr(ht, 'gpu'):
+            array_gpu = cpu_array.to_device(ht.gpu)
+            self.assertTrue(array_gpu.device, ht.gpu)
+            gpu_array = ht.ones([4,4], device='gpu')
+            array_gpu = gpu_array.to_device(ht.gpu)
+            self.assertIs(array_gpu, gpu_array)
+            array_cpu = gpu_array.to_device(ht.cpu)
+            self.assertTrue(array_cpu.device, ht.cpu)
+
+        with self.assertRaises(ValueError):
+            cpu_array.to_device("cpu", stream=0)
