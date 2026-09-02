@@ -71,6 +71,7 @@ dependencies = [
     "torch~=2.4,<2.13.1",
     "torchvision~=0.19",
     "scipy~=1.14",
+    "packging>=26.3"
 ]
 
 [project.optional-dependencies]
