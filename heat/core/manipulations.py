@@ -3219,7 +3219,7 @@ def reorder(
 
     recv_buf = recv_buf.view(-1, *inner_shape)[inv_sort_idx]
 
-    reordered_array = factories.array(recv_buf.transpose(0, axis), is_split=a.split)
+    reordered_array = factories.array(recv_buf.transpose(0, axis), is_split=a.split, device=a.device)
 
     if original_split != a.split and resplit_result:
         return resplit(reordered_array, original_split)
