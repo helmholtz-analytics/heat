@@ -1507,10 +1507,6 @@ class TestStatistics(TestCase):
         # the rest of the tests are covered by var
 
     def test_var(self):
-        array_0_len = ht.MPI_WORLD.size * 2
-        array_1_len = ht.MPI_WORLD.size * 2
-        array_2_len = ht.MPI_WORLD.size * 2
-
         # test raises
         x = ht.zeros((2, 3, 4))
         with self.assertRaises(ValueError):
@@ -1534,68 +1530,24 @@ class TestStatistics(TestCase):
         with self.assertRaises(ValueError):
             ht.var(x, axis=torch.Tensor([0, 0]))
 
-        a = ht.arange(1, 5)
-        if self.is_mps:
-            self.assertAlmostEqual(a.var(ddof=1).item(), 1.666666666666666, places=5)
-        else:
-            self.assertEqual(a.var(ddof=1), 1.666666666666666)
+        shapes = [(8,), (8, 4), (2, 5, 10)]
+        for shape in shapes:
+            splits = [None,] + [i for i in range(len(shape))]
+            for split in splits:
+                axes = [None,] + [i for i in range(len(shape))]
+                for axis in axes:
+                    for correction in [0, 1]:
+                        with self.subTest(f'{shape=} {split=} {axis=} {correction=}'):
+                            data = ht.random.random(shape=shape, split=split)
+                            var = ht.var(data, axis=axis, ddof=correction)
+                            expect = np.var(data.numpy(), axis=axis, correction=correction)
 
-        # ones
-        dimensions = []
-        for d in [array_0_len, array_1_len, array_2_len]:
-            dimensions.extend([d])
-            hold = list(range(len(dimensions)))
-            hold.append(None)
-            for split in hold:  # loop over the number of dimensions of the test array
-                z = ht.ones(dimensions, split=split)
-                res = z.var(ddof=0)
-                total_dims_list = list(z.shape)
-                self.assertTrue((res == 0).all())
-                # loop over the different single dimensions for var
-                for it in range(len(z.shape)):
-                    res = z.var(axis=it)
-                    self.assertTrue(ht.allclose(res, 0))
-                    target_dims = [
-                        total_dims_list[q] for q in range(len(total_dims_list)) if q != it
-                    ]
-                    if not target_dims:
-                        target_dims = ()
-                    self.assertEqual(res.gshape, tuple(target_dims))
-                    if z.split is None:
-                        sp = None
-                    else:
-                        sp = z.split if it > z.split else z.split - 1
-                        if it == split:
-                            sp = None
-                    self.assertEqual(res.split, sp)
-                    if split == it:
-                        res = z.var(axis=it)
-                        self.assertTrue(ht.allclose(res, 0))
-                loop_list = [
-                    ",".join(map(str, comb)) for comb in combinations(list(range(len(z.shape))), 2)
-                ]
+                            if axis is None:
+                                assert np.isclose(var.numpy(), expect)
+                            else:
+                                assert np.allclose(var.numpy(), expect)
+                                assert np.allclose(var.shape, expect.shape)
+                            assert var.device == data.device
 
-                for it in loop_list:  # loop over the different combinations of dimensions for var
-                    lp_split = [int(q) for q in it.split(",")]
-                    res = z.var(axis=lp_split)
-                    self.assertTrue((res == 0).all())
-                    target_dims = [
-                        total_dims_list[q] for q in range(len(total_dims_list)) if q not in lp_split
-                    ]
-                    if not target_dims:
-                        target_dims = (1,)
-                    if res.gshape:
-                        self.assertEqual(res.gshape, tuple(target_dims))
-                    if res.split is not None:
-                        if any([split >= x for x in lp_split]):
-                            self.assertEqual(res.split, len(target_dims) - 1)
-                        else:
-                            self.assertEqual(res.split, z.split)
-
-        # values for the iris dataset var measured by libreoffice calc
-        for sp in [None, 0, 1]:
-            iris = ht.load(get_dataset_path('iris.csv'), sep=";", split=sp)
-            self.assertTrue(ht.allclose(ht.var(iris, bessel=True), 3.90318519755147))
-
-        # edge case from #2374
-        self.assertEqual(ht.var(ht.array([0.], split=None), axis=0, ddof=0), 0)
+        with self.subTest(f'Edge case from #2374'):
+            self.assertEqual(ht.var(ht.array([0.], split=None), axis=0, ddof=0), 0)
