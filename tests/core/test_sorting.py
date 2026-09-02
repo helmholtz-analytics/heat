@@ -68,11 +68,13 @@ class TestSorting:
         sort_idx = np.lexsort(keys)
         expected_res = arr[sort_idx].reshape(shape).swapaxes(0, axis)
 
-        res = ht.vectorized_sort(a, axis=axis, stable=stable, descending=descending).numpy()
-        res_idxs = ht.vectorized_sort(a, axis=axis, stable=stable, descending=descending, return_sort_indices_instead=True).numpy()
+        res = ht.vectorized_sort(a, axis=axis, stable=stable, descending=descending)
+        res_idxs = ht.vectorized_sort(a, axis=axis, stable=stable, descending=descending, return_sort_indices_instead=True)
 
-        assert np.isclose(res, expected_res).all()
-        assert np.equal(sort_idx, res_idxs).all()
+        assert np.isclose(res.numpy(), expected_res).all()
+        assert a.device == res.device
+        assert np.equal(sort_idx, res_idxs.numpy()).all()
+        assert a.device == res_idxs.device
 
     @pytest.mark.parametrize("descending", [False, True])
     @pytest.mark.parametrize("stable", [False, True])
