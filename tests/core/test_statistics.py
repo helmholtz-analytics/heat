@@ -1530,7 +1530,8 @@ class TestStatistics(TestCase):
         with self.assertRaises(ValueError):
             ht.var(x, axis=torch.Tensor([0, 0]))
 
-        shapes = [(8,), (8, 4), (2, 5, 10)]
+        size = self.comm.size
+        shapes = [(2*size,), (2*size, 3*size), (2*size, 3*size, 4*size)]
         for shape in shapes:
             splits = [None,] + [i for i in range(len(shape))]
             for split in splits:
