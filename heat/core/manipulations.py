@@ -2904,17 +2904,79 @@ def sort(
         return tensor
 
 
-def sort_complex(a: DNDarray, axis: int = -1):
+def sort_complex(a: DNDarray, axis: int = -1, resplit_result: bool = True):
+    """
+
+    Parameters
+    ----------
+    a : DNDarray
+        _description_
+    axis : int, optional
+        _description_, by default -1
+    resplit_result : bool, optional
+        Whether to resplit the final sorted array back to the original split
+        axis of the input array after rows are distributed. Default is True.
+
+    Returns
+    -------
+    _type_
+        _description_
+    """
     sanitation.sanitize_in(a)
 
     if not isinstance(axis, int):
         raise ValueError(f"'axis' must be integer, not {type(axis)}.")
+    if not isinstance(resplit_result, bool):
+        raise ValueError(f"'resplit_result' must be bool, not {type(resplit_result)}.")
     if a.ndim == 0:
         raise ValueError("dndarray must have at least one dimension.")
     if not (-a.ndim <= axis < a.ndim):
         raise ValueError(f"{axis=} does not exist for array with {a.ndim} dimensions.")
-    if not isinstance(a.dtype, types.complex):
+    if not types.heat_type_is_complexfloating(a.dtype):
         raise ValueError(f"{a.dtype=} is not a complex type.")
+
+    if axis < 0:
+        axis += a.ndim
+
+    if a.ndim == 1:
+        view = torch.view_as_real(a.larray)
+        shape = a.gshape + (2, )
+        temp = DNDarray(view, gshape=shape, dtype=a.dtype, split=a.split, device=a.device, comm=a.comm, balanced=a.balanced)
+        idx = vectorized_sort(temp, axis=0, return_sort_indices_instead=True)
+        return reorder(a, idx.larray)
+
+    if needs_resplit := (a.split == axis):
+        orthogonal_axis = (axis + 1) % a.ndim
+        a = resplit(a, orthogonal_axis)
+
+    larr = a.larray.transpose(axis, 0).clone()
+    original_shape = larr.shape
+
+    larr_2d = larr.reshape(larr.shape[0], -1)
+
+    for i in range(larr_2d.shape[1]):
+        col = torch.view_as_real(larr_2d[:, i])
+
+        temp = factories.array(col, split=None, device=a.device)
+        idx = vectorized_sort(temp, axis=0, return_sort_indices_instead=True).larray
+
+        larr_2d[:, i] = larr_2d[idx, i]
+
+    larr = larr_2d.reshape(original_shape)
+
+    res_dnd = DNDarray(
+        larr.transpose(0, axis), 
+        gshape=a.gshape, 
+        dtype=a.dtype, 
+        split=a.split, 
+        device=a.device, 
+        comm=a.comm, 
+        balanced=a.balanced
+    )
+
+    if needs_resplit:
+        res_dnd = resplit(res_dnd, axis)
+    return res_dnd
 
 
 def vectorized_sort(
