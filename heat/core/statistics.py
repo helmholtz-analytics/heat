@@ -2106,7 +2106,10 @@ def __torch_kurtosis(
 
 
 def var(
-    x: DNDarray, axis: Union[int, Tuple[int], List[int]] = None, ddof: int = 0, **kwargs: object
+    x: DNDarray,
+    axis: Union[int, Tuple[int], List[int]] = None,
+    correction: int = 0,
+    **kwargs: object,
 ) -> DNDarray:
     """
     Calculates and returns the variance of a ``DNDarray``. If an axis is given, the variance will be
@@ -2119,10 +2122,10 @@ def var(
         The datatype of ``x`` must be a float
     axis : None or int or iterable
         Axis which the std is taken in. Default ``None`` calculates std of all data items.
-    ddof : int, optional
-        Delta Degrees of Freedom: the denominator implicitly used in the calculation is N - ddof, where N
-        represents the number of elements. If ``ddof=1``, the Bessel correction will be applied.
-        Setting ``ddof>1`` raises a ``NotImplementedError``.
+    correction : int, optional
+        Delta Degrees of Freedom: the denominator implicitly used in the calculation is N - correction, where N
+        represents the number of elements. If ``correction=1``, the Bessel correction will be applied.
+        Setting ``correction>1`` raises a ``NotImplementedError``.
     **kwargs
         Extra keyword arguments
 
@@ -2138,9 +2141,9 @@ def var(
     - if ``axis<split``, then ``var(x).split=x.split - 1``
 
     The variance is the average of the squared deviations from the mean, i.e., ``var=mean(abs(x - x.mean())**2)``.
-    The mean is normally calculated as ``x.sum()/N``, where ``N = len(x)``. If, however, ``ddof`` is specified, the divisor
-    ``N - ddof`` is used instead. In standard statistical practice, ``ddof=1`` provides an unbiased estimator of the
-    variance of a hypothetical infinite population. ``ddof=0`` provides a maximum likelihood estimate of the variance
+    The mean is normally calculated as ``x.sum()/N``, where ``N = len(x)``. If, however, ``correction`` is specified, the divisor
+    ``N - correction`` is used instead. In standard statistical practice, ``correction=1`` provides an unbiased estimator of the
+    variance of a hypothetical infinite population. ``correction=0`` provides a maximum likelihood estimate of the variance
     for normally distributed variables.
 
     Examples
@@ -2150,7 +2153,7 @@ def var(
     DNDarray([[-2.3589, -0.2073,  0.8806]], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.var(a)
     DNDarray(1.8119, dtype=ht.float32, device=cpu:0, split=None)
-    >>> ht.var(a, ddof=1)
+    >>> ht.var(a, correction=1)
     DNDarray(2.7179, dtype=ht.float32, device=cpu:0, split=None)
     >>> a = ht.random.randn(4, 4)
     >>> a
@@ -2162,22 +2165,24 @@ def var(
     DNDarray([0.2777, 1.0957, 0.8015, 0.3936], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.var(a, 0)
     DNDarray([0.7001, 0.4376, 0.4576, 0.7890], dtype=ht.float32, device=cpu:0, split=None)
-    >>> ht.var(a, 0, ddof=1)
+    >>> ht.var(a, 0, correction=1)
     DNDarray([0.7001, 0.4376, 0.4576, 0.7890], dtype=ht.float32, device=cpu:0, split=None)
-    >>> ht.var(a, 0, ddof=0)
+    >>> ht.var(a, 0, correction=0)
     DNDarray([0.7001, 0.4376, 0.4576, 0.7890], dtype=ht.float32, device=cpu:0, split=None)
     """
-    if not isinstance(ddof, int):
-        raise TypeError(f"ddof must be integer, is {type(ddof)}")
-    elif ddof > 1:
-        raise NotImplementedError("Not implemented for ddof > 1.")
-    elif ddof < 0:
-        raise ValueError(f"Expected ddof=0 or ddof=1, got {ddof}")
+    correction = kwargs.get("ddof", correction)  # compatibility with legacy interface
+
+    if not isinstance(correction, int):
+        raise TypeError(f"correction must be integer, is {type(correction)}")
+    elif correction > 1:
+        raise NotImplementedError("Not implemented for correction > 1.")
+    elif correction < 0:
+        raise ValueError(f"Expected correction=0 or correction=1, got {correction}")
     else:
         if kwargs.get("bessel"):
             correction = kwargs.get("bessel")
         else:
-            correction = bool(ddof)
+            correction = bool(correction)
 
     def reduce_vars_elementwise(output_shape_i: torch.Tensor) -> DNDarray:
         """
@@ -2249,6 +2254,6 @@ def var(
 
 
 DNDarray.var: Callable[[DNDarray, Union[int, Tuple[int], List[int]], int, object], DNDarray] = (
-    lambda self, axis=None, ddof=0, **kwargs: var(self, axis, ddof, **kwargs)
+    lambda self, axis=None, correction=0, **kwargs: var(self, axis, correction, **kwargs)
 )
 DNDarray.var.__doc__ = var.__doc__

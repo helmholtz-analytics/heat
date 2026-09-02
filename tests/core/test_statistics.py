@@ -1539,7 +1539,7 @@ class TestStatistics(TestCase):
                     for correction in [0, 1]:
                         with self.subTest(f'{shape=} {split=} {axis=} {correction=}'):
                             data = ht.random.random(shape=shape, split=split)
-                            var = ht.var(data, axis=axis, ddof=correction)
+                            var = ht.var(data, axis=axis, correction=correction)
                             expect = np.var(data.numpy(), axis=axis, correction=correction)
 
                             if axis is None:
