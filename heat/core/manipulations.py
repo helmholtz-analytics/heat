@@ -3116,7 +3116,7 @@ def vectorized_sort(
     if return_sort_indices_instead:
         return factories.array(indices, split=None, device=a.device)
 
-    return reorder(a, indices, axis=axis, resplit_result=resplit_result)
+    return reorder(a, indices, axis=axis, resplit_result=resplit_result, original_split=original_split)
 
 
 def reorder(
@@ -3124,6 +3124,7 @@ def reorder(
     indices: torch.Tensor,
     axis: int = -1,
     resplit_result: bool = True,
+    original_split: int | None = None
 ) -> DNDarray:
     """
     Redistributes the dndarray along the specified axis using a global indice tensor.
@@ -3139,6 +3140,8 @@ def reorder(
         The axis along which to permute. Default is -1.
     resplit_result : bool, optional
         Whether to resplit the result back to the original split axis of `a`. Default is True.
+    original_split: int, optional
+        Overrides the split dimension gathered from the input `a` dndarray.
 
     Returns
     -------
@@ -3160,7 +3163,9 @@ def reorder(
         local_data = local_data[indices].transpose(axis, 0)
         return factories.array(local_data, split=None)
 
-    original_split = a.split
+    if original_split is None:
+        original_split = a.split
+
     if axis != a.split:
         a = resplit(a, axis)
 
