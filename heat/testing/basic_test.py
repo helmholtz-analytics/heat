@@ -67,7 +67,7 @@ class TestCase(unittest.TestCase):
                 is_mps = True
             else:
                 raise RuntimeError(
-                    f'Device {envar} from environment variable "HEAT_TEST_USE_DEVICE" not found! Neither CUDA, nor MPS is available'
+                    f'Device {envar} from environment variable "HEAT_TEST_USE_DEVICE" not found! Neither CUDA, ROCm, nor MPS is available'
                 )
         else:
             raise RuntimeError(
