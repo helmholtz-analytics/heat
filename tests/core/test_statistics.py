@@ -1532,23 +1532,25 @@ class TestStatistics(TestCase):
 
         size = self.comm.size
         shapes = [(2*size,), (2*size, 3*size), (2*size, 3*size, 4*size)]
+        correction_parameter_aliases = ['ddof', 'bessel']
         for shape in shapes:
             splits = [None,] + [i for i in range(len(shape))]
             for split in splits:
                 axes = [None,] + [i for i in range(len(shape))]
                 for axis in axes:
                     for correction in [0, 1]:
-                        with self.subTest(f'{shape=} {split=} {axis=} {correction=}'):
-                            data = ht.random.random(shape=shape, split=split)
-                            var = ht.var(data, axis=axis, ddof=correction)
-                            expect = np.var(data.numpy(), axis=axis, correction=correction)
+                        data = ht.random.random(shape=shape, split=split)
+                        for correction_alias in correction_parameter_aliases:
+                            with self.subTest(f'{shape=} {split=} {axis=} {correction=}, {correction_alias}'):
+                                var = ht.var(data, axis=axis, **{correction_alias: correction})
+                                expect = np.var(data.numpy(), axis=axis, correction=correction)
 
-                            if axis is None:
-                                assert np.isclose(var.numpy(), expect)
-                            else:
-                                assert np.allclose(var.numpy(), expect)
-                                assert np.allclose(var.shape, expect.shape)
-                            assert var.device == data.device
+                                if axis is None:
+                                    assert np.isclose(var.numpy(), expect)
+                                else:
+                                    assert np.allclose(var.numpy(), expect)
+                                    assert np.allclose(var.shape, expect.shape)
+                                assert var.device == data.device
 
         with self.subTest(f'Edge case from #2374'):
             self.assertEqual(ht.var(ht.array([0.], split=None), axis=0, ddof=0), 0)
