@@ -1532,7 +1532,7 @@ class TestStatistics(TestCase):
 
         size = self.comm.size
         shapes = [(2*size,), (2*size, 3*size), (2*size, 3*size, 4*size)]
-        correction_parameter_aliases = ['ddof', 'bessel']
+        correction_parameter_aliases = ['correction', 'ddof', 'bessel']
         for shape in shapes:
             splits = [None,] + [i for i in range(len(shape))]
             for split in splits:
