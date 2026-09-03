@@ -2171,6 +2171,12 @@ def var(
     DNDarray([0.7001, 0.4376, 0.4576, 0.7890], dtype=ht.float32, device=cpu:0, split=None)
     """
     correction = kwargs.get("ddof", correction)  # compatibility with legacy interface
+    if "ddof" in kwargs.keys():
+        from warnings import warn
+
+        warn(
+            "Parameter `ddof` in `ht.var` is superseded by `correction`. Please use this one instead"
+        )
 
     if not isinstance(correction, int):
         raise TypeError(f"correction must be integer, is {type(correction)}")
@@ -2178,11 +2184,9 @@ def var(
         raise NotImplementedError("Not implemented for correction > 1.")
     elif correction < 0:
         raise ValueError(f"Expected correction=0 or correction=1, got {correction}")
-    else:
-        if kwargs.get("bessel"):
-            correction = kwargs.get("bessel")
-        else:
-            correction = bool(correction)
+
+    correction = kwargs.get("bessel", correction)
+    correction = bool(correction)
 
     def reduce_vars_elementwise(output_shape_i: torch.Tensor) -> DNDarray:
         """
