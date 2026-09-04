@@ -113,7 +113,9 @@ class TestSorting:
     @pytest.mark.parametrize("descending", [False, True])
     @pytest.mark.parametrize("shape, axis, split", list(_generate_shape_axis_split_cases()))
     def test_sort_complex(self, shape, axis, split, descending):
-        a = ht.random.randn(*shape, dtype=ht.complex128, split=split)
+        b = ht.random.randn(*shape, dtype=ht.float64, split=split)
+        c = ht.random.randn(*shape, dtype=ht.float64, split=split)
+        a = b + c * 1j
         arr = a.numpy()
 
         res, res_idx = ht.sort_complex(a, axis=axis, descending=descending, return_sort_indices=True)
