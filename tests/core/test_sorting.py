@@ -125,3 +125,32 @@ class TestSorting:
 
         assert a.device == res.device
         assert res.device == res_idx.device
+
+    @staticmethod
+    def _generate_reorder_params():
+        shapes = [(10, ), (20, 30), (10, 2, 40, 3)]
+
+        comm = ht.get_comm()
+
+        for shape in shapes:
+            for axis, n in enumerate(shape):
+                for split in range(len(shape)):
+                    permutation = torch.randperm(n)
+
+                    comm.Bcast(permutation)
+
+                    yield shape, axis, permutation, split
+
+    @pytest.mark.parametrize("resplit_result", [False, True])
+    @pytest.mark.parametrize("shape, axis, permutation, split", list(_generate_reorder_params()))
+    def test_reorder(self, shape, axis, permutation, split, resplit_result):
+        a = ht.random.randn(*shape, split=split)
+        arr = torch.from_numpy(a.numpy())
+
+        res = ht.reorder(a, indices=permutation, axis=axis, resplit_result=resplit_result)
+        exp_res = arr.transpose(0, axis)[permutation].transpose(0, axis).numpy()
+
+        assert np.isclose(res.numpy(), exp_res).all()
+        assert not resplit_result or a.split == res.split
+
+        assert a.device == res.device
