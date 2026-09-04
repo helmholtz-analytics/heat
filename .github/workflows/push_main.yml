@@ -9,9 +9,9 @@ on:
       - 'tests/**'
       - 'pyproject.toml'
 
-concurrency:
-  group: main-ci
-  cancel-in-progress: true
+# concurrency:
+#   group: main-ci
+#   cancel-in-progress: true
 
 jobs:
   codebase-test-and-bench-main:
@@ -32,12 +32,12 @@ jobs:
           branch: "main"
           sha: ${{ github.sha}}
           trigger_token: ${{ secrets.CX_TRIGGER_TOKEN }}
-      - uses: ./.github/actions/trigger_codebase_benchmarks
-        with:
-          branch: "main"
-          sha: ${{ github.sha}}
-          author: 'heat_team'
-          trigger_token: ${{ secrets.CX_TRIGGER_TOKEN }}
+      # - uses: ./.github/actions/trigger_codebase_benchmarks
+      #   with:
+      #     branch: "main"
+      #     sha: ${{ github.sha}}
+      #     author: 'heat_team'
+      #     trigger_token: ${{ secrets.CX_TRIGGER_TOKEN }}
   gh-matrix-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 120
