@@ -106,7 +106,7 @@ class TestSorting:
             # Fixed the empty list bug here
             axiss = list(range(ndims)) + list(range(-ndims, 0))
             splits = list(range(ndims))
-            
+
             for axis, split in itertools.product(axiss, splits):
                 yield shape, axis, split
 

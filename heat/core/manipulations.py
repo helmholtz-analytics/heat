@@ -2917,7 +2917,7 @@ def sort_complex(
     axis: int = -1,
     descending: bool = False,
     resplit_result: bool = True,
-    return_sort_indices: bool = False
+    return_sort_indices: bool = False,
 ) -> DNDarray | tuple[DNDarray, DNDarray]:
     """
     Stable complex sorting for DNDarrays.
@@ -2927,7 +2927,7 @@ def sort_complex(
     a : DNDarray
         THe array to be sorted.
     axis : int, optional
-        The axis along which to sort. If the split dimension matches the axis, 
+        The axis along which to sort. If the split dimension matches the axis,
         the array is resplit to another axis.
     descending : bool, optional
         Whether to sort in descending order. Default is False.
@@ -2935,7 +2935,7 @@ def sort_complex(
         Whether to resplit the final sorted array back to the original split
         axis of the input array after sorting. Default is True.
     return_sort_indices : bool, optional
-        If True, and the array is one dimensional returns also the global sort indices. 
+        If True, and the array is one dimensional returns also the global sort indices.
         If the array has more than one dimension, gives the local indices on the sorting axis.
         Default is False.
 
@@ -2982,7 +2982,7 @@ def sort_complex(
             axis=0,
             descending=descending,
             resplit_result=resplit_result,
-            return_sort_indices_instead=True
+            return_sort_indices_instead=True,
         )
 
         res = reorder(a, idx.larray, resplit_result=resplit_result)
@@ -3011,7 +3011,7 @@ def sort_complex(
             axis=0,
             descending=descending,
             resplit_result=resplit_result,
-            return_sort_indices_instead=True
+            return_sort_indices_instead=True,
         ).larray
 
         if return_sort_indices:
@@ -3022,10 +3022,7 @@ def sort_complex(
         larr_idx = larr_2d_idxs.reshape(original_shape)
 
         res_dnd_idx = factories.array(
-            larr_idx.transpose(0, axis), 
-            is_split=a.split, 
-            device=a.device, 
-            comm=a.comm
+            larr_idx.transpose(0, axis), is_split=a.split, device=a.device, comm=a.comm
         )
 
     larr = larr_2d.reshape(original_shape)
