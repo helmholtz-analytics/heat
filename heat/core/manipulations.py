@@ -2621,7 +2621,9 @@ def sort(
     The sorting is not stable which means that equal elements in the result may have a different ordering than in the
     original array.
     Sorting with `axis==a.split` needs a lot of communication between the processes of MPI.
-    Returns a tuple `(values, indices)` with the sorted local results and the indices of the elements in the original data
+    Returns a tuple `(values, indices)` with the sorted local results and the indices of the elements in the original data.
+
+    Sorting complex arrays, does not support `out` parameter.
 
     Parameters
     ----------
@@ -2681,6 +2683,12 @@ def sort(
         axis = 0
 
     descending = descending or False
+
+    if types.heat_type_is_complexfloating(a.dtype):
+        if out is not None:
+            warnings.warn("[ht.sort] `out` parameter gets ignored for complex arrays.")
+
+        return sort_complex(a, axis=axis, descending=descending, return_sort_indices=True)
 
     if not a.is_distributed() or axis != a.split:
         # sorting is not affected by split -> we can just sort along the axis
@@ -2904,30 +2912,48 @@ def sort(
         return tensor
 
 
-def sort_complex(a: DNDarray, axis: int = -1, resplit_result: bool = True):
+def sort_complex(
+    a: DNDarray,
+    axis: int = -1,
+    descending: bool = False,
+    resplit_result: bool = True,
+    return_sort_indices: bool = False
+) -> DNDarray | tuple[DNDarray, DNDarray]:
     """
+    Stable complex sorting for DNDarrays.
 
     Parameters
     ----------
     a : DNDarray
-        _description_
+        THe array to be sorted.
     axis : int, optional
-        _description_, by default -1
+        The axis along which to sort. If the split dimension matches the axis, 
+        the array is resplit to another axis.
+    descending : bool, optional
+        Whether to sort in descending order. Default is False.
     resplit_result : bool, optional
         Whether to resplit the final sorted array back to the original split
-        axis of the input array after rows are distributed. Default is True.
+        axis of the input array after sorting. Default is True.
+    return_sort_indices : bool, optional
+        If True, and the array is one dimensional returns also the global sort indices. 
+        If the array has more than one dimension, gives the local indices on the sorting axis.
+        Default is False.
 
     Returns
     -------
-    _type_
-        _description_
+    DNDarray
+        The sorted DNDarray or the sorted DNDarray and sort indices.
     """
     sanitation.sanitize_in(a)
 
     if not isinstance(axis, int):
         raise ValueError(f"'axis' must be integer, not {type(axis)}.")
+    if not isinstance(descending, bool):
+        raise ValueError(f"'descending' must be bool, not {type(descending)}.")
     if not isinstance(resplit_result, bool):
         raise ValueError(f"'resplit_result' must be bool, not {type(resplit_result)}.")
+    if not isinstance(return_sort_indices, bool):
+        raise ValueError(f"'return_indices_instead' must be bool, not {type(return_sort_indices)}.")
     if a.ndim == 0:
         raise ValueError("dndarray must have at least one dimension.")
     if not (-a.ndim <= axis < a.ndim):
@@ -2950,8 +2976,19 @@ def sort_complex(a: DNDarray, axis: int = -1, resplit_result: bool = True):
             comm=a.comm,
             balanced=a.balanced,
         )
-        idx = vectorized_sort(temp, axis=0, return_sort_indices_instead=True)
-        return reorder(a, idx.larray)
+
+        idx = vectorized_sort(
+            temp,
+            axis=0,
+            descending=descending,
+            resplit_result=resplit_result,
+            return_sort_indices_instead=True
+        )
+
+        res = reorder(a, idx.larray, resplit_result=resplit_result)
+        if return_sort_indices:
+            return res, resplit(idx, res.split)
+        return res
 
     if needs_resplit := (a.split == axis):
         orthogonal_axis = (axis + 1) % a.ndim
@@ -2962,13 +2999,34 @@ def sort_complex(a: DNDarray, axis: int = -1, resplit_result: bool = True):
 
     larr_2d = larr.reshape(larr.shape[0], -1)
 
+    if return_sort_indices:
+        larr_2d_idxs = torch.empty(larr_2d.shape, dtype=torch.int64, device=a.device.torch_device)
+
     for i in range(larr_2d.shape[1]):
         col = torch.view_as_real(larr_2d[:, i])
 
         temp = factories.array(col, split=None, device=a.device)
-        idx = vectorized_sort(temp, axis=0, return_sort_indices_instead=True).larray
+        idx = vectorized_sort(
+            temp,
+            axis=0,
+            descending=descending,
+            resplit_result=resplit_result,
+            return_sort_indices_instead=True
+        ).larray
 
+        if return_sort_indices:
+            larr_2d_idxs[:, i] = idx
         larr_2d[:, i] = larr_2d[idx, i]
+
+    if return_sort_indices:
+        larr_idx = larr_2d_idxs.reshape(original_shape)
+
+        res_dnd_idx = factories.array(
+            larr_idx.transpose(0, axis), 
+            is_split=a.split, 
+            device=a.device, 
+            comm=a.comm
+        )
 
     larr = larr_2d.reshape(original_shape)
 
@@ -2984,6 +3042,12 @@ def sort_complex(a: DNDarray, axis: int = -1, resplit_result: bool = True):
 
     if needs_resplit:
         res_dnd = resplit(res_dnd, axis)
+
+        if return_sort_indices:
+            res_dnd_idx = resplit(res_dnd_idx, axis)
+
+    if return_sort_indices:
+        return res_dnd, res_dnd_idx
     return res_dnd
 
 
@@ -2996,7 +3060,7 @@ def vectorized_sort(
     return_sort_indices_instead: bool = False,
 ) -> DNDarray:
     """
-    Performs a lexicographical sort along the specified axis.
+    Performs a stable lexicographical sort along the specified axis.
 
     The array is transposed into an MxN matrix, where M is the
     number of elements along the target `axis`, and N is the product of all
@@ -3012,8 +3076,6 @@ def vectorized_sort(
         The axis along which to sort. If the split dimension of the array does
         not match this axis, the array is resplit.
         Default is -1 (last axis).
-    stable : bool, optional
-        Whether the sorting algorithm should be stable. Default is True.
     descending : bool, optional
         Whether to sort in descending order. Default is False.
     resplit_result : bool, optional
@@ -3031,8 +3093,6 @@ def vectorized_sort(
 
     if not isinstance(axis, int):
         raise ValueError(f"'axis' must be integer, not {type(axis)}.")
-    if not isinstance(stable, bool):
-        raise ValueError(f"'stable' must be bool, not {type(stable)}.")
     if not isinstance(descending, bool):
         raise ValueError(f"'descending' must be bool, not {type(descending)}.")
     if not isinstance(resplit_result, bool):
@@ -3049,7 +3109,7 @@ def vectorized_sort(
         raise ValueError(f"{axis=} does not exist for array with {a.ndim} dimensions.")
 
     def _permute_indices(data, idx):
-        sort_idx = torch.argsort(data[idx], stable=stable, descending=descending)
+        sort_idx = torch.argsort(data[idx], stable=True, descending=descending)
         return idx[sort_idx]
 
     # early out for non-distributed input
@@ -3064,10 +3124,8 @@ def vectorized_sort(
 
         if return_sort_indices_instead:
             return factories.array(indices, split=None, device=a.device)
-            return factories.array(indices, split=None, device=a.device)
 
         local_data = local_data.reshape(shape)[indices].transpose(axis, 0)
-        return factories.array(local_data, split=None, device=a.device)
         return factories.array(local_data, split=None, device=a.device)
 
     # distributed vectorized sort
@@ -3093,7 +3151,6 @@ def vectorized_sort(
     block_length = np.prod(inner_shape)
 
     send_buf = torch.tensor([local_count], dtype=torch.int64, device=local_data.device)
-    send_buf = torch.tensor([local_count], dtype=torch.int64, device=local_data.device)
     local_counts = torch.empty(size, dtype=torch.int64)
     comm.Gather(send_buf, local_counts, root=0)
 
@@ -3101,7 +3158,6 @@ def vectorized_sort(
         send_counts = local_counts.numpy()
         send_displ = np.insert(np.cumsum(send_counts)[:-1], 0, 0)
 
-        buffer = torch.empty((total_rows,), dtype=local_data.dtype, device=local_data.device)
         buffer = torch.empty((total_rows,), dtype=local_data.dtype, device=local_data.device)
         recv_args = (buffer, send_counts, send_displ)
     else:
@@ -3116,7 +3172,6 @@ def vectorized_sort(
         comm.Gatherv(local_col, recv_args, root=0)
         return buffer
 
-    indices = torch.arange(0, total_rows, dtype=torch.int64, device=local_data.device)
     indices = torch.arange(0, total_rows, dtype=torch.int64, device=local_data.device)
 
     for i in range(block_length - 1, -1, -1):
