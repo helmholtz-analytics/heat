@@ -17,48 +17,7 @@ import matplotlib.pyplot as plt
 import heat as ht
 from heat.ndimage.affine import affine_transform
 import scipy.ndimage as ndimg
-
-
-# ============================================================
-# Helpers
-# ============================================================
-def create_checker_volume(d: int, w: int, h: int, checker_size: int) -> ht.DNDarray:
-    """creates a DND array for testing
-
-    :param w: width
-    :type w: int
-    :param h: height
-    :type h: int
-    :param checker_size: size in pixel that one checker should have
-    :type checker_size: int
-    :return: heat array
-    :rtype: heat.DNDarray
-    """
-    print("start creating test volume")
-    array = ht.full([d, h, w, 3], 255, dtype=ht.float32)
-
-    for k in range(0, d, checker_size):
-        for i in range(0, h, checker_size):
-            for j in range(0, w, checker_size):
-                y = i // checker_size
-                x = j // checker_size
-                z = k // checker_size
-                if (y & 1) ^ (x & 1) ^ (z & 1):
-                    color_difference = 50 / checker_size
-                    color = (0, 0, (color_difference * (20 + i + j + k)) % 256)
-                    array[
-                        k : checker_size + k, i : checker_size + i, j : checker_size + j
-                    ] = color
-    print("finish creating test volume")
-    return array
-
-
-def centered_linear(A, dims):
-    """3×4 affine around volume center (z, y, x)."""
-    c = dims / 2
-    b = c - A @ c
-    return ht.hstack([A, b[:, None]]).astype(np.float32)
-
+from affine_helpers import create_checker_volume, centered_linear
 
 # def show(title, volume, slice_point):
 #     volume_slice = volume[slice_point, :, :]
@@ -85,7 +44,6 @@ vol = create_checker_volume(32, 255, 128, 8)
 print("finished generating image")
 
 dims = ht.array(vol.shape)
-dims[0] // 2
 
 fig, axs = plt.subplots(6, 2, figsize=(10, 16))
 axs = axs.ravel()

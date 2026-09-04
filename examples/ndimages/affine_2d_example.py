@@ -9,10 +9,12 @@ from PIL import Image
 import heat as ht
 from heat.ndimage.affine import affine_transform
 
+from affine_helpers import centered_linear
+
 # ------------------------------------------------------------
 # PARAMETERS
 # ------------------------------------------------------------
-SIZE = (9, 256)
+SIZE = (256, 256)
 SCALE = (1.5, 0.75)
 ROTATE = np.deg2rad(30)
 TRANSLATE = (100, 50)
@@ -63,45 +65,37 @@ print(f"shape of image as numpy array {img_np.shape}")  # HWC
 img_heat = ht.array(img_np)  # HWC
 print(f"shape of image converted from numpy to heat array {img_heat.shape}")
 
-H, W = img_np.shape[:2]
-cx, cy = H / 2, W / 2
-img_center = np.array([cx, cy, 0], dtype=np.float32)
+dims = img_np.shape
+
 # img_center = np.array([0, 0, 0], dtype=np.float32)
 
 fig, axs = plt.subplots(5, 2, figsize=(10, 16))
 axs = axs.ravel()
 
 
-# ------------------------------------------------------------
-# Helpers
-# ------------------------------------------------------------
-def centered_linear(A_xy):
-    """
-    Build a 3×4 affine matrix for a linear transform A applied about the image center.
-    """
-    b = img_center - (A_xy @ img_center)
-    # b = np.array([0, 0, 0], dtype=np.float32)
-    return np.hstack([A_xy, b[:, None]]).astype(np.float32)
-
-
-def apply(M: np.ndarray, title, row_idx, mode="constant", constant_value=0.0):
-
-    heat_M = ht.array(M)
+def apply(M: ht.DNDarray, title, row_idx, mode="constant", constant_value=0.0):
 
     idx = row_idx * 2
-
+    heat_matrix = ht.array(M)
+    offset = ht.array((30, 0, 0))
     result = affine_transform(
         img_heat,
-        heat_M,
-        offset=100,
+        heat_matrix,
         order=1,
         mode=mode,
         cval=constant_value,
         prefilter=True,
+        offset=offset,
     )
 
     compare = ndimg.affine_transform(
-        img_np, M, offset=100, order=1, mode=mode, cval=constant_value, prefilter=True
+        img_np,
+        heat_matrix.numpy(),
+        order=1,
+        mode=mode,
+        cval=constant_value,
+        prefilter=True,
+        offset=offset.numpy(),
     )
     print(f"resulting shape: {result.shape}")
     print(f"compare shape: {compare.shape}")
@@ -111,8 +105,8 @@ def apply(M: np.ndarray, title, row_idx, mode="constant", constant_value=0.0):
     # axs[idx].axis("off")
     axs[idx + 1].set_title("")
     # axs[idx + 1].axis("off")
-    axs[idx].scatter(img_center[1], img_center[0])
-    axs[idx + 1].scatter(img_center[1], img_center[0])
+    axs[idx].scatter(dims[1] / 2, dims[0] / 2)
+    axs[idx + 1].scatter(dims[1] / 2, dims[0] / 2)
 
 
 # ------------------------------------------------------------
@@ -139,19 +133,20 @@ A_rot = np.array(
     ],
     dtype=np.float32,
 )
-apply(centered_linear(A_rot), f"Rotate {ROTATE}", 2)
+apply(A_rot, f"Rotate {ROTATE} with seperate offset vector", 2)
 
 # ------------------------------------------------------------
 # Scaling
 # ------------------------------------------------------------
 A_scale = np.array([[SCALE[0], 0, 0], [0, SCALE[1], 0], [0, 0, 1]], dtype=np.float32)
-apply(centered_linear(A_scale), f"Scale {SCALE}", 3)
+apply(centered_linear(A_scale, dims), f"Scale {SCALE}", 3)
 
 # ------------------------------------------------------------
 # Combo: centered (scale→rotate) + then translate (tx,ty)
 # ------------------------------------------------------------
 A_combo = A_rot @ A_scale
 t = np.array([100, -50, 0], dtype=np.float32)  # (tx, ty)
+img_center = np.array(dims)
 b_combo = img_center - A_combo @ img_center + t
 M_combo = np.hstack([A_combo, b_combo[:, None]]).astype(np.float32)
 apply(M_combo, "Combo", 4)
