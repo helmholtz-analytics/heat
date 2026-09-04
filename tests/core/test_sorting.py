@@ -113,14 +113,23 @@ class TestSorting:
     @pytest.mark.parametrize("descending", [False, True])
     @pytest.mark.parametrize("shape, axis, split", list(_generate_shape_axis_split_cases()))
     def test_sort_complex(self, shape, axis, split, descending):
+        if NUMPY_HAS_NO_DESCENDING_KWARG and descending:
+            pytest.skip("Numpy has no descending argument.")
+
         b = ht.random.randn(*shape, dtype=ht.float64, split=split)
         c = ht.random.randn(*shape, dtype=ht.float64, split=split)
         a = b + c * 1j
+
         arr = a.numpy()
 
-        res, res_idx = ht.sort_complex(a, axis=axis, descending=descending, return_sort_indices=True)
-        exp_res = np.sort(arr, axis=axis, stable=True, descending=descending)
-        exp_res_idx = np.argsort(arr, axis=axis, stable=True, descending=descending)
+        if not NUMPY_HAS_NO_DESCENDING_KWARG:
+            kwargs = {"descending": descending}
+        else:
+            kwargs = dict()
+
+        res, res_idx = ht.sort(a, axis=axis, return_sort_indices=True, **kwargs)
+        exp_res = np.sort(arr, axis=axis, stable=True, **kwargs)
+        exp_res_idx = np.argsort(arr, axis=axis, stable=True, **kwargs)
 
         assert (res.numpy() == exp_res).all()
         assert (res_idx.numpy() == exp_res_idx).all()
