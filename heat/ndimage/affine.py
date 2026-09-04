@@ -165,7 +165,7 @@ def convert_matrix_space(M: torch.Tensor, sizes):
 def affine_transform(
     input: DNDarray,
     matrix: DNDarray,
-    offset=0.0,
+    offset=None,
     output_shape=None,
     output=None,
     order=2,
@@ -252,10 +252,7 @@ def affine_transform(
     if is_bulk:
         # determening the split axis
         # if axis is not the bulk axis -> abort
-        if (matrix.split not in (0, None)) or (
-            input.split not in (0, None)
-            or (offset.split is not None and offset.split not in (0, None))
-        ):
+        if (matrix.split not in (0, None)) or (input.split not in (0, None)):
             raise RuntimeError("the split axis is not the bulk axis, this is not supported")
     else:
         if (matrix.split is not None) or (input.split is not None):

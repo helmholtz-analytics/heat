@@ -33,7 +33,7 @@ def centered_linear(A: ht.DNDarray, dims: tuple) -> ht.DNDarray:
     c = ht.expand_dims(c, c.ndim)  # necessary becasue [...,None] not working as inteded
     c.resplit_(matrix.split)
     b = c - matrix @ c
-    return ht.concatenate([matrix, b], axis=(A.ndim - 1)).astype(np.float32)
+    return ht.concatenate([matrix, b], axis=(A.ndim - 1)).astype(ht.float32)
 
 
 def create_checker_volume(d: int, w: int, h: int, checker_size: int) -> ht.DNDarray:
