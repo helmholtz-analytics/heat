@@ -3051,7 +3051,6 @@ def sort_complex(
 def vectorized_sort(
     a: DNDarray,
     axis: int = -1,
-    stable: bool = True,
     descending: bool = False,
     resplit_result: bool = True,
     return_sort_indices_instead: bool = False,
