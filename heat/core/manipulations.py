@@ -2623,7 +2623,7 @@ def sort(
     Sorting with `axis==a.split` needs a lot of communication between the processes of MPI.
     Returns a tuple `(values, indices)` with the sorted local results and the indices of the elements in the original data.
 
-    Sorting complex arrays, does not support `out` parameter.
+    Sorting complex arrays is stable and does not support `out` parameter.
 
     Parameters
     ----------
