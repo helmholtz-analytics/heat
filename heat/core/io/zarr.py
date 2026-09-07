@@ -48,7 +48,7 @@ if supports_zarr():
     def load_zarr(
         path: str,
         variable: str = None,
-        split: int = 0,
+        split: Optional[int] = None,
         device: Optional[str] = None,
         comm: Optional[Communication] = None,
         slices: Union[None, slice, Iterable[Union[slice, None]]] = None,
@@ -64,8 +64,10 @@ if supports_zarr():
         variable : str, optional
             If the zarr store is a group, the variable (or path to variable) to load from the group.
             Can contain a wildcard pattern to load and concatenate arrays stored in slices in different directories.
-        split : int
-            Along which axis the loaded arrays should be concatenated.
+        split : int, optional
+            Along which axis the resulting array should be split. Defaults to ``None``,
+            meaning every process holds the whole array. Loading with a wildcard
+            ``variable`` concatenates across files and therefore requires an axis.
         device : str, optional
             The device id on which to place the data, defaults to globally set default device.
         comm : Communication, optional
@@ -103,6 +105,11 @@ if supports_zarr():
             # e.g. data were chunked at write-out and stored in multiple directories
             if slices is not None:
                 raise NotImplementedError("Slicing is not supported when loading with a wildcard.")
+            if split is None:
+                raise ValueError(
+                    "loading with a wildcard concatenates across files and needs an axis "
+                    "to concatenate along; pass split=<axis> explicitly"
+                )
 
             base_paths = sorted(glob.glob(store_path))
 
