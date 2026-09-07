@@ -13,6 +13,9 @@ Before diving into the tutorials, you need to set up your Python environment and
 **HPC Setup (SLURM / JSC):**
 * If you are running on Jupyter-JSC at the Jülich Supercomputing Centre, start with [`setup_jsc.ipynb`](https://github.com/helmholtz-analytics/heat/blob/main/doc/source/tutorials/notebooks/setup/setup_jsc.ipynb).
 
+**Jupyter4NFDI:**
+If you are on the Jupyter4NFDI Jupyter Hub, everything is already installed, but you need to start the IPython cluster just like you would locally. See [`setup_local.ipynb`](https://github.com/helmholtz-analytics/heat/blob/main/doc/source/tutorials/notebooks/setup/setup_local.ipynb) for details.
+
 ---
 
 ## Training materials

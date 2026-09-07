@@ -22,7 +22,6 @@ documentation root, use os.path.abspath to make it absolute, like shown here.
 import os
 import sys
 
-# sys.path.insert(0, os.path.abspath('.'))
 sys.path.insert(0, os.path.abspath("../../heat"))
 
 
@@ -47,6 +46,8 @@ extensions = [
     "nbsphinx",
     "myst_parser",
     "sphinxcontrib.mermaid",
+    "sphinx_design",
+    "pydata_sphinx_theme",
 ]
 
 # Document Python Code
@@ -116,8 +117,8 @@ master_doc = "index"
 from datetime import datetime
 
 project = "Heat"
-copyright = f"{datetime.now().year}, Helmholtz Analytics Framework Consortium"
-author = "Helmholtz Analytics Framework Consortium"
+copyright = f"{datetime.now().year}, The Heat developers"
+author = "The Heat developers"
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -192,36 +193,58 @@ todo_include_todos = False
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = "sphinx_rtd_theme"
 
-# Theme options are theme-specific and customize the look and feel of a theme
-# further.  For a list of options available for each theme, see the
-# documentation.
-#
-html_theme_options = {"logo_only": True, "style_nav_header_background": "white"}
+html_theme = "pydata_sphinx_theme"
 
-# Add any paths that contain custom themes here, relative to this directory.
-# html_theme_path = []
+html_theme_options = {
+    "github_url": "https://github.com/helmholtz-analytics/heat",
+    "show_nav_level": 2,
+    "navbar_align": "left",
+    "logo": {
+        "image_light": "_static/images/logo_emblem.svg",
+        "image_dark": "_static/images/logo_emblem.svg",
+    },
 
-# The name for this set of Sphinx documents.
-# "<project> v<release> documentation" by default.
-#
-# html_title = 'Heat v0.0.1'
+    "navbar_end": ["navbar-icon-links"],
 
-# A shorter title for the navigation bar.  Default is the same as html_title.
-#
-# html_short_title = None
+    "icon_links": [
+        {
+            "name": "GitHub Discussions",
+            "url": "https://github.com/helmholtz-analytics/heat/discussions",
+            "icon": "fa-solid fa-comments", # Generic forum icon
+            "type": "fontawesome",
+        },
+        {
+            "name": "Matrix Space",
+            "url": "https://matrix.to/#/#heat:helmholtz.cloud",
+            "icon": "_static/images/matrix-icon.svg",
+            "type": "local",
+        },
+        {
+            "name": "LinkedIn",
+            "url": "https://www.linkedin.com/company/heat-framework",
+            "icon": "fa-brands fa-linkedin", # Native LinkedIn logo
+            "type": "fontawesome",
+        },
+    ],
+    "footer_start": ["copyright", "custom-footer-links"],
+    "footer_end": ["sphinx-version", "theme-version"],
+}
+
+html_context = {
+    "default_mode": "light"
+}
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
 #
-html_logo = "_static/images/logo_emblem.png"
+html_logo = "_static/images/logo_emblem.svg"
 
 # The name of an image file (relative to this directory) to use as a favicon of
 # the docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32
 # pixels large.
 #
-# html_favicon = None
+html_favicon = "_static/images/favicon.ico"
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
@@ -399,22 +422,6 @@ texinfo_documents = [
         "Miscellaneous",
     )
 ]
-
-# Documents to append as an appendix to all manuals.
-#
-# texinfo_appendices = []
-
-# If false, no module index is generated.
-#
-# texinfo_domain_indices = True
-
-# How to display URL addresses: 'footnote', 'no', or 'inline'.
-#
-# texinfo_show_urls = 'footnote'
-
-# If true, do not generate a @detailmenu in the "Top" node's menu.
-#
-# texinfo_no_detailmenu = False
 
 # NBSPHINX
 nbsphinx_execute = "never"

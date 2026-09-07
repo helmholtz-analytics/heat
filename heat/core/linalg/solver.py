@@ -485,7 +485,7 @@ def solve_triangular(A: DNDarray, b: DNDarray) -> DNDarray:
     dev = A.device
     tdev = dev.torch_device
 
-    nprocs = comm.Get_size()
+    nprocs = comm.size
 
     if A.split is None:  # A not split
         if b.split is None:

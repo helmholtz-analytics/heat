@@ -196,10 +196,6 @@ def __sparse_matrix(
     ValueError
         If the split or is_split axis is not supported for the type.
     """
-    # version check
-    if int(torch.__version__.split(".")[0]) <= 1 and int(torch.__version__.split(".")[1]) < 10:
-        raise RuntimeError(f"ht.sparse requires torch >= 1.10. Found version {torch.__version__}.")
-
     # sanitize the data type
     if dtype is not None:
         dtype = types.canonical_heat_type(dtype)
