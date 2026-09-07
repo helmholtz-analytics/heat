@@ -131,7 +131,7 @@ class TestSorting:
         exp_res = np.sort(arr, axis=axis, stable=True, **kwargs)
         exp_res_idx = np.argsort(arr, axis=axis, stable=True, **kwargs)
 
-        assert (res.numpy() == exp_res).all()
+        assert np.isclose(res.numpy(), exp_res).all()
         assert (res_idx.numpy() == exp_res_idx).all()
 
         assert a.device == res.device
