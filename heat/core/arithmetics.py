@@ -32,6 +32,7 @@ __all__ = [
     "add",
     "bitwise_and",
     "bitwise_not",
+    "bitwise_invert",
     "bitwise_or",
     "bitwise_xor",
     "copysign",
@@ -1791,7 +1792,7 @@ DNDarray.__invert__ = lambda self: invert(self)
 DNDarray.__invert__.__doc__ = invert.__doc__
 
 # alias for invert
-bitwise_not = invert
+bitwise_not = bitwise_invert = invert
 """Alias for :py:func:`invert`"""
 
 
