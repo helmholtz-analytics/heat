@@ -10,7 +10,12 @@ import os
 import warnings
 import re
 import dataclasses
+import functools
+import importlib
+import importlib.util
 from enum import Enum
+from types import ModuleType
+from typing import Optional, Tuple
 
 
 class MPILibrary(Enum):
@@ -117,3 +122,132 @@ if TORCH_CUDA_IS_AVAILABLE:
         )
     else:
         GPU_AWARE_MPI = True
+
+
+# --------------------------------------------------------------------------------------
+# Optional dependencies
+# --------------------------------------------------------------------------------------
+
+#: Third-party packages Heat can use if present, mapped to the name of the ``pyproject``
+#: extra that installs them, i.e. ``pip install heat[<extra>]``.
+OPTIONAL_DEPENDENCIES = {
+    "h5py": "hdf5",
+    "netCDF4": "netcdf",
+    "zarr": "zarr",
+    "pandas": "pandas",
+    "mlarray": "mlarray",
+}
+
+
+@functools.lru_cache(maxsize=None)
+def is_installed(name: str) -> bool:
+    """
+    Returns ``True`` if the module ``name`` appears to be installed, ``False`` otherwise.
+
+    This is a cheap presence check based on :func:`importlib.util.find_spec`; it locates
+    the module without importing it, so it does not pay the cost of pulling in a heavy
+    library. A module can be present but fail to import (a broken build, an ABI mismatch
+    against a system library); use :func:`has_dependency` when that distinction matters.
+
+    Parameters
+    ----------
+    name : str
+        Import name of the module, e.g. ``"h5py"``.
+    """
+    try:
+        return importlib.util.find_spec(name) is not None
+    except Exception:  # noqa: BLE001
+        # find_spec imports parent packages and may raise for a broken installation
+        return False
+
+
+@functools.lru_cache(maxsize=None)
+def _import_optional(name: str) -> Tuple[Optional[ModuleType], Optional[str]]:
+    """
+    Imports the optional module ``name``, returning ``(module, error)``.
+
+    Exactly one element is ever non-``None``. Any exception is captured rather than
+    propagated, so that a broken installation of an optional dependency degrades that one
+    file format instead of making ``import heat`` fail outright.
+
+    Parameters
+    ----------
+    name : str
+        Import name of the module, e.g. ``"h5py"``.
+    """
+    if not is_installed(name):
+        return None, f"no module named {name!r}"
+    try:
+        return importlib.import_module(name), None
+    except Exception as error:  # noqa: BLE001
+        return None, f"{type(error).__name__}: {error}"
+
+
+def optional_import(name: str) -> Optional[ModuleType]:
+    """
+    Imports and returns the optional module ``name``, or ``None`` if it is unavailable.
+
+    Parameters
+    ----------
+    name : str
+        Import name of the module, e.g. ``"h5py"``.
+    """
+    return _import_optional(name)[0]
+
+
+def has_dependency(name: str) -> bool:
+    """
+    Returns ``True`` if the optional module ``name`` is installed and imports cleanly.
+
+    Parameters
+    ----------
+    name : str
+        Import name of the module, e.g. ``"h5py"``.
+    """
+    return optional_import(name) is not None
+
+
+def require_dependency(name: str) -> ModuleType:
+    """
+    Imports and returns the optional module ``name``, raising if it is unavailable.
+
+    Parameters
+    ----------
+    name : str
+        Import name of the module, e.g. ``"h5py"``.
+
+    Raises
+    ------
+    RuntimeError
+        If the module is not installed, or is installed but fails to import.
+    """
+    module, error = _import_optional(name)
+    if module is None:
+        extra = OPTIONAL_DEPENDENCIES.get(name)
+        hint = f" Install it with `pip install heat[{extra}]`." if extra else ""
+        raise RuntimeError(f"{name} is required for this operation ({error}).{hint}")
+    return module
+
+
+@functools.lru_cache(maxsize=None)
+def hdf5_has_mpi() -> bool:
+    """
+    Returns ``True`` if the installed ``h5py`` was built with parallel (MPI-IO) support.
+    """
+    h5py = optional_import("h5py")
+    return bool(h5py.get_config().mpi) if h5py is not None else False
+
+
+@functools.lru_cache(maxsize=None)
+def netcdf_has_parallel() -> bool:
+    """
+    Returns ``True`` if the installed ``netCDF4`` was built with parallel I/O support.
+    """
+    netcdf = optional_import("netCDF4")
+    if netcdf is None:
+        return False
+    return bool(
+        netcdf.__dict__.get("__has_parallel4_support__", False)
+        or netcdf.__dict__.get("__has_pnetcdf_support__", False)
+        or netcdf.__dict__.get("__has_nc_par__", False)
+    )
