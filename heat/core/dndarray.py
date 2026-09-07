@@ -3454,11 +3454,10 @@ class DNDarray:
         names = [None] * self.ndim
         if self.split is not None:
             names[self.split] = "split"
-        return (
-            torch.ones((1,), dtype=torch.int8, device=self.larray.device)
-            .as_strided(self.gshape, [0] * self.ndim)
-            .refine_names(*names)
+        tensor_proxy = torch.ones((1,), dtype=torch.int8, device=self.larray.device).as_strided(
+            self.gshape, [0] * self.ndim
         )
+        return torch.refine_names(tensor_proxy, *names)
 
 
 # Heat imports at the end to break cyclic dependencies
