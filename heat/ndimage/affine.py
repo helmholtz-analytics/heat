@@ -34,7 +34,7 @@ from torch.nn.functional import affine_grid, grid_sample
 from heat.core.communication import MPI
 from heat.core.dndarray import DNDarray
 from heat.core.linalg.basics import transpose
-from heat.core.manipulations import resplit
+import heat as ht
 
 # from heat.core.manipulations import hstack
 from heat.core.factories import array
@@ -57,11 +57,10 @@ ORDER_TO_MODE = {
     1: "bilinear",  # order‑1 → bilinear (linear) sampling
     3: "bicubic",  # order‑3 → bicubic sampling
     # SciPy supports orders 2,4,5 as well – they have no direct Torch counterpart.
-    # We fall back to the closest supported mode.
-    2: "bilinear",  # closest supported mode
-    4: "bicubic",
-    5: "bicubic",
-    # any other order (should never happen) → default to bilinear
+    # throw error when those are encountered
+    2: None,
+    4: None,
+    5: None,
 }
 
 filtering_map = {}
@@ -89,8 +88,8 @@ def _remove_slice(A: torch.Tensor, idx: int, dim: int) -> torch.Tensor:
     return A.index_select(dim, rows_before)
 
 
-def _to_full_affine(M):
-    # TODO: make distributed, only really benefitial in the bulk axis, since the matrix probably always small
+def _to_full_affine(M: torch.Tensor):
+    # TODO: rewrite this to to_reduced_affine(M) because affine_grid() expects reduced form and this is just converting it to full and back to reduced form
     """
     Convert reduced affine matrices to full homogeneous form.
 
@@ -114,7 +113,7 @@ def _to_full_affine(M):
         full[D, D] = 1.0  # set homogeneous coordinate
         return full
 
-    elif M.dim() == 3:
+    if M.dim() == 3:
         # Batched case: (N, D, D+1)
         N, D, _ = M.shape
         full = torch.zeros(N, D + 1, D + 1, dtype=M.dtype, device=M.device)
@@ -122,10 +121,7 @@ def _to_full_affine(M):
         full[:, D, D] = 1.0  # set homogeneous coordinate for each batch
         return full
 
-    else:
-        raise ValueError(
-            f"Expected affine transformation matrix to be 2D or 3D tensor, got {M.dim()}D"
-        )
+    raise ValueError(f"Expected affine transformation matrix to be 2D or 3D tensor, got {M.dim()}D")
 
 
 def convert_matrix_space(M: torch.Tensor, sizes):
@@ -159,6 +155,19 @@ def convert_matrix_space(M: torch.Tensor, sizes):
     return transformed[:, :D, :]
 
 
+def _untouched_axes(matrices: DNDarray):
+    """
+    Tests if the provided (affine) has influence on the possible axes of the input
+    """
+    identity = ht.eye((matrices.shape[-2:]), dtype=matrices.dtype)
+    comparison = ht.eq(matrices, identity)
+    result = ht.all(comparison, -1)
+    print(result)
+    if result.ndim > 1:
+        result = ht.all(result, 0)  # combine along bulk axis
+    return result
+
+
 # ============================================================
 #  main methods
 # ============================================================
@@ -168,7 +177,7 @@ def affine_transform(
     offset=None,
     output_shape=None,
     output=None,
-    order=2,
+    order=1,
     mode="constant",
     cval=0.0,
     prefilter=True,
@@ -201,7 +210,7 @@ def affine_transform(
         if the input should be filtered before transformed, currently not because torch.sample_grid does not have this functionality
     """
     # TODO implement output_shape, if possible. For that it is needed to pad the input image, or can I do that directly with the sample_grid function?
-
+    # TODO Support both 'padding' parameter from the torch functions
     # validation
 
     # input conversion
@@ -224,11 +233,7 @@ def affine_transform(
             and 3 <= matrix.shape[1] <= 4
             and matrix.shape[1] <= matrix.shape[2] <= 4
         )
-        is_3d_input = (
-            input.ndim == 5
-            and 4 <= matrix.shape[1] <= 5
-            and matrix.shape[1] <= matrix.shape[2] <= 5
-        )
+        is_3d_input = input.ndim == 5 and 4 <= matrix.shape[1] <= matrix.shape[2] <= 5
     else:
         is_2d_input = (
             input.ndim == 3
@@ -245,20 +250,35 @@ def affine_transform(
     print(f"is 3d input: {is_3d_input}")
 
     if not (is_2d_input or is_3d_input):
-        raise ValueError(
-            "matrix does not fit to input shape or not supported dimension count (3 < dim < 4)"
-        )
+        raise ValueError("matrix does not fit to input shape or not supported dimension count")
 
     if is_bulk:
         # determening the split axis
         # if axis is not the bulk axis -> abort
         if (matrix.split not in (0, None)) or (input.split not in (0, None)):
-            raise RuntimeError("the split axis is not the bulk axis, this is not supported")
+            if input.split > 0:
+                split_idx = input.split - 1  # split index without bulk
+                if not (
+                    matrix.split is None and _untouched_axes(matrix)[split_idx]
+                ):  # transformation in direction of split is not identity
+                    raise RuntimeError(
+                        "the split axis is not the bulk axis, nor an axis left unchanged by the transform. this is not supported"
+                    )
+            else:
+                raise RuntimeError(
+                    "matrix split axis should only be 0 if input split axis is also 0"
+                )
+
     else:
         if (matrix.split is not None) or (input.split is not None):
-            raise RuntimeError("matrix can only be split at bulk axis")
+            if not (
+                matrix.split is None and _untouched_axes(matrix)[input.split]
+            ):  # transformation in direction of split is not identity
+                raise RuntimeError(
+                    "the split axis is not the bulk axis, nor an axis left unchanged by the affine transform. this is not supported"
+                )
 
-    # only bulk axis is distributed, problems are all local
+    # only bulk axis or unchaned axis is distributed, computations are all local
     matrix_torch: torch.Tensor = matrix.larray
 
     color_dim = 2 if is_2d_input else 3
