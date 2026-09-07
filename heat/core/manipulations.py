@@ -3271,8 +3271,8 @@ def reorder(
     src_ranks = torch.bucketize(needed_indices, boundaries_tensor, right=True) - 1
     recv_counts_tensor = torch.bincount(src_ranks, minlength=size)
 
-    send_counts = (send_counts_tensor * block_length).cpu().numpy()
-    recv_counts = (recv_counts_tensor * block_length).cpu().numpy()
+    send_counts = (send_counts_tensor * block_length).numpy()
+    recv_counts = (recv_counts_tensor * block_length).numpy()
 
     send_displ = np.insert(np.cumsum(send_counts)[:-1], 0, 0)
     recv_displ = np.insert(np.cumsum(recv_counts)[:-1], 0, 0)
