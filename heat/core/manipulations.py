@@ -3225,7 +3225,7 @@ def reorder(
         axis += a.ndim
 
     if not a.is_distributed():
-        local_data = a.larray[(slice(None),) * (axis-1) + (indices,)]
+        local_data = a.larray[(slice(None),) * (axis - 1) + (indices,)]
         return factories.array(local_data, is_split=a.split)
 
     if original_split is None:
