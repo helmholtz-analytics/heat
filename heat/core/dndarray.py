@@ -314,6 +314,50 @@ def _scalar_early_out(
     )
 
 
+def _expand_dimensions_and_ellipsis(
+    arr: "DNDarray",
+    key: list[Any],
+    output_shape: list[int],
+    split_bookkeeping: list[str | None],
+) -> tuple["DNDarray", list[Any], list[int], list[str | None]]:
+    """
+    Expands ellipses (...) into full slices and inserts singleton dimensions
+    for None (newaxis) or 0-D boolean masks.
+    """
+    add_dims = sum(k is None or _is_boolean_scalar(k) for k in key)
+    ellipsis = sum(isinstance(k, type(...)) for k in key)
+
+    if ellipsis > 1:
+        raise ValueError("indexing key can only contain 1 Ellipsis (...)")
+
+    if ellipsis:
+        expand_key = [slice(None)] * (arr.ndim + add_dims)
+        ellipsis_index = key.index(...)
+        ellipsis_dims = arr.ndim - (len(key) - ellipsis - add_dims)
+        expand_key[:ellipsis_index] = key[:ellipsis_index]
+        expand_key[ellipsis_index + ellipsis_dims :] = key[ellipsis_index + 1 :]
+        key = expand_key
+
+    while add_dims > 0:
+        for i, k in reversed(list(enumerate(key))):
+            if k is None or _is_boolean_scalar(k):
+                if k is None:
+                    key[i] = slice(None)
+                else:
+                    val = bool(k.item() if hasattr(k, "item") else k)
+                    key[i] = slice(None) if val else slice(0, 0)
+
+                insert_pos = i - add_dims + 1
+                arr = arr.expand_dims(insert_pos)
+                output_shape = output_shape[:insert_pos] + [1] + output_shape[insert_pos:]
+                split_bookkeeping = (
+                    split_bookkeeping[:insert_pos] + [None] + split_bookkeeping[insert_pos:]
+                )
+                add_dims -= 1
+
+    return arr, key, output_shape, split_bookkeeping
+
+
 def _resolve_indexing_state(
     arr: "DNDarray",
     key: Indexer,
@@ -602,44 +646,13 @@ def _resolve_indexing_state(
         key = [key]
 
     # check for ellipsis, newaxis. NB: (np.newaxis is None)==True
-    add_dims = sum(k is None or _is_boolean_scalar(k) for k in key)
-    ellipsis = sum(isinstance(k, type(...)) for k in key)
-    if ellipsis > 1:
-        raise ValueError("indexing key can only contain 1 Ellipsis (...)")
-    if ellipsis:
-        # key contains exactly 1 ellipsis
-        # replace with explicit `slice(None)` for affected dimensions
-        # output_shape, split_bookkeeping not affected
-        expand_key = [slice(None)] * (arr.ndim + add_dims)
-        ellipsis_index = key.index(...)
-        ellipsis_dims = arr.ndim - (len(key) - ellipsis - add_dims)
-        expand_key[:ellipsis_index] = key[:ellipsis_index]
-        expand_key[ellipsis_index + ellipsis_dims :] = key[ellipsis_index + 1 :]
-        key = expand_key
-    while add_dims > 0:
-        # expand array dims: output_shape, split_bookkeeping to reflect newaxis
-        # replace newaxis with slice(None), replace 0-D bools with a target slice
-        for i, k in reversed(list(enumerate(key))):
-            if k is None or _is_boolean_scalar(k):
-                if k is None:
-                    key[i] = slice(None)
-                else:
-                    val = bool(k.item() if hasattr(k, "item") else k)
-                    key[i] = slice(None) if val else slice(0, 0)
-
-                arr = arr.expand_dims(i - add_dims + 1)
-                output_shape = (
-                    output_shape[: i - add_dims + 1] + [1] + output_shape[i - add_dims + 1 :]
-                )
-                split_bookkeeping = (
-                    split_bookkeeping[: i - add_dims + 1]
-                    + [None]
-                    + split_bookkeeping[i - add_dims + 1 :]
-                )
-                add_dims -= 1
+    arr, key, output_shape, split_bookkeeping = _expand_dimensions_and_ellipsis(
+        arr, key, output_shape, split_bookkeeping
+    )
 
     # recalculate new_split, transpose_axes after dimensions manipulation
     new_split = split_bookkeeping.index("split") if "split" in split_bookkeeping else None
+
     transpose_axes, backwards_transpose_axes = tuple(range(arr.ndim)), tuple(range(arr.ndim))
     # check for advanced indexing and slices
     advanced_indexing_dims = []
