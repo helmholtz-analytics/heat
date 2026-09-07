@@ -14,6 +14,11 @@ import heat as ht
 from tempfile import TemporaryDirectory
 from heat.testing.basic_test import TestCase
 
+if ht.io.supports_hdf5():
+    import h5py
+if ht.io.supports_netcdf():
+    import netCDF4 as nc
+
 
 class TestIO(TestCase):
     @classmethod
@@ -353,7 +358,7 @@ class TestIO(TestCase):
             local_range = ht.arange(100)
             local_range.save(self.HDF5_OUT_PATH, self.HDF5_DATASET, dtype=local_range.dtype.char())
             if local_range.comm.rank == 0:
-                with ht.io.h5py.File(self.HDF5_OUT_PATH, "r") as handle:
+                with h5py.File(self.HDF5_OUT_PATH, "r") as handle:
                     comparison = torch.tensor(
                         handle[self.HDF5_DATASET],
                         dtype=torch.int32,
@@ -365,7 +370,7 @@ class TestIO(TestCase):
             split_range = ht.arange(100, split=0)
             split_range.save(self.HDF5_OUT_PATH, self.HDF5_DATASET, dtype=split_range.dtype.char())
             if split_range.comm.rank == 0:
-                with ht.io.h5py.File(self.HDF5_OUT_PATH, "r") as handle:
+                with h5py.File(self.HDF5_OUT_PATH, "r") as handle:
                     comparison = torch.tensor(
                         handle[self.HDF5_DATASET],
                         dtype=torch.int32,
@@ -378,7 +383,7 @@ class TestIO(TestCase):
             local_range = ht.arange(100)
             local_range.save(self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE)
             if local_range.comm.rank == 0:
-                with ht.io.nc.Dataset(self.NETCDF_OUT_PATH, "r") as handle:
+                with nc.Dataset(self.NETCDF_OUT_PATH, "r") as handle:
                     comparison = torch.tensor(
                         handle[self.NETCDF_VARIABLE][:],
                         dtype=torch.int32,
@@ -390,7 +395,7 @@ class TestIO(TestCase):
             split_range = ht.arange(100, split=0)
             split_range.save(self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE)
             if split_range.comm.rank == 0:
-                with ht.io.nc.Dataset(self.NETCDF_OUT_PATH, "r") as handle:
+                with nc.Dataset(self.NETCDF_OUT_PATH, "r") as handle:
                     comparison = torch.tensor(
                         handle[self.NETCDF_VARIABLE][:],
                         dtype=torch.int32,
@@ -404,7 +409,7 @@ class TestIO(TestCase):
                 self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE, dimension_names=self.NETCDF_DIMENSION
             )
             if local_range.comm.rank == 0:
-                with ht.io.nc.Dataset(self.NETCDF_OUT_PATH, "r") as handle:
+                with nc.Dataset(self.NETCDF_OUT_PATH, "r") as handle:
                     comparison = handle[self.NETCDF_VARIABLE].dimensions
                 self.assertTrue(self.NETCDF_DIMENSION in comparison)
 
@@ -414,7 +419,7 @@ class TestIO(TestCase):
                 self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE, dimension_names=(self.NETCDF_DIMENSION,)
             )
             if local_range.comm.rank == 0:
-                with ht.io.nc.Dataset(self.NETCDF_OUT_PATH, "r") as handle:
+                with nc.Dataset(self.NETCDF_OUT_PATH, "r") as handle:
                     comparison = handle[self.NETCDF_VARIABLE].dimensions
                 self.assertTrue(self.NETCDF_DIMENSION in comparison)
 
@@ -429,7 +434,7 @@ class TestIO(TestCase):
                 # debug=True,
             )
             if split_range.comm.rank == 0:
-                with ht.io.nc.Dataset(self.NETCDF_OUT_PATH, "r") as handle:
+                with nc.Dataset(self.NETCDF_OUT_PATH, "r") as handle:
                     comparison = torch.tensor(
                         handle[self.NETCDF_VARIABLE][:],
                         dtype=torch.int32,
@@ -447,7 +452,7 @@ class TestIO(TestCase):
             indices = (-1, 0, slice(None), 1)
             ones.save(self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE, mode="r+", file_slices=indices)
             if split_range.comm.rank == 0:
-                with ht.io.nc.Dataset(self.NETCDF_OUT_PATH, "r") as handle:
+                with nc.Dataset(self.NETCDF_OUT_PATH, "r") as handle:
                     comparison = torch.tensor(
                         handle[self.NETCDF_VARIABLE][indices],
                         dtype=torch.int32,
@@ -464,7 +469,7 @@ class TestIO(TestCase):
                 self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE, mode="w", file_slices=indices
             )
             if split_range.comm.rank == 0:
-                with ht.io.nc.Dataset(self.NETCDF_OUT_PATH, "r") as handle:
+                with nc.Dataset(self.NETCDF_OUT_PATH, "r") as handle:
                     comparison = torch.tensor(
                         handle[self.NETCDF_VARIABLE][indices],
                         dtype=torch.int32,
@@ -480,7 +485,7 @@ class TestIO(TestCase):
                 self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE, mode="r+", file_slices=sslice
             )
             if split_range.comm.rank == 0:
-                with ht.io.nc.Dataset(self.NETCDF_OUT_PATH, "r") as handle:
+                with nc.Dataset(self.NETCDF_OUT_PATH, "r") as handle:
                     comparison = torch.tensor(
                         handle[self.NETCDF_VARIABLE][sslice],
                         dtype=torch.int32,
@@ -496,7 +501,7 @@ class TestIO(TestCase):
             indices = (0, slice(None), slice(None))
             ones.save(self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE, mode="r+", file_slices=indices)
             if split_range.comm.rank == 0:
-                with ht.io.nc.Dataset(self.NETCDF_OUT_PATH, "r") as handle:
+                with nc.Dataset(self.NETCDF_OUT_PATH, "r") as handle:
                     comparison = torch.tensor(
                         handle[self.NETCDF_VARIABLE][indices],
                         dtype=torch.int32,
@@ -513,7 +518,7 @@ class TestIO(TestCase):
             indices = (0,)
             ones.save(self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE, mode="r+", file_slices=indices)
             if split_range.comm.rank == 0:
-                with ht.io.nc.Dataset(self.NETCDF_OUT_PATH, "r") as handle:
+                with nc.Dataset(self.NETCDF_OUT_PATH, "r") as handle:
                     comparison = torch.tensor(
                         handle[self.NETCDF_VARIABLE][indices],
                         dtype=torch.int32,
@@ -528,7 +533,7 @@ class TestIO(TestCase):
             ones = ht.ones((1, 1), device=self.device)
             ones.save(self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE, mode="r+")
             if split_range.comm.rank == 0:
-                with ht.io.nc.Dataset(self.NETCDF_OUT_PATH, "r") as handle:
+                with nc.Dataset(self.NETCDF_OUT_PATH, "r") as handle:
                     comparison = torch.tensor(
                         handle[self.NETCDF_VARIABLE][indices],
                         dtype=torch.int32,
@@ -542,7 +547,7 @@ class TestIO(TestCase):
             zeros_nosplit = ht.zeros((2, 2), dtype=ht.int32, device=self.device)
             zeros.save(self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE, mode="w")
             if split_range.comm.rank == 0:
-                with ht.io.nc.Dataset(self.NETCDF_OUT_PATH, "r") as handle:
+                with nc.Dataset(self.NETCDF_OUT_PATH, "r") as handle:
                     comparison = torch.tensor(
                         handle[self.NETCDF_VARIABLE][:],
                         dtype=torch.int32,
@@ -666,7 +671,7 @@ class TestIO(TestCase):
             local_data, self.HDF5_OUT_PATH, self.HDF5_DATASET, dtype=torch.int32
         )
         if local_data.comm.rank == 0:
-            with ht.io.h5py.File(self.HDF5_OUT_PATH, "r") as handle:
+            with h5py.File(self.HDF5_OUT_PATH, "r") as handle:
                 comparison = torch.tensor(
                     handle[self.HDF5_DATASET], dtype=torch.int32, device=self.device.torch_device
                 )
@@ -678,7 +683,7 @@ class TestIO(TestCase):
             split_data, self.HDF5_OUT_PATH, self.HDF5_DATASET
         )
         if split_data.comm.rank == 0:
-            with ht.io.h5py.File(self.HDF5_OUT_PATH, "r") as handle:
+            with h5py.File(self.HDF5_OUT_PATH, "r") as handle:
                 comparison = torch.tensor(
                     handle[self.HDF5_DATASET], dtype=torch.int32, device=self.device.torch_device
                 )
@@ -765,7 +770,7 @@ class TestIO(TestCase):
         local_data = ht.arange(100)
         ht.save_netcdf(local_data, self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE)
         if local_data.comm.rank == 0:
-            with ht.io.nc.Dataset(self.NETCDF_OUT_PATH, "r") as handle:
+            with nc.Dataset(self.NETCDF_OUT_PATH, "r") as handle:
                 comparison = torch.tensor(
                     handle[self.NETCDF_VARIABLE][:],
                     dtype=torch.int32,
@@ -777,7 +782,7 @@ class TestIO(TestCase):
         split_data = ht.arange(100, split=0)
         ht.save_netcdf(split_data, self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE)
         if split_data.comm.rank == 0:
-            with ht.io.nc.Dataset(self.NETCDF_OUT_PATH, "r") as handle:
+            with nc.Dataset(self.NETCDF_OUT_PATH, "r") as handle:
                 comparison = torch.tensor(
                     handle[self.NETCDF_VARIABLE][:],
                     dtype=torch.int32,

@@ -1,62 +1,21 @@
-"""Enables parallel I/O with data on disk."""
+"""Generic, extension-driven entry points for reading and writing Heat arrays.
+
+`load` and `save` dispatch on the file extension through the format registry; the
+formats themselves live in the sibling modules of this package.
+"""
 
 from __future__ import annotations
 
-from functools import reduce
-import glob
+from typing import Dict, List, Optional
 
-import operator
-import os.path
-from math import log10
-from pathlib import Path
-import numpy as np
-import torch
-import warnings
-import fnmatch
-
-from typing import Callable, Dict, Iterable, List, Optional, Tuple, Union
-
-from .. import devices
-from .. import factories
-from .. import types
-
-from ..communication import Communication, MPI, MPI_WORLD, sanitize_comm
 from ..dndarray import DNDarray
-from ..manipulations import hsplit, vsplit
-from ..statistics import max as smax, min as smin
-from ..stride_tricks import sanitize_axis
-from ..types import datatype
-from ._registry import loader_for_path, register_format, saver_for_path
+from ._registry import loader_for_path, saver_for_path
 from .utils import sanitize_path
-
-__VALID_WRITE_MODES = frozenset(["w", "a", "r+"])
 
 __all__ = [
     "load",
     "save",
 ]
-
-
-def size_from_slice(size: int, s: slice) -> Tuple[int, int]:
-    """
-    Determines the size of a slice object.
-
-    Parameters
-    ----------
-    size: int
-        The size of the array the slice object is applied to.
-    s : slice
-        The slice object to determine the size of.
-
-    Returns
-    -------
-    int
-        The size of the sliced object.
-    int
-        The start index of the slice object.
-    """
-    new_range = range(size)[s]
-    return len(new_range), new_range.start if len(new_range) > 0 else 0
 
 
 def load(
