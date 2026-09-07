@@ -26,6 +26,8 @@ from ..manipulations import hsplit, vsplit
 from ..statistics import max as smax, min as smin
 from ..stride_tricks import sanitize_axis
 from ..types import datatype
+from ._registry import loader_for_path, register_format, saver_for_path
+from .utils import sanitize_path
 
 __VALID_WRITE_MODES = frozenset(["w", "a", "r+"])
 __CSV_EXTENSION = frozenset([".csv"])
@@ -939,30 +941,8 @@ def load(
     :func:`load_zarr` : Loads zarr-Format into DNDarray which will be returned.
 
     """
-    if not isinstance(path, str):
-        raise TypeError(f"Expected path to be str, but was {type(path)}")
-    extension = os.path.splitext(path)[-1].strip().lower()
-
-    if extension in __CSV_EXTENSION:
-        return load_csv(path, *args, **kwargs)
-    elif extension in __HDF5_EXTENSIONS:
-        if supports_hdf5():
-            return load_hdf5(path, *args, **kwargs)
-        else:
-            raise RuntimeError(f"hdf5 is required for file extension {extension}")
-    elif extension in __NETCDF_EXTENSIONS:
-        if supports_netcdf():
-            return load_netcdf(path, *args, **kwargs)
-        else:
-            raise RuntimeError(f"netcdf is required for file extension {extension}")
-    elif extension in __ZARR_EXTENSIONS:
-        if supports_zarr():
-            return load_zarr(path, *args, **kwargs)
-        else:
-            raise RuntimeError(f"Package zarr is required for file extension {extension}")
-
-    else:
-        raise ValueError(f"Unsupported file extension {extension}")
+    path = sanitize_path(path)
+    return loader_for_path(path)(path, *args, **kwargs)
 
 
 def load_csv(
@@ -1355,29 +1335,8 @@ def save(
     >>> x = ht.arange(100, split=0)
     >>> ht.save(x, "data.h5", "DATA", mode="a")
     """
-    if not isinstance(path, str):
-        raise TypeError(f"Expected path to be str, but was {type(path)}")
-    extension = os.path.splitext(path)[-1].strip().lower()
-
-    if extension in __HDF5_EXTENSIONS:
-        if supports_hdf5():
-            save_hdf5(data, path, *args, **kwargs)
-        else:
-            raise RuntimeError(f"hdf5 is required for file extension {extension}")
-    elif extension in __NETCDF_EXTENSIONS:
-        if supports_netcdf():
-            save_netcdf(data, path, *args, **kwargs)
-        else:
-            raise RuntimeError(f"netcdf is required for file extension {extension}")
-    elif extension in __CSV_EXTENSION:
-        save_csv(data, path, *args, **kwargs)
-    elif extension in __ZARR_EXTENSIONS:
-        if supports_zarr():
-            return save_zarr(data, path, *args, **kwargs)
-        else:
-            raise RuntimeError(f"Package zarr is required for file extension {extension}")
-    else:
-        raise ValueError(f"Unsupported file extension {extension}")
+    path = sanitize_path(path)
+    return saver_for_path(path)(data, path, *args, **kwargs)
 
 
 DNDarray.save = lambda self, path, *args, **kwargs: save(self, path, *args, **kwargs)
@@ -1876,3 +1835,36 @@ else:
                 zarr_array[:] = dndarray.larray.cpu().numpy()
 
         MPI_WORLD.Barrier()
+
+
+# --------------------------------------------------------------------------------------
+# Format registration
+# --------------------------------------------------------------------------------------
+# Formats register even when their optional dependency is missing, with `loader`/`saver`
+# left as None, so that `load`/`save` report the missing dependency rather than claiming
+# the extension is unknown. Directory-based loaders (`load_npy_from_path`,
+# `load_csv_from_folder`, `load_multiple_hdf5`) are deliberately not registered: they take
+# a directory, so there is no extension to dispatch on.
+
+register_format("csv", __CSV_EXTENSION, loader=load_csv, saver=save_csv)
+register_format(
+    "hdf5",
+    __HDF5_EXTENSIONS,
+    dependency="h5py",
+    loader=load_hdf5 if supports_hdf5() else None,
+    saver=save_hdf5 if supports_hdf5() else None,
+)
+register_format(
+    "netcdf",
+    __NETCDF_EXTENSIONS,
+    dependency="netCDF4",
+    loader=load_netcdf if supports_netcdf() else None,
+    saver=save_netcdf if supports_netcdf() else None,
+)
+register_format(
+    "zarr",
+    __ZARR_EXTENSIONS,
+    dependency="zarr",
+    loader=load_zarr if supports_zarr() else None,
+    saver=save_zarr if supports_zarr() else None,
+)
