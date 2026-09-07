@@ -6,7 +6,6 @@ from __future__ import annotations
 
 import numpy as np
 import torch
-import math
 import warnings
 
 from typing import Any, Iterable, Type, List, Callable, Union, Tuple, Sequence, Optional, NamedTuple
@@ -3244,7 +3243,7 @@ def reorder(
     inner_shape = original_shape[1:]
 
     total_rows = a.gshape[axis]
-    block_length = math.prod(inner_shape)
+    block_length = np.prod(inner_shape, dtype=np.int64)
 
     boundaries = [comm.chunk((total_rows,), split=0, rank=i)[0] for i in range(size)]
     boundaries.append(total_rows)
