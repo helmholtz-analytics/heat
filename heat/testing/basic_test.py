@@ -47,12 +47,13 @@ class TestCase(unittest.TestCase):
         if envar == "cpu":
             ht.use_device("cpu")
             ht_device = ht.cpu
-            other_device = ht.cpu
             if torch.cuda.is_available():
                 torch.cuda.set_device(torch.device(ht.gpu.torch_device))
                 other_device = ht.gpu
             elif torch.backends.mps.is_built() and torch.backends.mps.is_available():
                 other_device = ht.gpu
+            else:
+                other_device = ht.cpu
         elif envar == "gpu":
             if torch.cuda.is_available():
                 ht.use_device("gpu")
@@ -64,6 +65,10 @@ class TestCase(unittest.TestCase):
                 ht_device = ht.gpu
                 other_device = ht.cpu
                 is_mps = True
+            else:
+                raise RuntimeError(
+                    f'Device {envar} from environment variable "HEAT_TEST_USE_DEVICE" not found! Neither CUDA, ROCm, nor MPS is available'
+                )
         else:
             raise RuntimeError(
                 f"Value '{envar}' of environment variable 'HEAT_TEST_USE_DEVICE' is unsupported"
