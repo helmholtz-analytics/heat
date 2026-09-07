@@ -1,7 +1,10 @@
 """Tests for the helpers shared by the file-format modules of ``heat.core.io``."""
 
+import itertools
 import os
 import unittest
+
+import numpy as np
 
 import heat as ht
 from heat.core.io import utils
@@ -24,6 +27,28 @@ class TestIOUtils(TestCase):
                 new_size, offset = utils.size_from_slice(size, slice_obj)
                 self.assertEqual(new_size, expected_new_size)
                 self.assertEqual(offset, expected_offset)
+
+    def test_compose_slices(self):
+        """`x[compose(outer, inner)]` must equal `x[outer][inner]` for any slices.
+
+        `load_zarr` relies on this to read only its own chunk from disk instead of
+        materializing the whole requested slice on every process.
+        """
+        bounds = [None, 0, 1, 3, 7, 11, 12, 13, -1, -4, -13]
+        for length in (0, 1, 5, 12):
+            data = np.arange(length)
+            for start, stop, step in itertools.product(bounds, bounds, [None, 1, 2, -1, -2]):
+                outer = slice(start, stop, step)
+                for i_start, i_stop, i_step in itertools.product(
+                    bounds, bounds, [None, 1, -1]
+                ):
+                    inner = slice(i_start, i_stop, i_step)
+                    composed = utils.compose_slices(outer, inner, length)
+                    if not np.array_equal(data[outer][inner], data[composed]):
+                        self.fail(
+                            f"length={length} {outer} then {inner}: "
+                            f"{data[outer][inner]} != {data[composed]} via {composed}"
+                        )
 
     def test_sanitize_path(self):
         self.assertEqual(utils.sanitize_path("some/path"), "some/path")

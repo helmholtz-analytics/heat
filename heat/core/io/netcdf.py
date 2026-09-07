@@ -17,7 +17,7 @@ from ..dndarray import DNDarray
 from ..stride_tricks import sanitize_axis
 from ..types import datatype
 from ._registry import register_format
-from .utils import sanitize_write_mode
+from .utils import propagate_failure, sanitize_write_mode, serialized_write
 
 __all__ = ["supports_netcdf"]
 
@@ -378,9 +378,13 @@ if supports_netcdf():
             except Exception as e:
                 failed = data.comm.rank + 1
                 excep = e
-        # otherwise a single rank only write is performed in case of local data (i.e. no split)
-        elif data.comm.rank == 0:
-            try:
+            propagate_failure(data.comm, failed, excep)
+
+        # otherwise the writes have to be serialized: rank 0 creates the file and writes
+        # its own chunk, then hands a token around the ring
+        else:
+
+            def write_root() -> None:
                 with nc.Dataset(path, mode) as handle:
                     if variable in handle.variables:
                         var = handle.variables[variable]
@@ -393,52 +397,18 @@ if supports_netcdf():
                         )
                     var.set_collective(False)  # not possible with non-parallel netcdf
                     if is_split:
-                        merged_slices = __merge_slices(var, file_slices, data)
-                        var[merged_slices] = data.larray.cpu()
+                        var[__merge_slices(var, file_slices, data)] = data.larray.cpu()
                     else:
                         var[file_slices] = data.larray.cpu()
-            except Exception as e:
-                failed = 1
-                excep = e
-            finally:
-                if data.comm.size > 1:
-                    data.comm.isend(failed, dest=1)
-                    data.comm.recv()
 
-        # non-root
-        else:
-            # wait for the previous rank to finish writing its chunk, then write own part
-            failed = data.comm.recv()
-            try:
-                # no MPI, but data is split, we have to serialize the writes
-                if not failed and is_split:
-                    with nc.Dataset(path, "r+") as handle:
-                        var = handle.variables[variable]
-                        var.set_collective(False)  # not possible with non-parallel netcdf
-                        merged_slices = __merge_slices(var, file_slices, data)
-                        var[merged_slices] = data.larray.cpu()
-            except Exception as e:
-                failed = data.comm.rank + 1
-                excep = e
-            finally:
-                # ping the next node in the communicator, wrap around to 0 to complete barrier behavior
-                next_rank = (data.comm.rank + 1) % data.comm.size
-                data.comm.isend(failed, dest=next_rank)
+            def write_other() -> None:
+                with nc.Dataset(path, "r+") as handle:
+                    var = handle.variables[variable]
+                    var.set_collective(False)  # not possible with non-parallel netcdf
+                    var[__merge_slices(var, file_slices, data)] = data.larray.cpu()
 
-        failed = data.comm.allreduce(failed, op=MPI.MAX)
-        if failed - 1 == data.comm.rank:
-            data.comm.bcast(excep, root=failed - 1)
-            raise excep
-        elif failed:
-            excep = data.comm.bcast(excep, root=failed - 1)
-            excep.args = f"raised by process rank {failed - 1}", *excep.args
-            raise excep from None  # raise the same error but without traceback
-            # because that is on a different process
+            serialized_write(data.comm, is_split, write_root, write_other)
 
-    DNDarray.save_netcdf = lambda self, path, variable, mode="w", **kwargs: save_netcdf(
-        self, path, variable, mode, **kwargs
-    )
-    DNDarray.save_netcdf.__doc__ = save_netcdf.__doc__
 
 register_format(
     "netcdf",

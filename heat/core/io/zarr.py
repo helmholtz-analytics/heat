@@ -27,7 +27,7 @@ from ..dndarray import DNDarray
 from ..stride_tricks import sanitize_axis
 from ..types import datatype
 from ._registry import register_format
-from .utils import sanitize_extension, sanitize_path
+from .utils import compose_slices, sanitize_extension, sanitize_path
 
 __all__ = ["supports_zarr"]
 
@@ -235,11 +235,21 @@ if supports_zarr():
 
         # slices = tuple(slice(*tslice.indices(length)) for length, tslice in zip(shape, slices))
         slices = tuple(slices)
-        shape = [len(range(*tslice.indices(length))) for length, tslice in zip(shape, slices)]
+        stored_shape = shape
+        shape = [
+            len(range(*tslice.indices(length))) for length, tslice in zip(stored_shape, slices)
+        ]
         offset, local_shape, local_slices = comm.chunk(shape, split)
 
+        # compose the user's slices with this process' chunk, so that only the local
+        # region is read from disk rather than the whole array on every process
+        read_slices = tuple(
+            compose_slices(user_slice, local_slice, length)
+            for user_slice, local_slice, length in zip(slices, local_slices, stored_shape)
+        )
+
         return factories.array(
-            arr[slices][local_slices], dtype=dtype, is_split=split, device=device, comm=comm
+            arr[read_slices], dtype=dtype, is_split=split, device=device, comm=comm
         )
 
     def save_zarr(dndarray: DNDarray, path: str, overwrite: bool = False, **kwargs) -> None:
@@ -306,17 +316,17 @@ if supports_zarr():
         if os.path.exists(path) and not overwrite:
             raise RuntimeError("Given Path already exists.")
 
-        if MPI_WORLD.rank == 0:
-            if dndarray.split is None or MPI_WORLD.size == 1:
+        if dndarray.comm.rank == 0:
+            if dndarray.split is None or dndarray.comm.size == 1:
                 chunks = None
             else:
                 chunks = np.array(dndarray.gshape)
                 axis = dndarray.split
 
-                if chunks[axis] % MPI_WORLD.size != 0:
+                if chunks[axis] % dndarray.comm.size != 0:
                     chunks[axis] = 1
                 else:
-                    chunks[axis] //= MPI_WORLD.size
+                    chunks[axis] //= dndarray.comm.size
 
                     CODEC_LIMIT_BYTES = 2**31 - 1  # PR#1766
 
@@ -355,20 +365,20 @@ if supports_zarr():
             zarr_array = zarr.create(**zarr_create_kwargs)
 
         # Wait for the file creation to finish
-        MPI_WORLD.Barrier()
+        dndarray.comm.Barrier()
         zarr_array = zarr.open(store=path, mode="r+", **kwargs)
 
         if dndarray.split is not None:
-            _, _, slices = MPI_WORLD.chunk(dndarray.gshape, dndarray.split)
+            _, _, slices = dndarray.comm.chunk(dndarray.gshape, dndarray.split)
 
             zarr_array[slices] = (
                 dndarray.larray.cpu().numpy()  # Numpy array needed as zarr can only understand numpy dtypes and infers it.
             )
         else:
-            if MPI_WORLD.rank == 0:
+            if dndarray.comm.rank == 0:
                 zarr_array[:] = dndarray.larray.cpu().numpy()
 
-        MPI_WORLD.Barrier()
+        dndarray.comm.Barrier()
 
 
 register_format(

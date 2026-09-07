@@ -19,7 +19,7 @@ from ..dndarray import DNDarray
 from ..stride_tricks import sanitize_axis
 from ..types import datatype
 from ._registry import register_format
-from .utils import sanitize_write_mode, size_from_slice
+from .utils import sanitize_write_mode, serialized_write, size_from_slice
 
 __all__ = ["supports_hdf5"]
 
@@ -292,35 +292,23 @@ if supports_hdf5():
                 dset = handle.create_dataset(dataset, data.shape, dtype=dtype, **kwargs)
                 dset[slices] = data.larray.cpu() if is_split else data.larray[slices].cpu()
 
-        # otherwise a single rank only write is performed in case of local data (i.e. no split)
-        elif data.comm.rank == 0:
-            with h5py.File(path, mode) as handle:
-                dset = handle.create_dataset(dataset, data.shape, dtype=dtype, **kwargs)
-                if is_split:
-                    dset[slices] = data.larray.cpu()
-                else:
-                    dset[...] = data.larray.cpu()
+        # otherwise the writes have to be serialized: rank 0 creates the file and writes
+        # its own chunk, then hands a token around the ring
+        else:
 
-            # ping next rank if it exists
-            if is_split and data.comm.size > 1:
-                data.comm.Isend([None, 0, MPI.INT], dest=1)
-                data.comm.Recv([None, 0, MPI.INT], source=data.comm.size - 1)
+            def write_root() -> None:
+                with h5py.File(path, mode) as handle:
+                    dset = handle.create_dataset(dataset, data.shape, dtype=dtype, **kwargs)
+                    if is_split:
+                        dset[slices] = data.larray.cpu()
+                    else:
+                        dset[...] = data.larray.cpu()
 
-        # no MPI, but split data is more tricky, we have to serialize the writes
-        elif is_split:
-            # wait for the previous rank to finish writing its chunk, then write own part
-            data.comm.Recv([None, 0, MPI.INT], source=data.comm.rank - 1)
-            with h5py.File(path, "r+") as handle:
-                handle[dataset][slices] = data.larray.cpu()
+            def write_other() -> None:
+                with h5py.File(path, "r+") as handle:
+                    handle[dataset][slices] = data.larray.cpu()
 
-            # ping the next node in the communicator, wrap around to 0 to complete barrier behavior
-            next_rank = (data.comm.rank + 1) % data.comm.size
-            data.comm.Isend([None, 0, MPI.INT], dest=next_rank)
-
-    DNDarray.save_hdf5 = lambda self, path, dataset, mode="w", dtype=None, **kwargs: save_hdf5(
-        self, path, dataset, mode, **kwargs
-    )
-    DNDarray.save_hdf5.__doc__ = save_hdf5.__doc__
+            serialized_write(data.comm, is_split, write_root, write_other)
 
     def load_multiple_hdf5(
         folder: str | Path,

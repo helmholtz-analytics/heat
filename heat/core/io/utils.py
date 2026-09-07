@@ -44,6 +44,40 @@ def size_from_slice(size: int, s: slice) -> Tuple[int, int]:
     return len(new_range), new_range.start if len(new_range) > 0 else 0
 
 
+def compose_slices(outer: slice, inner: slice, length: int) -> slice:
+    """
+    Returns the single slice equivalent to applying ``inner`` after ``outer``.
+
+    That is, for any sequence ``x`` of length ``length``,
+    ``x[compose_slices(outer, inner, length)] == x[outer][inner]``. This lets a
+    distributed read fetch only the process-local region from disk, instead of
+    materializing the whole user-requested slice on every process first.
+
+    Parameters
+    ----------
+    outer : slice
+        The slice applied first, relative to an axis of length ``length``.
+    inner : slice
+        The slice applied second, relative to the result of ``outer``.
+    length : int
+        Length of the axis ``outer`` applies to.
+    """
+    start, stop, step = outer.indices(length)
+    inner_start, inner_stop, inner_step = inner.indices(len(range(start, stop, step)))
+
+    count = len(range(inner_start, inner_stop, inner_step))
+    if count == 0:
+        return slice(0, 0)
+
+    composed_step = step * inner_step
+    composed_start = start + inner_start * step
+    composed_stop = composed_start + count * composed_step
+    if composed_stop < 0:
+        # a negative stop would wrap around to the end; the walk runs off the front
+        composed_stop = None
+    return slice(composed_start, composed_stop, composed_step)
+
+
 def sanitize_path(path: Any, argname: str = "path") -> str:
     """
     Returns ``path`` unchanged, raising if it is not a string.
@@ -221,16 +255,39 @@ def serialized_write(
             # ping the next rank, wrapping around to 0 to complete barrier behavior
             comm.isend(failed, dest=(comm.rank + 1) % comm.size)
 
+    propagate_failure(comm, failed, excep)
+
+
+def propagate_failure(
+    comm: Communication, failed: int, error: Optional[BaseException] = None
+) -> None:
+    """
+    Re-raises ``error`` on every process if any process reported a failure.
+
+    Parameters
+    ----------
+    comm : Communication
+        The communicator whose processes participate.
+    failed : int
+        ``0`` if this process succeeded, otherwise its rank plus one.
+    error : BaseException, optional
+        The exception this process caught, if it failed.
+
+    Raises
+    ------
+    BaseException
+        Whatever the failing process caught, on every process.
+    """
     failed = comm.allreduce(failed, op=MPI.MAX)
     if not failed:
         return
     if failed - 1 == comm.rank:
-        comm.bcast(excep, root=failed - 1)
-        raise excep
-    excep = comm.bcast(excep, root=failed - 1)
-    excep.args = (f"raised by process rank {failed - 1}", *excep.args)
+        comm.bcast(error, root=failed - 1)
+        raise error
+    error = comm.bcast(error, root=failed - 1)
+    error.args = (f"raised by process rank {failed - 1}", *error.args)
     # raise the same error but without the traceback, which is on a different process
-    raise excep from None
+    raise error from None
 
 
 def split_file_indices(n_files: int, rank: int, size: int) -> Tuple[int, int]:

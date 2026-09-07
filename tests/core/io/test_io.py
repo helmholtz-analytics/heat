@@ -1,5 +1,6 @@
 """Tests for the public surface and generic dispatch of ``heat.core.io``."""
 
+import os
 import subprocess
 import sys
 import unittest
@@ -53,6 +54,30 @@ class TestIOSurface(TestCase):
             self.assertTrue(hasattr(ht.DNDarray, "save_hdf5"))
         if ht.io.supports_netcdf():
             self.assertTrue(hasattr(ht.DNDarray, "save_netcdf"))
+
+    def test_dndarray_save_hdf5_forwards_dtype(self):
+        """`DNDarray.save_hdf5` used to accept `dtype` and silently drop it."""
+        if not ht.io.supports_hdf5():
+            self.skipTest("Requires HDF5")
+        import h5py
+
+        path = os.path.join(os.getcwd(), "test_save_hdf5_dtype.h5")
+        data = ht.arange(8, split=0, dtype=ht.int32)
+        data.save_hdf5(path, "data", dtype=ht.float64)
+        ht.MPI_WORLD.Barrier()
+        with h5py.File(path, "r") as handle:
+            self.assertEqual(handle["data"].dtype, "float64")
+        ht.MPI_WORLD.Barrier()
+        if ht.MPI_WORLD.rank == 0:
+            os.remove(path)
+        ht.MPI_WORLD.Barrier()
+
+    def test_dndarray_save_methods_cover_every_writable_format(self):
+        """Every format with a saver gets a `DNDarray.save_<format>` method."""
+        for name, spec in ht.io.registered_formats().items():
+            if spec.saver is not None:
+                with self.subTest(format=name):
+                    self.assertTrue(hasattr(ht.DNDarray, f"save_{name}"))
 
     def test_import_heat_does_not_import_optional_dependencies(self):
         """`import heat` must not pay for h5py, netCDF4, zarr or pandas.
