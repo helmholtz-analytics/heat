@@ -159,7 +159,7 @@ class TestSorting:
         arr = torch.from_numpy(a.numpy())
 
         res = ht.reorder(a, indices=permutation, axis=axis, resplit_result=resplit_result)
-        exp_res = arr.transpose(0, axis)[permutation].transpose(0, axis).numpy()
+        exp_res = arr[(slice(None),) * (axis-1) + (permutation,)]
 
         assert np.isclose(res.numpy(), exp_res).all()
         assert not resplit_result or a.split == res.split
