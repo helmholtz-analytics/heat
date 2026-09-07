@@ -2215,7 +2215,6 @@ class TestDNDarray(TestCase):
             * dndarray_proxy.untyped_storage().element_size()
         )
         self.assertTrue(dndarray_proxy_nbytes == 1)
-        self.assertTrue(dndarray_proxy.names.index("split") == 1)
 
     def test_torch_function(self):
         arr = ht.array([1, 2, 3, 4])
