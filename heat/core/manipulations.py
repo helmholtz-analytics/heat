@@ -2925,7 +2925,7 @@ def sort_complex(
     Parameters
     ----------
     a : DNDarray
-        THe array to be sorted.
+        The array to be sorted.
     axis : int, optional
         The axis along which to sort. If the split dimension matches the axis,
         the array is resplit to another axis.
