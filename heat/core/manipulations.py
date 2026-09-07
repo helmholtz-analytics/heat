@@ -3179,9 +3179,7 @@ def vectorized_sort(
     if return_sort_indices_instead:
         return factories.array(indices, split=None, device=a.device)
 
-    return reorder(
-        a, indices, axis=axis, resplit_result=resplit_result, out_split=original_split
-    )
+    return reorder(a, indices, axis=axis, resplit_result=resplit_result, out_split=original_split)
 
 
 def reorder(
