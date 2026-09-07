@@ -198,7 +198,7 @@ def _resolve_duplicate_indices(
 
 def _normalize_key(key: Indexer, device: torch.device) -> tuple[Any, ...]:
     """
-    Standardize the non-DNDarray coordinate indices to PyTorch tensors.
+    Standardize the non-DNDarray coordinate indices to PyTorch-friendly key items.
 
     Returns a tuple of normalized key items.
     """
@@ -405,18 +405,6 @@ def _resolve_indexing_state(
                     backwards_transpose_axes=tuple(range(arr.ndim)),
                 )
 
-    # # normalize index components
-    # if isinstance(key, DNDarray):
-    #     if key.dtype not in (ht_bool, ht_uint8) and key.split is None:
-    #         key = key.larray.to(torch.int64)
-    # elif isinstance(key, (list, tuple)):
-    #     key = type(key)(
-    #         k.larray.to(torch.int64)
-    #         if isinstance(k, DNDarray) and k.dtype not in (ht_bool, ht_uint8) and k.split is None
-    #         else k
-    #         for k in key
-    #     )
-
     # 1D boolean mask resolution
     first = key[0] if isinstance(key, tuple) and len(key) >= 1 else key
     if isinstance(first, (DNDarray, torch.Tensor)) and arr.ndim >= 1:
@@ -460,12 +448,6 @@ def _resolve_indexing_state(
     out_is_balanced = True if not arr.is_distributed() else arr.balanced
     root = None
     backwards_transpose_axes = tuple(range(arr.ndim))
-
-    # if isinstance(key, list):
-    #     try:
-    #         key = torch.tensor(key, device=arr.larray.device)
-    #     except RuntimeError:
-    #         raise IndexError("Invalid indices: expected a list of integers, got {}".format(key))
 
     if isinstance(key, (DNDarray, torch.Tensor)):
         if key.dtype in (ht_bool, ht_uint8, torch.bool, torch.uint8):
@@ -650,45 +632,6 @@ def _resolve_indexing_state(
 
     for i, k in enumerate(key):
         if np.isscalar(k) or getattr(k, "ndim", 1) == 0:
-            # for i, k in enumerate(key):
-            #     if isinstance(k, DNDarray) and k.ndim == 0:
-            #         k = k.larray.item()
-            #         key[i] = k
-            #     # for robustness: handle list/tuple keys that contain DNDarrays
-            #     elif isinstance(k, (list, tuple)) and any(isinstance(kk, DNDarray) for kk in k):
-            #         # Case 1: singleton container (common from where/nonzero): (idx,) -> idx
-            #         if len(k) == 1 and isinstance(k[0], DNDarray):
-            #             k = k[0]
-            #             key[i] = k
-
-            #         else:
-            #             # Case 2: sequence of scalar DNDarrays -> unwrap to python scalars
-            #             new_k = []
-            #             all_scalar = True
-            #             for kk in k:
-            #                 if isinstance(kk, DNDarray):
-            #                     if kk.ndim != 0:
-            #                         all_scalar = False
-            #                         break
-            #                     new_k.append(kk.larray.item())
-            #                 else:
-            #                     new_k.append(kk)
-
-            #             if all_scalar:
-            #                 k = new_k
-            #                 key[i] = k
-            #             else:
-            #                 # This is an ambiguous nested "tuple of index arrays" inside a single axis.
-            #                 # In NumPy semantics such tuples belong at TOP LEVEL (arr[idx0, idx1, ...]),
-            #                 # not nested as one axis key.
-            #                 raise TypeError(
-            #                     "Nested tuple/list of non-scalar DNDarray indices is not supported. "
-            #                     "Pass them as separate indices (e.g. arr[idx0, idx1, ...]) or unwrap "
-            #                     "singleton tuples (e.g. idx = idx[0])."
-            #                 )
-
-            #     if np.isscalar(k) or getattr(k, "ndim", 1) == 0:
-            #         # single-element indexing along axis i
             try:
                 output_shape[i], split_bookkeeping[i] = None, None
             except IndexError:
@@ -2893,16 +2836,15 @@ class DNDarray:
     def __setitem_scalar(self, p: ProcessedKey, value: "DNDarray", value_is_scalar: bool) -> None:
         if p.root is not None:
             if self.comm.rank == p.root:
-                indexed_proxy = self.__torch_proxy__()[p.key]
-                if indexed_proxy.names.count("split") != 0:
+                if p.output_split is not None:
                     indexed_lshape_map = self.lshape_map[:, 1:]
                     if value.lshape_map != indexed_lshape_map:
                         try:
                             value.redistribute_(target_map=indexed_lshape_map)
                         except ValueError:
                             raise ValueError(
-                                f"cannot assign value to indexed DNDarray because "
-                                f"distribution schemes do not match: "
+                                "cannot assign value to indexed DNDarray because "
+                                "distribution schemes do not match: "
                                 f"{value.lshape_map} vs. {indexed_lshape_map}"
                             )
                 self.__set(p.key, value)
@@ -3516,17 +3458,10 @@ class DNDarray:
 
     def __torch_proxy__(self) -> torch.Tensor:
         """
-        Return a 1-element `torch.Tensor` strided as the global `self` shape. The split axis of the initial DNDarray is stored in the `names` attribute of the returned tensor.
-        Used internally to lower memory footprint of sanitation.
+        Return an empty zero-memory meta tensor with the global shape and dtype of ``self``.
+        Used internally to simulate indexing operations and infer output shapes/dimensions.
         """
-        names = [None] * self.ndim
-        if self.split is not None:
-            names[self.split] = "split"
-        return (
-            torch.ones((1,), dtype=torch.int8, device=self.larray.device)
-            .as_strided(self.gshape, [0] * self.ndim)
-            .refine_names(*names)
-        )
+        return torch.empty(self.gshape, dtype=self.dtype.torch_type(), device="meta")
 
 
 # Heat imports at the end to break cyclic dependencies
