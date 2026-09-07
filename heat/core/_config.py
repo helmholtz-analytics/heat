@@ -17,6 +17,19 @@ from enum import Enum
 from types import ModuleType
 from typing import Optional, Tuple
 
+__all__ = [
+    "MPILibrary",
+    "MPILibraryInfo",
+    "PLATFORM",
+    "TORCH_VERSION",
+    "TORCH_CUDA_IS_AVAILABLE",
+    "CUDA_IS_ACTUALLY_ROCM",
+    "CUDA_AWARE_MPI",
+    "ROCM_AWARE_MPI",
+    "GPU_AWARE_MPI",
+    "mpi_library",
+]
+
 
 class MPILibrary(Enum):
     OpenMPI = "ompi"
