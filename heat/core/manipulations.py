@@ -3203,7 +3203,7 @@ def reorder(
         The axis along which to permute. Default is -1.
     resplit_result : bool, optional
         Whether to resplit the result back to the original split axis of `a`. Default is True.
-    original_split: int, optional
+    out_split: int, optional
         Overrides the split dimension gathered from the input `a` dndarray.
 
     Returns
