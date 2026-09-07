@@ -3159,7 +3159,7 @@ def vectorized_sort(
         recv_args = (buffer, send_counts, send_displ)
     else:
         buffer = None
-        recv_args = torch.empty(0, dtype=torch.int64), None, None
+        recv_args = (torch.empty(0, dtype=torch.int64), None, None)
 
     def _gather_column(flat_idx: int):
         idx = np.unravel_index(flat_idx, inner_shape)
