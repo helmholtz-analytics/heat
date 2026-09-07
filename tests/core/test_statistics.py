@@ -1,6 +1,9 @@
+import unittest
+
 import numpy as np
 import torch
 import os
+import unittest
 
 from itertools import combinations
 from scipy import stats as ss
@@ -1599,3 +1602,44 @@ class TestStatistics(TestCase):
 
         # edge case from #2374
         self.assertEqual(ht.var(ht.array([0.], split=None), axis=0, ddof=0), 0)
+
+    @unittest.skipUnless(ht.communication.MPI_WORLD.size >= 3, "Test requires at least 3 tasks")
+    def test_first_two_leading_ranks_empty(self):
+        comm = self.comm
+        local_data = torch.tensor([], dtype=torch.float32) if comm.rank < 2 else torch.tensor([comm.rank], dtype=torch.float32)
+        data = ht.DNDarray(local_data, gshape=(comm.size-2,), dtype=ht.float32, split=0, device=ht.devices.cpu, comm=comm, balanced=False)
+
+        self.assertEqual(ht.mean(data), np.mean(data.numpy()))
+        self.assertEqual(ht.var(data), np.var(data.numpy()))
+
+    @unittest.skipUnless(ht.communication.MPI_WORLD.size == 2, "Test for two tasks")
+    def test_corrected_var_single_element(self):
+        comm = self.comm
+        ltensor_empty = torch.tensor([], dtype=torch.float32)
+        ltensor_data = torch.tensor([0.], dtype=torch.float32)
+
+        ldata_on_first_rank = ltensor_data if comm.rank == 0 else ltensor_empty
+        data_on_first_rank = ht.DNDarray(ldata_on_first_rank, gshape=(1,), dtype=ht.float32, split=0, device=ht.devices.cpu, comm=comm, balanced=None)
+
+        ldata_on_second_rank = ltensor_empty if comm.rank == 0 else ltensor_data
+        data_on_second_rank = ht.DNDarray(ldata_on_second_rank, gshape=(1,), dtype=ht.float32, split=0, device=ht.devices.cpu, comm=comm, balanced=False)
+
+        self.assertTrue(ht.isnan(ht.var(data_on_first_rank, ddof=1)))
+        self.assertTrue(ht.isnan(ht.var(data_on_first_rank, axis=0, ddof=1)))
+
+        self.assertTrue(ht.isnan(ht.var(data_on_second_rank, ddof=1)))
+        self.assertTrue(ht.isnan(ht.var(data_on_second_rank, axis=0, ddof=1)))
+
+    def test_corrected_var_ranks_with_single_elements(self):
+        comm = self.comm
+
+        local_data = torch.tensor([], dtype=torch.float32)
+        if ht.communication.MPI_WORLD.size == 1:
+            local_data = torch.tensor([0., 1.], dtype=torch.float32)
+        elif comm.rank <= 1:
+            local_data = torch.tensor([comm.rank], dtype=torch.float32)
+
+        data = ht.DNDarray(local_data, gshape=(2,), dtype=ht.float32, split=0, device=ht.devices.cpu, comm=comm, balanced=None)
+
+        self.assertEqual(ht.var(data, ddof=1), np.var(data.numpy(), ddof=1))
+        self.assertEqual(ht.var(data, axis=0, ddof=1), np.var(data.numpy(), axis=0, ddof=1))
