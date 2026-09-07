@@ -105,7 +105,7 @@ class TestSorting:
             ndims = len(shape)
             # Fixed the empty list bug here
             axiss = list(range(ndims)) + list(range(-ndims, 0))
-            splits = list(range(ndims))
+            splits = (None,) + tuple(range(ndims))
 
             for axis, split in itertools.product(axiss, splits):
                 yield shape, axis, split
@@ -144,13 +144,14 @@ class TestSorting:
         comm = ht.get_comm()
 
         for shape in shapes:
-            for axis, n in enumerate(shape):
-                for split in (None,) + tuple(range(len(shape))):
-                    permutation = torch.randperm(n)
+            for i, n in enumerate(shape):
+                for axis in (i, i - len(shape)):
+                    for split in (None,) + tuple(range(len(shape))):
+                        permutation = torch.randperm(n)
 
-                    comm.Bcast(permutation)
+                        comm.Bcast(permutation)
 
-                    yield shape, axis, permutation, split
+                        yield shape, axis, permutation, split
 
     @pytest.mark.parametrize("resplit_result", [False, True])
     @pytest.mark.parametrize("shape, axis, permutation, split", list(_generate_reorder_params()))
