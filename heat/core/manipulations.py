@@ -3192,7 +3192,7 @@ def reorder(
     out_split: int | None = None,
 ) -> DNDarray:
     """
-    Redistributes the dndarray along the specified axis using a global indice tensor.
+    Redistributes the dndarray along the specified axis using a global index tensor.
     Does a `resplit`, if `axis != a.split`.
 
     Parameters
