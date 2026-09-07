@@ -16,16 +16,16 @@ import fnmatch
 
 from typing import Callable, Dict, Iterable, List, Optional, Tuple, Union
 
-from . import devices
-from . import factories
-from . import types
+from .. import devices
+from .. import factories
+from .. import types
 
-from .communication import Communication, MPI, MPI_WORLD, sanitize_comm
-from .dndarray import DNDarray
-from .manipulations import hsplit, vsplit
-from .statistics import max as smax, min as smin
-from .stride_tricks import sanitize_axis
-from .types import datatype
+from ..communication import Communication, MPI, MPI_WORLD, sanitize_comm
+from ..dndarray import DNDarray
+from ..manipulations import hsplit, vsplit
+from ..statistics import max as smax, min as smin
+from ..stride_tricks import sanitize_axis
+from ..types import datatype
 
 __VALID_WRITE_MODES = frozenset(["w", "a", "r+"])
 __CSV_EXTENSION = frozenset([".csv"])
