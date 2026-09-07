@@ -192,6 +192,28 @@ class TestTypes(TestCase):
 
 
 class TestTypeConversion(TestCase):
+    def test_astype(self):
+        # check the call to DNDarray.astype
+        data = ht.float32([[1, 2, 3], [4, 5, 6]])
+
+        # check starting invariant
+        self.assertEqual(data.dtype, ht.float32)
+
+        # check the copy case for int16
+        as_int16_f = ht.astype(data, ht.int16)
+        self.assertIsInstance(as_int16_f, ht.DNDarray)
+        self.assertIsNot(as_int16_f, data)
+
+        # DNDarray method
+        as_int16 = data.astype(ht.int16)
+
+        self.assertTrue(ht.equal(as_int16_f, as_int16))
+        self.assertEqual(as_int16_f.dtype, as_int16.dtype)
+        self.assertEqual(as_int16_f.device, as_int16.device)
+
+        with self.assertRaises(TypeError):
+            ht.astype("A", ht.int32)
+
     def test_can_cast(self):
         zeros_array = np.zeros((3,), dtype=np.int16)
 

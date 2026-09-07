@@ -2977,10 +2977,10 @@ def vectorized_sort(
             indices = _permute_indices(local_data[:, i], indices)
 
         if return_sort_indices_instead:
-            return factories.array(indices, split=None)
+            return factories.array(indices, split=None, device=a.device)
 
         local_data = local_data.reshape(shape)[indices].transpose(axis, 0)
-        return factories.array(local_data, split=None)
+        return factories.array(local_data, split=None, device=a.device)
 
     # distributed vectorized sort
     original_split = a.split
@@ -3004,7 +3004,7 @@ def vectorized_sort(
     total_rows = a.gshape[axis]
     block_length = np.prod(inner_shape)
 
-    send_buf = torch.tensor([local_count], dtype=torch.int64)
+    send_buf = torch.tensor([local_count], dtype=torch.int64, device=local_data.device)
     local_counts = torch.empty(size, dtype=torch.int64)
     comm.Gather(send_buf, local_counts, root=0)
 
@@ -3012,7 +3012,7 @@ def vectorized_sort(
         send_counts = local_counts.numpy()
         send_displ = np.insert(np.cumsum(send_counts)[:-1], 0, 0)
 
-        buffer = torch.empty((total_rows,), dtype=local_data.dtype)
+        buffer = torch.empty((total_rows,), dtype=local_data.dtype, device=local_data.device)
         recv_args = (buffer, send_counts, send_displ)
     else:
         buffer = None
@@ -3026,7 +3026,7 @@ def vectorized_sort(
         comm.Gatherv(local_col, recv_args, root=0)
         return buffer
 
-    indices = torch.arange(0, total_rows, dtype=torch.int64)
+    indices = torch.arange(0, total_rows, dtype=torch.int64, device=local_data.device)
 
     for i in range(block_length - 1, -1, -1):
         buffer = _gather_column(i)
@@ -3036,7 +3036,7 @@ def vectorized_sort(
     comm.Bcast(indices, root=0)
 
     if return_sort_indices_instead:
-        return factories.array(indices, split=None)
+        return factories.array(indices, split=None, device=a.device)
 
     offset, _, _ = comm.chunk((total_rows,), split=0, rank=rank)
 
@@ -3082,7 +3082,9 @@ def vectorized_sort(
     recv_displ = np.insert(np.cumsum(recv_counts)[:-1], 0, 0)
 
     send_data = local_data[torch.cat(send_indices).tolist()].reshape(-1).contiguous()
-    recv_buf = torch.empty((recv_counts.sum().item(),), dtype=local_data.dtype)
+    recv_buf = torch.empty(
+        (recv_counts.sum().item(),), dtype=local_data.dtype, device=local_data.device
+    )
 
     comm.Alltoallv((send_data, send_counts, send_displ), (recv_buf, recv_counts, recv_displ))
 
@@ -3095,7 +3097,7 @@ def vectorized_sort(
     if is_1d:
         recv_buf = recv_buf.squeeze(-1)
 
-    sorted_array = factories.array(recv_buf.transpose(0, axis), is_split=a.split)
+    sorted_array = factories.array(recv_buf.transpose(0, axis), is_split=a.split, device=a.device)
 
     if original_split != a.split and resplit_result:
         return resplit(sorted_array, original_split)

@@ -411,12 +411,12 @@ def permutation(x: Union[int, DNDarray], **kwargs) -> DNDarray:
 
         for i in range(size):
             proc_recv = torch.where(recv[torch_cumsum[x.comm.rank] + i] < torch_cumsum)[0][0] - 1
-            buf.append(torch.empty_like(x.lloc[i]))
+            buf.append(torch.empty_like(x.larray[i]))
             requests.append(x.comm.Irecv(buf[-1], proc_recv, tag=i))
 
             proc_send = torch.where(send[torch_cumsum[x.comm.rank] + i] < torch_cumsum)[0][0] - 1
             tag = send[torch_cumsum[x.comm.rank] + i] - torch_cumsum[proc_send]
-            requests.append(x.comm.Isend(x.lloc[i].clone(), proc_send, tag=tag))
+            requests.append(x.comm.Isend(x.larray[i].clone(), proc_send, tag=tag))
 
         for req in requests:
             req.Wait()
