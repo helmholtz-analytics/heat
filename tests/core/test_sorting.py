@@ -145,7 +145,7 @@ class TestSorting:
 
         for shape in shapes:
             for axis, n in enumerate(shape):
-                for split in range(len(shape)):
+                for split in (None,) + tuple(range(len(shape))):
                     permutation = torch.randperm(n)
 
                     comm.Bcast(permutation)
@@ -159,7 +159,7 @@ class TestSorting:
         arr = a.numpy()
 
         res = ht.reorder(a, indices=permutation, axis=axis, resplit_result=resplit_result)
-        exp_res = arr[(slice(None),) * (axis-1) + (permutation,)]
+        exp_res = np.take(arr, permutation.numpy(), axis=axis)
 
         assert np.isclose(res.numpy(), exp_res).all()
         assert not resplit_result or a.split == res.split
