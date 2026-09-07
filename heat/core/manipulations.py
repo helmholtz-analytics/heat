@@ -10,7 +10,7 @@ import warnings
 
 from typing import Any, Iterable, Type, List, Callable, Union, Tuple, Sequence, Optional, NamedTuple
 
-from .communication import MPI, Communication
+from .communication import MPI, Communication, MPI_SELF
 from .dndarray import DNDarray
 
 from . import arithmetics
@@ -3004,7 +3004,7 @@ def sort_complex(
     for i in range(larr_2d.shape[1]):
         col = torch.view_as_real(larr_2d[:, i])
 
-        temp = factories.array(col, split=None, device=a.device)
+        temp = factories.array(col, split=None, device=a.device, comm=MPI_SELF)
         idx = vectorized_sort(
             temp,
             axis=0,
