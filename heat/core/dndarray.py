@@ -196,10 +196,10 @@ def _resolve_duplicate_indices(
     return key_u, rhs_u
 
 
-def _is_scalar_index(k: Any) -> bool:
-    """Return True if k is a non-boolean scalar or 0-D array indexer."""
+def _is_boolean_scalar(k: Any) -> bool:
+    """Return True if k is a python bool or a 0-D boolean array/tensor."""
     if isinstance(k, bool):
-        return False
+        return True
     if hasattr(k, "dtype") and k.dtype in (
         ht_bool,
         ht_uint8,
@@ -208,8 +208,13 @@ def _is_scalar_index(k: Any) -> bool:
         np.bool_,
         np.uint8,
     ):
-        return False
-    return np.isscalar(k) or getattr(k, "ndim", 1) == 0
+        return getattr(k, "ndim", 0) == 0
+    return False
+
+
+def _is_scalar_index(k: Any) -> bool:
+    """Return True if k is a non-boolean scalar or 0-D array indexer."""
+    return not _is_boolean_scalar(k) and (np.isscalar(k) or getattr(k, "ndim", 1) == 0)
 
 
 def _normalize_key(key: Indexer, device: torch.device) -> tuple[Any, ...]:
@@ -597,20 +602,7 @@ def _resolve_indexing_state(
         key = [key]
 
     # check for ellipsis, newaxis. NB: (np.newaxis is None)==True
-    def is_0d_bool(k):
-        if isinstance(k, bool):
-            return True
-        if hasattr(k, "dtype") and k.dtype in (
-            ht_bool,
-            ht_uint8,
-            torch.bool,
-            torch.uint8,
-        ):
-            if getattr(k, "ndim", 1) == 0:
-                return True
-        return False
-
-    add_dims = sum(k is None or is_0d_bool(k) for k in key)
+    add_dims = sum(k is None or _is_boolean_scalar(k) for k in key)
     ellipsis = sum(isinstance(k, type(...)) for k in key)
     if ellipsis > 1:
         raise ValueError("indexing key can only contain 1 Ellipsis (...)")
@@ -628,7 +620,7 @@ def _resolve_indexing_state(
         # expand array dims: output_shape, split_bookkeeping to reflect newaxis
         # replace newaxis with slice(None), replace 0-D bools with a target slice
         for i, k in reversed(list(enumerate(key))):
-            if k is None or is_0d_bool(k):
+            if k is None or _is_boolean_scalar(k):
                 if k is None:
                     key[i] = slice(None)
                 else:
