@@ -196,6 +196,72 @@ def _resolve_duplicate_indices(
     return key_u, rhs_u
 
 
+def _normalize_key(key: Indexer, device: torch.device) -> tuple[Any, ...]:
+    """
+    Standardize the non-DNDarray coordinate indices to PyTorch tensors.
+
+    Returns a tuple of normalized key items.
+    """
+    # Normalize top-level container to a list
+    if isinstance(key, tuple):
+        key_list = list(key)
+    elif isinstance(key, list):
+        # Could be a list of indices: arr[[0, 2]] or arr[0, 2]
+        # Try casting to 1D integer tensor if all elements are ints
+        try:
+            key_list = [torch.tensor(key, device=device)]
+        except (RuntimeError, TypeError, ValueError):
+            key_list = list(key)
+    else:
+        key_list = [key]
+
+    normalized = []
+    for k in key_list:
+        # Convert numpy array to torch tensor on target device
+        if isinstance(k, np.ndarray):
+            normalized.append(torch.from_numpy(k).to(device=device))
+
+        # Unwrap 0-D scalar DNDarray into a Python scalar
+        elif isinstance(k, DNDarray) and k.ndim == 0:
+            normalized.append(k.larray.item())
+
+        # Unpack singleton containers like (idx,) often produced by nonzero/where
+        elif isinstance(k, (tuple, list)) and len(k) == 1 and isinstance(k[0], DNDarray):
+            if k[0].ndim == 0:
+                normalized.append(k[0].larray.item())
+            else:
+                normalized.append(k[0])
+
+        # Sequence of scalar DNDarrays -> unwrap to list of Python scalars
+        elif (
+            isinstance(k, (tuple, list))
+            and len(k) > 0
+            and all(isinstance(elem, DNDarray) and elem.ndim == 0 for elem in k)
+        ):
+            normalized.append(torch.tensor([elem.larray.item() for elem in k], device=device))
+
+        # Catch invalid nested non-scalar DNDarrays early
+        elif isinstance(k, (tuple, list)) and any(
+            isinstance(elem, DNDarray) and elem.ndim > 0 for elem in k
+        ):
+            raise TypeError(
+                "Nested tuple/list of non-scalar DNDarray indices is not supported. "
+                "Pass them as separate indices (e.g. arr[idx0, idx1, ...]) or unwrap "
+                "singleton tuples (e.g. idx = idx[0])."
+            )
+
+        # Convert non-distributed integer/indexing DNDarrays to local torch.Tensor
+        elif isinstance(k, DNDarray) and k.split is None and k.dtype not in (ht_bool, ht_uint8):
+            normalized.append(k.larray.to(torch.int64))
+
+        else:
+            # Leave slices, integers, None, Ellipsis, torch.Tensors,
+            # and distributed DNDarrays (ndim >= 1 and split is not None) intact.
+            normalized.append(k)
+
+    return tuple(normalized)
+
+
 def _resolve_indexing_state(
     arr: "DNDarray",
     key: Indexer,
@@ -289,9 +355,11 @@ def _resolve_indexing_state(
             backwards_transpose_axes=tuple(range(arr.ndim)),
         )
 
-    # cast any numpy keys to torch tensor
-    if isinstance(key, np.ndarray):
-        key = torch.from_numpy(key)
+    # normalize key items to torch-friendly types (torch.Tensor, int, slice, None, Ellipsis)
+    # NB: distributed DNDarrays are not unwrapped here, they are handled later
+    normalized_key = _normalize_key(key, device=arr.larray.device)
+    # maintain single item when raw key was not passed as a tuple
+    key = normalized_key if isinstance(key, tuple) else normalized_key[0]
 
     # evaluate if this is a distributed fast-path mask before we modify the key
     distr_mask_fast_path = False
@@ -337,17 +405,17 @@ def _resolve_indexing_state(
                     backwards_transpose_axes=tuple(range(arr.ndim)),
                 )
 
-    # normalize index components
-    if isinstance(key, DNDarray):
-        if key.dtype not in (ht_bool, ht_uint8) and key.split is None:
-            key = key.larray.to(torch.int64)
-    elif isinstance(key, (list, tuple)):
-        key = type(key)(
-            k.larray.to(torch.int64)
-            if isinstance(k, DNDarray) and k.dtype not in (ht_bool, ht_uint8) and k.split is None
-            else k
-            for k in key
-        )
+    # # normalize index components
+    # if isinstance(key, DNDarray):
+    #     if key.dtype not in (ht_bool, ht_uint8) and key.split is None:
+    #         key = key.larray.to(torch.int64)
+    # elif isinstance(key, (list, tuple)):
+    #     key = type(key)(
+    #         k.larray.to(torch.int64)
+    #         if isinstance(k, DNDarray) and k.dtype not in (ht_bool, ht_uint8) and k.split is None
+    #         else k
+    #         for k in key
+    #     )
 
     # 1D boolean mask resolution
     first = key[0] if isinstance(key, tuple) and len(key) >= 1 else key
@@ -393,11 +461,11 @@ def _resolve_indexing_state(
     root = None
     backwards_transpose_axes = tuple(range(arr.ndim))
 
-    if isinstance(key, list):
-        try:
-            key = torch.tensor(key, device=arr.larray.device)
-        except RuntimeError:
-            raise IndexError("Invalid indices: expected a list of integers, got {}".format(key))
+    # if isinstance(key, list):
+    #     try:
+    #         key = torch.tensor(key, device=arr.larray.device)
+    #     except RuntimeError:
+    #         raise IndexError("Invalid indices: expected a list of integers, got {}".format(key))
 
     if isinstance(key, (DNDarray, torch.Tensor)):
         if key.dtype in (ht_bool, ht_uint8, torch.bool, torch.uint8):
@@ -579,45 +647,48 @@ def _resolve_indexing_state(
     advanced_indexing_dims = []
     advanced_indexing_shapes = []
     lose_dims = 0
+
     for i, k in enumerate(key):
-        if isinstance(k, DNDarray) and k.ndim == 0:
-            k = k.larray.item()
-            key[i] = k
-        # for robustness: handle list/tuple keys that contain DNDarrays
-        elif isinstance(k, (list, tuple)) and any(isinstance(kk, DNDarray) for kk in k):
-            # Case 1: singleton container (common from where/nonzero): (idx,) -> idx
-            if len(k) == 1 and isinstance(k[0], DNDarray):
-                k = k[0]
-                key[i] = k
-
-            else:
-                # Case 2: sequence of scalar DNDarrays -> unwrap to python scalars
-                new_k = []
-                all_scalar = True
-                for kk in k:
-                    if isinstance(kk, DNDarray):
-                        if kk.ndim != 0:
-                            all_scalar = False
-                            break
-                        new_k.append(kk.larray.item())
-                    else:
-                        new_k.append(kk)
-
-                if all_scalar:
-                    k = new_k
-                    key[i] = k
-                else:
-                    # This is an ambiguous nested "tuple of index arrays" inside a single axis.
-                    # In NumPy semantics such tuples belong at TOP LEVEL (arr[idx0, idx1, ...]),
-                    # not nested as one axis key.
-                    raise TypeError(
-                        "Nested tuple/list of non-scalar DNDarray indices is not supported. "
-                        "Pass them as separate indices (e.g. arr[idx0, idx1, ...]) or unwrap "
-                        "singleton tuples (e.g. idx = idx[0])."
-                    )
-
         if np.isscalar(k) or getattr(k, "ndim", 1) == 0:
-            # single-element indexing along axis i
+            # for i, k in enumerate(key):
+            #     if isinstance(k, DNDarray) and k.ndim == 0:
+            #         k = k.larray.item()
+            #         key[i] = k
+            #     # for robustness: handle list/tuple keys that contain DNDarrays
+            #     elif isinstance(k, (list, tuple)) and any(isinstance(kk, DNDarray) for kk in k):
+            #         # Case 1: singleton container (common from where/nonzero): (idx,) -> idx
+            #         if len(k) == 1 and isinstance(k[0], DNDarray):
+            #             k = k[0]
+            #             key[i] = k
+
+            #         else:
+            #             # Case 2: sequence of scalar DNDarrays -> unwrap to python scalars
+            #             new_k = []
+            #             all_scalar = True
+            #             for kk in k:
+            #                 if isinstance(kk, DNDarray):
+            #                     if kk.ndim != 0:
+            #                         all_scalar = False
+            #                         break
+            #                     new_k.append(kk.larray.item())
+            #                 else:
+            #                     new_k.append(kk)
+
+            #             if all_scalar:
+            #                 k = new_k
+            #                 key[i] = k
+            #             else:
+            #                 # This is an ambiguous nested "tuple of index arrays" inside a single axis.
+            #                 # In NumPy semantics such tuples belong at TOP LEVEL (arr[idx0, idx1, ...]),
+            #                 # not nested as one axis key.
+            #                 raise TypeError(
+            #                     "Nested tuple/list of non-scalar DNDarray indices is not supported. "
+            #                     "Pass them as separate indices (e.g. arr[idx0, idx1, ...]) or unwrap "
+            #                     "singleton tuples (e.g. idx = idx[0])."
+            #                 )
+
+            #     if np.isscalar(k) or getattr(k, "ndim", 1) == 0:
+            #         # single-element indexing along axis i
             try:
                 output_shape[i], split_bookkeeping[i] = None, None
             except IndexError:
@@ -2363,8 +2434,6 @@ class DNDarray:
         ):
             return self
 
-        print("DEBUGGING: Key received:", key)
-
         # key processing returns a ProcessedKey namedtuple
         self, processed_key = _resolve_indexing_state(
             self, key, return_local_indices=True, op="get"
@@ -2372,7 +2441,6 @@ class DNDarray:
 
         # dispatch to appropriate getitem method
         op = processed_key.op_type
-        print("DEBUGGING: Operation type:", op)
 
         if op == "scalar":
             return self.__getitem_scalar(processed_key)
@@ -3454,10 +3522,11 @@ class DNDarray:
         names = [None] * self.ndim
         if self.split is not None:
             names[self.split] = "split"
-        tensor_proxy = torch.ones((1,), dtype=torch.int8, device=self.larray.device).as_strided(
-            self.gshape, [0] * self.ndim
+        return (
+            torch.ones((1,), dtype=torch.int8, device=self.larray.device)
+            .as_strided(self.gshape, [0] * self.ndim)
+            .refine_names(*names)
         )
-        return torch.refine_names(tensor_proxy, *names)
 
 
 # Heat imports at the end to break cyclic dependencies
