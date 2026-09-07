@@ -1040,6 +1040,11 @@ class TestDNDarray(TestCase):
         mask = ht.array([True, False, True], split=0)
         self.assertTrue((idx[mask] == ht.array([2, 1], dtype=idx.dtype, split=0)).all().item())
 
+        #  boolean mask on split axis within tuple key
+        arr = ht.arange(10, dtype=ht.float64, split=0).reshape(5,2)
+        mask = ht.array([True, False, True, False, True], split=0)
+        self.assertTrue((arr[mask, :] == ht.array([[0, 1], [4, 5], [8, 9]])).all())
+
     def test_int_cast(self):
         # simple scalar tensor
         a = ht.ones(1)
