@@ -932,8 +932,10 @@ def _resolve_indexing_state(
         op_type = "distributed"
     elif split_key_is_ordered == -1:
         op_type = "descending_slice"
+    elif distr_mask_fast_path:
+        op_type = "distr_mask"
     elif key_is_mask_like:
-        op_type = "distr_mask" if distr_mask_fast_path else "local_mask"
+        op_type = "local_mask"
     else:
         op_type = "advanced"
 
@@ -2361,6 +2363,8 @@ class DNDarray:
         ):
             return self
 
+        print("DEBUGGING: Key received:", key)
+
         # key processing returns a ProcessedKey namedtuple
         self, processed_key = _resolve_indexing_state(
             self, key, return_local_indices=True, op="get"
@@ -2368,7 +2372,7 @@ class DNDarray:
 
         # dispatch to appropriate getitem method
         op = processed_key.op_type
-        # print("DEBUGGING: Operation type:", op)
+        print("DEBUGGING: Operation type:", op)
 
         if op == "scalar":
             return self.__getitem_scalar(processed_key)
