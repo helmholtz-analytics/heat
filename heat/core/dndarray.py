@@ -196,6 +196,22 @@ def _resolve_duplicate_indices(
     return key_u, rhs_u
 
 
+def _is_scalar_index(k: Any) -> bool:
+    """Return True if k is a non-boolean scalar or 0-D array indexer."""
+    if isinstance(k, bool):
+        return False
+    if hasattr(k, "dtype") and k.dtype in (
+        ht_bool,
+        ht_uint8,
+        torch.bool,
+        torch.uint8,
+        np.bool_,
+        np.uint8,
+    ):
+        return False
+    return np.isscalar(k) or getattr(k, "ndim", 1) == 0
+
+
 def _normalize_key(key: Indexer, device: torch.device) -> tuple[Any, ...]:
     """
     Standardize the non-DNDarray coordinate indices to PyTorch-friendly key items.
@@ -262,6 +278,37 @@ def _normalize_key(key: Indexer, device: torch.device) -> tuple[Any, ...]:
     return tuple(normalized)
 
 
+def _scalar_early_out(
+    arr: "DNDarray",
+    key: Any,
+    op: str | None,
+    return_local_indices: bool | None,
+) -> tuple["DNDarray", ProcessedKey]:
+    """Resolve early-out for scalar indexers."""
+    if arr.ndim == 0 and op == "get":
+        raise IndexError(
+            "Too many indices for DNDarray: DNDarray is 0-dimensional, but 1 were indexed"
+        )
+
+    output_shape = arr.gshape[1:]
+    output_split = None if arr.split in (None, 0) else arr.split - 1
+    processed_key, root = _process_scalar_key(
+        arr, key, indexed_axis=0, return_local_indices=return_local_indices
+    )
+
+    return arr, ProcessedKey(
+        key=processed_key,
+        op_type="scalar",
+        output_shape=tuple(output_shape),
+        output_split=output_split,
+        split_key_is_ordered=1,
+        key_is_mask_like=False,
+        out_is_balanced=True,
+        root=root,
+        backwards_transpose_axes=tuple(range(arr.ndim)),
+    )
+
+
 def _resolve_indexing_state(
     arr: "DNDarray",
     key: Indexer,
@@ -324,35 +371,12 @@ def _resolve_indexing_state(
                 original shape if advanced indexing triggered a transposition.
     """
     # early out for scalar key
-    is_scalar = np.isscalar(key) or getattr(key, "ndim", 1) == 0
-
-    is_boolean = isinstance(key, bool) or (
-        hasattr(key, "dtype")
-        and key.dtype in (ht_bool, ht_uint8, torch.bool, torch.uint8, np.bool_, np.uint8)
-    )
-
-    if is_scalar and not is_boolean:
-        if arr.ndim == 0 and op == "get":
-            raise IndexError(
-                "Too many indices for DNDarray: DNDarray is 0-dimensional, but 1 were indexed"
-            )
-
-        output_shape = arr.gshape[1:]
-        output_split = None if arr.split in (None, 0) else arr.split - 1
-        key, root = _process_scalar_key(
-            arr, key, indexed_axis=0, return_local_indices=return_local_indices
-        )
-
-        return arr, ProcessedKey(
+    if _is_scalar_index(key):
+        return _scalar_early_out(
+            arr=arr,
             key=key,
-            op_type="scalar",
-            output_shape=tuple(output_shape),
-            output_split=output_split,
-            split_key_is_ordered=1,
-            key_is_mask_like=False,
-            out_is_balanced=True,
-            root=root,
-            backwards_transpose_axes=tuple(range(arr.ndim)),
+            op=op,
+            return_local_indices=return_local_indices,
         )
 
     # normalize key items to torch-friendly types (torch.Tensor, int, slice, None, Ellipsis)
@@ -631,7 +655,7 @@ def _resolve_indexing_state(
     lose_dims = 0
 
     for i, k in enumerate(key):
-        if np.isscalar(k) or getattr(k, "ndim", 1) == 0:
+        if _is_scalar_index(k):
             try:
                 output_shape[i], split_bookkeeping[i] = None, None
             except IndexError:
