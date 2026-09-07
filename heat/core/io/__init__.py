@@ -9,6 +9,8 @@ from .io import *  # noqa: F403
 from .io import __all__ as _io_all
 from .csv import *  # noqa: F403
 from .csv import __all__ as _csv_all
+from .hdf5 import *  # noqa: F403
+from .hdf5 import __all__ as _hdf5_all
 from .netcdf import *  # noqa: F403
 from .netcdf import __all__ as _netcdf_all
 from .npy import *  # noqa: F403
@@ -16,7 +18,7 @@ from .npy import __all__ as _npy_all
 from .zarr import *  # noqa: F403
 from .zarr import __all__ as _zarr_all
 
-__all__ = [*_io_all, *_csv_all, *_netcdf_all, *_npy_all, *_zarr_all]
+__all__ = [*_io_all, *_csv_all, *_hdf5_all, *_netcdf_all, *_npy_all, *_zarr_all]
 
 
 #: Third-party handles the monolithic io.py happened to expose as module globals, and
