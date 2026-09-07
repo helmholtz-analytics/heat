@@ -28,11 +28,23 @@ EXTENSIONS = frozenset([".nc", ".nc4"])
 DIM_TEMPLATE = "{}_dim_{}"
 
 
+_AVAILABLE = is_installed("netCDF4")
+
+
 def supports_netcdf() -> bool:
     """
     Returns ``True`` if Heat supports reading from and writing to netCDF4 files, ``False`` otherwise.
+
+    .. deprecated::
+        Use :func:`heat.io.supports` instead, e.g. ``ht.io.supports("netcdf")``.
     """
-    return is_installed("netCDF4")
+    warnings.warn(
+        "supports_netcdf() is deprecated and will be removed in a future release; "
+        "use ht.io.supports('netcdf') instead",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return _AVAILABLE
 
 
 @functools.lru_cache(maxsize=None)
@@ -47,7 +59,7 @@ def _warn_if_serial() -> None:
         )
 
 
-if supports_netcdf():
+if _AVAILABLE:
     __all__.extend(["load_netcdf", "save_netcdf"])
 
     def load_netcdf(
@@ -414,6 +426,6 @@ register_format(
     "netcdf",
     EXTENSIONS,
     dependency="netCDF4",
-    loader=load_netcdf if supports_netcdf() else None,
-    saver=save_netcdf if supports_netcdf() else None,
+    loader=load_netcdf if _AVAILABLE else None,
+    saver=save_netcdf if _AVAILABLE else None,
 )

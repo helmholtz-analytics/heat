@@ -1,6 +1,7 @@
 """Tests for the file-format registry backing ``ht.load`` / ``ht.save`` dispatch."""
 
 import unittest
+import warnings
 
 import heat as ht
 from heat.core.io import _registry
@@ -42,6 +43,45 @@ class TestRegistry(TestCase):
     def test_register_allows_reregistering_same_format(self):
         spec = _registry.register_format("csv", {".csv"}, loader=lambda path: None)
         self.assertEqual(spec.name, "csv")
+
+    def test_supports(self):
+        for name in ("csv", "hdf5", "netcdf", "zarr"):
+            with self.subTest(name=name):
+                self.assertIsInstance(_registry.supports(name), bool)
+        # optional dependencies are addressable by import name too
+        self.assertIsInstance(_registry.supports("pandas"), bool)
+        with self.assertRaises(ValueError):
+            _registry.supports("not_a_format_or_dependency")
+
+    def test_available_formats(self):
+        formats = ht.io.available_formats()
+        self.assertEqual(set(formats), set(_registry.registered_formats()))
+        for name, usable in formats.items():
+            self.assertEqual(usable, ht.io.supports(name), name)
+
+    def test_supports_agrees_with_the_deprecated_helpers(self):
+        pairs = [
+            ("hdf5", ht.io.supports_hdf5),
+            ("netcdf", ht.io.supports_netcdf),
+            ("zarr", ht.io.supports_zarr),
+            ("pandas", ht.io.supports_pandas),
+        ]
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            for name, deprecated in pairs:
+                with self.subTest(name=name):
+                    self.assertEqual(ht.io.supports(name), deprecated())
+
+    def test_deprecated_helpers_warn(self):
+        for deprecated in (
+            ht.io.supports_hdf5,
+            ht.io.supports_netcdf,
+            ht.io.supports_zarr,
+            ht.io.supports_pandas,
+        ):
+            with self.subTest(function=deprecated.__name__):
+                with self.assertWarns(DeprecationWarning):
+                    deprecated()
 
     def test_unknown_extension_raises_value_error(self):
         with self.assertRaises(ValueError):

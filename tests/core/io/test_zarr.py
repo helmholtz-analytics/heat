@@ -9,7 +9,7 @@ import heat as ht
 from heat.testing.basic_test import TestCase
 
 
-@unittest.skipUnless(ht.io.supports_zarr(), "Requires zarr")
+@unittest.skipUnless(ht.io.supports("zarr"), "Requires zarr")
 class TestZarr(TestCase):
     """Tests for the zarr loader's split handling."""
 

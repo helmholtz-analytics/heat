@@ -7,6 +7,8 @@ level, so that ``import heat`` does not pay for it.
 
 from __future__ import annotations
 
+import warnings
+
 import os
 from functools import reduce
 from math import log10
@@ -392,14 +394,26 @@ def save_csv(
     data.comm.handle.Barrier()
 
 
+_AVAILABLE = is_installed("pandas")
+
+
 def supports_pandas() -> bool:
     """
     Returns ``True`` if pandas is installed, ``False`` otherwise.
+
+    .. deprecated::
+        Use :func:`heat.io.supports` instead, e.g. ``ht.io.supports("pandas")``.
     """
-    return is_installed("pandas")
+    warnings.warn(
+        "supports_pandas() is deprecated and will be removed in a future release; "
+        "use ht.io.supports('pandas') instead",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return _AVAILABLE
 
 
-if supports_pandas():
+if _AVAILABLE:
     __all__.append("load_csv_from_folder")
 
     def load_csv_from_folder(

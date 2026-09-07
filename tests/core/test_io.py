@@ -14,9 +14,9 @@ import heat as ht
 from tempfile import TemporaryDirectory
 from heat.testing.basic_test import TestCase
 
-if ht.io.supports_hdf5():
+if ht.io.supports("hdf5"):
     import h5py
-if ht.io.supports_netcdf():
+if ht.io.supports("netcdf"):
     import netCDF4 as nc
 
 
@@ -66,7 +66,7 @@ class TestIO(TestCase):
         ht.MPI_WORLD.Barrier()
 
         # clean up of temporary files
-        if ht.io.supports_hdf5():
+        if ht.io.supports("hdf5"):
             try:
                 os.remove(self.HDF5_OUT_PATH)
             except FileNotFoundError:
@@ -77,13 +77,13 @@ class TestIO(TestCase):
             except FileNotFoundError:
                 pass
 
-        if ht.io.supports_netcdf():
+        if ht.io.supports("netcdf"):
             try:
                 os.remove(self.NETCDF_OUT_PATH)
             except FileNotFoundError:
                 pass
 
-        if ht.io.supports_zarr():
+        if ht.io.supports("zarr"):
             if ht.MPI_WORLD.rank == 0:
                 for file in [
                     self.ZARR_TEMP_PATH,
@@ -123,7 +123,7 @@ class TestIO(TestCase):
     # catch-all loading
     def test_load(self):
         # HDF5
-        if ht.io.supports_hdf5():
+        if ht.io.supports("hdf5"):
             iris = ht.load(self.HDF5_PATH, dataset="data", dtype=ht.float32)
             self.assertIsInstance(iris, ht.DNDarray)
             # shape invariant
@@ -140,7 +140,7 @@ class TestIO(TestCase):
                 _ = ht.load(self.HDF5_PATH, dataset=self.HDF5_DATASET)
 
         # netCDF
-        if ht.io.supports_netcdf():
+        if ht.io.supports("netcdf"):
             iris = ht.load(self.NETCDF_PATH, variable=self.NETCDF_VARIABLE)
             self.assertIsInstance(iris, ht.DNDarray)
             # shape invariant
@@ -331,14 +331,14 @@ class TestIO(TestCase):
 
     def test_load_exception(self):
         # correct extension, file does not exist
-        if ht.io.supports_hdf5():
+        if ht.io.supports("hdf5"):
             with self.assertRaises(IOError):
                 ht.load("foo.h5", "data")
         else:
             with self.assertRaises(RuntimeError):
                 ht.load("foo.h5", "data")
 
-        if ht.io.supports_netcdf():
+        if ht.io.supports("netcdf"):
             with self.assertRaises(IOError):
                 ht.load("foo.nc", "data")
         else:
@@ -353,7 +353,7 @@ class TestIO(TestCase):
 
     # catch-all save
     def test_save(self):
-        if ht.io.supports_hdf5():
+        if ht.io.supports("hdf5"):
             # local range
             local_range = ht.arange(100)
             local_range.save(self.HDF5_OUT_PATH, self.HDF5_DATASET, dtype=local_range.dtype.char())
@@ -378,7 +378,7 @@ class TestIO(TestCase):
                     )
                 self.assertTrue((local_range.larray == comparison).all())
 
-        if ht.io.supports_netcdf():
+        if ht.io.supports("netcdf"):
             # local range
             local_range = ht.arange(100)
             local_range.save(self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE)
@@ -558,7 +558,7 @@ class TestIO(TestCase):
     def test_save_exception(self):
         data = ht.arange(1)
 
-        if ht.io.supports_hdf5():
+        if ht.io.supports("hdf5"):
             with self.assertRaises(TypeError):
                 ht.save(1, self.HDF5_OUT_PATH, self.HDF5_DATASET)
             with self.assertRaises(TypeError):
@@ -569,7 +569,7 @@ class TestIO(TestCase):
             with self.assertRaises(RuntimeError):
                 ht.save(data, self.HDF5_OUT_PATH, self.HDF5_DATASET)
 
-        if ht.io.supports_netcdf():
+        if ht.io.supports("netcdf"):
             with self.assertRaises(TypeError):
                 ht.save(1, self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE)
             with self.assertRaises(TypeError):
@@ -605,7 +605,7 @@ class TestIO(TestCase):
 
     def test_load_hdf5(self):
         # HDF5 support is optional
-        if not ht.io.supports_hdf5():
+        if not ht.io.supports("hdf5"):
             self.skipTest("Requires HDF5")
 
         # default parameters
@@ -643,7 +643,7 @@ class TestIO(TestCase):
 
     def test_load_hdf5_exception(self):
         # HDF5 support is optional
-        if not ht.io.supports_hdf5():
+        if not ht.io.supports("hdf5"):
             self.skipTest("Requires HDF5")
 
         # improper argument types
@@ -662,7 +662,7 @@ class TestIO(TestCase):
 
     def test_save_hdf5(self):
         # HDF5 support is optional
-        if not ht.io.supports_hdf5():
+        if not ht.io.supports("hdf5"):
             return
 
         # local unsplit data
@@ -691,7 +691,7 @@ class TestIO(TestCase):
 
     def test_save_hdf5_exception(self):
         # HDF5 support is optional
-        if not ht.io.supports_hdf5():
+        if not ht.io.supports("hdf5"):
             self.skipTest("Requires HDF5")
 
         # dummy data
@@ -706,7 +706,7 @@ class TestIO(TestCase):
 
     def test_load_netcdf(self):
         # netcdf support is optional
-        if not ht.io.supports_netcdf():
+        if not ht.io.supports("netcdf"):
             self.skipTest("Requires NetCDF")
 
         # default parameters
@@ -744,7 +744,7 @@ class TestIO(TestCase):
 
     def test_load_netcdf_exception(self):
         # netcdf support is optional
-        if not ht.io.supports_netcdf():
+        if not ht.io.supports("netcdf"):
             self.skipTest("Requires NetCDF")
 
         # improper argument types
@@ -763,7 +763,7 @@ class TestIO(TestCase):
 
     def test_save_netcdf(self):
         # netcdf support is optional
-        if not ht.io.supports_netcdf():
+        if not ht.io.supports("netcdf"):
             self.skipTest("Requires NetCDF")
 
         # local unsplit data
@@ -792,7 +792,7 @@ class TestIO(TestCase):
 
     def test_save_netcdf_exception(self):
         # netcdf support is optional
-        if not ht.io.supports_netcdf():
+        if not ht.io.supports("netcdf"):
             self.skipTest("Requires NetCDF")
 
         # dummy data
@@ -885,7 +885,7 @@ class TestIO(TestCase):
             ht.MPI_WORLD.Barrier()
 
     def test_load_multiple_csv(self):
-        if not ht.io.supports_pandas():
+        if not ht.io.supports("pandas"):
             self.skipTest("Requires pandas")
 
         import pandas as pd
@@ -934,7 +934,7 @@ class TestIO(TestCase):
             self.assertTrue((load_func_array_npy == npdroparray).all)
 
     def test_load_multiple_csv_exception(self):
-        if not ht.io.supports_pandas():
+        if not ht.io.supports("pandas"):
             self.skipTest("Requires pandas")
 
         import pandas as pd
@@ -962,7 +962,7 @@ class TestIO(TestCase):
             ht.MPI_WORLD.Barrier()
 
     def test_load_zarr(self):
-        if not ht.io.supports_zarr():
+        if not ht.io.supports("zarr"):
             self.skipTest("Requires zarr")
 
         import zarr
@@ -991,7 +991,7 @@ class TestIO(TestCase):
         ht.MPI_WORLD.Barrier()
 
     def test_load_zarr_group(self):
-        if not ht.io.supports_zarr():
+        if not ht.io.supports("zarr"):
             self.skipTest("Requires zarr")
 
         import zarr
@@ -1128,7 +1128,7 @@ class TestIO(TestCase):
             ht.MPI_WORLD.Barrier()
 
     def test_load_zarr_slice(self):
-        if not ht.io.supports_zarr():
+        if not ht.io.supports("zarr"):
             self.skipTest("Requires zarr")
 
         import zarr
@@ -1177,7 +1177,7 @@ class TestIO(TestCase):
                 ht.MPI_WORLD.Barrier()
 
     def test_save_zarr_2d_split0(self):
-        if not ht.io.supports_zarr():
+        if not ht.io.supports("zarr"):
             self.skipTest("Requires zarr")
 
         import zarr
@@ -1197,7 +1197,7 @@ class TestIO(TestCase):
                     ht.MPI_WORLD.handle.Barrier()
 
     def test_save_zarr_2d_split1(self):
-        if not ht.io.supports_zarr():
+        if not ht.io.supports("zarr"):
             self.skipTest("Requires zarr")
 
         import zarr
@@ -1217,7 +1217,7 @@ class TestIO(TestCase):
                     ht.MPI_WORLD.handle.Barrier()
 
     def test_save_zarr_split_none(self):
-        if not ht.io.supports_zarr():
+        if not ht.io.supports("zarr"):
             self.skipTest("Requires zarr")
 
         import zarr
@@ -1235,7 +1235,7 @@ class TestIO(TestCase):
                     ht.MPI_WORLD.handle.Barrier()
 
     def test_save_zarr_1d_split_0(self):
-        if not ht.io.supports_zarr():
+        if not ht.io.supports("zarr"):
             self.skipTest("Requires zarr")
 
         import zarr
@@ -1253,7 +1253,7 @@ class TestIO(TestCase):
                     ht.MPI_WORLD.handle.Barrier()
 
     def test_load_zarr_arguments(self):
-        if not ht.io.supports_zarr():
+        if not ht.io.supports("zarr"):
             self.skipTest("Requires zarr")
 
         with self.assertRaises(TypeError):
@@ -1270,7 +1270,7 @@ class TestIO(TestCase):
             ht.load_zarr("", slices=[0])
 
     def test_save_zarr_arguments(self):
-        if not ht.io.supports_zarr():
+        if not ht.io.supports("zarr"):
             self.skipTest("Requires zarr")
 
         import zarr
@@ -1293,7 +1293,7 @@ class TestIO(TestCase):
         with self.assertRaises(RuntimeError):
             ht.save_zarr(ht.arange(16).reshape((4, 4)), self.ZARR_TEMP_PATH)
 
-    @unittest.skipIf(not ht.io.supports_hdf5(), reason="Requires HDF5")
+    @unittest.skipIf(not ht.io.supports("hdf5"), reason="Requires HDF5")
     def test_load_partial_hdf5(self):
         test_axis = [None, 0, 1]
         test_slices = [
@@ -1330,7 +1330,7 @@ class TestIO(TestCase):
                     self.assertTrue(ht.equal(sliced_iris, expected_iris))
 
     def test_load_multiple_hdf5_even(self):
-        if not ht.io.supports_hdf5():
+        if not ht.io.supports("hdf5"):
             self.skipTest("Requires HDF5")
 
         import h5py
@@ -1364,7 +1364,7 @@ class TestIO(TestCase):
 
 
     def test_load_multiple_hdf5_uneven(self):
-        if not ht.io.supports_hdf5():
+        if not ht.io.supports("hdf5"):
             self.skipTest("Requires HDF5")
 
         import h5py
@@ -1396,7 +1396,7 @@ class TestIO(TestCase):
         original_data_np = original_data.numpy()
         self.assertTrue((dndarray_np == original_data_np).all())
 
-    @unittest.skipIf(not ht.io.supports_hdf5(), reason="Requires HDF5")
+    @unittest.skipIf(not ht.io.supports("hdf5"), reason="Requires HDF5")
     def test_load_multiple_hdf5_exceptions(self):
         # wrong type for folder path
         with self.assertRaises(TypeError):

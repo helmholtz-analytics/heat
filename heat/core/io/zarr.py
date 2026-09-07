@@ -35,14 +35,26 @@ __all__ = ["supports_zarr"]
 EXTENSIONS = frozenset([".zarr"])
 
 
+_AVAILABLE = is_installed("zarr")
+
+
 def supports_zarr() -> bool:
     """
     Returns ``True`` if zarr is installed, ``False`` otherwise.
+
+    .. deprecated::
+        Use :func:`heat.io.supports` instead, e.g. ``ht.io.supports("zarr")``.
     """
-    return is_installed("zarr")
+    warnings.warn(
+        "supports_zarr() is deprecated and will be removed in a future release; "
+        "use ht.io.supports('zarr') instead",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return _AVAILABLE
 
 
-if supports_zarr():
+if _AVAILABLE:
     __all__.extend(["load_zarr", "save_zarr"])
 
     def load_zarr(
@@ -392,6 +404,6 @@ register_format(
     "zarr",
     EXTENSIONS,
     dependency="zarr",
-    loader=load_zarr if supports_zarr() else None,
-    saver=save_zarr if supports_zarr() else None,
+    loader=load_zarr if _AVAILABLE else None,
+    saver=save_zarr if _AVAILABLE else None,
 )

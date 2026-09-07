@@ -25,13 +25,13 @@ class TestIOSurface(TestCase):
             "supports_netcdf",
             "supports_zarr",
         }
-        if ht.io.supports_pandas():
+        if ht.io.supports("pandas"):
             expected.add("load_csv_from_folder")
-        if ht.io.supports_hdf5():
+        if ht.io.supports("hdf5"):
             expected |= {"load_hdf5", "save_hdf5", "load_multiple_hdf5"}
-        if ht.io.supports_netcdf():
+        if ht.io.supports("netcdf"):
             expected |= {"load_netcdf", "save_netcdf"}
-        if ht.io.supports_zarr():
+        if ht.io.supports("zarr"):
             expected |= {"load_zarr", "save_zarr"}
         return expected
 
@@ -50,14 +50,14 @@ class TestIOSurface(TestCase):
 
     def test_dndarray_save_methods(self):
         self.assertTrue(hasattr(ht.DNDarray, "save"))
-        if ht.io.supports_hdf5():
+        if ht.io.supports("hdf5"):
             self.assertTrue(hasattr(ht.DNDarray, "save_hdf5"))
-        if ht.io.supports_netcdf():
+        if ht.io.supports("netcdf"):
             self.assertTrue(hasattr(ht.DNDarray, "save_netcdf"))
 
     def test_dndarray_save_hdf5_forwards_dtype(self):
         """`DNDarray.save_hdf5` used to accept `dtype` and silently drop it."""
-        if not ht.io.supports_hdf5():
+        if not ht.io.supports("hdf5"):
             self.skipTest("Requires HDF5")
         import h5py
 

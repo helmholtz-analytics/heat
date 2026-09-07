@@ -374,7 +374,7 @@ class IncrementalPCA(ht.TransformMixin, ht.BaseEstimator):
             If `chunk_size` is larger than the number of rows in the dataset.
             If the number of columns is smaller than the number of processes.
         """
-        if not ht.io.supports_hdf5():
+        if not ht.io.supports("hdf5"):
             raise RuntimeError(
                 "Computing IncrementalPCA from an HDF5 file requires HDF5 support, which is not available. Please install heat with HDF5 support."
             )

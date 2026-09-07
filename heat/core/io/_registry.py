@@ -12,7 +12,7 @@ from __future__ import annotations
 import dataclasses
 from typing import Callable, Dict, FrozenSet, Iterable, Optional
 
-from .._config import require_dependency
+from .._config import OPTIONAL_DEPENDENCIES, is_installed, require_dependency
 from .utils import extension_of
 
 __all__ = []
@@ -101,6 +101,52 @@ def registered_extensions() -> FrozenSet[str]:
         if _REGISTRY
         else frozenset()
     )
+
+
+def supports(name: str) -> bool:
+    """
+    Returns ``True`` if ``name`` is usable, ``False`` otherwise.
+
+    ``name`` is either a registered format (``"hdf5"``, ``"netcdf"``, ``"zarr"``,
+    ``"csv"``, ...) or the import name of one of Heat's optional dependencies
+    (``"h5py"``, ``"pandas"``, ...). This supersedes the per-format ``supports_*()``
+    functions.
+
+    Parameters
+    ----------
+    name : str
+        Name of a registered format or of an optional dependency.
+
+    Raises
+    ------
+    ValueError
+        If ``name`` is neither.
+
+    Examples
+    --------
+    >>> ht.io.supports("hdf5")
+    True
+    """
+    spec = _REGISTRY.get(name)
+    if spec is not None:
+        return spec.loader is not None or spec.saver is not None
+    if name in OPTIONAL_DEPENDENCIES:
+        return is_installed(name)
+    raise ValueError(
+        f"unknown format or dependency {name!r}; known formats are {sorted(_REGISTRY)}"
+    )
+
+
+def available_formats() -> Dict[str, bool]:
+    """
+    Returns every registered format, mapped to whether it is currently usable.
+
+    Examples
+    --------
+    >>> ht.io.available_formats()
+    {'csv': True, 'hdf5': True, 'netcdf': True, 'zarr': False}
+    """
+    return {name: supports(name) for name in _REGISTRY}
 
 
 def spec_for_path(path: str) -> FormatSpec:

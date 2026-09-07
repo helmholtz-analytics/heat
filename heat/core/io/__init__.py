@@ -3,9 +3,11 @@
 from . import csv, hdf5, io, netcdf, npy, utils, zarr  # noqa: F401
 from ._registry import (  # noqa: F401
     FormatSpec,
+    available_formats,
     register_format,
     registered_extensions,
     registered_formats,
+    supports,
 )
 from ..dndarray import DNDarray
 from .io import load, save

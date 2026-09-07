@@ -27,11 +27,23 @@ __all__ = ["supports_hdf5"]
 EXTENSIONS = frozenset([".h5", ".hdf5"])
 
 
+_AVAILABLE = is_installed("h5py")
+
+
 def supports_hdf5() -> bool:
     """
     Returns ``True`` if Heat supports reading from and writing to HDF5 files, ``False`` otherwise.
+
+    .. deprecated::
+        Use :func:`heat.io.supports` instead, e.g. ``ht.io.supports("hdf5")``.
     """
-    return is_installed("h5py")
+    warnings.warn(
+        "supports_hdf5() is deprecated and will be removed in a future release; "
+        "use ht.io.supports('hdf5') instead",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return _AVAILABLE
 
 
 @functools.lru_cache(maxsize=None)
@@ -46,7 +58,7 @@ def _warn_if_serial() -> None:
         )
 
 
-if supports_hdf5():
+if _AVAILABLE:
     __all__.extend(["load_hdf5", "save_hdf5", "load_multiple_hdf5"])
 
     def load_hdf5(
@@ -421,6 +433,6 @@ register_format(
     "hdf5",
     EXTENSIONS,
     dependency="h5py",
-    loader=load_hdf5 if supports_hdf5() else None,
-    saver=save_hdf5 if supports_hdf5() else None,
+    loader=load_hdf5 if _AVAILABLE else None,
+    saver=save_hdf5 if _AVAILABLE else None,
 )
