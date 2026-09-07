@@ -5,10 +5,12 @@ from typing import Any
 from . import io as _impl
 from .io import *  # noqa: F403
 from .io import __all__ as _io_all
+from .csv import *  # noqa: F403
+from .csv import __all__ as _csv_all
 from .npy import *  # noqa: F403
 from .npy import __all__ as _npy_all
 
-__all__ = [*_io_all, *_npy_all]
+__all__ = [*_io_all, *_csv_all, *_npy_all]
 
 
 def __getattr__(name: str) -> Any:
