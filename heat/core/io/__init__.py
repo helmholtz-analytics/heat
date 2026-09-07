@@ -9,8 +9,10 @@ from .csv import *  # noqa: F403
 from .csv import __all__ as _csv_all
 from .npy import *  # noqa: F403
 from .npy import __all__ as _npy_all
+from .zarr import *  # noqa: F403
+from .zarr import __all__ as _zarr_all
 
-__all__ = [*_io_all, *_csv_all, *_npy_all]
+__all__ = [*_io_all, *_csv_all, *_npy_all, *_zarr_all]
 
 
 def __getattr__(name: str) -> Any:
