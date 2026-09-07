@@ -2989,7 +2989,9 @@ def sort_complex(
             return res, resplit(idx, res.split)
         return res
 
-    if needs_resplit := (a.split == axis):
+    # for nD arrays with n > 1, we must not split along the axis we sort along.
+    needs_resplit = a.split == axis and a.is_distributed()
+    if needs_resplit:
         orthogonal_axis = (axis + 1) % a.ndim
         a = resplit(a, orthogonal_axis)
 
