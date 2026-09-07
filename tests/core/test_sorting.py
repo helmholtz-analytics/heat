@@ -156,7 +156,7 @@ class TestSorting:
     @pytest.mark.parametrize("shape, axis, permutation, split", list(_generate_reorder_params()))
     def test_reorder(self, shape, axis, permutation, split, resplit_result):
         a = ht.random.randn(*shape, split=split)
-        arr = torch.from_numpy(a.numpy())
+        arr = a.numpy()
 
         res = ht.reorder(a, indices=permutation, axis=axis, resplit_result=resplit_result)
         exp_res = arr[(slice(None),) * (axis-1) + (permutation,)]
