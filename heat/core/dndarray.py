@@ -534,6 +534,87 @@ def _process_slice_indexer(
     return new_key, output_dim_len, split_key_is_ordered, out_is_balanced
 
 
+def _reorder_advanced_idx_axes(
+    arr: "DNDarray",
+    key: list[Any],
+    advanced_indexing_dims: list[int],
+    advanced_indexing_shapes: list[tuple[int, ...]],
+    output_shape: list[int | None],
+    split_bookkeeping: list[str | None],
+    key_is_mask_like: bool,
+) -> tuple["DNDarray", list[Any], list[int | None], list[str | None], tuple[int, ...]]:
+    """
+    Broadcasts advanced indexing dimensions and rearranges non-consecutive dimensions
+    to the front of the array as mandated by NumPy advanced indexing semantics.
+    """
+    try:
+        broadcasted_shape = torch.broadcast_shapes(*advanced_indexing_shapes)
+    except RuntimeError:
+        raise IndexError(
+            "Shape mismatch: indexing arrays could not be broadcast together with shapes: {}".format(
+                advanced_indexing_shapes
+            )
+        )
+
+    add_dims = len(broadcasted_shape) - len(advanced_indexing_dims)
+    is_consecutive = (
+        len(advanced_indexing_dims) == 1
+        or list(range(advanced_indexing_dims[0], advanced_indexing_dims[-1] + 1))
+        == advanced_indexing_dims
+    )
+
+    if is_consecutive:
+        output_shape[
+            advanced_indexing_dims[0] : advanced_indexing_dims[0] + len(advanced_indexing_dims)
+        ] = broadcasted_shape
+
+        if key_is_mask_like:
+            has_split = (
+                "split" in split_bookkeeping
+                and split_bookkeeping.index("split") in advanced_indexing_dims
+            )
+            split_bookkeeping[
+                advanced_indexing_dims[0] : advanced_indexing_dims[0] + len(advanced_indexing_dims)
+            ] = ["split"] if has_split else [None]
+        else:
+            adv_sb = split_bookkeeping[advanced_indexing_dims[0] : advanced_indexing_dims[-1] + 1]
+            new_adv_sb = [None] * len(broadcasted_shape)
+            if "split" in adv_sb:
+                new_idx = max(0, adv_sb.index("split") + add_dims)
+                new_adv_sb[new_idx] = "split"
+
+            split_bookkeeping = (
+                split_bookkeeping[: advanced_indexing_dims[0]]
+                + new_adv_sb
+                + split_bookkeeping[advanced_indexing_dims[-1] + 1 :]
+            )
+        backwards_transpose_axes = tuple(range(arr.ndim))
+    else:
+        # Non-consecutive: transpose to make advanced dims leading and consecutive
+        non_adv_ind_dims = [i for i in range(arr.ndim) if i not in advanced_indexing_dims]
+        transpose_axes = tuple(advanced_indexing_dims + non_adv_ind_dims)
+        arr = arr.transpose(transpose_axes)
+        backwards_transpose_axes = tuple(
+            torch.tensor(transpose_axes, device=arr.larray.device).argsort(stable=True).tolist()
+        )
+
+        output_shape = [output_shape[i] for i in transpose_axes]
+        output_shape[: len(advanced_indexing_dims)] = broadcasted_shape
+
+        split_bookkeeping = [split_bookkeeping[i] for i in transpose_axes]
+        adv_sb = split_bookkeeping[: len(advanced_indexing_dims)]
+        new_adv_sb = [None] * len(broadcasted_shape)
+
+        if "split" in adv_sb:
+            new_idx = max(0, adv_sb.index("split") + add_dims)
+            new_adv_sb[new_idx] = "split"
+
+        split_bookkeeping = new_adv_sb + split_bookkeeping[len(advanced_indexing_dims) :]
+        key = [key[i] for i in advanced_indexing_dims] + [key[i] for i in non_adv_ind_dims]
+
+    return arr, key, output_shape, split_bookkeeping, backwards_transpose_axes
+
+
 def _resolve_indexing_state(
     arr: "DNDarray",
     key: Indexer,
@@ -775,8 +856,8 @@ def _resolve_indexing_state(
 
     # recalculate new_split, transpose_axes after dimensions manipulation
     new_split = split_bookkeeping.index("split") if "split" in split_bookkeeping else None
+    backwards_transpose_axes = tuple(range(arr.ndim))
 
-    transpose_axes, backwards_transpose_axes = tuple(range(arr.ndim)), tuple(range(arr.ndim))
     # check for advanced indexing and slices
     advanced_indexing_dims = []
     advanced_indexing_shapes = []
@@ -934,89 +1015,17 @@ def _resolve_indexing_state(
                 key[i] = key[i].larray
         # all adv indexing keys are now torch tensors
 
-        # shapes of adv indexing arrays must be broadcastable
-        try:
-            broadcasted_shape = torch.broadcast_shapes(*advanced_indexing_shapes)
-        except RuntimeError:
-            raise IndexError(
-                "Shape mismatch: indexing arrays could not be broadcast together with shapes: {}".format(
-                    advanced_indexing_shapes
-                )
+        arr, key, output_shape, split_bookkeeping, backwards_transpose_axes = (
+            _reorder_advanced_idx_axes(
+                arr=arr,
+                key=key,
+                advanced_indexing_dims=advanced_indexing_dims,
+                advanced_indexing_shapes=advanced_indexing_shapes,
+                output_shape=output_shape,
+                split_bookkeeping=split_bookkeeping,
+                key_is_mask_like=key_is_mask_like,
             )
-        add_dims = len(broadcasted_shape) - len(advanced_indexing_dims)
-        if (
-            len(advanced_indexing_dims) == 1
-            or list(range(advanced_indexing_dims[0], advanced_indexing_dims[-1] + 1))
-            == advanced_indexing_dims
-        ):
-            # dimensions affected by advanced indexing are consecutive:
-            output_shape[
-                advanced_indexing_dims[0] : advanced_indexing_dims[0] + len(advanced_indexing_dims)
-            ] = broadcasted_shape
-            if key_is_mask_like:
-                # advanced indexing dimensions will be collapsed into one dimension
-                if (
-                    "split" in split_bookkeeping
-                    and split_bookkeeping.index("split") in advanced_indexing_dims
-                ):
-                    split_bookkeeping[
-                        advanced_indexing_dims[0] : advanced_indexing_dims[0]
-                        + len(advanced_indexing_dims)
-                    ] = ["split"]
-                else:
-                    split_bookkeeping[
-                        advanced_indexing_dims[0] : advanced_indexing_dims[0]
-                        + len(advanced_indexing_dims)
-                    ] = [None]
-            else:
-                # Replace the original slice with a properly sized list representing the broadcasted shape
-                # adv_sb = slice of split_bookkeeping corresponding to advanced_indexing_dims
-                adv_sb = split_bookkeeping[
-                    advanced_indexing_dims[0] : advanced_indexing_dims[-1] + 1
-                ]
-                new_adv_sb = [None] * len(broadcasted_shape)
-                if "split" in adv_sb:
-                    # track 'split', adjust for added dimensions
-                    new_idx = adv_sb.index("split") + add_dims
-                    if new_idx < 0:
-                        new_idx = 0
-                    new_adv_sb[new_idx] = "split"
-
-                split_bookkeeping = (
-                    split_bookkeeping[: advanced_indexing_dims[0]]
-                    + new_adv_sb
-                    + split_bookkeeping[advanced_indexing_dims[-1] + 1 :]
-                )
-        else:
-            # advanced-indexing dimensions are not consecutive:
-            # transpose array to make the advanced-indexing dimensions consecutive as the first dimensions
-            non_adv_ind_dims = list(i for i in range(arr.ndim) if i not in advanced_indexing_dims)
-            # keep track of transpose axes order, to be able to transpose back later
-            transpose_axes = tuple(advanced_indexing_dims + non_adv_ind_dims)
-            arr = arr.transpose(transpose_axes)
-            backwards_transpose_axes = tuple(
-                torch.tensor(transpose_axes, device=arr.larray.device).argsort(stable=True).tolist()
-            )
-            # output shape and split bookkeeping
-            output_shape = list(output_shape[i] for i in transpose_axes)
-            output_shape[: len(advanced_indexing_dims)] = broadcasted_shape
-
-            split_bookkeeping = list(split_bookkeeping[i] for i in transpose_axes)
-            adv_sb = split_bookkeeping[: len(advanced_indexing_dims)]
-            new_adv_sb = [None] * len(broadcasted_shape)
-
-            if "split" in adv_sb:
-                new_idx = adv_sb.index("split") + add_dims
-                if new_idx < 0:
-                    new_idx = 0
-                new_adv_sb[new_idx] = "split"
-
-            split_bookkeeping = new_adv_sb + split_bookkeeping[len(advanced_indexing_dims) :]
-
-            # modify key to match the new dimension order
-            key = [key[i] for i in advanced_indexing_dims] + [key[i] for i in non_adv_ind_dims]
-            # update advanced-indexing dims
-            advanced_indexing_dims = list(range(len(advanced_indexing_dims)))
+        )
 
     # expand key to match the number of dimensions of the DNDarray
     if arr.ndim > len(key):
