@@ -2984,7 +2984,7 @@ def sort_complex(
             return_sort_indices_instead=True,
         )
 
-        res = reorder(a, idx.larray, resplit_result=resplit_result)
+        res = reorder(a, idx.larray)
         if return_sort_indices:
             return res, resplit(idx, res.split)
         return res
@@ -3011,7 +3011,7 @@ def sort_complex(
             temp,
             axis=0,
             descending=descending,
-            resplit_result=resplit_result,
+            resplit_result=False,
             return_sort_indices_instead=True,
         ).larray
 

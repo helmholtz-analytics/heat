@@ -153,16 +153,15 @@ class TestSorting:
 
                         yield shape, axis, permutation, split
 
-    @pytest.mark.parametrize("resplit_result", [False, True])
     @pytest.mark.parametrize("shape, axis, permutation, split", list(_generate_reorder_params()))
-    def test_reorder(self, shape, axis, permutation, split, resplit_result):
+    def test_reorder(self, shape, axis, permutation, split):
         a = ht.random.randn(*shape, split=split)
         arr = a.numpy()
 
-        res = ht.reorder(a, indices=permutation, axis=axis, resplit_result=resplit_result)
+        res = ht.reorder(a, indices=permutation, axis=axis)
         exp_res = np.take(arr, permutation.numpy(), axis=axis)
 
         assert np.isclose(res.numpy(), exp_res).all()
-        assert not resplit_result or a.split == res.split
+        assert a.split == res.split
 
         assert a.device == res.device
