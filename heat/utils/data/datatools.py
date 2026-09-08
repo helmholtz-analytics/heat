@@ -374,7 +374,7 @@ class DistributedSampler(torch_data.Sampler):
         if self.shuffle_type == "local":
             rand_perm = torch.randperm(self.dndarray.larray.shape[0])
             self.dndarray.larray = self.dndarray.larray[rand_perm]
-        elif self.shuffle_type != "global":
+        elif self.shuffle_type == "global":
             # TODO: Find out which implementation is better
             # self.dndarray = permutation(self.dndarray)
             # self.dataset.dndarray = self.dndarray
