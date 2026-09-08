@@ -615,6 +615,26 @@ def _reorder_advanced_idx_axes(
     return arr, key, output_shape, split_bookkeeping, backwards_transpose_axes
 
 
+def _assess_op_type(
+    root: int | None,
+    split_key_is_ordered: int,
+    distr_mask_fast_path: bool,
+    key_is_mask_like: bool,
+) -> str:
+    """Determine the indexing operation routing category."""
+    if root is not None:
+        return "scalar"
+    if split_key_is_ordered == 0:
+        return "distributed"
+    if split_key_is_ordered == -1:
+        return "descending_slice"
+    if distr_mask_fast_path:
+        return "distr_mask"
+    if key_is_mask_like:
+        return "local_mask"
+    return "advanced"
+
+
 def _resolve_indexing_state(
     arr: "DNDarray",
     key: Indexer,
@@ -1039,18 +1059,12 @@ def _resolve_indexing_state(
     output_shape = tuple(output_shape)
     new_split = split_bookkeeping.index("split") if "split" in split_bookkeeping else None
 
-    if root is not None:
-        op_type = "scalar"
-    elif split_key_is_ordered == 0:
-        op_type = "distributed"
-    elif split_key_is_ordered == -1:
-        op_type = "descending_slice"
-    elif distr_mask_fast_path:
-        op_type = "distr_mask"
-    elif key_is_mask_like:
-        op_type = "local_mask"
-    else:
-        op_type = "advanced"
+    op_type = _assess_op_type(
+        root=root,
+        split_key_is_ordered=split_key_is_ordered,
+        distr_mask_fast_path=distr_mask_fast_path,
+        key_is_mask_like=key_is_mask_like,
+    )
 
     return arr, ProcessedKey(
         key=tuple(key),
