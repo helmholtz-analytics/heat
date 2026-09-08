@@ -3216,6 +3216,8 @@ def reorder(
         raise ValueError(f"'axis' must be integer, not {type(axis)}.")
     if not (-a.ndim <= axis < a.ndim):
         raise ValueError(f"{axis=} does not exist for array with {a.ndim} dimensions.")
+    if not indices.shape == (a.gshape[axis],):
+        raise ValueError(f'indices of shape {indices.shape} cannot be used to index array of shape {a.shape} along axis {axis}')
 
     if axis < 0:
         axis += a.ndim
