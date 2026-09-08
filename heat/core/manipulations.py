@@ -3226,7 +3226,7 @@ def reorder(
 
     if not a.is_distributed() or axis != a.split:
         local_data = torch.index_select(a.larray, axis, indices)
-        return factories.array(local_data, is_split=a.split)
+        return factories.array(local_data, is_split=a.split, comm=a.comm, device=a.device)
 
     assert axis == a.split  # any other cases should have been handled earlier
 
