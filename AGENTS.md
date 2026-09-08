@@ -25,7 +25,6 @@
 - Do not install missing dependencies and do not edit any files by yourself. First check whether an environment is active. If not load the environment and try the tests again. Otherwise ask for permission.
 
 ## Project Structure
-- `heat/array_api` - Additional module following Python array API standard. Only look when asked for the module explicitly.
 - `heat/classification` - Classification models like kneighbours
 - `heat/cluster` - Clustering models like kmeans, kmedians, kmediods, and spectral clustering
 - `heat/core` - DNDarray class and numeric functions
