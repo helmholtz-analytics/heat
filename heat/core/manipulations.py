@@ -3038,7 +3038,7 @@ def sort_complex(
         balanced=a.balanced,
     )
 
-    if needs_resplit:
+    if needs_resplit and resplit_result:
         res_dnd = resplit(res_dnd, axis)
 
         if return_sort_indices:
