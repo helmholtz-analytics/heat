@@ -358,6 +358,77 @@ def _expand_dimensions_and_ellipsis(
     return arr, key, output_shape, split_bookkeeping
 
 
+def _distr_mask_fast_path(arr: "DNDarray", key: Any, op: str | None) -> bool:
+    """
+    Checks if the indexing operation qualifies for the distributed boolean mask fast path.
+    """
+    if not arr.is_distributed():
+        return False
+
+    if isinstance(key, tuple) and len(key) > arr.split:
+        split_key = key[arr.split]
+    elif isinstance(key, DNDarray):
+        split_key = key
+    else:
+        split_key = None
+
+    if (
+        isinstance(split_key, DNDarray)
+        and split_key.dtype in (ht_bool, ht_uint8)
+        and split_key.split == arr.split
+    ):
+        if split_key.gshape == arr.gshape:
+            # "get" flattens to 1D; if split > 0, local flattening scrambles global C-order
+            return op == "set" or (op == "get" and arr.split == 0)
+        elif (
+            split_key.ndim == 1 and arr.split == 0 and split_key.gshape == (arr.gshape[arr.split],)
+        ):
+            return True
+
+    return False
+
+
+def _resolve_1d_boolean_first_dim(
+    arr: "DNDarray", key: tuple[Any, ...] | Any, distr_mask_fast_path: bool
+) -> tuple[Any, ...] | Any:
+    """
+    If key indexes axis 0 with a 1D boolean mask matching the global size of axis 0,
+    convert that mask into integer coordinates via nonzero().
+    """
+    if distr_mask_fast_path or arr.ndim == 0:
+        return key
+
+    first = key[0] if isinstance(key, tuple) and len(key) >= 1 else key
+
+    if not isinstance(first, (DNDarray, torch.Tensor)):
+        return key
+
+    first_dtype = getattr(first, "dtype", None)
+    first_ndim = getattr(first, "ndim", 0)
+    first_shape = tuple(getattr(first, "shape", ()))
+
+    if (
+        first_ndim == 1
+        and first_shape == (arr.gshape[0],)
+        and first_dtype in (ht_bool, ht_uint8, torch.bool, torch.uint8)
+    ):
+        if isinstance(first, DNDarray):
+            nz = first.nonzero()
+            if isinstance(nz, tuple):
+                nz = nz[0]
+            if getattr(nz, "ndim", 1) > 1 and nz.shape[-1] == 1:
+                nz = nz.squeeze(-1)
+            idx0 = nz
+        elif isinstance(first, torch.Tensor):
+            idx0 = torch.nonzero(first, as_tuple=False).flatten()
+        else:
+            raise Exception(f"Unexpected type {type(first)}")
+
+        return (idx0,) + key[1:] if isinstance(key, tuple) else (idx0,)
+
+    return key
+
+
 def _resolve_indexing_state(
     arr: "DNDarray",
     key: Indexer,
@@ -434,76 +505,23 @@ def _resolve_indexing_state(
     # maintain single item when raw key was not passed as a tuple
     key = normalized_key if isinstance(key, tuple) else normalized_key[0]
 
-    # evaluate if this is a distributed fast-path mask before we modify the key
-    distr_mask_fast_path = False
-    # mask along split axis within tuple?
-    if arr.is_distributed():
-        if isinstance(key, tuple) and len(key) > arr.split:
-            split_key = key[arr.split]
-        elif isinstance(key, DNDarray):
-            split_key = key
-        else:
-            split_key = None
-
-        if (
-            isinstance(split_key, DNDarray)
-            and split_key.dtype in (ht_bool, ht_uint8)
-            and split_key.split == arr.split
-        ):
-            # exact shape match
-            if split_key.gshape == arr.gshape:
-                # "get" flattens to 1D
-                # if split > 0, local flattening scrambles global C-order
-                if op == "set" or (op == "get" and arr.split == 0):
-                    distr_mask_fast_path = True
-            elif (
-                split_key.ndim == 1
-                and arr.split == 0
-                and split_key.gshape == (arr.gshape[arr.split],)
-            ):
-                # 1D mask on split=0
-                distr_mask_fast_path = True
-
-            # early out if mask and not tuple key
-            if distr_mask_fast_path and not isinstance(key, tuple):
-                return arr, ProcessedKey(
-                    key=key.larray,
-                    op_type="distr_mask",
-                    output_shape=(),  # Dummy shape, bypassed safely in __setitem__
-                    output_split=0 if op == "get" else arr.split,
-                    split_key_is_ordered=0,
-                    key_is_mask_like=True,
-                    out_is_balanced=False,
-                    root=None,
-                    backwards_transpose_axes=tuple(range(arr.ndim)),
-                )
+    # evaluate if this is a distributed mask aligned with the array
+    distr_mask_fast_path = _distr_mask_fast_path(arr, key, op)
+    if distr_mask_fast_path and not isinstance(key, tuple):
+        return arr, ProcessedKey(
+            key=key.larray,
+            op_type="distr_mask",
+            output_shape=(),
+            output_split=0 if op == "get" else arr.split,
+            split_key_is_ordered=0,
+            key_is_mask_like=True,
+            out_is_balanced=False,
+            root=None,
+            backwards_transpose_axes=tuple(range(arr.ndim)),
+        )
 
     # 1D boolean mask resolution
-    first = key[0] if isinstance(key, tuple) and len(key) >= 1 else key
-    if isinstance(first, (DNDarray, torch.Tensor)) and arr.ndim >= 1:
-        first_dtype = getattr(first, "dtype", None)
-        first_ndim = getattr(first, "ndim", 0)
-        first_shape = tuple(getattr(first, "shape", ()))
-
-        if (
-            not distr_mask_fast_path
-            and first_ndim == 1
-            and first_shape == (arr.gshape[0],)
-            and first_dtype in (ht_bool, ht_uint8, torch.bool, torch.uint8)
-        ):
-            if isinstance(first, DNDarray):
-                nz = first.nonzero()
-                if isinstance(nz, tuple):
-                    nz = nz[0]
-                if getattr(nz, "ndim", 1) > 1 and nz.shape[-1] == 1:
-                    nz = nz.squeeze(-1)
-                idx0 = nz
-            elif isinstance(first, torch.Tensor):
-                idx0 = torch.nonzero(first, as_tuple=False).flatten()
-            else:
-                raise Exception(f"Unexpected type {type(first)}")
-
-            key = (idx0,) + key[1:] if isinstance(key, tuple) else (idx0,)
+    key = _resolve_1d_boolean_first_dim(arr, key, distr_mask_fast_path)
 
     output_shape = list(arr.gshape)
     split_bookkeeping = [None] * arr.ndim
