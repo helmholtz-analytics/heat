@@ -136,6 +136,7 @@ class TestSorting:
 
         assert a.device == res.device
         assert res.device == res_idx.device
+        assert res.split == a.split
 
     @staticmethod
     def _generate_reorder_params():
