@@ -2952,7 +2952,7 @@ def sort_complex(
     if not isinstance(resplit_result, bool):
         raise ValueError(f"'resplit_result' must be bool, not {type(resplit_result)}.")
     if not isinstance(return_sort_indices, bool):
-        raise ValueError(f"'return_indices_instead' must be bool, not {type(return_sort_indices)}.")
+        raise ValueError(f"'return_sort_indices' must be bool, not {type(return_sort_indices)}.")
     if a.ndim == 0:
         raise ValueError("dndarray must have at least one dimension.")
     if not (-a.ndim <= axis < a.ndim):
