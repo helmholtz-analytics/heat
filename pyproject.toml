@@ -30,7 +30,7 @@ maintainers = [
     { name = "Juan Pedro Gutiérrez Hermosillo Muriedas", email = "juan.muriedas@kit.edu"},
 ]
 license = "MIT"
-license-files = ["LICENSE"]
+license-files = ["LICENSES/MIT.txt"]
 keywords = [
     "python",
     "pytorch",
