@@ -3,9 +3,6 @@ import heat.ndimage.affine as affine
 
 from heat.testing.basic_test import TestCase
 
-from mpi4py.MPI import COMM_WORLD
-import debugpy
-
 
 class TestAffine(TestCase):
 
@@ -86,8 +83,6 @@ class TestAffine(TestCase):
         untouched_axes = affine._untouched_axes(array)
 
     def test_split(self):
-        # debugpy.listen(3000 + COMM_WORLD.rank)
-        # debugpy.wait_for_client()
 
         matrix = ht.array(
             (
