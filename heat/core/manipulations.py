@@ -3186,6 +3186,7 @@ def vectorized_sort(
         return resplit(res, original_split)
     return res
 
+
 def reorder(
     a: DNDarray,
     indices: torch.Tensor,
@@ -3225,7 +3226,6 @@ def reorder(
     if not a.is_distributed():
         local_data = torch.index_select(a.larray, axis, indices)
         return factories.array(local_data, is_split=a.split)
-
 
     original_split = a.split
     if axis != a.split:
