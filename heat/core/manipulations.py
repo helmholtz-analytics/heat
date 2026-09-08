@@ -3120,7 +3120,7 @@ def vectorized_sort(
             indices = _permute_indices(local_data[:, i], indices)
 
         if return_sort_indices_instead:
-            return factories.array(indices, split=a.split, device=a.device)
+            return factories.array(indices, split=None, device=a.device)
 
         local_data = local_data.reshape(shape)[indices].transpose(axis, 0)
         return factories.array(local_data, split=a.split, device=a.device)
