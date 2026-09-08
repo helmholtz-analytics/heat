@@ -1047,11 +1047,11 @@ def _resolve_indexing_state(
     if arr.ndim > len(key):
         key += [slice(None)] * (arr.ndim - len(key))
 
-    key = tuple(key)
-    for i in range(output_shape.count(None)):
+    while None in output_shape:
         lost_dim = output_shape.index(None)
-        output_shape.remove(None)
-        split_bookkeeping = split_bookkeeping[:lost_dim] + split_bookkeeping[lost_dim + 1 :]
+        output_shape.pop(lost_dim)
+        split_bookkeeping.pop(lost_dim)
+
     output_shape = tuple(output_shape)
     new_split = split_bookkeeping.index("split") if "split" in split_bookkeeping else None
 
