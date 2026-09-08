@@ -3224,7 +3224,7 @@ def reorder(
         local_data = torch.index_select(a.larray, axis, indices)
         return factories.array(local_data, is_split=a.split)
 
-    assert axis == a.split # any other cases should have been handled earlier
+    assert axis == a.split  # any other cases should have been handled earlier
 
     comm = a.comm
     rank = comm.rank
