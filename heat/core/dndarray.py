@@ -429,6 +429,45 @@ def _resolve_1d_boolean_first_dim(
     return key
 
 
+def _sanitize_int_indices(k: "DNDarray", dim: int, axis: int, comm: Any, device: Any) -> "DNDarray":
+    """
+    Validates integer bounds and normalizes negative coordinates for distributed/local DNDarray keys.
+    """
+    if k.dtype not in (types.int32, types.int64) or k.ndim < 1:
+        return k
+
+    # Compute local flags even if k.larray is empty (any() on empty -> False)
+    invalid_local = ((k.larray < -dim) | (k.larray >= dim)).any().item()
+    has_neg_local = (k.larray < 0).any().item()
+
+    # Decide once, then ALL ranks take the same path for collectives
+    do_reduce = comm is not None and getattr(comm, "size", 1) > 1 and k.is_distributed()
+
+    if do_reduce:
+        invalid_sum = comm.allreduce(int(invalid_local), op=MPI.SUM)
+        has_neg_sum = comm.allreduce(int(has_neg_local), op=MPI.SUM)
+    else:
+        invalid_sum = int(invalid_local)
+        has_neg_sum = int(has_neg_local)
+
+    if invalid_sum > 0:
+        raise IndexError(f"index out of bounds for axis {axis} with size {dim}")
+
+    if has_neg_sum > 0:
+        k_l = k.larray.clone()
+        k_l[k_l < 0] += dim
+        k = factories.array(
+            k_l,
+            dtype=k.dtype,
+            split=k.split,
+            device=device,
+            comm=comm,
+            copy=False,
+        )
+
+    return k
+
+
 def _resolve_indexing_state(
     arr: "DNDarray",
     key: Indexer,
@@ -708,39 +747,9 @@ def _resolve_indexing_state(
                 k = factories.array(k, device=arr.device, comm=arr.comm, copy=None)
 
             # normalize negative integer indices (NumPy/PyTorch semantics) and validate bounds
-            if k.dtype in (types.int32, types.int64) and k.ndim >= 1:
-                dim = arr.gshape[i]
-
-                # compute local flags even if k.larray is empty (any() on empty -> False)
-                invalid_local = ((k.larray < -dim) | (k.larray >= dim)).any().item()
-                has_neg_local = (k.larray < 0).any().item()
-
-                # Decide once, then ALL ranks take the same path for collectives
-                do_reduce = (
-                    arr.comm is not None and getattr(arr.comm, "size", 1) > 1 and k.is_distributed()
-                )
-
-                if do_reduce:
-                    invalid_sum = arr.comm.allreduce(int(invalid_local), op=MPI.SUM)
-                    has_neg_sum = arr.comm.allreduce(int(has_neg_local), op=MPI.SUM)
-                else:
-                    invalid_sum = int(invalid_local)
-                    has_neg_sum = int(has_neg_local)
-
-                if invalid_sum > 0:
-                    raise IndexError(f"index out of bounds for axis {i} with size {dim}")
-
-                if has_neg_sum > 0:
-                    k_l = k.larray.clone()
-                    k_l[k_l < 0] += dim
-                    k = factories.array(
-                        k_l,
-                        dtype=k.dtype,
-                        split=k.split,
-                        device=arr.device,
-                        comm=arr.comm,
-                        copy=False,
-                    )
+            k = _sanitize_int_indices(
+                k=k, dim=arr.gshape[i], axis=i, comm=arr.comm, device=arr.device
+            )
 
             advanced_indexing_shapes.append(k.gshape)
             if arr_is_distributed and i == arr.split:
