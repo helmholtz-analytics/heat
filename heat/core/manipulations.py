@@ -3127,6 +3127,7 @@ def vectorized_sort(
 
     # distributed vectorized sort
     original_split = a.split
+    original_a = a
     if axis != a.split:
         a = resplit(a, axis)
 
@@ -3181,7 +3182,7 @@ def vectorized_sort(
     if return_sort_indices_instead:
         return factories.array(indices, split=None, device=a.device)
 
-    res = reorder(a, indices, axis=axis, resplit_result=resplit_result)
+    res = reorder(original_a, indices, axis=axis, resplit_result=resplit_result)
     if res.split != original_split and resplit_result:
         return resplit(res, original_split)
     return res
@@ -3223,7 +3224,7 @@ def reorder(
     if axis < 0:
         axis += a.ndim
 
-    if not a.is_distributed():
+    if not a.is_distributed() or axis != a.split:
         local_data = torch.index_select(a.larray, axis, indices)
         return factories.array(local_data, is_split=a.split)
 
