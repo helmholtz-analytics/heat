@@ -468,6 +468,72 @@ def _sanitize_int_indices(k: "DNDarray", dim: int, axis: int, comm: Any, device:
     return k
 
 
+def _process_slice_indexer(
+    k: slice,
+    dim: int,
+    is_split_axis: bool,
+    displs: list[int] | None,
+    counts: list[int] | None,
+    rank: int | None,
+    device: torch.device,
+    return_local_indices: bool,
+) -> tuple[Any, int, int | None, bool | None]:
+    """
+    Computes local slice or index tensor along an axis, determining output dimension length
+    and slice monotonicity ordering.
+    """
+    if k.step == 0:
+        raise ValueError("Slice step cannot be zero")
+
+    start, stop, step = slice(k.start, k.stop, k.step).indices(dim)
+
+    new_key = k
+    output_dim_len = 0
+    split_key_is_ordered = None
+    out_is_balanced = None
+
+    if step < 0 and start > stop:
+        new_key = torch.arange(start, stop, step, device=device, dtype=torch.int64)
+        output_dim_len = len(new_key)
+
+        if is_split_axis:
+            split_key_is_ordered = -1
+            new_key = new_key.flip(0)
+            cond1 = new_key >= displs[rank]
+            cond2 = new_key < displs[rank] + counts[rank]
+            new_key = new_key[cond1 & cond2]
+            if return_local_indices:
+                new_key -= displs[rank]
+            out_is_balanced = False
+
+    elif step > 0 and start < stop:
+        output_dim_len = len(range(start, stop, step))
+
+        if is_split_axis:
+            split_key_is_ordered = 1
+            out_is_balanced = False
+            local_arr_end = displs[rank] + counts[rank]
+            if stop > displs[rank] and start < local_arr_end:
+                index_in_cycle = (displs[rank] - start) % step
+                if start >= displs[rank]:
+                    local_start = start - displs[rank]
+                else:
+                    local_start = 0 if index_in_cycle == 0 else step - index_in_cycle
+                if stop <= local_arr_end:
+                    local_stop = stop - displs[rank]
+                else:
+                    local_stop = counts[rank]
+
+                new_key = slice(local_start, local_stop, step)
+            else:
+                new_key = slice(0, 0)
+    else:
+        new_key = slice(0, 0)
+        output_dim_len = 0
+
+    return new_key, output_dim_len, split_key_is_ordered, out_is_balanced
+
+
 def _resolve_indexing_state(
     arr: "DNDarray",
     key: Indexer,
@@ -769,57 +835,25 @@ def _resolve_indexing_state(
             key[i] = k
 
         elif isinstance(k, slice) and k != slice(None):
-            if k.step == 0:
-                raise ValueError("Slice step cannot be zero")
-            start, stop, step = slice(k.start, k.stop, k.step).indices(arr.gshape[i])
+            is_split_axis = arr_is_distributed and new_split == i
+            rank = arr.comm.rank if arr_is_distributed else None
 
-            if step < 0 and start > stop:
-                # PyTorch doesn't support negative step
-                key[i] = torch.arange(
-                    start, stop, step, device=arr.larray.device, dtype=torch.int64
-                )
-                output_shape[i] = len(key[i])
+            slice_key, dim_len, s_ordered, s_balanced = _process_slice_indexer(
+                k=k,
+                dim=arr.gshape[i],
+                is_split_axis=is_split_axis,
+                displs=displs if arr_is_distributed else None,
+                counts=counts if arr_is_distributed else None,
+                rank=rank,
+                device=arr.larray.device,
+                return_local_indices=return_local_indices,
+            )
 
-                if arr_is_distributed and new_split == i:
-                    split_key_is_ordered = -1
-                    # flip key and keep process-local indices
-                    key[i] = key[i].flip(0)
-                    cond1 = key[i] >= displs[arr.comm.rank]
-                    cond2 = key[i] < displs[arr.comm.rank] + counts[arr.comm.rank]
-                    key[i] = key[i][cond1 & cond2]
-                    if return_local_indices:
-                        key[i] -= displs[arr.comm.rank]
-                    # slices can result in unbalanced chunks
-                    out_is_balanced = False
-
-            elif step > 0 and start < stop:
-                output_shape[i] = len(range(start, stop, step))
-
-                if arr_is_distributed and new_split == i:
-                    split_key_is_ordered = 1
-                    out_is_balanced = False
-                    local_arr_end = displs[arr.comm.rank] + counts[arr.comm.rank]
-                    if stop > displs[arr.comm.rank] and start < local_arr_end:
-                        index_in_cycle = (displs[arr.comm.rank] - start) % step
-                        if start >= displs[arr.comm.rank]:
-                            # slice begins on current rank
-                            local_start = start - displs[arr.comm.rank]
-                        else:
-                            local_start = 0 if index_in_cycle == 0 else step - index_in_cycle
-                        if stop <= local_arr_end:
-                            # slice ends on current rank
-                            local_stop = stop - displs[arr.comm.rank]
-                        else:
-                            local_stop = counts[arr.comm.rank]
-
-                        key[i] = slice(local_start, local_stop, step)
-                    else:
-                        key[i] = slice(0, 0)
-            elif step == 0:
-                raise ValueError("Slice step cannot be zero")
-            else:
-                key[i] = slice(0, 0)
-                output_shape[i] = 0
+            key[i] = slice_key
+            output_shape[i] = dim_len
+            if is_split_axis and s_ordered is not None:
+                split_key_is_ordered = s_ordered
+                out_is_balanced = s_balanced
 
     if advanced_indexing:
         # adv indexing key elements are DNDarrays: extract torch tensors
