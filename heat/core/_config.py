@@ -148,7 +148,6 @@ OPTIONAL_DEPENDENCIES = {
     "netCDF4": "netcdf",
     "zarr": "zarr",
     "pandas": "pandas",
-    "mlarray": "mlarray",
 }
 
 
