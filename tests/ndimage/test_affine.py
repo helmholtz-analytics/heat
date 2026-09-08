@@ -3,6 +3,9 @@ import heat.ndimage.affine as affine
 
 from heat.testing.basic_test import TestCase
 
+from mpi4py.MPI import COMM_WORLD
+import debugpy
+
 
 class TestAffine(TestCase):
 
@@ -81,27 +84,37 @@ class TestAffine(TestCase):
             ([[1, 0, 0], [0, 1, 1], [0, 0, 0.2]], [[1, 0, 0], [0, 1, 1], [0, 0, 1]])
         )
         untouched_axes = affine._untouched_axes(array)
-        print(untouched_axes)
 
-    def test_non_bulk_split(self):
+    def test_split(self):
+        # debugpy.listen(3000 + COMM_WORLD.rank)
+        # debugpy.wait_for_client()
+
         matrix = ht.array(
             (
                 [[1, 0, 0, 0], [0, 1, 1, 0], [0, 0, 0.2, 0]],
                 [[1, 0, 0, 0], [0, 1, 1, 0], [0, 0, 1, 0]],
-            )
+            ),
+            split=None,
         )
-        # only split=1 or split=0 should not error because other axes get changed
+        # only split=3 or split=0 should not error because other axes get changed
+        # split=3 and not split=1, because the input gets permuted internally so the axis assignment
+        # matches the result from scipy
 
-        rnd_image = ht.random.random((2, 64, 64, 3), dtype=ht.float32, split=0)
-        affine.affine_transform(rnd_image, matrix)
+        rnd_image_base = ht.random.random((2, 64, 64, 3), dtype=ht.float32, split=None)
+        split_none = affine.affine_transform(rnd_image_base, matrix)
 
-        rnd_image = ht.random.random((2, 64, 64, 3), dtype=ht.float32, split=1)
-        affine.affine_transform(rnd_image, matrix)
+        rnd_image = ht.resplit(rnd_image_base, 0)
+        split_0 = affine.affine_transform(rnd_image, matrix)
+        self.assertTrue(ht.equal(split_none, split_0))
 
-        rnd_image = ht.random.random((2, 64, 64, 3), dtype=ht.float32, split=2)
+        rnd_image_1 = ht.resplit(rnd_image_base, 3)
+        split_1 = affine.affine_transform(rnd_image_1, matrix)
+        self.assertTrue(ht.equal(split_none, split_1))
+
+        rnd_image = ht.resplit(rnd_image, 2)
         with self.assertRaises(RuntimeError):
             affine.affine_transform(rnd_image, matrix)
 
-        rnd_image = ht.random.random((2, 64, 64, 3), dtype=ht.float32, split=3)
+        rnd_image = ht.resplit(rnd_image, 1)
         with self.assertRaises(RuntimeError):
             affine.affine_transform(rnd_image, matrix)

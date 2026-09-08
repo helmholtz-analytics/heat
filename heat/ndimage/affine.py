@@ -30,13 +30,9 @@ The public entry point is `affine_transform`.
 """
 
 import torch
-from torch.nn.functional import affine_grid, grid_sample
-from heat.core.communication import MPI
-from heat.core.dndarray import DNDarray
-from heat.core.linalg.basics import transpose
 import heat as ht
-
-# from heat.core.manipulations import hstack
+from torch.nn.functional import affine_grid, grid_sample
+from heat.core.dndarray import DNDarray
 from heat.core.factories import array
 
 MODE_TO_PADDING = {
@@ -148,8 +144,6 @@ def convert_matrix_space(M: torch.Tensor, sizes):
     T_np[D, D] = 1
     T_np[:D, D] = scales
     T_pn = T_np.inverse()
-    print(M.shape)
-    print(T_np.shape)
     transformed = T_pn @ M @ T_np
 
     return transformed[:, :D, :]
@@ -162,7 +156,6 @@ def _untouched_axes(matrices: DNDarray):
     identity = ht.eye((matrices.shape[-2:]), dtype=matrices.dtype)
     comparison = ht.eq(matrices, identity)
     result = ht.all(comparison, -1)
-    print(result)
     if result.ndim > 1:
         result = ht.all(result, 0)  # combine along bulk axis
     return result
@@ -222,10 +215,8 @@ def affine_transform(
 
     if matrix.ndim == 2:
         is_bulk = False
-        print("is not bulk!")
     else:
         is_bulk = True
-        print("is bulk!")
 
     if is_bulk:
         is_2d_input = (
@@ -246,18 +237,28 @@ def affine_transform(
             and matrix.shape[0] <= matrix.shape[1] <= 5
         )
 
-    print(f"is 2d input: {is_2d_input}")
-    print(f"is 3d input: {is_3d_input}")
-
     if not (is_2d_input or is_3d_input):
         raise ValueError("matrix does not fit to input shape or not supported dimension count")
+
+    # i am not quite shure why this transpose below is necessary for the right behaviour,
+    # This switches wich axis in input data is influenced by wich row/column in the
+    # afine matrix and is the reverse of the expected matching.
+    if not is_bulk:
+        dimension_order = tuple(
+            idx for idx in range(input.ndim - 1, -1, -1)
+        )  # reversed: (3,2,1,0) or (2,1,0)
+    else:
+        dimension_order = (0,) + tuple(
+            idx for idx in range(input.ndim - 1, 0, -1)
+        )  # reversed: (0,4,3,2,1) or (0,3,2,1)
 
     if is_bulk:
         # determening the split axis
         # if axis is not the bulk axis -> abort
         if (matrix.split not in (0, None)) or (input.split not in (0, None)):
             if input.split > 0:
-                split_idx = input.split - 1  # split index without bulk
+                future_split_axis = dimension_order.index(input.split)
+                split_idx = future_split_axis - 1  # split index without bulk
                 if not (
                     matrix.split is None and _untouched_axes(matrix)[split_idx]
                 ):  # transformation in direction of split is not identity
@@ -271,15 +272,20 @@ def affine_transform(
 
     else:
         if (matrix.split is not None) or (input.split is not None):
+            future_split_axis = dimension_order.index(input.split)
             if not (
-                matrix.split is None and _untouched_axes(matrix)[input.split]
+                matrix.split is None and _untouched_axes(matrix)[future_split_axis]
             ):  # transformation in direction of split is not identity
                 raise RuntimeError(
                     "the split axis is not the bulk axis, nor an axis left unchanged by the affine transform. this is not supported"
                 )
 
-    # only bulk axis or unchaned axis is distributed, computations are all local
+    # only bulk axis or unchanged axis is distributed, computations are all local
     matrix_torch: torch.Tensor = matrix.larray
+
+    if matrix.split is None and input.split == 0:
+        _, _, corresponding_slice = matrix.comm.chunk(matrix.gshape, 0)
+        matrix_torch = matrix.larray[corresponding_slice]
 
     color_dim = 2 if is_2d_input else 3
     homogenous_size = color_dim + 2
@@ -295,7 +301,6 @@ def affine_transform(
     ):
         # translation information missing, using offset value and adding it at the right to bring matrix
         # to reduced affine form
-        print("applying offset")
         offset_torch = _remove_slice(offset.larray.float(), color_dim, dim=-1)
 
         transformed_offset = offset_torch[..., None]
@@ -307,54 +312,49 @@ def affine_transform(
     if matrix.shape != (homogenous_size, homogenous_size):
         matrix_torch = _to_full_affine(matrix_torch)
 
-    # i am not quite shure why this transpose below is necessary for the right behaviour,
-    # This switches wich axis in input data is influenced by wich row/column in the
-    # afine matrix and is the reverse of the expected matching.
-    if not is_bulk:
-        dimension_order = tuple(
-            idx for idx in range(input.ndim - 1, -1, -1)
-        )  # reversed: (3,2,1,0) or (2,1,0)
-    else:
-        dimension_order = (0,) + tuple(
-            idx for idx in range(input.ndim - 1, 0, -1)
-        )  # reversed: (0,4,3,2,1) or (0,3,2,1)
-
-    t_input = transpose(input, dimension_order)
-
     # input is local or split is along bulk axis, so transformation can be performed
     # locally without any additional gathering
-    input_torch = t_input.larray
+    input_torch = input.larray.permute(dimension_order)
+
+    if matrix.split == 0 and input.split is None:
+        _, _, corresponding_slice = input.comm.chunk(input.gshape, 0)
+        input_torch = input.larray[corresponding_slice]
 
     if matrix_torch.size(2) == input.ndim:
         input_torch = input_torch.unsqueeze(0)
-        print("adding bulk axis")
 
-    # print(f"{input_torch.shape[2:]=}")
     # TODO this should not change shape of the matrix, matrix should be already in reduces homogenous from
     matrix_torch = convert_matrix_space(
         matrix_torch,
         input_torch.shape[-1:1:-1],  # shape is reversed and without bulk and color dims
     )
 
-    size = torch.Size((input_torch.shape))
-    sample_grid: torch.Tensor = affine_grid(matrix_torch, size)
+    # skip computation if this rank has no data
+    if 0 in input_torch.shape:
+        transformed = torch.zeros(input_torch.shape)
+    else:
+        size = torch.Size((input_torch.shape))
+        sample_grid: torch.Tensor = affine_grid(matrix_torch, size)
 
-    transformed = grid_sample(
-        input_torch,
-        sample_grid,
-        padding_mode=sample_padding,
-        mode=sample_mode,
-    )
+        transformed = grid_sample(
+            input_torch,
+            sample_grid,
+            padding_mode=sample_padding,
+            mode=sample_mode,
+        )
 
     if matrix_torch.size(2) == input.ndim:
         transformed = transformed.squeeze()
 
+    transformed = transformed.permute(dimension_order)
+
     transformed_dnd: DNDarray = array(
-        transformed.permute(dimension_order),
-        is_split=input.split,
+        transformed,
         dtype=input.dtype,
+        is_split=input.split,
         device=input.device,
         comm=input.comm,
+        copy=False,
     )
 
     return transformed_dnd
