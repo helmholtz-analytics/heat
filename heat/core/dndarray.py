@@ -842,16 +842,12 @@ def _resolve_indexing_state(
                     out_is_balanced = True
                     new_split = None
 
-            # define indexing type
-            if root is not None:
-                op_type = "scalar"
-            elif split_key_is_ordered == 0:
-                op_type = "distributed"
-            elif key_is_mask_like:
-                op_type = "local_mask"
-            else:
-                op_type = "advanced"
-
+            op_type = _assess_op_type(
+                root=root,
+                split_key_is_ordered=split_key_is_ordered,
+                distr_mask_fast_path=distr_mask_fast_path,
+                key_is_mask_like=key_is_mask_like,
+            )
             return arr, ProcessedKey(
                 key=key,
                 op_type=op_type,
