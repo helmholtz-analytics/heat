@@ -635,6 +635,84 @@ def _assess_op_type(
     return "advanced"
 
 
+def _sanitize_advanced_keys(
+    arr: "DNDarray",
+    key: list[Any],
+    advanced_indexing_dims: list[int],
+    split_key_is_ordered: int,
+    key_is_mask_like: bool,
+    distr_mask_fast_path: bool,
+    counts: tuple | list | None,
+    displs: tuple | list | None,
+    return_local_indices: bool,
+) -> tuple[list[Any], bool]:
+    """
+    Validates key distribution alignment along the split axis and converts
+    all advanced indexing key elements from DNDarrays into local torch.Tensors.
+    """
+    key = list(key)
+
+    # 1. Detect mask-like conditions (same shape, consecutive dimensions)
+    key_is_mask_like = key_is_mask_like or (
+        len(advanced_indexing_dims) > 1
+        and all(isinstance(k, DNDarray) for k in key)
+        and len(set(k.shape for k in key)) == 1
+        and torch.tensor(advanced_indexing_dims).diff().eq(1).all().item()
+    )
+
+    non_split_dims = [d for d in advanced_indexing_dims if d != arr.split]
+
+    # Align distributions if mask-like
+    if key_is_mask_like and arr.split is not None and arr.split in advanced_indexing_dims:
+        key_splits = [k.split for k in key]
+        split_pos = advanced_indexing_dims.index(arr.split)
+        target_split = key_splits[split_pos]
+
+        if key_splits.count(target_split) != len(key_splits):
+            if target_split is not None and key_splits.count(None) == len(key_splits) - 1:
+                for i in non_split_dims:
+                    key[i] = factories.array(
+                        key[i],
+                        split=target_split,
+                        device=arr.device,
+                        comm=arr.comm,
+                        copy=None,
+                    )
+            else:
+                raise IndexError(
+                    f"Indexing arrays must be distributed along the same dimension, got splits {key_splits}."
+                )
+        elif not key_splits.count(key_splits[0]) == len(key_splits):
+            raise IndexError(
+                f"Indexing arrays must be distributed along the same dimension, got splits {key_splits}."
+            )
+
+    # 2. Extract local torch.Tensors
+    if arr.is_distributed() and arr.split in advanced_indexing_dims:
+        if distr_mask_fast_path:
+            for i in non_split_dims:
+                if isinstance(key[i], DNDarray):
+                    key[i] = key[i].larray
+        elif split_key_is_ordered == 1:
+            k = key[arr.split].larray
+            cond1 = k >= displs[arr.comm.rank]
+            cond2 = k < displs[arr.comm.rank] + counts[arr.comm.rank]
+            k = k[cond1 & cond2]
+            if return_local_indices:
+                k -= displs[arr.comm.rank]
+            key[arr.split] = k
+            for i in non_split_dims:
+                key[i] = key[i].larray[cond1 & cond2] if key_is_mask_like else key[i].larray
+        else:
+            for i in advanced_indexing_dims:
+                key[i] = key[i].larray
+    else:
+        for i in advanced_indexing_dims:
+            key[i] = key[i].larray
+
+    return key, key_is_mask_like
+
+
 def _resolve_indexing_state(
     arr: "DNDarray",
     key: Indexer,
@@ -953,83 +1031,17 @@ def _resolve_indexing_state(
                 out_is_balanced = s_balanced
 
     if advanced_indexing:
-        # adv indexing key elements are DNDarrays: extract torch tensors
-        # options: 1. key is mask-like (covers boolean mask as well), 2. adv indexing along split axis, 3. everything else
-        # 1. define key as mask-like if each element of key is a DNDarray, and all elements of key are of the same shape, and the advanced-indexing dimensions are consecutive
-        key_is_mask_like = key_is_mask_like or (
-            len(advanced_indexing_dims) > 1
-            and all(isinstance(k, DNDarray) for k in key)
-            and len(set(k.shape for k in key)) == 1
-            and torch.tensor(advanced_indexing_dims).diff().eq(1).all().item()
+        key, key_is_mask_like = _sanitize_advanced_keys(
+            arr=arr,
+            key=key,
+            advanced_indexing_dims=advanced_indexing_dims,
+            split_key_is_ordered=split_key_is_ordered,
+            key_is_mask_like=key_is_mask_like,
+            distr_mask_fast_path=distr_mask_fast_path,
+            counts=counts if arr_is_distributed else None,
+            displs=displs if arr_is_distributed else None,
+            return_local_indices=return_local_indices,
         )
-        # if split axis is affected by advanced indexing, keep track of non-split dimensions for later
-        if arr.is_distributed() and arr.split in advanced_indexing_dims:
-            non_split_dims = list(advanced_indexing_dims).copy()
-            if arr.split is not None:
-                non_split_dims.remove(arr.split)
-        # 1. key is mask-like
-        if key_is_mask_like:
-            key = list(key)
-            key_splits = [k.split for k in key]
-            if arr.split is not None and arr.split in advanced_indexing_dims:
-                split_key_pos = advanced_indexing_dims.index(arr.split)
-
-                if not key_splits.count(key_splits[split_key_pos]) == len(key_splits):
-                    if (
-                        key_splits[arr.split] is not None
-                        and key_splits.count(None) == len(key_splits) - 1
-                    ):
-                        for i in non_split_dims:
-                            key[i] = factories.array(
-                                key[i],
-                                split=key_splits[arr.split],
-                                device=arr.device,
-                                comm=arr.comm,
-                                copy=None,
-                            )
-                    else:
-                        raise IndexError(
-                            f"Indexing arrays must be distributed along the same dimension, got splits {key_splits}."
-                        )
-                else:
-                    # all key_splits must be the same, otherwise raise IndexError
-                    if not key_splits.count(key_splits[0]) == len(key_splits):
-                        raise IndexError(
-                            f"Indexing arrays must be distributed along the same dimension, got splits {key_splits}."
-                        )
-            # all key elements are now DNDarrays of the same shape, same split axis
-        # 2. advanced indexing along split axis
-        if arr.is_distributed() and arr.split in advanced_indexing_dims:
-            if distr_mask_fast_path:
-                # mask is already a local tensor, just extract any other advanced indices
-                for i in non_split_dims:
-                    if isinstance(key[i], DNDarray):
-                        key[i] = key[i].larray
-            elif split_key_is_ordered == 1:
-                # extract torch tensors, keep process-local indices only
-                k = key[arr.split].larray
-                cond1 = k >= displs[arr.comm.rank]
-                cond2 = k < displs[arr.comm.rank] + counts[arr.comm.rank]
-                k = k[cond1 & cond2]
-                if return_local_indices:
-                    k -= displs[arr.comm.rank]
-                key[arr.split] = k
-                for i in non_split_dims:
-                    if key_is_mask_like:
-                        # select the same elements along non-split dimensions
-                        key[i] = key[i].larray[cond1 & cond2]
-                    else:
-                        key[i] = key[i].larray
-            elif split_key_is_ordered == 0:
-                # extract torch tensors, any other communication + mask-like case are handled in __getitem__ or __setitem__
-                for i in advanced_indexing_dims:
-                    key[i] = key[i].larray
-            # split_key_is_ordered == -1 not treated here as it is slicing, not advanced indexing
-        else:
-            # advanced indexing does not affect split axis, return torch tensors
-            for i in advanced_indexing_dims:
-                key[i] = key[i].larray
-        # all adv indexing keys are now torch tensors
 
         arr, key, output_shape, split_bookkeeping, backwards_transpose_axes = (
             _reorder_advanced_idx_axes(
