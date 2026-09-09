@@ -3198,7 +3198,8 @@ def take(
     axis: int = -1,
 ) -> DNDarray:
     """
-    Take elements from an array along an axis.
+    Take elements from an array along an axis. 
+    When the array is split across processes, it will automatically balance the new array.
 
     Parameters
     ----------
