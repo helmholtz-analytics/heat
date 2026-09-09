@@ -2984,6 +2984,8 @@ def sort_complex(
             return_sort_indices_instead=True,
         )
 
+        assert not idx.is_distributed()
+
         res = reorder(a, idx.larray)
         if return_sort_indices:
             return res, resplit(idx, res.split)
@@ -2995,10 +2997,10 @@ def sort_complex(
         orthogonal_axis = (axis + 1) % a.ndim
         a = resplit(a, orthogonal_axis)
 
-    larr = a.larray.transpose(axis, 0).clone()
+    larr = a.larray.transpose(axis, 0)
     original_shape = larr.shape
 
-    larr_2d = larr.reshape(larr.shape[0], -1)
+    larr_2d = larr.reshape(larr.shape[0], -1).clone()
 
     if return_sort_indices:
         larr_2d_idxs = torch.empty(larr_2d.shape, dtype=torch.int64, device=a.device.torch_device)
@@ -3013,11 +3015,13 @@ def sort_complex(
             descending=descending,
             resplit_result=False,
             return_sort_indices_instead=True,
-        ).larray
+        )
+
+        assert not idx.is_distributed()
 
         if return_sort_indices:
-            larr_2d_idxs[:, i] = idx
-        larr_2d[:, i] = larr_2d[idx, i]
+            larr_2d_idxs[:, i] = idx.larray
+        larr_2d[:, i] = larr_2d[idx.larray, i]
 
     if return_sort_indices:
         larr_idx = larr_2d_idxs.reshape(original_shape)
