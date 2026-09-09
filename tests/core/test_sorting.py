@@ -139,14 +139,14 @@ class TestSorting:
         assert res.split == a.split
 
     @staticmethod
-    def _generate_reorder_params():
+    def _generate_take_params():
         shapes = [(10, ), (20, 30), (10, 2, 40, 3)]
 
         comm = ht.get_comm()
 
         for shape in shapes:
             for i, n in enumerate(shape):
-                for axis in (i, i - len(shape)):
+                for axis in (i, i - len(shape), None):
                     for split in (None,) + tuple(range(len(shape))):
                         permutation = torch.randperm(n)
 
@@ -154,8 +154,8 @@ class TestSorting:
 
                         yield shape, axis, permutation, split
 
-    @pytest.mark.parametrize("shape, axis, permutation, split", list(_generate_reorder_params()))
-    def test_reorder(self, shape, axis, permutation, split):
+    @pytest.mark.parametrize("shape, axis, permutation, split", list(_generate_take_params()))
+    def test_take(self, shape, axis, permutation, split):
         a = ht.random.randn(*shape, split=split)
         arr = a.numpy()
 
@@ -163,6 +163,8 @@ class TestSorting:
         exp_res = np.take(arr, permutation.numpy(), axis=axis)
 
         assert np.isclose(res.numpy(), exp_res).all()
-        assert a.split == res.split
+        
+        if axis is not None:
+            assert a.split == res.split
 
         assert a.device == res.device

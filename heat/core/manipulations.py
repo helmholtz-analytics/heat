@@ -3195,7 +3195,7 @@ def vectorized_sort(
 def take(
     a: DNDarray,
     indices: torch.Tensor,
-    axis: int = -1,
+    axis: int | None = None,
 ) -> DNDarray:
     """
     Take elements from an array along an axis.
@@ -3217,12 +3217,15 @@ def take(
     """
     sanitation.sanitize_in(a)
 
-    if not isinstance(axis, int):
-        raise ValueError(f"'axis' must be integer, not {type(axis)}.")
-    if not (-a.ndim <= axis < a.ndim):
+    if not isinstance(axis, int) and axis is not None:
+        raise ValueError(f"'axis' must be integer or None, not {type(axis)}.")
+    if axis is not None and not (-a.ndim <= axis < a.ndim):
         raise ValueError(f"{axis=} does not exist for array with {a.ndim} dimensions.")
 
-    if axis < 0:
+    if axis is None:
+        a = a.flatten()
+        axis = 0
+    elif axis < 0:
         axis += a.ndim
 
     if not a.is_distributed() or axis != a.split:
