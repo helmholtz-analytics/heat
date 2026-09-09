@@ -159,7 +159,7 @@ class TestSorting:
         a = ht.random.randn(*shape, split=split)
         arr = a.numpy()
 
-        res = ht.reorder(a, indices=permutation, axis=axis)
+        res = ht.take(a, indices=permutation, axis=axis)
         exp_res = np.take(arr, permutation.numpy(), axis=axis)
 
         assert np.isclose(res.numpy(), exp_res).all()

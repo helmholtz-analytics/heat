@@ -55,7 +55,7 @@ __all__ = [
     "sort",
     "sort_complex",
     "vectorized_sort",
-    "reorder",
+    "take",
     "split",
     "squeeze",
     "stack",
@@ -2986,7 +2986,7 @@ def sort_complex(
 
         assert not idx.is_distributed()
 
-        res = reorder(a, idx.larray)
+        res = take(a, idx.larray)
         if return_sort_indices:
             return res, resplit(idx, res.split)
         return res
@@ -3186,19 +3186,19 @@ def vectorized_sort(
     if return_sort_indices_instead:
         return factories.array(indices, split=None, device=a.device)
 
-    res = reorder(original_a, indices, axis=axis)
+    res = take(original_a, indices, axis=axis)
     if res.split != original_split and resplit_result:
         return resplit(res, original_split)
     return res
 
 
-def reorder(
+def take(
     a: DNDarray,
     indices: torch.Tensor,
     axis: int = -1,
 ) -> DNDarray:
     """
-    Redistributes the dndarray along the specified axis using a global index tensor.
+    Take elements from an array along an axis.
 
     Parameters
     ----------
