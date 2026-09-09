@@ -163,7 +163,7 @@ class TestSorting:
         exp_res = np.take(arr, permutation.numpy(), axis=axis)
 
         assert np.isclose(res.numpy(), exp_res).all()
-        
+
         if axis is not None:
             assert a.split == res.split
 
