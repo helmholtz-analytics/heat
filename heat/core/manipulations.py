@@ -2969,7 +2969,7 @@ def sort_complex(
         temp = DNDarray(
             view,
             gshape=shape,
-            dtype=a.dtype,
+            dtype=types.canonical_heat_type(view.dtype),
             split=a.split,
             device=a.device,
             comm=a.comm,
