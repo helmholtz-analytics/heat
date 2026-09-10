@@ -1,7 +1,5 @@
 # fails sometimes
 array_api_tests/test_creation_functions.py::test_asarray_scalars
-array_api_tests/test_data_type_functions.py::test_astype
-array_api_tests/test_data_type_functions.py::test_can_cast
 array_api_tests/test_linalg.py::test_matmul
 array_api_tests/test_manipulation_functions.py::test_concat
 array_api_tests/test_manipulation_functions.py::test_expand_dims

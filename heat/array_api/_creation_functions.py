@@ -37,7 +37,7 @@ def arange(
         ``stop >= start``. Default: ``1``.
     dtype : Optional[Dtype]
         Output array data type. If ``dtype`` is ``None``, the output array data
-        type is inferred from ``start``, ``stop`` and ``step``.
+        type is inferred from ``start``, ``stop`` and ``step``. Default: ``None``
     device : Optional[Device]
         Device on which to place the created array. Default: ``None``.
     """
