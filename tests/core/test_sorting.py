@@ -160,10 +160,27 @@ class TestSorting:
                 for axis in (i, i - len(shape), None):
                     for split in (None,) + tuple(range(len(shape))):
                         permutation = torch.randperm(n)
-
                         comm.Bcast(permutation)
 
+                        slice_params = torch.empty(2, dtype=torch.int64)
+
+                        seq_len = torch.randint(0, n, (1,)).item()
+                        stop = n - seq_len
+                        start = torch.randint(0, stop, (1,)).item()
+
+                        slice_params[0] = start
+                        slice_params[1] = stop
+
+                        comm.Bcast(permutation)
+                        comm.Bcast(slice_params)
+
+                        start, stop = slice_params
+
+                        permutation2 = permutation[start:stop].clone()
+
                         yield shape, axis, permutation, split
+                        yield shape, axis, permutation2, split
+
 
     @pytest.mark.parametrize("shape, axis, permutation, split", list(_generate_take_params()))
     def test_take(self, shape, axis, permutation, split):

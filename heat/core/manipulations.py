@@ -3239,26 +3239,32 @@ def take(
     size = comm.size
 
     local_data = a.larray.transpose(axis, 0)
-
     original_shape = local_data.shape
     inner_shape = original_shape[1:]
-
-    total_rows = a.gshape[axis]
     block_length = np.prod(inner_shape, dtype=np.int64)
 
-    boundaries = [comm.chunk((total_rows,), split=0, rank=i)[0] for i in range(size)]
-    boundaries.append(total_rows)
-    boundaries_tensor = torch.tensor(boundaries, device=indices.device)
+    out_total = indices.numel() 
+    out_bounds = [comm.chunk((out_total,), split=0, rank=i)[0] for i in range(size)]
+    out_bounds.append(out_total)
 
-    local_start = boundaries[rank]
-    local_stop = boundaries[rank + 1]
-    local_slice = slice(local_start, local_stop)
+    in_total = a.gshape[axis]
+    in_bounds = [comm.chunk((in_total,), split=0, rank=i)[0] for i in range(size)]
+    in_bounds.append(in_total)
+    in_bounds_tensor = torch.tensor(in_bounds, device=indices.device)
+
+    local_start = in_bounds[rank]
+    local_stop = in_bounds[rank + 1]
+
+    local_out_start = out_bounds[rank]
+    local_out_stop = out_bounds[rank + 1]
+
+    needed_indices = indices[local_out_start:local_out_stop]
 
     send_counts_tensor = torch.zeros(size, dtype=torch.int64, device=indices.device)
     send_indices_list = []
 
     for r in range(size):
-        r_wants = indices[boundaries[r] : boundaries[r + 1]]
+        r_wants = indices[out_bounds[r] : out_bounds[r + 1]]
         mask = (r_wants >= local_start) & (r_wants < local_stop)
 
         send_counts_tensor[r] = mask.sum()
@@ -3266,8 +3272,7 @@ def take(
 
     send_indices_tensor = torch.cat(send_indices_list)
 
-    needed_indices = indices[local_slice]
-    src_ranks = torch.bucketize(needed_indices, boundaries_tensor, right=True) - 1
+    src_ranks = torch.bucketize(needed_indices, in_bounds_tensor, right=True) - 1
     recv_counts_tensor = torch.bincount(src_ranks, minlength=size)
 
     send_counts = (send_counts_tensor * block_length).numpy()
