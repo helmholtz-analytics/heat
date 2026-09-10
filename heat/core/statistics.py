@@ -2187,7 +2187,15 @@ def var(
         output_shape_i : iterable
             Iterable with the dimensions of the output of the var function.
         """
+        # number of elements reduced into one output element on this process: the local extent
+        # along the split axis times the (undistributed) extents of the other reduced axes.
+        # ``correction`` must be applied to this count, not to the extent of the split axis alone.
+        reduced_axes = [axis] if isinstance(axis, int) else list(axis)
         n = float(x.lshape[x.split])
+        for ax in reduced_axes:
+            ax = stride_tricks.sanitize_axis(x.shape, int(ax))
+            if ax != x.split:
+                n *= x.lshape[ax]
 
         if x.lshape[x.split] != 0:
             mu = torch.mean(x.larray, dim=axis)
@@ -2221,7 +2229,7 @@ def var(
             )
 
         else:  # case for full matrix calculation (axis is None)
-            n = x.lnumel
+            n = x.larray.numel()
             mu_in = torch.mean(x.larray)
             M2_in = torch.var(x.larray, correction=False) * n
             # NaN is returned when local tensor is empty
