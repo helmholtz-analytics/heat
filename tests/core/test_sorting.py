@@ -83,8 +83,8 @@ class TestSorting:
         a = ht.random.randn(10, split=split)
         a_np = a.numpy()
 
-        res = ht.vectorized_sort(a, axis=axis, descending=descending).numpy()
-        res_idxs = ht.vectorized_sort(a, axis=axis, descending=descending, return_sort_indices_instead=True).numpy()
+        res = ht.vectorized_sort(a, axis=axis, descending=descending)
+        res_idxs = ht.vectorized_sort(a, axis=axis, descending=descending, return_sort_indices_instead=True)
 
         if NUMPY_HAS_NO_DESCENDING_KWARG:
             expected_res_idxs = np.argsort(a_np, axis=axis, stable=True)
@@ -95,15 +95,17 @@ class TestSorting:
 
         expected_res = a_np[expected_res_idxs]
 
-        assert np.isclose(res, expected_res).all()
-        assert np.equal(expected_res_idxs, res_idxs).all()
+        assert np.isclose(res.numpy(), expected_res).all()
+        assert np.equal(res_idxs.numpy(), expected_res_idxs).all()
+
+        assert a.device == res.device
+        assert a.split == res.split
 
     @staticmethod
     def _generate_shape_axis_split_cases():
         shapes = [(10,), (5, 10, 30, 2)]
         for shape in shapes:
             ndims = len(shape)
-            # Fixed the empty list bug here
             axiss = list(range(ndims)) + list(range(-ndims, 0))
             splits = (None,) + tuple(range(ndims))
 
