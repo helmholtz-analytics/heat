@@ -72,9 +72,13 @@ class TestSorting:
         res_idxs = ht.vectorized_sort(a, axis=axis, descending=descending, return_sort_indices_instead=True)
 
         assert np.isclose(res.numpy(), expected_res).all()
-        assert a.device == res.device
         assert np.equal(sort_idx, res_idxs.numpy()).all()
+
+        assert a.device == res.device
         assert a.device == res_idxs.device
+
+        assert res.split == a.split
+        assert res_idxs.split is None
 
     @pytest.mark.parametrize("descending", [False, True])
     @pytest.mark.parametrize("axis", [0, -1])
@@ -100,6 +104,9 @@ class TestSorting:
 
         assert a.device == res.device
         assert a.split == res.split
+
+        assert res.split == a.split
+        assert res_idxs.split is None
 
     @staticmethod
     def _generate_shape_axis_split_cases():
@@ -138,7 +145,9 @@ class TestSorting:
 
         assert a.device == res.device
         assert res.device == res_idx.device
+
         assert res.split == a.split
+        assert res_idx.split == a.split
 
     @staticmethod
     def _generate_take_params():
@@ -170,3 +179,8 @@ class TestSorting:
             assert a.split == res.split
 
         assert a.device == res.device
+
+        if axis is None and a.is_distributed():
+            assert res.split == 0
+        else:
+            assert res.split == a.split
