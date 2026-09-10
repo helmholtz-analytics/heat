@@ -11,8 +11,8 @@ dependencies:
   - pandas
   - scikit-learn
   - pillow
-  - pytorch>=2.3,<2.10.1
-  - torchvision>=0.18,<0.19
+  - pytorch>=2.6,<2.14.1
+  - torchvision>=0.21,<0.29.1
   - scipy>=1.14,<1.15
   - pre-commit
   - ruff

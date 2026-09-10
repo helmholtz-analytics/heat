@@ -3,7 +3,7 @@
 ## Environment Setup
 - Python 3.13+
 - MPI: OpenMPI, MPICH, or Intel MP
-- Dependencies: mpi4py >= 3.1, pytorch >= 2.4
+- Dependencies: mpi4py >= 3.1, pytorch >= 2.6
 - create conda environment: `conda env create -f scripts/heat_dev.yml && conda activate heat_dev`
 - create pip environment: `python -m venv heat_venv && source heat_venv/bin/activate`
 - install: `pip install -e '.[dev]'`
