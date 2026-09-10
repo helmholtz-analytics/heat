@@ -2,7 +2,7 @@ name: heat_dev
 channels:
   - conda-forge
 dependencies:
-  - python>=3.11
+  - python>=3.13
   - openmpi
   - mpi4py>=3.1
   - h5py>=3.11

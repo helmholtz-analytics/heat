@@ -15,7 +15,7 @@ jobs:
       fail-fast: false
       matrix:
         py-version:
-          - '3.11' # Oldest supported
+          - '3.13' # Oldest supported
           - '3.14' # Latest stable
         mpi: [ 'mpich' ]
         pytorch-version:

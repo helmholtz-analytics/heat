@@ -52,8 +52,6 @@ keywords = [
 ]
 classifiers=[
     "Development Status :: 5 - Production/Stable",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
     "Intended Audience :: Science/Research",
@@ -64,7 +62,7 @@ classifiers=[
     "Typing :: Typed"
 ]
 
-requires-python = ">=3.11"
+requires-python = ">=3.13"
 
 dependencies = [
     "mpi4py>=3.1",

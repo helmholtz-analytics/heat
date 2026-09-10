@@ -1,7 +1,7 @@
 # Heat Development
 
 ## Environment Setup
-- Python 3.11+
+- Python 3.13+
 - MPI: OpenMPI, MPICH, or Intel MP
 - Dependencies: mpi4py >= 3.1, pytorch >= 2.4
 - create conda environment: `conda env create -f scripts/heat_dev.yml && conda activate heat_dev`
@@ -49,4 +49,4 @@
 - General guidelines in `CONTRIBUTING.md`
 - Title format: [component] Brief description
 - Fill out the template `.github/PULL_REQUEST_TEMPLATE.md` for the description. If a part is unsure, ask the user.
-- Write `AI Support 🦾` at the end of the description after a newline
+- Write `AI Support 🦾` at the end of the description after a blank line.

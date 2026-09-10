@@ -5,7 +5,7 @@ channels:
   - pytorch
   - nvidia
 dependencies:
-  - python=3.11
+  - python=3.13
   - openmpi
   - mpi4py
   - h5py[version='>=2.9',build=mpi*]

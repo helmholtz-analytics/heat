@@ -38,7 +38,7 @@ Heat is a distributed tensor framework built on **PyTorch** and **mpi4py**. It p
 
 
 ### Requirements
-* **Python:** >= 3.11
+* **Python:** >= 3.13
 * **MPI:** OpenMPI, MPICH, or Intel MPI
 * **Frameworks:** mpi4py >= 3.1, pytorch >= 2.4
 
