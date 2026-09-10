@@ -10,10 +10,9 @@ dependencies:
   - mpi4py
   - h5py[version='>=2.9',build=mpi*]
   - netcdf4
-  - pytorch=2.2.2
-  - pytorch-cuda=12.1
+  - pytorch=2.6.0
+  - pytorch-cuda=12.4
   - torchvision
   - scipy
   - pre-commit
   - black
-  - flake8
