@@ -1,14 +1,5 @@
 """
-Non-distributed affine demo on a NIfTI volume (Heat).
 
-Applies:
-- 2D rotation (centered)
-- 2D scaling (centered)
-- 2D translation
-- 2D shear
-- 3D rotation (centered)
-
-Handles Heat channel dimensions correctly.
 """
 
 from math import radians, cos, sin
@@ -17,30 +8,19 @@ import matplotlib.pyplot as plt
 import heat as ht
 from heat.ndimage.affine import affine_transform
 import scipy.ndimage as ndimg
-from affine_helpers import create_checker_volume, centered_linear
+from heat.ndimage.util import create_checker, centered_linear
 
-# def show(title, volume, slice_point):
-#     volume_slice = volume[slice_point, :, :]
-#     img = volume_slice.numpy().astype(np.uint8)
-
-#     # if img.ndim == 3:
-#     #     img = img[0]
-#     plt.imshow(img)
-#     plt.title(title)
-#     plt.axis("off")
-
-
-# ============================================================
-# Create Image
-# ============================================================
-# Heat array (NO split)
 DEPTH = 32
-WIDTH = 255
-HEIGHT = 128
+WIDTH = 128
+HEIGHT = 64
 
 SLICE_AXIS = 0
 
-vol = create_checker_volume(32, 255, 128, 8)
+MODE = "grid-constant"
+CONSTANT_VALUE = 0.0
+ORDER = 1
+
+vol = create_checker((DEPTH, HEIGHT, WIDTH), 8)
 print("finished generating image")
 
 dims = ht.array(vol.shape)
@@ -51,25 +31,24 @@ axs = axs.ravel()
 
 def apply(M: ht.DNDarray, title, row_idx):
 
-    mode = "constant"
-    constant_value = 0.0
-
     idx = row_idx * 2
 
     result = affine_transform(
         vol,
         M,
-        order=1,
-        mode=mode,
-        cval=constant_value,
-        prefilter=False,
+        order=ORDER,
+        mode=MODE,
+        cval=CONSTANT_VALUE,
+        prefilter=True,
     )
-    print("SHAPE COMPARISON")
-    print(f"{vol.shape}")
-    print(f"{vol.numpy().shape}")
 
     compare = ndimg.affine_transform(
-        vol.numpy(), M.numpy(), order=1, mode=mode, cval=constant_value, prefilter=True
+        vol.numpy(),
+        M.numpy(),
+        order=ORDER,
+        mode=MODE,
+        cval=CONSTANT_VALUE,
+        prefilter=True
     )
 
     if vol.ndim == 4:
@@ -92,8 +71,6 @@ def apply(M: ht.DNDarray, title, row_idx):
 
     slice_dims = result_slice.shape
 
-    print(f"resulting shape: {result.shape}")
-    print(f"compare shape: {compare.shape}")
     axs[idx].imshow(result_slice)
     axs[idx + 1].imshow(compare_slice)
     axs[idx].set_title(title)
@@ -105,67 +82,65 @@ def apply(M: ht.DNDarray, title, row_idx):
 # ------------------------------------------------------------
 # Original
 # ------------------------------------------------------------
-apply(
-    ht.eye(
-        (
-            4,
-            5,
-        ),
-        dtype=ht.float32,
-    ),
-    "Identity",
-    0,
-)
+apply(ht.eye((4, 5,), dtype=ht.float32,), "Identity", 0,)
 # ------------------------------------------------------------
 # Rotate 20° (3D)
 # ------------------------------------------------------------
-theta = radians(20)
-A_rot = ht.array(
+THETA = radians(20)
+A_ROT = ht.array(
     [
-        [cos(theta), -sin(theta), 0, 0],
-        [sin(theta), cos(theta), 0, 0],
-        [0, 0, 1, 0],
-        [0, 0, 0, 1],
+        [cos(THETA), -sin(THETA), 0, 0],
+        [sin(THETA),  cos(THETA), 0, 0],
+        [         0,           0, 1, 0],
+        [         0,           0, 0, 1],
     ],
     dtype=ht.float32,
 )
-M_rot = centered_linear(A_rot, dims)
-apply(M_rot, "20 degrees", 1)
+m_rot = centered_linear(A_ROT, dims)
+apply(m_rot, "20 degrees", 1)
 # ------------------------------------------------------------
-# Scale ×1.2
+# Scale
 # ------------------------------------------------------------
-A_scale = ht.array(
-    [[0.8, 0, 0, 0], [0, 1.2, 0, 0], [0, 0, 2, 0], [0, 0, 0, 1]], dtype=ht.float32
+A_SCALE = ht.array(
+    [[0.8, 0  , 0, 0],
+     [0  , 1.2, 0, 0],
+     [0  , 0  , 2, 0],
+     [0  , 0  , 0, 1]],
+    dtype=ht.float32
 )
-M_scale = centered_linear(A_scale, dims)
-apply(M_scale, "scale by 1.2", 2)
+m_scale = centered_linear(A_SCALE, dims)
+apply(m_scale, "scale by 1.2", 2)
 
 # ------------------------------------------------------------
-# Translate (+20, −20)
+# Translate
 # ------------------------------------------------------------
-M_tr = ht.eye((4, 5), dtype=ht.float32)
-M_tr[:, 4] = [-15, 20, 30, 0]
-apply(M_tr, "Translate (+20, −20)", 3)
+m_tr = ht.eye((4, 5), dtype=ht.float32)
+m_tr[:, 4] = [-15, 20, 30, 0]
+apply(m_tr, "Translate", 3)
 
 # ------------------------------------------------------------
-# Shear (0.3)
+# Shear
 # ------------------------------------------------------------
-A_shear = ht.array(
-    [[1, 0.3, 0.5, 0.2], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]], dtype=ht.float32
+A_SHEAR = ht.array(
+    [[1, 0.3, 0.5, 0.2],
+     [0, 1  , 0  , 0  ],
+     [0, 0  , 1  , 0  ],
+     [0, 0  , 0  , 1  ]],
+    dtype=ht.float32
 )
-M_shear = centered_linear(A_shear, dims)
-apply(M_shear, "Shear (0.3)", 4)
+m_shear = centered_linear(A_SHEAR, dims)
+apply(m_shear, "Shear (0.3)", 4)
 
 # ------------------------------------------------------------
-# 3D rotation around Z-axis (35°)
+# 3D rotation around first axis (depth)
 # ------------------------------------------------------------
 theta3 = radians(35)
 A3 = ht.array(
     [
-        [1, 0, 0, 0],
+        [1,           0,            0, 0],
         [0, cos(theta3), -sin(theta3), 0],
-        [0, sin(theta3), cos(theta3), 0],
-        [0, 0, 0, 1],
+        [0, sin(theta3),  cos(theta3), 0],
+        [0,           0,            0, 1],
     ],
     dtype=ht.float32,
 )

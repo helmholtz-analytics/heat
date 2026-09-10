@@ -1,14 +1,5 @@
 """
-Non-distributed affine demo on a NIfTI volume (Heat).
-
-Applies:
-- 2D rotation (centered)
-- 2D scaling (centered)
-- 2D translation
-- 2D shear
-- 3D rotation (centered)
-
-Handles Heat channel dimensions correctly.
+Demo to compare scipy and heat affine transforms
 """
 
 from math import radians, cos, sin
@@ -17,84 +8,80 @@ import matplotlib.pyplot as plt
 import scipy.ndimage as ndimg
 import heat as ht
 from heat.ndimage.affine import affine_transform
-
-from affine_helpers import centered_linear, create_checker_volume
+from heat.ndimage.util import centered_linear, create_checker
 
 # SETUP
-DEPTH = 32
-WIDTH = 255
-HEIGHT = 128
+DEPTH = 16
+WIDTH = 32
+HEIGHT = 16
 
-SLICE_AXIS = 2
+SLICE_AXIS = 2 #wich axis is not displayed in visualization
 
-vols = ht.stack(
-    (create_checker_volume(32, 255, 128, 16), create_checker_volume(32, 255, 128, 8))
-)
-vols.resplit_(0)
-print("finished generating image")
+MODE = "grid-constant"
+CONSTANT_VALUE = 0.0
 
-dims = vols.shape
+CHECKER_1 = create_checker((DEPTH, WIDTH, HEIGHT), 8, dtype=ht.float32)
+CHECKER_2 = create_checker((DEPTH, WIDTH, HEIGHT), 4, dtype=ht.float32)
+VOLS = ht.stack((CHECKER_1, CHECKER_2))
+VOLS.resplit_(0)
+
+OFFSETS = ht.array(((6, 0, 0, 0), (7, 0, 0, 0)), dtype=ht.float32)
+
+dims = VOLS.shape
 
 fig, axs = plt.subplots(6, 2, figsize=(10, 16))
 axs = axs.ravel()
 
 
-def apply(Ms: ht.DNDarray, title, row_idx):
-    mode = "constant"
-    constant_value = 0.0
-    offsets = ht.array(((30, 0, 0, 0), (30, 0, 0, 0)), dtype=ht.float32)
+def apply(matrices: ht.DNDarray, row_idx):
+
     idx = row_idx * 4
 
-    # print("VOLS PRINT")
-    # print(f"{vols=}")
-
-    # print("MATRIX PRINT")
-    # print(f"{Ms=}")
+    # heat
     result = affine_transform(
-        vols,
-        Ms,
+        VOLS,
+        matrices,
         order=1,
-        mode=mode,
-        cval=constant_value,
+        mode=MODE,
+        cval=CONSTANT_VALUE,
         prefilter=False,
-        offset=offsets,
+        offset=OFFSETS,
     )
 
-    # print(f"{result=}")
 
+    # scipy
     compare = [
         ndimg.affine_transform(
             vol.numpy(),
-            M.numpy(),
+            matrix.numpy(),
             order=1,
-            mode=mode,
-            cval=constant_value,
+            mode=MODE,
+            cval=CONSTANT_VALUE,
             prefilter=True,
             offset=offset.numpy(),
         )
-        for vol, M, offset in zip(vols, Ms, offsets)
+        for vol, matrix, offset in zip(VOLS, matrices, OFFSETS)
     ]
 
     result_numpy = result.numpy()
-    # print(f"{result_numpy.shape=}")
 
     if result_numpy.ndim == 5:
         match SLICE_AXIS:
             case 0:
-                slice1 = result_numpy[0, dims[SLICE_AXIS] // 2, :, :]
-                slice2 = result_numpy[1, dims[SLICE_AXIS] // 2, :, :]
-                compare1 = compare[0][dims[SLICE_AXIS] // 2, :, :]
-                compare2 = compare[1][dims[SLICE_AXIS] // 2, :, :]
+                slice1 = result_numpy[0, dims[SLICE_AXIS+1] // 2, :, :]
+                slice2 = result_numpy[1, dims[SLICE_AXIS+1] // 2, :, :]
+                compare1 = compare[0][dims[SLICE_AXIS+1] // 2, :, :]
+                compare2 = compare[1][dims[SLICE_AXIS+1] // 2, :, :]
             case 1:
-                slice1 = result_numpy[0, :, dims[SLICE_AXIS] // 2, :]
-                slice2 = result_numpy[1, :, dims[SLICE_AXIS] // 2, :]
-                compare1 = compare[0][:, dims[SLICE_AXIS] // 2, :]
-                compare2 = compare[1][:, dims[SLICE_AXIS] // 2, :]
+                slice1 = result_numpy[0, :, dims[SLICE_AXIS+1] // 2, :]
+                slice2 = result_numpy[1, :, dims[SLICE_AXIS+1] // 2, :]
+                compare1 = compare[0][:, dims[SLICE_AXIS+1] // 2, :]
+                compare2 = compare[1][:, dims[SLICE_AXIS+1] // 2, :]
             case 2:
-                slice1 = result_numpy[0, :, :, dims[SLICE_AXIS] // 2]
-                slice2 = result_numpy[1, :, :, dims[SLICE_AXIS] // 2]
-                compare1 = compare[0][:, :, dims[SLICE_AXIS] // 2]
-                compare2 = compare[1][:, :, dims[SLICE_AXIS] // 2]
+                slice1 = result_numpy[0, :, :, dims[SLICE_AXIS+1] // 2]
+                slice2 = result_numpy[1, :, :, dims[SLICE_AXIS+1] // 2]
+                compare1 = compare[0][:, :, dims[SLICE_AXIS+1] // 2]
+                compare2 = compare[1][:, :, dims[SLICE_AXIS+1] // 2]
     else:
         slice1 = result[0]
         slice2 = result[1]
@@ -108,115 +95,77 @@ def apply(Ms: ht.DNDarray, title, row_idx):
     compare_slice_2 = compare2.astype(np.uint8)
     slice_dims = result_slice_1.shape
 
-    print(f"resulting shape: {result.shape}")
-    axs[idx].imshow(result_slice_1)
+    axs[idx    ].imshow(result_slice_1)
     axs[idx + 1].imshow(result_slice_2)
     axs[idx + 2].imshow(compare_slice_1)
     axs[idx + 3].imshow(compare_slice_2)
-    axs[idx].set_title(title)
-    axs[idx].scatter(slice_dims[1] / 2, slice_dims[0] / 2)
+    axs[idx    ].set_title("heat")
+    axs[idx + 2].set_title("scipy")
+    axs[idx    ].scatter(slice_dims[1] / 2, slice_dims[0] / 2)
     axs[idx + 1].scatter(slice_dims[1] / 2, slice_dims[0] / 2)
     axs[idx + 2].scatter(slice_dims[1] / 2, slice_dims[0] / 2)
     axs[idx + 3].scatter(slice_dims[1] / 2, slice_dims[0] / 2)
 
 
 # ------------------------------------------------------------
-# Original
+# Identity
 # ------------------------------------------------------------
-apply(
-    ht.stack(
-        (
-            ht.eye(
-                (
-                    4,
-                    4,
-                ),
-                dtype=ht.float32,
-            ),
-            ht.eye(
-                (
-                    4,
-                    4,
-                ),
-                dtype=ht.float32,
-            ),
-        )
-    ).resplit_(0),
-    "Identity",
-    0,
-)
+matrix= ht.expand_dims(ht.eye((4,4),dtype=ht.float32),0)
+matrix = ht.tile(matrix, [2,1,1])
+apply(matrix, 0)
+
+
 # ------------------------------------------------------------
-# Rotate 20° (3D)
+# Rotate 20° and -20°
+# Offset values specified globally get applied because no
+# translation is specified by the input matrix
 # ------------------------------------------------------------
 theta = radians(20)
-A_rot = ht.array(
+matrix_rot = ht.array(
     [
         [
             [cos(theta), -sin(theta), 0, 0],
-            [sin(theta), cos(theta), 0, 0],
-            [0, 0, 1, 0],
-            [0, 0, 0, 1],
+            [sin(theta),  cos(theta), 0, 0],
+            [         0,           0, 1, 0],
+            [         0,           0, 0, 1],
         ],
         [
             [cos(-theta), -sin(-theta), 0, 0],
-            [sin(-theta), cos(-theta), 0, 0],
-            [0, 0, 1, 0],
-            [0, 0, 0, 1],
+            [sin(-theta),  cos(-theta), 0, 0],
+            [          0,            0, 1, 0],
+            [          0,            0, 0, 1],
         ],
     ],
     dtype=ht.float32,
     split=0,
 )
-print(f"shape after creation: {A_rot.shape}")
-# M_rot = centered_linear(A_rot, dims) replaced with offset in apply!
-apply(A_rot, "20 degrees", 1)
+apply(matrix_rot, 1)
+
+
 # ------------------------------------------------------------
-# Scale ×1.2
+# Scaling
+# gets centered, so there is a translation in the matrix itself
+# offset variable gets ignored
 # ------------------------------------------------------------
-A_scale = ht.array(
+matrix_scale = ht.array(
     [
-        [[0.8, 0, 0, 0], [0, 1.2, 0, 0], [0, 0, 2, 0], [0, 0, 0, 1]],
-        [[1.2, 0, 0, 0], [0, 2.2, 0, 0], [0, 0, 0.3, 0], [0, 0, 0, 1]],
+        [
+            [0.8, 0  , 0, 0],
+            [0  , 1.2, 0, 0],
+            [0  , 0  , 2, 0],
+            [0  , 0  , 0, 1]
+        ],
+        [
+            [1.2, 0,   0  , 0],
+            [0  , 2.2, 0  , 0],
+            [0,   0,   0.3, 0],
+            [0,   0,   0  , 1]],
     ],
     dtype=ht.float32,
     split=0,
 )
-print(f"shape after creation: {A_scale.shape}")
-M_scale = centered_linear(A_scale, dims)
-print("after centered linear {M_scale=}")
-apply(M_scale, "scale by 1.2", 2)
-
-# # ------------------------------------------------------------
-# # Translate (+20, −20)
-# # ------------------------------------------------------------
-# M_tr = ht.eye((4, 5), dtype=ht.float32)
-# M_tr[:, 4] = [-15, 20, 30, 0]
-# apply(M_tr, "Translate (+20, −20)", 3)
-
-# # ------------------------------------------------------------
-# # Shear (0.3)
-# # ------------------------------------------------------------
-# A_shear = ht.array(
-#     [[1, 0.3, 0.5, 0.2], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]], dtype=ht.float32
-# )
-# M_shear = centered_linear(A_shear, dims)
-# apply(M_shear, "Shear (0.3)", 4)
-
-# # ------------------------------------------------------------
-# # 3D rotation around Z-axis (35°)
-# # ------------------------------------------------------------
-# theta3 = radians(35)
-# A3 = ht.array(
-#     [
-#         [1, 0, 0, 0],
-#         [0, cos(theta3), -sin(theta3), 0],
-#         [0, sin(theta3), cos(theta3), 0],
-#         [0, 0, 0, 1],
-#     ],
-#     dtype=ht.float32,
-# )
-# M3 = centered_linear(A3, dims)
-# apply(M3, "35 deg rotation around depth axis", 5)
+matrix_scale = centered_linear(matrix_scale, dims)
+apply(matrix_scale, 2)
 
 plt.tight_layout()
 plt.show()

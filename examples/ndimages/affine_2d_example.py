@@ -3,108 +3,64 @@ Example for 2D images with 3 operations popup view
 """
 
 import numpy as np
+from math import radians, cos, sin
 import matplotlib.pyplot as plt
 import scipy.ndimage as ndimg
-from PIL import Image
 import heat as ht
 from heat.ndimage.affine import affine_transform
 
-from affine_helpers import centered_linear
+from heat.ndimage.util import create_checker, centered_linear
 
 # ------------------------------------------------------------
 # PARAMETERS
 # ------------------------------------------------------------
 SIZE = (256, 256)
-SCALE = (1.5, 0.75)
+SCALE = (1.5, 1.1)
 ROTATE = np.deg2rad(30)
 TRANSLATE = (100, 50)
 
+PADDING_VALUE=0.0
+OFFSET = ht.array((30, 0, 0))
+ORDER = 1
+MODE="grid-constant"
 
-def create_checker_image(w: int, h: int, checker_size: int) -> Image.Image:
-    """creates a PIL image for testing
+# image tensor is interpreded as Height x Width x Color
+img_heat: ht.DNDarray = create_checker(SIZE, 32)
 
-    :param w: _description_
-    :type w: int
-    :param h: _description_
-    :type h: int
-    :param checker_size: _description_
-    :type checker_size: int
-    :return: _description_
-    :rtype: _type_
-    """
-    new_image: Image.Image = Image.new(
-        "RGB", (w, h), (255, 0, 0)
-    )  # create a new 15x15 image
-    pixels = new_image.load()  # create the pixel map
-
-    box_size = checker_size
-    for i in range(0, h, box_size):
-        for j in range(0, w, box_size):
-            y = int(i / box_size)
-            x = int(j / box_size)
-            if (y & 1) ^ (x & 1):
-                for di in range(box_size):
-                    for dj in range(box_size):
-                        pixels[i + di, j + dj] = (255, 255, 255)
-            else:
-                for di in range(box_size):
-                    for dj in range(box_size):
-                        pixels[i + di, j + dj] = (0, 0, (50 + i + j) % 255)
-    return new_image
-
-
-# ------------------------------------------------------------
-# Load RGB image
-# ------------------------------------------------------------
-
-img: Image = create_checker_image(*SIZE, 32)
-
-img_np = np.asarray(img, dtype=np.float32)  #
-print(f"shape of image as numpy array {img_np.shape}")  # HWC
-
-img_heat = ht.array(img_np)  # HWC
-print(f"shape of image converted from numpy to heat array {img_heat.shape}")
-
+img_np = img_heat.numpy()
 dims = img_np.shape
-
-# img_center = np.array([0, 0, 0], dtype=np.float32)
 
 fig, axs = plt.subplots(5, 2, figsize=(10, 16))
 axs = axs.ravel()
 
 
-def apply(M: ht.DNDarray, title, row_idx, mode="constant", constant_value=0.0):
-
+def apply(affine_matrix: ht.DNDarray, title, row_idx):
     idx = row_idx * 2
-    heat_matrix = ht.array(M)
-    offset = ht.array((30, 0, 0))
+
     result = affine_transform(
         img_heat,
-        heat_matrix,
-        order=1,
-        mode=mode,
-        cval=constant_value,
+        affine_matrix,
+        order=ORDER,
+        mode=MODE,
+        cval=PADDING_VALUE,
         prefilter=True,
-        offset=offset,
+        offset=OFFSET,
     )
 
     compare = ndimg.affine_transform(
         img_np,
-        heat_matrix.numpy(),
-        order=1,
-        mode=mode,
-        cval=constant_value,
+        affine_matrix.numpy(),
+        order=ORDER,
+        mode=MODE,
+        cval=PADDING_VALUE,
         prefilter=True,
-        offset=offset.numpy(),
+        offset=OFFSET.numpy(),
     )
-    print(f"resulting shape: {result.shape}")
-    print(f"compare shape: {compare.shape}")
+
     axs[idx].imshow(result.numpy().astype(np.uint8))
     axs[idx + 1].imshow(compare.astype(np.uint8))
     axs[idx].set_title(title)
-    # axs[idx].axis("off")
     axs[idx + 1].set_title("")
-    # axs[idx + 1].axis("off")
     axs[idx].scatter(dims[1] / 2, dims[0] / 2)
     axs[idx + 1].scatter(dims[1] / 2, dims[0] / 2)
 
@@ -112,45 +68,44 @@ def apply(M: ht.DNDarray, title, row_idx, mode="constant", constant_value=0.0):
 # ------------------------------------------------------------
 # Identity
 # ------------------------------------------------------------
-apply(np.eye(3, 4, dtype=np.float32), "Identity", 0)
+apply(ht.eye((3, 4), dtype=ht.float32), "Identity", 0)
 
 # ------------------------------------------------------------
 # Translation
 # ------------------------------------------------------------
-M_tr = np.eye(3, 4, dtype=np.float32)
-M_tr[:, 3] = [TRANSLATE[0], TRANSLATE[1], 0]  # (tx, ty, tz)
-apply(M_tr, f"Translate {TRANSLATE}", 1, mode="constant", constant_value=0.0)
+M_TR = ht.eye((3, 4), dtype=ht.float32)
+M_TR[:, 3] = [TRANSLATE[0], TRANSLATE[1], 0]  # (tx, ty, tz)
+apply(M_TR, f"Translate {TRANSLATE}", 1)
 
 # ------------------------------------------------------------
 # Rotate 30° around center (in x,y coords)
 # ------------------------------------------------------------
-theta = np.deg2rad(30)
-A_rot = np.array(
+THETA = radians(30)
+A_ROT = ht.array(
     [
-        [np.cos(theta), -np.sin(ROTATE), 0],
-        [np.sin(ROTATE), np.cos(theta), 0],
+        [cos(THETA), -sin(ROTATE), 0],
+        [sin(ROTATE), cos(THETA), 0],
         [0, 0, 1],
     ],
-    dtype=np.float32,
+    dtype=ht.float32,
 )
-apply(A_rot, f"Rotate {ROTATE} with seperate offset vector", 2)
+apply(A_ROT, f"Rotate {ROTATE} with seperate offset vector", 2)
 
 # ------------------------------------------------------------
 # Scaling
 # ------------------------------------------------------------
-A_scale = np.array([[SCALE[0], 0, 0], [0, SCALE[1], 0], [0, 0, 1]], dtype=np.float32)
-apply(centered_linear(A_scale, dims), f"Scale {SCALE}", 3)
+A_SCALE = ht.array([[SCALE[0], 0, 0], [0, SCALE[1], 0], [0, 0, 1]], dtype=ht.float32)
+apply(centered_linear(A_SCALE, dims), f"Scale {SCALE}", 3)
 
 # ------------------------------------------------------------
 # Combo: centered (scale→rotate) + then translate (tx,ty)
 # ------------------------------------------------------------
-A_combo = A_rot @ A_scale
-t = np.array([100, -50, 0], dtype=np.float32)  # (tx, ty)
-img_center = np.array(dims)
-b_combo = img_center - A_combo @ img_center + t
-M_combo = np.hstack([A_combo, b_combo[:, None]]).astype(np.float32)
-apply(M_combo, "Combo", 4)
-
+a_combo = A_ROT @ A_SCALE
+t = ht.array([100, -50, 0], dtype=ht.float32)  # (tx, ty)
+img_center = ht.array(dims) / 2
+b_combo = img_center - a_combo @ img_center + t
+m_combo = ht.hstack([a_combo, b_combo[:, None]]).astype(np.float32)
+apply(m_combo, "Combo", 4)
 
 plt.tight_layout()
 plt.show()
