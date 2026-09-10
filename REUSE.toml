@@ -2,13 +2,65 @@ version = 1
 
 # All files
 [[annotations]]
-path = "**"
+path = [
+    # General file types
+    "**/*.py",
+    "**/*.ipynb",
+    "**/*.yml",
+    "**/*.yaml",
+    "**/*.rst",
+    "**/*.sh",
+    "**/*.md",
+    "**/*.toml",
+    "**/*.txt",
+    "**/*.html",
+    "**/*.json",
+
+    # config files
+    ".gitattributes",
+    ".gitignore",
+    ".perun.ini",
+    ".talismanrc",
+    "CITATION.cff",
+
+    # docs config
+    "doc/Makefile",
+    "doc/make.bat",
+    "doc/source/_static/css/custom.css",
+
+    # our images in docs
+    "doc/source/_static/images/api_ref_graphics.png",
+    "doc/source/_static/images/bsp.svg",
+    "doc/source/_static/images/clustering*.png",
+    "doc/source/_static/images/data.png",
+    "doc/source/_static/images/favicon.ico",
+    "doc/source/_static/images/hSVD_bench_rank*.png",
+    "doc/source/_static/images/heat_split_array.*",
+    "doc/source/_static/images/heatvsdask_strong_smalldata_without.png",
+    "doc/source/_static/images/heatvsdask_weak_smalldata_without.png",
+    "doc/source/_static/images/install_graphics.png",
+    "doc/source/_static/images/internals.png",
+    "doc/source/_static/images/logo*",
+    "doc/source/_static/images/split_array.*",
+    "doc/source/_static/images/tutorial_clustering.svg",
+    "doc/source/_static/images/tutorial_dpnn.svg",
+    "doc/source/_static/images/tutorial_logo.svg",
+    "doc/source/_static/images/tutorial_split_dndarray.svg",
+    "doc/source/_static/images/weak_scaling_gpu_terrabyte.png",
+
+    #Docker
+    "Dockerfile",
+    "docker/*",
+    ]
 SPDX-FileCopyrightText = "Copyright (c) 2019-2026 Forschungszentrum Jülich GmbH, Karlsruher Institut für Technologie KdöR (KIT); Copyright (c) 2019-2025 Deutsches Zentrum für Luft- und Raumfahrt e.V. (DLR)"
 SPDX-License-Identifier = "MIT"
 
 # iris dataset
 [[annotations]]
-path = "heat/datasets/iris*"
+path = [
+    "heat/datasets/iris*",
+    "tutorials/scripts/hpc/02_loading_preprocessing/iris.csv"
+]
 SPDX-FileCopyrightText = "R. A. Fisher"
 SPDX-License-Identifier = "CC0-1.0"
 precedence = "override"
@@ -29,6 +81,8 @@ path = [
     "doc/source/_static/images/jupyter.png",
     "doc/source/_static/images/kit_logo.svg",
     "doc/source/_static/images/perun_logo.svg",
+    "doc/source/_static/images/ScienceServe_banner.png",
+    "doc/source/_static/images/matrix-icon.svg",
 ]
 SPDX-FileCopyrightText = "Copyright lies with the respective trademark owners"
 SPDX-License-Identifier = "LicenseRef-Company-Logos"
