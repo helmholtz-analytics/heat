@@ -3243,7 +3243,7 @@ def take(
     inner_shape = original_shape[1:]
     block_length = np.prod(inner_shape, dtype=np.int64)
 
-    out_total = indices.numel() 
+    out_total = indices.numel()
     out_bounds = [comm.chunk((out_total,), split=0, rank=i)[0] for i in range(size)]
     out_bounds.append(out_total)
 
