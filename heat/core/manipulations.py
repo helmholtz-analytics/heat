@@ -3224,9 +3224,9 @@ def take(
     if not isinstance(indices, torch.Tensor):
         raise ValueError(f"'indices' must be a PyTorch Tensor, not {type(indices)}.")
     if indices.ndim == 0:
-        raise ValueError(f"The index Tensor cannot have 0 dimensions.")
+        raise ValueError("The index Tensor cannot have 0 dimensions.")
     if indices.ndim > 1:
-        raise NotImplementedError(f"'indices' must be one dimensional.")
+        raise NotImplementedError("'indices' must be one dimensional.")
 
     if axis is None:
         a = a.flatten()
