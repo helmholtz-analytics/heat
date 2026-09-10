@@ -23,18 +23,18 @@ jobs:
         runs-on: ubuntu-latest
         steps:
           - name: Harden Runner
-            uses: step-security/harden-runner@0634a2670c59f64b4a01f0f96f84700a4088b9f0 # v2.12.0
+            uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
             with:
                 egress-policy: audit
           - name: Checkout repository
-            uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+            uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
             # Initializes the CodeQL tools for scanning.
           - name: Initialize CodeQL
-            uses: github/codeql-action/init@9e0d7b8d25671d64c341c19c0152d693099fb5ba # v4.35.5
+            uses: github/codeql-action/init@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4.37.9
             with:
                 languages: python
           - name: Perform CodeQL Analysis
-            uses: github/codeql-action/analyze@9e0d7b8d25671d64c341c19c0152d693099fb5ba # v4.35.5
+            uses: github/codeql-action/analyze@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4.37.9
             with:
                 category: "/language:python"
     scorecard:
@@ -43,17 +43,17 @@ jobs:
         runs-on: ubuntu-latest
         steps:
           - name: Harden Runner
-            uses: step-security/harden-runner@0634a2670c59f64b4a01f0f96f84700a4088b9f0 # v2.12.0
+            uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
             with:
                 egress-policy: audit
 
           - name: "Checkout code"
-            uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+            uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
             with:
                 persist-credentials: false
 
           - name: "Run analysis"
-            uses: ossf/scorecard-action@4eaacf0543bb3f2c246792bd56e8cdeffafb205a # v2.4.3
+            uses: ossf/scorecard-action@2d1146689b8cda280b9bc96326124645441f03bc # v2.4.4
             with:
                 results_file: results.sarif
                 results_format: sarif
@@ -83,7 +83,7 @@ jobs:
 
             # Upload the results to GitHub's code scanning dashboard.
           - name: "Upload to code-scanning"
-            uses: github/codeql-action/upload-sarif@9e0d7b8d25671d64c341c19c0152d693099fb5ba # v4.35.5
+            uses: github/codeql-action/upload-sarif@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4.37.9
             with:
                 sarif_file: results.sarif
     check-links:
@@ -91,11 +91,11 @@ jobs:
         runs-on: ubuntu-latest
         steps:
           - name: Harden Runner
-            uses: step-security/harden-runner@0634a2670c59f64b4a01f0f96f84700a4088b9f0 # v2.12.0
+            uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
             with:
                 egress-policy: audit
 
-          - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # master
+          - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # master
           - uses: gaurav-nelson/github-action-markdown-link-check@5c5dfc0ac2e225883c0e5f03a85311ec2830d368 # v1
             # checks all markdown files from root but ignores subfolders
             # By Removing the max-depth variable we can modify it -> to check all the .md files in the entire repo.
@@ -112,11 +112,11 @@ jobs:
         runs-on: ubuntu-latest
         steps:
           - name: Harden Runner
-            uses: step-security/harden-runner@0634a2670c59f64b4a01f0f96f84700a4088b9f0 # v2.12.0
+            uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
             with:
                 egress-policy: audit
 
-          - uses: actions/stale@b5d41d4e1d5dceea10e7104786b73624c18a190f # v10.2.0
+          - uses: actions/stale@4391f3da665fdf50b6810c1a66712fb9ba21aa93 # v11.0.0
             with:
                 days-before-issue-stale: 60
                 days-before-issue-close: 60

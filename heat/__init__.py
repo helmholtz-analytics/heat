@@ -20,3 +20,7 @@ from . import sparse
 from . import spatial
 from . import utils
 from . import preprocessing
+
+__array_api_version__ = "2025.12"
+
+from ._array_api_inspection import __array_namespace_info__
