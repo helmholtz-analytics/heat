@@ -3221,6 +3221,12 @@ def take(
         raise ValueError(f"'axis' must be integer or None, not {type(axis)}.")
     if axis is not None and not (-a.ndim <= axis < a.ndim):
         raise ValueError(f"{axis=} does not exist for array with {a.ndim} dimensions.")
+    if not isinstance(indices, torch.Tensor):
+        raise ValueError(f"'indices' must be a PyTorch Tensor, not {type(indices)}.")
+    if indices.ndim == 0:
+        raise ValueError(f"The index Tensor cannot have 0 dimensions.")
+    if indices.ndim > 1:
+        raise NotImplementedError(f"'indices' must be one dimensional.")
 
     if axis is None:
         a = a.flatten()
