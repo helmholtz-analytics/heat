@@ -961,6 +961,9 @@ def mean(x: DNDarray, axis: Optional[Union[int, Tuple[int, ...]]] = None) -> DND
     >>> ht.mean(a, (0, 1))
     DNDarray(0.1342, dtype=ht.float32, device=cpu:0, split=None)
     """
+    # the merge below closes over ``axis``, so it has to be canonical before that closure is
+    # defined: __moment_w_axis normalizes its own copy only
+    axis = __sanitize_moment_axis(x.shape, axis)
 
     def reduce_means_elementwise(output_shape_i: torch.Tensor) -> DNDarray:
         """
@@ -1271,6 +1274,37 @@ def minimum(x1: DNDarray, x2: DNDarray, out: Optional[DNDarray] = None) -> DNDar
     return _operations.__binary_op(torch.min, x1, x2, out)
 
 
+def __sanitize_moment_axis(
+    shape: Tuple[int, ...],
+    axis: Union[int, Tuple[int, ...], List[int], torch.Tensor, None],
+) -> Union[int, Tuple[int, ...], List[int], torch.Tensor, None]:
+    """
+    Bring the ``axis`` argument of a moment function into its canonical form: an iterable or a
+    ``torch.Tensor`` becomes a tuple of non-negative ints. Only then can an axis be compared with
+    ``x.split``, used to index ``x.lshape``, or handed to ``numpy``, which the functions merging
+    the moments across processes and the shortcuts for local data rely on.
+
+    A malformed axis is returned unchanged, so that :func:`__moment_w_axis` still raises for it.
+
+    Parameters
+    ----------
+    shape : Tuple[int, ...]
+        Shape of the array the moment is calculated for
+    axis : None or int or iterable or torch.Tensor
+        Axis/axes to calculate the moment along
+    """
+    if isinstance(axis, torch.Tensor):
+        axis = axis.tolist()
+    if axis is None or len(shape) == 0:
+        # scalars are handled like the whole array, cf. stride_tricks.sanitize_axis
+        return axis
+    if isinstance(axis, int):
+        return stride_tricks.sanitize_axis(shape, axis)
+    if isinstance(axis, (list, tuple)) and all(isinstance(a, int) for a in axis):
+        return tuple(stride_tricks.sanitize_axis(shape, a) for a in axis)
+    return axis
+
+
 def __moment_w_axis(
     function: Callable,
     x: DNDarray,
@@ -1297,18 +1331,25 @@ def __moment_w_axis(
     fischer : bool
         if the Fischer correction is to be applied (only used in skew and Kurtosis)
     """
-    # helper for calculating a statistical moment with a given axis
-    kwargs = {"dim": axis}
+    # helper for calculating a statistical moment with a given axis. ``dim`` is only added to
+    # ``kwargs`` once the axis has been brought into its canonical form below, so that the local
+    # torch call and the merge across processes always see the same representation of it.
+    kwargs = {}
     if correction is not None:
         kwargs["correction"] = correction
     if fischer is not None:
         kwargs["fischer"] = fischer
+
+    # convert a tensor axis first, so that a 0-dimensional one is treated like an int
+    if isinstance(axis, torch.Tensor):
+        axis = axis.tolist()
 
     output_shape = list(x.shape)
     if isinstance(axis, int):
         if axis >= len(x.shape):
             raise ValueError(f"axis must be < {len(x.shape)}, currently is {axis}")
         axis = stride_tricks.sanitize_axis(x.shape, axis)
+        kwargs["dim"] = axis
         # only one axis given
         output_shape = [output_shape[it] for it in range(len(output_shape)) if it != axis]
         output_shape = output_shape if output_shape else (1,)
@@ -1336,14 +1377,11 @@ def __moment_w_axis(
             comm=x.comm,
             copy=False,
         )
-    elif not isinstance(axis, (list, tuple, torch.Tensor)):
+    elif not isinstance(axis, (list, tuple)):
         raise TypeError(
             f"axis must be an int, tuple, list, or torch.Tensor; currently it is {type(axis)}."
         )
     # else:
-    if isinstance(axis, torch.Tensor):
-        axis = axis.tolist()
-
     if isinstance(axis, (list, tuple)) and len(set(axis)) != len(axis):  # most common case
         raise ValueError("duplicate value in axis")
     if any(not isinstance(j, int) for j in axis):
@@ -1355,6 +1393,7 @@ def __moment_w_axis(
         axis = [stride_tricks.sanitize_axis(x.shape, j) for j in axis]
     if any(d > len(x.shape) for d in axis):
         raise ValueError(f"axes (axis) must be < {len(x.shape)}, currently are {axis}")
+    kwargs["dim"] = axis
 
     output_shape = [output_shape[it] for it in range(len(output_shape)) if it not in axis]
     # multiple dimensions
@@ -2018,6 +2057,8 @@ def std(
         else:
             correction = bool(ddof)
         ddof = 1 if correction else ddof
+    # numpy does not accept a list or a tensor as an axis, unlike the rest of heat
+    axis = __sanitize_moment_axis(x.shape, axis)
     if not x.is_distributed() and str(x.device).startswith("cpu"):
         loc = np.std(x.larray.numpy(), axis=axis, ddof=ddof)
         if loc.size == 1:
@@ -2176,6 +2217,10 @@ def var(
         else:
             correction = bool(ddof)
 
+    # the merge below closes over ``axis``, so it has to be canonical before that closure is
+    # defined: __moment_w_axis normalizes its own copy only
+    axis = __sanitize_moment_axis(x.shape, axis)
+
     def reduce_vars_elementwise(output_shape_i: torch.Tensor) -> DNDarray:
         """
         Function to combine the calculated vars together. This does an element-wise update of the
@@ -2193,7 +2238,6 @@ def var(
         reduced_axes = [axis] if isinstance(axis, int) else list(axis)
         n = float(x.lshape[x.split])
         for ax in reduced_axes:
-            ax = stride_tricks.sanitize_axis(x.shape, int(ax))
             if ax != x.split:
                 n *= x.lshape[ax]
 

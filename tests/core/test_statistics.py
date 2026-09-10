@@ -1622,6 +1622,36 @@ class TestStatistics(TestCase):
         with self.subTest("Edge case from #2374"):
             self.assertEqual(ht.var(ht.array([0.0], split=None), axis=0, ddof=0), 0)
 
+    def test_moments_axis_forms(self):
+        # a tuple, a list, a torch.Tensor and negative entries all describe the same axes and
+        # must give the same moments, also when the split axis is among them
+        np_data = np.arange(2 * 3 * 4, dtype=np.float64).reshape(2, 3, 4)
+        multi_axes = [(0, 2), [0, 2], [0, -1], (-3, 2), torch.tensor([0, 2])]
+        single_axes = [1, -2, torch.tensor(1)]
+        for split in [None, 0, 1, 2]:
+            x = ht.array(np_data, dtype=ht.float64, split=split)
+            for axes, reduced in [(multi_axes, (0, 2)), (single_axes, 1)]:
+                for axis in axes:
+                    with self.subTest(f"{split=} {axis=}"):
+                        self.assertTrue(
+                            np.allclose(
+                                ht.mean(x, axis=axis).numpy(), np.mean(np_data, axis=reduced)
+                            )
+                        )
+                        for ddof in [0, 1]:
+                            self.assertTrue(
+                                np.allclose(
+                                    ht.var(x, axis=axis, ddof=ddof).numpy(),
+                                    np.var(np_data, axis=reduced, ddof=ddof),
+                                )
+                            )
+                            self.assertTrue(
+                                np.allclose(
+                                    ht.std(x, axis=axis, ddof=ddof).numpy(),
+                                    np.std(np_data, axis=reduced, ddof=ddof),
+                                )
+                            )
+
     @unittest.skipUnless(ht.communication.MPI_WORLD.size >= 3, "Test requires at least 3 tasks")
     def test_first_two_leading_ranks_empty(self):
         # mean and var used to return NaN if the leading process chunks were empty, see #2495
