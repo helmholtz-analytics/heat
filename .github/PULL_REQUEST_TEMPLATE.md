@@ -6,10 +6,10 @@
 - Implementation:
     - [ ] unit tests: all split configurations tested
     - [ ] unit tests: multiple dtypes tested
-    - [ ] **NEW** unit tests: MPS tested (1 MPI process, 1 GPU)
-    - [ ] benchmarks: created for new functionality
-    - [ ] benchmarks: performance improved or maintained
+    - [ ] unit tests: tests for correct device behavior (CPU, GPU, MPS)
+    - [ ] benchmarks: created for new functionality or improved/maintained for existing functionality
     - [ ] documentation updated where needed
+    - [ ] non-general-Heat licensed material specified in REUSE.toml
 
 ## Description
 

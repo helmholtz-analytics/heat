@@ -1537,10 +1537,6 @@ class TestStatistics(TestCase):
         # the rest of the tests are covered by var
 
     def test_var(self):
-        array_0_len = ht.MPI_WORLD.size * 2
-        array_1_len = ht.MPI_WORLD.size * 2
-        array_2_len = ht.MPI_WORLD.size * 2
-
         # test raises
         x = ht.zeros((2, 3, 4))
         with self.assertRaises(ValueError):
@@ -1570,100 +1566,61 @@ class TestStatistics(TestCase):
         else:
             self.assertEqual(a.var(ddof=1), 1.666666666666666)
 
-        # random data: the variance must match numpy for every split, axis and ddof.
-        # Constant input (e.g. ht.ones) cannot detect a wrong number of degrees of
-        # freedom or a mis-weighted merge, since its variance is zero either way.
+        # random data: the variance must match numpy for every split, axis and correction.
+        # Constant input (e.g. ht.ones) cannot detect a wrong number of degrees of freedom
+        # or a mis-weighted merge, since its variance is zero either way.
+        size = self.comm.size
+        shapes = [(2 * size,), (2 * size, 3 * size), (2 * size, 3 * size, 4 * size)]
+        correction_parameter_aliases = ["ddof", "bessel"]
+        # float64 also checks that the moments are not accumulated in float32
         dtypes = [ht.float32] if self.is_mps else [ht.float32, ht.float64]
-        dimensions = []
-        for d in [array_0_len, array_1_len, array_2_len]:
-            dimensions.extend([d])
-            # the same data on every process
-            np_data = np.random.default_rng(seed=len(dimensions)).standard_normal(dimensions)
-            hold = list(range(len(dimensions)))
-            hold.append(None)
-            for split in hold:  # loop over the number of dimensions of the test array
+        for shape in shapes:
+            ndim = len(shape)
+            # combinations of axes as well as single axes: if a tuple axis contains the split
+            # axis, each output element reduces lshape[split] times the extents of the other
+            # reduced axes, which is where the number of degrees of freedom used to be wrong
+            axes = [None] + list(range(ndim))
+            axes += [c for r in range(2, ndim + 1) for c in combinations(range(ndim), r)]
+            for split in [None] + list(range(ndim)):
                 for dtype in dtypes:
-                    z = ht.array(np_data, dtype=dtype, split=split)
-                    # compare against the data as stored by heat, not against np_data, so that
-                    # the reference is not off by the float32 rounding of the input
-                    ref = z.numpy()
-                    tol = 1e-5 if dtype is ht.float32 else 1e-12
-                    total_dims_list = list(z.shape)
+                    data = ht.random.random(shape=shape, split=split).astype(dtype)
+                    # compare against the data as heat stores it, so that the reference is not
+                    # off by the rounding of the input
+                    reference = data.numpy()
+                    for axis in axes:
+                        for correction in [0, 1]:
+                            for alias in correction_parameter_aliases:
+                                with self.subTest(
+                                    f"{shape=} {split=} {axis=} {correction=} {dtype=} {alias}"
+                                ):
+                                    var = ht.var(data, axis=axis, **{alias: correction})
+                                    expect = np.var(reference, axis=axis, correction=correction)
+                                    assert np.allclose(
+                                        np.atleast_1d(var.numpy()), np.atleast_1d(expect)
+                                    )
+                                    assert var.device == data.device
+                                    if axis is None:
+                                        continue
+                                    reduced = (axis,) if isinstance(axis, int) else axis
+                                    target = tuple(
+                                        d for i, d in enumerate(shape) if i not in reduced
+                                    )
+                                    assert var.gshape == target
+                                    if isinstance(axis, int):
+                                        if split is None or axis == split:
+                                            assert var.split is None
+                                        elif axis > split:
+                                            assert var.split == split
+                                        else:
+                                            assert var.split == split - 1
+                                    elif var.split is not None:
+                                        if any(split >= a for a in reduced):
+                                            assert var.split == len(target) - 1
+                                        else:
+                                            assert var.split == split
 
-                    # for a non-distributed array, ht.var(x) (axis=None) currently casts the
-                    # data to float32, so full float64 precision cannot be asserted here
-                    whole_tol = max(tol, 1e-5)
-                    for ddof in [0, 1]:  # variance of the whole array
-                        res = z.var(ddof=ddof)
-                        self.assertTrue(
-                            np.allclose(
-                                res.item(), ref.var(ddof=ddof), rtol=whole_tol, atol=whole_tol
-                            )
-                        )
-
-                    # loop over the different single dimensions for var
-                    for it in range(len(z.shape)):
-                        for ddof in [0, 1]:
-                            res = z.var(axis=it, ddof=ddof)
-                            self.assertTrue(
-                                np.allclose(
-                                    res.numpy(), ref.var(axis=it, ddof=ddof), rtol=tol, atol=tol
-                                )
-                            )
-                        target_dims = [
-                            total_dims_list[q] for q in range(len(total_dims_list)) if q != it
-                        ]
-                        if not target_dims:
-                            target_dims = ()
-                        self.assertEqual(res.gshape, tuple(target_dims))
-                        if z.split is None:
-                            sp = None
-                        else:
-                            sp = z.split if it > z.split else z.split - 1
-                            if it == split:
-                                sp = None
-                        self.assertEqual(res.split, sp)
-                    loop_list = [
-                        ",".join(map(str, comb))
-                        for comb in combinations(list(range(len(z.shape))), 2)
-                    ]
-
-                    # loop over the different combinations of dimensions for var
-                    for it in loop_list:
-                        lp_split = [int(q) for q in it.split(",")]
-                        for ddof in [0, 1]:
-                            res = z.var(axis=lp_split, ddof=ddof)
-                            expected = ref.var(axis=tuple(lp_split), ddof=ddof)
-                            self.assertTrue(
-                                np.allclose(
-                                    np.atleast_1d(res.numpy()),
-                                    np.atleast_1d(expected),
-                                    rtol=tol,
-                                    atol=tol,
-                                )
-                            )
-                        target_dims = [
-                            total_dims_list[q]
-                            for q in range(len(total_dims_list))
-                            if q not in lp_split
-                        ]
-                        if not target_dims:
-                            target_dims = (1,)
-                        if res.gshape:
-                            self.assertEqual(res.gshape, tuple(target_dims))
-                        if res.split is not None:
-                            if any([split >= x for x in lp_split]):
-                                self.assertEqual(res.split, len(target_dims) - 1)
-                            else:
-                                self.assertEqual(res.split, z.split)
-
-        # values for the iris dataset var measured by libreoffice calc
-        for sp in [None, 0, 1]:
-            iris = ht.load(get_dataset_path('iris.csv'), sep=";", split=sp)
-            self.assertTrue(ht.allclose(ht.var(iris, bessel=True), 3.90318519755147))
-
-        # edge case from #2374
-        self.assertEqual(ht.var(ht.array([0.], split=None), axis=0, ddof=0), 0)
+        with self.subTest("Edge case from #2374"):
+            self.assertEqual(ht.var(ht.array([0.0], split=None), axis=0, ddof=0), 0)
 
     @unittest.skipUnless(ht.communication.MPI_WORLD.size >= 3, "Test requires at least 3 tasks")
     def test_first_two_leading_ranks_empty(self):
