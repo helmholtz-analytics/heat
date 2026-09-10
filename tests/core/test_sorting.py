@@ -198,6 +198,6 @@ class TestSorting:
         assert a.device == res.device
 
         if axis is None:
-            assert res.split == (0 if res.is_distributed() else None)
+            assert res.split == (0 if a.split is not None else None)
         else:
             assert res.split == a.split
