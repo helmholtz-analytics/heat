@@ -67,8 +67,9 @@ requires-python = ">=3.13"
 dependencies = [
     "mpi4py>=3.1",
     "torch~=2.4,<2.14.1",
-    "torchvision~=0.19",
-    "scipy~=1.14",
+    "torchvision~=0.19,<0.29.1",
+    "numpy>=2.2.0,<2.5.0",
+    "scipy~=1.15,<1.18.0",
     "packaging>=25.0"
 ]
 
@@ -77,11 +78,11 @@ dependencies = [
 hdf5 = ["h5py>=3.11"]
 netcdf = ["netCDF4>=1.7"]
 zarr = ["zarr<3.2"]
-pandas = ["pandas"]
+pandas = ["pandas>=2.3.0"]
 
 ## Examples and tutorial
 examples = [
-    "scikit-learn",
+    "scikit-learn>=1.6.0,<1.9.0",
     "matplotlib~=3.8",
     "jupyter",
     "ipyparallel",
@@ -106,9 +107,9 @@ dev = [
     # Additional dependencies required to run the entire test suite
     "h5py>=3.11",
     "netCDF4>=1.7",
-    "zarr<3.2",
+    "zarr>=3.0,<3.2",
     "pandas",
-    "scikit-learn",
+    "scikit-learn>=1.6.0,<1.9.0",
 ]
 
 docs = [
