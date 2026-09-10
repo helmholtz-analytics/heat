@@ -1,16 +1,18 @@
 name: heat_dev_cuda12
 channels:
   - conda-forge
+  - defaults
+  - pytorch
+  - nvidia
 dependencies:
-  - python=3.13
+  - python=3.11
   - openmpi
   - mpi4py
   - h5py[version='>=2.9',build=mpi*]
   - netcdf4
   - pytorch=2.6.0
-  - torchvision=0.21.0
-  - cuda-version=12.6
+  - pytorch-cuda=12.4
+  - torchvision
   - scipy
   - pre-commit
   - black
-  - flake8
