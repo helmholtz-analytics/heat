@@ -1736,6 +1736,22 @@ class TestDNDarray(TestCase):
         self.assertTrue(ht.allclose(x_3d_sliced, value.squeeze(0).astype(x_3d.dtype)))
         self.assertTrue(x_3d_sliced.dtype == x_3d.dtype)
 
+        # scalar assignment to negative step along split axis 0
+        x_3d = ht.zeros((20, 4, 3), split=0, dtype=ht.float32)
+        x_3d[17:2:-2, :2, ht.array(1)] = 42.0
+        x_3d_sliced = x_3d[17:2:-2, :2, ht.array(1)]
+        self.assertTrue(ht.all(x_3d_sliced == 42.0).item())
+
+        # scalar assignment to 1D negative step along split axis
+        x_1d = ht.zeros(20, split=0, dtype=ht.float64)
+        x_1d[18:2:-3] = 99.0
+        self.assertTrue(ht.all(x_1d[18:2:-3] == 99.0).item())
+
+        # scalar assignment along non-split axis with negative step
+        x_3d = ht.zeros((4, 20, 3), split=0, dtype=ht.float32)
+        x_3d[:, 15:3:-2, :] = 7.0
+        self.assertTrue(ht.all(x_3d[:, 15:3:-2, :] == 7.0).item())
+
     def test_setitem_dimensional_indexing(self):
         # ellipsis
         x = ht.array([[[1], [2], [3]], [[4], [5], [6]]])
