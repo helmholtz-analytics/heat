@@ -122,11 +122,11 @@ class KNeighborsClassifier(ht.BaseEstimator, ht.ClassificationMixin):
         """
         distances = self.effective_metric_(x, self.x)
         _, indices = ht.topk(distances, self.n_neighbors, largest=False)
-        predictions = self.y[indices.flatten()]
+
+        predictions = self.y[indices]
         predictions.balance_()
-        predictions = ht.reshape(predictions, (indices.gshape + (self.y.gshape[1],)))
+        predictions = ht.reshape(predictions, indices.gshape + (self.y.gshape[1],))
         predictions = ht.sum(predictions, axis=1)
 
         self.classes_ = ht.argmax(predictions, axis=1)
-
         return self.classes_
