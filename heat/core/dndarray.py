@@ -24,22 +24,6 @@ Index = Union[int, slice, type(...), None, torch.Tensor, np.ndarray, "DNDarray"]
 Indexer = Union[Index, tuple[Index, ...], list[Index]]
 
 
-class LocalIndex:
-    """
-    Indexing class for local operations (primarily for :func:`lloc` function)
-    For docs on ``__getitem__`` and ``__setitem__`` see :func:`lloc`
-    """
-
-    def __init__(self, obj):
-        self.obj = obj
-
-    def __getitem__(self, key):
-        return self.obj[key]
-
-    def __setitem__(self, key, value):
-        self.obj[key] = value
-
-
 from typing import NamedTuple
 
 
