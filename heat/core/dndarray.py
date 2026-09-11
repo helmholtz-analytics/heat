@@ -89,6 +89,23 @@ def _process_scalar_key(
     return key, root
 
 
+def _is_boolean_array(k: Any) -> bool:
+    """Return True if k is a boolean or uint8 array/tensor of any dimension."""
+    return hasattr(k, "dtype") and k.dtype in (
+        ht_bool,
+        ht_uint8,
+        torch.bool,
+        torch.uint8,
+        np.bool_,
+        np.uint8,
+    )
+
+
+def _is_boolean_scalar(k: Any) -> bool:
+    """Return True if k is a python bool or a 0-D boolean array/tensor."""
+    return isinstance(k, bool) or (_is_boolean_array(k) and getattr(k, "ndim", 0) == 0)
+
+
 def _resolve_duplicate_indices(
     key_in,
     rhs_in: torch.Tensor,
@@ -177,22 +194,6 @@ def _resolve_duplicate_indices(
 
     key_u = tuple(t[keep_pos] for t in idx_flat)
     return key_u, rhs_u
-
-
-def _is_boolean_scalar(k: Any) -> bool:
-    """Return True if k is a python bool or a 0-D boolean array/tensor."""
-    if isinstance(k, bool):
-        return True
-    if hasattr(k, "dtype") and k.dtype in (
-        ht_bool,
-        ht_uint8,
-        torch.bool,
-        torch.uint8,
-        np.bool_,
-        np.uint8,
-    ):
-        return getattr(k, "ndim", 0) == 0
-    return False
 
 
 def _is_scalar_index(k: Any) -> bool:
@@ -764,6 +765,10 @@ def _resolve_indexing_state(
     normalized_key = _normalize_key(key, device=arr.larray.device)
     # maintain single item when raw key was not passed as a tuple
     key = normalized_key if isinstance(key, tuple) else normalized_key[0]
+
+    # unpack single-element tuple containing a boolean mask (a[(mask,)] same as a[mask])
+    if isinstance(key, tuple) and len(key) == 1 and _is_boolean_array(key[0]):
+        key = key[0]
 
     # evaluate if this is a distributed mask aligned with the array
     distr_mask_fast_path = _distr_mask_fast_path(arr, key, op)

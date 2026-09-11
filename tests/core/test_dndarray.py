@@ -1051,6 +1051,12 @@ class TestDNDarray(TestCase):
         mask = ht.array([True, False, True, False, True], split=0)
         self.assertTrue((arr[mask, :] == ht.array([[0, 1], [4, 5], [8, 9]])).all())
 
+        # arr[(mask,)] and arr[mask,] should be equivalent
+        arr = ht.arange(12).reshape(3, 4)
+        mask = arr > 5
+        self.assertTrue((arr[(mask,)] == arr[mask]).all())
+        self.assertTrue((arr[mask,] == arr[mask]).all())
+
     def test_int_cast(self):
         # simple scalar tensor
         a = ht.ones(1)
@@ -2064,6 +2070,14 @@ class TestDNDarray(TestCase):
         np_arr[np_key] = 10.0
         self.assertTrue(np.all(arr.numpy() == np_arr))
         self.assertTrue(ht.all(arr[ht_key] == 10.0))
+
+        # a[mask] = a[(mask,)]
+        arr1 = ht.zeros((3, 4))
+        arr2 = ht.zeros((3, 4))
+        mask = ht.ones((3, 4), dtype=ht.bool)
+        arr1[mask] = 42.0
+        arr2[(mask,)] = 42.0
+        self.assertTrue((arr1 == arr2).all())
 
     def test_size_gnumel(self):
         a = ht.zeros((10, 10, 10), split=None)
