@@ -2115,8 +2115,8 @@ class DNDarray:
         else:
             indexed_arr = self.larray[p.key]
 
-        if self.ndim > 0:
-            self = self.transpose(p.backwards_transpose_axes)
+        # if self.ndim > 0:
+        #     self = self.transpose(p.backwards_transpose_axes)
 
         return DNDarray(
             indexed_arr,
@@ -2134,8 +2134,8 @@ class DNDarray:
         without MPI communication.
         """
         indexed_arr = self.larray[p.key]
-        if self.ndim > 0:
-            self = self.transpose(p.backwards_transpose_axes)
+        # if self.ndim > 0:
+        #     self = self.transpose(p.backwards_transpose_axes)
 
         return DNDarray(
             indexed_arr,
@@ -2155,8 +2155,8 @@ class DNDarray:
 
         # local indexing
         indexed_arr = self.larray[p.key]
-        if self.ndim > 0:
-            self = self.transpose(p.backwards_transpose_axes)
+        # if self.ndim > 0:
+        #     self = self.transpose(p.backwards_transpose_axes)
 
         # wrap the reversed local chunks into an unbalanced DNDarray
         intermediate = DNDarray(
@@ -2361,8 +2361,8 @@ class DNDarray:
             balanced=out_is_balanced,
         )
 
-        if self.ndim > 0:
-            return self.transpose(backwards_transpose_axes), indexed_arr
+        # if self.ndim > 0:
+        #     return self.transpose(backwards_transpose_axes), indexed_arr
         return self, indexed_arr
 
     def __prepare_unordered_comm(self, split_key_flat: torch.Tensor, displs: tuple) -> tuple:
@@ -3371,8 +3371,8 @@ class DNDarray:
         )
         # set local elements of `self` to corresponding elements of `value`
         self.__set(key, recv_buf)
-        if self.ndim > 0:
-            return self.transpose(backwards_transpose_axes)
+        # if self.ndim > 0:
+        #     return self.transpose(backwards_transpose_axes)
         return self
 
     def __setitem__(
