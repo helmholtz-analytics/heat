@@ -292,7 +292,7 @@ def _scalar_early_out(
         output_split=output_split,
         split_key_is_ordered=1,
         key_is_mask_like=False,
-        out_is_balanced=True,
+        out_is_balanced=None,
         root=root,
         backwards_transpose_axes=tuple(range(arr.ndim)),
     )
