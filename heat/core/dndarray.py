@@ -2132,8 +2132,8 @@ class DNDarray:
 
     def __getitem_local(self, p: ProcessedKey) -> "DNDarray":
         """
-        Handles process-local indexing directly on local partitions,
-        without requiring MPI communication.
+        Handles process-local indexing (including standard slices and local advanced indices) directly on local array partitions
+        without MPI communication.
         """
         indexed_arr = self.larray[p.key]
         if self.ndim > 0:
@@ -2918,7 +2918,7 @@ class DNDarray:
 
     def __setitem_local(self, p: ProcessedKey, value: "DNDarray", value_is_scalar: bool) -> None:
         """
-        Handles process-local item assignment directly on local partitions, without requiring MPI communication. If `value` is distributed, MPI communication might be necessary to align it with the target slice before assignment.
+        Handles process-local item assignment (slices and local indices)  directly on local partitions. If `value` is distributed, MPI communication might be necessary to align it with the target slice before assignment.
         """
         if not self.is_distributed() and not value.is_distributed():
             self.__set(p.key, value)
