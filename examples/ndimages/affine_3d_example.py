@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import heat as ht
 from heat.ndimage.affine import affine_transform
 import scipy.ndimage as ndimg
-from heat.ndimage.util import create_checker, centered_linear
+from heat.ndimage.util import create_checker, center_transform
 
 DEPTH = 32
 WIDTH = 128
@@ -39,7 +39,6 @@ def apply(M: ht.DNDarray, title, row_idx):
         order=ORDER,
         mode=MODE,
         cval=CONSTANT_VALUE,
-        prefilter=True,
     )
 
     compare = ndimg.affine_transform(
@@ -48,7 +47,6 @@ def apply(M: ht.DNDarray, title, row_idx):
         order=ORDER,
         mode=MODE,
         cval=CONSTANT_VALUE,
-        prefilter=True
     )
 
     if vol.ndim == 4:
@@ -96,7 +94,7 @@ A_ROT = ht.array(
     ],
     dtype=ht.float32,
 )
-m_rot = centered_linear(A_ROT, dims)
+m_rot = center_transform(A_ROT, dims)
 apply(m_rot, "20 degrees", 1)
 # ------------------------------------------------------------
 # Scale
@@ -108,7 +106,7 @@ A_SCALE = ht.array(
      [0  , 0  , 0, 1]],
     dtype=ht.float32
 )
-m_scale = centered_linear(A_SCALE, dims)
+m_scale = center_transform(A_SCALE, dims)
 apply(m_scale, "scale by 1.2", 2)
 
 # ------------------------------------------------------------
@@ -128,7 +126,7 @@ A_SHEAR = ht.array(
      [0, 0  , 0  , 1  ]],
     dtype=ht.float32
 )
-m_shear = centered_linear(A_SHEAR, dims)
+m_shear = center_transform(A_SHEAR, dims)
 apply(m_shear, "Shear (0.3)", 4)
 
 # ------------------------------------------------------------
@@ -144,7 +142,7 @@ A3 = ht.array(
     ],
     dtype=ht.float32,
 )
-M3 = centered_linear(A3, dims)
+M3 = center_transform(A3, dims)
 apply(M3, "35 deg rotation around depth axis", 5)
 
 plt.tight_layout()

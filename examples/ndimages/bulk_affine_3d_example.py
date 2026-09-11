@@ -8,24 +8,24 @@ import matplotlib.pyplot as plt
 import scipy.ndimage as ndimg
 import heat as ht
 from heat.ndimage.affine import affine_transform
-from heat.ndimage.util import centered_linear, create_checker
+from heat.ndimage.util import center_transform, create_checker
 
 # SETUP
-DEPTH = 16
-WIDTH = 32
-HEIGHT = 16
+DEPTH = 128
+WIDTH = 256
+HEIGHT = 4
 
 SLICE_AXIS = 2 #wich axis is not displayed in visualization
 
 MODE = "grid-constant"
-CONSTANT_VALUE = 0.0
+CONSTANT_VALUE = 128
 
-CHECKER_1 = create_checker((DEPTH, WIDTH, HEIGHT), 8, dtype=ht.float32)
-CHECKER_2 = create_checker((DEPTH, WIDTH, HEIGHT), 4, dtype=ht.float32)
+CHECKER_1 = create_checker((DEPTH, WIDTH, HEIGHT), 16, dtype=ht.float32)
+CHECKER_2 = create_checker((DEPTH, WIDTH, HEIGHT), 8, dtype=ht.float32)
 VOLS = ht.stack((CHECKER_1, CHECKER_2))
 VOLS.resplit_(0)
 
-OFFSETS = ht.array(((6, 0, 0, 0), (7, 0, 0, 0)), dtype=ht.float32)
+OFFSETS = ht.array(((20, 0, 0, 0), (30, 0, 0, 0)), dtype=ht.float32)
 
 dims = VOLS.shape
 
@@ -44,10 +44,8 @@ def apply(matrices: ht.DNDarray, row_idx):
         order=1,
         mode=MODE,
         cval=CONSTANT_VALUE,
-        prefilter=False,
         offset=OFFSETS,
     )
-
 
     # scipy
     compare = [
@@ -57,7 +55,6 @@ def apply(matrices: ht.DNDarray, row_idx):
             order=1,
             mode=MODE,
             cval=CONSTANT_VALUE,
-            prefilter=True,
             offset=offset.numpy(),
         )
         for vol, matrix, offset in zip(VOLS, matrices, OFFSETS)
@@ -164,7 +161,7 @@ matrix_scale = ht.array(
     dtype=ht.float32,
     split=0,
 )
-matrix_scale = centered_linear(matrix_scale, dims)
+matrix_scale = center_transform(matrix_scale, dims)
 apply(matrix_scale, 2)
 
 plt.tight_layout()

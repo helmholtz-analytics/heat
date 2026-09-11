@@ -2,11 +2,29 @@
 utility and convenience functions for working with image data using heat
 """
 
+from matplotlib import pyplot as plt
 from typing import Iterable
 import scipy.ndimage as ndimg
 import numpy as np
 import heat as ht
 from heat.ndimage.affine import affine_transform
+
+
+def visual_compare_2d(heat_image, numpy_image):
+    """
+    Creates a plot to show an 2d DNDarray and a corresponding numpy array side by side.
+    useful to compare two images visually for differences
+    """
+    _, axs = plt.subplots(1, 2, figsize=(10, 16))
+    axs = axs.ravel()
+
+    axs[0].imshow(heat_image.numpy().astype(np.uint8))
+    axs[1].imshow(numpy_image.astype(np.uint8))
+    axs[0].scatter(heat_image.shape[1] / 2, heat_image.shape[0] / 2)
+    axs[1].scatter(numpy_image.shape[1] / 2, numpy_image.shape[0] / 2)
+
+    plt.tight_layout()
+    plt.show()
 
 
 def affine_comparison(
@@ -26,7 +44,7 @@ def affine_comparison(
     return result, compare
 
 
-def centered_linear(affine_matrix, image_dims: tuple) -> ht.DNDarray:
+def center_transform(affine_matrix, image_dims: tuple) -> ht.DNDarray:
     """
     Take an [Bx]NxN transformation matrix and create an [Bx]xNxN+1 reduced affine matrix out of it,
     that centers the transformation in the image. This is convenient because in scipy convention the
@@ -61,7 +79,11 @@ def centered_linear(affine_matrix, image_dims: tuple) -> ht.DNDarray:
 
 
 def create_checker(
-    shape: Iterable[int], checker_size: int, max_value: int = 256, dtype: ht.dtype = ht.float32
+    shape: Iterable[int],
+    checker_size: int,
+    min_value: int = 0,
+    max_value: int = 256,
+    dtype: ht.dtype = ht.float32,
 ) -> np.ndarray:
     """
     Parameters
@@ -70,6 +92,8 @@ def create_checker(
         shape of the output excluding the color axis wich is always dimension 3 for Color information
     checker_size : int
         edge length of the checkers
+    min_value: int
+            smallest value the checker can contain. default is 0
     max_value: int
         highest value the checker can contain. default is 256 because images are often stored in
         8 bit integers
@@ -82,11 +106,11 @@ def create_checker(
     odd: ht.DNDarray = checker_index & 1
     mask: ht.DNDarray = (ht.sum(odd, axis=0) % 2).astype(bool)
     checker_index_sum = ht.sum(checker_index, axis=0)
-    blue_channel = ((200 / checker_size) * (20 + checker_index_sum)) % max_value
+    blue_channel = (((200 / checker_size) * (20 + checker_index_sum)) % max_value) + min_value
     blue_channel = blue_channel.astype(dtype)
 
     result = ht.full(shape + (3,), max_value - 1, dtype=dtype)
-    result[..., 0][mask] = 0
-    result[..., 1][mask] = 0
+    result[..., 0][mask] = min_value
+    result[..., 1][mask] = min_value
     result[..., 2][mask] = blue_channel[mask]
     return result

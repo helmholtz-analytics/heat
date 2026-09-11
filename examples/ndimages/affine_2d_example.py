@@ -9,7 +9,7 @@ import scipy.ndimage as ndimg
 import heat as ht
 from heat.ndimage.affine import affine_transform
 
-from heat.ndimage.util import create_checker, centered_linear
+from heat.ndimage.util import create_checker, center_transform
 
 # ------------------------------------------------------------
 # PARAMETERS
@@ -43,7 +43,6 @@ def apply(affine_matrix: ht.DNDarray, title, row_idx):
         order=ORDER,
         mode=MODE,
         cval=PADDING_VALUE,
-        prefilter=True,
         offset=OFFSET,
     )
 
@@ -53,7 +52,6 @@ def apply(affine_matrix: ht.DNDarray, title, row_idx):
         order=ORDER,
         mode=MODE,
         cval=PADDING_VALUE,
-        prefilter=True,
         offset=OFFSET.numpy(),
     )
 
@@ -95,7 +93,7 @@ apply(A_ROT, f"Rotate {ROTATE} with seperate offset vector", 2)
 # Scaling
 # ------------------------------------------------------------
 A_SCALE = ht.array([[SCALE[0], 0, 0], [0, SCALE[1], 0], [0, 0, 1]], dtype=ht.float32)
-apply(centered_linear(A_SCALE, dims), f"Scale {SCALE}", 3)
+apply(center_transform(A_SCALE, dims), f"Scale {SCALE}", 3)
 
 # ------------------------------------------------------------
 # Combo: centered (scale→rotate) + then translate (tx,ty)
