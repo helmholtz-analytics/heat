@@ -616,7 +616,7 @@ def _assess_op_type(
         return "distr_mask"
     if key_is_mask_like:
         return "local_mask"
-    return "advanced"
+    return "local"
 
 
 def _sanitize_advanced_keys(
@@ -2130,7 +2130,7 @@ class DNDarray:
             balanced=p.out_is_balanced,
         )
 
-    def __getitem_slice(self, p: ProcessedKey) -> "DNDarray":
+    def __getitem_local(self, p: ProcessedKey) -> "DNDarray":
         """
         Handles standard slicing using process-local views. Requires no cross-process
         MPI communication.
@@ -2174,7 +2174,7 @@ class DNDarray:
         # global flip to reflect the descending slice
         return flip(intermediate, axis=p.output_split)
 
-    def __getitem_mask(self, p: ProcessedKey, original_key) -> "DNDarray":
+    def __getitem_mask(self, p: ProcessedKey) -> "DNDarray":
         """
         Handles fast-path boolean masking. Applies the mask locally without
         requiring MPI communication during extraction, returning a flattened array
@@ -2188,24 +2188,24 @@ class DNDarray:
             local_result, is_split=p.output_split, device=self.device, comm=self.comm, copy=False
         )
 
-    def __getitem_advanced_local(self, p: ProcessedKey, original_key) -> "DNDarray":
-        """
-        Handles advanced indexing where no MPI communication is needed
-        (e.g., the split axis is unaffected, or indices are strictly local).
-        """
-        indexed_arr = self.larray[p.key]
-        if self.ndim > 0:
-            self = self.transpose(p.backwards_transpose_axes)
+    # def __getitem_advanced_local(self, p: ProcessedKey, original_key) -> "DNDarray":
+    #     """
+    #     Handles advanced indexing where no MPI communication is needed
+    #     (e.g., the split axis is unaffected, or indices are strictly local).
+    #     """
+    #     indexed_arr = self.larray[p.key]
+    #     if self.ndim > 0:
+    #         self = self.transpose(p.backwards_transpose_axes)
 
-        return DNDarray(
-            indexed_arr,
-            gshape=p.output_shape,
-            dtype=self.dtype,
-            split=p.output_split,
-            device=self.device,
-            comm=self.comm,
-            balanced=p.out_is_balanced,
-        )
+    #     return DNDarray(
+    #         indexed_arr,
+    #         gshape=p.output_shape,
+    #         dtype=self.dtype,
+    #         split=p.output_split,
+    #         device=self.device,
+    #         comm=self.comm,
+    #         balanced=p.out_is_balanced,
+    #     )
 
     def __getitem_advanced_distributed(self, p: ProcessedKey) -> "DNDarray":
         """
@@ -2472,15 +2472,13 @@ class DNDarray:
         if op == "scalar":
             return self.__getitem_scalar(processed_key)
         elif op == "distr_mask":
-            return self.__getitem_mask(processed_key, key)
+            return self.__getitem_mask(processed_key)
         elif op == "distributed":
             return self.__getitem_advanced_distributed(processed_key)
-        elif op == "slice":
-            return self.__getitem_slice(processed_key)
         elif op == "descending_slice":
             return self.__getitem_descending_slice_distributed(processed_key)
-        elif op in ("local_mask", "advanced"):
-            return self.__getitem_advanced_local(processed_key, key)
+        elif op in ("local_mask", "local"):
+            return self.__getitem_local(processed_key)
 
     if torch.cuda.device_count() > 0:
 
@@ -2974,7 +2972,7 @@ class DNDarray:
         self.__set(p.key, value)
 
     def __setitem_advanced_local(
-        self, p: ProcessedKey, original_key, value: "DNDarray", value_is_scalar: bool
+        self, p: ProcessedKey, value: "DNDarray", value_is_scalar: bool
     ) -> None:
         """
         Handles local advanced indexing assignments.
@@ -3005,9 +3003,7 @@ class DNDarray:
         flipped_value.redistribute_(target_map=target_map)
         self.__set(p.key, flipped_value)
 
-    def __setitem_mask(
-        self, p: ProcessedKey, original_key, value: "DNDarray", value_is_scalar: bool
-    ) -> None:
+    def __setitem_mask(self, p: ProcessedKey, value: "DNDarray", value_is_scalar: bool) -> None:
         """
         Handles assignment using boolean masks. If `value` is distributed, it will be redistributed to match the number of True elements in the local mask before assignment. If `value` is not distributed, it will be assigned directly to the masked positions on each process, with PyTorch handling any necessary broadcasting.
         """
@@ -3459,7 +3455,7 @@ class DNDarray:
 
         # dispatch to the appropriate setter
         if op == "distr_mask":
-            self.__setitem_mask(processed_key, original_key, value, value_is_scalar)
+            self.__setitem_mask(processed_key, value, value_is_scalar)
         elif op == "scalar":
             self.__setitem_scalar(processed_key, value, value_is_scalar)
         elif op == "distributed":
@@ -3468,8 +3464,8 @@ class DNDarray:
             self.__setitem_slice(processed_key, value, value_is_scalar)
         elif op == "descending_slice":
             self.__setitem_descending_slice_distributed(processed_key, value, value_is_scalar)
-        elif op in ("local_mask", "advanced"):
-            self.__setitem_advanced_local(processed_key, original_key, value, value_is_scalar)
+        elif op in ("local_mask", "local"):
+            self.__setitem_advanced_local(processed_key, value, value_is_scalar)
 
     def __str__(self) -> str:
         """
