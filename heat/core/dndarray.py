@@ -33,7 +33,7 @@ class ProcessedKey(NamedTuple):
     """
 
     key: Any
-    op_type: str  # "scalar", "slice", "descending_slice", "distr_mask", "local_mask", "local", "distributed"
+    op_type: str  # "scalar", "descending_slice", "distr_mask", "local_mask", "local", "distributed"
     output_shape: tuple
     output_split: int | None
     split_key_is_ordered: int
@@ -939,7 +939,6 @@ def _resolve_indexing_state(
     # check for advanced indexing and slices
     advanced_indexing_dims = []
     advanced_indexing_shapes = []
-    lose_dims = 0
 
     for i, k in enumerate(key):
         if _is_scalar_index(k):
@@ -949,7 +948,6 @@ def _resolve_indexing_state(
                 raise IndexError(
                     f"Too many indices for DNDarray: DNDarray is {arr.ndim}-dimensional, but {len(key)} dimensions were indexed"
                 )
-            lose_dims += 1
             if i == arr.split:
                 key[i], root = _process_scalar_key(
                     arr, k, indexed_axis=i, return_local_indices=return_local_indices
