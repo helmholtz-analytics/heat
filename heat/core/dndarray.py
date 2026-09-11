@@ -292,7 +292,7 @@ def _scalar_early_out(
         output_split=output_split,
         split_key_is_ordered=1,
         key_is_mask_like=False,
-        out_is_balanced=None,
+        out_is_balanced=True if output_split is None else arr.balanced,
         root=root,
         backwards_transpose_axes=tuple(range(arr.ndim)),
     )
@@ -779,7 +779,7 @@ def _resolve_indexing_state(
         return arr, ProcessedKey(
             key=key.larray,
             op_type="distr_mask",
-            output_shape=(),
+            output_shape=None,
             output_split=0 if op == "get" else arr.split,
             split_key_is_ordered=0,
             key_is_mask_like=True,
@@ -1958,19 +1958,19 @@ class DNDarray:
             return value, is_scalar
         # need information on indexed array
         output_shape = kwargs.get("output_shape", None)
-        # if output_shape is not None:
-        indexed_dims = len(output_shape)
-        # else:
-        #     if isinstance(key, (int, tuple)):
-        #         # direct indexing, output_shape has not been calculated
-        #         # use proxy to avoid MPI communication and limit memory usage
-        #         indexed_proxy = self.__torch_proxy__()[key]
-        #         indexed_dims = indexed_proxy.ndim
-        #         output_shape = tuple(indexed_proxy.shape)
-        #     else:
-        #         raise RuntimeError(
-        #             "Not enough information to broadcast value to indexed array, please provide `output_shape`"
-        #         )
+        if output_shape is not None:
+            indexed_dims = len(output_shape)
+        else:
+            if isinstance(key, (int, tuple)):
+                # direct indexing, output_shape has not been calculated
+                # use proxy to avoid MPI communication and limit memory usage
+                indexed_proxy = self.__torch_proxy__()[key]
+                indexed_dims = indexed_proxy.ndim
+                output_shape = tuple(indexed_proxy.shape)
+            else:
+                raise RuntimeError(
+                    "Not enough information to broadcast value to indexed array, please provide `output_shape`"
+                )
         value_shape = value.shape
         # check if value needs to be broadcasted
         if value_shape != output_shape:
@@ -2182,8 +2182,22 @@ class DNDarray:
         local_mask = p.key
         local_result = self.larray[local_mask]
 
-        return factories.array(
-            local_result, is_split=p.output_split, device=self.device, comm=self.comm, copy=False
+        if not self.is_distributed():
+            gshape = local_result.shape
+        else:
+            # calculate gshape
+            local_count = local_result.shape[0]
+            total_count = self.comm.allreduce(local_count, op=MPI.SUM)
+            gshape = (total_count,) + local_result.shape[1:]
+
+        return DNDarray(
+            local_result,
+            gshape=gshape,
+            dtype=self.dtype,
+            split=p.output_split,
+            device=self.device,
+            comm=self.comm,
+            balanced=False,
         )
 
     def __getitem_advanced_distributed(self, p: ProcessedKey) -> "DNDarray":
