@@ -753,7 +753,8 @@ class TestDNDarray(TestCase):
         indexed_split2 = x_split2[key]
         self.assertTrue((indexed_split2.numpy() == x.numpy()[key.item()]).all())
         self.assertTrue(indexed_split2.dtype == ht.int64)
-        self.assertTrue(indexed_split2.split == 1)
+        if x_split2.comm.size > 1:
+            self.assertTrue(indexed_split2.split == 1)
 
         # tests for bug 730:
         a = ht.ones((10, 25, 30), split=1)
@@ -769,7 +770,8 @@ class TestDNDarray(TestCase):
         x_np = np.arange(20)
         x_sliced_np = x_np[1:11:3]
         self.assert_array_equal(x_sliced, x_sliced_np)
-        self.assertTrue(x_sliced.split == 0)
+        if x.comm.size > 1:
+            self.assertTrue(x_sliced.split == 0)
 
         # 1-element slice along split axis
         x = ht.arange(20).reshape(4, 5)
@@ -778,7 +780,8 @@ class TestDNDarray(TestCase):
         x_np = np.arange(20).reshape(4, 5)
         x_sliced_np = x_np[:, 2:3]
         self.assert_array_equal(x_sliced, x_sliced_np)
-        self.assertTrue(x_sliced.split == 1)
+        if x.comm.size > 1:
+            self.assertTrue(x_sliced.split == 1)
 
     def test_getitem_slicing_negative_step(self):
         # slicing with negative step along split axis 0
@@ -837,7 +840,8 @@ class TestDNDarray(TestCase):
         x_slice = x[:, :, 0]
         self.assert_array_equal(x_ellipsis, x_np_ellipsis)
         self.assert_array_equal(x_slice, x_np_ellipsis)
-        self.assertTrue(x_ellipsis.split == 1)
+        if x.comm.size > 1:
+            self.assertTrue(x_ellipsis.split == 1)
 
         # newaxis: local
         x = ht.array([[[1], [2], [3]], [[4], [5], [6]]])
@@ -853,15 +857,18 @@ class TestDNDarray(TestCase):
         x_none = x[:, None, :2, :]
         self.assert_array_equal(x_newaxis, x_np_newaxis)
         self.assert_array_equal(x_none, x_np_newaxis)
-        self.assertTrue(x_newaxis.split == 2)
-        self.assertTrue(x_none.split == 2)
+        if x_newaxis.comm.size > 1:
+            self.assertTrue(x_newaxis.split == 2)
+        if x_none.comm.size > 1:
+            self.assertTrue(x_none.split == 2)
 
         x = ht.arange(5, split=0)
         x_np = np.arange(5)
         y = x[:, np.newaxis] + x[np.newaxis, :]
         y_np = x_np[:, np.newaxis] + x_np[np.newaxis, :]
         self.assert_array_equal(y, y_np)
-        self.assertTrue(y.split == 0)
+        if y.comm.size > 1:
+            self.assertTrue(y.split == 0)
 
         for split in [None, 0, 1, 2]:
             for new_dim in [0, 1, 2]:
@@ -951,7 +958,8 @@ class TestDNDarray(TestCase):
         x_np_indexed = x_np[rows[:, np.newaxis], cols]
         x_indexed = x[ht.array(rows)[:, np.newaxis], cols]
         self.assert_array_equal(x_indexed, x_np_indexed)
-        self.assertTrue(x_indexed.split == 1)
+        if x.comm.size > 1:
+            self.assertTrue(x_indexed.split == 1)
 
         # 1d, split 0, advanced indexing with negative indices (fix #824)
         x = ht.arange(10, 1, -1, split=0)
@@ -979,7 +987,8 @@ class TestDNDarray(TestCase):
         y = ht.array(y_np, split=1)
         y_indexed = y[ht.array([0, 2, 4]), 1:3]
         self.assert_array_equal(y_indexed, y_np_indexed)
-        self.assertTrue(y_indexed.split == 1)
+        if y.comm.size > 1:
+            self.assertTrue(y_indexed.split == 1)
 
         x_np = np.arange(10 * 20 * 30).reshape(10, 20, 30)
         x = ht.array(x_np, split=1)
@@ -988,7 +997,8 @@ class TestDNDarray(TestCase):
         x_np_indexed = x_np[..., ind_array_np, :]
         x_indexed = x[..., ind_array, :]
         self.assert_array_equal(x_indexed, x_np_indexed)
-        self.assertTrue(x_indexed.split == 3)
+        if x.comm.size > 1:
+            self.assertTrue(x_indexed.split == 3)
 
         # multi-array advanced indexing (consecutive dimensions)
         arr_np = np.arange(4 * 5 * 6 * 7).reshape((4, 5, 6, 7))
@@ -1001,7 +1011,8 @@ class TestDNDarray(TestCase):
 
         res_consec_np = arr_np[:, a1_np, a2_np, :]
         res_consec = arr[:, a1, a2, :]
-        self.assertEqual(res_consec.split, 2)
+        if arr.comm.size > 1:
+            self.assertEqual(res_consec.split, 2)
         self.assertEqual(res_consec.gshape, (4, 2, 7))
         self.assert_array_equal(res_consec, res_consec_np)
 
@@ -1009,7 +1020,8 @@ class TestDNDarray(TestCase):
         res_nonconsec_np = arr_np[a1_np, :, a2_np, :]
         res_nonconsec = arr[a1, :, a2, :]
         self.assert_array_equal(res_nonconsec, res_nonconsec_np)
-        self.assertEqual(res_nonconsec.split, 2)
+        if arr.comm.size > 1:
+            self.assertEqual(res_nonconsec.split, 2)
         self.assertEqual(res_nonconsec.gshape, (2, 5, 7))
 
     def test_getitem_boolean_mask(self):
@@ -1778,7 +1790,8 @@ class TestDNDarray(TestCase):
         value += 2
         x[:, :, 0] = value
         self.assertTrue(ht.all(x[:, :, 0] == value).item())
-        self.assertTrue(x_ellipsis.split == 1)
+        if x.comm.size > 1:
+            self.assertTrue(x_ellipsis.split == 1)
 
         # newaxis: local, w. broadcasting and different dtype
         x = ht.array([[[1], [2], [3]], [[4], [5], [6]]])
@@ -2284,7 +2297,8 @@ class TestDNDarray(TestCase):
         result_ht_s0 = arr_ht_s0[mask_ht_s0]
 
         self.assert_array_equal(result_ht_s0, result_np)
-        self.assertEqual(result_ht_s0.split, 0)
+        if arr_ht_s0.comm.size > 1:
+            self.assertEqual(result_ht_s0.split, 0)
         self.assertEqual(result_ht_s0.gshape, (5, 2))
 
         # Case 3: split=1 (split on a non-indexed dimension)
@@ -2293,7 +2307,8 @@ class TestDNDarray(TestCase):
         mask_ht_sNone = ht.array(mask_np, split=None)
         result_ht_s1 = arr_ht_s1[mask_ht_sNone]
         self.assert_array_equal(result_ht_s1, result_np)
-        self.assertEqual(result_ht_s1.split, 1)
+        if arr_ht_s1.comm.size > 1:
+            self.assertEqual(result_ht_s1.split, 1)
         self.assertEqual(result_ht_s1.gshape, (5, 2))
 
         # Case 4: 3D array, 2D boolean mask
@@ -2314,7 +2329,8 @@ class TestDNDarray(TestCase):
         result_ht_3d_s2 = arr_ht_3d_s2[mask_ht_2d_sNone]
         self.assert_array_equal(result_ht_3d_s2, result_np_3d)
         self.assertEqual(result_ht_3d_s2.gshape, (4, 5))
-        self.assertEqual(result_ht_3d_s2.split, 1) # New split axis (originally 2, 2 dims removed)
+        if arr_ht_3d_s2.comm.size > 1:
+            self.assertEqual(result_ht_3d_s2.split, 1) # New split axis (originally 2, 2 dims removed)
 
     def test_setitem_boolean_fewer_dims(self):
         # Test case: 2D array, 1D boolean mask (selects rows)

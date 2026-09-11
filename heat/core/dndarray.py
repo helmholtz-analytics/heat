@@ -42,6 +42,21 @@ class ProcessedKey(NamedTuple):
     root: int | None
 
 
+def _unwrap_local_key(key: Any) -> Any:
+    """Recursively unwrap local DNDarray or numpy array keys into torch-compatible indexers."""
+    if isinstance(key, DNDarray):
+        if key.is_distributed():
+            raise TypeError("Cannot use distributed DNDarray for local fast-path indexing")
+        return key.larray.item() if key.ndim == 0 else key.larray
+    if isinstance(key, np.ndarray):
+        return torch.from_numpy(key)
+    if isinstance(key, tuple):
+        return tuple(_unwrap_local_key(k) for k in key)
+    if isinstance(key, list):
+        return [_unwrap_local_key(k) for k in key]
+    return key
+
+
 def _process_scalar_key(
     arr: "DNDarray",
     key: int | "DNDarray" | torch.Tensor | np.ndarray,
@@ -2424,6 +2439,21 @@ class DNDarray:
         (1/2) >>> tensor([0.])
         (2/2) >>> tensor([0., 0.])
         """
+        if not self.is_distributed():
+            try:
+                res_tensor = self.larray[_unwrap_local_key(key)]
+                return DNDarray(
+                    res_tensor,
+                    gshape=tuple(res_tensor.shape),
+                    dtype=self.dtype,
+                    split=None,
+                    device=self.device,
+                    comm=self.comm,
+                    balanced=True,
+                )
+            except Exception:
+                pass
+
         if key is None:
             return self.expand_dims(0)
         if (
@@ -3396,6 +3426,23 @@ class DNDarray:
         (2/2) >>> tensor([[0., 1., 0., 0., 0.],
                           [0., 1., 0., 0., 0.]])
         """
+        if not self.is_distributed() and not (
+            isinstance(value, DNDarray) and value.is_distributed()
+        ):
+            try:
+                torch_key = _unwrap_local_key(key)
+                if isinstance(value, DNDarray):
+                    rhs = value.larray
+                elif isinstance(value, torch.Tensor):
+                    rhs = value
+                else:
+                    rhs = value  # Python scalar / float / int
+
+                self.larray[torch_key] = rhs
+                return
+            except Exception:
+                pass
+
         try:
             value = factories.array(value)
         except TypeError:
