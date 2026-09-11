@@ -2971,6 +2971,10 @@ class DNDarray:
         Handles assignment via negative-step slicing. Flips the `value` array and redistributes
         it to align with the descending split key before performing the local assignment.
         """
+        if value_is_scalar:
+            self.__set(p.key, value)
+            return
+
         flipped_value = manipulations.flip(value, axis=p.output_split)
         split_key = factories.array(
             p.key[self.split], is_split=0, device=self.device, comm=self.comm
@@ -3292,15 +3296,15 @@ class DNDarray:
         # pack the send_buf
         if sort_idx.numel() > 0:
             if value.ndim < 2:
-                send_buf[:, :-1] = value.larray[sort_idx].unsqueeze(1)
+                send_buf[..., :-1] = value.larray[sort_idx].unsqueeze(1)
             else:
-                send_buf[:, :-1] = value.larray[sort_idx]
+                send_buf[..., :-1] = value.larray[sort_idx]
 
             if key_is_mask_like:
                 for i in range(-len(key), 0):
-                    send_buf[:, i] = key[i + len(key)][sort_idx]
+                    send_buf[..., i] = key[i + len(key)][sort_idx]
             else:
-                send_buf[:, -1] = split_key_flat[sort_idx].to(send_buf.dtype)
+                send_buf[..., -1] = split_key_flat[sort_idx].to(send_buf.dtype)
 
         # allocate receive buffer, with 1 extra column for incoming indices
         recv_buf_shape = value.lshape_map[self.comm.rank]
