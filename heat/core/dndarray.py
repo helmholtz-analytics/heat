@@ -33,7 +33,7 @@ class ProcessedKey(NamedTuple):
     """
 
     key: Any
-    op_type: str  # "scalar", "slice", "descending_slice", "distr_mask", "local_mask", "advanced", "distributed"
+    op_type: str  # "scalar", "slice", "descending_slice", "distr_mask", "local_mask", "local", "distributed"
     output_shape: tuple
     output_split: int | None
     split_key_is_ordered: int
@@ -746,7 +746,7 @@ def _resolve_indexing_state(
             - key (tuple): The processed, Torch-compatible index. Note: Indices along the split axis
                 are local if ordered indexing is used, but remain global if unordered indexing is required.
             - op_type (str): The categorized indexing routing (``"scalar"``, ``"slice"``,
-                ``"descending_slice"``, ``"distr_mask"``, ``"local_mask"``, ``"advanced"``, or ``"distributed"``).
+                ``"descending_slice"``, ``"distr_mask"``, ``"local_mask"``, ``"local"``, or ``"distributed"``).
             - output_shape (tuple): The global shape of the resulting array.
             - output_split (int or None): The split axis of the resulting array.
             - split_key_is_ordered (int): Monotonicity of the split key (``1``: ascending, ``0``: unordered,
@@ -2132,8 +2132,8 @@ class DNDarray:
 
     def __getitem_local(self, p: ProcessedKey) -> "DNDarray":
         """
-        Handles standard slicing using process-local views. Requires no cross-process
-        MPI communication.
+        Handles process-local indexing directly on local partitions,
+        without requiring MPI communication.
         """
         indexed_arr = self.larray[p.key]
         if self.ndim > 0:
@@ -2187,25 +2187,6 @@ class DNDarray:
         return factories.array(
             local_result, is_split=p.output_split, device=self.device, comm=self.comm, copy=False
         )
-
-    # def __getitem_advanced_local(self, p: ProcessedKey, original_key) -> "DNDarray":
-    #     """
-    #     Handles advanced indexing where no MPI communication is needed
-    #     (e.g., the split axis is unaffected, or indices are strictly local).
-    #     """
-    #     indexed_arr = self.larray[p.key]
-    #     if self.ndim > 0:
-    #         self = self.transpose(p.backwards_transpose_axes)
-
-    #     return DNDarray(
-    #         indexed_arr,
-    #         gshape=p.output_shape,
-    #         dtype=self.dtype,
-    #         split=p.output_split,
-    #         device=self.device,
-    #         comm=self.comm,
-    #         balanced=p.out_is_balanced,
-    #     )
 
     def __getitem_advanced_distributed(self, p: ProcessedKey) -> "DNDarray":
         """
@@ -2935,9 +2916,9 @@ class DNDarray:
                 value = sanitation.sanitize_distribution(value, target=self[p.key])
             self.__set(p.key, value)
 
-    def __setitem_slice(self, p: ProcessedKey, value: "DNDarray", value_is_scalar: bool) -> None:
+    def __setitem_local(self, p: ProcessedKey, value: "DNDarray", value_is_scalar: bool) -> None:
         """
-        Assigns a value array using standard slicing. If `value` is distributed, it might be redistributed to align with the target slice before assignment.
+        Handles process-local item assignment directly on local partitions, without requiring MPI communication. If `value` is distributed, MPI communication might be necessary to align it with the target slice before assignment.
         """
         if not self.is_distributed() and not value.is_distributed():
             self.__set(p.key, value)
@@ -2970,14 +2951,6 @@ class DNDarray:
             value.redistribute_(target_map=target_map)
 
         self.__set(p.key, value)
-
-    def __setitem_advanced_local(
-        self, p: ProcessedKey, value: "DNDarray", value_is_scalar: bool
-    ) -> None:
-        """
-        Handles local advanced indexing assignments.
-        """
-        self.__setitem_slice(p, value, value_is_scalar)
 
     def __setitem_descending_slice_distributed(
         self, p: ProcessedKey, value: "DNDarray", value_is_scalar: bool
@@ -3460,12 +3433,10 @@ class DNDarray:
             self.__setitem_scalar(processed_key, value, value_is_scalar)
         elif op == "distributed":
             self.__setitem_advanced_distributed(processed_key, original_key, value, value_is_scalar)
-        elif op == "slice":
-            self.__setitem_slice(processed_key, value, value_is_scalar)
         elif op == "descending_slice":
             self.__setitem_descending_slice_distributed(processed_key, value, value_is_scalar)
         elif op in ("local_mask", "local"):
-            self.__setitem_advanced_local(processed_key, value, value_is_scalar)
+            self.__setitem_local(processed_key, value, value_is_scalar)
 
     def __str__(self) -> str:
         """
