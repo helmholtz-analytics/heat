@@ -40,7 +40,6 @@ class ProcessedKey(NamedTuple):
     key_is_mask_like: bool
     out_is_balanced: bool
     root: int | None
-    backwards_transpose_axes: tuple
 
 
 def _process_scalar_key(
@@ -294,7 +293,6 @@ def _scalar_early_out(
         key_is_mask_like=False,
         out_is_balanced=True if output_split is None else arr.balanced,
         root=root,
-        backwards_transpose_axes=tuple(range(arr.ndim)),
     )
 
 
@@ -572,15 +570,11 @@ def _reorder_advanced_idx_axes(
                 + new_adv_sb
                 + split_bookkeeping[advanced_indexing_dims[-1] + 1 :]
             )
-        backwards_transpose_axes = tuple(range(arr.ndim))
     else:
         # Non-consecutive: transpose to make advanced dims leading and consecutive
         non_adv_ind_dims = [i for i in range(arr.ndim) if i not in advanced_indexing_dims]
         transpose_axes = tuple(advanced_indexing_dims + non_adv_ind_dims)
         arr = arr.transpose(transpose_axes)
-        backwards_transpose_axes = tuple(
-            torch.tensor(transpose_axes, device=arr.larray.device).argsort(stable=True).tolist()
-        )
 
         output_shape = [output_shape[i] for i in transpose_axes]
         output_shape[: len(advanced_indexing_dims)] = broadcasted_shape
@@ -596,7 +590,7 @@ def _reorder_advanced_idx_axes(
         split_bookkeeping = new_adv_sb + split_bookkeeping[len(advanced_indexing_dims) :]
         key = [key[i] for i in advanced_indexing_dims] + [key[i] for i in non_adv_ind_dims]
 
-    return arr, key, output_shape, split_bookkeeping, backwards_transpose_axes
+    return arr, key, output_shape, split_bookkeeping
 
 
 def _assess_op_type(
@@ -755,8 +749,6 @@ def _resolve_indexing_state(
             - out_is_balanced (bool): Whether the resulting ``DNDarray`` maintains load balance.
             - root (int or None): The root MPI process ID if single-element indexing along the split
                 axis isolate data to one rank.
-            - backwards_transpose_axes (tuple): The axes required to transpose ``arr`` back to its
-                original shape if advanced indexing triggered a transposition.
     """
     # early out for scalar key
     if _is_scalar_index(key):
@@ -785,7 +777,6 @@ def _resolve_indexing_state(
             key_is_mask_like=True,
             out_is_balanced=False,
             root=None,
-            backwards_transpose_axes=tuple(range(arr.ndim)),
         )
 
     # 1D boolean mask resolution
@@ -806,7 +797,6 @@ def _resolve_indexing_state(
     key_is_mask_like = False
     out_is_balanced = True if not arr.is_distributed() else arr.balanced
     root = None
-    backwards_transpose_axes = tuple(range(arr.ndim))
 
     if isinstance(key, (DNDarray, torch.Tensor)):
         if key.dtype in (ht_bool, ht_uint8, torch.bool, torch.uint8):
@@ -919,7 +909,6 @@ def _resolve_indexing_state(
                 key_is_mask_like=key_is_mask_like,
                 out_is_balanced=out_is_balanced,
                 root=root,
-                backwards_transpose_axes=backwards_transpose_axes,
             )
 
     if isinstance(key, (tuple, list)):
@@ -934,7 +923,6 @@ def _resolve_indexing_state(
 
     # recalculate new_split, transpose_axes after dimensions manipulation
     new_split = split_bookkeeping.index("split") if "split" in split_bookkeeping else None
-    backwards_transpose_axes = tuple(range(arr.ndim))
 
     # check for advanced indexing and slices
     advanced_indexing_dims = []
@@ -1025,16 +1013,14 @@ def _resolve_indexing_state(
             return_local_indices=return_local_indices,
         )
 
-        arr, key, output_shape, split_bookkeeping, backwards_transpose_axes = (
-            _reorder_advanced_idx_axes(
-                arr=arr,
-                key=key,
-                advanced_indexing_dims=advanced_indexing_dims,
-                advanced_indexing_shapes=advanced_indexing_shapes,
-                output_shape=output_shape,
-                split_bookkeeping=split_bookkeeping,
-                key_is_mask_like=key_is_mask_like,
-            )
+        arr, key, output_shape, split_bookkeeping = _reorder_advanced_idx_axes(
+            arr=arr,
+            key=key,
+            advanced_indexing_dims=advanced_indexing_dims,
+            advanced_indexing_shapes=advanced_indexing_shapes,
+            output_shape=output_shape,
+            split_bookkeeping=split_bookkeeping,
+            key_is_mask_like=key_is_mask_like,
         )
 
     # expand key to match the number of dimensions of the DNDarray
@@ -1065,7 +1051,6 @@ def _resolve_indexing_state(
         key_is_mask_like=key_is_mask_like,
         out_is_balanced=out_is_balanced,
         root=root,
-        backwards_transpose_axes=backwards_transpose_axes,
     )
 
 
@@ -2115,9 +2100,6 @@ class DNDarray:
         else:
             indexed_arr = self.larray[p.key]
 
-        # if self.ndim > 0:
-        #     self = self.transpose(p.backwards_transpose_axes)
-
         return DNDarray(
             indexed_arr,
             gshape=p.output_shape,
@@ -2134,8 +2116,6 @@ class DNDarray:
         without MPI communication.
         """
         indexed_arr = self.larray[p.key]
-        # if self.ndim > 0:
-        #     self = self.transpose(p.backwards_transpose_axes)
 
         return DNDarray(
             indexed_arr,
@@ -2155,8 +2135,6 @@ class DNDarray:
 
         # local indexing
         indexed_arr = self.larray[p.key]
-        # if self.ndim > 0:
-        #     self = self.transpose(p.backwards_transpose_axes)
 
         # wrap the reversed local chunks into an unbalanced DNDarray
         intermediate = DNDarray(
@@ -2211,7 +2189,6 @@ class DNDarray:
             output_split=p.output_split,
             out_is_balanced=p.out_is_balanced,
             key_is_mask_like=p.key_is_mask_like,
-            backwards_transpose_axes=p.backwards_transpose_axes,
         )
         return indexed_arr
 
@@ -2222,7 +2199,6 @@ class DNDarray:
         output_split: int,
         out_is_balanced: bool,
         key_is_mask_like: bool,
-        backwards_transpose_axes: tuple,
     ) -> DNDarray:
         """
         Handles the MPI communication (Alltoallv) when the key along the
@@ -2361,8 +2337,6 @@ class DNDarray:
             balanced=out_is_balanced,
         )
 
-        # if self.ndim > 0:
-        #     return self.transpose(backwards_transpose_axes), indexed_arr
         return self, indexed_arr
 
     def __prepare_unordered_comm(self, split_key_flat: torch.Tensor, displs: tuple) -> tuple:
@@ -3061,7 +3035,12 @@ class DNDarray:
                     self.larray[pytorch_key] = value_torch.type(self.dtype.torch_type())
 
     def __setitem_advanced_distributed(
-        self, p: ProcessedKey, original_key, value: "DNDarray", value_is_scalar: bool
+        self,
+        p: ProcessedKey,
+        original_key,
+        value: "DNDarray",
+        value_is_scalar: bool,
+        original_split: int = None,
     ) -> None:
         """
         Handles advanced indexing assignments where the indexing key is distributed. This method ensures that the value array is properly aligned and redistributed if necessary before performing the local assignment on each process.
@@ -3091,7 +3070,6 @@ class DNDarray:
                 counts=self.counts_displs()[0],
                 displs=self.counts_displs()[1],
                 rank=self.comm.rank,
-                backwards_transpose_axes=p.backwards_transpose_axes,
             )
             return
 
@@ -3165,8 +3143,7 @@ class DNDarray:
             return
 
         if isinstance(original_key, tuple):
-            original_split_axis = p.backwards_transpose_axes[self.split]
-            raw_split_part = original_key[original_split_axis]
+            raw_split_part = original_key[original_split]
         else:
             raw_split_part = original_key
 
@@ -3234,7 +3211,6 @@ class DNDarray:
         counts: tuple,
         displs: tuple,
         rank: int,
-        backwards_transpose_axes: tuple,
     ) -> DNDarray:
         """
         Handles the MPI communication when assigning a distributed
@@ -3371,8 +3347,6 @@ class DNDarray:
         )
         # set local elements of `self` to corresponding elements of `value`
         self.__set(key, recv_buf)
-        # if self.ndim > 0:
-        #     return self.transpose(backwards_transpose_axes)
         return self
 
     def __setitem__(
@@ -3423,6 +3397,7 @@ class DNDarray:
             raise TypeError(f"Cannot assign object of type {type(value)} to DNDarray.")
 
         original_key = key
+        original_split = self.split
 
         self, processed_key = _resolve_indexing_state(
             self, key, return_local_indices=True, op="set"
@@ -3448,7 +3423,9 @@ class DNDarray:
         elif op == "scalar":
             self.__setitem_scalar(processed_key, value, value_is_scalar)
         elif op == "distributed":
-            self.__setitem_advanced_distributed(processed_key, original_key, value, value_is_scalar)
+            self.__setitem_advanced_distributed(
+                processed_key, original_key, value, value_is_scalar, original_split=original_split
+            )
         elif op == "descending_slice":
             self.__setitem_descending_slice_distributed(processed_key, value, value_is_scalar)
         elif op in ("local_mask", "local"):
