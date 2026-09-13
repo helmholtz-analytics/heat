@@ -31,6 +31,7 @@ from .types import (
 __all__ = [
     "add",
     "bitwise_and",
+    "bitwise_left_shift",
     "bitwise_not",
     "bitwise_invert",
     "bitwise_or",
@@ -2077,6 +2078,10 @@ def left_shift_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
 
 DNDarray.__ilshift__ = left_shift_
 DNDarray.left_shift_ = left_shift_
+
+
+bitwise_left_shift = left_shift
+bitwise_left_shift_ = left_shift_
 
 
 def mul(
