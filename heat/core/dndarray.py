@@ -43,7 +43,11 @@ class ProcessedKey(NamedTuple):
 
 
 def _unwrap_local_key(key: Any) -> Any:
-    """Recursively unwrap local DNDarray or numpy array keys into torch-compatible indexers."""
+    """
+    Recursively unwrap local DNDarray or numpy array keys into torch-compatible indexers.
+    """
+    if isinstance(key, tuple) and len(key) == 1 and _is_boolean_array(key[0]):
+        key = key[0]
     if isinstance(key, DNDarray):
         if key.is_distributed():
             raise TypeError("Cannot use distributed DNDarray for local fast-path indexing")
@@ -2439,6 +2443,16 @@ class DNDarray:
         (1/2) >>> tensor([0.])
         (2/2) >>> tensor([0., 0.])
         """
+        if key is None:
+            return self.expand_dims(0)
+        if (
+            key is ...
+            or (isinstance(key, slice) and key == slice(None))
+            or (isinstance(key, tuple) and key == ())
+        ):
+            return self
+
+        # attempt early out for non-distributed arrays
         if not self.is_distributed():
             try:
                 res_tensor = self.larray[_unwrap_local_key(key)]
@@ -2453,15 +2467,6 @@ class DNDarray:
                 )
             except Exception:
                 pass
-
-        if key is None:
-            return self.expand_dims(0)
-        if (
-            key is ...
-            or (isinstance(key, slice) and key == slice(None))
-            or (isinstance(key, tuple) and key == ())
-        ):
-            return self
 
         # key processing returns a ProcessedKey namedtuple
         self, processed_key = _resolve_indexing_state(
@@ -3432,9 +3437,9 @@ class DNDarray:
             try:
                 torch_key = _unwrap_local_key(key)
                 if isinstance(value, DNDarray):
-                    rhs = value.larray
+                    rhs = value.larray.to(self.larray.dtype)
                 elif isinstance(value, torch.Tensor):
-                    rhs = value
+                    rhs = value.to(self.larray.dtype)
                 else:
                     rhs = value  # Python scalar / float / int
 
