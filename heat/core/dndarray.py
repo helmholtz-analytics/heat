@@ -747,21 +747,35 @@ def _sanitize_advanced_keys(
                 if isinstance(key[i], DNDarray):
                     key[i] = key[i].larray
         elif split_key_is_ordered == 1:
-            k = key[arr.split].larray
-            cond1 = k >= displs[arr.comm.rank]
-            cond2 = k < displs[arr.comm.rank] + counts[arr.comm.rank]
-            k = k[cond1 & cond2]
+            k = key[arr.split].larray if isinstance(key[arr.split], DNDarray) else key[arr.split]
+            rank = arr.comm.rank
+            low = displs[rank]
+            high = low + counts[rank]
+
+            idx_start = torch.searchsorted(k, low)
+            idx_end = torch.searchsorted(k, high)
+            k_local = k[idx_start:idx_end]
             if return_local_indices:
-                k -= displs[arr.comm.rank]
-            key[arr.split] = k
-            for i in non_split_dims:
-                key[i] = key[i].larray[cond1 & cond2] if key_is_mask_like else key[i].larray
+                k_local = k_local - low
+            key[arr.split] = k_local
+
+            if key_is_mask_like:
+                for i in non_split_dims:
+                    larr = key[i].larray if isinstance(key[i], DNDarray) else key[i]
+                    key[i] = larr[idx_start:idx_end]
+            else:
+                for i in non_split_dims:
+                    if isinstance(key[i], DNDarray):
+                        key[i] = key[i].larray
         else:
+            # split_key_is_ordered == 0 (unordered indexing)
             for i in advanced_indexing_dims:
-                key[i] = key[i].larray
+                if isinstance(key[i], DNDarray):
+                    key[i] = key[i].larray
     else:
         for i in advanced_indexing_dims:
-            key[i] = key[i].larray
+            if isinstance(key[i], DNDarray):
+                key[i] = key[i].larray
 
     return key, key_is_mask_like
 
