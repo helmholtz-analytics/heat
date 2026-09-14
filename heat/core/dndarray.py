@@ -2422,16 +2422,9 @@ class DNDarray:
         send_displs = torch.zeros_like(send_counts)
         send_displs[1:] = torch.cumsum(send_counts, dim=0)[:-1]
 
-        # compose communication matrix, i.e. share `send_counts` information with all processes
-        comm_matrix = torch.zeros(
-            (self.comm.size, self.comm.size),
-            dtype=torch.int64,
-            device=self.device.torch_device,
-        )
-        self.comm.Allgather(send_counts, comm_matrix)
-
-        # comm_matrix columns contain recv_counts for each process
-        recv_counts = comm_matrix[:, self.comm.rank].squeeze(0)
+        # collect and calculate recv_counts and recv_displs
+        recv_counts = torch.empty_like(send_counts)
+        self.comm.Alltoall(send_counts, recv_counts)
         recv_displs = torch.zeros_like(recv_counts)
         recv_displs[1:] = recv_counts.cumsum(0)[:-1]
 
