@@ -2324,7 +2324,7 @@ class DNDarray:
             idx_recv_displs = [d * mask_dims for d in recv_displs]
 
             send_indices = torch.stack([k.flatten()[sort_idx] for k in key], dim=1).reshape(-1)
-            recv_indices_flat = torch.zeros(
+            recv_indices_flat = torch.empty(
                 sum(idx_recv_counts), dtype=split_key.dtype, device=self.device.torch_device
             )
         else:
@@ -2332,7 +2332,7 @@ class DNDarray:
             idx_recv_counts, idx_recv_displs = recv_counts, recv_displs
 
             send_indices = split_key_flat[sort_idx]
-            recv_indices_flat = torch.zeros(
+            recv_indices_flat = torch.empty(
                 sum(idx_recv_counts), dtype=split_key.dtype, device=self.device.torch_device
             )
 
@@ -3374,7 +3374,7 @@ class DNDarray:
             send_buf_shape[-1] += len(key)
         else:
             send_buf_shape[-1] += 1
-        send_buf = torch.zeros(
+        send_buf = torch.empty(
             send_buf_shape, dtype=value.dtype.torch_type(), device=self.device.torch_device
         )
 
@@ -3402,7 +3402,7 @@ class DNDarray:
         else:
             recv_buf_shape[-1] += 1
         recv_buf_shape = tuple(recv_buf_shape)
-        recv_buf = torch.zeros(
+        recv_buf = torch.empty(
             recv_buf_shape, dtype=value.dtype.torch_type(), device=self.device.torch_device
         )
         # perform Alltoallv along the 0 axis
