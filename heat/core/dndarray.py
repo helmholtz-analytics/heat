@@ -500,18 +500,61 @@ def _process_slice_indexer(
     out_is_balanced = None
 
     if step < 0 and start > stop:
-        new_key = torch.arange(start, stop, step, device=device, dtype=torch.int64)
-        output_dim_len = len(new_key)
+        # total items in the global descending slice
+        output_dim_len = len(range(start, stop, step))
 
         if is_split_axis:
             split_key_is_ordered = -1
-            new_key = new_key.flip(0)
-            cond1 = new_key >= displs[rank]
-            cond2 = new_key < displs[rank] + counts[rank]
-            new_key = new_key[cond1 & cond2]
-            if return_local_indices:
-                new_key -= displs[rank]
             out_is_balanced = False
+
+            # PyTorch cannot index with negative steps
+            # we work with the values in ascending order
+            s = -step
+            # lowest global coordinate produced by this slice
+            min_coord = start - (output_dim_len - 1) * s
+            # highest global coordinate produced by this slice
+            max_coord = start
+
+            # global index interval [low, high) owned by this MPI process
+            low = displs[rank]
+            high = low + counts[rank]
+
+            # overlap between the slice value bounds [min_coord, max_coord + 1)
+            # and the current process's memory chunk [low, high)
+            overlap_start = max(min_coord, low)
+            overlap_end = min(max_coord + 1, high)
+
+            # check if there is any overlap at all
+            if overlap_start < overlap_end:
+                # first item in the progression that is >= overlap_start.
+                k_first = (overlap_start - min_coord + s - 1) // s
+                g_first = min_coord + k_first * s
+
+                if g_first < overlap_end:
+                    # first value is still inside the rank's chunk
+                    # calculate how many steps fit in [g_first, overlap_end)
+                    steps_local = (overlap_end - 1 - g_first) // s + 1
+
+                    # convert global index to a process-local offset if requested
+                    start_idx = g_first - low if return_local_indices else g_first
+                    stop_idx = start_idx + steps_local * s
+
+                    # allocate local indices only
+                    new_key = slice(start_idx, stop_idx, s)
+                    # new_key = torch.arange(
+                    #     start_idx, stop_idx, s, device=device, dtype=torch.int64
+                    # )
+                else:
+                    # slicing skips local chunk completely
+                    new_key = slice(0, 0)
+                    # new_key = torch.empty(0, device=device, dtype=torch.int64)
+            else:
+                # local chunk is outside the slice bounds entirely
+                new_key = slice(0, 0)
+                # new_key = torch.empty(0, device=device, dtype=torch.int64)
+        else:
+            # non-split axis: return the descending slice as indices
+            new_key = torch.arange(start, stop, step, device=device, dtype=torch.int64)
 
     elif step > 0 and start < stop:
         output_dim_len = len(range(start, stop, step))
@@ -2987,9 +3030,24 @@ class DNDarray:
             return
 
         flipped_value = manipulations.flip(value, axis=p.output_split)
-        split_key = factories.array(
-            p.key[self.split], is_split=0, device=self.device, comm=self.comm
+
+        # determine local element count along split axis
+        split_key = p.key[self.split]
+        if isinstance(split_key, slice):
+            step = 1 if split_key.step is None else split_key.step
+            local_count = len(range(split_key.start, split_key.stop, step))
+        else:
+            local_count = split_key.numel()
+
+        # gather local slice counts across all ranks to build the target distribution map
+        counts = torch.empty(
+            (self.comm.size, 1), dtype=torch.int64, device=self.device.torch_device
         )
+        self.comm.Allgather(
+            torch.tensor([local_count], dtype=torch.int64, device=self.device.torch_device),
+            counts,
+        )
+
         if not flipped_value.is_distributed():
             flipped_value = factories.array(
                 flipped_value.larray,
@@ -2999,7 +3057,7 @@ class DNDarray:
                 comm=self.comm,
             )
         target_map = flipped_value.lshape_map
-        target_map[:, p.output_split] = split_key.lshape_map[:, 0]
+        target_map[:, p.output_split] = counts[:, 0]
         flipped_value.redistribute_(target_map=target_map)
         self.__set(p.key, flipped_value)
 
