@@ -12,7 +12,7 @@ in affine (x, y [, z]) coordinates:
 
 where M = [A | b] has shape (ND, ND+1).
 
-Internally, when applicable the torch functions affine_grid and grid_sample are used
+Internally, the torch functions affine_grid and grid_sample are used
 
 Spatial axis conventions in Heat:
 - 2D arrays: (H, W)  == (y, x)
@@ -21,12 +21,11 @@ Spatial axis conventions in Heat:
 Interpolation and boundary handling:
 - order=0: nearest-neighbor
 - order=1: bilinear (2D only; 3D falls back to nearest)
--
 
 Distributed arrays:
 - Non-spatial splits are handled locally without communication.
-
-The public entry point is `affine_transform`.
+- spatial splits are also hanled locally in case that the affine
+  transform does not change anything along that axis
 """
 
 import torch
@@ -121,7 +120,7 @@ def _to_full_affine(M: torch.Tensor):
     raise ValueError(f"Expected affine transformation matrix to be 2D or 3D tensor, got {M.dim()}D")
 
 
-def convert_matrix_space(M: torch.Tensor, sizes):
+def convert_matrix_space(M: torch.Tensor, sizes, padding_correction: bool):
     """
     Convert scipy affine matrix to normalized coordinates used by affine_grid.
     scipy uses pixel coordinate space with origin in the top left,
@@ -140,12 +139,18 @@ def convert_matrix_space(M: torch.Tensor, sizes):
     M_scales = torch.diag(scales)
 
     D = len(sizes)
-    T_np = torch.zeros(D + 1, D + 1)
-    T_np[:D, :D] = M_scales
-    T_np[D, D] = 1
-    T_np[:D, D] = scales
-    T_pn = T_np.inverse()
-    transformed = T_pn @ M @ T_np
+    conversion = torch.zeros(D + 1, D + 1)
+    conversion[:D, :D] = M_scales
+    conversion[D, D] = 1
+    conversion[:D, D] = scales
+    back_conversion = conversion.inverse()
+
+    transformed = back_conversion @ M @ conversion
+
+    if padding_correction:
+        transformed[..., :D, D] = (scales / (scales + 1)).unsqueeze(0) * transformed[
+            ..., :D, D
+        ]  # counteract padding effect
 
     return transformed[:, :D, :]
 
@@ -206,8 +211,26 @@ def affine_transform(
     # TODO Support both 'padding' parameter from the torch functions
     # validation
 
+    ht.sanitize_in(input)
+    ht.sanitize_in(matrix)
+    if offset is not None:
+        ht.sanitize_in(offset)
+
     # input conversion
-    sample_padding = MODE_TO_PADDING[mode]
+    if mode == "constant":
+        raise NotImplementedError(
+            "constant mode is not implemented, use 'grid-constant' for similar result"
+        )
+    elif mode == "wrap" or mode == "grid-wrap":
+        raise NotImplementedError(f"{mode} is not implemented")
+
+    apply_cval_padding = mode == "grid-constant" and cval != 0
+
+    if apply_cval_padding:
+        sample_padding = "border"
+    else:
+        sample_padding = MODE_TO_PADDING[mode]
+
     sample_mode = ORDER_TO_MODE[order]
 
     if matrix.ndim > 3:
@@ -327,12 +350,19 @@ def affine_transform(
     matrix_torch = convert_matrix_space(
         matrix_torch,
         input_torch.shape[-1:1:-1],  # shape is reversed and without bulk and color dims
+        padding_correction=apply_cval_padding,
     )
 
     # skip computation if this rank has no data
     if 0 in input_torch.shape:
-        transformed = torch.zeros(input_torch.shape)
+        transformed = torch.zeros((input_torch.shape + 1))
     else:
+        # input_torch size is proportional to 1
+        # input_torch / 1 = padded / x <=> padded/input = x
+        if apply_cval_padding:
+            padding_size = tuple(1 for _ in range((input_torch.ndim - 2) * 2))
+            input_torch = torch.nn.functional.pad(input_torch, padding_size, "constant", cval)
+
         size = torch.Size((input_torch.shape))
         sample_grid: torch.Tensor = affine_grid(matrix_torch, size, align_corners=True)
 
@@ -346,6 +376,12 @@ def affine_transform(
 
     if matrix_torch.size(2) == input.ndim:
         transformed = transformed.squeeze()
+
+    if apply_cval_padding:
+        padding_size = tuple(
+            -1 for _ in range((input_torch.ndim - 2) * 2)
+        )  # negative padding to reverse padding
+        transformed = torch.nn.functional.pad(transformed, padding_size, "constant", cval)
 
     transformed = transformed.permute(dimension_order)
 
