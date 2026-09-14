@@ -96,3 +96,9 @@ def create_checker(
     result[..., 1][mask] = min_value
     result[..., 2][mask] = blue_channel[mask]
     return result
+
+
+def root_mean_square_error(image1: np.typing.NDArray, image2: np.typing.NDArray):
+    """Compare 2 images using root mean square error metric"""
+    error = (image1 - image2) ** 2
+    return np.sqrt(np.mean(error))
