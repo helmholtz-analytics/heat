@@ -42,22 +42,39 @@ class ProcessedKey(NamedTuple):
     root: int | None
 
 
-def _unwrap_local_key(key: Any) -> Any:
+def _unwrap_local_key(key: Any, target_device: torch.device | None = None) -> Any:
     """
-    Recursively unwrap local DNDarray or numpy array keys into torch-compatible indexers.
+    Recursively unwrap local DNDarray or numpy array keys into torch-compatible indexers
+    on the target device.
     """
     if isinstance(key, tuple) and len(key) == 1 and _is_boolean_array(key[0]):
         key = key[0]
+        return _unwrap_local_key(key, target_device)
+
     if isinstance(key, DNDarray):
         if key.is_distributed():
             raise TypeError("Cannot use distributed DNDarray for local fast-path indexing")
-        return key.larray.item() if key.ndim == 0 else key.larray
+        if key.ndim == 0:
+            return key.larray.item()
+        return key.larray.to(device=target_device)
+
     if isinstance(key, np.ndarray):
-        return torch.from_numpy(key)
+        t = torch.from_numpy(key)
+        return t.to(device=target_device)
+
+    if isinstance(key, torch.Tensor):
+        return key.to(device=target_device)
+
     if isinstance(key, tuple):
-        return tuple(_unwrap_local_key(k) for k in key)
+        return tuple(_unwrap_local_key(k, target_device) for k in key)
+
     if isinstance(key, list):
-        return [_unwrap_local_key(k) for k in key]
+        # Convert integer lists directly to a device tensor to avoid PyTorch making CPU indices
+        try:
+            return torch.tensor(key, device=target_device)
+        except (RuntimeError, TypeError, ValueError):
+            return [_unwrap_local_key(k, target_device) for k in key]
+
     return key
 
 
@@ -276,10 +293,14 @@ def _normalize_key(key: Indexer, device: torch.device) -> tuple[Any, ...]:
 
         # Convert non-distributed integer/indexing DNDarrays to local torch.Tensor
         elif isinstance(k, DNDarray) and k.split is None and k.dtype not in (ht_bool, ht_uint8):
-            normalized.append(k.larray.to(torch.int64))
+            normalized.append(k.larray.to(dtype=torch.int64, device=device))
+
+        # Ensure torch.Tensor indices are placed on the target device
+        elif isinstance(k, torch.Tensor):
+            normalized.append(k.to(device=device))
 
         else:
-            # Leave slices, integers, None, Ellipsis, torch.Tensors,
+            # Leave slices, integers, None, Ellipsis,
             # and distributed DNDarrays (ndim >= 1 and split is not None) intact.
             normalized.append(k)
 
@@ -2455,7 +2476,7 @@ class DNDarray:
         # attempt early out for non-distributed arrays
         if not self.is_distributed():
             try:
-                res_tensor = self.larray[_unwrap_local_key(key)]
+                res_tensor = self.larray[_unwrap_local_key(key, device=self.device.torch_device)]
                 return DNDarray(
                     res_tensor,
                     gshape=tuple(res_tensor.shape),
@@ -3435,7 +3456,7 @@ class DNDarray:
             isinstance(value, DNDarray) and value.is_distributed()
         ):
             try:
-                torch_key = _unwrap_local_key(key)
+                torch_key = _unwrap_local_key(key, device=self.device.torch_device)
                 if isinstance(value, DNDarray):
                     rhs = value.larray.to(self.larray.dtype)
                 elif isinstance(value, torch.Tensor):
