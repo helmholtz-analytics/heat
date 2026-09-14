@@ -884,9 +884,13 @@ class TestDNDarray(TestCase):
                     self.assertTrue(arr.lshape[new_dim] == 1)
 
         # test multiple ellipses rejection
-        a = ht.ones((5, 5))
-        with self.assertRaises(ValueError):
-            a[..., ...]
+        a = ht.ones((5, 5), split=0)
+        # pytorch erroneously allows multiple ellipses
+        # see https://github.com/pytorch/pytorch/issues/59787
+        # only testing distr mode for now
+        if a.comm.size > 1:
+            with self.assertRaises(ValueError):
+                a[..., ...]
 
     def test_getitem_advanced_indexing(self):
         # "x[(1, 2, 3),] is fundamentally different from x[(1, 2, 3)]" cf. numpy docs
@@ -1825,9 +1829,13 @@ class TestDNDarray(TestCase):
         self.assertTrue(ht.all(x[..., 0, :] == value).item())
 
         # test multiple ellipses rejection
-        a = ht.ones((5, 5))
-        with self.assertRaises(ValueError):
-            a[..., ...] = 0
+        a = ht.ones((5, 5), split=1)
+        # pytorch erroneously allows multiple ellipses
+        # see https://github.com/pytorch/pytorch/issues/59787
+        # only testing distr mode for now
+        if a.comm.size > 1:
+            with self.assertRaises(ValueError):
+                a[..., ...] = 0
 
     def test_setitem_advanced_indexing(self):
         # "x[(1, 2, 3),] is fundamentally different from x[(1, 2, 3)]", cf. numpy docs
