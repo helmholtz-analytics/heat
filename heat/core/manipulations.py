@@ -3027,13 +3027,13 @@ def sort_complex(
         larr_idx = larr_2d_idxs.reshape(original_shape)
 
         res_dnd_idx = factories.array(
-            larr_idx.transpose(0, axis), is_split=a.split, device=a.device, comm=a.comm
+            larr_idx.transpose(0, axis).contiguous(), is_split=a.split, device=a.device, comm=a.comm
         )
 
     larr = larr_2d.reshape(original_shape)
 
     res_dnd = DNDarray(
-        larr.transpose(0, axis),
+        larr.transpose(0, axis).contiguous(),
         gshape=a.gshape,
         dtype=a.dtype,
         split=a.split,
@@ -3124,10 +3124,10 @@ def vectorized_sort(
             indices = _permute_indices(local_data[:, i], indices)
 
         if return_sort_indices_instead:
-            return factories.array(indices, split=None, device=a.device)
+            return factories.array(indices, split=None, device=a.device, comm=a.comm)
 
         local_data = local_data.reshape(shape)[indices].transpose(axis, 0)
-        return factories.array(local_data, split=a.split, device=a.device)
+        return factories.array(local_data, split=a.split, device=a.device, comm=a.comm)
 
     # distributed vectorized sort
     original_split = a.split
@@ -3184,7 +3184,7 @@ def vectorized_sort(
     comm.Bcast(indices, root=0)
 
     if return_sort_indices_instead:
-        return factories.array(indices, split=None, device=a.device)
+        return factories.array(indices, split=None, device=a.device, comm=a.comm)
 
     res = take(original_a, indices, axis=axis)
     if res.split != original_split and resplit_result:
