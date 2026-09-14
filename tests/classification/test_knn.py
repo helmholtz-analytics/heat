@@ -12,7 +12,7 @@ class TestKNN(TestCase):
         super().setUpClass()
         cls.HDF5_PATH = str(Path(ht.__file__).parent / "datasets" / "iris.h5")
 
-    @unittest.skipUnless(ht.supports_hdf5(), "Requires HDF5")
+    @unittest.skipUnless(ht.io.supports("hdf5"), "Requires HDF5")
     def test_split_none(self):
         x = ht.load_hdf5(self.HDF5_PATH, dataset="data")
 
@@ -30,7 +30,7 @@ class TestKNN(TestCase):
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(result.shape, y.shape)
 
-    @unittest.skipUnless(ht.supports_hdf5(), "Requires HDF5")
+    @unittest.skipUnless(ht.io.supports("hdf5"), "Requires HDF5")
     def test_split_zero(self):
         x = ht.load_hdf5(self.HDF5_PATH, dataset="data", split=0)
 
@@ -74,7 +74,7 @@ class TestKNN(TestCase):
         one_hot = KNeighborsClassifier.one_hot_encoding(a)
         self.assertTrue((one_hot == b).all())
 
-    @unittest.skipUnless(ht.supports_hdf5(), "Requires HDF5")
+    @unittest.skipUnless(ht.io.supports("hdf5"), "Requires HDF5")
     def test_fit_one_hot(
         self,
     ):
