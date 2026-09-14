@@ -334,7 +334,7 @@ def affine_transform(
         transformed = torch.zeros(input_torch.shape)
     else:
         size = torch.Size((input_torch.shape))
-        sample_grid: torch.Tensor = affine_grid(matrix_torch, size)
+        sample_grid: torch.Tensor = affine_grid(matrix_torch, size, align_corners=True)
 
         transformed = grid_sample(
             input_torch,
