@@ -341,6 +341,7 @@ def affine_transform(
             sample_grid,
             padding_mode=sample_padding,
             mode=sample_mode,
+            align_corners=True,
         )
 
     if matrix_torch.size(2) == input.ndim:
