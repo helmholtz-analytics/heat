@@ -37,15 +37,16 @@ from heat.core.factories import array
 
 MODE_TO_PADDING = {
     # SciPy mode               # torch padding_mode
-    "constant": "zeros",  # fill with ``cval`` (default 0)
-    "reflect": "reflection",  # reflect at the border
-    "mirror": "reflection",  # also mapped to reflection
+    "grid-constant": "zeros",
+    "mirror": "reflection",  # reflect at the border
     "nearest": "border",  # replicate the edge pixel
     # The following SciPy modes have no exact Torch counterpart.
     # We keep them as ``None`` and raise an error if they are used.
+    "constant": None,  # fill with ``cval`` (default 0)
     "wrap": None,
     "grid-wrap": None,
-    "grid-constant": None,
+    "reflect": None,
+    "grid-mirror": None,
 }
 
 ORDER_TO_MODE = {
@@ -171,9 +172,8 @@ def affine_transform(
     output_shape=None,
     output=None,
     order=1,
-    mode="constant",
+    mode="grid-constant",
     cval=0.0,
-    prefilter=True,
 ) -> DNDarray:
     """
     Parameters
@@ -263,7 +263,7 @@ def affine_transform(
                     matrix.split is None and _untouched_axes(matrix)[split_idx]
                 ):  # transformation in direction of split is not identity
                     raise RuntimeError(
-                        "the split axis is not the bulk axis, nor an axis left unchanged by the transform. this is not supported"
+                        "the input split axis should either be the bulk axis, or an axis left unchanged by the transform."
                     )
             else:
                 raise RuntimeError(
