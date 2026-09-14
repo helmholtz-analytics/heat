@@ -73,6 +73,7 @@ class TestAffine:
             combined_result.numpy(), combined_comparison, rtol=0, atol=0.01
         )
 
+
     @staticmethod
     def bulk_testing_setup(image, matrix, offset, order, mode):
 
@@ -109,6 +110,7 @@ class TestAffine:
 
         for res, comp in zip(combined_result, combined_comparison):
             assert np.allclose(res.numpy(), comp, rtol=0, atol=0.01)
+
 
     @pytest.mark.parametrize("order", [0, 1])
     @pytest.mark.parametrize("mode", ["grid-constant", "mirror", "nearest"])

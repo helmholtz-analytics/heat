@@ -2,29 +2,11 @@
 utility and convenience functions for working with image data using heat
 """
 
-from matplotlib import pyplot as plt
 from typing import Iterable
 import scipy.ndimage as ndimg
 import numpy as np
 import heat as ht
 from heat.ndimage.affine import affine_transform
-
-
-def visual_compare_2d(heat_image, numpy_image):
-    """
-    Creates a plot to show an 2d DNDarray and a corresponding numpy array side by side.
-    useful to compare two images visually for differences
-    """
-    _, axs = plt.subplots(1, 2, figsize=(10, 16))
-    axs = axs.ravel()
-
-    axs[0].imshow(heat_image.numpy().astype(np.uint8))
-    axs[1].imshow(numpy_image.astype(np.uint8))
-    axs[0].scatter(heat_image.shape[1] / 2, heat_image.shape[0] / 2)
-    axs[1].scatter(numpy_image.shape[1] / 2, numpy_image.shape[0] / 2)
-
-    plt.tight_layout()
-    plt.show()
 
 
 def affine_comparison(
