@@ -1621,7 +1621,7 @@ class DNDarray:
                 gshape=self.shape,
                 dtype=dtype,
                 split=self.split,
-                device=self.device,
+                device=device,
                 comm=self.comm,
                 balanced=self.balanced,
             )
