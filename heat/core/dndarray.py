@@ -889,11 +889,7 @@ def _resolve_indexing_state(
                     if key_is_dist or key.ndim > 1:
                         split_key_is_ordered = 0
                     else:
-                        try:
-                            sorted_k, _ = torch.sort(key, stable=True)
-                        except TypeError:
-                            sorted_k, _ = torch.sort(key)
-                        split_key_is_ordered = int((key == sorted_k).all().item())
+                        split_key_is_ordered = int((key[1:] >= key[:-1]).all().item())
 
                     # unordered local keys
                     if not split_key_is_ordered and not key_is_dist:
@@ -993,11 +989,7 @@ def _resolve_indexing_state(
 
             advanced_indexing_shapes.append(k.gshape)
             if arr_is_distributed and i == arr.split:
-                if (
-                    not k.is_distributed()
-                    and k.ndim == 1
-                    and (k.larray == torch.sort(k.larray, stable=True)[0]).all()
-                ):
+                if not k.is_distributed() and k.ndim == 1 and int((k[1:] >= k[:-1]).all().item()):
                     split_key_is_ordered = 1
                     out_is_balanced = False
                 else:
