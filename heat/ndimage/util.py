@@ -65,7 +65,7 @@ def create_checker(
     checker_size: int,
     min_value: int = 0,
     max_value: int = 256,
-    dtype: ht.dtype = ht.float32,
+    dtype: ht.types.datatype = ht.float32,
 ) -> np.ndarray:
     """
     Parameters
