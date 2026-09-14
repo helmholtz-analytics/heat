@@ -180,22 +180,26 @@ def _resolve_duplicate_indices(
         for d in range(1, len(idx_flat)):
             lin = lin * int(target_shape[d]) + idx_flat[d]
 
-    # Fast path: no duplicates
-    if torch.unique(lin).numel() == n:
-        return key_in, rhs_in
-
-    # Determine "last occurrence" per linear index (last wins)
-    pos = torch.arange(n, device=device, dtype=torch.int64)
-
-    # Prefer stable sort by lin if available; otherwise sort by combined key
+    # Determine sorting order (stable sort preserves original order)
     try:
         order = torch.argsort(lin, stable=True)
+        pos = None
     except TypeError:
-        # combined key sorts by lin, then by pos
+        # Fallback if stable sort is unsupported: sort by combined key
+        pos = torch.arange(n, device=device, dtype=torch.int64)
         combined = lin.to(torch.int64) * (n + 1) + pos
         order = torch.argsort(combined)
 
     lin_s = lin[order]
+
+    # Fast path: check adjacent elements in sorted order
+    # If all adjacent elements are distinct, there are no duplicates
+    if (lin_s[1:] != lin_s[:-1]).all():
+        return key_in, rhs_in
+
+    if pos is None:
+        pos = torch.arange(n, device=device, dtype=torch.int64)
+
     pos_s = pos[order]
 
     is_last = torch.ones_like(lin_s, dtype=torch.bool)
