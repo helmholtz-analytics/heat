@@ -5,7 +5,6 @@ import heat as ht
 import heat.ndimage.affine as affine
 from heat.testing.basic_test import TestCase
 from heat.ndimage.util import create_checker, root_mean_square_error
-from examples.ndimages.affine_helpers_DONOTCOMMIT import visual_compare_2d
 
 
 class TestAffine:
@@ -108,7 +107,6 @@ class TestAffine:
         combined_comparison = ndimg.affine_transform(
             image.numpy(), matrix_affine.numpy(), order=order, mode=mode
         )
-        # visual_compare_2d(with_offset_result, with_offset_comparison)
         assert np.allclose(
             with_offset_result.numpy(), with_offset_comparison, rtol=0, atol=0.05
         )
@@ -136,7 +134,6 @@ class TestAffine:
         with_offset_comparison = ndimg.affine_transform(
             image.numpy(), matrix.numpy(), offset=offset.numpy(), order=order, mode=mode
         )
-        visual_compare_2d(with_offset_result, with_offset_comparison)
         error = root_mean_square_error(with_offset_result.numpy(), with_offset_comparison)
         assert error < 3
 
