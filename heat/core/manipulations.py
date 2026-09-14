@@ -3027,13 +3027,13 @@ def sort_complex(
         larr_idx = larr_2d_idxs.reshape(original_shape)
 
         res_dnd_idx = factories.array(
-            larr_idx.transpose(0, axis), is_split=a.split, device=a.device, comm=a.comm
+            larr_idx.transpose(0, axis).contiguous(), is_split=a.split, device=a.device, comm=a.comm
         )
 
     larr = larr_2d.reshape(original_shape)
 
     res_dnd = DNDarray(
-        larr.transpose(0, axis),
+        larr.transpose(0, axis).contiguous(),
         gshape=a.gshape,
         dtype=a.dtype,
         split=a.split,
@@ -3124,10 +3124,10 @@ def vectorized_sort(
             indices = _permute_indices(local_data[:, i], indices)
 
         if return_sort_indices_instead:
-            return factories.array(indices, split=None, device=a.device)
+            return factories.array(indices, split=None, device=a.device, comm=a.comm)
 
         local_data = local_data.reshape(shape)[indices].transpose(axis, 0)
-        return factories.array(local_data, split=a.split, device=a.device)
+        return factories.array(local_data, split=a.split, device=a.device, comm=a.comm)
 
     # distributed vectorized sort
     original_split = a.split
@@ -3184,7 +3184,7 @@ def vectorized_sort(
     comm.Bcast(indices, root=0)
 
     if return_sort_indices_instead:
-        return factories.array(indices, split=None, device=a.device)
+        return factories.array(indices, split=None, device=a.device, comm=a.comm)
 
     res = take(original_a, indices, axis=axis)
     if res.split != original_split and resplit_result:
@@ -3235,7 +3235,7 @@ def take(
         axis += a.ndim
 
     if not a.is_distributed() or axis != a.split:
-        local_data = torch.index_select(a.larray, axis, indices)
+        local_data = torch.index_select(a.larray, axis, indices.to(a.larray.device))
         return factories.array(local_data, is_split=a.split, comm=a.comm, device=a.device)
 
     assert axis == a.split  # any other cases should have been handled earlier
@@ -3281,8 +3281,8 @@ def take(
     src_ranks = torch.bucketize(needed_indices, in_bounds_tensor, right=True) - 1
     recv_counts_tensor = torch.bincount(src_ranks, minlength=size)
 
-    send_counts = (send_counts_tensor * block_length).numpy()
-    recv_counts = (recv_counts_tensor * block_length).numpy()
+    send_counts = (send_counts_tensor * block_length).cpu().numpy()
+    recv_counts = (recv_counts_tensor * block_length).cpu().numpy()
 
     send_displ = np.insert(np.cumsum(send_counts)[:-1], 0, 0)
     recv_displ = np.insert(np.cumsum(recv_counts)[:-1], 0, 0)
