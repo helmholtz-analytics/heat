@@ -3235,7 +3235,7 @@ def take(
         axis += a.ndim
 
     if not a.is_distributed() or axis != a.split:
-        local_data = torch.index_select(a.larray, axis, indices)
+        local_data = torch.index_select(a.larray, axis, indices.to(a.larray.device))
         return factories.array(local_data, is_split=a.split, comm=a.comm, device=a.device)
 
     assert axis == a.split  # any other cases should have been handled earlier
@@ -3281,8 +3281,8 @@ def take(
     src_ranks = torch.bucketize(needed_indices, in_bounds_tensor, right=True) - 1
     recv_counts_tensor = torch.bincount(src_ranks, minlength=size)
 
-    send_counts = (send_counts_tensor * block_length).numpy()
-    recv_counts = (recv_counts_tensor * block_length).numpy()
+    send_counts = (send_counts_tensor * block_length).cpu().numpy()
+    recv_counts = (recv_counts_tensor * block_length).cpu().numpy()
 
     send_displ = np.insert(np.cumsum(send_counts)[:-1], 0, 0)
     recv_displ = np.insert(np.cumsum(recv_counts)[:-1], 0, 0)
