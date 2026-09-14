@@ -71,7 +71,7 @@ def _process_scalar_key(
     """
     Private helper function to process a single-item scalar key used for indexing a ``DNDarray``.
     """
-    device = arr.larray.device
+    device = arr.device.torch_device
     try:
         # is key an ndarray or DNDarray or torch.Tensor?
         key = key.item()
@@ -786,7 +786,7 @@ def _resolve_indexing_state(
 
     # normalize key items to torch-friendly types (torch.Tensor, int, slice, None, Ellipsis)
     # NB: distributed DNDarrays are not unwrapped here, they are handled later
-    normalized_key = _normalize_key(key, device=arr.larray.device)
+    normalized_key = _normalize_key(key, device=arr.device.torch_device)
     # maintain single item when raw key was not passed as a tuple
     key = normalized_key if isinstance(key, tuple) else normalized_key[0]
 
@@ -1019,7 +1019,7 @@ def _resolve_indexing_state(
                 displs=displs if arr_is_distributed else None,
                 counts=counts if arr_is_distributed else None,
                 rank=rank,
-                device=arr.larray.device,
+                device=arr.device.torch_device,
                 return_local_indices=return_local_indices,
             )
 
@@ -2123,7 +2123,7 @@ class DNDarray:
                 indexed_arr = self.larray[p.key]
             else:
                 indexed_arr = torch.zeros(
-                    p.output_shape, dtype=self.larray.dtype, device=self.larray.device
+                    p.output_shape, dtype=self.larray.dtype, device=self.device.torch_device
                 )
             self.comm.Bcast(indexed_arr, root=p.root)
         else:
@@ -2269,7 +2269,7 @@ class DNDarray:
 
             send_indices = torch.stack([k.flatten()[sort_idx] for k in key], dim=1).reshape(-1)
             recv_indices_flat = torch.zeros(
-                sum(idx_recv_counts), dtype=split_key.dtype, device=self.larray.device
+                sum(idx_recv_counts), dtype=split_key.dtype, device=self.device.torch_device
             )
         else:
             idx_send_counts, idx_send_displs = send_counts, send_displs
@@ -2277,7 +2277,7 @@ class DNDarray:
 
             send_indices = split_key_flat[sort_idx]
             recv_indices_flat = torch.zeros(
-                sum(idx_recv_counts), dtype=split_key.dtype, device=self.larray.device
+                sum(idx_recv_counts), dtype=split_key.dtype, device=self.device.torch_device
             )
 
         self.comm.Alltoallv(
@@ -2327,7 +2327,7 @@ class DNDarray:
 
         send_vals = local_vals.reshape(-1)
         recv_vals_flat = torch.empty(
-            sum(return_recv_counts), dtype=self.larray.dtype, device=self.larray.device
+            sum(return_recv_counts), dtype=self.larray.dtype, device=self.device.torch_device
         )
 
         self.comm.Alltoallv(
@@ -3567,7 +3567,7 @@ class DNDarray:
         Return a 1-element `torch.Tensor` strided as the global `self` shape.
         Used internally for sanitation purposes.
         """
-        return torch.ones((1,), dtype=torch.int8, device=self.larray.device).as_strided(
+        return torch.ones((1,), dtype=torch.int8, device=self.device.torch_device).as_strided(
             self.gshape, [0] * self.ndim
         )
 
