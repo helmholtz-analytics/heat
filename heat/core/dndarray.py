@@ -447,19 +447,22 @@ def _sanitize_int_indices(k: "DNDarray", dim: int, axis: int, comm: Any, device:
     if k.dtype not in (types.int32, types.int64) or k.ndim < 1:
         return k
 
-    # Compute local flags even if k.larray is empty (any() on empty -> False)
-    invalid_local = ((k.larray < -dim) | (k.larray >= dim)).any().item()
-    has_neg_local = (k.larray < 0).any().item()
+    # Combine local checks into one reduced boolean tensor
+    local_flags = torch.tensor(
+        [
+            ((k.larray < -dim) | (k.larray >= dim)).any(),
+            (k.larray < 0).any(),
+        ],
+        dtype=torch.int32,
+        device=device.torch_device,
+    )
 
-    # Decide once, then ALL ranks take the same path for collectives
     do_reduce = comm is not None and getattr(comm, "size", 1) > 1 and k.is_distributed()
-
     if do_reduce:
-        invalid_sum = comm.allreduce(int(invalid_local), op=MPI.SUM)
-        has_neg_sum = comm.allreduce(int(has_neg_local), op=MPI.SUM)
-    else:
-        invalid_sum = int(invalid_local)
-        has_neg_sum = int(has_neg_local)
+        comm.Allreduce(MPI.IN_PLACE, local_flags, op=MPI.SUM)
+
+    invalid_sum = local_flags[0].item()
+    has_neg_sum = local_flags[1].item()
 
     if invalid_sum > 0:
         raise IndexError(f"index out of bounds for axis {axis} with size {dim}")
