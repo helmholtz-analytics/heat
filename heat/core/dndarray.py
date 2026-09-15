@@ -959,12 +959,14 @@ def _resolve_indexing_state(
 
                     # ordered keys
                     if split_key_is_ordered:
-                        # extract local key
-                        cond1 = key >= displs[arr.comm.rank]
-                        cond2 = key < displs[arr.comm.rank] + counts[arr.comm.rank]
-                        key = key[cond1 & cond2]
+                        rank = arr.comm.rank
+                        low = displs[rank]
+                        high = low + counts[rank]
+                        idx_start = torch.searchsorted(key, low)
+                        idx_end = torch.searchsorted(key, high)
+                        key = key[idx_start:idx_end]
                         if return_local_indices:
-                            key -= displs[arr.comm.rank]
+                            key = key - low
                         out_is_balanced = False
             else:
                 try:
