@@ -1056,15 +1056,20 @@ def promote_types(
 
 
 def result_type(
-    *arrays_and_types: Tuple[Union[dndarray.DNDarray, Type[datatype], Any]],
+    *arrays_and_types: dndarray.DNDarray
+    | builtins.int
+    | builtins.float
+    | builtins.complex
+    | builtins.bool
+    | Type[datatype],
 ) -> Type[datatype]:
     """
     Returns the data type that results from type promotions rules performed in an arithmetic operation.
 
     Parameters
     ----------
-    arrays_and_types: List of arrays and types
-        Input arrays, types or numbers of the operation.
+    arrays_and_types: List of arrays, scalars and types
+        Input arrays, types or Scalars of the operation.
 
     Examples
     --------
@@ -1075,76 +1080,57 @@ def result_type(
     >>> ht.result_type("i8", "f4")
     ht.float64
     """
+    from functools import reduce
 
-    def result_type_rec(*arrays_and_types):
-        # derive type and set precedence (lower number, higher precedence)
-        arg = arrays_and_types[0]
-
+    def input_type(arg):
+        # derive dtype
         try:
             # array / tensor
             if isinstance(arg, np.ndarray):
-                type1 = canonical_heat_type(arg.dtype.char)
+                dtype = canonical_heat_type(arg.dtype.char)
             else:
-                type1 = canonical_heat_type(arg.dtype)
-
-            if len(arg.shape) > 0:
-                prec1 = 0  # array
-            else:
-                prec1 = 2  # scalar
+                dtype = canonical_heat_type(arg.dtype)
         except (AttributeError, TypeError):
             try:
                 # type
                 if isinstance(arg, np.dtype):
                     arg = arg.char
-                type1 = canonical_heat_type(arg)
-                prec1 = 1
+                dtype = canonical_heat_type(arg)
             except TypeError:
                 # type instance
-                type1 = canonical_heat_type(type(arg))
-                prec1 = 3
+                dtype = canonical_heat_type(type(arg))
+        # dtype
+        return dtype
 
-        # multiple arguments
-        if len(arrays_and_types) > 1:
-            type2, prec2 = result_type_rec(*arrays_and_types[1:])
+    scalar_list = [
+        x
+        for x in arrays_and_types
+        if isinstance(x, builtins.bool | builtins.int | builtins.float | builtins.complex)
+    ]
+    type_list = [
+        x
+        for x in arrays_and_types
+        if not isinstance(x, builtins.bool | builtins.int | builtins.float | builtins.complex)
+    ]
 
-            # fast check same type
-            if type1 == type2:
-                return type1, min(prec1, prec2)
-            # fast check same precedence
-            if prec1 == prec2:
-                return promote_types(type1, type2), prec1
+    scalar_dtype = reduce(promote_types, map(input_type, scalar_list), bool_)
+    type_dtype = reduce(promote_types, map(input_type, type_list), bool_)
 
-            # check if parent type is identical and decide by precedence
-            if can_cast(type1, type2, casting="same_kind"):
-                if prec1 < prec2:
-                    return type1, min(prec1, prec2)
-                else:
-                    return type2, min(prec1, prec2)
+    # different parent type: bool < int < float < complex
+    dtype_priority_order = [bool, integer, floating, complex]
 
-            # different parent type: bool < int < float < complex
-            dtype_priority_order = [bool, integer, floating, complex]
-            try:
-                dtype_priority1 = [
-                    issubdtype(type1, dtype) for dtype in dtype_priority_order
-                ].index(True)
-            except ValueError:
-                return type2, prec2
-            try:
-                dtype_priority2 = [
-                    issubdtype(type2, dtype) for dtype in dtype_priority_order
-                ].index(True)
-            except ValueError:
-                return type1, prec1
+    scalar_dtype_priority = [
+        issubdtype(scalar_dtype, dtype) for dtype in dtype_priority_order
+    ].index(True)
+    type_dtype_priority = [issubdtype(type_dtype, dtype) for dtype in dtype_priority_order].index(
+        True
+    )
 
-            if dtype_priority1 < dtype_priority2:
-                return type2, min(prec1, prec2)
-            else:
-                return type1, min(prec1, prec2)
+    # Only return the dtype of the scalars if it has a higher priority
+    if scalar_dtype_priority > type_dtype_priority:
+        return scalar_dtype
 
-        # single argument
-        return type1, prec1
-
-    return result_type_rec(*arrays_and_types)[0]
+    return type_dtype
 
 
 class finfo:
