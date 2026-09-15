@@ -698,7 +698,7 @@ def _sanitize_advanced_keys(
     """
     key = list(key)
 
-    # 1. Detect mask-like conditions (same shape, consecutive dimensions)
+    # Detect mask-like conditions (same shape, consecutive dimensions)
     key_is_mask_like = key_is_mask_like or (
         len(advanced_indexing_dims) > 1
         and all(isinstance(k, DNDarray) for k in key)
@@ -733,7 +733,7 @@ def _sanitize_advanced_keys(
                 f"Indexing arrays must be distributed along the same dimension, got splits {key_splits}."
             )
 
-    # 2. Extract local torch.Tensors
+    # Extract local torch.Tensors
     if arr.is_distributed() and arr.split in advanced_indexing_dims:
         if distr_mask_fast_path:
             for i in non_split_dims:
@@ -2103,7 +2103,7 @@ class DNDarray:
         # only assign values if key does not contain empty slices
         process_is_inactive = self.larray[key].numel() == 0
         if not process_is_inactive:
-            rhs = value.larray.type(self.dtype.torch_type())
+            rhs = value.larray.type(self.dtype.torch_type()) if hasattr(value, "larray") else value
             key_to_use = key
 
             # CUDA: make advanced indexing assignment deterministic for duplicate indices
@@ -3013,11 +3013,17 @@ class DNDarray:
         """
         Handles process-local item assignment (slices and local indices)  directly on local partitions. If `value` is distributed, MPI communication might be necessary to align it with the target slice before assignment.
         """
-        if not self.is_distributed() and not value.is_distributed():
+        if value_is_scalar:
             self.__set(p.key, value)
             return
 
-        if self.is_distributed() and not value_is_scalar:
+        value_is_distributed = isinstance(value, DNDarray) and value.is_distributed()
+
+        if not self.is_distributed() and not value_is_distributed:
+            self.__set(p.key, value)
+            return
+
+        if self.is_distributed():
             if not value.is_distributed():
                 value = factories.array(
                     value.larray,
@@ -3174,18 +3180,19 @@ class DNDarray:
         key_is_distributed = (
             isinstance(split_key_orig, DNDarray) and split_key_orig.is_distributed()
         )
+        value_is_distributed = isinstance(value, DNDarray) and value.is_distributed()
 
         # reject implicit cross-distribution assignments
-        if key_is_distributed and not value.is_distributed() and not value_is_scalar:
+        if key_is_distributed and not value_is_distributed and not value_is_scalar:
             raise ValueError(
-                f"Distribution mismatch: index distributed={key_is_distributed}, value distributed={value.is_distributed()}. "
+                f"Distribution mismatch: index distributed={key_is_distributed}, value distributed={value_is_distributed}. "
                 "Cannot assign a non-distributed value array using a distributed index. "
                 "Please distribute the value array or use a non-distributed index."
             )
 
         counts, displs = self.counts_displs()
 
-        if value.is_distributed():
+        if value_is_distributed:
             self.__setitem_unordered(
                 key=p.key,
                 key_is_mask_like=p.key_is_mask_like,
@@ -3253,7 +3260,11 @@ class DNDarray:
                 key_local = split_key_flat[local_indices] - displs[rank]
 
                 if value_is_scalar:
-                    rhs = value.larray.type(self.dtype.torch_type())
+                    rhs = (
+                        value.larray.type(self.dtype.torch_type())
+                        if hasattr(value, "larray")
+                        else value
+                    )
                 else:
                     # flatten leading dimensions of value.larray that correspond to the multi-dimensional key
                     rhs_view = value.larray.reshape(-1, *value.larray.shape[split_key.ndim :])
@@ -3519,10 +3530,12 @@ class DNDarray:
             except Exception:
                 pass
 
-        try:
+        # bypass factories.array() for primitive types and single-element tensors to avoid unnecessary overhead
+        value_is_primitive = isinstance(value, (int, float, complex, bool)) or (
+            isinstance(value, torch.Tensor) and value.numel() == 1 and value.ndim == 0
+        )
+        if not value_is_primitive and not isinstance(value, DNDarray):
             value = factories.array(value)
-        except TypeError:
-            raise TypeError(f"Cannot assign object of type {type(value)} to DNDarray.")
 
         original_key = key
         original_split = self.split
