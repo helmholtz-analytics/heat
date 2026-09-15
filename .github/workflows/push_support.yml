@@ -4,9 +4,19 @@ on:
     branches:
       - 'support/**'
 jobs:
-  codebase-test-support:
-    name: Testing
+  test-latest:
     runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        py-version:
+          - '3.11' # Oldest supported
+          - '3.14' # Latest stable
+        mpi: [ 'mpich' ]
+        pytorch-version:
+          - 'torch torchvision' # Latest
+    name: Python ${{ matrix.py-version }} with ${{ matrix.pytorch-version }}
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
@@ -16,8 +26,9 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
-      - uses: ./.github/actions/trigger_codebase_tests
+      - uses: ./.github/actions/gh_tests
         with:
-          branch: ${{ github.head_ref}}
-          sha: ${{ github.sha}}
-          trigger_token: ${{ secrets.CX_TRIGGER_TOKEN }}
+          mode: "full"
+          py-version: ${{ matrix.py-version }}
+          mpi: ${{ matrix.mpi }}
+          pytorch-version: ${{ matrix.pytorch-version }}
