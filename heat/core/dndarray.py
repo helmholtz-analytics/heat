@@ -1,6 +1,7 @@
 """Provides Heat's core data structure, the DNDarray, a distributed n-dimensional array"""
 
 from __future__ import annotations
+import bisect
 
 import numpy as np
 import torch
@@ -71,7 +72,6 @@ def _process_scalar_key(
     """
     Private helper function to process a single-item scalar key used for indexing a ``DNDarray``.
     """
-    device = arr.device.torch_device
     try:
         # is key an ndarray or DNDarray or torch.Tensor?
         key = key.item()
@@ -87,23 +87,10 @@ def _process_scalar_key(
             key += arr.gshape[indexed_axis]
         # work out active process
         _, displs = arr.counts_displs()
-        if key in displs:
-            root = displs.index(key)
-        else:
-            displs = torch.cat(
-                (
-                    torch.tensor(displs, device=device),
-                    torch.tensor(key, device=device).reshape(-1),
-                ),
-                dim=0,
-            )
-            _, sorted_indices = displs.unique(sorted=True, return_inverse=True)
-            root = sorted_indices[-1].item() - 1
-            displs = displs.tolist()
+        root = bisect.bisect_right(displs, key) - 1
         # correct key for rank-specific displacement
-        if return_local_indices:
-            if arr.comm.rank == root:
-                key -= displs[root]
+        if return_local_indices and arr.comm.rank == root:
+            key -= displs[root]
     else:
         root = None
     return key, root
