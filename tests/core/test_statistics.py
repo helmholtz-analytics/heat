@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 import os
+import unittest
 
 from itertools import combinations
 from scipy import stats as ss
@@ -928,59 +929,88 @@ class TestStatistics(TestCase):
         with self.assertRaises(ValueError):
             ht.mean(x, axis=(0, 0))
         with self.assertRaises(ValueError):
-            ht.mean(x, axis=torch.Tensor([0, 0]))
+            ht.mean(x, axis=torch.tensor([0, 0]))
 
         a = ht.arange(1, 5)
         self.assertEqual(a.mean(), 2.5)
 
-        # ones
+        # random data: the mean must match numpy for every split and axis. Constant input
+        # (e.g. ht.ones) cannot detect a mis-weighted merge across processes.
+        dtypes = [ht.float32] if self.is_mps else [ht.float32, ht.float64]
         dimensions = []
 
         for d in [array_0_len, array_1_len, array_2_len]:
             dimensions.extend([d])
+            # the same data on every process
+            np_data = np.random.default_rng(seed=len(dimensions)).standard_normal(dimensions)
             hold = list(range(len(dimensions)))
             hold.append(None)
             for split in hold:  # loop over the number of split dimension of the test array
-                z = ht.ones(dimensions, split=split)
-                res = z.mean()
-                total_dims_list = list(z.shape)
-                self.assertTrue((res == 1).all())
-                for it in range(len(z.shape)):  # loop over the different single dimensions for mean
-                    res = z.mean(axis=it)
-                    self.assertTrue((res == 1).all())
-                    target_dims = [
-                        total_dims_list[q] for q in range(len(total_dims_list)) if q != it
-                    ]
-                    if not target_dims:
-                        target_dims = ()
-                    self.assertEqual(res.gshape, tuple(target_dims))
-                    if z.split is None:
-                        sp = None
-                    else:
-                        sp = z.split if it > z.split else z.split - 1
-                        if it == split:
-                            sp = None
-                    self.assertEqual(res.split, sp)
-                loop_list = [
-                    ",".join(map(str, comb)) for comb in combinations(list(range(len(z.shape))), 2)
-                ]
+                for dtype in dtypes:
+                    z = ht.array(np_data, dtype=dtype, split=split)
+                    # compare against the data as stored by heat, not against np_data, so that
+                    # the reference is not off by the float32 rounding of the input
+                    ref = z.numpy()
+                    # the mean of random data is close to zero, so an absolute tolerance is
+                    # needed. Reducing along the split axis currently accumulates in float32
+                    # independently of the input dtype, hence float64 cannot be checked to
+                    # full precision here.
+                    rtol = 1e-5 if dtype is ht.float32 else 1e-7
+                    atol = 1e-6 if dtype is ht.float32 else 1e-7
+                    total_dims_list = list(z.shape)
+                    self.assertTrue(np.allclose(z.mean().item(), ref.mean(), rtol=rtol, atol=atol))
 
-                for it in loop_list:  # loop over the different combinations of dimensions for mean
-                    lp_split = [int(q) for q in it.split(",")]
-                    res = z.mean(axis=lp_split)
-                    self.assertTrue((res == 1).all())
-                    target_dims = [
-                        total_dims_list[q] for q in range(len(total_dims_list)) if q not in lp_split
-                    ]
-                    if not target_dims:
-                        target_dims = (1,)
-                    if res.gshape:
+                    # loop over the different single dimensions for mean
+                    for it in range(len(z.shape)):
+                        res = z.mean(axis=it)
+                        self.assertTrue(
+                            np.allclose(res.numpy(), ref.mean(axis=it), rtol=rtol, atol=atol)
+                        )
+                        target_dims = [
+                            total_dims_list[q] for q in range(len(total_dims_list)) if q != it
+                        ]
+                        if not target_dims:
+                            target_dims = ()
                         self.assertEqual(res.gshape, tuple(target_dims))
-                    if res.split is not None:
-                        if any([split >= x for x in lp_split]):
-                            self.assertEqual(res.split, len(target_dims) - 1)
+                        if z.split is None:
+                            sp = None
                         else:
-                            self.assertEqual(res.split, z.split)
+                            sp = z.split if it > z.split else z.split - 1
+                            if it == split:
+                                sp = None
+                        self.assertEqual(res.split, sp)
+                    loop_list = [
+                        ",".join(map(str, comb))
+                        for comb in combinations(list(range(len(z.shape))), 2)
+                    ]
+
+                    # loop over the different combinations of dimensions for mean
+                    for it in loop_list:
+                        lp_split = [int(q) for q in it.split(",")]
+                        res = z.mean(axis=lp_split)
+                        expected = ref.mean(axis=tuple(lp_split))
+                        self.assertTrue(
+                            np.allclose(
+                                np.atleast_1d(res.numpy()),
+                                np.atleast_1d(expected),
+                                rtol=rtol,
+                                atol=atol,
+                            )
+                        )
+                        target_dims = [
+                            total_dims_list[q]
+                            for q in range(len(total_dims_list))
+                            if q not in lp_split
+                        ]
+                        if not target_dims:
+                            target_dims = (1,)
+                        if res.gshape:
+                            self.assertEqual(res.gshape, tuple(target_dims))
+                        if res.split is not None:
+                            if any([split >= x for x in lp_split]):
+                                self.assertEqual(res.split, len(target_dims) - 1)
+                            else:
+                                self.assertEqual(res.split, z.split)
 
         # values for the iris dataset mean measured by libreoffice calc
         ax0 = ht.array([5.84333333333333, 3.054, 3.75866666666667, 1.19866666666667])
@@ -1528,29 +1558,164 @@ class TestStatistics(TestCase):
         with self.assertRaises(ValueError):
             ht.var(x, ddof=-2)
         with self.assertRaises(ValueError):
-            ht.var(x, axis=torch.Tensor([0, 0]))
+            ht.var(x, axis=torch.tensor([0, 0]))
 
+        a = ht.arange(1, 5)
+        if self.is_mps:
+            self.assertAlmostEqual(a.var(ddof=1).item(), 1.666666666666666, places=5)
+        else:
+            self.assertEqual(a.var(ddof=1), 1.666666666666666)
+
+        # random data: the variance must match numpy for every split, axis and correction.
+        # Constant input (e.g. ht.ones) cannot detect a wrong number of degrees of freedom
+        # or a mis-weighted merge, since its variance is zero either way.
         size = self.comm.size
-        shapes = [(2*size,), (2*size, 3*size), (2*size, 3*size, 4*size)]
-        correction_parameter_aliases = ['ddof', 'bessel']
+        shapes = [(2 * size,), (2 * size, 3 * size), (2 * size, 3 * size, 4 * size)]
+        correction_parameter_aliases = ["ddof", "bessel"]
+        # float64 also checks that the moments are not accumulated in float32
+        dtypes = [ht.float32] if self.is_mps else [ht.float32, ht.float64]
         for shape in shapes:
-            splits = [None,] + [i for i in range(len(shape))]
-            for split in splits:
-                axes = [None,] + [i for i in range(len(shape))]
+            ndim = len(shape)
+            # combinations of axes as well as single axes: if a tuple axis contains the split
+            # axis, each output element reduces lshape[split] times the extents of the other
+            # reduced axes, which is where the number of degrees of freedom used to be wrong
+            axes = [None] + list(range(ndim))
+            axes += [c for r in range(2, ndim + 1) for c in combinations(range(ndim), r)]
+            for split in [None] + list(range(ndim)):
+                for dtype in dtypes:
+                    data = ht.random.random(shape=shape, split=split).astype(dtype)
+                    # compare against the data as heat stores it, so that the reference is not
+                    # off by the rounding of the input
+                    reference = data.numpy()
+                    for axis in axes:
+                        for correction in [0, 1]:
+                            for alias in correction_parameter_aliases:
+                                with self.subTest(
+                                    f"{shape=} {split=} {axis=} {correction=} {dtype=} {alias}"
+                                ):
+                                    var = ht.var(data, axis=axis, **{alias: correction})
+                                    expect = np.var(reference, axis=axis, correction=correction)
+                                    assert np.allclose(
+                                        np.atleast_1d(var.numpy()), np.atleast_1d(expect)
+                                    )
+                                    assert var.device == data.device
+                                    if axis is None:
+                                        continue
+                                    reduced = (axis,) if isinstance(axis, int) else axis
+                                    target = tuple(
+                                        d for i, d in enumerate(shape) if i not in reduced
+                                    )
+                                    assert var.gshape == target
+                                    if isinstance(axis, int):
+                                        if split is None or axis == split:
+                                            assert var.split is None
+                                        elif axis > split:
+                                            assert var.split == split
+                                        else:
+                                            assert var.split == split - 1
+                                    elif var.split is not None:
+                                        if any(split >= a for a in reduced):
+                                            assert var.split == len(target) - 1
+                                        else:
+                                            assert var.split == split
+
+        with self.subTest("Edge case from #2374"):
+            self.assertEqual(ht.var(ht.array([0.0], split=None), axis=0, ddof=0), 0)
+
+    def test_moments_axis_forms(self):
+        # a tuple, a list, a torch.Tensor and negative entries all describe the same axes and
+        # must give the same moments, also when the split axis is among them
+        np_data = np.arange(2 * 3 * 4, dtype=np.float64).reshape(2, 3, 4)
+        multi_axes = [(0, 2), [0, 2], [0, -1], (-3, 2), torch.tensor([0, 2])]
+        single_axes = [1, -2, torch.tensor(1)]
+        for split in [None, 0, 1, 2]:
+            x = ht.array(np_data, dtype=ht.float64, split=split)
+            for axes, reduced in [(multi_axes, (0, 2)), (single_axes, 1)]:
                 for axis in axes:
-                    for correction in [0, 1]:
-                        data = ht.random.random(shape=shape, split=split)
-                        for correction_alias in correction_parameter_aliases:
-                            with self.subTest(f'{shape=} {split=} {axis=} {correction=}, {correction_alias}'):
-                                var = ht.var(data, axis=axis, **{correction_alias: correction})
-                                expect = np.var(data.numpy(), axis=axis, correction=correction)
+                    with self.subTest(f"{split=} {axis=}"):
+                        self.assertTrue(
+                            np.allclose(
+                                ht.mean(x, axis=axis).numpy(), np.mean(np_data, axis=reduced)
+                            )
+                        )
+                        for ddof in [0, 1]:
+                            self.assertTrue(
+                                np.allclose(
+                                    ht.var(x, axis=axis, ddof=ddof).numpy(),
+                                    np.var(np_data, axis=reduced, ddof=ddof),
+                                )
+                            )
+                            self.assertTrue(
+                                np.allclose(
+                                    ht.std(x, axis=axis, ddof=ddof).numpy(),
+                                    np.std(np_data, axis=reduced, ddof=ddof),
+                                )
+                            )
 
-                                if axis is None:
-                                    assert np.isclose(var.numpy(), expect)
-                                else:
-                                    assert np.allclose(var.numpy(), expect)
-                                    assert np.allclose(var.shape, expect.shape)
-                                assert var.device == data.device
+    @unittest.skipUnless(ht.communication.MPI_WORLD.size >= 3, "Test requires at least 3 tasks")
+    def test_first_two_leading_ranks_empty(self):
+        # mean and var used to return NaN if the leading process chunks were empty, see #2495
+        comm = self.comm
+        if comm.rank < 2:
+            local_data = torch.tensor([], dtype=torch.float32)
+        else:
+            local_data = torch.tensor([comm.rank], dtype=torch.float32)
+        data = ht.DNDarray(
+            local_data,
+            gshape=(comm.size - 2,),
+            dtype=ht.float32,
+            split=0,
+            device=self.device,
+            comm=comm,
+            balanced=None,
+        )
 
-        with self.subTest(f'Edge case from #2374'):
-            self.assertEqual(ht.var(ht.array([0.], split=None), axis=0, ddof=0), 0)
+        self.assertEqual(ht.mean(data), np.mean(data.numpy()))
+        self.assertEqual(ht.var(data), np.var(data.numpy()))
+
+    @unittest.skipUnless(ht.communication.MPI_WORLD.size >= 2, "Test requires at least 2 tasks")
+    def test_corrected_var_single_element(self):
+        # the unbiased variance of a single element is undefined, no matter which process
+        # holds it; it must be NaN and must not depend on the distribution
+        comm = self.comm
+        empty = torch.tensor([], dtype=torch.float32)
+        single = torch.tensor([0.0], dtype=torch.float32)
+
+        for owner in [0, comm.size - 1]:
+            local_data = single if comm.rank == owner else empty
+            data = ht.DNDarray(
+                local_data,
+                gshape=(1,),
+                dtype=ht.float32,
+                split=0,
+                device=self.device,
+                comm=comm,
+                balanced=None,
+            )
+
+            self.assertTrue(ht.isnan(ht.var(data, ddof=1)))
+            self.assertTrue(ht.isnan(ht.var(data, axis=0, ddof=1)))
+
+    def test_corrected_var_ranks_with_single_elements(self):
+        # process chunks holding a single element used to make the unbiased variance NaN,
+        # because n - ddof was evaluated per chunk instead of once on the merged moments
+        comm = self.comm
+
+        local_data = torch.tensor([], dtype=torch.float32)
+        if comm.size == 1:
+            local_data = torch.tensor([0.0, 1.0], dtype=torch.float32)
+        elif comm.rank <= 1:
+            local_data = torch.tensor([comm.rank], dtype=torch.float32)
+
+        data = ht.DNDarray(
+            local_data,
+            gshape=(2,),
+            dtype=ht.float32,
+            split=0,
+            device=self.device,
+            comm=comm,
+            balanced=None,
+        )
+
+        self.assertEqual(ht.var(data, ddof=1), np.var(data.numpy(), ddof=1))
+        self.assertEqual(ht.var(data, axis=0, ddof=1), np.var(data.numpy(), axis=0, ddof=1))
