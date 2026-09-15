@@ -3529,6 +3529,9 @@ class DNDarray:
                 else:
                     rhs = value  # Python scalar / float / int
 
+                if self.larray.is_cuda and torch.is_tensor(rhs):
+                    torch_key, rhs = _resolve_duplicate_indices(torch_key, rhs, self.larray.shape)
+
                 self.larray[torch_key] = rhs
                 return
             except Exception:
