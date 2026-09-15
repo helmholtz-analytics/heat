@@ -156,7 +156,12 @@ def _resolve_duplicate_indices(
     pos_ndim = len(pos_shape)
     n = idx_b[0].numel()
 
-    idx_flat = [t.to(device=device, dtype=torch.int64).reshape(-1) for t in idx_b]
+    idx_flat = [
+        torch.where(t < 0, t + int(target_shape[d]), t)
+        .to(device=device, dtype=torch.int64)
+        .reshape(-1)
+        for d, t in enumerate(idx_b)
+    ]
 
     # Build linear index for duplicate detection
     if len(idx_flat) == 1:
