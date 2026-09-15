@@ -1868,7 +1868,6 @@ class TestDNDarray(TestCase):
         vals = ht.array(vals_np, split=None)
         x[idx] = vals
         x_np[idx_np] = vals_np
-        print("DEBUGGING: x.larray:", x.larray, "x_np = ", x_np)
         self.assertTrue(ht.all(x == ht.array(x_np, split=0)).item())
 
         # 2d, split 0, single 1d tensor unordered advanced indexing
@@ -2252,21 +2251,15 @@ class TestDNDarray(TestCase):
         scalar_array = ht.array(1)
         scalar_proxy = scalar_array.__torch_proxy__()
         self.assertTrue(scalar_proxy.ndim == 0)
-        scalar_proxy_nbytes = (
-            scalar_proxy.untyped_storage().size()
-            * scalar_proxy.untyped_storage().element_size()
-        )
-        self.assertTrue(scalar_proxy_nbytes == 1)
+        self.assertTrue(scalar_proxy.is_meta)
+        self.assertEqual(scalar_proxy.data_ptr(), 0)
 
         dndarray = ht.zeros((4, 7, 6), split=1)
         dndarray_proxy = dndarray.__torch_proxy__()
         self.assertTrue(dndarray_proxy.ndim == dndarray.ndim)
         self.assertTrue(tuple(dndarray_proxy.shape) == dndarray.gshape)
-        dndarray_proxy_nbytes = (
-            dndarray_proxy.untyped_storage().size()
-            * dndarray_proxy.untyped_storage().element_size()
-        )
-        self.assertTrue(dndarray_proxy_nbytes == 1)
+        self.assertTrue(dndarray_proxy.is_meta)
+        self.assertEqual(dndarray_proxy.data_ptr(), 0)
 
     def test_torch_function(self):
         arr = ht.array([1, 2, 3, 4])
