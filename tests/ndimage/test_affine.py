@@ -5,8 +5,6 @@ import heat as ht
 import heat.ndimage.affine as affine
 from heat.testing.basic_test import TestCase
 from heat.ndimage.util import create_checker, root_mean_square_error
-from examples.ndimages.affine_helpers_DONOTCOMMIT import visual_compare
-
 
 class TestAffine:
 
