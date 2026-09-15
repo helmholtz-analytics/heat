@@ -2101,16 +2101,25 @@ class DNDarray:
         Setter for not advanced indexing, i.e. when arr[key] is an in-place view of arr.
         """
         # only assign values if key does not contain empty slices
-        process_is_inactive = self.larray[key].numel() == 0
-        if not process_is_inactive:
-            rhs = value.larray.type(self.dtype.torch_type()) if hasattr(value, "larray") else value
-            key_to_use = key
+        if self.larray.numel() == 0:
+            return
+        if torch.is_tensor(key) and key.numel() == 0:
+            return
+        if key == slice(0, 0):
+            return
+        if isinstance(key, tuple) and any(
+            (torch.is_tensor(k) and k.numel() == 0) or k == slice(0, 0) for k in key
+        ):
+            return
 
-            # CUDA: make advanced indexing assignment deterministic for duplicate indices
-            if self.larray.is_cuda:
-                key_to_use, rhs = _resolve_duplicate_indices(key_to_use, rhs, self.larray.shape)
+        rhs = value.larray.type(self.dtype.torch_type()) if hasattr(value, "larray") else value
+        key_to_use = key
 
-            self.larray[key_to_use] = rhs
+        # CUDA: make advanced indexing assignment deterministic for duplicate indices
+        if self.larray.is_cuda:
+            key_to_use, rhs = _resolve_duplicate_indices(key_to_use, rhs, self.larray.shape)
+
+        self.larray[key_to_use] = rhs
         return
 
     @staticmethod
