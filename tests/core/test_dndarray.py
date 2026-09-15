@@ -1868,6 +1868,7 @@ class TestDNDarray(TestCase):
         vals = ht.array(vals_np, split=None)
         x[idx] = vals
         x_np[idx_np] = vals_np
+        print("DEBUGGING: x.larray:", x.larray, "x_np = ", x_np)
         self.assertTrue(ht.all(x == ht.array(x_np, split=0)).item())
 
         # 2d, split 0, single 1d tensor unordered advanced indexing
