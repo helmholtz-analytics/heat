@@ -1053,7 +1053,11 @@ def _resolve_indexing_state(
 
             advanced_indexing_shapes.append(k.gshape)
             if arr_is_distributed and i == arr.split:
-                if not k.is_distributed() and k.ndim == 1 and int((k[1:] >= k[:-1]).all().item()):
+                if (
+                    not k.is_distributed()
+                    and k.ndim == 1
+                    and (k.larray.numel() <= 1 or (k.larray[1:] >= k.larray[:-1]).all().item())
+                ):
                     split_key_is_ordered = 1
                     out_is_balanced = False
                 else:
