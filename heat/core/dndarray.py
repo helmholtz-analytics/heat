@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 import bisect
+import math
 
 import numpy as np
 import torch
@@ -3379,72 +3380,60 @@ class DNDarray:
             self.__prepare_unordered_comm(split_key_flat, displs)
         )
 
-        # allocate send buffer: add 1 column to store sent indices
-        send_buf_shape = list(value.lshape)
-        if value.ndim < 2:
-            send_buf_shape.append(1)
+        send_counts_l = send_counts.tolist()
+        send_displs_l = send_displs.tolist()
+        recv_counts_l = recv_counts.tolist()
+        recv_displs_l = recv_displs.tolist()
+
+        # exchange indices
         if key_is_mask_like:
-            send_buf_shape[-1] += len(key)
+            mask_dims = len(key)
+            idx_send_counts = [c * mask_dims for c in send_counts_l]
+            idx_send_displs = [d * mask_dims for d in send_displs_l]
+            idx_recv_counts = [c * mask_dims for c in recv_counts_l]
+            idx_recv_displs = [d * mask_dims for d in recv_displs_l]
+            send_idx = torch.stack([k.flatten()[sort_idx] for k in key], dim=1).reshape(-1)
+            recv_idx_flat = torch.empty(
+                sum(idx_recv_counts), dtype=split_key.dtype, device=self.device.torch_device
+            )
         else:
-            send_buf_shape[-1] += 1
-        send_buf = torch.empty(
-            send_buf_shape, dtype=value.dtype.torch_type(), device=self.device.torch_device
+            idx_send_counts, idx_send_displs = send_counts_l, send_displs_l
+            idx_recv_counts, idx_recv_displs = recv_counts_l, recv_displs_l
+            send_idx = split_key_flat[sort_idx]
+            recv_idx_flat = torch.empty(
+                sum(idx_recv_counts), dtype=split_key.dtype, device=self.device.torch_device
+            )
+
+        self.comm.Alltoallv(
+            (send_idx, idx_send_counts, idx_send_displs),
+            (recv_idx_flat, idx_recv_counts, idx_recv_displs),
         )
 
-        # pack the send_buf
-        if sort_idx.numel() > 0:
-            if value.ndim < 2:
-                send_buf[..., :-1] = value.larray[sort_idx].unsqueeze(1)
-            else:
-                send_buf[..., :-1] = value.larray[sort_idx]
+        # exchange value
+        trailing_dims_shape = list(value.lshape[1:])
+        trailing_dims_size = math.prod(trailing_dims_shape)
 
-            if key_is_mask_like:
-                for i in range(-len(key), 0):
-                    send_buf[..., i] = key[i + len(key)][sort_idx]
-            else:
-                send_buf[..., -1] = split_key_flat[sort_idx].to(send_buf.dtype)
+        val_send_counts = [c * trailing_dims_size for c in send_counts_l]
+        val_send_displs = [d * trailing_dims_size for d in send_displs_l]
+        val_recv_counts = [c * trailing_dims_size for c in recv_counts_l]
+        val_recv_displs = [d * trailing_dims_size for d in recv_displs_l]
 
-        # allocate receive buffer, with 1 extra column for incoming indices
-        recv_buf_shape = value.lshape_map[self.comm.rank]
-        recv_buf_shape[value.split] = recv_counts.sum()
-        recv_buf_shape = recv_buf_shape.tolist()
-        if value.ndim < 2:
-            recv_buf_shape.append(1)
-        if key_is_mask_like:
-            recv_buf_shape[-1] += len(key)
-        else:
-            recv_buf_shape[-1] += 1
-        recv_buf_shape = tuple(recv_buf_shape)
-        recv_buf = torch.empty(
-            recv_buf_shape, dtype=value.dtype.torch_type(), device=self.device.torch_device
-        )
-        # perform Alltoallv along the 0 axis
-        send_counts, send_displs, recv_counts, recv_displs = (
-            send_counts.tolist(),
-            send_displs.tolist(),
-            recv_counts.tolist(),
-            recv_displs.tolist(),
+        send_vals = value.larray[sort_idx].contiguous().reshape(-1)
+        recv_vals_flat = torch.empty(
+            sum(val_recv_counts), dtype=value.larray.dtype, device=self.device.torch_device
         )
         self.comm.Alltoallv(
-            (send_buf, send_counts, send_displs), (recv_buf, recv_counts, recv_displs)
+            (send_vals, val_send_counts, val_send_displs),
+            (recv_vals_flat, val_recv_counts, val_recv_displs),
         )
-        del send_buf
 
         if key_is_mask_like:
-            key = list(key)
-            # extract incoming indices from recv_buf
-            recv_indices = recv_buf[..., -len(key) :]
-            # correct split-axis indices for rank offset
+            recv_indices = recv_idx_flat.reshape(sum(recv_counts_l), len(key))
             recv_indices[:, 0] -= displs[rank]
-            key = recv_indices.split(1, dim=1)
-            key = [key[i].squeeze_(1) for i in range(len(key))]
-            # remove indices from recv_buf
-            recv_buf = recv_buf[..., : -len(key)]
+            key = tuple(recv_indices[:, i] for i in range(len(key)))
         else:
             # store incoming indices in int 1-D tensor and correct for rank offset
-            recv_indices = recv_buf[..., -1].type(torch.int64) - displs[rank]
-            # remove last column from recv_buf
-            recv_buf = recv_buf[..., :-1]
+            recv_indices = recv_idx_flat - displs[rank]
 
             # replace split-axis key with incoming local indices
             if key_is_single_tensor:
@@ -3454,12 +3443,9 @@ class DNDarray:
                 key[self.split] = recv_indices
                 key = tuple(key)
 
-        # transpose back value and recv_buf if necessary, wrap recv_buf in DNDarray
-        value = value.transpose(transpose_axes)
-        if value.ndim < 2:
-            recv_buf.squeeze_(1)
+        recv_vals = recv_vals_flat.reshape(-1, *trailing_dims_shape)
         recv_buf = DNDarray(
-            recv_buf.permute(*transpose_axes),
+            recv_vals.permute(*transpose_axes),
             gshape=value.gshape,
             dtype=value.dtype,
             split=value.split,
