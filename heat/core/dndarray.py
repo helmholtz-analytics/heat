@@ -1186,6 +1186,7 @@ class DNDarray:
         self.__halo_prev: torch.Tensor | None = None
         self.__partitions_dict__ = None
         self.__lshape_map = None
+        self.__counts_displs = None
 
         # check for inconsistencies between torch and heat devices
         assert str(array.device) == device.torch_device
@@ -1268,6 +1269,8 @@ class DNDarray:
         split = self.split
         if split is not None and array.shape[split] != self.lshape[split]:
             self.__balanced = None
+            self.__lshape_map = None
+            self.__counts_displs = None
         self.__array = array
 
     @property
@@ -1782,9 +1785,17 @@ class DNDarray:
         Does not assume load balance.
         """
         if self.split is not None:
-            counts = self.lshape_map[:, self.split]
+            if self.__counts_displs is not None:
+                return self.__counts_displs
+
+            if self.__lshape_map is None:
+                self.create_lshape_map()
+
+            counts = self.__lshape_map[:, self.split]
             displs = [0] + torch.cumsum(counts, dim=0)[:-1].tolist()
-            return tuple(counts.tolist()), tuple(displs)
+            res = (tuple(counts.tolist()), tuple(displs))
+            self.__counts_displs = res
+            return res
 
         raise ValueError("Non-distributed DNDarray. Cannot calculate counts and displacements.")
 
@@ -1829,6 +1840,7 @@ class DNDarray:
             self.comm.Allreduce(MPI.IN_PLACE, lshape_map, MPI.SUM)
 
         self.__lshape_map = lshape_map
+        self.__counts_displs = None
         return lshape_map.clone()
 
     def create_partition_interface(self):
@@ -2830,6 +2842,7 @@ class DNDarray:
             self.redistribute_(lshape_map=lshape_map, target_map=target_map)
 
         self.__lshape_map = target_map
+        self.__counts_displs = None
 
     def __redistribute_shuffle(
         self,
@@ -2942,6 +2955,7 @@ class DNDarray:
             self.__array = gathered
             self.__split = axis
             self.__lshape_map = None
+            self.__counts_displs = None
             return self
         # tensor needs be split/sliced locally
         if self.split is None:
@@ -2953,6 +2967,7 @@ class DNDarray:
             self.__array = temp.clone().detach()
             self.__split = axis
             self.__lshape_map = None
+            self.__counts_displs = None
             return self
 
         arr_tiles = tiling.SplitTiles(self)
@@ -2973,6 +2988,7 @@ class DNDarray:
         self.__array = recv_buffer
         self.__split = axis
         self.__lshape_map = None
+        self.__counts_displs = None
 
         return self
 
@@ -3170,19 +3186,20 @@ class DNDarray:
                 "Please distribute the value array or use a non-distributed index."
             )
 
+        counts, displs = self.counts_displs()
+
         if value.is_distributed():
             self.__setitem_unordered(
                 key=p.key,
                 key_is_mask_like=p.key_is_mask_like,
                 value=value,
                 key_is_single_tensor=isinstance(p.key, torch.Tensor),
-                counts=self.counts_displs()[0],
-                displs=self.counts_displs()[1],
+                counts=counts,
+                displs=displs,
                 rank=self.comm.rank,
             )
             return
 
-        counts, displs = self.counts_displs()
         rank = self.comm.rank
         key_is_single_tensor = isinstance(p.key, torch.Tensor)
 
