@@ -5,6 +5,7 @@ import heat as ht
 import heat.ndimage.affine as affine
 from heat.testing.basic_test import TestCase
 from heat.ndimage.util import create_checker, root_mean_square_error
+from examples.ndimages.affine_helpers_DONOTCOMMIT import visual_compare
 
 
 class TestAffine:
@@ -86,60 +87,52 @@ class TestAffine:
                                      dtype=ht.float32)
 
     @staticmethod
-    def default_testing_setup(image, matrix, offset, order, mode):
+    def default_testing_setup(image, matrix, offset, tol, **kwargs):
         matrix_affine = ht.hstack((matrix, offset[:, None]))
 
         with_offset_result: ht.DNDarray = affine.affine_transform(
             image,
             matrix,
             offset=offset,
-            order=order,
-            mode=mode,
+            **kwargs
         )
         combined_result: ht.DNDarray = affine.affine_transform(
-            image, matrix_affine, order=order, mode=mode
+            image, matrix_affine, **kwargs
         )
         assert ht.equal(with_offset_result, combined_result)
 
         with_offset_comparison = ndimg.affine_transform(
-            image.numpy(), matrix.numpy(), offset=offset.numpy(), order=order, mode=mode
+            image.numpy(), matrix.numpy(), offset=offset.numpy(), **kwargs
         )
         combined_comparison = ndimg.affine_transform(
-            image.numpy(), matrix_affine.numpy(), order=order, mode=mode
+            image.numpy(), matrix_affine.numpy(), **kwargs
         )
         assert np.allclose(
-            with_offset_result.numpy(), with_offset_comparison, rtol=0, atol=0.05
+            with_offset_result.numpy(), with_offset_comparison, rtol=0, atol=tol
         )
         assert np.allclose(
-            combined_result.numpy(), combined_comparison, rtol=0, atol=0.05
+            combined_result.numpy(), combined_comparison, rtol=0, atol=tol
         )
 
 
     @staticmethod
-    def rmse_testing_setup(image, matrix, offset, order, mode):
+    def rmse_testing_setup(image, matrix, offset, tol, **kwargs):
         matrix_affine = ht.hstack((matrix, offset[:, None]))
 
-        with_offset_result: ht.DNDarray = affine.affine_transform(
-            image,
-            matrix,
-            offset=offset,
-            order=order,
-            mode=mode,
+        result: ht.DNDarray = affine.affine_transform(
+            image, matrix_affine, **kwargs
         )
-        combined_result: ht.DNDarray = affine.affine_transform(
-            image, matrix_affine, order=order, mode=mode
-        )
-        assert ht.equal(with_offset_result, combined_result)
 
-        with_offset_comparison = ndimg.affine_transform(
-            image.numpy(), matrix.numpy(), offset=offset.numpy(), order=order, mode=mode
+
+        comparison = ndimg.affine_transform(
+            image.numpy(), matrix.numpy(), offset=offset.numpy(), **kwargs
         )
-        error = root_mean_square_error(with_offset_result.numpy(), with_offset_comparison)
-        assert error < 3
+        error = root_mean_square_error(result.numpy(), comparison)
+        assert error < tol
 
 
     @staticmethod
-    def bulk_testing_setup(image, matrix, offset, order, mode):
+    def bulk_testing_setup(image, matrix, offset, tol, **kwargs):
 
         offset_stack = ht.expand_dims(offset, offset.ndim)
         # offset.resplit_(matrix.split)
@@ -149,30 +142,29 @@ class TestAffine:
             image,
             matrix,
             offset=offset,
-            order=order,
-            mode=mode,
+            **kwargs
         )
         combined_result: ht.DNDarray = affine.affine_transform(
-            image, matrix_affine, order=order, mode=mode
+            image, matrix_affine, **kwargs
         )
         assert ht.equal(with_offset_result, combined_result)
 
         with_offset_comparison = [
             ndimg.affine_transform(
-                img.numpy(), mat.numpy(), offset=off.numpy(), order=order, mode=mode
+                img.numpy(), mat.numpy(), offset=off.numpy(), **kwargs
             )
             for img, mat, off in zip(image, matrix, offset)
         ]
         combined_comparison = [
-            ndimg.affine_transform(img.numpy(), mat.numpy(), order=order, mode=mode)
+            ndimg.affine_transform(img.numpy(), mat.numpy(), **kwargs)
             for img, mat in zip(image, matrix_affine)
         ]
 
         for res, comp in zip(with_offset_result, with_offset_comparison):
-            assert np.allclose(res.numpy(), comp, rtol=0, atol=0.05)
+            assert np.allclose(res.numpy(), comp, rtol=0, atol=tol)
 
         for res, comp in zip(combined_result, combined_comparison):
-            assert np.allclose(res.numpy(), comp, rtol=0, atol=0.05)
+            assert np.allclose(res.numpy(), comp, rtol=0, atol=tol)
 
 
     @pytest.mark.parametrize("order", [0, 1])
@@ -181,7 +173,7 @@ class TestAffine:
         image = self.image_2d_1
         matrix = self.matrix_2d
         offset = self.offset_2d
-        TestAffine.default_testing_setup(image, matrix, offset, order, mode)
+        TestAffine.default_testing_setup(image, matrix, offset, 0.05, order=order, mode=mode)
 
 
     @pytest.mark.parametrize("order", [0, 1])
@@ -190,7 +182,7 @@ class TestAffine:
         image = self.image_3d_1
         matrix = self.matrix_3d
         offset = self.offset_3d
-        TestAffine.default_testing_setup(image, matrix, offset, order, mode)
+        TestAffine.default_testing_setup(image, matrix, offset, 0.05, order=order, mode=mode)
 
 
     @pytest.mark.parametrize("order", [0, 1])
@@ -199,7 +191,7 @@ class TestAffine:
         image = self.image_3d_bulk
         matrix = self.matrix_3d_bulk
         offset = self.offset_3d_bulk
-        TestAffine.bulk_testing_setup(image, matrix, offset, order, mode)
+        TestAffine.bulk_testing_setup(image, matrix, offset, 0.05, order=order, mode=mode)
 
     @pytest.mark.parametrize("order", [3])
     @pytest.mark.parametrize("mode", ["grid-constant", "mirror", "nearest"])
@@ -207,7 +199,7 @@ class TestAffine:
         image = self.image_2d_1
         matrix = self.matrix_2d
         offset = self.offset_2d
-        TestAffine.rmse_testing_setup(image, matrix, offset, order, mode)
+        TestAffine.rmse_testing_setup(image, matrix, offset, tol=3, order=order, mode=mode)
 
 
 
@@ -220,7 +212,7 @@ class TestAffine:
             ),
             split=None,
         )
-        # only split=3 or split=0 should not error because other axes get changed
+        # only split=3 or split=0 should not error because only other axes get changed
         # split=3 and not split=1, because the input gets permuted internally so the axis assignment
         # matches the result from scipy
 
@@ -235,10 +227,22 @@ class TestAffine:
         split_1 = affine.affine_transform(rnd_image_1, matrix)
         assert ht.equal(split_none, split_1)
 
+        rnd_image = ht.resplit(rnd_image, 1)
+        with pytest.raises(RuntimeError):
+            affine.affine_transform(rnd_image, matrix)
+
         rnd_image = ht.resplit(rnd_image, 2)
         with pytest.raises(RuntimeError):
             affine.affine_transform(rnd_image, matrix)
 
-        rnd_image = ht.resplit(rnd_image, 1)
-        with pytest.raises(RuntimeError):
-            affine.affine_transform(rnd_image, matrix)
+
+    @pytest.mark.parametrize("order", [0,1])
+    @pytest.mark.parametrize("cval", [128,255])
+    def test_cval(self, order, cval):
+        image = self.image_2d_1
+        matrix = self.matrix_2d
+        offset = self.offset_2d
+
+        mode = "grid-constant" #cval only has effect in this mode
+        TestAffine.rmse_testing_setup(image, matrix, offset, 0.01, cval=cval, mode=mode, order=order)
+        TestAffine.default_testing_setup(image, matrix, offset, 0.01, cval=cval, mode=mode, order=order)

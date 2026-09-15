@@ -120,7 +120,7 @@ def _to_full_affine(M: torch.Tensor):
     raise ValueError(f"Expected affine transformation matrix to be 2D or 3D tensor, got {M.dim()}D")
 
 
-def convert_matrix_space(M: torch.Tensor, sizes, padding_correction: bool):
+def convert_matrix_space(matrix: torch.Tensor, sizes, padding_correction: bool):
     """
     Convert scipy affine matrix to normalized coordinates used by affine_grid.
     scipy uses pixel coordinate space with origin in the top left,
@@ -136,23 +136,22 @@ def convert_matrix_space(M: torch.Tensor, sizes, padding_correction: bool):
     """
     # construct coord space transform
     scales = (torch.as_tensor(sizes) - 1) / 2.0
-    M_scales = torch.diag(scales)
+    diag_scales = torch.diag(scales)
 
-    D = len(sizes)
-    conversion = torch.zeros(D + 1, D + 1)
-    conversion[:D, :D] = M_scales
-    conversion[D, D] = 1
-    conversion[:D, D] = scales
+    dim = len(sizes)
+    conversion = torch.zeros(dim + 1, dim + 1)
+    conversion[:dim, :dim] = diag_scales
+    conversion[dim, dim] = 1
+    conversion[:dim, dim] = scales
     back_conversion = conversion.inverse()
-
-    transformed = back_conversion @ M @ conversion
+    result = back_conversion @ matrix @ conversion
 
     if padding_correction:
-        transformed[..., :D, D] = (scales / (scales + 1)).unsqueeze(0) * transformed[
-            ..., :D, D
-        ]  # counteract padding effect
+        pad_factors = scales / (scales + 1)
+        pad_factors = torch.cat([pad_factors, torch.tensor([1])])
+        result = result * (pad_factors[:, None] / pad_factors[None, :])
 
-    return transformed[:, :D, :]
+    return result[:, :dim, :]
 
 
 def _untouched_axes(matrices: DNDarray):
@@ -355,7 +354,7 @@ def affine_transform(
 
     # skip computation if this rank has no data
     if 0 in input_torch.shape:
-        transformed = torch.zeros((input_torch.shape + 1))
+        transformed = torch.zeros(input_torch.shape)
     else:
         # input_torch size is proportional to 1
         # input_torch / 1 = padded / x <=> padded/input = x
@@ -377,7 +376,7 @@ def affine_transform(
     if matrix_torch.size(2) == input.ndim:
         transformed = transformed.squeeze()
 
-    if apply_cval_padding:
+    if apply_cval_padding and 0 not in input_torch.shape:
         padding_size = tuple(
             -1 for _ in range((input_torch.ndim - 2) * 2)
         )  # negative padding to reverse padding
