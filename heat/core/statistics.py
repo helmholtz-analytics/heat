@@ -1028,7 +1028,7 @@ def mean(x: DNDarray, axis: Optional[Union[int, Tuple[int, ...]]] = None) -> DND
             mu_in = torch.mean(x.larray)
             if torch.isnan(mu_in):
                 mu_in = 0.0
-            n = x.lnumel
+            n = x.larray.numel()
             mu_tot = factories.zeros((x.comm.size, 2), device=x.device)
             mu_proc = factories.zeros((x.comm.size, 2), device=x.device)
             mu_proc[x.comm.rank] = mu_in, float(n)
