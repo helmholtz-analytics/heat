@@ -3128,17 +3128,20 @@ class DNDarray:
             self.larray[pytorch_key] = scalar_torch
         else:
             if isinstance(value, DNDarray) and value.is_distributed():
-                expected_elements = int(local_mask.sum().item())
-                if value.lshape[0] != expected_elements:
+                # value should align with local mask
+                value_torch = value.larray
+                rhs = (
+                    value_torch
+                    if value_torch.dtype == self.larray.dtype
+                    else value_torch.type(self.dtype.torch_type())
+                )
+                try:
+                    self.larray[pytorch_key] = rhs
+                except RuntimeError as e:
                     raise ValueError(
                         f"Shape mismatch: Cannot assign distributed array with local shape {value.lshape} "
-                        f"to a mask requiring {expected_elements} elements on rank {self.comm.rank}."
-                    )
-
-                # value perfectly aligns
-                value_torch = value.larray
-                self.larray[pytorch_key] = value_torch.type(self.dtype.torch_type())
-
+                        f"on rank {self.comm.rank}: {e}"
+                    ) from e
             else:
                 # Value is a non-distributed array -> MPI prefix sum needed
                 if hasattr(value, "larray"):
