@@ -3120,11 +3120,15 @@ class DNDarray:
             local_mask = pytorch_key
 
         if value_is_scalar:
-            if hasattr(value, "larray"):
-                scalar_torch = value.larray
+            if isinstance(value, (int, float, bool, complex)):
+                self.larray[pytorch_key] = value
+                return
+            elif hasattr(value, "larray"):
+                scalar_torch = value.larray.type(self.dtype.torch_type())
             else:
-                scalar_torch = torch.as_tensor(value, device=self.device.torch_device)
-            scalar_torch = scalar_torch.type(self.dtype.torch_type())
+                scalar_torch = torch.as_tensor(value, device=self.device.torch_device).type(
+                    self.dtype.torch_type()
+                )
             self.larray[pytorch_key] = scalar_torch
         else:
             if isinstance(value, DNDarray) and value.is_distributed():
