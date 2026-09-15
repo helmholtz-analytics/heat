@@ -1279,12 +1279,14 @@ def __sanitize_moment_axis(
     axis: Union[int, Tuple[int, ...], List[int], torch.Tensor, None],
 ) -> Union[int, Tuple[int, ...], List[int], torch.Tensor, None]:
     """
-    Bring the ``axis`` argument of a moment function into its canonical form: an iterable or a
-    ``torch.Tensor`` becomes a tuple of non-negative ints. Only then can an axis be compared with
-    ``x.split``, used to index ``x.lshape``, or handed to ``numpy``, which the functions merging
-    the moments across processes and the shortcuts for local data rely on.
+    Bring the ``axis`` argument of a moment function into its canonical form: an iterable of ints,
+    or an integer ``torch.Tensor``, becomes a tuple of non-negative ints. Only then can an axis be
+    compared with ``x.split``, used to index ``x.lshape``, or handed to ``numpy``, which the
+    functions merging the moments across processes and the shortcuts for local data rely on.
 
     A malformed axis is returned unchanged, so that :func:`__moment_w_axis` still raises for it.
+    That includes a float tensor, as produced by the ``torch.Tensor`` constructor rather than by
+    ``torch.tensor``: ``torch.Tensor([0, 2])`` holds ``[0.0, 2.0]`` and is no valid axis.
 
     Parameters
     ----------

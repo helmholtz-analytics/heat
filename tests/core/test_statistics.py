@@ -929,7 +929,7 @@ class TestStatistics(TestCase):
         with self.assertRaises(ValueError):
             ht.mean(x, axis=(0, 0))
         with self.assertRaises(ValueError):
-            ht.mean(x, axis=torch.Tensor([0, 0]))
+            ht.mean(x, axis=torch.tensor([0, 0]))
 
         a = ht.arange(1, 5)
         self.assertEqual(a.mean(), 2.5)
@@ -1558,7 +1558,7 @@ class TestStatistics(TestCase):
         with self.assertRaises(ValueError):
             ht.var(x, ddof=-2)
         with self.assertRaises(ValueError):
-            ht.var(x, axis=torch.Tensor([0, 0]))
+            ht.var(x, axis=torch.tensor([0, 0]))
 
         a = ht.arange(1, 5)
         if self.is_mps:
