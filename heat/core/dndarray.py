@@ -128,7 +128,7 @@ def _resolve_duplicate_indices(
     rhs_in must match the indexing result shape.
     """
     # Scalars or single element: no need to deduplicate
-    if rhs_in.numel() <= 1:
+    if not torch.is_tensor(rhs_in) or rhs_in.numel() <= 1:
         return key_in, rhs_in
 
     # Normalize key to either a single tensor or tuple of tensors
