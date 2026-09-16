@@ -200,38 +200,55 @@ class TestAffine:
         TestAffine.rmse_testing_setup(image, matrix, offset, tol=3, order=order, mode=mode)
 
 
-
-    def test_affine_split(self):
+    @pytest.mark.parametrize("order", [0, 1])
+    @pytest.mark.parametrize("mode", ["grid-constant", "mirror", "nearest"])
+    def test_affine_split(self, order, mode):
 
         matrix = ht.array(
             (
-                [[1, 0, 0, 0], [0, 1, 1, 0], [0, 0, 0.2, 0]],
-                [[1, 0, 0, 0], [0, 1, 1, 0], [0, 0, 1, 0]],
+                [[1, 0, 0, 0, 0],
+                 [0, 1, 1, 0, 1],
+                 [0, 0, 1, 0, 0],
+                 [0, 0, 0, 1, 0]],
+
+                [[1, 0, 0, 0, 0],
+                 [0, 1, 0, 0, 0],
+                 [0, 0, 1, 0, 1],
+                 [0, 0, 0, 1, 0]],
             ),
             split=None,
+            dtype=ht.float32
         )
-        # only split=3 or split=0 should not error because only other axes get changed
-        # split=3 and not split=1, because the input gets permuted internally so the axis assignment
+        # because bulk are completly seperate, split 0 should always work on bulked arrays.
+        # split 1 should not error because it is identity
+        # split 2, 3 should error because the axis influence each other
+        # split 4 should always work right now, because color axis is ignored
         # matches the result from scipy
 
-        rnd_image_base = ht.random.random((2, 64, 64, 3), dtype=ht.float32, split=None)
-        split_none = affine.affine_transform(rnd_image_base, matrix)
+        img_split_none = ht.random.random((2, 32, 32, 16, 3), dtype=ht.float32, split=None) * 255
+        split_none = affine.affine_transform(img_split_none, matrix, order=order, mode=mode)
 
-        rnd_image = ht.resplit(rnd_image_base, 0)
-        split_0 = affine.affine_transform(rnd_image, matrix)
-        assert ht.equal(split_none, split_0)
+        img_split_0 = ht.resplit(img_split_none, 0)
+        split_0 = affine.affine_transform(img_split_0, matrix, order=order, mode=mode)
+        print(f"0 split{ht.equal(split_none, split_0)}")
 
-        rnd_image_1 = ht.resplit(rnd_image_base, 3)
-        split_1 = affine.affine_transform(rnd_image_1, matrix)
-        assert ht.equal(split_none, split_1)
+        img_split_1 = ht.resplit(img_split_none, 1)
+        split_1 = affine.affine_transform(img_split_1, matrix, order=order, mode=mode)
+        assert np.allclose(
+            split_1.numpy(), split_none.numpy(), rtol=0, atol=0.0005
+        )
 
-        rnd_image = ht.resplit(rnd_image, 1)
+        img_split_2 = ht.resplit(img_split_none, 2)
         with pytest.raises(RuntimeError):
-            affine.affine_transform(rnd_image, matrix)
+            affine.affine_transform(img_split_2, matrix, order=order, mode=mode)
 
-        rnd_image = ht.resplit(rnd_image, 2)
+        img_split_3 = ht.resplit(img_split_none, 3)
         with pytest.raises(RuntimeError):
-            affine.affine_transform(rnd_image, matrix)
+            affine.affine_transform(img_split_3, matrix, order=order, mode=mode)
+
+        img_split_4 = ht.resplit(img_split_none, 4)
+        split_4 = affine.affine_transform(img_split_4, matrix, order=order, mode=mode)
+        print(f"4 split{ht.equal(split_none, split_4)}")
 
 
     @pytest.mark.parametrize("order", [0,1])

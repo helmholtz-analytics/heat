@@ -67,24 +67,28 @@ filtering_map = {}
 # ============================================================
 
 
-def _remove_slice(A: torch.Tensor, idx: int, dim: int) -> torch.Tensor:
+def _remove_slice(tensor: torch.Tensor, idx: int, dim: int) -> torch.Tensor:
     # Keep rows before and after the removed row
-    rows_before = torch.arange(0, idx)
+    rows_before = torch.arange(0, idx, device=tensor.device)
     if dim < 0:
-        dim = A.ndim + dim
+        dim = tensor.ndim + dim
 
-    size = A.size(dim)
+    size = tensor.size(dim)
 
     if (idx + 1) < size:
-        rows_after = torch.arange(idx + 1, size)
+        rows_after = torch.arange(idx + 1, size, device=tensor.device)
         return torch.cat(
-            [A.index_select(dim, rows_before), A.index_select(dim, rows_after)], dim=dim
+            [
+                tensor.index_select(dim, rows_before),
+                tensor.index_select(dim, rows_after),
+            ],
+            dim=dim,
         )
 
-    return A.index_select(dim, rows_before)
+    return tensor.index_select(dim, rows_before)
 
 
-def _to_full_affine(M: torch.Tensor):
+def _to_full_affine(matrix: torch.Tensor):
     # TODO: rewrite this to to_reduced_affine(M) because affine_grid() expects reduced form and this is just converting it to full and back to reduced form
     """
     Convert reduced affine matrices to full homogeneous form.
@@ -101,23 +105,25 @@ def _to_full_affine(M: torch.Tensor):
         Full homogeneous affine tensor
     """
     # Detect if batched by checking number of dimensions
-    if M.dim() == 2:
+    if matrix.dim() == 2:
         # Single matrix case: (D, D+1)
-        D = M.shape[0]  # spatial dimension
-        full = torch.zeros(D + 1, D + 1, dtype=M.dtype, device=M.device)
-        full[:D, :] = M  # copy top D rows
+        D = matrix.shape[0]  # spatial dimension
+        full = torch.zeros(D + 1, D + 1, dtype=matrix.dtype, device=matrix.device)
+        full[:D, :] = matrix  # copy top D rows
         full[D, D] = 1.0  # set homogeneous coordinate
         return full
 
-    if M.dim() == 3:
+    if matrix.dim() == 3:
         # Batched case: (N, D, D+1)
-        N, D, _ = M.shape
-        full = torch.zeros(N, D + 1, D + 1, dtype=M.dtype, device=M.device)
-        full[:, :D, :_] = M  # copy top D rows for each batch
+        N, D, _ = matrix.shape
+        full = torch.zeros(N, D + 1, D + 1, dtype=matrix.dtype, device=matrix.device)
+        full[:, :D, :_] = matrix  # copy top D rows for each batch
         full[:, D, D] = 1.0  # set homogeneous coordinate for each batch
         return full
 
-    raise ValueError(f"Expected affine transformation matrix to be 2D or 3D tensor, got {M.dim()}D")
+    raise ValueError(
+        f"Expected affine transformation matrix to be 2D or 3D tensor, got {matrix.dim()}D"
+    )
 
 
 def convert_matrix_space(matrix: torch.Tensor, sizes, padding_correction: bool):
@@ -146,7 +152,9 @@ def convert_matrix_space(matrix: torch.Tensor, sizes, padding_correction: bool):
     back_conversion = conversion.inverse()
     result = back_conversion @ matrix @ conversion
 
-    if padding_correction:
+    if (
+        padding_correction
+    ):  # reversing effect the padding has on the transform because it changes aspect ratio
         pad_factors = scales / (scales + 1)
         pad_factors = torch.cat([pad_factors, torch.tensor([1])])
         result = result * (pad_factors[:, None] / pad_factors[None, :])
@@ -158,9 +166,16 @@ def _untouched_axes(matrices: DNDarray):
     """
     Tests if the provided (affine) has influence on the possible axes of the input
     """
-    identity = ht.eye((matrices.shape[-2:]), dtype=matrices.dtype)
+    identity = ht.eye((matrices.shape[-2:]), dtype=matrices.dtype, device=matrices.device)
     comparison = ht.eq(matrices, identity)
-    result = ht.all(comparison, -1)
+    result_row = ht.all(comparison, -1)
+    result_column = ht.all(comparison, -2)
+
+    if result_column.shape[-1] > result_row.shape[-1]:
+        result = ht.logical_and(result_row, result_column[..., : result_row.shape[-1]])
+    else:
+        result = ht.logical_and(result_row, result_column)
+
     if result.ndim > 1:
         result = ht.all(result, 0)  # combine along bulk axis
     return result
@@ -265,6 +280,7 @@ def affine_transform(
     # i am not quite shure why this transpose below is necessary for the right behaviour,
     # This switches wich axis in input data is influenced by wich row/column in the
     # afine matrix and is the reverse of the expected matching.
+
     if not is_bulk:
         dimension_order = tuple(
             idx for idx in range(input.ndim - 1, -1, -1)
@@ -279,10 +295,8 @@ def affine_transform(
         # if axis is not the bulk axis -> abort
         if (matrix.split not in (0, None)) or (input.split not in (0, None)):
             if input.split > 0:
-                future_split_axis = dimension_order.index(input.split)
-                split_idx = future_split_axis - 1  # split index without bulk
                 if not (
-                    matrix.split is None and _untouched_axes(matrix)[split_idx]
+                    matrix.split is None and _untouched_axes(matrix)[input.split - 1]
                 ):  # transformation in direction of split is not identity
                     raise RuntimeError(
                         "the input split axis should either be the bulk axis, or an axis left unchanged by the transform."
@@ -294,9 +308,8 @@ def affine_transform(
 
     else:
         if (matrix.split is not None) or (input.split is not None):
-            future_split_axis = dimension_order.index(input.split)
             if not (
-                matrix.split is None and _untouched_axes(matrix)[future_split_axis]
+                matrix.split is None and _untouched_axes(matrix)[input.split]
             ):  # transformation in direction of split is not identity
                 raise RuntimeError(
                     "the split axis is not the bulk axis, nor an axis left unchanged by the affine transform. this is not supported"
@@ -305,7 +318,7 @@ def affine_transform(
     # only bulk axis or unchanged axis is distributed, computations are all local
     matrix_torch: torch.Tensor = matrix.larray
 
-    if matrix.split is None and input.split == 0:
+    if matrix.split is None and input.split == 0 and is_bulk:
         _, _, corresponding_slice = matrix.comm.chunk(matrix.gshape, 0)
         matrix_torch = matrix.larray[corresponding_slice]
 
@@ -345,7 +358,7 @@ def affine_transform(
     if matrix_torch.size(2) == input.ndim:
         input_torch = input_torch.unsqueeze(0)
 
-    # TODO this should not change shape of the matrix, matrix should be already in reduces homogenous from
+    # TODO this should not change shape of the matrix, matrix should be already in reduces homogenous from? Only problem is that this means I cant just use matrix mult
     matrix_torch = convert_matrix_space(
         matrix_torch,
         input_torch.shape[-1:1:-1],  # shape is reversed and without bulk and color dims
@@ -356,8 +369,6 @@ def affine_transform(
     if 0 in input_torch.shape:
         transformed = torch.zeros(input_torch.shape)
     else:
-        # input_torch size is proportional to 1
-        # input_torch / 1 = padded / x <=> padded/input = x
         if apply_cval_padding:
             padding_size = tuple(1 for _ in range((input_torch.ndim - 2) * 2))
             input_torch = torch.nn.functional.pad(input_torch, padding_size, "constant", cval)
