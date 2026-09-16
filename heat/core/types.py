@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import builtins
 import collections
-from functools import cache
+from functools import cache, reduce
 import numpy as np
 import torch
 
@@ -815,6 +815,11 @@ def heat_type_of(
     try:
         return canonical_heat_type(type(obj[0]))
     except (KeyError, IndexError, TypeError):
+        pass
+
+    try:
+        return canonical_heat_type(obj)
+    except TypeError:
         raise TypeError(f"data type of {obj} is not understood")
 
 
@@ -1080,28 +1085,7 @@ def result_type(
     >>> ht.result_type("i8", "f4")
     ht.float64
     """
-    from functools import reduce
-
-    def input_type(arg):
-        # derive dtype
-        try:
-            # array / tensor
-            if isinstance(arg, np.ndarray):
-                dtype = canonical_heat_type(arg.dtype.char)
-            else:
-                dtype = canonical_heat_type(arg.dtype)
-        except (AttributeError, TypeError):
-            try:
-                # type
-                if isinstance(arg, np.dtype):
-                    arg = arg.char
-                dtype = canonical_heat_type(arg)
-            except TypeError:
-                # type instance
-                dtype = canonical_heat_type(type(arg))
-        # dtype
-        return dtype
-
+    # Split into two lists as scalars have lower priority regarding byte length
     scalar_list = [
         x
         for x in arrays_and_types
@@ -1113,8 +1097,8 @@ def result_type(
         if not isinstance(x, builtins.bool | builtins.int | builtins.float | builtins.complex)
     ]
 
-    scalar_dtype = reduce(promote_types, map(input_type, scalar_list), bool_)
-    type_dtype = reduce(promote_types, map(input_type, type_list), bool_)
+    scalar_dtype = reduce(promote_types, map(heat_type_of, scalar_list), bool_)
+    type_dtype = reduce(promote_types, map(heat_type_of, type_list), bool_)
 
     # different parent type: bool < int < float < complex
     dtype_priority_order = [bool, integer, floating, complex]
@@ -1126,7 +1110,7 @@ def result_type(
         True
     )
 
-    # Only return the dtype of the scalars if it has a higher priority
+    # Only return the dtype of the scalars if it has a higher type priority
     if scalar_dtype_priority > type_dtype_priority:
         return scalar_dtype
 
