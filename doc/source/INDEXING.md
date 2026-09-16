@@ -16,19 +16,6 @@ We assume that not only `array`,  but also `key` and `value` may be very large a
 
 The following table shows the distribution semantics of the DNDarray indexing operations.
 
-<!-- | Array is distributed | Operation | Key is distributed | Value is distributed | Result is distributed | Notes |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **No** | `array[key]` | **No** | -- | **No** | Standard local indexing. |
-| **No** | `array[key]` | **Yes** | -- | **Yes** | The resulting array inherits the `split` axis and balanced status directly from the distributed key. |
-| **Yes** | `array[key]` | **No** | -- | **Yes** / **No** | **No** if the key is a pure scalar along the split axis (the split dimension is lost and the result is broadcasted).<br>**Yes** for slices/masks. Non-sequential local advanced indices are automatically distributed across the split axis under the hood. |
-| **Yes** | `array[key]` | **Yes** | -- | **Yes** | Split axis is retained or shifted. Evaluated as a `distr_mask` fast-path or triggers `__getitem_unordered` for cross-node MPI collective fetching. |
-| **No** | `array[key] = val` | **No** | **No** | **No** (In-place) | Standard local assignment.  |
-| **Yes** | `array[key] = val` | **No** | **No** | **Yes** (In-place) | The local value is automatically converted into a distributed array and broadcasted to align with the array's distribution constraints. |
-| **Yes** | `array[key] = val` | **No** | **Yes** | **Yes** (In-place) | **Split axis match required:** If the `value`'s split axis doesn't match the target's split axis, a `RuntimeError` is raised. If they do match, `value` is dynamically load-balanced (`redistribute_`) to match the target's chunk sizes before assignment. |
-| **Yes** | `array[key] = val` | **Yes** | **No, scalar** | **Yes** (In-place) | A pure scalar value is correctly assigned to all masked/indexed elements across all MPI ranks natively. |
-| **Yes** | `array[key] = val` | **Yes** | **No, array** | **ERROR** / **Yes** | **Exception raised** for integer indices. **Supported** for boolean masks via MPI prefix sums to dynamically slice the non-distributed array. |
-| **Yes** | `array[key] = val` | **Yes** | **Yes** | **Yes** (In-place) | **Communication-heavy:** For masks, `value` is redistributed to match `key`. For integer arrays, `key` is redistributed to match `value`. Both are followed by an `Alltoallv` shuffle. | -->
-
 | Array is distributed | Operation | Key is distributed | Value is distributed | Result is distributed | Notes |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **No** | `array[key]` | **No** | -- | **No** | Standard local indexing directly on underlying torch tensor. |
@@ -223,7 +210,7 @@ result = arr[a1, :, a2, :]
 
 ## Communication overhead
 
-The indexing operations dynamically evaluate the state of the indexing key to determine the most efficient network routing strategy. The communication overhead ranges from completely zero (purely local execution) to heavy all-to-all exchanges for non-sequential advanced indexing.
+The indexing operations evaluate the state of the indexing key to determine the most efficient network routing strategy. The communication overhead ranges from completely zero (purely local execution) to heavy all-to-all exchanges for non-sequential advanced indexing.
 
 Here are the different possible configurations, categorized and ordered from the lowest communication overhead to the highest within each category.
 
@@ -238,34 +225,7 @@ Here are the different possible configurations, categorized and ordered from the
 | | `array[::-1]` (Descending slice along split axis) | **None** (Executes local slice followed by a global `flip` operation) |
 | | `array[::-1] = distributed_value` (Descending slice write) | **Multiple `Send`/`Recv`** (Executes `redistribute_` using point-to-point transfers if array slice and value are misaligned) |
 | **Dimensional Indexing** | `array[..., None]` or `array[:, np.newaxis]` | **None** |
-| **Advanced Indexing** | `array[mask] = local_value` (Boolean mask assignment) | **None / 1 `exscan`** (Zero for scalars; requires prefix sum for 1D local arrays) |
-| | `array[mask]` (1D bool mask on 2D array, both split=0) | **None** (Locally applied, delegates global shape resolution to `factories.array`) |
-| | `array[non_seq_key] = local_value` (Integer array assignment) | **2 `Allreduce`** (Evaluates global key bounds, then applies locally) |
-| | `array[non_seq_key]` (Standard unstructured advanced read) | **1 `Allgather` + 2 `Alltoallv`** (Builds comm matrix, requests indices, returns data) |
-| | `array[non_seq_key] = distributed_value` | **2 `Allreduce` + 1 `Allgather` + 1 `Alltoallv`** (+ hidden P2P in `redistribute_` if necessary) |
-
----
-
-### Detailed Breakdown by Category
-
-#### 1. Slicing and striding
-* **Zero Overhead (Fast Path):** If the key consists solely of basic components (slices with positive steps, integers, `None`, or `...`), the `_resolve_indexing_state` method dynamically assigns an `op_type` (like `"slice"` or `"scalar"`) that bypasses state-checking `Allreduce` calls entirely, resulting in zero MPI overhead.
-* **Negative Slicing / Descending Strides (Low to Moderate Overhead):** Because PyTorch does not natively support negative slice steps, descending slices (e.g., `[::-1]`) are caught during key processing and explicitly converted into integer tensors (`torch.arange`).
-  * For **Reads** (`__getitem__`), the `op_type` is evaluated as `"descending_slice"`. This bypasses non-sequential routing and triggers `__getitem_descending_slice_distributed`, which performs a local slice and wraps the result in an unbalanced array before executing a global `flip` operation.
-  * For **Writes** (`__setitem__`), a specific handler for `"descending_slice"` flips the right-hand value and dynamically matches its distribution map to the key, triggering point-to-point `Send`/`Recv` exchanges via the `redistribute_` method.
-
-#### 2. Dimensional indexing
-* **Zero Overhead:** The use of `None`, `np.newaxis`, or `...` (Ellipsis) is handled during the initial `__process_key` phase. These simply manipulate the local array dimensions and update the split axis bookkeeping without requiring cross-rank data movement. Because they evaluate as basic components, they hit the zero-overhead Fast Path.
-
-#### 3. Single element indexing
-* **Zero Overhead (Non-Split Axis Get/Set):** If the scalar index is applied to any dimension other than the split dimension, the operation evaluates locally on all ranks.
-* **Zero Overhead (Split Axis Set):** In `__setitem__`, assigning a local or scalar value to a single index on the split axis identifies a `root` process. Only the `root` process performs the assignment; no broadcast is performed.
-* **Low Overhead (Split Axis Get):** In `__getitem__`, if a single element is requested along the split axis, the `root` process extracts the local tensor and uses a single `MPI.Bcast` to share the result with all other ranks.
-
-#### 4. Advanced indexing (integer array and boolean array)
-Advanced indexing covers the most complex routing logic, where overhead scales based on the operation and the nature of the value being assigned.
-* **Zero to low (local mask assignment):** When assigning a scalar using a boolean mask, the operation evaluates locally with zero MPI overhead. If assigning a 1D non-distributed tensor to an N-D mask, it uses a single `MPI.exscan` to compute sequence offsets.
-* **Very low (local integer assignment):** If a local array is assigned using integer arrays, the system performs two `MPI.Allreduce` calls to securely validate index bounds and check for negative indices across ranks. Afterwards, it isolates the assignment using `_advanced_setitem_unordered_local`, avoiding heavy payload exchanges.
-* **Low (row-selection optimization):** A dedicated fast path exists for 2D arrays split along axis 0 when indexed by a 1D boolean mask. It avoids full advanced indexing by applying the mask locally.
-* **High (non-sequential read):** Standard advanced reads rely on a collective MPI approach. Ranks first execute an `MPI.Allgather` to build a communication matrix. Active ranks then distribute their requested indices via `MPI.Alltoallv`, execute local lookups, and return the resulting data via a second `MPI.Alltoallv` exchange.
-* **Very high (distributed assignment):** If `__setitem__` is called with a distributed value, the engine must align the distributions using point-to-point communications (`redistribute_`), use an `Allgather` to construct the communication matrix, and shuffle the payload concurrently via an `MPI.Alltoallv` operation.
+| **Advanced Indexing** | `array[mask]` (1D or full bool mask, split=0) | **1 `Allreduce`** (Applies mask locally, reduces element counts to compute `gshape`) |
+|                   | `array[non_seq_key] = local_value` | **1 `Allreduce`** (Batched validation for bounds and negative coordinates) |
+|                   | `array[non_seq_key]` (Unstructured read) | **1 `Alltoall` + 2 `Alltoallv`** (Exchanges counts, requests indices, returns data) |
+| **Slicing & Striding**| `array[::-1]` (Descending slice along split axis) | **Point-to-point / Redistribution** (Local slice followed by distributed `flip`) |
