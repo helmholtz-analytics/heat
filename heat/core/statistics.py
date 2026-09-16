@@ -2107,7 +2107,7 @@ def __torch_kurtosis(
 
 def var(
     x: DNDarray,
-    axis: Union[int, Tuple[int], List[int]] = None,
+    axis: int | tuple[int, ...] | list[int] | None = None,
     correction: int = 0,
     **kwargs: object,
 ) -> DNDarray:
