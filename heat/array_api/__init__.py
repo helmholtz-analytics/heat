@@ -4,7 +4,7 @@ A Heat sub-namespace that conforms to the Python array API standard.
 
 import warnings
 
-warnings.warn("The heat.array_api submodule is not fully implemented.", stacklevel=2)
+warnings.warn("The heat.array_api submodule is not fully implemented. It will be removed in version 1.10.", stacklevel=2)
 
 __array_api_version__ = "2025.12"
 
