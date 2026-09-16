@@ -20,7 +20,7 @@ The following table shows the distribution semantics of the DNDarray indexing op
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **No** | `array[key]` | **No** | -- | **No** | Standard local indexing directly on underlying torch tensor. |
 | **No** | `array[key]` | **Yes** | -- | **Yes** | For a 1D distributed key, the output inherits `split` and balanced status from the key. |
-| **Yes** | `array[key]` | **No** | -- | **Yes** / **No** | Scalar `key` on split axis collapses that dimension, output is replicated on each process (`split=None`). For all other key types distribution is maintained. |`
+| **Yes** | `array[key]` | **No** | -- | **Yes** / **No** | Scalar `key` on split axis collapses that dimension, output is replicated on each process (`split=None`). For all other key types distribution is maintained. |
 | **Yes** | `array[key]` | **Yes** | -- | **Yes** | **Local path:** Aligned boolean mask flattens locally with 0 communication.<br>**Communication path:** Unordered distributed integer indices trigger `__getitem_unordered` with `Alltoallv` exchange. |
 | **No** | `array[key] = val` | **No** | **No** | **No** (In-place) | In-place assignment directly on underlying tensor. |
 | **Yes** | `array[key] = val` | **No** | **No** | **Yes** (In-place) | **Scalars:** Assigned directly with 0 communication (PyTorch broadcasts locally).<br>**Local arrays:** Converted to a distributed array matching the target split axis and aligned via `redistribute_`. |
@@ -146,12 +146,12 @@ x = ht.arange(10 * 20 * 30, split=1).reshape(10, 20, 30)
 mask = x > 100
 x[mask] = 99.0
 
-# advanced integer assignment with a distributed value
-indices = ht.random.randint(0, 20, (2, 3, 4), dtype=ht.int64, split=0)
-value = ht.ones((1, 2, 3, 4, 1), split=0)
+# advanced integer assignment with an aligned distributed value
+# (assigning 10 elements along axis 1 on a 1D slice across all other dimensions)
+indices = ht.array([2, 5, 8, 11], dtype=ht.int64, split=0)
+value = ht.ones((10, 4, 30), split=1)
 
-# value is automatically broadcasted and redistributed to match 'x[..., indices, :]'
-x[..., indices, :] = value
+x[:, indices, :] = value
 ```
 
 ## Combining advanced and basic indexing
