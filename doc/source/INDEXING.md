@@ -1,7 +1,7 @@
 
 # Indexing on DNDarrays
 
-Heat v2.0 introduces fully distributed indexing for DNDarrays. While the indexing behaviour is designed to be highly compatible with the NumPy API, the memory-distributed nature of DNDarrays introduces unique considerations regarding performance and communication overhead. In the following sections, we will cover the basics plus some of these Heat-specific indexing features.
+Heat v1.9 introduces fully distributed indexing for DNDarrays. While the indexing behaviour is designed to be highly compatible with the NumPy API, the memory-distributed nature of DNDarrays introduces unique considerations regarding performance and communication overhead. In the following sections, we will cover the basics plus some of these Heat-specific indexing features.
 
 *Note: This guide is heavily inspired by the official [NumPy indexing documentation](https://numpy.org/doc/stable/user/basics.indexing.html).*
 
@@ -16,7 +16,7 @@ We assume that not only `array`,  but also `key` and `value` may be very large a
 
 The following table shows the distribution semantics of the DNDarray indexing operations.
 
-| Array is distributed | Operation | Key is distributed | Value is distributed | Result is distributed | Notes |
+<!-- | Array is distributed | Operation | Key is distributed | Value is distributed | Result is distributed | Notes |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **No** | `array[key]` | **No** | -- | **No** | Standard local indexing. |
 | **No** | `array[key]` | **Yes** | -- | **Yes** | The resulting array inherits the `split` axis and balanced status directly from the distributed key. |
@@ -27,7 +27,20 @@ The following table shows the distribution semantics of the DNDarray indexing op
 | **Yes** | `array[key] = val` | **No** | **Yes** | **Yes** (In-place) | **Split axis match required:** If the `value`'s split axis doesn't match the target's split axis, a `RuntimeError` is raised. If they do match, `value` is dynamically load-balanced (`redistribute_`) to match the target's chunk sizes before assignment. |
 | **Yes** | `array[key] = val` | **Yes** | **No, scalar** | **Yes** (In-place) | A pure scalar value is correctly assigned to all masked/indexed elements across all MPI ranks natively. |
 | **Yes** | `array[key] = val` | **Yes** | **No, array** | **ERROR** / **Yes** | **Exception raised** for integer indices. **Supported** for boolean masks via MPI prefix sums to dynamically slice the non-distributed array. |
-| **Yes** | `array[key] = val` | **Yes** | **Yes** | **Yes** (In-place) | **Communication-heavy:** For masks, `value` is redistributed to match `key`. For integer arrays, `key` is redistributed to match `value`. Both are followed by an `Alltoallv` shuffle. |
+| **Yes** | `array[key] = val` | **Yes** | **Yes** | **Yes** (In-place) | **Communication-heavy:** For masks, `value` is redistributed to match `key`. For integer arrays, `key` is redistributed to match `value`. Both are followed by an `Alltoallv` shuffle. | -->
+
+| Array is distributed | Operation | Key is distributed | Value is distributed | Result is distributed | Notes |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **No** | `array[key]` | **No** | -- | **No** | Standard local indexing directly on underlying torch tensor. |
+| **No** | `array[key]` | **Yes** | -- | **Yes** | For a 1D distributed key, the output inherits `split` and balanced status from the key. |
+| **Yes** | `array[key]` | **No** | -- | **Yes** / **No** | Scalar `key` on split axis collapses that dimension, output is replicated on each process (`split=None`). For all other key types distribution is maintained. |`
+| **Yes** | `array[key]` | **Yes** | -- | **Yes** | **Local path:** Aligned boolean mask flattens locally with 0 communication.<br>**Communication path:** Unordered distributed integer indices trigger `__getitem_unordered` with `Alltoallv` exchange. |
+| **No** | `array[key] = val` | **No** | **No** | **No** (In-place) | In-place assignment directly on underlying tensor. |
+| **Yes** | `array[key] = val` | **No** | **No** | **Yes** (In-place) | **Scalars:** Assigned directly with 0 communication (PyTorch broadcasts locally).<br>**Local arrays:** Converted to a distributed array matching the target split axis and aligned via `redistribute_`. |
+| **Yes** | `array[key] = val` | **No** | **Yes** | **Yes** (In-place) | **Split axis match required:** If `value.split != target.split`, raises a `RuntimeError`.  |
+| **Yes** | `array[key] = val` | **Yes** | **No, scalar** | **Yes** (In-place) | Python scalars and 0-D tensors assign directly to all local masked/indexed positions. |
+| **Yes** | `array[key] = val` | **Yes** | **No, array** | **ERROR** / **Yes** | **Supported** only for boolean mask key, otherwise **ValueError** is raised. |
+| **Yes** | `array[key] = val` | **Yes** | **Yes** | **Yes** (In-place) | **Aligned boolean mask key:** Local assignment with 0 communication.<br>**Unordered integer indices:** `key` is redistributed to match `value`, followed by a dual `Alltoallv` shuffle (indices and data payload). |
 
 *Note: Extracting a single element along the split axis will collapse that dimension, resulting in `split=None`.*
 
