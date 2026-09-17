@@ -1135,6 +1135,27 @@ class TestDNDarray(TestCase):
         with self.assertRaises(IndexError):
             _ = x_dist[idx_neg_oob, :]
 
+        # Array split along axis 0, indexed with an advanced index along axis 0
+        x_dist = ht.arange(20, split=0).reshape(5, 4)
+        x_np = np.arange(20).reshape(5, 4)
+        idx_rows = ht.array([1, 3])
+
+        res_ht = x_dist[idx_rows, :]
+        res_np = x_np[[1, 3], :]
+        self.assertEqual(res_ht.split, 0)
+        self.assert_array_equal(res_ht, res_np)
+
+        # 3D array split along axis 0, advanced indices on axis 0 and axis 2 separated by a slice
+        x_3d_dist = ht.arange(60, split=0).reshape(3, 4, 5)
+        x_3d_np = np.arange(60).reshape(3, 4, 5)
+        idx0 = ht.array([0, 2])
+        idx2 = ht.array([1, 3])
+
+        res_3d_ht = x_3d_dist[idx0, :, idx2]
+        res_3d_np = x_3d_np[[0, 2], :, [1, 3]]
+        self.assertEqual(res_3d_ht.split, 0)
+        self.assert_array_equal(res_3d_ht, res_3d_np)
+
     def test_getitem_boolean_mask(self):
         # boolean mask, local
         arr = ht.arange(3 * 4 * 5).reshape(3, 4, 5)

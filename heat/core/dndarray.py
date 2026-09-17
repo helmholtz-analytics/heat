@@ -685,19 +685,19 @@ def _sanitize_advanced_keys(
     """
     key = list(key)
 
-    # Detect mask-like conditions (same shape, consecutive dimensions)
+    # Detect mask-like conditions (same shape for adv indexing dimensions)
+    adv_keys = [key[i] for i in advanced_indexing_dims]
     key_is_mask_like = key_is_mask_like or (
         len(advanced_indexing_dims) > 1
-        and all(isinstance(k, DNDarray) for k in key)
-        and len(set(k.shape for k in key)) == 1
-        and torch.tensor(advanced_indexing_dims).diff().eq(1).all().item()
+        and all(isinstance(k, DNDarray) for k in adv_keys)
+        and len(set(k.shape for k in adv_keys)) == 1
     )
 
     non_split_dims = [d for d in advanced_indexing_dims if d != arr.split]
 
     # Align distributions if mask-like
     if key_is_mask_like and arr.split is not None and arr.split in advanced_indexing_dims:
-        key_splits = [k.split for k in key]
+        key_splits = [k.split for k in adv_keys]
         split_pos = advanced_indexing_dims.index(arr.split)
         target_split = key_splits[split_pos]
 
