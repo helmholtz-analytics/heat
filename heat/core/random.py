@@ -1118,7 +1118,7 @@ def __threefry32(
     return x0, x1
 
 
-# @torch.jit.script
+# @torch.compile
 def __threefry64(
     x0: torch.Tensor, x1: torch.Tensor, seed: int
 ) -> Tuple[torch.Tensor, torch.Tensor]:
