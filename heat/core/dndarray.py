@@ -3003,17 +3003,6 @@ class DNDarray:
     def __setitem_scalar(self, p: ProcessedKey, value: "DNDarray", value_is_scalar: bool) -> None:
         if p.root is not None:
             if self.comm.rank == p.root:
-                if p.output_split is not None:
-                    indexed_lshape_map = self.lshape_map[:, 1:]
-                    if value.lshape_map != indexed_lshape_map:
-                        try:
-                            value.redistribute_(target_map=indexed_lshape_map)
-                        except ValueError:
-                            raise ValueError(
-                                "cannot assign value to indexed DNDarray because "
-                                "distribution schemes do not match: "
-                                f"{value.lshape_map} vs. {indexed_lshape_map}"
-                            )
                 self.__set(p.key, value)
         else:
             if not value_is_scalar:
