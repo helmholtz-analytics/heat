@@ -412,15 +412,9 @@ def _resolve_1d_boolean_first_dim(
     ):
         if isinstance(first, DNDarray):
             nz = first.nonzero()
-            if isinstance(nz, tuple):
-                nz = nz[0]
-            if getattr(nz, "ndim", 1) > 1 and nz.shape[-1] == 1:
-                nz = nz.squeeze(-1)
-            idx0 = nz
+            idx0 = nz[0] if isinstance(nz, tuple) else nz
         elif isinstance(first, torch.Tensor):
             idx0 = torch.nonzero(first, as_tuple=False).flatten()
-        else:
-            raise Exception(f"Unexpected type {type(first)}")
 
         return (idx0,) + key[1:] if isinstance(key, tuple) else (idx0,)
 
