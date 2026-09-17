@@ -243,10 +243,10 @@ def _normalize_key(key: Indexer, device: torch.device) -> tuple[Any, ...]:
 
         # Unpack singleton containers like (idx,) often produced by nonzero/where
         elif isinstance(k, (tuple, list)) and len(k) == 1 and isinstance(k[0], DNDarray):
-            if k[0].ndim == 0:
-                normalized.append(k[0].larray.item())
-            else:
+            if k[0].ndim > 0:
                 normalized.append(k[0])
+            else:
+                normalized.append(torch.tensor([k[0].larray.item()], device=device))
 
         # Sequence of scalar DNDarrays -> unwrap to list of Python scalars
         elif (
