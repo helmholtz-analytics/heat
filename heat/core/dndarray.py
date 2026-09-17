@@ -535,17 +535,12 @@ def _process_slice_indexer(
 
                     # allocate local indices only
                     new_key = slice(start_idx, stop_idx, s)
-                    # new_key = torch.arange(
-                    #     start_idx, stop_idx, s, device=device, dtype=torch.int64
-                    # )
                 else:
                     # slicing skips local chunk completely
                     new_key = slice(0, 0)
-                    # new_key = torch.empty(0, device=device, dtype=torch.int64)
             else:
                 # local chunk is outside the slice bounds entirely
                 new_key = slice(0, 0)
-                # new_key = torch.empty(0, device=device, dtype=torch.int64)
         else:
             # non-split axis: return the descending slice as indices
             new_key = torch.arange(start, stop, step, device=device, dtype=torch.int64)
@@ -2961,7 +2956,6 @@ class DNDarray:
             return self
         # tensor needs be split/sliced locally
         if self.split is None:
-            # new_arr = self
             _, _, slices = self.comm.chunk(self.shape, axis)
             temp = self.__array[slices]
             self.__array = torch.empty((1,), device=self.device.torch_device)

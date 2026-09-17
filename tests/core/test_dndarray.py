@@ -783,6 +783,19 @@ class TestDNDarray(TestCase):
         if x.comm.size > 1:
             self.assertTrue(x_sliced.split == 1)
 
+        if self.comm.size >= 3:
+            # Stride skips intermediate rank chunks completely
+            x_dist = ht.arange(30, split=0)
+            x_np = np.arange(30)
+            res_ht = x_dist[28::-12]
+            res_np = x_np[28::-12]
+            self.assert_array_equal(res_ht, res_np)
+
+        # test exception
+        x = ht.arange(60, split=0).reshape(5, 4, 3)
+        with self.assertRaises(ValueError):
+            x[slice(1,3,0), :]
+
     def test_getitem_slicing_negative_step(self):
         # slicing with negative step along split axis 0
         shape = (20, 4, 3)
