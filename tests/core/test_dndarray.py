@@ -1142,7 +1142,8 @@ class TestDNDarray(TestCase):
 
         res_ht = x_dist[idx_rows, :]
         res_np = x_np[[1, 3], :]
-        self.assertEqual(res_ht.split, 0)
+        if x_dist.comm.size > 1:
+            self.assertEqual(res_ht.split, 0)
         self.assert_array_equal(res_ht, res_np)
 
         # 3D array split along axis 0, advanced indices on axis 0 and axis 2 separated by a slice
@@ -1153,7 +1154,8 @@ class TestDNDarray(TestCase):
 
         res_3d_ht = x_3d_dist[idx0, :, idx2]
         res_3d_np = x_3d_np[[0, 2], :, [1, 3]]
-        self.assertEqual(res_3d_ht.split, 0)
+        if x_3d_dist.comm.size > 1:
+            self.assertEqual(res_3d_ht.split, 0)
         self.assert_array_equal(res_3d_ht, res_3d_np)
 
     def test_getitem_boolean_mask(self):
