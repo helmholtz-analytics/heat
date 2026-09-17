@@ -141,11 +141,11 @@ def convert_matrix_space(matrix: torch.Tensor, sizes, padding_correction: bool):
         theta: torch affine matrix of shape (D, D+1)
     """
     # construct coord space transform
-    scales = (torch.as_tensor(sizes) - 1) / 2.0
+    scales = (torch.as_tensor(sizes, device=matrix.device) - 1) / 2.0
     diag_scales = torch.diag(scales)
 
     dim = len(sizes)
-    conversion = torch.zeros(dim + 1, dim + 1)
+    conversion = torch.zeros(dim + 1, dim + 1, device=matrix.device)
     conversion[:dim, :dim] = diag_scales
     conversion[dim, dim] = 1
     conversion[:dim, dim] = scales
@@ -156,7 +156,7 @@ def convert_matrix_space(matrix: torch.Tensor, sizes, padding_correction: bool):
         padding_correction
     ):  # reversing effect the padding has on the transform because it changes aspect ratio
         pad_factors = scales / (scales + 1)
-        pad_factors = torch.cat([pad_factors, torch.tensor([1])])
+        pad_factors = torch.cat([pad_factors, torch.tensor([1], device=matrix.device)])
         result = result * (pad_factors[:, None] / pad_factors[None, :])
 
     return result[:, :dim, :]
@@ -227,7 +227,9 @@ def affine_transform(
 
     ht.sanitize_in(input)
     ht.sanitize_in(matrix)
-    if offset is not None:
+    if (
+        offset is not None
+    ):  # TODO move this to offset logic, does not need to happen when affine_matrix contains offset information
         ht.sanitize_in(offset)
 
     # input conversion
