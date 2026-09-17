@@ -870,6 +870,13 @@ class TestDNDarray(TestCase):
         if y.comm.size > 1:
             self.assertTrue(y.split == 0)
 
+        # test with key = boolean scalar
+        x = ht.arange(10, split=0).reshape(5,2)
+        x_np = np.arange(10).reshape(5,2)
+        y = x[:, ht.array(True)]
+        y_np = x_np[:, True]
+        self.assert_array_equal(y, y_np)
+
         for split in [None, 0, 1, 2]:
             for new_dim in [0, 1, 2]:
                 for add in [np.newaxis, None]:
