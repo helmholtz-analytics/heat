@@ -1135,71 +1135,71 @@ class TestDNDarray(TestCase):
         # with self.assertRaises(IndexError):
         #     _ = x_dist[idx_neg_oob, :]
 
-        # # Array split along axis 0, indexed with an advanced index along axis 0
-        # x_dist = ht.arange(20, split=0).reshape(5, 4)
-        # x_np = np.arange(20).reshape(5, 4)
-        # idx_rows = ht.array([1, 3])
+        # Array split along axis 0, indexed with an advanced index along axis 0
+        x_dist = ht.arange(20, split=0).reshape(5, 4)
+        x_np = np.arange(20).reshape(5, 4)
+        idx_rows = ht.array([1, 3])
 
-        # res_ht = x_dist[idx_rows, :]
-        # res_np = x_np[[1, 3], :]
-        # if x_dist.comm.size > 1:
-        #     self.assertEqual(res_ht.split, 0)
-        # self.assert_array_equal(res_ht, res_np)
+        res_ht = x_dist[idx_rows, :]
+        res_np = x_np[[1, 3], :]
+        if x_dist.comm.size > 1:
+            self.assertEqual(res_ht.split, 0)
+        self.assert_array_equal(res_ht, res_np)
 
-        # # 3D array split along axis 0, advanced indices on axis 0 and axis 2 separated by a slice
-        # x_3d_dist = ht.arange(60, split=0).reshape(3, 4, 5)
-        # x_3d_np = np.arange(60).reshape(3, 4, 5)
-        # idx0 = ht.array([0, 2])
-        # idx2 = ht.array([1, 3])
+        # 3D array split along axis 0, advanced indices on axis 0 and axis 2 separated by a slice
+        x_3d_dist = ht.arange(60, split=0).reshape(3, 4, 5)
+        x_3d_np = np.arange(60).reshape(3, 4, 5)
+        idx0 = ht.array([0, 2])
+        idx2 = ht.array([1, 3])
 
-        # res_3d_ht = x_3d_dist[idx0, :, idx2]
-        # res_3d_np = x_3d_np[[0, 2], :, [1, 3]]
-        # if x_3d_dist.comm.size > 1:
-        #     self.assertEqual(res_3d_ht.split, 0)
-        # self.assert_array_equal(res_3d_ht, res_3d_np)
+        res_3d_ht = x_3d_dist[idx0, :, idx2]
+        res_3d_np = x_3d_np[[0, 2], :, [1, 3]]
+        if x_3d_dist.comm.size > 1:
+            self.assertEqual(res_3d_ht.split, 0)
+        self.assert_array_equal(res_3d_ht, res_3d_np)
 
-        # # mismatched distribution of advanced indexing coordinates
-        # x_dist = ht.zeros((4, 4), split=0)
+        # mismatched distribution of advanced indexing coordinates
+        x_dist = ht.zeros((4, 4), split=0)
 
-        # idx_undist = ht.array([0, 1], split=None)
-        # idx_dist = ht.array([0, 1], split=0)
+        idx_undist = ht.array([0, 1], split=None)
+        idx_dist = ht.array([0, 1], split=0)
 
-        # if x_dist.comm.size > 1:
-        #     with self.assertRaises(IndexError):
-        #         _ = x_dist[idx_undist, idx_dist]
+        if x_dist.comm.size > 1:
+            with self.assertRaises(IndexError):
+                _ = x_dist[idx_undist, idx_dist]
 
-        # # boolean / adv indexing mix
-        # arr_ht = ht.arange(16, split=0).reshape(4, 4)
-        # arr_np = np.arange(16).reshape(4, 4)
+        # boolean / adv indexing mix
+        arr_ht = ht.arange(16, split=0).reshape(4, 4)
+        arr_np = np.arange(16).reshape(4, 4)
 
-        # mask_ht = ht.array([True, False, True, False], split=0)
-        # mask_np = np.array([True, False, True, False])
-        # col_ht = ht.array([2], split=None)
-        # col_np = np.array([2])
+        mask_ht = ht.array([True, False, True, False], split=0)
+        mask_np = np.array([True, False, True, False])
+        col_ht = ht.array([2], split=None)
+        col_np = np.array([2])
 
-        # # ordered + mask-like advanced indexing
-        # res_ht = arr_ht[mask_ht, col_ht]
-        # res_np = arr_np[mask_np, col_np]
-        # self.assert_array_equal(res_ht, res_np)
+        # ordered + mask-like advanced indexing
+        res_ht = arr_ht[mask_ht, col_ht]
+        res_np = arr_np[mask_np, col_np]
+        self.assert_array_equal(res_ht, res_np)
 
-        # arr_ht = ht.arange(36, split=0).reshape(6, 6)
-        # arr_np = np.arange(36).reshape(6, 6)
+        arr_ht = ht.arange(36, split=0).reshape(6, 6)
+        arr_np = np.arange(36).reshape(6, 6)
 
-        # # 1D coordinate arrays of identical shape (4,)
-        # # rows is monotonically increasing -> split_key_is_ordered == 1
-        # # rows and cols have the same shape -> key_is_mask_like == True
-        # rows_ht = ht.array([0, 1, 3, 5], split=None)
-        # cols_ht = ht.array([2, 3, 1, 0], split=None)
+        # 1D coordinate arrays of identical shape (4,)
+        # rows is monotonically increasing -> split_key_is_ordered == 1
+        # rows and cols have the same shape -> key_is_mask_like == True
+        rows_ht = ht.array([0, 1, 3, 5], split=None)
+        cols_ht = ht.array([2, 3, 1, 0], split=None)
 
-        # rows_np = np.array([0, 1, 3, 5])
-        # cols_np = np.array([2, 3, 1, 0])
+        rows_np = np.array([0, 1, 3, 5])
+        cols_np = np.array([2, 3, 1, 0])
 
-        # res_ht = arr_ht[rows_ht, cols_ht]
-        # res_np = arr_np[rows_np, cols_np]
-        # self.assertEqual(res_ht.shape, res_np.shape)
-        # if arr_ht.comm.size > 1:
-        #     self.assertEqual(res_ht.split, 0)
-        # self.assert_array_equal(res_ht, res_np)
+        res_ht = arr_ht[rows_ht, cols_ht]
+        res_np = arr_np[rows_np, cols_np]
+        self.assertEqual(res_ht.shape, res_np.shape)
+        if arr_ht.comm.size > 1:
+            self.assertEqual(res_ht.split, 0)
+        self.assert_array_equal(res_ht, res_np)
 
     def test_getitem_boolean_mask(self):
         # boolean mask, local
