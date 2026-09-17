@@ -2534,6 +2534,12 @@ class TestDNDarray(TestCase):
         self.assertEqual(result_split_empty_tuple.split, 0)
         self.assertIs(result_split_empty_tuple.larray, arr_ht_split.larray) # Check for view
 
+        # test exception: indexing a 0-D array with a scalar
+        x = ht.array(42)
+        self.assertEqual(x.ndim, 0)
+        with self.assertRaises(IndexError):
+            _ = x[0]
+
     def test_setitem_edge_cases(self):
         # Test edge cases from NumPy docs
 
