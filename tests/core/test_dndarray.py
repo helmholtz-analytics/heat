@@ -1113,6 +1113,28 @@ class TestDNDarray(TestCase):
         with self.assertRaises(TypeError):
             _ = x_dist[(idx0, idx1), :]
 
+        # indices sanitation
+        x_dist = ht.arange(20, split=0).reshape(5, 4)
+        x_np = np.arange(20).reshape(5, 4)
+
+        # Returning k unsanitized allows PyTorch to reject float indices
+        idx_float = ht.array([0.5, 1.5])
+        with self.assertRaises(IndexError):
+            _ = x_dist[idx_float, :]
+
+        # Advanced indexing with negative coordinates
+        idx_neg = ht.array([-1, -3])
+        self.assert_array_equal(x_dist[idx_neg, :], x_np[[-1, -3], :])
+
+        # Advanced indexing with out-of-bounds coordinates
+        idx_oob = ht.array([1, 10])
+        with self.assertRaises(IndexError):
+            _ = x_dist[idx_oob, :]
+
+        idx_neg_oob = ht.array([-6, 0])
+        with self.assertRaises(IndexError):
+            _ = x_dist[idx_neg_oob, :]
+
     def test_getitem_boolean_mask(self):
         # boolean mask, local
         arr = ht.arange(3 * 4 * 5).reshape(3, 4, 5)
