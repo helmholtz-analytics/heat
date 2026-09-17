@@ -267,7 +267,7 @@ def _normalize_key(key: Indexer, device: torch.device) -> tuple[Any, ...]:
             )
 
         # Convert non-distributed integer/indexing DNDarrays to local torch.Tensor
-        elif isinstance(k, DNDarray) and k.split is None and k.dtype not in (ht_bool, ht_uint8):
+        elif isinstance(k, DNDarray) and k.split is None and k.dtype in (types.int32, types.int64):
             normalized.append(k.larray.to(dtype=torch.int64))
 
         # Ensure torch.Tensor indices are placed on the target device
@@ -425,7 +425,11 @@ def _sanitize_int_indices(k: "DNDarray", dim: int, axis: int, comm: Any, device:
     """
     Validates integer bounds and normalizes negative coordinates for distributed/local DNDarray keys.
     """
-    if k.dtype not in (types.int32, types.int64) or k.ndim < 1:
+    if k.dtype not in (types.int32, types.int64):
+        if k.dtype not in (ht_bool, ht_uint8):
+            raise IndexError(
+                f"arrays used as indices must be of integer (or boolean) type, got {k.dtype}"
+            )
         return k
 
     # Combine local checks into one reduced boolean tensor
