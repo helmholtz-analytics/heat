@@ -1043,6 +1043,56 @@ class TestDNDarray(TestCase):
         x_2d_np = np.arange(12).reshape(4, 3)
         self.assert_array_equal(x_2d_local[[0, 2], [1, 2]], x_2d_np[[0, 2], [1, 2]])
 
+        # Distributed array indexed with a Python list of integers (hits try block)
+        x_dist = ht.arange(10, split=0)
+        x_np = np.arange(10)
+        idx_list = [1, 3, 7]
+        self.assert_array_equal(x_dist[idx_list], x_np[idx_list])
+
+        # Distributed array indexed with list containing non-integers (hits except fallback)
+        self.assert_array_equal(x_dist[[slice(2, 6)]], x_np[2:6])
+
+        # Nested singleton container with 0-D scalar DNDarray (hits k[0].ndim == 0)
+        x_dist = ht.arange(20, split=0).reshape(5, 4)
+        x_np = np.arange(20).reshape(5, 4)
+        idx_scalar = ht.array(2)
+        idx_scalar_np = np.array(2)
+
+        # Passes (idx_scalar,) as the first coordinate
+        self.assert_array_equal(x_dist[(idx_scalar,), :], x_np[(idx_scalar_np,), :])
+
+        # Also works with a 1-element list [idx_scalar]
+        self.assert_array_equal(x_dist[[idx_scalar], :], x_np[[idx_scalar_np], :])
+
+        #  Nested singleton container with 1D DNDarray (hits else: normalized.append(k[0]))
+        idx_1d = ht.array([1, 3])
+        self.assert_array_equal(x_dist[(idx_1d,), :], x_np[[1, 3], :])
+
+        # Sequence of multiple 0-D scalar DNDarrays along an axis
+        x_dist = ht.arange(20, split=0).reshape(5, 4)
+        x_np = np.arange(20).reshape(5, 4)
+
+        #  As a list of scalar DNDarrays
+        idx_scalars_list = [ht.array(1), ht.array(3)]
+        self.assert_array_equal(x_dist[idx_scalars_list, :], x_np[[1, 3], :])
+
+        #  As a tuple of scalar DNDarrays
+        idx_scalars_tuple = (ht.array(0), ht.array(2), ht.array(4))
+        self.assert_array_equal(x_dist[idx_scalars_tuple, :], x_np[[0, 2, 4], :])
+
+        # nested containers holding non-scalar DNDarrays not supported
+        x_dist = ht.arange(20, split=0).reshape(5, 4)
+        idx0 = ht.array([0, 1])
+        idx1 = ht.array([2, 3])
+
+        # Nested list of 1D DNDarrays
+        with self.assertRaises(TypeError):
+            _ = x_dist[[idx0, idx1], :]
+
+        # Nested tuple of 1D DNDarrays
+        with self.assertRaises(TypeError):
+            _ = x_dist[(idx0, idx1), :]
+
     def test_getitem_boolean_mask(self):
         # boolean mask, local
         arr = ht.arange(3 * 4 * 5).reshape(3, 4, 5)
