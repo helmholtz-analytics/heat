@@ -1028,6 +1028,21 @@ class TestDNDarray(TestCase):
             self.assertEqual(res_nonconsec.split, 2)
         self.assertEqual(res_nonconsec.gshape, (2, 5, 7))
 
+        # Local DNDarray indexed with a Python list (hits _unwrap_local_key list branch)
+        x_local = ht.arange(10)
+        x_np = np.arange(10)
+        idx_list = [1, 3, 7]
+        self.assert_array_equal(x_local[idx_list], x_np[idx_list])
+
+        # Nested/recursive unwrapping with a list containing scalar DNDarrays
+        idx_dnd_list = [ht.array(1), ht.array(4)]
+        self.assert_array_equal(x_local[idx_dnd_list], x_np[[1, 4]])
+
+        # 2D local array indexed with lists in a tuple
+        x_2d_local = ht.arange(12).reshape(4, 3)
+        x_2d_np = np.arange(12).reshape(4, 3)
+        self.assert_array_equal(x_2d_local[[0, 2], [1, 2]], x_2d_np[[0, 2], [1, 2]])
+
     def test_getitem_boolean_mask(self):
         # boolean mask, local
         arr = ht.arange(3 * 4 * 5).reshape(3, 4, 5)
@@ -1988,6 +2003,20 @@ class TestDNDarray(TestCase):
         value = ht.ones((1, 2, 3, 4, 1))
         x[..., ind_array, :] = value
         self.assertTrue((x[..., ind_array, :] == value).all().item())
+
+        # Local DNDarray assignment using a Python list
+        x_local = ht.zeros(10, dtype=ht.int64)
+        x_np = np.zeros(10, dtype=np.int64)
+        idx_list = [2, 4, 8]
+        x_local[idx_list] = 99
+        x_np[idx_list] = 99
+        self.assert_array_equal(x_local, x_np)
+
+        # Assignment with list of scalar DNDarrays
+        idx_dnd_list = [ht.array(0), ht.array(1)]
+        x_local[idx_dnd_list] = 42
+        x_np[[0, 1]] = 42
+        self.assert_array_equal(x_local, x_np)
 
     def test_setitem_boolean_mask(self):
         # boolean mask, local
