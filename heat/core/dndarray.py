@@ -3148,10 +3148,7 @@ class DNDarray:
                     ) from e
             else:
                 # Value is a non-distributed array -> MPI prefix sum needed
-                if hasattr(value, "larray"):
-                    value_torch = value.larray
-                else:
-                    value_torch = torch.as_tensor(value, device=self.device.torch_device)
+                value_torch = value.larray
 
                 # distinguish between exact-shape masks and 1D row-filtering masks
                 is_row_mask = local_mask.ndim == 1 and self.ndim > 1
@@ -3161,14 +3158,11 @@ class DNDarray:
                     local_mask_flat = local_mask.flatten()
                     local_true = int(local_mask_flat.sum().item())
 
-                    if self.comm.size > 1:
-                        if self.comm.rank == 0:
-                            offset = 0
-                            _ = self.comm.exscan(local_true)
-                        else:
-                            offset = self.comm.exscan(local_true)
-                    else:
+                    if self.comm.rank == 0:
                         offset = 0
+                        _ = self.comm.exscan(local_true)
+                    else:
+                        offset = self.comm.exscan(local_true)
 
                     rhs_local = value_torch[offset : offset + local_true].type(
                         self.dtype.torch_type()

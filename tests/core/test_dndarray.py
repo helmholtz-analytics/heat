@@ -2100,6 +2100,41 @@ class TestDNDarray(TestCase):
         arr2[(mask,)] = 42.0
         self.assertTrue((arr1 == arr2).all())
 
+        # 0-D DNDarray scalar assignment (hits elif hasattr(value, "larray"))
+        arr = ht.zeros((10, 4), split=0 if ht.MPI_WORLD.size > 1 else None, dtype=ht.float32)
+        mask = ht.ones((10, 4), dtype=ht.bool, split=arr.split)
+
+        val_dnd = ht.array(42.0)
+        arr[mask] = val_dnd
+        self.assertTrue(ht.all(arr == 42.0).item())
+
+        # Test casting when scalar DNDarray has different dtype
+        val_dnd_int = ht.array(7, dtype=ht.int32)
+        arr[mask] = val_dnd_int
+        self.assertTrue(ht.all(arr == 7.0).item())
+
+        # 0-D torch.Tensor scalar assignment (hits else: torch.as_tensor fallback)
+        val_torch = torch.tensor(13.0)
+        arr[mask] = val_torch
+        self.assertTrue(ht.all(arr == 13.0).item())
+
+        # Distributed DNDarray value assignment and shape mismatch error
+        if arr.is_distributed():
+            # Matching dtype assignment
+            rhs_vals = arr[mask] + 10.0
+            arr[mask] = rhs_vals
+            self.assertTrue(ht.all(arr[mask] == 23.0).item())
+
+            # Differing dtype assignment (hits rhs = value_torch.type(...))
+            rhs_vals_int = (arr[mask] + 5.0).astype(ht.int32)
+            arr[mask] = rhs_vals_int
+            self.assertTrue(ht.all(arr[mask] == 28.0).item())
+
+            # Shape mismatch (triggers RuntimeError -> raises ValueError)
+            mismatch_val = ht.ones((10, 2), split=0)
+            with self.assertRaises(ValueError):
+                arr[mask] = mismatch_val
+
     def test_size_gnumel(self):
         a = ht.zeros((10, 10, 10), split=None)
         self.assertEqual(a.size, 10 * 10 * 10)
@@ -2359,6 +2394,26 @@ class TestDNDarray(TestCase):
         mask_ht_sNone = ht.array(mask_np, split=None)
         arr_ht_s1[mask_ht_sNone] = value
         self.assert_array_equal(arr_ht_s1, arr_np_set)
+
+        # Row mask assignment with non-distributed vectors
+        if ht.MPI_WORLD.size > 1:
+            arr_2d = ht.zeros((6, 4), split=0, dtype=ht.float32)
+            mask_1d = ht.array([True, False, True, False, False, True], split=0)
+
+            # 1. Non-distributed 1D row vector (shape (4,))
+            row_vec_1d = ht.array([10.0, 20.0, 30.0, 40.0])
+            arr_2d[mask_1d] = row_vec_1d
+
+            expected_np = np.zeros((6, 4), dtype=np.float32)
+            expected_np[[0, 2, 5], :] = [10.0, 20.0, 30.0, 40.0]
+            self.assert_array_equal(arr_2d, expected_np)
+
+            # 2. Non-distributed 2D row vector (shape (1, 4))
+            row_vec_2d = ht.array([[1.0, 2.0, 3.0, 4.0]])
+            arr_2d[mask_1d] = row_vec_2d
+
+            expected_np[[0, 2, 5], :] = [1.0, 2.0, 3.0, 4.0]
+            self.assert_array_equal(arr_2d, expected_np)
 
     def test_getitem_edge_cases(self):
         # Test edge cases from NumPy docs
