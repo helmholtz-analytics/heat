@@ -1158,6 +1158,49 @@ class TestDNDarray(TestCase):
             self.assertEqual(res_3d_ht.split, 0)
         self.assert_array_equal(res_3d_ht, res_3d_np)
 
+        # mismatched distribution of advanced indexing coordinates
+        x_dist = ht.zeros((4, 4), split=0)
+
+        idx_undist = ht.array([0, 1], split=None)
+        idx_dist = ht.array([0, 1], split=0)
+
+        if x_dist.comm.size > 1:
+            with self.assertRaises(IndexError):
+                _ = x_dist[idx_undist, idx_dist]
+
+        # boolean / adv indexing mix
+        arr_ht = ht.arange(16, split=0).reshape(4, 4)
+        arr_np = np.arange(16).reshape(4, 4)
+
+        mask_ht = ht.array([True, False, True, False], split=0)
+        mask_np = np.array([True, False, True, False])
+        col_ht = ht.array([2], split=None)
+        col_np = np.array([2])
+
+        # ordered + mask-like advanced indexing
+        res_ht = arr_ht[mask_ht, col_ht]
+        res_np = arr_np[mask_np, col_np]
+        self.assert_array_equal(res_ht, res_np)
+
+        arr_ht = ht.arange(36, split=0).reshape(6, 6)
+        arr_np = np.arange(36).reshape(6, 6)
+
+        # 1D coordinate arrays of identical shape (4,)
+        # rows is monotonically increasing -> split_key_is_ordered == 1
+        # rows and cols have the same shape -> key_is_mask_like == True
+        rows_ht = ht.array([0, 1, 3, 5], split=None)
+        cols_ht = ht.array([2, 3, 1, 0], split=None)
+
+        rows_np = np.array([0, 1, 3, 5])
+        cols_np = np.array([2, 3, 1, 0])
+
+        res_ht = arr_ht[rows_ht, cols_ht]
+        res_np = arr_np[rows_np, cols_np]
+        self.assertEqual(res_ht.shape, res_np.shape)
+        if arr_ht.comm.size > 1:
+            self.assertEqual(res_ht.split, 0)
+        self.assert_array_equal(res_ht, res_np)
+
     def test_getitem_boolean_mask(self):
         # boolean mask, local
         arr = ht.arange(3 * 4 * 5).reshape(3, 4, 5)

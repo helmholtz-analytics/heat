@@ -715,10 +715,6 @@ def _sanitize_advanced_keys(
                 raise IndexError(
                     f"Indexing arrays must be distributed along the same dimension, got splits {key_splits}."
                 )
-        elif not key_splits.count(key_splits[0]) == len(key_splits):
-            raise IndexError(
-                f"Indexing arrays must be distributed along the same dimension, got splits {key_splits}."
-            )
 
     # Extract local torch.Tensors
     if arr.is_distributed() and arr.split in advanced_indexing_dims:
