@@ -174,14 +174,8 @@ def _resolve_duplicate_indices(
             lin = lin * int(target_shape[d]) + idx_flat[d]
 
     # Determine sorting order (stable sort preserves original order)
-    try:
-        order = torch.argsort(lin, stable=True)
-        pos = None
-    except TypeError:
-        # Fallback if stable sort is unsupported: sort by combined key
-        pos = torch.arange(n, device=device, dtype=torch.int64)
-        combined = lin.to(torch.int64) * (n + 1) + pos
-        order = torch.argsort(combined)
+    order = torch.argsort(lin, stable=True)
+    pos = None
 
     lin_s = lin[order]
 
