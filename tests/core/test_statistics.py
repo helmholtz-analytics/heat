@@ -1571,7 +1571,7 @@ class TestStatistics(TestCase):
         # or a mis-weighted merge, since its variance is zero either way.
         size = self.comm.size
         shapes = [(2 * size,), (2 * size, 3 * size), (2 * size, 3 * size, 4 * size)]
-        correction_parameter_aliases = ["ddof", "bessel"]
+        correction_parameter_aliases = ["correction", "ddof", "bessel"]
         # float64 also checks that the moments are not accumulated in float32
         dtypes = [ht.float32] if self.is_mps else [ht.float32, ht.float64]
         for shape in shapes:
