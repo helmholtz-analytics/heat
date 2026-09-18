@@ -1238,6 +1238,102 @@ class TestDNDarray(TestCase):
         with self.assertRaises(IndexError):
             _ = x[k0, k1]
 
+    def test_advanced_indexing_split0_multidim_key_preserves_split(self):
+        if self.comm.size < 2:
+            self.skipTest("Testing distributed split axis recalculation requires at least 2 processes")
+
+        # 2D distributed array with axis 0 of size 4 (within 5-element limit)
+        x_np = np.arange(12).reshape(4, 3)
+        x = ht.array(x_np, split=0)
+
+        # 1. Key with shape (1, 4): key.numel() == 4 == arr.shape[0] -> new_split becomes 1
+        k_row_np = np.array([[3, 0, 2, 1]])
+        k_row = torch.as_tensor(k_row_np, device=x.device.torch_device)
+
+        res_row_ht = x[k_row]
+        res_row_np = x_np[k_row_np]
+        self.assertEqual(res_row_ht.split, 1)
+        self.assert_array_equal(res_row_ht, res_row_np)
+
+        # 2. Key with shape (4, 1): key.numel() == 4 == arr.shape[0] -> new_split becomes 0
+        k_col_np = np.array([[3], [0], [2], [1]])
+        k_col = torch.as_tensor(k_col_np, device=x.device.torch_device)
+
+        res_col_ht = x[k_col]
+        res_col_np = x_np[k_col_np]
+        self.assertEqual(res_col_ht.split, 0)
+        self.assert_array_equal(res_col_ht, res_col_np)
+
+    def test_resolve_indexing_state_nd_torch_key_non_distributed(self):
+        from heat.core.dndarray import _resolve_indexing_state
+
+        # 3D array of shape (3, 4, 2) with split=None
+        x = ht.zeros((3, 4, 2), split=None)
+
+        # 2D torch.Tensor key of shape (2, 2)
+        k = torch.tensor([[0, 2], [1, 0]])
+
+        # Test analyzer directly to bypass the fast path
+        _, p = _resolve_indexing_state(x, k)
+
+        # Leading dimension 3 is replaced by key shape (2, 2) -> (2, 2, 4, 2)
+        self.assertEqual(p.output_shape, (2, 2, 4, 2))
+        self.assertIsNone(p.output_split)
+        self.assertTrue(p.out_is_balanced)
+        self.assertEqual(p.op_type, "local")
+
+    def test_indexing_single_element_tuple_boolean_mask(self):
+        # Distributed 2D array with maximum 5 elements per axis
+        x_np = np.arange(20.0).reshape(5, 4)
+        x = ht.array(x_np, split=0)
+
+        # Distributed boolean mask matching the array shape and split
+        mask_np = x_np > 7.0
+        mask = x > 7.0
+
+        # Test getitem with a 1-element tuple: (mask,)
+        res_ht = x[(mask,)]
+        res_np = x_np[(mask_np,)]
+        self.assert_array_equal(res_ht, res_np)
+
+        # Test setitem with a 1-element tuple: (mask,)
+        x[(mask,)] = 99.0
+        x_np[(mask_np,)] = 99.0
+        self.assert_array_equal(x, x_np)
+
+    def test_boolean_indexing_shape_mismatch_raises(self):
+        # 2D distributed array with max 5 elements per axis
+        x = ht.zeros((5, 4), split=0)
+
+        # 1. 1D boolean mask mismatch: length 3 vs axis 0 length 5
+        wrong_mask_1d = torch.tensor([True, False, True], dtype=torch.bool)
+        with self.assertRaises(IndexError):
+            _ = x[wrong_mask_1d]
+
+        # 2. 2D boolean mask mismatch: shape (5, 2) vs arr shape (5, 4)
+        wrong_mask_2d = torch.zeros((5, 2), dtype=torch.bool)
+        with self.assertRaises(IndexError):
+            _ = x[wrong_mask_2d]
+
+    def test_boolean_indexing_0d_tensor(self):
+        # if self.comm.size < 2:
+        #     self.skipTest("Testing distributed 0-D boolean mask resolution requires at least 2 processes")
+
+        x_np = np.arange(15).reshape(5, 3)
+        x = ht.array(x_np, split=0)
+
+        # 1. Test 0-D True tensor (prepends a dimension of length 1)
+        mask_true = torch.tensor(True)
+        res_ht = x[mask_true]
+        res_np = x_np[np.array(True)]
+        self.assert_array_equal(res_ht, res_np)
+
+        # 2. Test 0-D False tensor (prepends an empty dimension of length 0)
+        mask_false = torch.tensor(False)
+        res_ht_false = x[mask_false]
+        res_np_false = x_np[np.array(False)]
+        self.assert_array_equal(res_ht_false, res_np_false)
+
     def test_getitem_boolean_mask(self):
         # boolean mask, local
         arr = ht.arange(3 * 4 * 5).reshape(3, 4, 5)
