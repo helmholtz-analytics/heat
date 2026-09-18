@@ -2066,6 +2066,26 @@ class TestDNDarray(TestCase):
         x[k1, k2, k3] = value
         self.assertTrue((x[k1, k2, k3] == ht.array([96, 98, 97, 96], split=0)).all().item())
 
+        # unordered key along split axis, key mask-like, scalar assignment
+        arr_ht = ht.zeros((5, 5), split=0)
+        arr_np = np.zeros((5, 5))
+        rows_ht = ht.array([3, 0, 2, 0])
+        cols_ht = ht.array([1, 4, 2, 1])
+        rows_np = np.array([3, 0, 2, 0])
+        cols_np = np.array([1, 4, 2, 1])
+
+        # Assignment with primitive numeric scalar
+        arr_ht[rows_ht, cols_ht] = 42.0
+        arr_np[rows_np, cols_np] = 42.0
+        self.assert_array_equal(arr_ht, arr_np)
+
+        # Assignment with DNDarray scalar
+        val_scalar = ht.array(99.0)
+        arr_ht[rows_ht, cols_ht] = val_scalar
+        arr_np[rows_np, cols_np] = 99.0
+        self.assert_array_equal(arr_ht, arr_np)
+
+
         # advanced indexing on non-consecutive dimensions, split dimension will be lost
         x = ht.arange(60, split=0).reshape(5, 3, 4, new_split=1)
         x_copy = x.copy()
