@@ -3255,10 +3255,7 @@ class DNDarray:
                 self.larray[key_local] = rhs
             return
 
-        if isinstance(original_key, tuple):
-            raw_split_part = original_key[original_split]
-        else:
-            raw_split_part = original_key
+        raw_split_part = original_key[original_split]
 
         if isinstance(raw_split_part, DNDarray):
             split_key = raw_split_part.larray
