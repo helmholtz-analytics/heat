@@ -1201,6 +1201,41 @@ class TestDNDarray(TestCase):
             self.assertEqual(res_ht.split, 0)
         self.assert_array_equal(res_ht, res_np)
 
+    def test_advanced_indexing_align_undistributed_key(self):
+        # 2D distributed array with max 5 elements per axis
+        x_np = np.arange(25).reshape(5, 5)
+        x = ht.array(x_np, split=0)
+
+        # Coordinate arrays with identical shape (4,)
+        # k0 is distributed along split 0, k1 is replicated (split=None)
+        # On 6 processes, ranks 4 and 5 will receive empty local chunks
+        k0_np = np.array([3, 1, 2, 0])
+        k1_np = np.array([0, 2, 1, 3])
+
+        k0 = ht.array(k0_np, split=0)
+        k1 = ht.array(k1_np)  # split is None
+
+        # 1. Test getitem alignment
+        res_ht = x[k0, k1]
+        res_np = x_np[k0_np, k1_np]
+        self.assert_array_equal(res_ht, res_np)
+
+        # 2. Test setitem alignment
+        x[k0, k1] = 99.0
+        x_np[k0_np, k1_np] = 99.0
+        self.assert_array_equal(x, x_np)
+
+    def test_advanced_indexing_conflicting_splits_raises(self):
+        x = ht.zeros((5, 5), split=0)
+
+        # 2D coordinate arrays sharing shape (2, 2)
+        # k0 is split along axis 0, k1 is split along axis 1
+        k0 = ht.array([[0, 1], [1, 2]], split=0)
+        k1 = ht.array([[1, 2], [0, 1]], split=1)
+
+        with self.assertRaises(IndexError):
+            _ = x[k0, k1]
+
     def test_getitem_boolean_mask(self):
         # boolean mask, local
         arr = ht.arange(3 * 4 * 5).reshape(3, 4, 5)
