@@ -2209,6 +2209,25 @@ class TestDNDarray(TestCase):
         x_np[[0, 1]] = 42
         self.assert_array_equal(x_local, x_np)
 
+        # assignment with raw torch tensor along split axis
+        arr_ht = ht.zeros((5, 4), split=0)
+        arr_np = np.zeros((5, 4))
+        idx_torch = torch.tensor([3, 0, 2])
+        idx_np = np.array([3, 0, 2])
+
+        arr_ht[idx_torch, :] = 10.0
+        arr_np[idx_np, :] = 10.0
+        self.assert_array_equal(arr_ht, arr_np)
+
+        # plain Python list (or np.ndarray) along the split axis
+        arr_ht_list = ht.zeros((5, 4), split=0)
+        arr_np_list = np.zeros((5, 4))
+        idx_list = [3, 0, 2]
+
+        arr_ht_list[idx_list, :] = 20.0
+        arr_np_list[idx_list, :] = 20.0
+        self.assert_array_equal(arr_ht_list, arr_np_list)
+
     def test_setitem_boolean_mask(self):
         # boolean mask, local
         arr = ht.arange(3 * 4 * 5).reshape(3, 4, 5)
