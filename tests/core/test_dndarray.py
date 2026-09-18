@@ -2366,6 +2366,21 @@ class TestDNDarray(TestCase):
         arr_np_list[idx_list, :] = 20.0
         self.assert_array_equal(arr_ht_list, arr_np_list)
 
+    def test_setitem_advanced_distributed_key_undistributed_val(self):
+        if self.comm.size < 2:
+            self.skipTest("Testing distributed key validation requires at least 2 processes")
+
+        x = ht.zeros((4, 3), split=0)
+
+        # Distributed coordinate key along axis 0
+        key = ht.array([0, 2], split=0)
+
+        # Non-distributed value (split=None) with matching assignment shape (2, 3)
+        val = ht.ones((2, 3), split=None)
+
+        with self.assertRaises(ValueError):
+            x[key] = val
+
     def test_setitem_boolean_mask(self):
         # boolean mask, local
         arr = ht.arange(3 * 4 * 5).reshape(3, 4, 5)
