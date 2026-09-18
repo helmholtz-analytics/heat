@@ -856,6 +856,11 @@ class TestDNDarray(TestCase):
         if x.comm.size > 1:
             self.assertTrue(x_ellipsis.split == 1)
 
+        # plain newaxis
+        x = ht.arange(6).reshape((2, 3))
+        x_newaxis = x[ht.newaxis]
+        self.assertTrue(x_newaxis.shape == (1, 2, 3))
+
         # newaxis: local
         x = ht.array([[[1], [2], [3]], [[4], [5], [6]]])
         x_np_newaxis = x_np[:, np.newaxis, :2, :]
