@@ -2243,8 +2243,8 @@ class DNDarray:
         # If key was not distributed, partition it so each rank requests its share of output
         if p.output_split is not None:
             if isinstance(key, torch.Tensor) and key.ndim > 0:
-                key_split = 0 if p.key_is_mask_like else key.ndim - 1
-                if key.shape[key_split] == p.output_shape[p.output_split]:
+                key_split = p.output_split
+                if key_split < key.ndim and key.shape[key_split] == p.output_shape[p.output_split]:
                     k_dnd = factories.array(
                         key, split=key_split, comm=self.comm, device=self.device
                     )
@@ -2411,11 +2411,11 @@ class DNDarray:
         final_vals = unsorted_vals.permute(*transpose_axes)
 
         # Reshape to match the global output shape expectation
-        if communication_split != output_split:
+        if split_key.ndim > 1 and not key_is_mask_like:
             original_local_shape = (
                 output_shape[:communication_split]
                 + split_key.shape
-                + output_shape[output_split + 1 :]
+                + output_shape[communication_split + split_key.ndim :]
             )
             final_vals = final_vals.reshape(original_local_shape)
 
