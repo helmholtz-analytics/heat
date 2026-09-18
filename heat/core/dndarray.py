@@ -2022,36 +2022,16 @@ class DNDarray:
             return value, is_scalar
         # need information on indexed array
         output_shape = kwargs.get("output_shape", None)
-        if output_shape is not None:
-            indexed_dims = len(output_shape)
-        else:
-            if isinstance(key, (int, tuple)):
-                # direct indexing, output_shape has not been calculated
-                # use proxy to avoid MPI communication and limit memory usage
-                indexed_proxy = self.__torch_proxy__()[key]
-                indexed_dims = indexed_proxy.ndim
-                output_shape = tuple(indexed_proxy.shape)
-            else:
-                raise RuntimeError(
-                    "Not enough information to broadcast value to indexed array, please provide `output_shape`"
-                )
+        indexed_dims = len(output_shape)
         value_shape = value.shape
         # check if value needs to be broadcasted
         if value_shape != output_shape:
             # assess whether the shapes are compatible, starting from the trailing dimension
             for i in range(1, min(len(value_shape), len(output_shape)) + 1):
-                if i == 1:
-                    if value_shape[-i] != output_shape[-i] and not value_shape[-i] == 1:
-                        # shapes are not compatible, raise error
-                        raise ValueError(
-                            f"could not broadcast input array from shape {value_shape} into shape {output_shape}"
-                        )
-                else:
-                    if value_shape[-i] != output_shape[-i] and (not value_shape[-i] == 1):
-                        # shapes are not compatible, raise error
-                        raise ValueError(
-                            f"could not broadcast input from shape {value_shape} into shape {output_shape}"
-                        )
+                if value_shape[-i] != output_shape[-i] and value_shape[-i] != 1:
+                    raise ValueError(
+                        f"could not broadcast input array from shape {value_shape} into shape {output_shape}"
+                    )
             # value has more dimensions than indexed array
             if value.ndim > indexed_dims:
                 # check if all dimensions except the indexed ones are singletons
@@ -2069,12 +2049,7 @@ class DNDarray:
                     # broadcasting
                     # expand missing dimensions to align split axis
                     value = value.expand_dims(0)
-                    try:
-                        value_shape = tuple(torch.broadcast_shapes(value.shape, output_shape))
-                    except RuntimeError:
-                        raise ValueError(
-                            f"could not broadcast input array from shape {value_shape} into shape {output_shape}"
-                        )
+                value_shape = tuple(torch.broadcast_shapes(value.shape, output_shape))
         return value, is_scalar
 
     def __set(
