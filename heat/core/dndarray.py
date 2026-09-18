@@ -2112,10 +2112,7 @@ class DNDarray:
         local_split_indices = global_split_indices - local_offset
 
         # build LHS index for x_local (corresponds to self.larray)
-        if base_index is None:
-            lhs_index = [slice(None)] * x_local.ndim
-        else:
-            lhs_index = list(base_index)
+        lhs_index = list(base_index)
 
         lhs_index[split_axis] = local_split_indices
         lhs_index = tuple(lhs_index)
