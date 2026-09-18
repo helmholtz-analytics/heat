@@ -37,11 +37,12 @@ from heat.core.factories import array
 MODE_TO_PADDING = {
     # SciPy mode               # torch padding_mode
     "grid-constant": "zeros",
-    "mirror": "reflection",  # reflect at the border
+    "mirror": "reflection",  # reflect at the middle of the border pixel
+    "reflection": "reflection",  # reflect at the middle of the border pixel
     "nearest": "border",  # replicate the edge pixel
+    "border": "border",  # replicate the edge pixel
     # The following SciPy modes have no exact Torch counterpart.
-    # We keep them as ``None`` and raise an error if they are used.
-    "constant": None,  # fill with ``cval`` (default 0)
+    "constant": None,
     "wrap": None,
     "grid-wrap": None,
     "reflect": None,
@@ -50,10 +51,9 @@ MODE_TO_PADDING = {
 
 ORDER_TO_MODE = {
     0: "nearest",  # order‑0 → nearest‑neighbour
-    1: "bilinear",  # order‑1 → bilinear (linear) sampling
+    1: "bilinear",  # order‑1 → bilinear or trilinear (linear) sampling
     3: "bicubic",  # order‑3 → bicubic sampling
     # SciPy supports orders 2,4,5 as well – they have no direct Torch counterpart.
-    # throw error when those are encountered
     2: None,
     4: None,
     5: None,
@@ -96,13 +96,6 @@ def _to_full_affine(matrix: torch.Tensor):
     Works with single matrices or batches:
         - (D, D+1)           → (D+1, D+1)    # single
         - (N, D, D+1)        → (N, D+1, D+1) # batch
-
-    Args:
-        mat: Reduced affine tensor
-
-    Returns
-    -------
-        Full homogeneous affine tensor
     """
     # Detect if batched by checking number of dimensions
     if matrix.dim() == 2:
@@ -126,38 +119,54 @@ def _to_full_affine(matrix: torch.Tensor):
     )
 
 
-def convert_matrix_space(matrix: torch.Tensor, sizes, padding_correction: bool):
+def convert_matrix_space(
+    matrix: torch.Tensor, input_shape, padding_correction: bool, output_shape: tuple[int] | None
+):
     """
     Convert scipy affine matrix to normalized coordinates used by affine_grid.
     scipy uses pixel coordinate space with origin in the top left,
-    while affine_grid uses -1 to 1 with origin in the center of the image
+    while affine_grid uses -1 to 1 with origin in the center of the image. dependant on applied padding
+    and provided output_shape there are additional correction applied to invert the effects on output pixel locations
 
-    Args:
-        M: Torch Tensor of shape (D+1, D+1)
-        sizes: image sizes [H, W, D, ...] of length D (excluding color dimension)
-
-    Returns
-    -------
-        theta: torch affine matrix of shape (D, D+1)
+    output_shape should have the same dimensions number of dimension as sizes
     """
+    input_shape = tuple(
+        size - 1 for size in input_shape[1:-1]
+    )  # -1: correcting for image corner in pixel center
+    if output_shape is not None:
+        output_shape = tuple(size - 1 for size in output_shape[1:-1])
     # construct coord space transform
-    scales = (torch.as_tensor(sizes, device=matrix.device) - 1) / 2.0
+    scales = (torch.as_tensor(input_shape, device=matrix.device)) / 2.0
     diag_scales = torch.diag(scales)
 
-    dim = len(sizes)
+    dim = len(input_shape)
     conversion = torch.zeros(dim + 1, dim + 1, device=matrix.device)
     conversion[:dim, :dim] = diag_scales
     conversion[dim, dim] = 1
     conversion[:dim, dim] = scales
     back_conversion = conversion.inverse()
+
+    if output_shape:
+        out_shape = torch.as_tensor(output_shape + (1,), device=matrix.device)
+
+        # if padding_correction:
+        #     padded_sizes = tuple(size + 2 for size in input_shape)
+        # else:
+        #     padded_sizes = input_shape
+
+        in_shape = torch.as_tensor(input_shape + (1,), device=matrix.device)
+        shape_scaling = out_shape / in_shape
+        shape_scale_matrix = torch.diag(shape_scaling)
+        conversion = shape_scale_matrix @ conversion
+
     result = back_conversion @ matrix @ conversion
 
-    if (
-        padding_correction
-    ):  # reversing effect the padding has on the transform because it changes aspect ratio
+    # reversing effect the padding has on the transform because it changes aspect ratio
+    if padding_correction:
         pad_factors = scales / (scales + 1)
         pad_factors = torch.cat([pad_factors, torch.tensor([1], device=matrix.device)])
-        result = result * (pad_factors[:, None] / pad_factors[None, :])
+        pad_matrix = torch.diag(pad_factors)
+        result = pad_matrix @ result
 
     return result[:, :dim, :]
 
@@ -200,7 +209,7 @@ def affine_transform(
     input : DNDarray
         the image or data array to transform. Input is expected to have shape [B x] [D x] H x W x C
     matrix : DNDarray
-        afine matrix used to transform input. can be of shape Bx3x4 (3x3, 4x4 also valid) for 2d data,
+        affine matrix used to transform input. can be of shape Bx3x4 (3x3, 4x4 also valid) for 2d data,
         or should be of shape Bx4x5 (4x4, 5x5 also valid) for 3d data
         B stands for the Bulk axis and can be ommited
         The row and column corresponding with Transformation of the Color-Axis is ignored right now,
@@ -209,27 +218,33 @@ def affine_transform(
         offset vector that can be used instead of adding offset into affine matrix directly. only in effect when the matrix
         given has no transform vector
     output_shape :
-        shape of the given output. not implemented yet
+        shape of the given output. It should map the pattern [B x] [D x] H x W x C wich is the same as the input. D, H, W can have different values than the input
     output : DNDarray
         optional parameter to specify array in wich the output should be placed. currently not implemented yet
     order :
         type of interpolation that is used, linear to cubic allowed
     mode :
-        paddding mode for values outside of array
+        The mode parameter determines how the input array is extended beyond its boundaries. Default is ‘constant-grid’. Behavior for each valid value is as follows
+        `grid-constant`
+            the pixel beyond the boundary are filled with a constant value. The value is defined by the cval parameter
+        `nearest`
+            the pixel beyond the boundary are filled by replicating the pixel on the nearest border
+        `mirror`
+            the pixel beyond the boundary are filled by mirroring the the input around the center of the last pixel
+        `constant`, `wrap`, `grid-wrap`, `reflect`, `grid-mirror`
+            Those modes are not implemented
     cval :
-        value with wich the padding should be filled. currently not used because of limitation of torch.sample_grid()
+        value with wich the padding should be filled. This is implemented as a padding applied along all axis. This approach is not suited to provide exact results
     prefilter : bool
         if the input should be filtered before transformed, currently not because torch.sample_grid does not have this functionality
     """
-    # TODO implement output_shape, if possible. For that it is needed to pad the input image, or can I do that directly with the sample_grid function?
     # TODO Support both 'padding' parameter from the torch functions
     # validation
 
     ht.sanitize_in(input)
     ht.sanitize_in(matrix)
-    if (
-        offset is not None
-    ):  # TODO move this to offset logic, does not need to happen when affine_matrix contains offset information
+    # TODO move this to offset logic, does not need to happen when affine_matrix contains offset information
+    if offset is not None:
         ht.sanitize_in(offset)
 
     # input conversion
@@ -252,79 +267,63 @@ def affine_transform(
     if matrix.ndim > 3:
         raise ValueError("afine matrix has too many dimensions")
 
+    if output_shape is not None:
+        if not (input.ndim == len(output_shape)):
+            raise ValueError("outputshape must have same number of dimension as input")
+
+        if not (input.shape[-1] == output_shape[-1]):
+            raise ValueError("color dimension needs same size in input and output shape")
+    else:
+        output_shape = input.shape
+    original_shape = input.shape
+
+    # input has no bulk axis, give everything a bulk axis with length 1 to treat it as if it has a bulk axis
     if matrix.ndim == 2:
-        is_bulk = False
-    else:
-        is_bulk = True
+        matrix = ht.expand_dims(matrix, 0)
+        input = ht.expand_dims(input, 0)
+        if offset is not None:
+            offset = ht.expand_dims(offset, 0)
+        if output_shape is not None:
+            output_shape = (1,) + output_shape
 
-    if is_bulk:
-        is_2d_input = (
-            input.ndim == 4
-            and 3 <= matrix.shape[1] <= 4
-            and matrix.shape[1] <= matrix.shape[2] <= 4
-        )
-        is_3d_input = input.ndim == 5 and 4 <= matrix.shape[1] <= matrix.shape[2] <= 5
-    else:
-        is_2d_input = (
-            input.ndim == 3
-            and 3 <= matrix.shape[0] <= 4
-            and matrix.shape[0] <= matrix.shape[1] <= 4
-        )
-        is_3d_input = (
-            input.ndim == 4
-            and 4 <= matrix.shape[1] <= 5
-            and matrix.shape[0] <= matrix.shape[1] <= 5
-        )
+    if (output_shape is not None) and (not (input.shape[0] == output_shape[0])):
+        raise ValueError("bulk dimension needs same size in input and output shape")
 
+    is_2d_input = input.ndim == 4 and 3 <= matrix.shape[1] <= matrix.shape[2] <= 4
+    is_3d_input = input.ndim == 5 and 4 <= matrix.shape[1] <= matrix.shape[2] <= 5
     if not (is_2d_input or is_3d_input):
-        raise ValueError("matrix does not fit to input shape or not supported dimension count")
+        raise ValueError(
+            f"matrix with shape {matrix.shape} does not fit to input shape {input.shape} or not supported dimension count"
+        )
 
-    # i am not quite shure why this transpose below is necessary for the right behaviour,
-    # This switches wich axis in input data is influenced by wich row/column in the
-    # afine matrix and is the reverse of the expected matching.
-
-    if not is_bulk:
-        dimension_order = tuple(
-            idx for idx in range(input.ndim - 1, -1, -1)
-        )  # reversed: (3,2,1,0) or (2,1,0)
-    else:
-        dimension_order = (0,) + tuple(
-            idx for idx in range(input.ndim - 1, 0, -1)
-        )  # reversed: (0,4,3,2,1) or (0,3,2,1)
-
-    if is_bulk:
-        # determening the split axis
-        # if axis is not the bulk axis -> abort
-        if (matrix.split not in (0, None)) or (input.split not in (0, None)):
-            if input.split > 0:
-                if not (
-                    matrix.split is None and _untouched_axes(matrix)[input.split - 1]
-                ):  # transformation in direction of split is not identity
-                    raise RuntimeError(
-                        "the input split axis should either be the bulk axis, or an axis left unchanged by the transform."
-                    )
-            else:
-                raise RuntimeError(
-                    "matrix split axis should only be 0 if input split axis is also 0"
-                )
-
-    else:
-        if (matrix.split is not None) or (input.split is not None):
+    # determening the split axis
+    # if axis is not the bulk axis or constant axis -> abort
+    if (matrix.split not in (0, None)) or (input.split not in (0, None)):
+        if input.split > 0:
             if not (
-                matrix.split is None and _untouched_axes(matrix)[input.split]
+                matrix.split is None and _untouched_axes(matrix)[input.split - 1]
             ):  # transformation in direction of split is not identity
                 raise RuntimeError(
-                    "the split axis is not the bulk axis, nor an axis left unchanged by the affine transform. this is not supported"
+                    "the input split axis should either be the bulk axis, or an axis left unchanged by the transform."
                 )
+        else:
+            raise RuntimeError("matrix split axis should only be 0 if input split axis is also 0")
 
-    # only bulk axis or unchanged axis is distributed, computations are all local
+    # only bulk axis or distributed axis is fixed, computations can all be done locally
     matrix_torch: torch.Tensor = matrix.larray
+    input_torch = input.larray
 
-    if matrix.split is None and input.split == 0 and is_bulk:
+    if matrix.split is None and input.split == 0:
         _, _, corresponding_slice = matrix.comm.chunk(matrix.gshape, 0)
-        matrix_torch = matrix.larray[corresponding_slice]
+        matrix_torch = matrix_torch[corresponding_slice]
+    elif matrix.split == 0 and input.split is None:
+        _, _, corresponding_slice = input.comm.chunk(input.gshape, 0)
+        input_torch = input_torch[corresponding_slice]
 
-    color_dim = 2 if is_2d_input else 3
+    if matrix_torch.device != input_torch.device:
+        matrix_torch = matrix_torch.to(input_torch.device)
+
+    color_dim = 2 if is_2d_input else 3  # TODO this does not look robust, fix it please
     homogenous_size = color_dim + 2
 
     # remove axis that represents transforming the color dimension, because
@@ -332,9 +331,13 @@ def affine_transform(
     matrix_torch = _remove_slice(matrix_torch, color_dim, dim=-2)
     matrix_torch = _remove_slice(matrix_torch, color_dim, dim=-1)
 
-    if matrix_torch.shape[-2:] == (
-        color_dim,
-        color_dim,
+    if (
+        matrix_torch.shape[1:]
+        == (
+            color_dim,
+            color_dim,
+        )
+        and offset is not None
     ):
         # translation information missing, using offset value and adding it at the right to bring matrix
         # to reduced affine form
@@ -343,40 +346,41 @@ def affine_transform(
         transformed_offset = offset_torch[..., None]
         matrix_torch = torch.cat([matrix_torch, transformed_offset], matrix_torch.ndim - 1)
 
-    if not is_bulk:
-        matrix_torch = matrix_torch.unsqueeze(0)
-
     if matrix.shape != (homogenous_size, homogenous_size):
         matrix_torch = _to_full_affine(matrix_torch)
 
-    # input is local or split is along bulk axis, so transformation can be performed
-    # locally without any additional gathering
-    input_torch = input.larray.permute(dimension_order)
+    # I still don't understand why the permute below is necessary, but the affine matrix itself
+    # does not need to be reordered.
+    # This should switche wich axis in input data is influenced by wich row/column in the
+    # affine matrix. But the result matches scipy so thats so I guess it's fine
+    dimension_order = (0,) + tuple(
+        idx for idx in range(input.ndim - 1, 0, -1)
+    )  # reversed: (0,4,3,2,1) or (0,3,2,1)
 
-    if matrix.split == 0 and input.split is None:
-        _, _, corresponding_slice = input.comm.chunk(input.gshape, 0)
-        input_torch = input.larray[corresponding_slice]
+    if input.split is not None:
+        _, local_out_shape, _ = matrix.comm.chunk(output_shape, input.split)
+    else:
+        local_out_shape = output_shape
 
-    if matrix_torch.size(2) == input.ndim:
-        input_torch = input_torch.unsqueeze(0)
-
-    # TODO this should not change shape of the matrix, matrix should be already in reduces homogenous from? Only problem is that this means I cant just use matrix mult
     matrix_torch = convert_matrix_space(
         matrix_torch,
-        input_torch.shape[-1:1:-1],  # shape is reversed and without bulk and color dims
+        input_torch.shape,
         padding_correction=apply_cval_padding,
+        output_shape=local_out_shape,
     )
 
+    local_out_shape = tuple(local_out_shape[i] for i in dimension_order)
+    input_torch = input_torch.permute(dimension_order)
+    out_shape = torch.Size(local_out_shape)
+
     # skip computation if this rank has no data
-    if 0 in input_torch.shape:
-        transformed = torch.zeros(input_torch.shape)
-    else:
+    if input_torch.numel() > 0:
+        # TODO exclude padding at rank boundaries, should never be neccessary
         if apply_cval_padding:
             padding_size = tuple(1 for _ in range((input_torch.ndim - 2) * 2))
             input_torch = torch.nn.functional.pad(input_torch, padding_size, "constant", cval)
 
-        size = torch.Size((input_torch.shape))
-        sample_grid: torch.Tensor = affine_grid(matrix_torch, size, align_corners=True)
+        sample_grid: torch.Tensor = affine_grid(matrix_torch, out_shape, align_corners=True)
 
         transformed = grid_sample(
             input_torch,
@@ -385,17 +389,13 @@ def affine_transform(
             mode=sample_mode,
             align_corners=True,
         )
-
-    if matrix_torch.size(2) == input.ndim:
-        transformed = transformed.squeeze()
-
-    if apply_cval_padding and 0 not in input_torch.shape:
-        padding_size = tuple(
-            -1 for _ in range((input_torch.ndim - 2) * 2)
-        )  # negative padding to reverse padding
-        transformed = torch.nn.functional.pad(transformed, padding_size, "constant", cval)
+    else:
+        transformed = torch.zeros(out_shape)
 
     transformed = transformed.permute(dimension_order)
+
+    if matrix_torch.size(2) == len(original_shape):  # had no bulk axis originally
+        transformed = transformed.squeeze()
 
     transformed_dnd: DNDarray = array(
         transformed,

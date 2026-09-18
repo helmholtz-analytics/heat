@@ -147,14 +147,20 @@ class TestAffine:
         )
         assert ht.equal(with_offset_result, combined_result)
 
+        out_shape_no_bulk = None
+        if "output_shape" in kwargs:
+            output_shape_whole = kwargs.pop("output_shape")
+            if output_shape_whole is not None:
+                out_shape_no_bulk = output_shape_whole[1:]
+
         with_offset_comparison = [
             ndimg.affine_transform(
-                img.numpy(), mat.numpy(), offset=off.numpy(), **kwargs
+                img.numpy(), mat.numpy(), offset=off.numpy(), output_shape=out_shape_no_bulk, **kwargs
             )
             for img, mat, off in zip(image, matrix, offset)
         ]
         combined_comparison = [
-            ndimg.affine_transform(img.numpy(), mat.numpy(), **kwargs)
+            ndimg.affine_transform(img.numpy(), mat.numpy(), output_shape=out_shape_no_bulk, **kwargs)
             for img, mat in zip(image, matrix_affine)
         ]
 
@@ -165,13 +171,14 @@ class TestAffine:
             assert np.allclose(res.numpy(), comp, rtol=0, atol=tol)
 
 
+    @pytest.mark.parametrize("out_shape", [None, (128,32,3)])
     @pytest.mark.parametrize("order", [0, 1])
     @pytest.mark.parametrize("mode", ["grid-constant", "mirror", "nearest"])
-    def test_affine_2d(self, order, mode):
+    def test_affine_2d(self, order, mode, out_shape):
         image = self.image_2d_1
         matrix = self.matrix_2d
         offset = self.offset_2d
-        TestAffine.default_testing_setup(image, matrix, offset, 0.05, order=order, mode=mode)
+        TestAffine.default_testing_setup(image, matrix, offset, 0.05, order=order, mode=mode, output_shape=out_shape)
 
 
     @pytest.mark.parametrize("order", [0, 1])
@@ -183,13 +190,14 @@ class TestAffine:
         TestAffine.default_testing_setup(image, matrix, offset, 0.05, order=order, mode=mode)
 
 
+    @pytest.mark.parametrize("out_shape", [None, (5,16,64,128,3)])
     @pytest.mark.parametrize("order", [0, 1])
     @pytest.mark.parametrize("mode", ["grid-constant", "mirror", "nearest"])
-    def test_affine_3d_bulk(self, order, mode):
+    def test_affine_3d_bulk(self, order, mode, out_shape):
         image = self.image_3d_bulk
         matrix = self.matrix_3d_bulk
         offset = self.offset_3d_bulk
-        TestAffine.bulk_testing_setup(image, matrix, offset, 0.05, order=order, mode=mode)
+        TestAffine.bulk_testing_setup(image, matrix, offset, 0.05, order=order, mode=mode, output_shape=out_shape)
 
     @pytest.mark.parametrize("order", [3])
     @pytest.mark.parametrize("mode", ["grid-constant", "mirror", "nearest"])
@@ -204,39 +212,35 @@ class TestAffine:
     @pytest.mark.parametrize("mode", ["grid-constant", "mirror", "nearest"])
     def test_affine_split(self, order, mode):
 
-        matrix = ht.array(
-            (
-                [[1, 0, 0, 0, 0],
-                 [0, 1, 1, 0, 1],
-                 [0, 0, 1, 0, 0],
-                 [0, 0, 0, 1, 0]],
+        matrix = ht.array(([[1, 0, 0, 0, 0],
+                            [0, 1, 1, 0, 1],
+                            [0, 0, 1, 0, 0],
+                            [0, 0, 0, 1, 0]],
 
-                [[1, 0, 0, 0, 0],
-                 [0, 1, 0, 0, 0],
-                 [0, 0, 1, 0, 1],
-                 [0, 0, 0, 1, 0]],
-            ),
-            split=None,
-            dtype=ht.float32
-        )
+                           [[1, 0, 0, 0, 0],
+                            [0, 1, 0, 0, 0],
+                            [0, 0, 1, 0, 1],
+                            [0, 0, 0, 1, 0]],),
+                            split=None,
+                            dtype=ht.float32)
+
+        # expected results for this specific matrix:
         # because bulk are completly seperate, split 0 should always work on bulked arrays.
-        # split 1 should not error because it is identity
-        # split 2, 3 should error because the axis influence each other
+        # split 1 should not error because the axis does not get changed by matrix
+        # split 2, 3 should error because the axis have influence on other axes or get influenced by other axes
         # split 4 should always work right now, because color axis is ignored
-        # matches the result from scipy
 
         img_split_none = ht.random.random((2, 32, 32, 16, 3), dtype=ht.float32, split=None) * 255
         split_none = affine.affine_transform(img_split_none, matrix, order=order, mode=mode)
 
         img_split_0 = ht.resplit(img_split_none, 0)
         split_0 = affine.affine_transform(img_split_0, matrix, order=order, mode=mode)
-        print(f"0 split{ht.equal(split_none, split_0)}")
+        assert ht.equal(split_none, split_0)
 
         img_split_1 = ht.resplit(img_split_none, 1)
         split_1 = affine.affine_transform(img_split_1, matrix, order=order, mode=mode)
-        assert np.allclose(
-            split_1.numpy(), split_none.numpy(), rtol=0, atol=0.0005
-        )
+        # visual_compare(split_none, split_1.numpy(), has_bulk=True, axis=1)
+        assert np.allclose(split_none.numpy(), split_1.numpy(), rtol=0, atol=0.001)
 
         img_split_2 = ht.resplit(img_split_none, 2)
         with pytest.raises(RuntimeError):
@@ -248,7 +252,7 @@ class TestAffine:
 
         img_split_4 = ht.resplit(img_split_none, 4)
         split_4 = affine.affine_transform(img_split_4, matrix, order=order, mode=mode)
-        print(f"4 split{ht.equal(split_none, split_4)}")
+        assert ht.equal(split_none, split_4)
 
 
     @pytest.mark.parametrize("order", [0,1])
@@ -259,5 +263,5 @@ class TestAffine:
         offset = self.offset_2d
 
         mode = "grid-constant" #cval only has effect in this mode
-        TestAffine.rmse_testing_setup(image, matrix, offset, 0.01, cval=cval, mode=mode, order=order)
-        TestAffine.default_testing_setup(image, matrix, offset, 0.01, cval=cval, mode=mode, order=order)
+        TestAffine.rmse_testing_setup(image, matrix, offset, 0.005, cval=cval, mode=mode, order=order)
+        TestAffine.default_testing_setup(image, matrix, offset, 0.005, cval=cval, mode=mode, order=order)
