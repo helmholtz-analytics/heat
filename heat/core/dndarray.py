@@ -2212,13 +2212,10 @@ class DNDarray:
         local_mask = p.key
         local_result = self.larray[local_mask]
 
-        if not self.is_distributed():
-            gshape = local_result.shape
-        else:
-            # calculate gshape
-            local_count = local_result.shape[0]
-            total_count = self.comm.allreduce(local_count, op=MPI.SUM)
-            gshape = (total_count,) + local_result.shape[1:]
+        # calculate gshape
+        local_count = local_result.shape[0]
+        total_count = self.comm.allreduce(local_count, op=MPI.SUM)
+        gshape = (total_count,) + local_result.shape[1:]
 
         return DNDarray(
             local_result,
