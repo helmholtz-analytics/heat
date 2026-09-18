@@ -2381,6 +2381,20 @@ class TestDNDarray(TestCase):
         with self.assertRaises(ValueError):
             x[key] = val
 
+    def test_setitem_advanced_single_tensor_scalar_value(self):
+        if self.comm.size < 2:
+            self.skipTest("Testing distributed single-tensor setitem requires at least 2 processes")
+
+        x = ht.zeros((4, 3), split=0)
+        k = torch.tensor([0, 3])
+
+        # Triggers key_is_single_tensor and value_is_scalar
+        x[k] = 42.0
+
+        expected = np.zeros((4, 3))
+        expected[[0, 3], :] = 42.0
+        self.assert_array_equal(x, expected)
+
     def test_setitem_boolean_mask(self):
         # boolean mask, local
         arr = ht.arange(3 * 4 * 5).reshape(3, 4, 5)
