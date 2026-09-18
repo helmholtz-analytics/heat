@@ -933,12 +933,7 @@ def _resolve_indexing_state(
 
                     # unordered local keys
                     if not split_key_is_ordered and not key_is_dist:
-                        if op == "get":
-                            # prepare for distributed non-ordered indexing: distribute local key
-                            key = factories.array(key, split=new_split, device=arr.device).larray
-                            out_is_balanced = True
-                        else:
-                            out_is_balanced = True
+                        out_is_balanced = True
 
                     # ordered keys
                     if split_key_is_ordered:
@@ -1040,9 +1035,6 @@ def _resolve_indexing_state(
                     out_is_balanced = False
                 else:
                     split_key_is_ordered = 0
-
-                    # redistribute key along last axis to match split axis of indexed array
-                    k = k.resplit(-1)
                     out_is_balanced = True
             key[i] = k
 
@@ -2246,8 +2238,45 @@ class DNDarray:
         Handles advanced indexing with unordered global indices. Defers to
         ``__getitem_unordered`` to resolve data dependencies via an ``Alltoallv`` exchange.
         """
+        key = p.key
+
+        # If key was not distributed, partition it so each rank requests its share of output
+        if p.output_split is not None:
+            if isinstance(key, torch.Tensor) and key.ndim > 0:
+                key_split = 0 if p.key_is_mask_like else key.ndim - 1
+                if key.shape[key_split] == p.output_shape[p.output_split]:
+                    k_dnd = factories.array(
+                        key, split=key_split, comm=self.comm, device=self.device
+                    )
+                    key = k_dnd.larray
+            elif isinstance(key, tuple):
+                split_k = key[self.split]
+                if isinstance(split_k, torch.Tensor) and split_k.ndim > 0:
+                    key_split = 0 if p.key_is_mask_like else split_k.ndim - 1
+                    if split_k.shape[key_split] == p.output_shape[p.output_split]:
+                        key_list = list(key)
+                        if p.key_is_mask_like:
+                            for idx in range(len(key_list)):
+                                if isinstance(key_list[idx], torch.Tensor):
+                                    kd = factories.array(
+                                        key_list[idx],
+                                        split=key_split,
+                                        comm=self.comm,
+                                        device=self.device,
+                                    )
+                                    key_list[idx] = kd.larray
+                        else:
+                            kd = factories.array(
+                                split_k,
+                                split=key_split,
+                                comm=self.comm,
+                                device=self.device,
+                            )
+                            key_list[self.split] = kd.larray
+                        key = tuple(key_list)
+
         self, indexed_arr = self.__getitem_unordered(
-            key=p.key,
+            key=key,
             output_shape=p.output_shape,
             output_split=p.output_split,
             out_is_balanced=p.out_is_balanced,
@@ -3159,6 +3188,7 @@ class DNDarray:
                 counts=counts,
                 displs=displs,
                 rank=self.comm.rank,
+                key_is_distributed=key_is_distributed,
             )
             return
 
@@ -3303,6 +3333,7 @@ class DNDarray:
         counts: tuple,
         displs: tuple,
         rank: int,
+        key_is_distributed: bool = False,
     ) -> DNDarray:
         """
         Handles the MPI communication when assigning a distributed
@@ -3310,28 +3341,48 @@ class DNDarray:
         """
         # distribution of `key` and `value` must be aligned
         if key_is_mask_like:
-            # redistribute `value` to match distribution of `key` in one pass
-            split_key = key[self.split]
-            global_split_key = factories.array(
-                split_key, is_split=0, device=self.device, comm=self.comm, copy=False
-            )
-            target_map = value.lshape_map
-            target_map[:, value.split] = global_split_key.lshape_map[:, 0]
-            value.redistribute_(target_map=target_map)
-        else:
-            # redistribute split-axis `key` to match distribution of `value` in one pass
-            if key_is_single_tensor:
-                # key is a single torch.Tensor
-                split_key = key
-            else:
+            if key_is_distributed:
                 split_key = key[self.split]
-            global_split_key = factories.array(
-                split_key, is_split=0, device=self.device, comm=self.comm, copy=False
-            )
-            target_map = global_split_key.lshape_map
-            target_map[:, 0] = value.lshape_map[:, value.split]
-            global_split_key.redistribute_(target_map=target_map)
-            split_key = global_split_key.larray
+                global_split_key = factories.array(
+                    split_key, is_split=0, device=self.device, comm=self.comm, copy=False
+                )
+                target_map = value.lshape_map
+                target_map[:, value.split] = global_split_key.lshape_map[:, 0]
+                value.redistribute_(target_map=target_map)
+            else:
+                # Key is replicated: slice locally to match value partition directly
+                v_counts, v_displs = value.counts_displs()
+                start = v_displs[rank]
+                end = start + v_counts[rank]
+                key = tuple(k[start:end] if isinstance(k, torch.Tensor) else k for k in key)
+                split_key = key[self.split]
+        else:
+            if key_is_distributed:
+                # redistribute split-axis `key` to match distribution of `value` in one pass
+                if key_is_single_tensor:
+                    split_key = key
+                else:
+                    split_key = key[self.split]
+                global_split_key = factories.array(
+                    split_key, is_split=0, device=self.device, comm=self.comm, copy=False
+                )
+                target_map = global_split_key.lshape_map
+                target_map[:, 0] = value.lshape_map[:, value.split]
+                global_split_key.redistribute_(target_map=target_map)
+                split_key = global_split_key.larray
+            else:
+                # Key is replicated: slice locally to match value partition directly
+                v_counts, v_displs = value.counts_displs()
+                start = v_displs[rank]
+                end = start + v_counts[rank]
+                if key_is_single_tensor:
+                    key = key[start:end]
+                    split_key = key
+                else:
+                    key_list = list(key)
+                    key_list[self.split] = key_list[self.split][start:end]
+                    key = tuple(key_list)
+                    split_key = key[self.split]
 
         # key and value are now aligned
 
