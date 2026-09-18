@@ -3046,11 +3046,8 @@ class DNDarray:
 
         # determine local element count along split axis
         split_key = p.key[self.split]
-        if isinstance(split_key, slice):
-            step = 1 if split_key.step is None else split_key.step
-            local_count = len(range(split_key.start, split_key.stop, step))
-        else:
-            local_count = split_key.numel()
+        step = 1 if split_key.step is None else split_key.step
+        local_count = len(range(split_key.start, split_key.stop, step))
 
         # gather local slice counts across all ranks to build the target distribution map
         counts = torch.empty(
