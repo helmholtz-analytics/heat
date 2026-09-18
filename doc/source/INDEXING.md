@@ -76,7 +76,7 @@ result = x[1:11:3]
 
 You can manipulate the dimensionality of a DNDarray directly inside the brackets using ht.newaxis (or None) and ... (Ellipsis).
 
-- `None` or `np.newaxis` inserts a new axis of size 1 into the array's shape. If the array is distributed, inserting an axis before the split axis will cause the split axis index to shift by +1.
+- `None` or `ht.newaxis` inserts a new axis of size 1 into the array's shape. If the array is distributed, inserting an axis before the split axis will cause the split axis index to shift by +1.
 
 - `...` expands to the number of `:` objects needed to make a selection tuple of the same length as the array dimensions.
 
@@ -224,7 +224,7 @@ Here are the different possible configurations, categorized and ordered from the
 | **Slicing & Striding** | `array[slice]` or `array[slice] = local_value` | **None** |
 | | `array[::-1]` (Descending slice along split axis) | **None** (Executes local slice followed by a global `flip` operation) |
 | | `array[::-1] = distributed_value` (Descending slice write) | **Multiple `Send`/`Recv`** (Executes `redistribute_` using point-to-point transfers if array slice and value are misaligned) |
-| **Dimensional Indexing** | `array[..., None]` or `array[:, np.newaxis]` | **None** |
+| **Dimensional Indexing** | `array[..., None]` or `array[:, ht.newaxis]` | **None** |
 | **Advanced Indexing** | `array[mask]` (1D or full bool mask, split=0) | **1 `Allreduce`** (Applies mask locally, reduces element counts to compute `gshape`) |
 |                   | `array[non_seq_key] = local_value` | **1 `Allreduce`** (Batched validation for bounds and negative coordinates) |
 |                   | `array[non_seq_key]` (Unstructured read) | **1 `Alltoall` + 2 `Alltoallv`** (Exchanges counts, requests indices, returns data) |

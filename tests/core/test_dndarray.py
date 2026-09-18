@@ -859,14 +859,14 @@ class TestDNDarray(TestCase):
         # newaxis: local
         x = ht.array([[[1], [2], [3]], [[4], [5], [6]]])
         x_np_newaxis = x_np[:, np.newaxis, :2, :]
-        x_newaxis = x[:, np.newaxis, :2, :]
+        x_newaxis = x[:, ht.newaxis, :2, :]
         x_none = x[:, None, :2, :]
         self.assert_array_equal(x_newaxis, x_np_newaxis)
         self.assert_array_equal(x_none, x_np_newaxis)
 
         # newaxis: distributed
         x.resplit_(axis=1)
-        x_newaxis = x[:, np.newaxis, :2, :]
+        x_newaxis = x[:, ht.newaxis, :2, :]
         x_none = x[:, None, :2, :]
         self.assert_array_equal(x_newaxis, x_np_newaxis)
         self.assert_array_equal(x_none, x_np_newaxis)
@@ -877,7 +877,7 @@ class TestDNDarray(TestCase):
 
         x = ht.arange(5, split=0)
         x_np = np.arange(5)
-        y = x[:, np.newaxis] + x[np.newaxis, :]
+        y = x[:, ht.newaxis] + x[ht.newaxis, :]
         y_np = x_np[:, np.newaxis] + x_np[np.newaxis, :]
         self.assert_array_equal(y, y_np)
         if y.comm.size > 1:
@@ -892,7 +892,7 @@ class TestDNDarray(TestCase):
 
         for split in [None, 0, 1, 2]:
             for new_dim in [0, 1, 2]:
-                for add in [np.newaxis, None]:
+                for add in [ht.newaxis, None]:
                     arr = ht.ones((4, 3, 2), split=split, dtype=ht.int32)
                     check = torch.ones((4, 3, 2), dtype=torch.int32)
                     idx = [slice(None), slice(None), slice(None)]
@@ -980,7 +980,7 @@ class TestDNDarray(TestCase):
         x = ht.arange(12).reshape(4, 3)
         x.resplit_(1)
         x_np_indexed = x_np[rows[:, np.newaxis], cols]
-        x_indexed = x[ht.array(rows)[:, np.newaxis], cols]
+        x_indexed = x[ht.array(rows)[:, ht.newaxis], cols]
         self.assert_array_equal(x_indexed, x_np_indexed)
         if x.comm.size > 1:
             self.assertTrue(x_indexed.split == 1)
@@ -1984,8 +1984,8 @@ class TestDNDarray(TestCase):
         # newaxis: distributed w. broadcasting and different dtype
         x.resplit_(axis=1)
         value = ht.array([30.0, 40.0]).reshape(1, 2, 1)
-        x[:, np.newaxis, :2, :] = value
-        x_newaxis = x[:, np.newaxis, :2, :]
+        x[:, ht.newaxis, :2, :] = value
+        x_newaxis = x[:, ht.newaxis, :2, :]
         self.assertTrue(ht.all(x_newaxis == value).item())
         value += 2
         x[:, None, :2, :] = value
@@ -2117,7 +2117,7 @@ class TestDNDarray(TestCase):
         x.resplit_(1)
         rows = np.array([0, 3])
         cols = np.array([0, 2])
-        key = (ht.array(rows)[:, np.newaxis], cols)
+        key = (ht.array(rows)[:, ht.newaxis], cols)
         value = ht.array([[99, 98], [97, 96]], split=1)
         x[key] = value
         self.assertTrue((x[key] == value).all().item())

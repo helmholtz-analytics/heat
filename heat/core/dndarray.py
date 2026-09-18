@@ -978,7 +978,7 @@ def _resolve_indexing_state(
     else:
         key = [key]
 
-    # check for ellipsis, newaxis. NB: (np.newaxis is None)==True
+    # check for ellipsis, newaxis. NB: (ht.newaxis is None)==True
     arr, key, output_shape, split_bookkeeping = _expand_dimensions_and_ellipsis(
         arr, key, output_shape, split_bookkeeping
     )
