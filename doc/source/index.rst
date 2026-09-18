@@ -288,22 +288,6 @@ How-to guides
 
    .. grid-item-card::
       :class-card: sd-card
-      :link: /indexing
-      :link-type: doc
-
-      .. image:: _static/images/tutorial_split_dndarray.svg
-         :alt: Distributed Indexing
-         :align: center
-         :height: 140px
-
-      .. div:: mt-3 **Distributed indexing & item assignment**
-
-      .. div:: text-muted small mt-1
-
-         **Distributed indexing:** Slicing, boolean masking, unstructured indexing, and assignment across MPI ranks.
-
-   .. grid-item-card::
-      :class-card: sd-card
       :link: /tutorials/notebooks/Clustering_and_PCA
       :link-type: doc
 
