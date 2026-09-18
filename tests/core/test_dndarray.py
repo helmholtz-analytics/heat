@@ -1226,6 +1226,8 @@ class TestDNDarray(TestCase):
         self.assert_array_equal(x, x_np)
 
     def test_advanced_indexing_conflicting_splits_raises(self):
+        if self.comm.size < 2:
+            self.skipTest("Distributed split conflict requires at least 2 processes")
         x = ht.zeros((5, 5), split=0)
 
         # 2D coordinate arrays sharing shape (2, 2)
