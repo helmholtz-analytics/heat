@@ -2106,6 +2106,19 @@ class TestDNDarray(TestCase):
                 value = ht.array([[99, 98], [97, 96]], split=0)
                 x[key] = value
 
+        # test broadcasting exceptions:
+        #  mismatching shapes
+        arr = ht.zeros((4, 5), split=0)
+        val_incompatible = ht.ones((3, 5))
+        with self.assertRaises(ValueError):
+            arr[:, :] = val_incompatible
+
+        # non-singleton leading dim
+        arr = ht.zeros((4, 5), split=0)
+        val_incompatible = ht.ones((2, 4, 5))
+        with self.assertRaises(ValueError):
+            arr[:, :] = val_incompatible
+
         # 1d, split 0, advanced indexing assignment with negative indices
         x = ht.arange(10, 1, -1, split=0)
         x_np = np.arange(10, 1, -1)
