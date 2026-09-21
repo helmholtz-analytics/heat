@@ -69,9 +69,9 @@ def _process_scalar_key(
     key: int | "DNDarray" | torch.Tensor | np.ndarray,
     indexed_axis: int,
     return_local_indices: bool | None = False,
-) -> tuple[int, int]:
+) -> tuple[int, int | None]:
     """
-    Private helper function to process a single-item scalar key used for indexing a ``DNDarray``.
+    Private helper function to process a single-item scalar key used for indexing a ``DNDarray``. Returns the processed key and the root process.
     """
     # cast key to scalar if it is an array
     try:
