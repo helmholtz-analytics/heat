@@ -21,7 +21,7 @@ Communication = TypeVar("Communication")
 
 # Type aliases
 Index = Union[int, slice, type(...), None, torch.Tensor, np.ndarray, "DNDarray"]
-Indexer = Union[Index, tuple[Index, ...], list[Index]]
+Key = Union[Index, tuple[Index, ...], list[Index]]
 
 
 class DNDarray:
@@ -906,55 +906,6 @@ class DNDarray:
 
         return self
 
-    def __broadcast_value(
-        self,
-        key: int | tuple[int, ...] | slice,
-        value: "DNDarray",
-        **kwargs,
-    ):
-        """
-        Broadcasts the assignment DNDarray `value` to the shape of the indexed array `arr[key]` if necessary.
-        """
-        is_scalar = (
-            np.isscalar(value)
-            or getattr(value, "ndim", 1) == 0
-            or (value.shape == (1,) and value.split is None)
-        )
-        if is_scalar:
-            # no need to broadcast
-            return value, is_scalar
-        # need information on indexed array
-        output_shape = kwargs.get("output_shape", None)
-        indexed_dims = len(output_shape)
-        value_shape = value.shape
-        # check if value needs to be broadcasted
-        if value_shape != output_shape:
-            # assess whether the shapes are compatible, starting from the trailing dimension
-            for i in range(1, min(len(value_shape), len(output_shape)) + 1):
-                if value_shape[-i] != output_shape[-i] and value_shape[-i] != 1:
-                    raise ValueError(
-                        f"could not broadcast input array from shape {value_shape} into shape {output_shape}"
-                    )
-            # value has more dimensions than indexed array
-            if value.ndim > indexed_dims:
-                # check if all dimensions except the indexed ones are singletons
-                all_singletons = value.shape[: value.ndim - indexed_dims] == (1,) * (
-                    value.ndim - indexed_dims
-                )
-                if not all_singletons:
-                    raise ValueError(
-                        f"could not broadcast input array from shape {value_shape} into shape {output_shape}"
-                    )
-                # squeeze out singleton dimensions
-                value = value.squeeze(tuple(range(value.ndim - indexed_dims)))
-            else:
-                while value.ndim < indexed_dims:
-                    # broadcasting
-                    # expand missing dimensions to align split axis
-                    value = value.expand_dims(0)
-                value_shape = tuple(torch.broadcast_shapes(value.shape, output_shape))
-        return value, is_scalar
-
     def __set(
         self,
         key: int | tuple[int, ...] | list[int],
@@ -984,66 +935,6 @@ class DNDarray:
 
         self.larray[key_to_use] = rhs
         return
-
-    @staticmethod
-    def __advanced_setitem_unordered_local(
-        x_local: torch.Tensor,
-        split_key: torch.Tensor,
-        value_torch: torch.Tensor,
-        *,
-        split_axis: int,
-        value_key_start_dim: int,
-        local_offset: int,
-        local_size: int,
-        value_is_scalar: bool,
-        out_dtype: torch.dtype,
-        base_index: tuple | None = None,
-    ) -> None:
-        """
-        The function is a helper that updates ``x_local`` in-place according to the logical advanced
-        indexing pattern encoded by ``split_key`` and the broadcasted ``value_torch``.
-        This helper operates exclusively on local ``torch.Tensor`` views:
-        - ``x_local`` is the local slice of the distributed array on this rank.
-        - ``split_key`` contains GLOBAL indices along the split axis.
-        - Only those indices that fall into ``[local_offset, local_offset + local_size)``
-            are applied on this rank.
-        """
-        # 1) Local mask: which global indices in `split_key` belong to this rank?
-        global_indices = split_key
-        local_mask = (global_indices >= local_offset) & (global_indices < local_offset + local_size)
-
-        coord = local_mask.nonzero(as_tuple=True)
-
-        if coord[0].numel() == 0:
-            # Nothing to do on this rank, exit early.
-            return
-
-        # 2) Map global → local indices along the split axis
-        global_split_indices = global_indices[coord]
-        local_split_indices = global_split_indices - local_offset
-
-        # build LHS index for x_local (corresponds to self.larray)
-        lhs_index = list(base_index)
-
-        lhs_index[split_axis] = local_split_indices
-        lhs_index = tuple(lhs_index)
-
-        # build RHS index for value_torch
-        if value_is_scalar:
-            rhs = value_torch.to(out_dtype)
-        else:
-            rhs_index = [slice(None)] * value_torch.ndim
-            m = split_key.ndim
-
-            for d in range(m):
-                rhs_index[value_key_start_dim + d] = coord[d]
-
-            rhs = value_torch[tuple(rhs_index)].to(out_dtype)
-
-        if x_local.is_cuda:
-            lhs_index, rhs = _resolve_duplicate_indices(lhs_index, rhs, x_local.shape)
-
-        x_local[lhs_index] = rhs
 
     def __getitem_scalar(self, p: ProcessedKey) -> DNDarray:
         """
@@ -1369,7 +1260,7 @@ class DNDarray:
             recv_displs,
         )
 
-    def __getitem__(self, key: Indexer) -> DNDarray:
+    def __getitem__(self, key: Key) -> DNDarray:
         """
         Global getter function for DNDarrays.
 
@@ -2210,7 +2101,7 @@ class DNDarray:
                 else:
                     base_index[dim] = k_part
 
-        self.__advanced_setitem_unordered_local(
+        _setitem_advanced_unordered_local(
             x_local=self.larray,
             split_key=split_key,
             value_torch=value_torch,
@@ -2378,7 +2269,7 @@ class DNDarray:
 
     def __setitem__(
         self,
-        key: Indexer,
+        key: Key,
         value: float | "DNDarray" | torch.Tensor,
     ):
         """
@@ -2462,9 +2353,7 @@ class DNDarray:
                 or (getattr(value, "shape", None) == (1,) and getattr(value, "split", 0) is None)
             )
         else:
-            value, value_is_scalar = self.__broadcast_value(
-                key, value, output_shape=processed_key.output_shape
-            )
+            value, value_is_scalar = _broadcast_value(value, processed_key.output_shape)
 
         # dispatch to the appropriate setter
         if op == "distr_mask":
@@ -2581,4 +2470,6 @@ from ._indexing_utils import (
     _resolve_duplicate_indices,
     _resolve_indexing_state,
     _unwrap_local_key,
+    _setitem_advanced_unordered_local,
+    _broadcast_value,
 )
