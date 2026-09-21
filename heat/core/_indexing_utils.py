@@ -1,3 +1,5 @@
+"""Internal utility functions and data structures for DNDarray indexing operations."""
+
 from __future__ import annotations
 
 import bisect
