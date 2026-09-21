@@ -76,6 +76,19 @@ class DNDarray:
         # check for inconsistencies between torch and heat devices
         assert str(array.device) == device.torch_device
 
+    # ------------------------------------------------------------------
+    # Properties
+    # ------------------------------------------------------------------
+
+    @property
+    def array_with_halos(self) -> torch.Tensor:
+        """
+        Fetch halos of size ``halo_size`` from neighboring ranks and save them in ``self.halo_next``/``self.halo_prev``
+        in case they are not already stored. If ``halo_size`` differs from the size of already stored halos,
+        the are overwritten.
+        """
+        return self.__cat_halo()
+
     @property
     def balanced(self) -> bool:
         """
@@ -105,6 +118,24 @@ class DNDarray:
         return self.__dtype
 
     @property
+    def gnbytes(self) -> int:
+        """
+        Returns the number of bytes consumed by the global ``DNDarray``
+
+        Note
+        -----------
+            Does not include memory consumed by non-element attributes of the ``DNDarray`` object.
+        """
+        return self.nbytes
+
+    @property
+    def gnumel(self) -> int:
+        """
+        Returns the number of total elements of the ``DNDarray``
+        """
+        return self.size
+
+    @property
     def gshape(self) -> tuple:
         """
         Returns the global shape of the ``DNDarray`` across all processes
@@ -124,6 +155,13 @@ class DNDarray:
         Returns the halo of the previous process
         """
         return self.__halo_prev
+
+    @property
+    def imag(self) -> DNDarray:
+        """
+        Return the imaginary part of the ``DNDarray``.
+        """
+        return complex_math.imag(self)
 
     @property
     def larray(self) -> torch.Tensor:
@@ -157,6 +195,46 @@ class DNDarray:
             self.__lshape_map = None
             self.__counts_displs = None
         self.__array = array
+
+    @property
+    def lloc(self):
+        """Deprecated function for local indexing. Use `DNDarray.larray` for local indexing instead"""
+        # TODO: Remove this entirely by heat v2.5
+        raise Exception(
+            "`DNDarray.lloc` is deprecated. Use `DNDarray.larray` for local indexing instead."
+        )
+
+    @property
+    def lnbytes(self) -> int:
+        """
+        Returns the number of bytes consumed by the local ``torch.Tensor``
+
+        Note
+        -------------------
+            Does not include memory consumed by non-element attributes of the ``DNDarray`` object.
+        """
+        return self.__array.element_size() * self.__array.nelement()
+
+    @property
+    def lnumel(self) -> int:
+        """
+        Number of elements of the ``DNDarray`` on each process
+        """
+        return np.prod(self.__array.shape)
+
+    @property
+    def lshape(self) -> tuple[int]:
+        """
+        Returns the shape of the ``DNDarray`` on each node
+        """
+        return tuple(self.__array.shape)
+
+    @property
+    def lshape_map(self) -> torch.Tensor:
+        """
+        Returns the lshape map. If it hasn't been previously created then it will be created here.
+        """
+        return self.create_lshape_map()
 
     @property
     def nbytes(self) -> int:
@@ -195,6 +273,20 @@ class DNDarray:
         return self.__partitions_dict__
 
     @property
+    def real(self) -> DNDarray:
+        """
+        Return the real part of the ``DNDarray``.
+        """
+        return complex_math.real(self)
+
+    @property
+    def shape(self) -> tuple[int]:
+        """
+        Returns the shape of the ``DNDarray`` as a whole
+        """
+        return self.__gshape
+
+    @property
     def size(self) -> int:
         """
         Number of total elements of the ``DNDarray``
@@ -209,85 +301,6 @@ class DNDarray:
                 torch.tensor(self.gshape, dtype=torch.float64, device=self.device.torch_device)
             )
         return size.long().item()
-
-    @property
-    def gnbytes(self) -> int:
-        """
-        Returns the number of bytes consumed by the global ``DNDarray``
-
-        Note
-        -----------
-            Does not include memory consumed by non-element attributes of the ``DNDarray`` object.
-        """
-        return self.nbytes
-
-    @property
-    def gnumel(self) -> int:
-        """
-        Returns the number of total elements of the ``DNDarray``
-        """
-        return self.size
-
-    @property
-    def imag(self) -> DNDarray:
-        """
-        Return the imaginary part of the ``DNDarray``.
-        """
-        return complex_math.imag(self)
-
-    @property
-    def lnbytes(self) -> int:
-        """
-        Returns the number of bytes consumed by the local ``torch.Tensor``
-
-        Note
-        -------------------
-            Does not include memory consumed by non-element attributes of the ``DNDarray`` object.
-        """
-        return self.__array.element_size() * self.__array.nelement()
-
-    @property
-    def lnumel(self) -> int:
-        """
-        Number of elements of the ``DNDarray`` on each process
-        """
-        return np.prod(self.__array.shape)
-
-    @property
-    def lshape(self) -> tuple[int]:
-        """
-        Returns the shape of the ``DNDarray`` on each node
-        """
-        return tuple(self.__array.shape)
-
-    @property
-    def lshape_map(self) -> torch.Tensor:
-        """
-        Returns the lshape map. If it hasn't been previously created then it will be created here.
-        """
-        return self.create_lshape_map()
-
-    @property
-    def lloc(self):
-        """Deprecated function for local indexing. Use `DNDarray.larray` for local indexing instead"""
-        # TODO: Remove this entirely by heat v2.5
-        raise Exception(
-            "`DNDarray.lloc` is deprecated. Use `DNDarray.larray` for local indexing instead."
-        )
-
-    @property
-    def real(self) -> DNDarray:
-        """
-        Return the real part of the ``DNDarray``.
-        """
-        return complex_math.real(self)
-
-    @property
-    def shape(self) -> tuple[int]:
-        """
-        Returns the shape of the ``DNDarray`` as a whole
-        """
-        return self.__gshape
 
     @property
     def split(self) -> int | None:
@@ -316,143 +329,15 @@ class DNDarray:
         strides = tuple(step * itemsize for step in steps)
         return strides
 
-    @property
-    def array_with_halos(self) -> torch.Tensor:
-        """
-        Fetch halos of size ``halo_size`` from neighboring ranks and save them in ``self.halo_next``/``self.halo_prev``
-        in case they are not already stored. If ``halo_size`` differs from the size of already stored halos,
-        the are overwritten.
-        """
-        return self.__cat_halo()
-
-    def __prephalo(self, start, end) -> torch.Tensor:
-        """
-        Extracts the halo indexed by start, end from ``self.array`` in the direction of ``self.split``
-
-        Parameters
-        ----------
-        start : int
-            Start index of the halo extracted from ``self.array``
-        end : int
-            End index of the halo extracted from ``self.array``
-        """
-        ix = [slice(None, None, None)] * len(self.shape)
-        try:
-            ix[self.split] = slice(start, end)
-        except IndexError:
-            print("Indices out of bound")
-
-        return self.__array[tuple(ix)].clone()
-
-    def get_halo(self, halo_size: int, prev: bool = True, next: bool = True):
-        """
-        Fetch halos of size ``halo_size`` from neighboring ranks and save them in ``self.halo_next/self.halo_prev``.
-
-        Parameters
-        ----------
-        halo_size : int
-            Size of the halo.
-        prev : bool, optional
-            If True, fetch the halo from the previous rank. Default: True.
-        next : bool, optional
-            If True, fetch the halo from the next rank. Default: True.
-        """
-        if not isinstance(halo_size, int):
-            raise TypeError(
-                f"halo_size needs to be of Python type integer, {type(halo_size)} given"
-            )
-        if halo_size < 0:
-            raise ValueError(
-                f"halo_size needs to be a non-negative Python integer, {halo_size} given"
-            )
-
-        if self.is_distributed() and halo_size > 0:
-            # gather lshapes
-            lshape_map = self.lshape_map
-            rank = self.comm.rank
-
-            populated_ranks = torch.nonzero(lshape_map[:, self.split]).squeeze().tolist()
-            if rank in populated_ranks:
-                first_rank = populated_ranks[0]
-                last_rank = populated_ranks[-1]
-                if rank != last_rank:
-                    next_rank = populated_ranks[populated_ranks.index(rank) + 1]
-                if rank != first_rank:
-                    prev_rank = populated_ranks[populated_ranks.index(rank) - 1]
-            else:
-                # if process has no data we ignore it
-                return
-
-            if (halo_size > self.lshape_map[:, self.split][populated_ranks]).any():
-                # halo_size is larger than the local size on at least one process
-                raise ValueError(
-                    f"halo_size {halo_size} needs to be smaller than chunk-size {self.lshape[self.split]} )"
-                )
-
-            a_prev = self.__prephalo(0, halo_size)
-            a_next = self.__prephalo(-halo_size, None)
-            res_prev = None
-            res_next = None
-            req_list = []
-
-            # exchange data with next populated process
-            if prev:
-                if rank != last_rank:
-                    req_list.append(self.comm.Isend(a_next, next_rank))
-                if rank != first_rank:
-                    res_prev = torch.empty(
-                        a_prev.size(), dtype=a_prev.dtype, device=self.device.torch_device
-                    )
-                    req_list.append(self.comm.Irecv(res_prev, source=prev_rank))
-
-            if next:
-                if rank != first_rank:
-                    req_list.append(self.comm.Isend(a_prev, prev_rank))
-                if rank != last_rank:
-                    res_next = torch.empty(
-                        a_next.size(), dtype=a_next.dtype, device=self.device.torch_device
-                    )
-                    req_list.append(self.comm.Irecv(res_next, source=next_rank))
-
-            for req in req_list:
-                req.Wait()
-
-            self.__halo_next = res_next
-            self.__halo_prev = res_prev
-            self.__ishalo = True
-
-    def __cat_halo(self) -> torch.Tensor:
-        """
-        Return local array concatenated to halos if they are available.
-        """
-        if not self.is_distributed():
-            return self.__array
-        return torch.cat(
-            [_ for _ in (self.__halo_prev, self.__array, self.__halo_next) if _ is not None],
-            dim=self.split,
-        )
+    # ------------------------------------------------------------------
+    # Public methods / protocols
+    # ------------------------------------------------------------------
 
     def __array__(self) -> np.ndarray:
         """
         Returns a view of the process-local slice of the :class:`DNDarray` as a numpy ndarray, if the ``DNDarray`` resides on CPU. Otherwise, it returns a copy, on CPU, of the process-local slice of ``DNDarray`` as numpy ndarray.
         """
         return self.larray.cpu().__array__()
-
-    def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
-        """
-        Override NumPy's universal functions.
-        """
-        import heat
-
-        # TODO support ufunc method variants
-        if method == "__call__":
-            try:
-                func = getattr(heat, ufunc.__name__)
-            except AttributeError:
-                return NotImplemented
-            return func(*inputs, **kwargs)
-        else:
-            return NotImplemented
 
     def __array_function__(self, func, types, args, kwargs):
         """
@@ -483,6 +368,22 @@ class DNDarray:
         import heat
 
         return heat
+
+    def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
+        """
+        Override NumPy's universal functions.
+        """
+        import heat
+
+        # TODO support ufunc method variants
+        if method == "__call__":
+            try:
+                func = getattr(heat, ufunc.__name__)
+            except AttributeError:
+                return NotImplemented
+            return func(*inputs, **kwargs)
+        else:
+            return NotImplemented
 
     def astype(self, dtype, copy=True, device: Device = None) -> DNDarray:
         """
@@ -584,32 +485,6 @@ class DNDarray:
         Boolean scalar casting.
         """
         return self.__cast(bool)
-
-    def __cast(self, cast_function) -> float | int:
-        """
-        Implements a generic cast function for ``DNDarray`` objects.
-
-        Parameters
-        ----------
-        cast_function : function
-            The actual cast function, e.g. ``float`` or ``int``
-
-        Raises
-        ------
-        TypeError
-            If the ``DNDarray`` object cannot be converted into a scalar.
-
-        """
-        if np.prod(self.shape) == 1:
-            if not self.is_distributed():
-                return cast_function(self.__array)
-
-            is_empty = np.prod(self.__array.shape) == 0
-            root = self.comm.allreduce(0 if is_empty else self.comm.rank, op=MPI.SUM)
-
-            return self.comm.bcast(None if is_empty else cast_function(self.__array), root=root)
-
-        raise TypeError("only size-1 arrays can be converted to Python scalars")
 
     def collect_(self, target_rank: int = 0) -> None:
         """
@@ -856,16 +731,6 @@ class DNDarray:
         """
         return self.larray.__dlpack_device__()
 
-    def __float__(self) -> float:
-        """
-        Float scalar casting.
-
-        See Also
-        --------
-        :func:`~heat.core.manipulations.flatten`
-        """
-        return self.__cast(float)
-
     def fill_diagonal(self, value: float) -> DNDarray:
         """
         Fill the main diagonal of a 2D :class:`DNDarray`.
@@ -906,6 +771,853 @@ class DNDarray:
 
         return self
 
+    def __float__(self) -> float:
+        """
+        Float scalar casting.
+
+        See Also
+        --------
+        :func:`~heat.core.manipulations.flatten`
+        """
+        return self.__cast(float)
+
+    def get_halo(self, halo_size: int, prev: bool = True, next: bool = True):
+        """
+        Fetch halos of size ``halo_size`` from neighboring ranks and save them in ``self.halo_next/self.halo_prev``.
+
+        Parameters
+        ----------
+        halo_size : int
+            Size of the halo.
+        prev : bool, optional
+            If True, fetch the halo from the previous rank. Default: True.
+        next : bool, optional
+            If True, fetch the halo from the next rank. Default: True.
+        """
+        if not isinstance(halo_size, int):
+            raise TypeError(
+                f"halo_size needs to be of Python type integer, {type(halo_size)} given"
+            )
+        if halo_size < 0:
+            raise ValueError(
+                f"halo_size needs to be a non-negative Python integer, {halo_size} given"
+            )
+
+        if self.is_distributed() and halo_size > 0:
+            # gather lshapes
+            lshape_map = self.lshape_map
+            rank = self.comm.rank
+
+            populated_ranks = torch.nonzero(lshape_map[:, self.split]).squeeze().tolist()
+            if rank in populated_ranks:
+                first_rank = populated_ranks[0]
+                last_rank = populated_ranks[-1]
+                if rank != last_rank:
+                    next_rank = populated_ranks[populated_ranks.index(rank) + 1]
+                if rank != first_rank:
+                    prev_rank = populated_ranks[populated_ranks.index(rank) - 1]
+            else:
+                # if process has no data we ignore it
+                return
+
+            if (halo_size > self.lshape_map[:, self.split][populated_ranks]).any():
+                # halo_size is larger than the local size on at least one process
+                raise ValueError(
+                    f"halo_size {halo_size} needs to be smaller than chunk-size {self.lshape[self.split]} )"
+                )
+
+            a_prev = self.__prephalo(0, halo_size)
+            a_next = self.__prephalo(-halo_size, None)
+            res_prev = None
+            res_next = None
+            req_list = []
+
+            # exchange data with next populated process
+            if prev:
+                if rank != last_rank:
+                    req_list.append(self.comm.Isend(a_next, next_rank))
+                if rank != first_rank:
+                    res_prev = torch.empty(
+                        a_prev.size(), dtype=a_prev.dtype, device=self.device.torch_device
+                    )
+                    req_list.append(self.comm.Irecv(res_prev, source=prev_rank))
+
+            if next:
+                if rank != first_rank:
+                    req_list.append(self.comm.Isend(a_prev, prev_rank))
+                if rank != last_rank:
+                    res_next = torch.empty(
+                        a_next.size(), dtype=a_next.dtype, device=self.device.torch_device
+                    )
+                    req_list.append(self.comm.Irecv(res_next, source=next_rank))
+
+            for req in req_list:
+                req.Wait()
+
+            self.__halo_next = res_next
+            self.__halo_prev = res_prev
+            self.__ishalo = True
+
+    def __getitem__(self, key: Key) -> DNDarray:
+        """
+        Global getter function for DNDarrays.
+
+        Returns a new DNDarray corresponding to the selection of values from the original DNDarray
+        as specified by `key`. The `key` can be a variety of indexers, including integers, slices,
+        lists, boolean masks, DNDarrays, ndarrays, torch tensors, and a combination thereof.
+
+        The function determines the appropriate method to retrieve the requested data based on the
+        type and structure of `key`, executing MPI communication if the indexing pattern requires
+        data from multiple processes.
+
+        Notes
+        -----
+        The returned DNDarray will have its shape, split, and balanced status determined according
+        to the indexing operation performed. For more details on supported indexing behaviors, see
+        the :doc:`indexing documentation <INDEXING>`.
+
+        Parameters
+        ----------
+        key : array-like indexer
+            Indices to get from the ``DNDarray``.
+
+        Examples
+        --------
+        >>> a = ht.arange(10, split=0)
+        (1/2) >>> tensor([0, 1, 2, 3, 4], dtype=torch.int32)
+        (2/2) >>> tensor([5, 6, 7, 8, 9], dtype=torch.int32)
+        >>> a[1:6]
+        (1/2) >>> tensor([1, 2, 3, 4], dtype=torch.int32)
+        (2/2) >>> tensor([5], dtype=torch.int32)
+        >>> a = ht.zeros((4, 5), split=0)
+        (1/2) >>> tensor([[0., 0., 0., 0., 0.],
+                          [0., 0., 0., 0., 0.]])
+        (2/2) >>> tensor([[0., 0., 0., 0., 0.],
+                          [0., 0., 0., 0., 0.]])
+        >>> a[1:4, 1]
+        (1/2) >>> tensor([0.])
+        (2/2) >>> tensor([0., 0.])
+        """
+        if key is None:
+            return self.expand_dims(0)
+        if (
+            key is ...
+            or (isinstance(key, slice) and key == slice(None))
+            or (isinstance(key, tuple) and key == ())
+        ):
+            return self
+
+        # attempt early out for non-distributed arrays
+        if not self.is_distributed():
+            try:
+                res_tensor = self.larray[_unwrap_local_key(key, device=self.device.torch_device)]
+                return DNDarray(
+                    res_tensor,
+                    gshape=tuple(res_tensor.shape),
+                    dtype=self.dtype,
+                    split=None,
+                    device=self.device,
+                    comm=self.comm,
+                    balanced=True,
+                )
+            except Exception:
+                pass
+
+        # key processing returns a ProcessedKey namedtuple
+        self, processed_key = _resolve_indexing_state(
+            self, key, return_local_indices=True, op="get"
+        )
+
+        # dispatch to appropriate getitem method
+        op = processed_key.op_type
+
+        if op == "scalar":
+            return self.__getitem_scalar(processed_key)
+        elif op == "distr_mask":
+            return self.__getitem_mask(processed_key)
+        elif op == "distributed":
+            return self.__getitem_advanced_distributed(processed_key)
+        elif op == "descending_slice":
+            return self.__getitem_descending_slice_distributed(processed_key)
+        elif op in ("local_mask", "local"):
+            return self.__getitem_local(processed_key)
+
+    if torch.cuda.device_count() > 0:
+
+        def gpu(self) -> DNDarray:
+            """
+            Returns a copy of this object in GPU memory. If this object is already in GPU memory, then no copy is
+            performed and the original object is returned.
+
+            """
+            self.__array = self.__array.cuda(devices.gpu.torch_device)
+            self.__device = devices.gpu
+            return self
+
+    def __index__(self) -> int:
+        """
+        Converts a zero-dimensional integer array to a Python ``int`` object.
+        """
+        if not issubclass(self.dtype, integer):
+            raise TypeError("only integer scalar arrays can be converted to a scalar index")
+        return self.__cast(int)
+
+    def __int__(self) -> int:
+        """
+        Integer scalar casting.
+        """
+        return self.__cast(int)
+
+    def is_balanced(self, force_check: bool = False) -> bool:
+        """
+        Determine if ``self`` is balanced evenly (or as evenly as possible) across all nodes
+        distributed evenly (or as evenly as possible) across all processes.
+        This is equivalent to returning ``self.balanced``. If no information
+        is available (``self.balanced = None``), the balanced status will be
+        assessed via collective communication.
+
+        Parameters
+        ----------
+        force_check : bool, optional
+            If True, the balanced status of the ``DNDarray`` will be assessed via
+            collective communication in any case.
+        """
+        if not self.is_distributed():
+            self.__balanced = True
+            return self.balanced
+
+        if not force_check and self.balanced is not None:
+            return self.balanced
+
+        _, _, chk = self.comm.chunk(self.shape, self.split)
+        test_lshape = tuple([x.stop - x.start for x in chk])
+        balanced = 1 if test_lshape == self.lshape else 0
+
+        out = self.comm.allreduce(balanced, MPI.SUM)
+        balanced = True if out == self.comm.size else False
+        return balanced
+
+    def is_distributed(self) -> bool:
+        """
+        Determines whether the data of this ``DNDarray`` is distributed across multiple processes.
+        """
+        return self.split is not None and self.comm.is_distributed()
+
+    def item(self):
+        """
+        Returns the only element of a 1-element :class:`DNDarray`.
+        Mirror of the pytorch command by the same name. If size of ``DNDarray`` is >1 element, then a ``ValueError`` is
+        raised (by pytorch)
+
+        Examples
+        --------
+        >>> import heat as ht
+        >>> x = ht.zeros((1))
+        >>> x.item()
+        0.0
+        """
+        if self.size > 1:
+            raise ValueError("only one-element DNDarrays can be converted to Python scalars")
+        # make sure the element is on every process
+        self.resplit_(None)
+        return self.__array.item()
+
+    def __len__(self) -> int:
+        """
+        The length of the ``DNDarray``, i.e. the number of items in the first dimension.
+        """
+        try:
+            len = self.shape[0]
+            return len
+        except IndexError:
+            raise TypeError("len() of unsized DNDarray")
+
+    def numpy(self) -> np.typing.NDArray[Any]:
+        """
+        Returns a copy of the :class:`DNDarray` as numpy ndarray. If the ``DNDarray`` resides on the GPU, the underlying data will be copied to the CPU first.
+
+        If the ``DNDarray`` is distributed, an MPI Allgather operation will be performed before converting to np.ndarray, i.e. each MPI process will end up holding a copy of the entire array in memory.  Make sure process memory is sufficient!
+
+        Examples
+        --------
+        >>> import heat as ht
+        T1 = ht.random.randn((10,8))
+        T1.numpy()
+        """
+        dist = self.copy().resplit_(axis=None)
+        return dist.larray.cpu().numpy()
+
+    def ravel(self) -> DNDarray:
+        """
+        Flattens the ``DNDarray``.
+
+        See Also
+        --------
+        :func:`~heat.core.manipulations.ravel`
+
+        Examples
+        --------
+        >>> a = ht.ones((2, 3), split=0)
+        >>> b = a.ravel()
+        >>> a[0, 0] = 4
+        >>> b
+        DNDarray([4., 1., 1., 1., 1., 1.], dtype=ht.float32, device=cpu:0, split=0)
+        """
+        return manipulations.ravel(self)
+
+    def redistribute_(
+        self, lshape_map: torch.Tensor | None = None, target_map: torch.Tensor | None = None
+    ) -> None:
+        """
+        Redistributes the data of the :class:`DNDarray` *along the split axis* to match the given target map.
+        This function does not modify the non-split dimensions of the ``DNDarray``.
+        This is an abstraction and extension of the balance function.
+
+        Parameters
+        ----------
+        lshape_map : torch.Tensor, optional
+            The current lshape of processes.
+            Units are ``[rank, lshape]``.
+        target_map : torch.Tensor, optional
+            The desired distribution across the processes.
+            Units are ``[rank, target lshape]``.
+            Note: the only important parts of the target map are the values along the split axis,
+            values which are not along this axis are there to mimic the shape of the ``lshape_map``.
+
+        Examples
+        --------
+        >>> st = ht.ones((50, 81, 67), split=2)
+        >>> target_map = torch.zeros((st.comm.size, 3), dtype=torch.int64)
+        >>> target_map[0, 2] = 67
+        >>> print(target_map)
+        [0/2] tensor([[ 0,  0, 67],
+        [0/2]         [ 0,  0,  0],
+        [0/2]         [ 0,  0,  0]], dtype=torch.int32)
+        [1/2] tensor([[ 0,  0, 67],
+        [1/2]         [ 0,  0,  0],
+        [1/2]         [ 0,  0,  0]], dtype=torch.int32)
+        [2/2] tensor([[ 0,  0, 67],
+        [2/2]         [ 0,  0,  0],
+        [2/2]         [ 0,  0,  0]], dtype=torch.int32)
+        >>> print(st.lshape)
+        [0/2] (50, 81, 23)
+        [1/2] (50, 81, 22)
+        [2/2] (50, 81, 22)
+        >>> st.redistribute_(target_map=target_map)
+        >>> print(st.lshape)
+        [0/2] (50, 81, 67)
+        [1/2] (50, 81, 0)
+        [2/2] (50, 81, 0)
+        """
+        if not self.is_distributed():
+            return
+        snd_dtype = self.dtype.torch_type()
+        # units -> {pr, 1st index, 2nd index}
+        if lshape_map is None:
+            # NOTE: giving an lshape map which is incorrect will result in an incorrect distribution
+            lshape_map = self.create_lshape_map(force_check=True)
+        else:
+            if not isinstance(lshape_map, torch.Tensor):
+                raise TypeError(f"lshape_map must be a torch.Tensor, currently {type(lshape_map)}")
+            if lshape_map.shape != (self.comm.size, len(self.gshape)):
+                raise ValueError(
+                    f"lshape_map must have the shape ({self.comm.size}, {len(self.gshape)}), currently {lshape_map.shape}"
+                )
+        if target_map is None:  # if no target map is given then it will balance the tensor
+            _, _, chk = self.comm.chunk(self.shape, self.split)
+            target_map = lshape_map.clone()
+            target_map[..., self.split] = 0
+            for pr in range(self.comm.size):
+                target_map[pr, self.split] = self.comm.chunk(self.shape, self.split, rank=pr)[1][
+                    self.split
+                ]
+            self.__balanced = True
+        else:
+            sanitation.sanitize_in_tensor(target_map)
+            if target_map[..., self.split].sum() != self.shape[self.split]:
+                raise ValueError(
+                    f"Sum along the split axis of the target map must be equal to the shape in that dimension, currently {target_map[..., self.split]}"
+                )
+            if target_map.shape != (self.comm.size, len(self.gshape)):
+                raise ValueError(
+                    f"target_map must have the shape {(self.comm.size, len(self.gshape))}, currently {target_map.shape}"
+                )
+            # no info on balanced status
+            self.__balanced = False
+        lshape_cumsum = torch.cumsum(lshape_map[..., self.split], dim=0)
+        chunk_cumsum = torch.cat(
+            (
+                torch.tensor([0], device=self.device.torch_device),
+                torch.cumsum(target_map[..., self.split], dim=0),
+            ),
+            dim=0,
+        )
+        # need the data start as well for process 0
+        for rcv_pr in range(self.comm.size - 1):
+            st = chunk_cumsum[rcv_pr].item()
+            sp = chunk_cumsum[rcv_pr + 1].item()
+            # start pr should be the next process with data
+            if lshape_map[rcv_pr, self.split] >= target_map[rcv_pr, self.split]:
+                # if there is more data on the process than the start process than start == stop
+                st_pr = rcv_pr
+                sp_pr = rcv_pr
+            else:
+                # if there is less data on the process than need to get the data from the next data
+                # with data
+                # need processes > rcv_pr with lshape > 0
+                st_pr = (
+                    torch.nonzero(input=lshape_map[rcv_pr:, self.split] > 0, as_tuple=False)[
+                        0
+                    ].item()
+                    + rcv_pr
+                )
+                hld = (
+                    torch.nonzero(input=sp <= lshape_cumsum[rcv_pr:], as_tuple=False).flatten()
+                    + rcv_pr
+                )
+                sp_pr = hld[0].item() if hld.numel() > 0 else self.comm.size
+
+            # st_pr and sp_pr are the processes on which the data sits at the beginning
+            # need to loop from st_pr to sp_pr + 1 and send the pr
+            for snd_pr in range(st_pr, sp_pr + 1):
+                if snd_pr == self.comm.size:
+                    break
+                data_required = abs(sp - st - lshape_map[rcv_pr, self.split].item())
+                send_amt = (
+                    data_required
+                    if data_required <= lshape_map[snd_pr, self.split]
+                    else lshape_map[snd_pr, self.split]
+                )
+                if (sp - st) <= lshape_map[rcv_pr, self.split].item() or snd_pr == rcv_pr:
+                    send_amt = 0
+                # send amount is the data still needed by recv if that is available on the snd
+                if send_amt != 0:
+                    self.__redistribute_shuffle(
+                        snd_pr=snd_pr, send_amt=send_amt, rcv_pr=rcv_pr, snd_dtype=snd_dtype
+                    )
+                lshape_cumsum[snd_pr] -= send_amt
+                lshape_cumsum[rcv_pr] += send_amt
+                lshape_map[rcv_pr, self.split] += send_amt
+                lshape_map[snd_pr, self.split] -= send_amt
+            if lshape_map[rcv_pr, self.split] > target_map[rcv_pr, self.split]:
+                # if there is any data left on the process then send it to the next one
+                send_amt = lshape_map[rcv_pr, self.split] - target_map[rcv_pr, self.split]
+                self.__redistribute_shuffle(
+                    snd_pr=rcv_pr, send_amt=send_amt.item(), rcv_pr=rcv_pr + 1, snd_dtype=snd_dtype
+                )
+                lshape_cumsum[rcv_pr] -= send_amt
+                lshape_cumsum[rcv_pr + 1] += send_amt
+                lshape_map[rcv_pr, self.split] -= send_amt
+                lshape_map[rcv_pr + 1, self.split] += send_amt
+
+        if any(lshape_map[..., self.split] != target_map[..., self.split]):
+            # sometimes need to call the redistribute once more,
+            # (in the case that the second to last processes needs to get data from +1 and -1)
+            self.redistribute_(lshape_map=lshape_map, target_map=target_map)
+
+        self.__lshape_map = target_map
+        self.__counts_displs = None
+
+    def __repr__(self) -> str:
+        """
+        Returns a printable representation of the passed DNDarray, targeting developers.
+        """
+        return printing.__repr__(self)
+
+    def _repr_pretty_(self, p, cycle):
+        """
+        Pretty print for IPython.
+        """
+        if cycle:
+            p.text(printing.__str__(self))
+        else:
+            p.text(printing.__str__(self))
+
+    def resplit_(self, axis: int = None):
+        """
+        In-place option for resplitting a :class:`DNDarray`.
+
+        Parameters
+        ----------
+        axis : int
+            The new split axis, ``None`` denotes gathering, an int will set the new split axis
+
+        Examples
+        --------
+        >>> a = ht.zeros(
+        ...     (
+        ...         4,
+        ...         5,
+        ...     ),
+        ...     split=0,
+        ... )
+        >>> a.lshape
+        (0/2) (2, 5)
+        (1/2) (2, 5)
+        >>> ht.resplit_(a, None)
+        >>> a.split
+        None
+        >>> a.lshape
+        (0/2) (4, 5)
+        (1/2) (4, 5)
+        >>> a = ht.zeros(
+        ...     (
+        ...         4,
+        ...         5,
+        ...     ),
+        ...     split=0,
+        ... )
+        >>> a.lshape
+        (0/2) (2, 5)
+        (1/2) (2, 5)
+        >>> ht.resplit_(a, 1)
+        >>> a.split
+        1
+        >>> a.lshape
+        (0/2) (4, 3)
+        (1/2) (4, 2)
+        """
+        # sanitize the axis to check whether it is in range
+        axis = sanitize_axis(self.shape, axis)
+
+        self.__partitions_dict__ = None
+
+        # early out for unchanged content
+        if self.comm.size == 1:
+            self.__split = axis
+        if axis == self.split:
+            return self
+
+        if axis is None:
+            gathered = torch.empty(
+                self.shape, dtype=self.dtype.torch_type(), device=self.device.torch_device
+            )
+            counts, displs = self.counts_displs()
+            self.comm.Allgatherv(self.__array, (gathered, counts, displs), recv_axis=self.split)
+            self.__array = gathered
+            self.__split = axis
+            self.__lshape_map = None
+            self.__counts_displs = None
+            return self
+        # tensor needs be split/sliced locally
+        if self.split is None:
+            _, _, slices = self.comm.chunk(self.shape, axis)
+            temp = self.__array[slices]
+            self.__array = torch.empty((1,), device=self.device.torch_device)
+            # necessary to clear storage of local __array
+            self.__array = temp.clone().detach()
+            self.__split = axis
+            self.__lshape_map = None
+            self.__counts_displs = None
+            return self
+
+        arr_tiles = tiling.SplitTiles(self)
+        new_tiles = tiling.SplitTiles(self)
+
+        gshape = self.shape
+        new_lshape = list(gshape)
+        new_lshape[axis] = int(arr_tiles.tile_dimensions[axis][self.comm.rank].item())
+
+        recv_buffer = torch.empty(
+            tuple(new_lshape), dtype=self.dtype.torch_type(), device=self.device.torch_device
+        )
+
+        self._axis2axisResplit(
+            self.larray, self.split, arr_tiles, recv_buffer, axis, new_tiles, self.comm
+        )
+
+        self.__array = recv_buffer
+        self.__split = axis
+        self.__lshape_map = None
+        self.__counts_displs = None
+
+        return self
+
+    def __setitem__(
+        self,
+        key: Key,
+        value: float | "DNDarray" | torch.Tensor,
+    ):
+        """
+        Global item setter for DNDarrays.
+
+        Assigns values to the specified positions in the ``DNDarray``. The `key` can be a variety
+        of indexers, including integers, slices, lists, boolean masks, DNDarrays, ndarrays,
+        torch tensors, or a combination thereof.
+
+        If a distributed ``DNDarray`` is given as the `value` to be set, this function will
+        automatically attempt to align its distribution scheme (split axis and local shapes)
+        with the target indexed array via MPI communication. If the distributions cannot be
+        safely aligned, a ``ValueError`` or ``RuntimeError`` is raised.
+
+        Parameters
+        ----------
+        key : array-like indexer
+            Index/indices to be set
+        value: float | "DNDarray" | torch.Tensor
+            Value to be set to the specified positions in the DNDarray (self)
+
+        Notes
+        -----
+        For more details on supported indexing behaviors, see the :doc:`indexing documentation <INDEXING>`.
+
+        Examples
+        --------
+        >>> a = ht.zeros((4, 5), split=0)
+        (1/2) >>> tensor([[0., 0., 0., 0., 0.],
+                          [0., 0., 0., 0., 0.]])
+        (2/2) >>> tensor([[0., 0., 0., 0., 0.],
+                          [0., 0., 0., 0., 0.]])
+        >>> a[1:4, 1] = 1
+        >>> a
+        (1/2) >>> tensor([[0., 0., 0., 0., 0.],
+                          [0., 1., 0., 0., 0.]])
+        (2/2) >>> tensor([[0., 1., 0., 0., 0.],
+                          [0., 1., 0., 0., 0.]])
+        """
+        if not self.is_distributed() and not (
+            isinstance(value, DNDarray) and value.is_distributed()
+        ):
+            try:
+                torch_key = _unwrap_local_key(key, device=self.device.torch_device)
+                if isinstance(value, DNDarray):
+                    rhs = value.larray.to(self.larray.dtype)
+                elif isinstance(value, torch.Tensor):
+                    rhs = value.to(self.larray.dtype)
+                else:
+                    rhs = value  # Python scalar / float / int
+
+                if self.larray.is_cuda and torch.is_tensor(rhs):
+                    torch_key, rhs = _resolve_duplicate_indices(torch_key, rhs, self.larray.shape)
+
+                self.larray[torch_key] = rhs
+                return
+            except Exception:
+                pass
+
+        # bypass factories.array() for primitive types and single-element tensors to avoid unnecessary overhead
+        value_is_primitive = isinstance(value, (int, float, complex, bool)) or (
+            isinstance(value, torch.Tensor) and value.numel() == 1 and value.ndim == 0
+        )
+        if not value_is_primitive and not isinstance(value, DNDarray):
+            value = factories.array(value)
+
+        original_key = key
+        original_split = self.split
+
+        self, processed_key = _resolve_indexing_state(
+            self, key, return_local_indices=True, op="set"
+        )
+
+        op = processed_key.op_type
+
+        # match dimensions (except for distr_mask as it perfectly aligns)
+        if op == "distr_mask":
+            value_is_scalar = (
+                np.isscalar(value)
+                or getattr(value, "ndim", 1) == 0
+                or (getattr(value, "shape", None) == (1,) and getattr(value, "split", 0) is None)
+            )
+        else:
+            value, value_is_scalar = _broadcast_value(value, processed_key.output_shape)
+
+        # dispatch to the appropriate setter
+        if op == "distr_mask":
+            self.__setitem_mask(processed_key, value, value_is_scalar)
+        elif op == "scalar":
+            self.__setitem_scalar(processed_key, value, value_is_scalar)
+        elif op == "distributed":
+            self.__setitem_advanced_distributed(
+                processed_key, original_key, value, value_is_scalar, original_split=original_split
+            )
+        elif op == "descending_slice":
+            self.__setitem_descending_slice_distributed(processed_key, value, value_is_scalar)
+        elif op in ("local_mask", "local"):
+            self.__setitem_local(processed_key, value, value_is_scalar)
+
+    def __str__(self) -> str:
+        """
+        Computes a string representation of the passed ``DNDarray``.
+        """
+        return printing.__str__(self)
+
+    def to_device(self, device: Device, /, *, stream: int | Any | None = None) -> DNDarray:
+        """
+        Copy the array from the device on which it currently resides to the specified ``device``.
+
+        Parameters
+        ----------
+        device : Device
+            A ``Device`` object.
+        stream : Int or Any, optional
+            Stream object to use during copy.
+        """
+        if stream is not None:
+            raise ValueError("The stream argument to to_device() is not supported")
+        if device.device_type == "cpu":
+            return self.cpu()
+        elif device.device_type == "gpu":
+            return self.gpu()
+        raise ValueError(f"Unsupported device {device!r}")
+
+    def tolist(self, keepsplit: bool = False) -> list[int | float]:
+        """
+        Return a copy of the local array data as a (nested) Python list. For scalars, a standard Python number is returned.
+
+        Parameters
+        ----------
+        keepsplit: bool
+            Whether the list should be returned locally or globally.
+
+        Examples
+        --------
+        >>> a = ht.array([[0, 1], [2, 3]])
+        >>> a.tolist()
+        [[0, 1], [2, 3]]
+
+        >>> a = ht.array([[0, 1], [2, 3]], split=0)
+        >>> a.tolist()
+        [[0, 1], [2, 3]]
+
+        >>> a = ht.array([[0, 1], [2, 3]], split=1)
+        >>> a.tolist(keepsplit=True)
+        (1/2) [[0], [2]]
+        (2/2) [[1], [3]]
+        """
+        if not keepsplit:
+            return self.resplit(axis=None).__array.tolist()
+
+        return self.__array.tolist()
+
+    @classmethod
+    def __torch_function__(cls, func, types, args=(), kwargs=None):
+        """
+        Supports PyTorch's dispatch mechanism.
+        """
+        import heat
+
+        if kwargs is None:
+            kwargs = {}
+        try:
+            ht_func = getattr(heat, func.__name__)
+        except AttributeError:
+            return NotImplemented
+        return ht_func(*args, **kwargs)
+
+    def __torch_proxy__(self) -> torch.Tensor:
+        """
+        Return a 1-element `torch.Tensor` strided as the global `self` shape.
+        Used internally for sanitation purposes.
+        """
+        return torch.empty(self.gshape, device="meta")
+
+    # ------------------------------------------------------------------
+    # Internal helper methods
+    # ------------------------------------------------------------------
+
+    def __cast(self, cast_function) -> float | int:
+        """
+        Implements a generic cast function for ``DNDarray`` objects.
+
+        Parameters
+        ----------
+        cast_function : function
+            The actual cast function, e.g. ``float`` or ``int``
+
+        Raises
+        ------
+        TypeError
+            If the ``DNDarray`` object cannot be converted into a scalar.
+
+        """
+        if np.prod(self.shape) == 1:
+            if not self.is_distributed():
+                return cast_function(self.__array)
+
+            is_empty = np.prod(self.__array.shape) == 0
+            root = self.comm.allreduce(0 if is_empty else self.comm.rank, op=MPI.SUM)
+
+            return self.comm.bcast(None if is_empty else cast_function(self.__array), root=root)
+
+        raise TypeError("only size-1 arrays can be converted to Python scalars")
+
+    def __cat_halo(self) -> torch.Tensor:
+        """
+        Return local array concatenated to halos if they are available.
+        """
+        if not self.is_distributed():
+            return self.__array
+        return torch.cat(
+            [_ for _ in (self.__halo_prev, self.__array, self.__halo_next) if _ is not None],
+            dim=self.split,
+        )
+
+    def __prephalo(self, start, end) -> torch.Tensor:
+        """
+        Extracts the halo indexed by start, end from ``self.array`` in the direction of ``self.split``
+
+        Parameters
+        ----------
+        start : int
+            Start index of the halo extracted from ``self.array``
+        end : int
+            End index of the halo extracted from ``self.array``
+        """
+        ix = [slice(None, None, None)] * len(self.shape)
+        try:
+            ix[self.split] = slice(start, end)
+        except IndexError:
+            print("Indices out of bound")
+
+        return self.__array[tuple(ix)].clone()
+
+    def __redistribute_shuffle(
+        self,
+        snd_pr: int | torch.Tensor,
+        send_amt: int | torch.Tensor,
+        rcv_pr: int | torch.Tensor,
+        snd_dtype: torch.dtype,
+    ):
+        """
+        Function to abstract the function used during redistribute for shuffling data between
+        processes along the split axis
+
+        Parameters
+        ----------
+        snd_pr : int or torch.Tensor
+            Sending process
+        send_amt : int or torch.Tensor
+            Amount of data to be sent by the sending process
+        rcv_pr : int or torch.Tensor
+            Receiving process
+        snd_dtype : torch.dtype
+            Torch type of the data in question
+        """
+        rank = self.comm.rank
+        send_slice = [slice(None)] * self.ndim
+        keep_slice = [slice(None)] * self.ndim
+        if rank == snd_pr:
+            if snd_pr < rcv_pr:  # data passed to a higher rank (off the bottom)
+                send_slice[self.split] = slice(
+                    self.lshape[self.split] - send_amt, self.lshape[self.split]
+                )
+                keep_slice[self.split] = slice(0, self.lshape[self.split] - send_amt)
+            if snd_pr > rcv_pr:  # data passed to a lower rank (off the top)
+                send_slice[self.split] = slice(0, send_amt)
+                keep_slice[self.split] = slice(send_amt, self.lshape[self.split])
+            data = self.__array[tuple(send_slice)].clone()
+            self.comm.Send(data, dest=rcv_pr, tag=685)
+            self.__array = self.__array[tuple(keep_slice)]
+        if rank == rcv_pr:
+            shp = list(self.gshape)
+            shp[self.split] = send_amt
+            data = torch.zeros(shp, dtype=snd_dtype, device=self.device.torch_device)
+            self.comm.Recv(data, source=snd_pr, tag=685)
+            if snd_pr < rcv_pr:  # data passed from a lower rank (append to top)
+                self.__array = torch.cat((data, self.__array), dim=self.split)
+            if snd_pr > rcv_pr:  # data passed from a higher rank (append to bottom)
+                self.__array = torch.cat((self.__array, data), dim=self.split)
+
     def __set(
         self,
         key: int | tuple[int, ...] | list[int],
@@ -935,6 +1647,39 @@ class DNDarray:
 
         self.larray[key_to_use] = rhs
         return
+
+    def __prepare_unordered_comm(self, split_key_flat: torch.Tensor, displs: tuple) -> tuple:
+        """
+        Helper function for distributed unordered indexing.
+        Determines destination ranks, sorts the key, and computes Alltoallv parameters.
+        """
+        displs_t = torch.tensor(displs, device=self.device.torch_device)
+
+        # map global indices to destination ranks
+        dest_ranks = torch.searchsorted(displs_t[1:], split_key_flat, right=True).to(torch.int64)
+
+        # sort by destination rank to pack memory contiguously
+        sort_idx = torch.argsort(dest_ranks)
+        dest_ranks_sorted = dest_ranks[sort_idx]
+
+        # calculate send_counts and send_displs
+        send_counts = torch.bincount(dest_ranks_sorted, minlength=self.comm.size).to(torch.int64)
+        send_displs = torch.zeros_like(send_counts)
+        send_displs[1:] = torch.cumsum(send_counts, dim=0)[:-1]
+
+        # collect and calculate recv_counts and recv_displs
+        recv_counts = torch.empty_like(send_counts)
+        self.comm.Alltoall(send_counts, recv_counts)
+        recv_displs = torch.zeros_like(recv_counts)
+        recv_displs[1:] = recv_counts.cumsum(0)[:-1]
+
+        return (
+            sort_idx,
+            send_counts,
+            send_displs,
+            recv_counts,
+            recv_displs,
+        )
 
     def __getitem_scalar(self, p: ProcessedKey) -> DNDarray:
         """
@@ -1226,561 +1971,6 @@ class DNDarray:
         )
 
         return self, indexed_arr
-
-    def __prepare_unordered_comm(self, split_key_flat: torch.Tensor, displs: tuple) -> tuple:
-        """
-        Helper function for distributed unordered indexing.
-        Determines destination ranks, sorts the key, and computes Alltoallv parameters.
-        """
-        displs_t = torch.tensor(displs, device=self.device.torch_device)
-
-        # map global indices to destination ranks
-        dest_ranks = torch.searchsorted(displs_t[1:], split_key_flat, right=True).to(torch.int64)
-
-        # sort by destination rank to pack memory contiguously
-        sort_idx = torch.argsort(dest_ranks)
-        dest_ranks_sorted = dest_ranks[sort_idx]
-
-        # calculate send_counts and send_displs
-        send_counts = torch.bincount(dest_ranks_sorted, minlength=self.comm.size).to(torch.int64)
-        send_displs = torch.zeros_like(send_counts)
-        send_displs[1:] = torch.cumsum(send_counts, dim=0)[:-1]
-
-        # collect and calculate recv_counts and recv_displs
-        recv_counts = torch.empty_like(send_counts)
-        self.comm.Alltoall(send_counts, recv_counts)
-        recv_displs = torch.zeros_like(recv_counts)
-        recv_displs[1:] = recv_counts.cumsum(0)[:-1]
-
-        return (
-            sort_idx,
-            send_counts,
-            send_displs,
-            recv_counts,
-            recv_displs,
-        )
-
-    def __getitem__(self, key: Key) -> DNDarray:
-        """
-        Global getter function for DNDarrays.
-
-        Returns a new DNDarray corresponding to the selection of values from the original DNDarray
-        as specified by `key`. The `key` can be a variety of indexers, including integers, slices,
-        lists, boolean masks, DNDarrays, ndarrays, torch tensors, and a combination thereof.
-
-        The function determines the appropriate method to retrieve the requested data based on the
-        type and structure of `key`, executing MPI communication if the indexing pattern requires
-        data from multiple processes.
-
-        Notes
-        -----
-        The returned DNDarray will have its shape, split, and balanced status determined according
-        to the indexing operation performed. For more details on supported indexing behaviors, see
-        the :doc:`indexing documentation <INDEXING>`.
-
-        Parameters
-        ----------
-        key : array-like indexer
-            Indices to get from the ``DNDarray``.
-
-        Examples
-        --------
-        >>> a = ht.arange(10, split=0)
-        (1/2) >>> tensor([0, 1, 2, 3, 4], dtype=torch.int32)
-        (2/2) >>> tensor([5, 6, 7, 8, 9], dtype=torch.int32)
-        >>> a[1:6]
-        (1/2) >>> tensor([1, 2, 3, 4], dtype=torch.int32)
-        (2/2) >>> tensor([5], dtype=torch.int32)
-        >>> a = ht.zeros((4, 5), split=0)
-        (1/2) >>> tensor([[0., 0., 0., 0., 0.],
-                          [0., 0., 0., 0., 0.]])
-        (2/2) >>> tensor([[0., 0., 0., 0., 0.],
-                          [0., 0., 0., 0., 0.]])
-        >>> a[1:4, 1]
-        (1/2) >>> tensor([0.])
-        (2/2) >>> tensor([0., 0.])
-        """
-        if key is None:
-            return self.expand_dims(0)
-        if (
-            key is ...
-            or (isinstance(key, slice) and key == slice(None))
-            or (isinstance(key, tuple) and key == ())
-        ):
-            return self
-
-        # attempt early out for non-distributed arrays
-        if not self.is_distributed():
-            try:
-                res_tensor = self.larray[_unwrap_local_key(key, device=self.device.torch_device)]
-                return DNDarray(
-                    res_tensor,
-                    gshape=tuple(res_tensor.shape),
-                    dtype=self.dtype,
-                    split=None,
-                    device=self.device,
-                    comm=self.comm,
-                    balanced=True,
-                )
-            except Exception:
-                pass
-
-        # key processing returns a ProcessedKey namedtuple
-        self, processed_key = _resolve_indexing_state(
-            self, key, return_local_indices=True, op="get"
-        )
-
-        # dispatch to appropriate getitem method
-        op = processed_key.op_type
-
-        if op == "scalar":
-            return self.__getitem_scalar(processed_key)
-        elif op == "distr_mask":
-            return self.__getitem_mask(processed_key)
-        elif op == "distributed":
-            return self.__getitem_advanced_distributed(processed_key)
-        elif op == "descending_slice":
-            return self.__getitem_descending_slice_distributed(processed_key)
-        elif op in ("local_mask", "local"):
-            return self.__getitem_local(processed_key)
-
-    if torch.cuda.device_count() > 0:
-
-        def gpu(self) -> DNDarray:
-            """
-            Returns a copy of this object in GPU memory. If this object is already in GPU memory, then no copy is
-            performed and the original object is returned.
-
-            """
-            self.__array = self.__array.cuda(devices.gpu.torch_device)
-            self.__device = devices.gpu
-            return self
-
-    def __index__(self) -> int:
-        """
-        Converts a zero-dimensional integer array to a Python ``int`` object.
-        """
-        if not issubclass(self.dtype, integer):
-            raise TypeError("only integer scalar arrays can be converted to a scalar index")
-        return self.__cast(int)
-
-    def __int__(self) -> int:
-        """
-        Integer scalar casting.
-        """
-        return self.__cast(int)
-
-    def is_balanced(self, force_check: bool = False) -> bool:
-        """
-        Determine if ``self`` is balanced evenly (or as evenly as possible) across all nodes
-        distributed evenly (or as evenly as possible) across all processes.
-        This is equivalent to returning ``self.balanced``. If no information
-        is available (``self.balanced = None``), the balanced status will be
-        assessed via collective communication.
-
-        Parameters
-        ----------
-        force_check : bool, optional
-            If True, the balanced status of the ``DNDarray`` will be assessed via
-            collective communication in any case.
-        """
-        if not self.is_distributed():
-            self.__balanced = True
-            return self.balanced
-
-        if not force_check and self.balanced is not None:
-            return self.balanced
-
-        _, _, chk = self.comm.chunk(self.shape, self.split)
-        test_lshape = tuple([x.stop - x.start for x in chk])
-        balanced = 1 if test_lshape == self.lshape else 0
-
-        out = self.comm.allreduce(balanced, MPI.SUM)
-        balanced = True if out == self.comm.size else False
-        return balanced
-
-    def is_distributed(self) -> bool:
-        """
-        Determines whether the data of this ``DNDarray`` is distributed across multiple processes.
-        """
-        return self.split is not None and self.comm.is_distributed()
-
-    def item(self):
-        """
-        Returns the only element of a 1-element :class:`DNDarray`.
-        Mirror of the pytorch command by the same name. If size of ``DNDarray`` is >1 element, then a ``ValueError`` is
-        raised (by pytorch)
-
-        Examples
-        --------
-        >>> import heat as ht
-        >>> x = ht.zeros((1))
-        >>> x.item()
-        0.0
-        """
-        if self.size > 1:
-            raise ValueError("only one-element DNDarrays can be converted to Python scalars")
-        # make sure the element is on every process
-        self.resplit_(None)
-        return self.__array.item()
-
-    def __len__(self) -> int:
-        """
-        The length of the ``DNDarray``, i.e. the number of items in the first dimension.
-        """
-        try:
-            len = self.shape[0]
-            return len
-        except IndexError:
-            raise TypeError("len() of unsized DNDarray")
-
-    def numpy(self) -> np.typing.NDArray[Any]:
-        """
-        Returns a copy of the :class:`DNDarray` as numpy ndarray. If the ``DNDarray`` resides on the GPU, the underlying data will be copied to the CPU first.
-
-        If the ``DNDarray`` is distributed, an MPI Allgather operation will be performed before converting to np.ndarray, i.e. each MPI process will end up holding a copy of the entire array in memory.  Make sure process memory is sufficient!
-
-        Examples
-        --------
-        >>> import heat as ht
-        T1 = ht.random.randn((10,8))
-        T1.numpy()
-        """
-        dist = self.copy().resplit_(axis=None)
-        return dist.larray.cpu().numpy()
-
-    def _repr_pretty_(self, p, cycle):
-        """
-        Pretty print for IPython.
-        """
-        if cycle:
-            p.text(printing.__str__(self))
-        else:
-            p.text(printing.__str__(self))
-
-    def __repr__(self) -> str:
-        """
-        Returns a printable representation of the passed DNDarray, targeting developers.
-        """
-        return printing.__repr__(self)
-
-    def ravel(self) -> DNDarray:
-        """
-        Flattens the ``DNDarray``.
-
-        See Also
-        --------
-        :func:`~heat.core.manipulations.ravel`
-
-        Examples
-        --------
-        >>> a = ht.ones((2, 3), split=0)
-        >>> b = a.ravel()
-        >>> a[0, 0] = 4
-        >>> b
-        DNDarray([4., 1., 1., 1., 1., 1.], dtype=ht.float32, device=cpu:0, split=0)
-        """
-        return manipulations.ravel(self)
-
-    def redistribute_(
-        self, lshape_map: torch.Tensor | None = None, target_map: torch.Tensor | None = None
-    ) -> None:
-        """
-        Redistributes the data of the :class:`DNDarray` *along the split axis* to match the given target map.
-        This function does not modify the non-split dimensions of the ``DNDarray``.
-        This is an abstraction and extension of the balance function.
-
-        Parameters
-        ----------
-        lshape_map : torch.Tensor, optional
-            The current lshape of processes.
-            Units are ``[rank, lshape]``.
-        target_map : torch.Tensor, optional
-            The desired distribution across the processes.
-            Units are ``[rank, target lshape]``.
-            Note: the only important parts of the target map are the values along the split axis,
-            values which are not along this axis are there to mimic the shape of the ``lshape_map``.
-
-        Examples
-        --------
-        >>> st = ht.ones((50, 81, 67), split=2)
-        >>> target_map = torch.zeros((st.comm.size, 3), dtype=torch.int64)
-        >>> target_map[0, 2] = 67
-        >>> print(target_map)
-        [0/2] tensor([[ 0,  0, 67],
-        [0/2]         [ 0,  0,  0],
-        [0/2]         [ 0,  0,  0]], dtype=torch.int32)
-        [1/2] tensor([[ 0,  0, 67],
-        [1/2]         [ 0,  0,  0],
-        [1/2]         [ 0,  0,  0]], dtype=torch.int32)
-        [2/2] tensor([[ 0,  0, 67],
-        [2/2]         [ 0,  0,  0],
-        [2/2]         [ 0,  0,  0]], dtype=torch.int32)
-        >>> print(st.lshape)
-        [0/2] (50, 81, 23)
-        [1/2] (50, 81, 22)
-        [2/2] (50, 81, 22)
-        >>> st.redistribute_(target_map=target_map)
-        >>> print(st.lshape)
-        [0/2] (50, 81, 67)
-        [1/2] (50, 81, 0)
-        [2/2] (50, 81, 0)
-        """
-        if not self.is_distributed():
-            return
-        snd_dtype = self.dtype.torch_type()
-        # units -> {pr, 1st index, 2nd index}
-        if lshape_map is None:
-            # NOTE: giving an lshape map which is incorrect will result in an incorrect distribution
-            lshape_map = self.create_lshape_map(force_check=True)
-        else:
-            if not isinstance(lshape_map, torch.Tensor):
-                raise TypeError(f"lshape_map must be a torch.Tensor, currently {type(lshape_map)}")
-            if lshape_map.shape != (self.comm.size, len(self.gshape)):
-                raise ValueError(
-                    f"lshape_map must have the shape ({self.comm.size}, {len(self.gshape)}), currently {lshape_map.shape}"
-                )
-        if target_map is None:  # if no target map is given then it will balance the tensor
-            _, _, chk = self.comm.chunk(self.shape, self.split)
-            target_map = lshape_map.clone()
-            target_map[..., self.split] = 0
-            for pr in range(self.comm.size):
-                target_map[pr, self.split] = self.comm.chunk(self.shape, self.split, rank=pr)[1][
-                    self.split
-                ]
-            self.__balanced = True
-        else:
-            sanitation.sanitize_in_tensor(target_map)
-            if target_map[..., self.split].sum() != self.shape[self.split]:
-                raise ValueError(
-                    f"Sum along the split axis of the target map must be equal to the shape in that dimension, currently {target_map[..., self.split]}"
-                )
-            if target_map.shape != (self.comm.size, len(self.gshape)):
-                raise ValueError(
-                    f"target_map must have the shape {(self.comm.size, len(self.gshape))}, currently {target_map.shape}"
-                )
-            # no info on balanced status
-            self.__balanced = False
-        lshape_cumsum = torch.cumsum(lshape_map[..., self.split], dim=0)
-        chunk_cumsum = torch.cat(
-            (
-                torch.tensor([0], device=self.device.torch_device),
-                torch.cumsum(target_map[..., self.split], dim=0),
-            ),
-            dim=0,
-        )
-        # need the data start as well for process 0
-        for rcv_pr in range(self.comm.size - 1):
-            st = chunk_cumsum[rcv_pr].item()
-            sp = chunk_cumsum[rcv_pr + 1].item()
-            # start pr should be the next process with data
-            if lshape_map[rcv_pr, self.split] >= target_map[rcv_pr, self.split]:
-                # if there is more data on the process than the start process than start == stop
-                st_pr = rcv_pr
-                sp_pr = rcv_pr
-            else:
-                # if there is less data on the process than need to get the data from the next data
-                # with data
-                # need processes > rcv_pr with lshape > 0
-                st_pr = (
-                    torch.nonzero(input=lshape_map[rcv_pr:, self.split] > 0, as_tuple=False)[
-                        0
-                    ].item()
-                    + rcv_pr
-                )
-                hld = (
-                    torch.nonzero(input=sp <= lshape_cumsum[rcv_pr:], as_tuple=False).flatten()
-                    + rcv_pr
-                )
-                sp_pr = hld[0].item() if hld.numel() > 0 else self.comm.size
-
-            # st_pr and sp_pr are the processes on which the data sits at the beginning
-            # need to loop from st_pr to sp_pr + 1 and send the pr
-            for snd_pr in range(st_pr, sp_pr + 1):
-                if snd_pr == self.comm.size:
-                    break
-                data_required = abs(sp - st - lshape_map[rcv_pr, self.split].item())
-                send_amt = (
-                    data_required
-                    if data_required <= lshape_map[snd_pr, self.split]
-                    else lshape_map[snd_pr, self.split]
-                )
-                if (sp - st) <= lshape_map[rcv_pr, self.split].item() or snd_pr == rcv_pr:
-                    send_amt = 0
-                # send amount is the data still needed by recv if that is available on the snd
-                if send_amt != 0:
-                    self.__redistribute_shuffle(
-                        snd_pr=snd_pr, send_amt=send_amt, rcv_pr=rcv_pr, snd_dtype=snd_dtype
-                    )
-                lshape_cumsum[snd_pr] -= send_amt
-                lshape_cumsum[rcv_pr] += send_amt
-                lshape_map[rcv_pr, self.split] += send_amt
-                lshape_map[snd_pr, self.split] -= send_amt
-            if lshape_map[rcv_pr, self.split] > target_map[rcv_pr, self.split]:
-                # if there is any data left on the process then send it to the next one
-                send_amt = lshape_map[rcv_pr, self.split] - target_map[rcv_pr, self.split]
-                self.__redistribute_shuffle(
-                    snd_pr=rcv_pr, send_amt=send_amt.item(), rcv_pr=rcv_pr + 1, snd_dtype=snd_dtype
-                )
-                lshape_cumsum[rcv_pr] -= send_amt
-                lshape_cumsum[rcv_pr + 1] += send_amt
-                lshape_map[rcv_pr, self.split] -= send_amt
-                lshape_map[rcv_pr + 1, self.split] += send_amt
-
-        if any(lshape_map[..., self.split] != target_map[..., self.split]):
-            # sometimes need to call the redistribute once more,
-            # (in the case that the second to last processes needs to get data from +1 and -1)
-            self.redistribute_(lshape_map=lshape_map, target_map=target_map)
-
-        self.__lshape_map = target_map
-        self.__counts_displs = None
-
-    def __redistribute_shuffle(
-        self,
-        snd_pr: int | torch.Tensor,
-        send_amt: int | torch.Tensor,
-        rcv_pr: int | torch.Tensor,
-        snd_dtype: torch.dtype,
-    ):
-        """
-        Function to abstract the function used during redistribute for shuffling data between
-        processes along the split axis
-
-        Parameters
-        ----------
-        snd_pr : int or torch.Tensor
-            Sending process
-        send_amt : int or torch.Tensor
-            Amount of data to be sent by the sending process
-        rcv_pr : int or torch.Tensor
-            Receiving process
-        snd_dtype : torch.dtype
-            Torch type of the data in question
-        """
-        rank = self.comm.rank
-        send_slice = [slice(None)] * self.ndim
-        keep_slice = [slice(None)] * self.ndim
-        if rank == snd_pr:
-            if snd_pr < rcv_pr:  # data passed to a higher rank (off the bottom)
-                send_slice[self.split] = slice(
-                    self.lshape[self.split] - send_amt, self.lshape[self.split]
-                )
-                keep_slice[self.split] = slice(0, self.lshape[self.split] - send_amt)
-            if snd_pr > rcv_pr:  # data passed to a lower rank (off the top)
-                send_slice[self.split] = slice(0, send_amt)
-                keep_slice[self.split] = slice(send_amt, self.lshape[self.split])
-            data = self.__array[tuple(send_slice)].clone()
-            self.comm.Send(data, dest=rcv_pr, tag=685)
-            self.__array = self.__array[tuple(keep_slice)]
-        if rank == rcv_pr:
-            shp = list(self.gshape)
-            shp[self.split] = send_amt
-            data = torch.zeros(shp, dtype=snd_dtype, device=self.device.torch_device)
-            self.comm.Recv(data, source=snd_pr, tag=685)
-            if snd_pr < rcv_pr:  # data passed from a lower rank (append to top)
-                self.__array = torch.cat((data, self.__array), dim=self.split)
-            if snd_pr > rcv_pr:  # data passed from a higher rank (append to bottom)
-                self.__array = torch.cat((self.__array, data), dim=self.split)
-
-    def resplit_(self, axis: int = None):
-        """
-        In-place option for resplitting a :class:`DNDarray`.
-
-        Parameters
-        ----------
-        axis : int
-            The new split axis, ``None`` denotes gathering, an int will set the new split axis
-
-        Examples
-        --------
-        >>> a = ht.zeros(
-        ...     (
-        ...         4,
-        ...         5,
-        ...     ),
-        ...     split=0,
-        ... )
-        >>> a.lshape
-        (0/2) (2, 5)
-        (1/2) (2, 5)
-        >>> ht.resplit_(a, None)
-        >>> a.split
-        None
-        >>> a.lshape
-        (0/2) (4, 5)
-        (1/2) (4, 5)
-        >>> a = ht.zeros(
-        ...     (
-        ...         4,
-        ...         5,
-        ...     ),
-        ...     split=0,
-        ... )
-        >>> a.lshape
-        (0/2) (2, 5)
-        (1/2) (2, 5)
-        >>> ht.resplit_(a, 1)
-        >>> a.split
-        1
-        >>> a.lshape
-        (0/2) (4, 3)
-        (1/2) (4, 2)
-        """
-        # sanitize the axis to check whether it is in range
-        axis = sanitize_axis(self.shape, axis)
-
-        self.__partitions_dict__ = None
-
-        # early out for unchanged content
-        if self.comm.size == 1:
-            self.__split = axis
-        if axis == self.split:
-            return self
-
-        if axis is None:
-            gathered = torch.empty(
-                self.shape, dtype=self.dtype.torch_type(), device=self.device.torch_device
-            )
-            counts, displs = self.counts_displs()
-            self.comm.Allgatherv(self.__array, (gathered, counts, displs), recv_axis=self.split)
-            self.__array = gathered
-            self.__split = axis
-            self.__lshape_map = None
-            self.__counts_displs = None
-            return self
-        # tensor needs be split/sliced locally
-        if self.split is None:
-            _, _, slices = self.comm.chunk(self.shape, axis)
-            temp = self.__array[slices]
-            self.__array = torch.empty((1,), device=self.device.torch_device)
-            # necessary to clear storage of local __array
-            self.__array = temp.clone().detach()
-            self.__split = axis
-            self.__lshape_map = None
-            self.__counts_displs = None
-            return self
-
-        arr_tiles = tiling.SplitTiles(self)
-        new_tiles = tiling.SplitTiles(self)
-
-        gshape = self.shape
-        new_lshape = list(gshape)
-        new_lshape[axis] = int(arr_tiles.tile_dimensions[axis][self.comm.rank].item())
-
-        recv_buffer = torch.empty(
-            tuple(new_lshape), dtype=self.dtype.torch_type(), device=self.device.torch_device
-        )
-
-        self._axis2axisResplit(
-            self.larray, self.split, arr_tiles, recv_buffer, axis, new_tiles, self.comm
-        )
-
-        self.__array = recv_buffer
-        self.__split = axis
-        self.__lshape_map = None
-        self.__counts_displs = None
-
-        return self
 
     def __setitem_scalar(self, p: ProcessedKey, value: "DNDarray", value_is_scalar: bool) -> None:
         if p.root is not None:
@@ -2266,184 +2456,6 @@ class DNDarray:
         # set local elements of `self` to corresponding elements of `value`
         self.__set(key, recv_buf)
         return self
-
-    def __setitem__(
-        self,
-        key: Key,
-        value: float | "DNDarray" | torch.Tensor,
-    ):
-        """
-        Global item setter for DNDarrays.
-
-        Assigns values to the specified positions in the ``DNDarray``. The `key` can be a variety
-        of indexers, including integers, slices, lists, boolean masks, DNDarrays, ndarrays,
-        torch tensors, or a combination thereof.
-
-        If a distributed ``DNDarray`` is given as the `value` to be set, this function will
-        automatically attempt to align its distribution scheme (split axis and local shapes)
-        with the target indexed array via MPI communication. If the distributions cannot be
-        safely aligned, a ``ValueError`` or ``RuntimeError`` is raised.
-
-        Parameters
-        ----------
-        key : array-like indexer
-            Index/indices to be set
-        value: float | "DNDarray" | torch.Tensor
-            Value to be set to the specified positions in the DNDarray (self)
-
-        Notes
-        -----
-        For more details on supported indexing behaviors, see the :doc:`indexing documentation <INDEXING>`.
-
-        Examples
-        --------
-        >>> a = ht.zeros((4, 5), split=0)
-        (1/2) >>> tensor([[0., 0., 0., 0., 0.],
-                          [0., 0., 0., 0., 0.]])
-        (2/2) >>> tensor([[0., 0., 0., 0., 0.],
-                          [0., 0., 0., 0., 0.]])
-        >>> a[1:4, 1] = 1
-        >>> a
-        (1/2) >>> tensor([[0., 0., 0., 0., 0.],
-                          [0., 1., 0., 0., 0.]])
-        (2/2) >>> tensor([[0., 1., 0., 0., 0.],
-                          [0., 1., 0., 0., 0.]])
-        """
-        if not self.is_distributed() and not (
-            isinstance(value, DNDarray) and value.is_distributed()
-        ):
-            try:
-                torch_key = _unwrap_local_key(key, device=self.device.torch_device)
-                if isinstance(value, DNDarray):
-                    rhs = value.larray.to(self.larray.dtype)
-                elif isinstance(value, torch.Tensor):
-                    rhs = value.to(self.larray.dtype)
-                else:
-                    rhs = value  # Python scalar / float / int
-
-                if self.larray.is_cuda and torch.is_tensor(rhs):
-                    torch_key, rhs = _resolve_duplicate_indices(torch_key, rhs, self.larray.shape)
-
-                self.larray[torch_key] = rhs
-                return
-            except Exception:
-                pass
-
-        # bypass factories.array() for primitive types and single-element tensors to avoid unnecessary overhead
-        value_is_primitive = isinstance(value, (int, float, complex, bool)) or (
-            isinstance(value, torch.Tensor) and value.numel() == 1 and value.ndim == 0
-        )
-        if not value_is_primitive and not isinstance(value, DNDarray):
-            value = factories.array(value)
-
-        original_key = key
-        original_split = self.split
-
-        self, processed_key = _resolve_indexing_state(
-            self, key, return_local_indices=True, op="set"
-        )
-
-        op = processed_key.op_type
-
-        # match dimensions (except for distr_mask as it perfectly aligns)
-        if op == "distr_mask":
-            value_is_scalar = (
-                np.isscalar(value)
-                or getattr(value, "ndim", 1) == 0
-                or (getattr(value, "shape", None) == (1,) and getattr(value, "split", 0) is None)
-            )
-        else:
-            value, value_is_scalar = _broadcast_value(value, processed_key.output_shape)
-
-        # dispatch to the appropriate setter
-        if op == "distr_mask":
-            self.__setitem_mask(processed_key, value, value_is_scalar)
-        elif op == "scalar":
-            self.__setitem_scalar(processed_key, value, value_is_scalar)
-        elif op == "distributed":
-            self.__setitem_advanced_distributed(
-                processed_key, original_key, value, value_is_scalar, original_split=original_split
-            )
-        elif op == "descending_slice":
-            self.__setitem_descending_slice_distributed(processed_key, value, value_is_scalar)
-        elif op in ("local_mask", "local"):
-            self.__setitem_local(processed_key, value, value_is_scalar)
-
-    def __str__(self) -> str:
-        """
-        Computes a string representation of the passed ``DNDarray``.
-        """
-        return printing.__str__(self)
-
-    def to_device(self, device: Device, /, *, stream: int | Any | None = None) -> DNDarray:
-        """
-        Copy the array from the device on which it currently resides to the specified ``device``.
-
-        Parameters
-        ----------
-        device : Device
-            A ``Device`` object.
-        stream : Int or Any, optional
-            Stream object to use during copy.
-        """
-        if stream is not None:
-            raise ValueError("The stream argument to to_device() is not supported")
-        if device.device_type == "cpu":
-            return self.cpu()
-        elif device.device_type == "gpu":
-            return self.gpu()
-        raise ValueError(f"Unsupported device {device!r}")
-
-    def tolist(self, keepsplit: bool = False) -> list[int | float]:
-        """
-        Return a copy of the local array data as a (nested) Python list. For scalars, a standard Python number is returned.
-
-        Parameters
-        ----------
-        keepsplit: bool
-            Whether the list should be returned locally or globally.
-
-        Examples
-        --------
-        >>> a = ht.array([[0, 1], [2, 3]])
-        >>> a.tolist()
-        [[0, 1], [2, 3]]
-
-        >>> a = ht.array([[0, 1], [2, 3]], split=0)
-        >>> a.tolist()
-        [[0, 1], [2, 3]]
-
-        >>> a = ht.array([[0, 1], [2, 3]], split=1)
-        >>> a.tolist(keepsplit=True)
-        (1/2) [[0], [2]]
-        (2/2) [[1], [3]]
-        """
-        if not keepsplit:
-            return self.resplit(axis=None).__array.tolist()
-
-        return self.__array.tolist()
-
-    @classmethod
-    def __torch_function__(cls, func, types, args=(), kwargs=None):
-        """
-        Supports PyTorch's dispatch mechanism.
-        """
-        import heat
-
-        if kwargs is None:
-            kwargs = {}
-        try:
-            ht_func = getattr(heat, func.__name__)
-        except AttributeError:
-            return NotImplemented
-        return ht_func(*args, **kwargs)
-
-    def __torch_proxy__(self) -> torch.Tensor:
-        """
-        Return a 1-element `torch.Tensor` strided as the global `self` shape.
-        Used internally for sanitation purposes.
-        """
-        return torch.empty(self.gshape, device="meta")
 
 
 # Heat imports at the end to break cyclic dependencies
