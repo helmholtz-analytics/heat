@@ -73,11 +73,10 @@ def _process_scalar_key(
     """
     Private helper function to process a single-item scalar key used for indexing a ``DNDarray``.
     """
+    # cast key to scalar if it is an array
     try:
-        # is key an ndarray or DNDarray or torch.Tensor?
         key = key.item()
     except AttributeError:
-        # key is already an integer, do nothing
         pass
     if not arr.is_distributed():
         root = None
@@ -131,7 +130,7 @@ def _resolve_duplicate_indices(
     if not torch.is_tensor(rhs_in) or rhs_in.numel() <= 1:
         return key_in, rhs_in
 
-    # Normalize key to either a single tensor or tuple of tensors
+    # Normalize key to tuple of tensors
     if torch.is_tensor(key_in):
         idx_tensors = (key_in,)
     elif (
@@ -146,7 +145,7 @@ def _resolve_duplicate_indices(
 
     device = rhs_in.device
 
-    # Broadcast indices to common shape, then flatten
+    # Broadcast indices to common shape
     try:
         idx_b = torch.broadcast_tensors(*idx_tensors)
     except RuntimeError:
