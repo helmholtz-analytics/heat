@@ -164,14 +164,14 @@ class TestMNISTDataset(TestCase):
         batch_size = 4
         dl = ht.utils.data.DataLoader(dataset=dset, batch_size=batch_size)
 
-        for _ in range(2):
+        num_epochs = 2
+        for epoch in range(num_epochs):
+            if epoch == num_epochs - 1:
+                dl.last_epoch = True
+
             epoch_samples = 0
             for batch_data, batch_targets in dl:
                 self.assertEqual(batch_data.shape[1:], (1, 28, 28))
                 self.assertEqual(batch_targets.shape[0], batch_data.shape[0])
                 epoch_samples += batch_data.shape[0]
             self.assertEqual(epoch_samples, len(dset))
-
-
-if __name__ == "__main__":
-    unittest.main()
