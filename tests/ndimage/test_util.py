@@ -1,12 +1,7 @@
 import pytest
-import scipy.ndimage as ndimg
 import numpy as np
 import heat as ht
-import heat.ndimage.affine as affine
-from heat.testing.basic_test import TestCase
 from heat.ndimage.util import create_checker, root_mean_square_error, center_transform
-from heat.ndimage.affine import affine_transform
-from examples.ndimages.affine_helpers_DONOTCOMMIT import visual_compare
 
 class TestUtil:
     def test_center_transform(self):
@@ -40,10 +35,6 @@ class TestUtil:
                              [ 0,  0, 1, 0]]],
                            dtype=ht.float32)
         assert ht.equal(result, compare)
-        # img = create_checker((10,10),4)
-        # vis_result = affine_transform(img, result)
-        # vis_compare = affine_transform(img, compare)
-        # visual_compare(vis_result, vis_compare.numpy(), has_bulk=False)
 
         with pytest.raises(ValueError):
             center_transform(matrix, (10,10,3))
