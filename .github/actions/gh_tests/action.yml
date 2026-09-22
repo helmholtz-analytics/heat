@@ -47,20 +47,40 @@ runs:
     # Running tests
     - name: Run serial tests
       shell: bash
+      env:
+        OMP_NUM_THREADS: 1
+        MKL_NUM_THREADS: 1
+        OPENBLAS_NUM_THREADS: 1
+        NUMEXPR_NUM_THREADS: 1
       run: |
         mpirun -n 1 pytest -vv
     - name: Run tests on 2 ranks
       if: ${{ inputs.mode == 'full' || inputs.mode == 'quick' }}
       shell: bash
+      env:
+        OMP_NUM_THREADS: 1
+        MKL_NUM_THREADS: 1
+        OPENBLAS_NUM_THREADS: 1
+        NUMEXPR_NUM_THREADS: 1
       run: |
         mpirun -n 2 pytest -vv
     - name: Run tests on 3 ranks
       if: ${{ inputs.mode == 'full'}}
       shell: bash
+      env:
+        OMP_NUM_THREADS: 1
+        MKL_NUM_THREADS: 1
+        OPENBLAS_NUM_THREADS: 1
+        NUMEXPR_NUM_THREADS: 1
       run: |
         mpirun -n 3 pytest -vv
     - name: Run tests on 4 ranks
       if: ${{ inputs.mode == 'full' || inputs.mode == 'medium' }}
       shell: bash
+      env:
+        OMP_NUM_THREADS: 1
+        MKL_NUM_THREADS: 1
+        OPENBLAS_NUM_THREADS: 1
+        NUMEXPR_NUM_THREADS: 1
       run: |
         mpirun -n 4 pytest -vv
