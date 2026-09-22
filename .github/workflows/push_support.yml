@@ -3,6 +3,12 @@ on:
   push:
     branches:
       - 'support/**'
+
+concurrency:
+  group: pr-update-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+
 jobs:
   test-latest:
     runs-on: ubuntu-latest
