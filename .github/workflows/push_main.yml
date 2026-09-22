@@ -8,8 +8,6 @@ on:
       - 'heat/**'
       - 'tests/**'
       - 'pyproject.toml'
-
-
 jobs:
   codebase-test-and-bench-main:
     name: Codebase Tests and Benchmarks
