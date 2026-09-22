@@ -4,12 +4,6 @@ on:
   push:
     branches-ignore:
       - main
-
-concurrency:
-  group: pr-update-${{ github.event.pull_request.number }}
-  cancel-in-progress: false
-
-
 jobs:
   check-pr-status:
     runs-on: ubuntu-latest

@@ -10,11 +10,6 @@ on:
       - 'pyproject.toml'
 
 
-concurrency:
-  group: pr-update-${{ github.event.pull_request.number }}
-  cancel-in-progress: false
-
-
 jobs:
   codebase-test-and-bench-main:
     name: Codebase Tests and Benchmarks
