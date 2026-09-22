@@ -45,15 +45,28 @@ runs:
         uv pip install ${{ inputs.pytorch-version }} --extra-index-url https://download.pytorch.org/whl/cpu
         uv pip install .[dev]
     # Running tests
-    - name: Collect tests
+    - name: Run diagnostics
       shell: bash
       env:
         OMP_NUM_THREADS: 1
         MKL_NUM_THREADS: 1
         OPENBLAS_NUM_THREADS: 1
         NUMEXPR_NUM_THREADS: 1
+        PYTHONFAULTHANDLER: "1"
       run: |
-        pytest --collect-only -vv --full-trace
+        python - <<'PY'
+        import faulthandler
+        import os
+        import signal
+        import subprocess
+        import sys
+
+        faulthandler.enable()
+        faulthandler.register(signal.SIGTERM, all_threads=True, chain=True)
+
+        print(f"wrapper pid={os.getpid()}", flush=True)
+        sys.exit(subprocess.call([sys.executable, "-m", "pytest", "-vv"]))
+        PY
     - name: Run serial tests
       shell: bash
       run: |
@@ -73,3 +86,12 @@ runs:
       shell: bash
       run: |
         mpirun -n 4 pytest -vv
+    - name: Collect diagnostics
+      if: ${{ always() }}
+      shell: bash
+      run: |
+        echo "run=${{ github.run_id }}, attempt=${{ github.run_attempt }}"
+        echo "job=${{ github.job }}"
+        nproc
+        free -h
+        ps -eo pid,ppid,stat,pcpu,pmem,cmd --sort=-pmem | head -30
