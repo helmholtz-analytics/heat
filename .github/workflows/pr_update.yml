@@ -9,6 +9,12 @@ on:
       - 'tests/**'
       - 'codecov.yml'
 
+
+concurrency:
+  group: pr-update-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+
 jobs:
   quick-tests:
     runs-on: ubuntu-latest
