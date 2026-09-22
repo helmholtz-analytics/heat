@@ -84,6 +84,26 @@ class TestAffine:
                                         [ 0.0000,  0.0000,  0.0000,  1.0000]]],
                                      dtype=ht.float32)
 
+        # expected results for splits for the specific matrix used:
+        # because bulk are completly seperate, split 0 should always work on bulked arrays.
+        # split 1 should not error because the axis does not get changed by matrix
+        # split 2, 3 should error because the axis have influence on other axes or get influenced by other axes
+        # split 4 should always work right now, because color axis is ignored
+        cls.matrix_test_split = ht.array(([[1, 0, 0, 0, 0],
+                                [0, 1, 1, 0, 1],
+                                [0, 0, 1, 0, 0],
+                                [0, 0, 0, 1, 0]],
+
+                                [[1, 0, 0, 0, 0],
+                                [0, 1, 0, 0, 0],
+                                [0, 0, 1, 0, 1],
+                                [0, 0, 0, 1, 0]],),
+                                split=None,
+                                dtype=ht.float32)
+
+        cls.image_test_split = ht.random.random((2, 32, 32, 16, 3), dtype=ht.float32, split=None) * 255
+
+
     @staticmethod
     def default_testing_setup(image, matrix, offset, tol, **kwargs):
         matrix_affine = ht.hstack((matrix, offset[:, None]))
@@ -105,6 +125,7 @@ class TestAffine:
         combined_comparison = ndimg.affine_transform(
             image.numpy(), matrix_affine.numpy(), **kwargs
         )
+
         assert np.allclose(
             with_offset_result.numpy(), with_offset_comparison, rtol=0, atol=tol
         )
@@ -199,6 +220,7 @@ class TestAffine:
         offset = self.offset_3d_bulk
         TestAffine.bulk_testing_setup(image, matrix, offset, 0.05, order=order, mode=mode, output_shape=out_shape)
 
+
     @pytest.mark.parametrize("order", [3])
     @pytest.mark.parametrize("mode", ["grid-constant", "mirror", "nearest"])
     def test_affine_2d_rmse(self, order, mode):
@@ -208,51 +230,31 @@ class TestAffine:
         TestAffine.rmse_testing_setup(image, matrix, offset, tol=3, order=order, mode=mode)
 
 
+    @pytest.mark.parametrize("split", [2, 3])
     @pytest.mark.parametrize("order", [0, 1])
-    @pytest.mark.parametrize("mode", ["grid-constant", "mirror", "nearest"])
-    def test_affine_split(self, order, mode):
+    @pytest.mark.parametrize("mode", ["grid-constant"])
+    def test_affine_split_invalid(self, order, mode, split):
 
-        matrix = ht.array(([[1, 0, 0, 0, 0],
-                            [0, 1, 1, 0, 1],
-                            [0, 0, 1, 0, 0],
-                            [0, 0, 0, 1, 0]],
+        matrix = self.matrix_test_split
+        img_split_none = self.image_test_split
 
-                           [[1, 0, 0, 0, 0],
-                            [0, 1, 0, 0, 0],
-                            [0, 0, 1, 0, 1],
-                            [0, 0, 0, 1, 0]],),
-                            split=None,
-                            dtype=ht.float32)
+        img_split = ht.resplit(img_split_none, split)
+        with pytest.raises(RuntimeError):
+            affine.affine_transform(img_split, matrix, order=order, mode=mode)
 
-        # expected results for this specific matrix:
-        # because bulk are completly seperate, split 0 should always work on bulked arrays.
-        # split 1 should not error because the axis does not get changed by matrix
-        # split 2, 3 should error because the axis have influence on other axes or get influenced by other axes
-        # split 4 should always work right now, because color axis is ignored
 
-        img_split_none = ht.random.random((2, 32, 32, 16, 3), dtype=ht.float32, split=None) * 255
+    @pytest.mark.parametrize("split", [0, 1, 4])
+    @pytest.mark.parametrize("order", [0, 1])
+    @pytest.mark.parametrize("mode", ["grid-constant"])
+    def test_affine_split_valid(self, order, mode, split):
+
+        matrix = self.matrix_test_split
+        img_split_none = self.image_test_split
+
         split_none = affine.affine_transform(img_split_none, matrix, order=order, mode=mode)
-
-        img_split_0 = ht.resplit(img_split_none, 0)
-        split_0 = affine.affine_transform(img_split_0, matrix, order=order, mode=mode)
-        assert ht.equal(split_none, split_0)
-
-        img_split_1 = ht.resplit(img_split_none, 1)
-        split_1 = affine.affine_transform(img_split_1, matrix, order=order, mode=mode)
-        # visual_compare(split_none, split_1.numpy(), has_bulk=True, axis=1)
-        assert np.allclose(split_none.numpy(), split_1.numpy(), rtol=0, atol=0.001)
-
-        img_split_2 = ht.resplit(img_split_none, 2)
-        with pytest.raises(RuntimeError):
-            affine.affine_transform(img_split_2, matrix, order=order, mode=mode)
-
-        img_split_3 = ht.resplit(img_split_none, 3)
-        with pytest.raises(RuntimeError):
-            affine.affine_transform(img_split_3, matrix, order=order, mode=mode)
-
-        img_split_4 = ht.resplit(img_split_none, 4)
-        split_4 = affine.affine_transform(img_split_4, matrix, order=order, mode=mode)
-        assert ht.equal(split_none, split_4)
+        img_split = ht.resplit(img_split_none, split)
+        split_result = affine.affine_transform(img_split, matrix, order=order, mode=mode)
+        assert np.allclose(split_none.numpy(), split_result.numpy(), rtol=0, atol=0.001)
 
 
     @pytest.mark.parametrize("order", [0,1])

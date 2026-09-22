@@ -69,6 +69,9 @@ filtering_map = {}
 
 def _remove_slice(tensor: torch.Tensor, idx: int, dim: int) -> torch.Tensor:
     # Keep rows before and after the removed row
+    if idx < 0:
+        idx = tensor.shape[dim] + idx
+
     rows_before = torch.arange(0, idx, device=tensor.device)
     if dim < 0:
         dim = tensor.ndim + dim
@@ -92,41 +95,38 @@ def _to_full_affine(matrix: torch.Tensor):
     # TODO: rewrite this to to_reduced_affine(M) because affine_grid() expects reduced form and this is just converting it to full and back to reduced form
     """
     Convert reduced affine matrices to full homogeneous form.
-
-    Works with single matrices or batches:
-        - (D, D+1)           → (D+1, D+1)    # single
-        - (N, D, D+1)        → (N, D+1, D+1) # batch
+    Treats last 2 dimensions as matrix dimensions, the others are treated as batch dimensions
+        - [...]DxD   -> D+1xD+1
+        - [...]DxD+1 -> D+1xD+1
     """
-    # Detect if batched by checking number of dimensions
-    if matrix.dim() == 2:
-        # Single matrix case: (D, D+1)
-        D = matrix.shape[0]  # spatial dimension
-        full = torch.zeros(D + 1, D + 1, dtype=matrix.dtype, device=matrix.device)
-        full[:D, :] = matrix  # copy top D rows
-        full[D, D] = 1.0  # set homogeneous coordinate
-        return full
+    target_shape = list(matrix.shape)
+    if len(target_shape) < 2:
+        raise ValueError(
+            f"Expected affine transformation matrix to be tensor with at leas 2 dimensions, got {matrix.dim()}"
+        )
 
-    if matrix.dim() == 3:
-        # Batched case: (N, D, D+1)
-        N, D, _ = matrix.shape
-        full = torch.zeros(N, D + 1, D + 1, dtype=matrix.dtype, device=matrix.device)
-        full[:, :D, :_] = matrix  # copy top D rows for each batch
-        full[:, D, D] = 1.0  # set homogeneous coordinate for each batch
-        return full
+    if target_shape[-1] == target_shape[-2]:  # square matrix
+        target_shape[-1] += 1
+        target_shape[-2] += 1
+    else:
+        target_shape[-2] = target_shape[-1]
 
-    raise ValueError(
-        f"Expected affine transformation matrix to be 2D or 3D tensor, got {matrix.dim()}D"
-    )
+    dim = target_shape[-1]
+
+    full = torch.zeros(target_shape, dtype=matrix.dtype, device=matrix.device)
+    full[..., : matrix.shape[-2], : matrix.shape[-1]] = matrix  # copy matrix into new matrix
+    full[..., dim - 1, dim - 1] = 1.0  # set homogeneous coordinate
+    return full
 
 
 def convert_matrix_space(
     matrix: torch.Tensor, input_shape, padding_correction: bool, output_shape: tuple[int] | None
 ):
     """
-    Convert scipy affine matrix to normalized coordinates used by affine_grid.
+    Takes a full scipy affine matrix and converts the space to normalized coordinates used by affine_grid.
     scipy uses pixel coordinate space with origin in the top left,
-    while affine_grid uses -1 to 1 with origin in the center of the image. dependant on applied padding
-    and provided output_shape there are additional correction applied to invert the effects on output pixel locations
+    while affine_grid uses -1 to 1 with origin in the center of the image.
+    Dependant on applied padding and provided output_shape there are additional correction applied to invert the effects on output pixel locations
 
     output_shape should have the same dimensions number of dimension as sizes
     """
@@ -190,82 +190,71 @@ def _untouched_axes(matrices: DNDarray):
     return result
 
 
-# ============================================================
-#  main methods
-# ============================================================
-def affine_transform(
-    input: DNDarray,
-    matrix: DNDarray,
-    offset=None,
-    output_shape=None,
-    output=None,
-    order=1,
-    mode="grid-constant",
-    cval=0.0,
-) -> DNDarray:
-    """
-    Parameters
-    ----------
-    input : DNDarray
-        the image or data array to transform. Input is expected to have shape [B x] [D x] H x W x C
-    matrix : DNDarray
-        affine matrix used to transform input. can be of shape Bx3x4 (3x3, 4x4 also valid) for 2d data,
-        or should be of shape Bx4x5 (4x4, 5x5 also valid) for 3d data
-        B stands for the Bulk axis and can be ommited
-        The row and column corresponding with Transformation of the Color-Axis is ignored right now,
-        because it is not supported by the torch.affine_grid() function.
-    offset : DNDarray
-        offset vector that can be used instead of adding offset into affine matrix directly. only in effect when the matrix
-        given has no transform vector
-    output_shape :
-        shape of the given output. It should map the pattern [B x] [D x] H x W x C wich is the same as the input. D, H, W can have different values than the input
-    output : DNDarray
-        optional parameter to specify array in wich the output should be placed. currently not implemented yet
-    order :
-        type of interpolation that is used, linear to cubic allowed
-    mode :
-        The mode parameter determines how the input array is extended beyond its boundaries. Default is ‘constant-grid’. Behavior for each valid value is as follows
-        `grid-constant`
-            the pixel beyond the boundary are filled with a constant value. The value is defined by the cval parameter
-        `nearest`
-            the pixel beyond the boundary are filled by replicating the pixel on the nearest border
-        `mirror`
-            the pixel beyond the boundary are filled by mirroring the the input around the center of the last pixel
-        `constant`, `wrap`, `grid-wrap`, `reflect`, `grid-mirror`
-            Those modes are not implemented
-    cval :
-        value with wich the padding should be filled. This is implemented as a padding applied along all axis. This approach is not suited to provide exact results
-    prefilter : bool
-        if the input should be filtered before transformed, currently not because torch.sample_grid does not have this functionality
-    """
-    # TODO Support both 'padding' parameter from the torch functions
-    # validation
+def _sanitize_key_string(key_string: str, dictionary: dict, param_name: str):
+    valid_modes = [key for key, value in dictionary.items() if value is not None]
+    if key_string in dictionary:
+        result = dictionary[key_string]
+        if result is None:
+            raise NotImplementedError(
+                f"""the {param_name} '{key_string}' is valid in scipy, but currently
+                    not supported in this implementation. valid modes are {valid_modes}"""
+            )
+    else:
+        raise ValueError(
+            f"given {param_name} '{key_string}' is not a valid valaue. valid modes are {valid_modes}"
+        )
+    return result
 
+
+def _prepare_matrix(
+    matrix: torch.Tensor,
+    offset: torch.Tensor,
+    input_shape: tuple[int],
+    output_shape: tuple[int],
+    is_padded: bool,
+) -> torch.Tensor:
+
+    num_transform_dims = len(input_shape) - 2  # subtracting bulk and color axis
+    # remove axis that represents transforming the color dimension, because
+    # torch affine_grid does not support transforming color dimension
+    matrix = _remove_slice(matrix, idx=num_transform_dims, dim=-2)
+    matrix = _remove_slice(matrix, idx=num_transform_dims, dim=-1)
+
+    if matrix.shape[1:] == (
+        num_transform_dims,
+        num_transform_dims,
+    ):
+        if offset is not None:
+            # translation information missing, using offset value and adding it at the right to bring matrix
+            # to reduced affine form
+            offset_torch = _remove_slice(offset.larray.float(), -1, dim=-1)
+
+            transformed_offset = offset_torch[..., None]
+            matrix = torch.cat([matrix, transformed_offset], matrix.ndim - 1)
+
+    if matrix.shape[1:] != (num_transform_dims + 1, num_transform_dims + 1):
+        matrix = _to_full_affine(matrix)
+
+    matrix = convert_matrix_space(
+        matrix,
+        input_shape=input_shape,
+        padding_correction=is_padded,
+        output_shape=output_shape,
+    )
+    return matrix
+
+
+def _sanitize_data(
+    input: ht.DNDarray, matrix: ht.DNDarray, offset: ht.DNDarray, output_shape: tuple
+):
     ht.sanitize_in(input)
     ht.sanitize_in(matrix)
-    # TODO move this to offset logic, does not need to happen when affine_matrix contains offset information
+
     if offset is not None:
         ht.sanitize_in(offset)
 
-    # input conversion
-    if mode == "constant":
-        raise NotImplementedError(
-            "constant mode is not implemented, use 'grid-constant' for similar result"
-        )
-    elif mode == "wrap" or mode == "grid-wrap":
-        raise NotImplementedError(f"{mode} is not implemented")
-
-    apply_cval_padding = mode == "grid-constant" and cval != 0
-
-    if apply_cval_padding:
-        sample_padding = "border"
-    else:
-        sample_padding = MODE_TO_PADDING[mode]
-
-    sample_mode = ORDER_TO_MODE[order]
-
     if matrix.ndim > 3:
-        raise ValueError("afine matrix has too many dimensions")
+        raise ValueError("affine matrix has too many dimensions")
 
     if output_shape is not None:
         if not (input.ndim == len(output_shape)):
@@ -275,7 +264,6 @@ def affine_transform(
             raise ValueError("color dimension needs same size in input and output shape")
     else:
         output_shape = input.shape
-    original_shape = input.shape
 
     # input has no bulk axis, give everything a bulk axis with length 1 to treat it as if it has a bulk axis
     if matrix.ndim == 2:
@@ -309,6 +297,72 @@ def affine_transform(
         else:
             raise RuntimeError("matrix split axis should only be 0 if input split axis is also 0")
 
+    return input, matrix, offset, output_shape
+
+
+# ============================================================
+#  main methods
+# ============================================================
+def affine_transform(
+    input: DNDarray,
+    matrix: DNDarray,
+    offset=None,
+    output_shape=None,
+    order=1,
+    mode="grid-constant",
+    cval=0.0,
+) -> DNDarray:
+    """
+    Parameters
+    ----------
+    input : DNDarray
+        the image or data array to transform. Input is expected to have shape [B x] [D x] H x W x C
+    matrix : DNDarray
+        affine matrix used to transform input. can be of shape Bx3x4 (3x3, 4x4 also valid) for 2d data,
+        or should be of shape Bx4x5 (4x4, 5x5 also valid) for 3d data
+        B stands for the Bulk axis and can be ommited
+        The row and column corresponding with Transformation of the Color-Axis is ignored right now,
+        because it is not supported by the torch.affine_grid() function.
+    offset : DNDarray
+        offset vector that can be used instead of adding offset into affine matrix directly. only in effect when the matrix
+        given has no transform vector
+    output_shape :
+        shape of the given output. It should map the pattern [B x] [D x] H x W x C wich is the same as the input. D, H, W can have different values than the input
+    order :
+        type of interpolation that is used, linear to cubic allowed
+    mode :
+        The mode parameter determines how the input array is extended beyond its boundaries. Default is ‘constant-grid’. Behavior for each valid value is as follows
+        `grid-constant`
+            the pixel beyond the boundary are filled with a constant value. The value is defined by the cval parameter
+        `nearest`
+            the pixel beyond the boundary are filled by replicating the pixel on the nearest border
+        `mirror`
+            the pixel beyond the boundary are filled by mirroring the the input around the center of the last pixel
+        `constant`, `wrap`, `grid-wrap`, `reflect`, `grid-mirror`
+            Those modes are not implemented
+    cval :
+        value with wich the padding should be filled. This is implemented as a padding applied along all axis. This approach is not suited to provide exact results
+    prefilter : bool
+        if the input should be filtered before transformed, currently not because torch.sample_grid does not have this functionality
+    """
+    # TODO Support both 'padding' parameter from the torch functions
+
+    # input conversion
+    if mode == "constant":
+        raise NotImplementedError(
+            "constant mode is not implemented, use 'grid-constant' for similar result"
+        )
+    apply_cval_padding = mode == "grid-constant" and cval != 0
+    if apply_cval_padding:
+        sample_padding = "border"
+    else:
+        sample_padding = _sanitize_key_string(mode, MODE_TO_PADDING, "mode")
+    sample_mode = _sanitize_key_string(order, ORDER_TO_MODE, "order")
+
+    original_shape = input.shape
+
+    input, matrix, offset, output_shape = _sanitize_data(input, matrix, offset, output_shape)
+
     # only bulk axis or distributed axis is fixed, computations can all be done locally
     matrix_torch: torch.Tensor = matrix.larray
     input_torch = input.larray
@@ -322,32 +376,16 @@ def affine_transform(
 
     if matrix_torch.device != input_torch.device:
         matrix_torch = matrix_torch.to(input_torch.device)
+    # TODO add further tests here: if split is in spacial dimension, then output_shape cant be different in that axis!
 
-    color_dim = 2 if is_2d_input else 3  # TODO this does not look robust, fix it please
-    homogenous_size = color_dim + 2
+    if input.split is not None:
+        _, loc_out_shape, _ = matrix.comm.chunk(output_shape, input.split)
+    else:
+        loc_out_shape = output_shape
 
-    # remove axis that represents transforming the color dimension, because
-    # torch affine_grid does not support transforming color dimension
-    matrix_torch = _remove_slice(matrix_torch, color_dim, dim=-2)
-    matrix_torch = _remove_slice(matrix_torch, color_dim, dim=-1)
-
-    if (
-        matrix_torch.shape[1:]
-        == (
-            color_dim,
-            color_dim,
-        )
-        and offset is not None
-    ):
-        # translation information missing, using offset value and adding it at the right to bring matrix
-        # to reduced affine form
-        offset_torch = _remove_slice(offset.larray.float(), color_dim, dim=-1)
-
-        transformed_offset = offset_torch[..., None]
-        matrix_torch = torch.cat([matrix_torch, transformed_offset], matrix_torch.ndim - 1)
-
-    if matrix.shape != (homogenous_size, homogenous_size):
-        matrix_torch = _to_full_affine(matrix_torch)
+    matrix_torch = _prepare_matrix(
+        matrix_torch, offset, input_torch.shape, loc_out_shape, apply_cval_padding
+    )
 
     # I still don't understand why the permute below is necessary, but the affine matrix itself
     # does not need to be reordered.
@@ -357,21 +395,9 @@ def affine_transform(
         idx for idx in range(input.ndim - 1, 0, -1)
     )  # reversed: (0,4,3,2,1) or (0,3,2,1)
 
-    if input.split is not None:
-        _, local_out_shape, _ = matrix.comm.chunk(output_shape, input.split)
-    else:
-        local_out_shape = output_shape
-
-    matrix_torch = convert_matrix_space(
-        matrix_torch,
-        input_torch.shape,
-        padding_correction=apply_cval_padding,
-        output_shape=local_out_shape,
-    )
-
-    local_out_shape = tuple(local_out_shape[i] for i in dimension_order)
+    loc_out_shape_permuted = tuple(loc_out_shape[i] for i in dimension_order)
+    out_shape = torch.Size(loc_out_shape_permuted)
     input_torch = input_torch.permute(dimension_order)
-    out_shape = torch.Size(local_out_shape)
 
     # skip computation if this rank has no data
     if input_torch.numel() > 0:
@@ -382,7 +408,7 @@ def affine_transform(
 
         sample_grid: torch.Tensor = affine_grid(matrix_torch, out_shape, align_corners=True)
 
-        transformed = grid_sample(
+        transformed: torch.Tensor = grid_sample(
             input_torch,
             sample_grid,
             padding_mode=sample_padding,
@@ -390,15 +416,17 @@ def affine_transform(
             align_corners=True,
         )
     else:
-        transformed = torch.zeros(out_shape)
+        transformed = torch.empty(
+            out_shape, dtype=input_torch.dtype, device=input_torch.device
+        )  # device=input.larray.device, dtype=input.larray.dtype)
 
     transformed = transformed.permute(dimension_order)
 
     if matrix_torch.size(2) == len(original_shape):  # had no bulk axis originally
-        transformed = transformed.squeeze()
+        transformed = transformed.squeeze(0)
 
     transformed_dnd: DNDarray = array(
-        transformed,
+        transformed.contiguous(),
         dtype=input.dtype,
         is_split=input.split,
         device=input.device,
