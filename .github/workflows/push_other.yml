@@ -32,6 +32,7 @@ jobs:
     if: github.event.repository.fork == true || needs.check-pr-status.outputs.has-pr == 'false'
     strategy:
       fail-fast: false
+      max-parallel: ${{ fromJSON(vars.MATRIX_MAX_PARALLEL) }}
       matrix:
         py-version:
           - '3.11' # Oldest supported
