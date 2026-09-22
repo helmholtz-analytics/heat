@@ -3,54 +3,35 @@ utility and convenience functions for working with image data using heat
 """
 
 from typing import Iterable
-import scipy.ndimage as ndimg
 import numpy as np
 import heat as ht
-from heat.ndimage.affine import affine_transform
 
 
-def affine_comparison(
-    image: ht.DNDarray, matrix: ht.DNDarray, **kwargs
-) -> tuple[ht.DNDarray, np.ndarray]:
-    """
-    Convenience function to pass the same arguments to heats and scipy version of affine transform
-    """
-    result = affine_transform(image, matrix, **kwargs)
-
-    if "offset" in kwargs:
-        offset = kwargs["offset"]
-        kwargs["offset"] = offset.numpy()
-
-    compare = ndimg.affine_transform(image.numpy(), matrix.numpy(), **kwargs)
-
-    return result, compare
-
-
-def center_transform(affine_matrix, image_dims: tuple) -> ht.DNDarray:
+def center_transform(affine_matrix, image_dims: tuple[int]) -> ht.DNDarray:
     """
     Take an [Bx]NxN transformation matrix and create an [Bx]xNxN+1 reduced affine matrix out of it,
     that centers the transformation in the image. This is convenient because in scipy convention the
-    transformation orgigin is at the upper left corner.
-    if the matrix has 2 dimensions, the first axis is interpreted as batch axis
+    transformation origin is at the upper left corner.
+    if the matrix has 3 dimensions, the first axis is interpreted as batch axis
     """
     if affine_matrix.ndim > 3:
-        raise RuntimeError("only one batch dimension supported")
+        raise ValueError("only one batch dimension supported")
 
     if affine_matrix.ndim < 2:
-        raise RuntimeError("matrix needs at least 2 dimensions")
+        raise ValueError("matrix needs at least 2 dimensions")
 
     shape = affine_matrix.shape
     if shape[-1] != shape[-2]:
-        raise RuntimeError("original matrix/matrices needs to be square")
+        raise ValueError("original matrix/matrices needs to be square")
 
     matrix = ht.array(affine_matrix)
     c: ht.DNDarray
     if matrix.ndim == 3:
-        offsets = ht.array(image_dims[1:]) / 2
+        offsets = (ht.array(image_dims[1:]) - 1) / 2
         offsets = offsets[None]  # new axis at position 0
         c = ht.repeat(offsets, image_dims[0], axis=0)
     else:
-        c = ht.array(image_dims) / 2
+        c = (ht.array(image_dims) - 1) / 2
 
     c = ht.expand_dims(
         c, c.ndim

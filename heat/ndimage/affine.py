@@ -197,7 +197,7 @@ def _sanitize_key_string(key_string: str, dictionary: dict, param_name: str):
         if result is None:
             raise NotImplementedError(
                 f"""the {param_name} '{key_string}' is valid in scipy, but currently
-                    not supported in this implementation. valid modes are {valid_modes}"""
+                not supported in this implementation. valid modes are {valid_modes}"""
             )
     else:
         raise ValueError(
@@ -277,12 +277,30 @@ def _sanitize_data(
     if (output_shape is not None) and (not (input.shape[0] == output_shape[0])):
         raise ValueError("bulk dimension needs same size in input and output shape")
 
-    is_2d_input = input.ndim == 4 and 3 <= matrix.shape[1] <= matrix.shape[2] <= 4
-    is_3d_input = input.ndim == 5 and 4 <= matrix.shape[1] <= matrix.shape[2] <= 5
+    is_2d_input = input.ndim == 4 and 3 <= matrix.shape[-2] <= matrix.shape[-1] <= 4
+    is_3d_input = input.ndim == 5 and 4 <= matrix.shape[-2] <= matrix.shape[-1] <= 5
     if not (is_2d_input or is_3d_input):
         raise ValueError(
             f"matrix with shape {matrix.shape} does not fit to input shape {input.shape} or not supported dimension count"
         )
+
+    # offset exists and matrix is no affine matrix
+    if offset is not None:
+        if matrix.shape[-1] >= input.ndim:
+            offset = None
+            import warnings
+
+            warnings.warn(
+                "offset is not used, since matrix provides offset information in its rightmost column"
+            )
+        else:
+            if offset.ndim != matrix.ndim - 1:
+                raise ValueError(f"""offset vektor has wrong number of dimensions compared to the matrix.
+                expected {matrix.ndim - 1} dimensions but got {offset.ndim}""")
+            if offset.shape[-1] != matrix.shape[-2]:
+                raise ValueError(
+                    f"offset vektor has not the right length, expected {matrix.shape[-2]}, but got {offset.shape[-1]}"
+                )
 
     # determening the split axis
     # if axis is not the bulk axis or constant axis -> abort

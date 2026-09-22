@@ -141,8 +141,6 @@ class TestAffine:
         result: ht.DNDarray = affine.affine_transform(
             image, matrix_affine, **kwargs
         )
-
-
         comparison = ndimg.affine_transform(
             image.numpy(), matrix.numpy(), offset=offset.numpy(), **kwargs
         )
@@ -267,3 +265,75 @@ class TestAffine:
         mode = "grid-constant" #cval only has effect in this mode
         TestAffine.rmse_testing_setup(image, matrix, offset, 0.005, cval=cval, mode=mode, order=order)
         TestAffine.default_testing_setup(image, matrix, offset, 0.005, cval=cval, mode=mode, order=order)
+
+
+    def test_unsupported_shapes(self):
+        # shape missmatch - matrix has bulk, input not
+        input = ht.empty((10,10,3),dtype=ht.float32)
+        matrix = ht.empty((2,3,4), dtype=ht.float32)
+        with pytest.raises(ValueError):
+            affine.affine_transform(input, matrix)
+
+        # shape missmatch - matrix to big
+        matrix = ht.empty((4,5), dtype=ht.float32)
+        with pytest.raises(ValueError):
+            affine.affine_transform(input, matrix)
+
+        # shape missmatch - matrix to small
+        matrix = ht.empty((2,3), dtype=ht.float32)
+        with pytest.raises(ValueError):
+            affine.affine_transform(input, matrix)
+
+        # shape missmatch - matrix has no bulk, but input
+        input = ht.empty((1, 10,10,3),dtype=ht.float32)
+        matrix = ht.empty((3,4), dtype=ht.float32)
+        with pytest.raises(ValueError):
+            affine.affine_transform(input, matrix)
+
+
+    def test_unsupported_modes_order(self):
+        # invalid mode
+        input = ht.empty((1, 10,10,3),dtype=ht.float32)
+        matrix = ht.empty((1,3,4), dtype=ht.float32)
+        with pytest.raises(ValueError):
+            affine.affine_transform(input, matrix, mode="test")
+        with pytest.raises(NotImplementedError):
+            affine.affine_transform(input, matrix, mode="constant")
+
+        # invalid order
+        with pytest.raises(NotImplementedError):
+            affine.affine_transform(input, matrix, order=2)
+        with pytest.raises(ValueError):
+            affine.affine_transform(input, matrix, order=8)
+
+
+    def test_invalid_offset(self):
+        # invalid offset shape
+        input = ht.empty((10,10,3),dtype=ht.float32)
+        matrix = ht.empty((3,3), dtype=ht.float32)
+        offset = ht.empty((2,), dtype=ht.float32)
+        with pytest.raises(ValueError):
+            affine.affine_transform(input, matrix, offset=offset)
+
+        # invalid offset shape with matrix including offset, only warn user
+        input = ht.empty((10,10,3),dtype=ht.float32)
+        matrix = ht.empty((3,4), dtype=ht.float32)
+        offset = ht.empty((2,), dtype=ht.float32)
+        affine.affine_transform(input, matrix, offset=offset)
+
+
+    def test_invalid_output_shape(self):
+        # invalid output_shape
+        input = ht.empty((10,10,3),dtype=ht.float32)
+        matrix = ht.empty((3,4), dtype=ht.float32)
+        with pytest.raises(ValueError):
+            affine.affine_transform(input, matrix, output_shape=(2, 10, 10, 3))
+        with pytest.raises(ValueError):
+            affine.affine_transform(input, matrix, output_shape=(1, 10, 10, 5))
+        input = ht.resplit(input, 1)
+        #extension of dimensions in split axis direction
+        with pytest.raises(ValueError):
+            affine.affine_transform(input, matrix, output_shape=(1, 15, 10, 3))
+        #extension of dimensions in split axis direction
+        with pytest.raises(ValueError):
+            affine.affine_transform(input, matrix, output_shape=(17, 1, 10, 10, 3))
