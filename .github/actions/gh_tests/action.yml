@@ -71,7 +71,6 @@ runs:
         MKL_NUM_THREADS: 1
         OPENBLAS_NUM_THREADS: 1
         NUMEXPR_NUM_THREADS: 1
-        # PYTHONFAULTHANDLER: "1"
       run: |
         mpirun -n 3 pytest -vv
     - name: Run tests on 4 ranks
@@ -82,6 +81,5 @@ runs:
         MKL_NUM_THREADS: 1
         OPENBLAS_NUM_THREADS: 1
         NUMEXPR_NUM_THREADS: 1
-        # PYTHONFAULTHANDLER: "1"
       run: |
         mpirun -n 4 pytest -vv
