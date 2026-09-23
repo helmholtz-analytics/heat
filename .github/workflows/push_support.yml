@@ -9,6 +9,7 @@ jobs:
     timeout-minutes: 120
     strategy:
       fail-fast: false
+      max-parallel: ${{ fromJSON(vars.MATRIX_MAX_PARALLEL) }}
       matrix:
         py-version:
           - '3.12' # Oldest supported
