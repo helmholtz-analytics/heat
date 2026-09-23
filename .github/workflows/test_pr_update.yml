@@ -1,7 +1,10 @@
-name: On PR Update
-
+# name: On PR Update
+name: Test PR Update
+# on:
+#   pull_request_target:
 on:
-  pull_request_target:
+  workflow_dispatch:
+  pull_request:
     types: [opened, reopened, synchronize]
     paths:
       - '.github/**'
