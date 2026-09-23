@@ -114,6 +114,13 @@ dev = [
 ]
 
 docs = [
+    # the io format functions are only defined when their dependency is installed, so
+    # the docs build needs them for sphinx-autoapi to document them at all
+    "h5py>=3.11",
+    "netCDF4>=1.7",
+    "zarr<3.2",
+    "pandas",
+
     "sphinx",
     "sphinx_rtd_theme",
     "sphinx-autoapi",

@@ -2,6 +2,8 @@ import os
 import unittest
 import pytest
 
+import torch
+
 import heat as ht
 from heat.testing.basic_test import TestCase
 
@@ -15,7 +17,7 @@ class TestDevices(TestCase):
 
     @unittest.skipIf(envar not in ["gpu"], "only supported for gpu")
     def test_get_default_device_gpu(self):
-        if ht.torch.cuda.is_available():
+        if torch.cuda.is_available():
             self.assertIs(ht.get_device(), ht.gpu)
 
     @unittest.skipIf(envar not in ["cpu"], "only supported for cpu")
@@ -33,7 +35,7 @@ class TestDevices(TestCase):
 
     @unittest.skipIf(envar not in ["gpu"], "only supported for gpu")
     def test_sanitize_device_gpu(self):
-        if ht.torch.cuda.is_available():
+        if torch.cuda.is_available():
             self.assertIs(ht.sanitize_device("gpu"), ht.gpu)
             self.assertIs(ht.sanitize_device("gPu"), ht.gpu)
             self.assertIs(ht.sanitize_device("  GPU  "), ht.gpu)
@@ -61,7 +63,7 @@ class TestDevices(TestCase):
 
     @unittest.skipIf(envar not in ["gpu"], "only supported for gpu")
     def test_set_default_device_gpu(self):
-        if ht.torch.cuda.is_available():
+        if torch.cuda.is_available():
             ht.use_device("gpu")
             self.assertIs(ht.get_device(), ht.gpu)
             ht.use_device(ht.gpu)
