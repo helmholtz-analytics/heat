@@ -249,9 +249,18 @@ def _sanitize_data(
 ):
     ht.sanitize_in(input)
     ht.sanitize_in(matrix)
-
-    if offset is not None:
+    if not isinstance(offset, float) and offset is not None:
         ht.sanitize_in(offset)
+
+    if matrix.ndim == 1:
+        matrix = ht.diag(matrix)
+
+    if isinstance(offset, float) and offset != 0.0:
+        offset_array = ht.repeat(offset, matrix.shape[-2])
+    elif isinstance(offset, float) and offset == 0.0:
+        offset_array = None
+    else:
+        offset_array = offset
 
     if matrix.ndim > 3:
         raise ValueError("affine matrix has too many dimensions")
@@ -269,12 +278,11 @@ def _sanitize_data(
     if matrix.ndim == 2:
         matrix = ht.expand_dims(matrix, 0)
         input = ht.expand_dims(input, 0)
-        if offset is not None:
-            offset = ht.expand_dims(offset, 0)
-        if output_shape is not None:
-            output_shape = (1,) + output_shape
+        if offset_array is not None:
+            offset_array = ht.expand_dims(offset_array, 0)
+        output_shape = (1,) + output_shape
 
-    if (output_shape is not None) and (not (input.shape[0] == output_shape[0])):
+    if not (input.shape[0] == output_shape[0]):
         raise ValueError("bulk dimension needs same size in input and output shape")
 
     is_2d_input = input.ndim == 4 and 3 <= matrix.shape[-2] <= matrix.shape[-1] <= 4
@@ -285,37 +293,46 @@ def _sanitize_data(
         )
 
     # offset exists and matrix is no affine matrix
-    if offset is not None:
+    if offset_array is not None:
         if matrix.shape[-1] >= input.ndim:
-            offset = None
+            offset_array = None
             import warnings
 
             warnings.warn(
-                "offset is not used, since matrix provides offset information in its rightmost column"
+                UserWarning(
+                    "offset is not used, since matrix provides offset information in its rightmost column"
+                )
             )
         else:
-            if offset.ndim != matrix.ndim - 1:
-                raise ValueError(f"""offset vektor has wrong number of dimensions compared to the matrix.
-                expected {matrix.ndim - 1} dimensions but got {offset.ndim}""")
-            if offset.shape[-1] != matrix.shape[-2]:
+            if offset_array.ndim != matrix.ndim - 1:
+                raise ValueError(f"""offset vector has wrong number of dimensions compared to the matrix.
+                expected {matrix.ndim - 1} dimensions but got {offset_array.ndim}""")
+            if offset_array.shape[-1] != matrix.shape[-2]:
                 raise ValueError(
-                    f"offset vektor has not the right length, expected {matrix.shape[-2]}, but got {offset.shape[-1]}"
+                    f"offset vector has not the right length, expected {matrix.shape[-2]}, but got {offset_array.shape[-1]}"
                 )
 
     # determening the split axis
     # if axis is not the bulk axis or constant axis -> abort
-    if (matrix.split not in (0, None)) or (input.split not in (0, None)):
-        if input.split > 0:
-            if not (
-                matrix.split is None and _untouched_axes(matrix)[input.split - 1]
-            ):  # transformation in direction of split is not identity
-                raise RuntimeError(
-                    "the input split axis should either be the bulk axis, or an axis left unchanged by the transform."
-                )
-        else:
-            raise RuntimeError("matrix split axis should only be 0 if input split axis is also 0")
+    # should be fine because matrix should always be small compared to image input
+    if matrix.split not in (0, None):
+        matrix = ht.resplit(matrix, None)
 
-    return input, matrix, offset, output_shape
+    if input.split not in (0, None):
+        # transformation in direction of split is not identity
+        if not (matrix.split is None and _untouched_axes(matrix)[input.split - 1]):
+            raise RuntimeError(
+                "the input split axis should either be the bulk axis, or an axis left unchanged by the transform."
+            )
+        # input split along non-bulk axis only supported if matrix is not split
+        if matrix.split is not None:
+            matrix = ht.resplit(matrix, None)
+
+    if offset_array is not None:
+        if offset_array.split != matrix.split:
+            offset_array = ht.resplit(matrix.split)
+
+    return input, matrix, offset_array, output_shape
 
 
 # ============================================================
@@ -324,11 +341,11 @@ def _sanitize_data(
 def affine_transform(
     input: DNDarray,
     matrix: DNDarray,
-    offset=None,
-    output_shape=None,
-    order=1,
-    mode="grid-constant",
-    cval=0.0,
+    offset: DNDarray | float | None = 0.0,
+    output_shape: DNDarray | None = None,
+    order: int = 1,
+    mode: str = "grid-constant",
+    cval: float = 0.0,
 ) -> DNDarray:
     """
     Parameters
@@ -363,8 +380,6 @@ def affine_transform(
     prefilter : bool
         if the input should be filtered before transformed, currently not because torch.sample_grid does not have this functionality
     """
-    # TODO Support both 'padding' parameter from the torch functions
-
     # input conversion
     if mode == "constant":
         raise NotImplementedError(
@@ -387,10 +402,10 @@ def affine_transform(
 
     if matrix.split is None and input.split == 0:
         _, _, corresponding_slice = matrix.comm.chunk(matrix.gshape, 0)
-        matrix_torch = matrix_torch[corresponding_slice]
+        matrix_torch = matrix_torch[corresponding_slice[0]]
     elif matrix.split == 0 and input.split is None:
         _, _, corresponding_slice = input.comm.chunk(input.gshape, 0)
-        input_torch = input_torch[corresponding_slice]
+        input_torch = input_torch[corresponding_slice[0]]
 
     if matrix_torch.device != input_torch.device:
         matrix_torch = matrix_torch.to(input_torch.device)
