@@ -12,7 +12,7 @@ jobs:
       max-parallel: ${{ fromJSON(vars.MATRIX_MAX_PARALLEL) }}
       matrix:
         py-version:
-          - '3.11' # Oldest supported
+          - '3.12' # Oldest supported
           - '3.14' # Latest stable
         mpi: [ 'mpich' ]
         pytorch-version:
