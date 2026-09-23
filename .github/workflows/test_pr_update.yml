@@ -1,0 +1,134 @@
+name: On PR Update
+
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize]
+    paths:
+      - '.github/**'
+      - 'heat/**'
+      - 'tests/**'
+      - 'codecov.yml'
+
+concurrency:
+  group: pr-update-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  quick-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      max-parallel: ${{ fromJSON(vars.MATRIX_MAX_PARALLEL) }}
+      matrix:
+        py-version:
+          - '3.12' # Oldest supported
+          - '3.14' # Latest stable
+        mpi: [ 'mpich' ]
+        pytorch-version:
+          - 'torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0'   # Oldest supported
+          - 'torch==2.14.0 torchvision==0.29.0' # Latest stable
+    name: "Quick Tests - Py${{ matrix.py-version }} with ${{ matrix.pytorch-version }}"
+    steps:
+      - name: Harden the runner
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+      - name: Maximum concurrent matrix jobs
+        run: |
+          echo "raw vars.MATRIX_MAX_PARALLEL: '${{ vars.MATRIX_MAX_PARALLEL }}'"
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          allow-unsafe-pr-checkout: true
+          persist-credentials: false
+      - uses: ./.github/actions/gh_tests
+        with:
+          mode: medium
+          sha: ${{ github.event.pull_request.head.sha }}
+          py-version: ${{ matrix.py-version }}
+          mpi: ${{ matrix.mpi }}
+          pytorch-version: ${{ matrix.pytorch-version }}
+
+  trigger-tests:
+    name: Trigger Codebase Tests
+    runs-on: ubuntu-latest
+    needs: quick-tests
+    if: ${{ !startsWith(github.head_ref, 'dependabot') }}
+    steps:
+      - name: Harden the runner
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/trigger_codebase_tests
+        with:
+          branch: ${{ github.head_ref }}
+          sha: ${{ github.event.pull_request.head.sha }}
+          pr_number: ${{ github.event.pull_request.number }}
+          trigger_token: ${{ secrets.CX_TRIGGER_TOKEN }}
+
+  trigger-benchmarks:
+    name: Trigger Codebase Benchmarks
+    runs-on: ubuntu-latest
+    needs: trigger-tests
+    if: ${{ !startsWith(github.head_ref, 'dependabot') && contains(github.event.pull_request.labels.*.name, 'benchmark PR') }}
+    steps:
+      - name: Harden the runner
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/trigger_codebase_benchmarks
+        with:
+          branch: ${{ github.head_ref }}
+          sha: ${{ github.event.pull_request.head.sha }}
+          author: ${{ github.event.pull_request.assignee.login || 'heat_team' }}
+          pr_number: ${{ github.event.pull_request.number }}
+          trigger_token: ${{ secrets.CX_TRIGGER_TOKEN }}
+
+  dependency-review:
+    name: Dependency Review
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden the runner
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+      - name: 'Checkout Repository'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: 'Dependency Review'
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+
+  check_reuse_compliance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    name: Check REUSE compliance
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          allow-unsafe-pr-checkout: true
+          persist-credentials: false
+
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.14'
+          architecture: x64
+
+      - name: Install REUSE
+        run: |
+          pip install reuse
+
+      - name: Run linter
+        run: |
+          reuse lint
