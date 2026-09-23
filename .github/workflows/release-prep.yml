@@ -33,6 +33,14 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.inputs.base_branch }}
+      - uses: release-drafter/release-drafter@139054aeaa9adc52ab36ddf67437541f039b88e2 # v7.1.1
+        id: release_drafter
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          commitish: 'stable'
+          name: ${{ github.event.inputs.title }}
+          config-name: rd-release-config.yml
       - name: Bump version.py and create PR
         env:
           PR_BRANCH: pre-release/${{ inputs.release_version }}
