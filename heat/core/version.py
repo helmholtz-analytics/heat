@@ -2,11 +2,11 @@
 
 major: int = 1
 """Indicates Heat's main version."""
-minor: int = 9
+minor: int = 10
 """Indicates feature extension."""
 micro: int = 0
 """Indicates revisions for bugfixes."""
-extension: str = None
+extension: str = "dev"
 """Indicates special builds, e.g. for specific hardware."""
 
 if not extension:
