@@ -2,6 +2,11 @@
 .. raw:: html
 
    <ul class="heat-timeline">
+       <li class="timeline-item">
+           <div class="timeline-date">Sept 2026</div>
+           <h4><a href="https://github.com/helmholtz-analytics/heat/releases/tag/v1.9.0/">Version 1.9 is out</a></h4>
+           <p>Distributed advanced indexing, 2D convolution, complex sorting and more</p>
+       </li>
 
        <li class="timeline-item">
            <div class="timeline-date">Jul 2026</div>
@@ -24,7 +29,7 @@
        <li class="timeline-item">
            <div class="timeline-date">March 2026</div>
            <h4><a href="https://github.com/helmholtz-analytics/heat/releases/tag/v1.8.0">Version 1.8 Released</a></h4>
-           <p>Our latest featured update is officially live. Check out the updated repository for full performance metrics.</p>
+           <p>Our latest featured update is officially live.</p>
        </li>
 
        <li class="timeline-item">
