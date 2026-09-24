@@ -24,7 +24,7 @@ Heat is now a [**NumFOCUS affiliated project**](https://numfocus.org/sponsored-p
 * Distributed indexing by @ClaudiaComito, @JuanPedroGHM, @brownbaerchen, @mtar in [PR #938](https://github.com/helmholtz-analytics/heat/pull/938)
 * 2D convolution by @lolacaro, @JuanPedroGHM in [PR #1937](https://github.com/helmholtz-analytics/heat/pull/1937)
 * Improved compliance with array API standard by @mtar, @brownbaerchen in [PR #2439](https://github.com/helmholtz-analytics/heat/pull/2439), [PR #2480](https://github.com/helmholtz-analytics/heat/pull/2480), and [PR #2539](https://github.com/helmholtz-analytics/heat/pull/2539)
-* `.argsort` and `.sort` NumPy API compliance, with complex support for `ht.sort()` by @Berkant03 in [PR #2386](https://github.com/helmholtz-analytics/heat/pull/2386) and [PR #2482](https://github.com/helmholtz-analytics/heat/pull/2482)
+* `argsort` and `sort` NumPy API compliance, with complex support for `ht.sort()` by @Berkant03 in [PR #2386](https://github.com/helmholtz-analytics/heat/pull/2386) and [PR #2482](https://github.com/helmholtz-analytics/heat/pull/2482)
 * New project landing page by @ClaudiaComito in [PR #2361](https://github.com/helmholtz-analytics/heat/pull/2361)
 
 ## <a name="v1.9.0-changes">Changes
