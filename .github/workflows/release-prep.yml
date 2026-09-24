@@ -126,6 +126,7 @@ jobs:
 
           TODO:
           - [x] Update version.py
+          - [ ] Run `python scripts/numpy_coverage_tables.py` and commit the updated `coverage_tables.md`.
           - [ ] Ensure Citation file `CITATION.cff` is up to date.
           - [ ] Ensure the Changelog is up to date.
 
