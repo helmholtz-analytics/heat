@@ -15,7 +15,7 @@
 
 ## <a name="v1.9.0-overview">Overview
 
-Version 1.9.0 extends core distributed operations with native support for distributed **advanced indexing** and **2D convolution**. This release also brings substantial alignment with scientific Python standards, including improved **Array API** compliance, **NumPy-compatible sorting** supporting complex numbers, and support for **PyTorch 2.14**. In addition, we launch our new [**landing page**](https://heat.readthedocs.io/en/stable/) and enable direct tutorial execution on [**Jupyter4NFDI**](https://heat.readthedocs.io/en/stable/#tutorials-courses).
+Version 1.9.0 extends core distributed operations with native support for **advanced indexing** and **2D convolution**. This release also brings substantial alignment with scientific Python standards, including improved **Array API** compliance, **NumPy-like complex sorting**, and **PyTorch 2.14** support. In addition, we launch our new [**landing page**](https://heat.readthedocs.io/en/stable/) and enable direct tutorial execution on [**Jupyter4NFDI**](https://heat.readthedocs.io/en/stable/#tutorials-courses).
 
 Heat is now a [**NumFOCUS affiliated project**](https://numfocus.org/sponsored-projects/affiliated-projects)!
 
