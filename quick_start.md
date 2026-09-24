@@ -50,7 +50,7 @@ See our [docker README](https://github.com/helmholtz-analytics/heat/blob/main/do
 Confirm the installation by running a distributed smoke test to verify tensor splitting across processes:
 
 ```bash
-mpirun -n 2 python -c "import heat as ht; x = ht.arange(10, split=0); print(f'Rank {ht.communication.MPI_SELF.rank} local shape: {x.lshape}')"
+mpirun -n 2 python -c "import heat as ht; x = ht.arange(10, split=0); print(f'Rank {x.comm.rank} local shape: {x.lshape}')"
 ```
 This should output something like:
 
@@ -86,7 +86,7 @@ conda activate heat_dev
 3. Install Heat in editable mode:
 
 ```bash
-pip install -e '.[hdf5, netcdf, zarr, dev]'
+pip install -e '.[dev]'
 ```
 
 #### Method B: manual dependency management (pip)
@@ -105,7 +105,7 @@ source heat_dev/bin/activate
 3. Install Heat in editable mode:
 
 ```bash
-pip install -e '.[hdf5, netcdf, zarr, dev]'
+pip install -e '.[dev]'
 ```
 
 ### Repository syncing

@@ -14,6 +14,25 @@ class TestSanitation(TestCase):
         with self.assertRaises(TypeError):
             ht.sanitize_in(np_x)
 
+    def test_sanitize_in_min_max_nd(self):
+        for split in [None, 0]:
+            x = ht.zeros(20,split=split)
+            x = ht.reshape(x, (5, 2, 2))
+            # fail at min_nd
+            with self.assertRaises(ValueError):
+                ht.sanitize_in_min_max_nd(x, min_nd = 5, max_nd = 6)
+
+            # fail at max_nd
+            with self.assertRaises(ValueError):
+                ht.sanitize_in_min_max_nd(x, min_nd = 2, max_nd = 2)
+
+            # Success because dimension within range
+            ht.sanitize_in_min_max_nd(x, min_nd = 3, max_nd = 3)
+            ht.sanitize_in_min_max_nd(x, min_nd = 2, max_nd = 4)
+
+            # Not checked due to min and max being None
+            ht.sanitize_in_min_max_nd(x)
+
     def sanitize_in_nd_realfloating(self):
         x = "this is not a DNDarray"
         with self.assertRaises(TypeError):

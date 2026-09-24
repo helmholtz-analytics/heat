@@ -1,0 +1,45 @@
+name: Trigger Codebase Benchmarks
+description: "Trigger benchmarks on Codebase for performance testing and analysis."
+inputs:
+  branch:
+    description: "The branch to trigger benchmarks on. Defaults to 'main'."
+    required: false
+    default: "main"
+  sha:
+    description: "The commit SHA to trigger benchmarks on. Defaults to the current commit."
+    required: false
+    default: "${{ github.sha }}"
+  pr_number:
+    description: "The pull request number to trigger benchmarks on. Defaults to the current PR number."
+    required: false
+    default: ""
+  author:
+    description: "The author of the benchmarks. Defaults to the PR assignee or 'heat_team'."
+    required: false
+    default: "${{ github.event.pull_request.assignee.login || 'heat_team' }}"
+  trigger_token:
+    description: "The trigger token used to start the Codebase pipeline."
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - name: Trigger benchmarks
+      shell: bash
+      env:
+        AUTHOR: ${{ inputs.author}}
+        BRANCH: ${{ inputs.branch }}
+        API_TOKEN: ${{ inputs.trigger_token }}
+        SHA: ${{ inputs.sha }}
+        PR_NUMBER: ${{ inputs.pr_number }}
+      run: |
+        SHORT_SHA=$(git rev-parse --short $SHA)
+        curl -s -X POST \
+          --fail-with-body \
+          -F "token=$API_TOKEN" \
+          -F "ref=pipeline/cb/base" \
+          -F "variables[SHA]=$SHA" \
+          -F "variables[SHORT_SHA]=${SHORT_SHA}" \
+          -F "variables[BRANCH]=$BRANCH" \
+          -F "variables[PR]=$PR_NUMBER" \
+          -F "variables[AUTHOR]=${AUTHOR}" \
+          https://codebase.helmholtz.cloud/api/v4/projects/20697/trigger/pipeline

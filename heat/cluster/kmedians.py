@@ -93,7 +93,7 @@ class KMedians(_KCluster):
                 xi = ht.zeros(x.shape[1], dtype=x.dtype)
                 if x.comm.rank == proc:
                     idx = sample - displ[proc]
-                    xi = ht.array(x.lloc[idx, :], device=x.device, comm=x.comm)
+                    xi = ht.array(x.larray[idx, :], device=x.device, comm=x.comm)
                 xi.comm.Bcast(xi, root=proc)
                 new_cluster_centers[i, :] = xi
             else:
