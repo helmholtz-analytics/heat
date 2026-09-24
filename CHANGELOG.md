@@ -5,7 +5,7 @@
 - [Overview](#v1.9.0-overview)
 - [Highlights](#v1.9.0-highlights)
 - [Changes](#v1.9.0-changes)
-  - [Breaking Changes](#v1.9.0-breaking-changes)
+  - [Breaking changes](#v1.9.0-breaking-changes)
   - [Features](#v1.9.0-features)
   - [Interoperability](#v1.9.0-interoperability)
   - [Bug fixes](#v1.9.0-bug-fixes)
@@ -29,7 +29,7 @@ Heat is now a [**NumFOCUS affiliated project**](https://numfocus.org/sponsored-p
 
 ## <a name="v1.9.0-changes">Changes
 
-### <a name="v1.9.0-breaking-changes">Breaking Changes
+### <a name="v1.9.0-breaking-changes">Breaking changes
 * Implement `argsort` and make `sort` NumPy API compliant by @Berkant03 in [PR #2386](https://github.com/helmholtz-analytics/heat/pull/2386)
 * Adapt `nonzero` and `where` APIs to match NumPy by @ClaudiaComito in [PR #2332](https://github.com/helmholtz-analytics/heat/pull/2332)
 * Deprecate `DNDarray.lloc` by @brownbaerchen in [PR #2494](https://github.com/helmholtz-analytics/heat/pull/2494)
