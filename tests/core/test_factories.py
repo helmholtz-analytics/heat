@@ -132,6 +132,11 @@ class TestFactories(TestCase):
             ht.arange("A")
         with self.assertRaises(TypeError):
             ht.arange(0, "A")
+        # non-numeric step (positional and keyword)
+        with self.assertRaises(TypeError):
+            ht.arange(0, 10, "A")
+        with self.assertRaises(TypeError):
+            ht.arange(0, 10, step=[1])
 
     def test_array(self):
         # basic array function, unsplit data
@@ -615,7 +620,10 @@ class TestFactories(TestCase):
         self.assertEqual(eye.split, 1)
 
     def test_from_dlpack(self):
-        a_ht = ht.ones([4,4])
+        from unittest import mock
+        from packaging.version import Version
+
+        a_ht = ht.ones([4, 4])
 
         for a in [a_ht, a_ht.numpy(), a_ht.larray]:
             b = ht.from_dlpack(a)
@@ -630,14 +638,33 @@ class TestFactories(TestCase):
                 self.assertTrue(np.all(np.equal(b.larray.numpy(), a)))
             elif isinstance(a, torch.Tensor):
                 self.assertEqual(b.device, ht.devices.sanitize_device(a.device.type))
-                if b.device.device_type == 'gpu':
+                if b.device.device_type == "gpu":
                     self.assertEqual(b.device.device_id, a.device.index)
                 self.assertTrue(torch.equal(b.larray, a))
             else:
                 self.assertEqual(b.device, a.device)
                 self.assertTrue(torch.equal(b.larray, a.larray))
 
-        a = ht.zeros([4,4], split=0)
+        # test device parameter when torch version is >= 2.9
+        if Version(torch.__version__) >= Version("2.9"):
+            for dev in [ht.cpu, self.device]:
+                b_dev = ht.from_dlpack(a_ht, device=dev)
+                self.assertIsInstance(b_dev, ht.DNDarray)
+                self.assertEqual(b_dev.device, dev)
+                self.assertTrue(torch.equal(b_dev.larray, a_ht.larray.to(dev.torch_device)))
+        else:
+            with self.assertWarns(UserWarning):
+                _ = ht.from_dlpack(a_ht, device=ht.cpu)
+
+            # mock version >= 2.9 to guarantee coverage of the conversion branch on older torch
+            with mock.patch("heat.core.factories.Version", return_value=Version("2.9.0")), mock.patch(
+                "torch.from_dlpack", return_value=torch.ones([4, 4])
+            ) as mock_dlpack:
+                b_mock = ht.from_dlpack(a_ht, device=ht.cpu)
+                mock_dlpack.assert_called_once_with(a_ht, device=torch.device("cpu"), copy=None)
+                self.assertEqual(b_mock.device, ht.cpu)
+
+        a = ht.zeros([4, 4], split=0)
         if a.is_distributed():
             with self.assertRaises(BufferError):
                 b = ht.from_dlpack(a)
