@@ -5,6 +5,7 @@
 - [Overview](#v1.9.0-overview)
 - [Highlights](#v1.9.0-highlights)
 - [Changes](#v1.9.0-changes)
+  - [Breaking Changes](#v1.9.0-breaking-changes)
   - [Features](#v1.9.0-features)
   - [Interoperability](#v1.9.0-interoperability)
   - [Bug fixes](#v1.9.0-bug-fixes)
@@ -16,11 +17,11 @@
 
 Version 1.9.0 extends core distributed operations with native support for distributed **advanced indexing** and **2D convolution**. This release also brings substantial alignment with scientific Python standards, including improved **Array API** compliance, **NumPy-compatible sorting** supporting complex numbers, and support for **PyTorch 2.14**. In addition, we launch our new [**landing page**](https://heat.readthedocs.io/en/stable/) and enable direct tutorial execution on [**Jupyter4NFDI**](https://heat.readthedocs.io/en/stable/#tutorials-courses).
 
-Heat is now officially a **NumFOCUS affiliated project**!
+Heat is now a [**NumFOCUS affiliated project**](https://numfocus.org/sponsored-projects/affiliated-projects)!
 
 ## <a name="v1.9.0-highlights">Highlights
 
-* Distributed indexing by @ClaudiaComito, @JuanPedroGHM, @brownbaerchen, @mtar, @ben-bou in [PR #938](https://github.com/helmholtz-analytics/heat/pull/938)
+* Distributed indexing by @ClaudiaComito, @JuanPedroGHM, @brownbaerchen, @mtar in [PR #938](https://github.com/helmholtz-analytics/heat/pull/938)
 * 2D convolution by @lolacaro, @JuanPedroGHM in [PR #1937](https://github.com/helmholtz-analytics/heat/pull/1937)
 * Improved compliance with array API standard by @mtar, @brownbaerchen in [PR #2439](https://github.com/helmholtz-analytics/heat/pull/2439), [PR #2480](https://github.com/helmholtz-analytics/heat/pull/2480), and [PR #2539](https://github.com/helmholtz-analytics/heat/pull/2539)
 * `.argsort` and `.sort` NumPy API compliance, with complex support for `ht.sort()` by @Berkant03 in [PR #2386](https://github.com/helmholtz-analytics/heat/pull/2386) and [PR #2482](https://github.com/helmholtz-analytics/heat/pull/2482)
@@ -28,44 +29,40 @@ Heat is now officially a **NumFOCUS affiliated project**!
 
 ## <a name="v1.9.0-changes">Changes
 
+### <a name="v1.9.0-breaking-changes">Breaking Changes
+* Implement `argsort` and make `sort` NumPy API compliant by @Berkant03 in [PR #2386](https://github.com/helmholtz-analytics/heat/pull/2386)
+* Adapt `nonzero` and `where` APIs to match NumPy by @ClaudiaComito in [PR #2332](https://github.com/helmholtz-analytics/heat/pull/2332)
+* Deprecate `DNDarray.lloc` by @brownbaerchen in [PR #2494](https://github.com/helmholtz-analytics/heat/pull/2494)
+
 ### <a name="v1.9.0-features">Features
 * Add `vectorized_sort` function by @Berkant03 in [PR #2431](https://github.com/helmholtz-analytics/heat/pull/2431)
 * Implementation for complex sorting of dndarrays and `take` by @Berkant03 in [PR #2482](https://github.com/helmholtz-analytics/heat/pull/2482)
 * Add `unique_inverse` by @mtar in [PR #2460](https://github.com/helmholtz-analytics/heat/pull/2460)
 * Add `unique_values` by @mtar in [PR #2452](https://github.com/helmholtz-analytics/heat/pull/2452)
-* Add dunder method `__index__` by @mtar in [PR #2432](https://github.com/helmholtz-analytics/heat/pull/2432)
-* Implement `DNDarray.__abs__` by @mrprohack in [PR #2506](https://github.com/helmholtz-analytics/heat/pull/2506)
-* Return indices as `ht.int64` in `ht.unique(..., return_inverse=True)` by @brownbaerchen in [PR #2253](https://github.com/helmholtz-analytics/heat/pull/2253)
-* Refactor `_shuffle` in datatools by @brownbaerchen in [PR #2535](https://github.com/helmholtz-analytics/heat/pull/2535)
-* Changes regarding batch-parallel clustering by @brownbaerchen in [PR #2359](https://github.com/helmholtz-analytics/heat/pull/2359)
 
 ### <a name="v1.9.0-interoperability">Interoperability
-* Implement `argsort` and make `sort` NumPy API compliant by @Berkant03 in [PR #2386](https://github.com/helmholtz-analytics/heat/pull/2386)
-* Adapt `nonzero` and `where` APIs to match NumPy by @ClaudiaComito in [PR #2332](https://github.com/helmholtz-analytics/heat/pull/2332)
-* Deprecate `DNDarray.lloc` by @brownbaerchen in [PR #2494](https://github.com/helmholtz-analytics/heat/pull/2494)
-* SPEC 0 compliance for v1.9.0 by @mtar in [PR #2539](https://github.com/helmholtz-analytics/heat/pull/2539)
-* Support PyTorch 2.14.0 in [PR #2526](https://github.com/helmholtz-analytics/heat/pull/2526)
-* Support PyTorch 2.13.0 in [PR #2389](https://github.com/helmholtz-analytics/heat/pull/2389)
+* Fix distributed `GaussianNB` to match scikit-learn (per-class indexing & `class_count_`) by @maliesen in [PR #2376](https://github.com/helmholtz-analytics/heat/pull/2376)
+* Add `matrix_transpose` by @mtar in [PR #2440](https://github.com/helmholtz-analytics/heat/pull/2440)
 * Make `ht.var` compatible with array API by @brownbaerchen in [PR #2521](https://github.com/helmholtz-analytics/heat/pull/2521)
 * Make `arange()` follow array API standard by @mtar in [PR #2480](https://github.com/helmholtz-analytics/heat/pull/2480)
 * Add `isdtype` function by @mtar in [PR #2478](https://github.com/helmholtz-analytics/heat/pull/2478)
 * Add `astype` function by @mtar in [PR #2476](https://github.com/helmholtz-analytics/heat/pull/2476)
 * Add `*info` attributes by @mtar in [PR #2465](https://github.com/helmholtz-analytics/heat/pull/2465)
 * Add DLPack support by @mtar in [PR #2445](https://github.com/helmholtz-analytics/heat/pull/2445)
-* Add `matrix_transpose` by @mtar in [PR #2440](https://github.com/helmholtz-analytics/heat/pull/2440)
+* Add dunder method `__index__` by @mtar in [PR #2432](https://github.com/helmholtz-analytics/heat/pull/2432)
+* Implement `DNDarray.__abs__` by @mrprohack in [PR #2506](https://github.com/helmholtz-analytics/heat/pull/2506)
+* Return indices as `ht.int64` in `ht.unique(..., return_inverse=True)` by @brownbaerchen in [PR #2253](https://github.com/helmholtz-analytics/heat/pull/2253)
 * Add `array_namespace` by @mtar in [PR #2439](https://github.com/helmholtz-analytics/heat/pull/2439)
 * Add `DNDarray.to_device` by @mtar in [PR #2435](https://github.com/helmholtz-analytics/heat/pull/2435)
 * Add `newaxis` constant by @mtar in [PR #2422](https://github.com/helmholtz-analytics/heat/pull/2422)
 * Move array API inspection to main namespace by @mtar in [PR #2421](https://github.com/helmholtz-analytics/heat/pull/2421)
 * Change `broadcast_arrays` return type by @mtar in [PR #2468](https://github.com/helmholtz-analytics/heat/pull/2468)
 * Add alias `bitwise_inverse` by @mtar in [PR #2523](https://github.com/helmholtz-analytics/heat/pull/2523)
-* Fix distributed `GaussianNB` to match scikit-learn (per-class indexing & `class_count_`) by @maliesen in [PR #2376](https://github.com/helmholtz-analytics/heat/pull/2376)
 * Restrict zarr version to `<3.2` by @marjin05 in [PR #2274](https://github.com/helmholtz-analytics/heat/pull/2274)
+* Support PyTorch 2.14.0 in [PR #2526](https://github.com/helmholtz-analytics/heat/pull/2526)
 
 ### <a name="v1.9.0-bug-fixes">Bug fixes
 * Fix device mismatch and device retrieval by @Berkant03 in [PR #2542](https://github.com/helmholtz-analytics/heat/pull/2542)
-* Fix missing `packaging` dependency by @JuanPedroGHM in [PR #2518](https://github.com/helmholtz-analytics/heat/pull/2518)
-* Return `vectorized_sort` result on the same device as input by @brownbaerchen in [PR #2512](https://github.com/helmholtz-analytics/heat/pull/2512)
 * Fix for `ht.var(x, axis=0)` ignores `ddof` by @brownbaerchen in [PR #2379](https://github.com/helmholtz-analytics/heat/pull/2379)
 * Early out for non distributed arrays by @mtar in [PR #2350](https://github.com/helmholtz-analytics/heat/pull/2350)
 * Free MPI communicators in garbage collection by @brownbaerchen in [PR #2294](https://github.com/helmholtz-analytics/heat/pull/2294)
@@ -84,8 +81,6 @@ Heat is now officially a **NumFOCUS affiliated project**!
 * Fix broken Linear Algebra tutorial link (filename casing) in README by @MBK-fr in [PR #2558](https://github.com/helmholtz-analytics/heat/pull/2558)
 * Use relative path for quick_start button-link by @Newer1107 in [PR #2504](https://github.com/helmholtz-analytics/heat/pull/2504)
 * Limit concurrent CI workload to prevent Quick Tests failure by @ClaudiaComito in [PR #2560](https://github.com/helmholtz-analytics/heat/pull/2560)
-* Reactivate 2D convolution tests failing on AMD by @brownbaerchen in [PR #2292](https://github.com/helmholtz-analytics/heat/pull/2292) and [PR #2289](https://github.com/helmholtz-analytics/heat/pull/2289)
-* Adjust silhouette score tests and tolerances by @mtar in [PR #2463](https://github.com/helmholtz-analytics/heat/pull/2463) and @brownbaerchen in [PR #2305](https://github.com/helmholtz-analytics/heat/pull/2305)
 * CI updates, test suite refactoring and concurrency fixes by @brownbaerchen, @ClaudiaComito, @JuanPedroGHM, @maliesen, @mtar in [PR #2548](https://github.com/helmholtz-analytics/heat/pull/2548), [PR #2527](https://github.com/helmholtz-analytics/heat/pull/2527), [PR #2520](https://github.com/helmholtz-analytics/heat/pull/2520), [PR #2519](https://github.com/helmholtz-analytics/heat/pull/2519), [PR #2508](https://github.com/helmholtz-analytics/heat/pull/2508), [PR #2471](https://github.com/helmholtz-analytics/heat/pull/2471), [PR #2448](https://github.com/helmholtz-analytics/heat/pull/2448), [PR #2330](https://github.com/helmholtz-analytics/heat/pull/2330), [PR #2312](https://github.com/helmholtz-analytics/heat/pull/2312), [PR #2301](https://github.com/helmholtz-analytics/heat/pull/2301), [PR #2262](https://github.com/helmholtz-analytics/heat/pull/2262), [PR #2259](https://github.com/helmholtz-analytics/heat/pull/2259), [PR #2239](https://github.com/helmholtz-analytics/heat/pull/2239)
 
 ## <a name="v1.9.0-contributors">Contributors
