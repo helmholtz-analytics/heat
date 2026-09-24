@@ -153,6 +153,44 @@ class TestSorting:
 
         assert ht.allclose(res, res_only)
 
+    @pytest.mark.parametrize("resplit_result", [True, False])
+    @pytest.mark.parametrize("return_sort_indices", [True, False])
+    def test_sort_complex_resplit_result(self, resplit_result, return_sort_indices):
+        axis = 0
+        shape = (8, 10)
+        b = ht.random.randn(*shape, dtype=ht.float64, split=axis)
+        c = ht.random.randn(*shape, dtype=ht.float64, split=axis)
+        a = b + c * 1j
+        arr = a.numpy()
+
+        out = ht.sort_complex(
+            a,
+            axis=axis,
+            resplit_result=resplit_result,
+            return_sort_indices=return_sort_indices,
+        )
+
+        if return_sort_indices:
+            res, res_idx = out
+        else:
+            res, res_idx = out, None
+
+        exp_res = np.sort(arr, axis=axis, stable=True)
+        assert np.isclose(res.numpy(), exp_res).all()
+        assert a.device == res.device
+
+        if a.split == axis and a.is_distributed():
+            expected_split = axis if resplit_result else (axis + 1) % res.ndim
+        else:
+            expected_split = a.split
+
+        assert res.split == expected_split
+
+        if res_idx is not None:
+            exp_idx = np.argsort(arr, axis=axis, stable=True)
+            assert (res_idx.numpy() == exp_idx).all()
+            assert res_idx.split == expected_split
+
     @staticmethod
     def _generate_take_params():
         shapes = [(10, ), (20, 30), (10, 2, 40, 3)]
