@@ -2687,7 +2687,9 @@ def sort(
         if out is not None:
             warnings.warn("[ht.sort] `out` parameter gets ignored for complex arrays.")
 
-        return sort_complex(a, axis=axis, descending=descending, return_sort_indices=return_sort_indices)
+        return sort_complex(
+            a, axis=axis, descending=descending, return_sort_indices=return_sort_indices
+        )
 
     if not a.is_distributed() or axis != a.split:
         # sorting is not affected by split -> we can just sort along the axis
