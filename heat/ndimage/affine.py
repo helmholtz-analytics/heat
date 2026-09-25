@@ -59,13 +59,6 @@ ORDER_TO_MODE = {
     5: None,
 }
 
-filtering_map = {}
-
-
-# ============================================================
-# Helper utilities
-# ============================================================
-
 
 def _remove_slice(tensor: torch.Tensor, idx: int, dim: int) -> torch.Tensor:
     # Keep rows before and after the removed row
@@ -282,15 +275,15 @@ def _sanitize_data(
             offset_array = ht.expand_dims(offset_array, 0)
         output_shape = (1,) + output_shape
 
-    if not (input.shape[0] == output_shape[0]):
-        raise ValueError("bulk dimension needs same size in input and output shape")
-
     is_2d_input = input.ndim == 4 and 3 <= matrix.shape[-2] <= matrix.shape[-1] <= 4
     is_3d_input = input.ndim == 5 and 4 <= matrix.shape[-2] <= matrix.shape[-1] <= 5
     if not (is_2d_input or is_3d_input):
         raise ValueError(
             f"matrix with shape {matrix.shape} does not fit to input shape {input.shape} or not supported dimension count"
         )
+
+    if not (input.shape[0] == output_shape[0]):
+        raise ValueError("bulk dimension needs same size in input and output shape")
 
     # offset exists and matrix is no affine matrix
     if offset_array is not None:
@@ -328,11 +321,40 @@ def _sanitize_data(
         if matrix.split is not None:
             matrix = ht.resplit(matrix, None)
 
+        if output_shape[input.split] != input.shape[input.split]:
+            raise RuntimeError(
+                "the output shape cannot differ form input shape along input split axis"
+            )
+
     if offset_array is not None:
         if offset_array.split != matrix.split:
             offset_array = ht.resplit(matrix.split)
 
     return input, matrix, offset_array, output_shape
+
+
+def _get_local_torch_views(input: DNDarray, matrix: DNDarray, output_shape: tuple[int]):
+    matrix_torch: torch.Tensor = matrix.larray
+    input_torch = input.larray
+
+    if matrix.split is None and input.split == 0:
+        _, _, corresponding_slice = matrix.comm.chunk(matrix.gshape, 0)
+        matrix_torch = matrix_torch[corresponding_slice]
+        out_split = 0
+    elif matrix.split == 0 and input.split is None:
+        _, _, corresponding_slice = input.comm.chunk(input.gshape, 0)
+        input_torch = input_torch[corresponding_slice]
+        out_split = 0
+    else:
+        out_split = input.split
+
+    if matrix_torch.device != input_torch.device:
+        matrix_torch = matrix_torch.to(input_torch.device)
+
+    if out_split is not None:
+        _, output_shape, _ = matrix.comm.chunk(output_shape, out_split)
+
+    return input_torch, matrix_torch, output_shape, out_split
 
 
 # ============================================================
@@ -356,8 +378,9 @@ def affine_transform(
         affine matrix used to transform input. can be of shape Bx3x4 (3x3, 4x4 also valid) for 2d data,
         or should be of shape Bx4x5 (4x4, 5x5 also valid) for 3d data
         B stands for the Bulk axis and can be ommited
-        The row and column corresponding with Transformation of the Color-Axis is ignored right now,
-        because it is not supported by the torch.affine_grid() function.
+        The row and column corresponding with Transformation of the Color-Axis (the last row and column) are required to be there, but is ignored right now!,
+        This is done as tradeof between compatibility with scipy.affine_transform based on the assumtion that transforming of the color axis is rarely desired.
+        If your input is a 2D image you can add a singleton dimension to the end of the matrix to treat the color axis as a spacial axis: H x W x C -> H x W x C x 1
     offset : DNDarray
         offset vector that can be used instead of adding offset into affine matrix directly. only in effect when the matrix
         given has no transform vector
@@ -396,29 +419,8 @@ def affine_transform(
 
     input, matrix, offset, output_shape = _sanitize_data(input, matrix, offset, output_shape)
 
-    # only bulk axis or distributed axis is fixed, computations can all be done locally
-    matrix_torch: torch.Tensor = matrix.larray
-    input_torch = input.larray
-
-    if matrix.split is None and input.split == 0:
-        _, _, corresponding_slice = matrix.comm.chunk(matrix.gshape, 0)
-        matrix_torch = matrix_torch[corresponding_slice[0]]
-    elif matrix.split == 0 and input.split is None:
-        _, _, corresponding_slice = input.comm.chunk(input.gshape, 0)
-        input_torch = input_torch[corresponding_slice[0]]
-
-    if matrix_torch.device != input_torch.device:
-        matrix_torch = matrix_torch.to(input_torch.device)
-    # TODO add further tests here: if split is in spacial dimension, then output_shape cant be different in that axis!
-
-    if input.split is not None:
-        _, loc_out_shape, _ = matrix.comm.chunk(output_shape, input.split)
-    else:
-        loc_out_shape = output_shape
-
-    matrix_torch = _prepare_matrix(
-        matrix_torch, offset, input_torch.shape, loc_out_shape, apply_cval_padding
-    )
+    linput, lmatrix, out_lshape, out_split = _get_local_torch_views(input, matrix, output_shape)
+    # at this point computations can all be done locally
 
     # I still don't understand why the permute below is necessary, but the affine matrix itself
     # does not need to be reordered.
@@ -428,21 +430,24 @@ def affine_transform(
         idx for idx in range(input.ndim - 1, 0, -1)
     )  # reversed: (0,4,3,2,1) or (0,3,2,1)
 
-    loc_out_shape_permuted = tuple(loc_out_shape[i] for i in dimension_order)
+    loc_out_shape_permuted = tuple(out_lshape[i] for i in dimension_order)
     out_shape = torch.Size(loc_out_shape_permuted)
-    input_torch = input_torch.permute(dimension_order)
 
     # skip computation if this rank has no data
-    if input_torch.numel() > 0:
+    if linput.numel() > 0:
+        lmatrix = _prepare_matrix(lmatrix, offset, linput.shape, out_lshape, apply_cval_padding)
+
+        linput = linput.permute(dimension_order)
+
         # TODO exclude padding at rank boundaries, should never be neccessary
         if apply_cval_padding:
-            padding_size = tuple(1 for _ in range((input_torch.ndim - 2) * 2))
-            input_torch = torch.nn.functional.pad(input_torch, padding_size, "constant", cval)
+            padding_size = tuple(1 for _ in range((linput.ndim - 2) * 2))
+            linput = torch.nn.functional.pad(linput, padding_size, "constant", cval)
 
-        sample_grid: torch.Tensor = affine_grid(matrix_torch, out_shape, align_corners=True)
+        sample_grid: torch.Tensor = affine_grid(lmatrix, out_shape, align_corners=True)
 
         transformed: torch.Tensor = grid_sample(
-            input_torch,
+            linput,
             sample_grid,
             padding_mode=sample_padding,
             mode=sample_mode,
@@ -450,18 +455,20 @@ def affine_transform(
         )
     else:
         transformed = torch.empty(
-            out_shape, dtype=input_torch.dtype, device=input_torch.device
+            out_shape, dtype=linput.dtype, device=linput.device
         )  # device=input.larray.device, dtype=input.larray.dtype)
 
     transformed = transformed.permute(dimension_order)
 
-    if matrix_torch.size(2) == len(original_shape):  # had no bulk axis originally
+    if transformed.ndim != len(original_shape):  # had no bulk axis originally
         transformed = transformed.squeeze(0)
+        if out_split is not None:
+            out_split -= 1
 
     transformed_dnd: DNDarray = array(
         transformed.contiguous(),
         dtype=input.dtype,
-        is_split=input.split,
+        is_split=out_split,
         device=input.device,
         comm=input.comm,
         copy=False,
