@@ -192,6 +192,28 @@ class TestTypes(TestCase):
 
 
 class TestTypeConversion(TestCase):
+    def test_astype(self):
+        # check the call to DNDarray.astype
+        data = ht.float32([[1, 2, 3], [4, 5, 6]])
+
+        # check starting invariant
+        self.assertEqual(data.dtype, ht.float32)
+
+        # check the copy case for int16
+        as_int16_f = ht.astype(data, ht.int16)
+        self.assertIsInstance(as_int16_f, ht.DNDarray)
+        self.assertIsNot(as_int16_f, data)
+
+        # DNDarray method
+        as_int16 = data.astype(ht.int16)
+
+        self.assertTrue(ht.equal(as_int16_f, as_int16))
+        self.assertEqual(as_int16_f.dtype, as_int16.dtype)
+        self.assertEqual(as_int16_f.device, as_int16.device)
+
+        with self.assertRaises(TypeError):
+            ht.astype("A", ht.int32)
+
     def test_can_cast(self):
         zeros_array = np.zeros((3,), dtype=np.int16)
 
@@ -277,6 +299,38 @@ class TestTypeConversion(TestCase):
             ht.core.types.heat_type_of({})
         with self.assertRaises(TypeError):
             ht.core.types.heat_type_of(object)
+
+    def test_isdtype(self):
+        dtype = ht.bool
+        self.assertTrue(ht.isdtype(dtype, ht.bool))
+        self.assertFalse(ht.isdtype(dtype, ht.uint8))
+        self.assertTrue(ht.isdtype(dtype, "bool"))
+        self.assertFalse(ht.isdtype(dtype, ("signed integer", "unsigned integer")))
+        self.assertFalse(ht.isdtype(dtype, "integral"))
+        self.assertFalse(ht.isdtype(dtype, ("real floating", "complex floating")))
+        self.assertFalse(ht.isdtype(dtype, "numeric"))
+
+        dtype = ht.int64
+        self.assertTrue(ht.isdtype(dtype, ht.int64))
+        self.assertTrue(ht.isdtype(dtype, "signed integer"))
+        self.assertFalse(ht.isdtype(dtype, "unsigned integer"))
+        self.assertTrue(ht.isdtype(dtype, "integral"))
+        self.assertFalse(ht.isdtype(dtype, ("bool", "real floating", "complex floating")))
+        self.assertTrue(ht.isdtype(dtype, "numeric"))
+
+        dtype = ht.float32
+        self.assertTrue(ht.isdtype(dtype, ht.float32))
+        self.assertFalse(ht.isdtype(dtype, ("bool", "signed integer", "unsigned integer", "integral")))
+        self.assertTrue(ht.isdtype(dtype, "real floating"))
+        self.assertFalse(ht.isdtype(dtype, "complex floating"))
+        self.assertTrue(ht.isdtype(dtype, "numeric"))
+
+        with self.assertRaises(TypeError):
+            ht.isdtype("typo", ht.complex64)
+
+        with self.assertRaises(TypeError):
+            ht.isdtype(ht.uint8, "int")
+
 
     def test_issubdtype(self):
         # First level

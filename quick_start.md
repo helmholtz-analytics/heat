@@ -1,4 +1,4 @@
-# Quick Start
+# Installation
 
 This guide provides instructions for setting up Heat as a user or a contributor.
 
@@ -50,7 +50,7 @@ See our [docker README](https://github.com/helmholtz-analytics/heat/blob/main/do
 Confirm the installation by running a distributed smoke test to verify tensor splitting across processes:
 
 ```bash
-mpirun -n 2 python -c "import heat as ht; x = ht.arange(10, split=0); print(f'Rank {ht.communication.MPI_SELF.rank} local shape: {x.lshape}')"
+mpirun -n 2 python -c "import heat as ht; x = ht.arange(10, split=0); print(f'Rank {x.comm.rank} local shape: {x.lshape}')"
 ```
 This should output something like:
 

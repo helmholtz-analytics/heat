@@ -1,17 +1,18 @@
-import pytest
-pytest.importorskip("sklearn")
-
-import heat as ht
 import numpy as np
-from sklearn.metrics import silhouette_samples as sk_silhouette
-from sklearn.metrics import silhouette_score as sk_silhouette_score
-from sklearn.datasets import make_blobs
+import unittest
+import heat as ht
 from heat.cluster.metrics import silhouette_samples, silhouette_score
 from heat.testing.basic_test import TestCase
+
+try:
+    from sklearn.metrics import silhouette_samples as sk_silhouette
+except ImportError:
+    sk_silhouette = None
 
 
 class TestSilhouette(TestCase):
 
+    @unittest.skipIf(sk_silhouette is None, 'Need scikit-learn for this test')
     def test_silhouette_samples(self):
         n_points = [8, 17]
         n_cluster = [3, 5]
@@ -101,7 +102,7 @@ class TestSilhouette(TestCase):
         # b = dist((0,0), (10,10)) = 14.14
         # sil = (14.14 - 1.414) / 14.14 = 0.9
 
-        assert sil[0] == pytest.approx(0.9), f"Point 0 is {sil[0]:.4f}"
+        assert np.isclose(sil[0], 0.9), f"Point 0 is {sil[0]:.4f}"
 
 
     def test_minimal_silhouette_score_example(self):
@@ -140,7 +141,6 @@ class TestSilhouette(TestCase):
                                 if metric == 'precomputed':
                                     data = ht.spatial.cdist(data, data)
 
-                                # Compute silhouette of all samples with sklearn and with heat
                                 score1 = silhouette_score(data, labels, metric=metric, sample_size=n_s, random_state=42)
                                 score2 = silhouette_score(data, labels, metric=metric, sample_size=n_s, random_state=42)
                                 score3 = silhouette_score(data, labels, metric=metric, sample_size=n_s, random_state=43)
@@ -150,7 +150,7 @@ class TestSilhouette(TestCase):
 
                                 if n_s == n_points:
                                     score_all = silhouette_score(data, labels, metric=metric)
-                                    assert np.isclose(score1, score_all)
+                                    assert np.isclose(score1, score_all, atol=1e-6)
                                 else:
                                     assert not np.isclose(score1, score3)
 

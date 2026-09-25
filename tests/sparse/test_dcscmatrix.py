@@ -268,10 +268,6 @@ class TestDCSC_matrix(TestCase):
                 ).all()
             )
 
-    @unittest.skipIf(
-        int(torch.__version__.split(".")[0]) <= 1,
-        f"ht.sparse requires torch >= 2.0. Found version {torch.__version__}.",
-    )
     def test_astype(self):
         heat_sparse_csc = ht.sparse.sparse_csc_matrix(self.ref_torch_sparse_csc)
 

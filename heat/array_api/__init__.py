@@ -4,15 +4,17 @@ A Heat sub-namespace that conforms to the Python array API standard.
 
 import warnings
 
-warnings.warn("The heat.array_api submodule is not fully implemented.", stacklevel=2)
+warnings.warn(
+    "The heat.array_api submodule is not fully implemented. It will be removed in version 1.10.",
+    stacklevel=2,
+)
 
 __array_api_version__ = "2025.12"
 
 __all__ = ["__array_api_version__"]
 
 from ._inspection import __array_namespace_info__
-
-from ._constants import e, inf, nan, newaxis, pi
+from .core.constants import e, inf, nan, newaxis, pi
 
 __all__ += ["e", "inf", "nan", "newaxis", "pi"]
 
