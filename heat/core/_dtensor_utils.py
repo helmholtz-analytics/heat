@@ -137,6 +137,27 @@ def try_dtensor_op(
     if not is_dtensor_eligible(*args):
         return None
 
+    # ensure intermediate allocation fits in GPU VRAM
+    if str(args[0].device)[:3] == "gpu" and torch.cuda.is_available():
+        device_idx = args[0].larray.device
+        free_mem, _ = torch.cuda.mem_get_info(device_idx)
+
+        # Estimate memory for matmul (A @ B)
+        if torch_op is torch.matmul and len(args) == 2:
+            m = args[0].gshape[-2]
+            n = args[1].gshape[-1]
+            elem_bytes = args[0].dtype.torch_type().itemsize
+
+            # If contracting axis is split, DTensor allocates full (m, n) for Partial(SUM)
+            inner_split = (args[0].split == args[0].ndim - 1) or (args[1].split == args[1].ndim - 2)
+            needed_bytes = (
+                (m * n * elem_bytes) if inner_split else ((m * n * elem_bytes) // args[0].comm.size)
+            )
+
+            # Leave at least 20% headroom
+            if needed_bytes > 0.8 * free_mem:
+                return None  # Cleanly bypass DTensor and use MPI without raising OOM
+
     try:
         mesh = get_or_create_mesh(args[0].device, args[0].comm)
         if mesh is None:
@@ -145,9 +166,7 @@ def try_dtensor_op(
         dt_args = [dndarray_to_dtensor(a, mesh) for a in args]
         dt_res = torch_op(*dt_args, **kwargs)
 
-        # dt_res.shape is already the full global shape
         final_shape = out_shape if out_shape is not None else tuple(dt_res.shape)
-
         return dtensor_to_dndarray(dt_res, target_split, args[0], final_shape)
     except Exception as e:
         warnings.warn(f"DTensor execution failed, falling back to MPI routine: {e}")
