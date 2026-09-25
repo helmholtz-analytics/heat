@@ -196,8 +196,8 @@ class TestAffine:
                 for img, mat in zip(image, matrix)
             ]
 
-        for res, comp in zip(with_offset_result, with_offset_comparison):
-            assert np.allclose(res.numpy(), comp, rtol=0, atol=tol)
+        for i in range(0, with_offset_result.shape[0]):
+            assert np.allclose(with_offset_result[i].numpy(), with_offset_comparison[i], rtol=0, atol=tol)
 
         if not offset is None:
             offset_stack = ht.expand_dims(offset, offset.ndim)
@@ -305,13 +305,18 @@ class TestAffine:
         # should not throw error, matrix gets resplit to None
         input = ht.random.random((10,10,3), dtype=ht.float32, split=1)
         matrix = ht.array([[1,0,0],[0,1,0],[0,0,1]], dtype=ht.float32, split=0)
-        affine.affine_transform(input, matrix)
         TestAffine.default_testing_setup(input, matrix, offset=None, tol = 0.005)
 
         # matrix split along bulk, input not
         input = create_checker((1, 10,10), 2, dtype=ht.float32)
         matrix = ht.array([[[0, 1, 0, 0], [-1, 0, 0, 9], [0, 0, 1, 0]]], dtype=ht.float32, split=0)
         TestAffine.bulk_testing_setup(input, matrix, offset=None, tol = 0.005)
+
+        # output_shape differs from input_shape along split axis
+        input = ht.empty((10,10,3),dtype=ht.float32, split=0)
+        matrix = ht.empty((3,4), dtype=ht.float32, split=0)
+        with pytest.raises(RuntimeError):
+            affine.affine_transform(input, matrix, output_shape=(15,10,3))
 
 
     def test_unsupported_shapes(self):
