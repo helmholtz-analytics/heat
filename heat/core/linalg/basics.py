@@ -576,7 +576,9 @@ def inv(a: DNDarray) -> DNDarray:
     return ainv
 
 
-def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
+def matmul(
+    a: DNDarray, b: DNDarray, allow_resplit: bool = False, allow_dtensor: bool = True
+) -> DNDarray:
     """
     Matrix multiplication of two ``DNDarrays``: ``a@b=c`` or ``A@B=c``.
     Returns a tensor with the result of ``a@b``. The split dimension of the returned array is
@@ -593,6 +595,8 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
     allow_resplit : bool, optional
         Whether to distribute ``a`` in the case that both ``a.split is None`` and ``b.split is None``.
         Default is ``False``. If ``True``, if both are not split then ``a`` will be distributed in-place along axis 0.
+    allow_dtensor: bool, optional
+        Test
 
     Notes
     -----
@@ -646,11 +650,12 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
     sanitation.sanitize_in(a)
     sanitation.sanitize_in(b)
 
-    if is_dtensor_eligible(a, b):
-        expected_split = a.split if a.split is not None else b.split
-        res = try_dtensor_op(torch.matmul, a, b, target_split=expected_split)
-        if res is not None:
-            return res
+    if allow_dtensor:
+        if is_dtensor_eligible(a, b):
+            expected_split = a.split if a.split is not None else b.split
+            res = try_dtensor_op(torch.matmul, a, b, target_split=expected_split)
+            if res is not None:
+                return res
 
     # if a.is_distributed() or b.is_distributed():
     #     # route through DTensor if it makes sense
