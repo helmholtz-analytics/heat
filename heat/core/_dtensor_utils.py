@@ -35,7 +35,8 @@ def get_or_create_mesh(device, comm) -> Optional["DeviceMesh"]:
         return None
 
     mesh_type = "cuda" if str(device)[:3] == "gpu" else "cpu"
-    cache_key = (mesh_type, comm.handle)
+    comm_id = comm.handle.py2f() if hasattr(comm.handle, "py2f") else id(comm.handle)
+    cache_key = (mesh_type, comm_id)
 
     if cache_key in _DEVICE_MESHES:
         return _DEVICE_MESHES[cache_key]
