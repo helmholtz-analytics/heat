@@ -8,6 +8,7 @@ import warnings
 from typing import Optional, Sequence, Tuple, Union, Callable
 
 import torch.distributed as dist
+import atexit
 
 from .dndarray import DNDarray
 
@@ -24,6 +25,22 @@ except ImportError:  # pragma: no cover
     Shard = Replicate = Partial = None
 
 _DEVICE_MESHES = {}
+
+
+def _cleanup_dist(dist_module=dist):
+    """
+    Cleans up the PyTorch distributed process group on interpreter exit
+    to avoid NCCL resource leak warnings.
+    """
+    try:
+        if dist_module.is_available() and dist_module.is_initialized():
+            dist_module.destroy_process_group()
+    except Exception:
+        pass
+
+
+# Register the cleanup hook
+atexit.register(_cleanup_dist)
 
 
 def get_or_create_mesh(device, comm) -> Optional["DeviceMesh"]:
