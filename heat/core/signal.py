@@ -344,6 +344,11 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full", stride: int = 1) -> D
     if v.is_distributed() and stride > 1:
         gshape_stride_1 = a.shape[-1] + 2 * pad_size - v.shape[-1] + 1
 
+    gshape = (a.shape[-1] + 2 * pad_size - v.shape[-1]) // stride + 1
+
+    if v.is_distributed() and stride > 1:
+        gshape_stride_1 = a.shape[-1] + 2 * pad_size - v.shape[-1] + 1
+
     if batch_processing:
         # all operations are local torch operations, only the last dimension is convolved
         local_a = a.larray
@@ -452,7 +457,6 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full", stride: int = 1) -> D
             rec_v = t_v.clone()
             v.comm.Bcast(rec_v, root=r)
             t_v1 = rec_v.reshape(1, 1, rec_v.shape[0])
-
             local_signal_filtered = fc.conv1d(signal, t_v1, stride=1)
             # unpack 3D result into 1D
             local_signal_filtered = local_signal_filtered[0, 0, :]

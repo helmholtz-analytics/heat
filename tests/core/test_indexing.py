@@ -24,7 +24,8 @@ def compare_ht_where_to_numpy_where(ht_res, np_res):
 @pytest.mark.parametrize('split', [None, 0, 1])
 @pytest.mark.parametrize('cond_type', ['mean', 'max'])
 def test_nonzero(split, cond_type):
-    a = ht.random.random((2*ht.comm.size, 3*ht.comm.size, 4*ht.comm.size))
+    # Pass split=split so the array is distributed across processes
+    a = ht.random.random((2 * ht.comm.size, 3 * ht.comm.size, 4 * ht.comm.size), split=split)
     if cond_type == 'mean':
         cond = a > a.mean() / 2
     elif cond_type == 'max':
@@ -32,16 +33,26 @@ def test_nonzero(split, cond_type):
     else:
         raise NotImplementedError
 
+    # 1. As tuple branch
     nz_as_tuple = ht.nonzero(cond, as_tuple=True)
     nz_as_tuple_ref = np.nonzero(cond.numpy())
     for i in range(len(nz_as_tuple)):
         assert nz_as_tuple[i].dtype == ht.int64
         assert np.allclose(nz_as_tuple[i].numpy(), nz_as_tuple_ref[i])
+        if cond.is_distributed():
+            assert nz_as_tuple[i].split == 0
+        else:
+            assert nz_as_tuple[i].split is None
 
+    # 2. Single 2D DNDarray branch (as_tuple=False)
     nz_no_tuple = ht.nonzero(cond, as_tuple=False)
-    nz_no_tuple_ref = torch.nonzero(cond.resplit(None), as_tuple=False)
+    nz_no_tuple_ref = torch.nonzero(cond.resplit(None).larray, as_tuple=False)
     assert nz_no_tuple.dtype == ht.int64
-    assert np.allclose(nz_no_tuple.numpy(), nz_no_tuple_ref.numpy())
+    assert np.allclose(nz_no_tuple.numpy(), nz_no_tuple_ref.cpu().numpy())
+    if cond.is_distributed():
+        assert nz_no_tuple.split == 0
+    else:
+        assert nz_no_tuple.split is None
 
     if cond_type == 'max':
         assert len(cond[cond]) == 1
