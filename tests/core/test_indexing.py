@@ -93,9 +93,10 @@ class TestIndexing(TestCase):
     def test_nonzero_special_cases(self):
         # edge case: single non-zero element
         for split in [None, 0, 1]:
+            print(f"Testing split={split}")
             a = ht.zeros((4, 3), dtype=ht.bool, split=split)
             a[1, 2] = True
-            nz = ht.indexing.nonzero(a, as_tuple=False)
+            nz = ht.indexing.nonzero(a, as_tuple=True)
             self.assertTrue(ht.allclose(a[nz], a[a]))
             a.comm.Barrier()
 
