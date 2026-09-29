@@ -7,10 +7,11 @@ import torch
 import warnings
 from typing import Optional, Sequence, Tuple, Union, Callable
 
+from .communication import MPI, MPI_WORLD
+from .dndarray import DNDarray
 import torch.distributed as dist
 import atexit
 
-from .dndarray import DNDarray
 
 try:
     from torch.distributed.device_mesh import init_device_mesh, DeviceMesh
@@ -84,19 +85,27 @@ def get_or_create_mesh(device, comm) -> Optional["DeviceMesh"]:
 def is_dtensor_eligible(*arrays) -> bool:
     """
     Checks if all input arrays can be safely represented as DTensors.
-    Requires GPU execution, identical communicators, and evenly split dimensions.
+    Requires GPU execution, global MPI_WORLD communicator, balanced chunks,
+    and evenly split dimensions.
     """
     if not DTENSOR_AVAILABLE or not arrays:
         return False
 
     first_comm = arrays[0].comm
     for a in arrays:
-        # DTensor execution is primarily beneficial for GPU/CUDA backends
+        # DTensor execution is beneficial for GPU/CUDA backends
         if str(a.device)[:3] != "gpu":
             return False
-        # Must share communicator
-        if a.comm != first_comm or not a.comm.is_distributed():
+
+        # Guard: Only allow the global world communicator.
+        # Sub-communicators created by algorithms (e.g. HSVD, TS-QR) must use native MPI.
+        if a.comm != MPI_WORLD or a.comm != first_comm or not a.comm.is_distributed():
             return False
+
+        # Guard: DTensor 1D Shard requires balanced allocations across all ranks
+        if not a.is_balanced():
+            return False
+
         # DTensor 1D Shard requires clean divisibility (no remainder chunks)
         if a.split is not None and (a.gshape[a.split] % a.comm.size != 0):
             return False
@@ -154,10 +163,16 @@ def try_dtensor_op(
     if not is_dtensor_eligible(*args):
         return None
 
-    # ensure intermediate allocation fits in GPU VRAM
+    comm = args[0].comm
+
+    # Collective memory check: ensure intermediate allocation fits in GPU VRAM on ALL ranks
     if str(args[0].device)[:3] == "gpu" and torch.cuda.is_available():
         device_idx = args[0].larray.device
-        free_mem, _ = torch.cuda.mem_get_info(device_idx)
+        local_free_mem, _ = torch.cuda.mem_get_info(device_idx)
+
+        # Synchronize minimum free memory across all participating ranks
+        comm_handle = comm.handle if hasattr(comm, "handle") else comm
+        min_free_mem = comm_handle.allreduce(local_free_mem, op=MPI.MIN)
 
         # Estimate memory for matmul (A @ B)
         if torch_op is torch.matmul and len(args) == 2:
@@ -165,18 +180,17 @@ def try_dtensor_op(
             n = args[1].gshape[-1]
             elem_bytes = args[0].dtype.torch_type().itemsize
 
-            # If contracting axis is split, DTensor allocates full (m, n) for Partial(SUM)
             inner_split = (args[0].split == args[0].ndim - 1) or (args[1].split == args[1].ndim - 2)
             needed_bytes = (
-                (m * n * elem_bytes) if inner_split else ((m * n * elem_bytes) // args[0].comm.size)
+                (m * n * elem_bytes) if inner_split else ((m * n * elem_bytes) // comm.size)
             )
 
-            # Leave at least 20% headroom
-            if needed_bytes > 0.8 * free_mem:
-                return None  # Cleanly bypass DTensor and use MPI without raising OOM
+            # All ranks make the exact same decision simultaneously
+            if needed_bytes > 0.8 * min_free_mem:
+                return None
 
     try:
-        mesh = get_or_create_mesh(args[0].device, args[0].comm)
+        mesh = get_or_create_mesh(args[0].device, comm)
         if mesh is None:
             return None
 
@@ -186,5 +200,7 @@ def try_dtensor_op(
         final_shape = out_shape if out_shape is not None else tuple(dt_res.shape)
         return dtensor_to_dndarray(dt_res, target_split, args[0], final_shape)
     except Exception as e:
-        warnings.warn(f"DTensor execution failed, falling back to MPI routine: {e}")
+        # If an unexpected runtime error happens, log it on rank 0
+        if comm.rank == 0:
+            warnings.warn(f"DTensor execution failed, falling back to MPI routine: {e}")
         return None
