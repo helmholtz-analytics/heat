@@ -11,6 +11,7 @@ from .communication import MPI, MPI_WORLD
 from .dndarray import DNDarray
 import torch.distributed as dist
 import atexit
+import contextlib
 
 
 try:
@@ -42,6 +43,38 @@ def _cleanup_dist(dist_module=dist):
 
 # Register the cleanup hook
 atexit.register(_cleanup_dist)
+
+
+def destroy_dtensor_mesh():
+    """
+    Destroys the NCCL process group, clears cached device meshes,
+    and returns all reserved GPU memory back to the driver.
+    """
+    global _DEVICE_MESHES
+
+    # 1. Clear cached mesh objects
+    _DEVICE_MESHES.clear()
+
+    # 2. Destroy PyTorch distributed process group
+    if dist.is_available() and dist.is_initialized():
+        dist.destroy_process_group()
+
+    # 3. Synchronize and return memory to CUDA driver
+    if torch.cuda.is_available():
+        torch.cuda.synchronize()
+        torch.cuda.empty_cache()
+
+
+@contextlib.contextmanager
+def dtensor_context():
+    """
+    Context manager that guarantees all NCCL rings, process groups,
+    and cached memory are destroyed upon exiting the block.
+    """
+    try:
+        yield
+    finally:
+        destroy_dtensor_mesh()
 
 
 def get_or_create_mesh(device, comm) -> Optional["DeviceMesh"]:
