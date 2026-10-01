@@ -110,6 +110,9 @@ def run_linalg_benchmarks():
     matmul_split_1(a, b)
     del a, b
 
+    # free up NCCL memory
+    ht.destroy_dtensor_mesh()
+
     n = int((4000000 // MPI.COMM_WORLD.size) ** 0.5)
     m = MPI.COMM_WORLD.size * n
     a_0 = ht.random.random((m, n), split=0)
