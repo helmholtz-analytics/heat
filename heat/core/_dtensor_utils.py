@@ -158,6 +158,7 @@ def try_dtensor_op(
     *args: "DNDarray",
     target_split: Optional[int],
     out_shape: Optional[Tuple[int, ...]] = None,
+    empty_cache: bool = False,
     **kwargs,
 ) -> Optional["DNDarray"]:
     if not is_dtensor_eligible(*args):
@@ -165,27 +166,21 @@ def try_dtensor_op(
 
     comm = args[0].comm
 
-    # Collective memory check: ensure intermediate allocation fits in GPU VRAM on ALL ranks
+    # Collective memory check
     if str(args[0].device)[:3] == "gpu" and torch.cuda.is_available():
         device_idx = args[0].larray.device
         local_free_mem, _ = torch.cuda.mem_get_info(device_idx)
-
-        # Synchronize minimum free memory across all participating ranks
         comm_handle = comm.handle if hasattr(comm, "handle") else comm
         min_free_mem = comm_handle.allreduce(local_free_mem, op=MPI.MIN)
 
-        # Estimate memory for matmul (A @ B)
         if torch_op is torch.matmul and len(args) == 2:
             m = args[0].gshape[-2]
             n = args[1].gshape[-1]
             elem_bytes = args[0].dtype.torch_type().itemsize
-
             inner_split = (args[0].split == args[0].ndim - 1) or (args[1].split == args[1].ndim - 2)
             needed_bytes = (
                 (m * n * elem_bytes) if inner_split else ((m * n * elem_bytes) // comm.size)
             )
-
-            # All ranks make the exact same decision simultaneously
             if needed_bytes > 0.8 * min_free_mem:
                 return None
 
@@ -198,9 +193,17 @@ def try_dtensor_op(
         dt_res = torch_op(*dt_args, **kwargs)
 
         final_shape = out_shape if out_shape is not None else tuple(dt_res.shape)
-        return dtensor_to_dndarray(dt_res, target_split, args[0], final_shape)
+        result = dtensor_to_dndarray(dt_res, target_split, args[0], final_shape)
+
+        # Free python references to the DTensor graph immediately
+        del dt_args, dt_res
+
+        # Release cached memory blocks back to driver if requested
+        if empty_cache and torch.cuda.is_available():
+            torch.cuda.empty_cache()
+
+        return result
     except Exception as e:
-        # If an unexpected runtime error happens, log it on rank 0
         if comm.rank == 0:
             warnings.warn(f"DTensor execution failed, falling back to MPI routine: {e}")
         return None
