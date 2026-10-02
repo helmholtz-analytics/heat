@@ -57,7 +57,7 @@ class TestSanitation(TestCase):
         out_wrong_split = ht.empty(output_shape, split=2, device=output_device)
         with self.assertRaises(ValueError):
             ht.sanitize_out(out_wrong_split, output_shape, output_split, output_device)
-        if ht.torch.cuda.is_available():
+        if torch.cuda.is_available():
             out_wrong_device = ht.empty(output_shape, split=output_split, device="gpu")
             with self.assertRaises(ValueError):
                 ht.sanitize_out(out_wrong_device, output_shape, output_split, output_device)

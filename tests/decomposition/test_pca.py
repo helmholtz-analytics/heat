@@ -340,7 +340,7 @@ class TestIncrementalPCA(TestCase):
             pca.inverse_transform(ht.zeros((17, 2), split=None))
 
     def test_incrementalpca_fit(self):
-        if not ht.io.supports_hdf5():
+        if not ht.io.supports("hdf5"):
             return
         """Test the fit method with HDF5 files."""
         path = self.HDF5_PATH
@@ -373,7 +373,7 @@ class TestIncrementalPCA(TestCase):
         dataset_name = "data"
 
         # test when HDF5 support is not available
-        if not ht.io.supports_hdf5():
+        if not ht.io.supports("hdf5"):
             pca = ht.decomposition.IncrementalPCA(n_components=5)
             with self.assertRaises(RuntimeError):
                 pca.fit(path=path_h5, chunk_size=10, dataset=dataset_name)

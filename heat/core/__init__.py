@@ -12,6 +12,7 @@ from .exponential import *
 from .factories import *
 from .indexing import *
 from .io import *
+from . import io
 from .logical import *
 from .manipulations import *
 from .memory import *
