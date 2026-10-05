@@ -9,6 +9,14 @@ from heat.testing.basic_test import TestCase
 IN_GITHUB_ACTIONS = os.getenv("GITHUB_ACTIONS") == "true"
 
 class TestManipulations(TestCase):
+    def test_resplit_non_contiguous(self):
+        # Only works for world size >= 4
+        test_array = ht.random.random((3, 32, 32, 16, 3), dtype=ht.float32, split=0)
+        test_array = ht.transpose(test_array, (0, 1, 4, 3, 2))
+
+        #should no longer raise an MPI_ERR_TRUNCATE error.
+        ht.resplit(test_array, None)
+    
     def test_broadcast_arrays(self):
         a = ht.array([[1], [2]])
         b = ht.array([[0, 1]])
