@@ -1,5 +1,4 @@
 import numpy as np
-
 import heat as ht
 from heat.testing.basic_test import TestCase
 
