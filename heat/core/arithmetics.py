@@ -840,9 +840,8 @@ def cumulative_prod(
                 f"got an array of {x.ndim} dimensions"
             )
         axis = 0
-    axis = stride_tricks.sanitize_axis(x.shape, axis)
 
-    result = cumprod(x, axis, dtype=dtype)
+    result = _operations.__cum_op(x, torch.cumprod, MPI.PROD, torch.mul, 1, axis, dtype)
     if not include_initial:
         return result
 
