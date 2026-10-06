@@ -1293,7 +1293,9 @@ class DNDarray:
                 self.shape, dtype=self.dtype.torch_type(), device=self.device.torch_device
             )
             counts, displs = self.counts_displs()
-            self.comm.Allgatherv(self.__array.contiguous(), (gathered, counts, displs), recv_axis=self.split)
+            self.comm.Allgatherv(
+                self.__array.contiguous(), (gathered, counts, displs), recv_axis=self.split
+            )
             self.__array = gathered
             self.__split = axis
             self.__lshape_map = None
@@ -2457,6 +2459,11 @@ class DNDarray:
         self.__set(key, recv_buf)
         return self
 
+    def __iter__(self):
+        if self.split == 0:
+            raise ValueError("Iterating over the first dimension of a DNDarray is not supported with split dimension 0.")
+        return self
+        
 # Heat imports at the end to break cyclic dependencies
 from . import complex_math
 from . import devices

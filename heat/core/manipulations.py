@@ -4315,7 +4315,9 @@ def resplit(arr: DNDarray, axis: Optional[int] = None) -> DNDarray:
             arr.shape, dtype=arr.dtype.torch_type(), device=arr.device.torch_device
         )
         counts, displs = arr.counts_displs()
-        arr.comm.Allgatherv(arr.larray.contiguous(), (gathered, counts, displs), recv_axis=arr.split)
+        arr.comm.Allgatherv(
+            arr.larray.contiguous(), (gathered, counts, displs), recv_axis=arr.split
+        )
         new_arr = factories.array(
             gathered, is_split=axis, device=arr.device, comm=arr.comm, dtype=arr.dtype
         )
