@@ -16,7 +16,7 @@ class TestManipulations(TestCase):
 
         #should no longer raise an MPI_ERR_TRUNCATE error.
         ht.resplit(test_array, None)
-    
+
     def test_broadcast_arrays(self):
         a = ht.array([[1], [2]])
         b = ht.array([[0, 1]])
