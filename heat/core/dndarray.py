@@ -2457,11 +2457,6 @@ class DNDarray:
         self.__set(key, recv_buf)
         return self
 
-    def __iter__(self):
-        if self.split == 0:
-            raise ValueError("Iterating over the first dimension of a DNDarray is not supported with split dimension 0.")
-        return self
-        
 # Heat imports at the end to break cyclic dependencies
 from . import complex_math
 from . import devices
