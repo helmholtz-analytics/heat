@@ -2463,7 +2463,7 @@ class DNDarray:
 
         if self.split == 0:
             raise RuntimeError(
-                f"Iterating over {self.split=} axis, is not supported. Use normal indexing."
+                f"Iterating over {self.split=} axis is not supported. Please use ht.vmap or normal indexing."
             )
 
         for i in range(self.shape[0]):
