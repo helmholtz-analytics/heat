@@ -2457,6 +2457,15 @@ class DNDarray:
         self.__set(key, recv_buf)
         return self
 
+    def __iter__(self):
+        if self.ndim == 0:
+            raise TypeError("iteration over a 0-d DNDarray")
+
+        if self.split == 0:
+            raise RuntimeError(f"Iterating over {self.split=} axis, is not supported. Use normal indexing.")
+
+        for i in range(self.shape[0]):
+            yield self[i]
 
 # Heat imports at the end to break cyclic dependencies
 from . import complex_math
