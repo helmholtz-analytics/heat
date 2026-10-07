@@ -49,15 +49,15 @@ def _subspaceiteration(
         matrix sign function in two iterations: The power of Zolotarev's functions. SIAM Review, 58(3).
     """
     # set parameters for convergence
-    if A.dtype == types.float64:
+    if A.dtype == types.float64 or A.dtype == types.complex128:
         maxit = 3 if maxit is None else maxit
         tol = 1e-8 if tol is None else tol
-    elif A.dtype == types.float32:
+    elif A.dtype == types.float32 or A.dtype == types.complex64:
         maxit = 6 if maxit is None else maxit
         tol = 1e-4 if tol is None else tol
     else:
         raise TypeError(
-            f"Input DNDarray must be of data type float32 or float64, but is of type {A.dtype}."
+            f"Input DNDarray must be of data type float32, float64, complex64, or complex128, but is of type {A.dtype}."
         )
 
     Anorm = matrix_norm(A, ord="fro")
@@ -299,7 +299,9 @@ def eigh(
     --------
     :func:`heat.linalg.polar`
     """
-    sanitize_in_nd_realfloating(A, "A", [2])
+    sanitize_in(A)
+    if A.ndim != 2:
+        raise ValueError(f"Input matrix must be two-dimensional, but input shape was {A.shape}.")
     if A.shape[0] != A.shape[1]:
         raise ValueError(
             f"Input matrix must be symmetric and, consequently, square, but input shape was {A.shape[0]} x {A.shape[1]}."
