@@ -3261,7 +3261,7 @@ def take(
     in_total = a.gshape[axis]
     in_bounds = [comm.chunk((in_total,), split=0, rank=i)[0] for i in range(size)]
     in_bounds.append(in_total)
-    in_bounds_tensor = torch.tensor(in_bounds, device=indices.device)
+    in_bounds_tensor = torch.tensor(in_bounds, device=indices.device, dtype=torch.int64)
 
     local_start = in_bounds[rank]
     local_stop = in_bounds[rank + 1]
@@ -3286,11 +3286,11 @@ def take(
     src_ranks = torch.bucketize(needed_indices, in_bounds_tensor, right=True) - 1
     recv_counts_tensor = torch.bincount(src_ranks, minlength=size)
 
-    send_counts = (send_counts_tensor * block_length).cpu().numpy()
-    recv_counts = (recv_counts_tensor * block_length).cpu().numpy()
+    send_counts = (send_counts_tensor * block_length).cpu().numpy().astype(np.int64)
+    recv_counts = (recv_counts_tensor * block_length).cpu().numpy().astype(np.int64)
 
-    send_displ = np.insert(np.cumsum(send_counts)[:-1], 0, 0)
-    recv_displ = np.insert(np.cumsum(recv_counts)[:-1], 0, 0)
+    send_displ = np.insert(np.cumsum(send_counts, dtype=np.int64)[:-1], 0, 0)
+    recv_displ = np.insert(np.cumsum(recv_counts, dtype=np.int64)[:-1], 0, 0)
 
     send_data = local_data[send_indices_tensor].reshape(-1).contiguous()
     recv_buf = torch.empty(
