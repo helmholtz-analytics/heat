@@ -68,6 +68,8 @@ __all__ = [
     "unique_values",
     "vsplit",
     "vstack",
+    "TakeRequest",
+    "Itake"
 ]
 
 
@@ -3217,6 +3219,7 @@ def take(
     DNDarray
         The reordered array.
     """
+    # return Itake(a, indices, axis).Wait()
     sanitation.sanitize_in(a)
 
     if not isinstance(axis, int) and axis is not None:
@@ -3308,6 +3311,189 @@ def take(
 
     return reordered_array
 
+class TakeRequest:
+    def __init__(self, mpi_request=None, finalize=None, result=None):
+        self._mpi_request = mpi_request
+        self._finalize = finalize
+        self._result = result
+        self._done = result is not None
+
+    def Wait(self, status=None):
+        if self._done:
+            return self._result
+
+        if self._mpi_request is not None:
+            self._mpi_request.Wait(status)
+
+        self._result = self._finalize()
+        self._finalize = None
+        self._done = True
+
+        return self._result
+
+    def Test(self, status=None):
+        if self._done:
+            return True
+
+        if self._mpi_request is None:
+            self.Wait(status)
+            return True
+
+        finished = self._mpi_request.Test(status)
+
+        if finished:
+            self._result = self._finalize()
+            self._finalize = None
+            self._done = True
+
+        return finished
+
+def Itake(
+    a: DNDarray,
+    indices: torch.Tensor,
+    axis: int | None = None,
+) -> TakeRequest:
+    """
+    Take elements from an array along an axis.
+    When the array is split across processes, it will automatically balance the new array.
+    Is non blocking.
+
+    Parameters
+    ----------
+    a : DNDarray
+        The array whose slices along `axis` are to be rearranged.
+    indices : torch.Tensor
+        A 1D tensor of length `a.gshape[axis]` defining the new global order.
+    axis : int, optional
+        The axis along which to permute. Default is -1.
+
+    Returns
+    -------
+    DNDarray
+        The reordered array.
+    """
+    sanitation.sanitize_in(a)
+
+    if not isinstance(axis, int) and axis is not None:
+        raise ValueError(f"'axis' must be integer or None, not {type(axis)}.")
+    if axis is not None and not (-a.ndim <= axis < a.ndim):
+        raise ValueError(f"{axis=} does not exist for array with {a.ndim} dimensions.")
+    if not isinstance(indices, torch.Tensor):
+        raise ValueError(f"'indices' must be a PyTorch Tensor, not {type(indices)}.")
+    if indices.ndim == 0:
+        raise ValueError("The index Tensor cannot have 0 dimensions.")
+    if indices.ndim > 1:
+        raise NotImplementedError("'indices' must be one dimensional.")
+
+    if axis is None:
+        a = a.flatten()
+        axis = 0
+    elif axis < 0:
+        axis += a.ndim
+
+    indices = indices.to(a.larray.device)
+
+    out_gshape = list(a.gshape)
+    out_gshape[axis] = indices.numel()
+    out_gshape = tuple(out_gshape)
+
+    if not a.is_distributed() or axis != a.split:
+        local_data = torch.index_select(a.larray, axis, indices)
+
+        result = DNDarray(
+            local_data,
+            gshape=tuple(out_gshape),
+            dtype=a.dtype,
+            split=a.split,
+            device=a.device,
+            comm=a.comm,
+            balanced=a.balanced,
+        )
+
+        return TakeRequest(result=result)
+
+    assert axis == a.split  # any other cases should have been handled earlier
+
+    comm = a.comm
+    rank = comm.rank
+    size = comm.size
+
+    local_data = a.larray.transpose(axis, 0)
+    original_shape = local_data.shape
+    inner_shape = original_shape[1:]
+    block_length = np.prod(inner_shape, dtype=np.int64)
+
+    out_total = indices.numel()
+    out_bounds = [comm.chunk((out_total,), split=0, rank=i)[0] for i in range(size)]
+    out_bounds.append(out_total)
+
+    in_total = a.gshape[axis]
+    in_bounds = [comm.chunk((in_total,), split=0, rank=i)[0] for i in range(size)]
+    in_bounds.append(in_total)
+    in_bounds_tensor = torch.tensor(in_bounds, device=indices.device)
+
+    local_start = in_bounds[rank]
+    local_stop = in_bounds[rank + 1]
+
+    local_out_start = out_bounds[rank]
+    local_out_stop = out_bounds[rank + 1]
+
+    needed_indices = indices[local_out_start:local_out_stop]
+
+    send_counts_tensor = torch.zeros(size, dtype=torch.int64, device=indices.device)
+    send_indices_list = []
+
+    for r in range(size):
+        r_wants = indices[out_bounds[r] : out_bounds[r + 1]]
+        mask = (r_wants >= local_start) & (r_wants < local_stop)
+
+        send_counts_tensor[r] = mask.sum()
+        send_indices_list.append(r_wants[mask] - local_start)
+
+    send_indices_tensor = torch.cat(send_indices_list)
+
+    src_ranks = torch.bucketize(needed_indices, in_bounds_tensor, right=True) - 1
+    recv_counts_tensor = torch.bincount(src_ranks, minlength=size)
+
+    send_counts = (send_counts_tensor * block_length).cpu().numpy()
+    recv_counts = (recv_counts_tensor * block_length).cpu().numpy()
+
+    send_displ = np.insert(np.cumsum(send_counts)[:-1], 0, 0)
+    recv_displ = np.insert(np.cumsum(recv_counts)[:-1], 0, 0)
+
+    send_data = local_data[send_indices_tensor].reshape(-1).contiguous()
+    recv_buf = torch.empty(
+        (recv_counts.sum().item(),), dtype=local_data.dtype, device=local_data.device
+    )
+
+    mpi_request = comm.Ialltoallv(
+        (send_data, send_counts, send_displ),
+        (recv_buf, recv_counts, recv_displ),
+    )
+
+    sort_idx = torch.argsort(src_ranks, stable=True)
+    inv_sort_idx = torch.empty_like(sort_idx)
+    inv_sort_idx[sort_idx] = torch.arange(sort_idx.size(0), device=sort_idx.device)
+
+    def finalize():
+        ordered = recv_buf.view(-1, *inner_shape)[inv_sort_idx]
+
+        local_result = ordered.transpose(0, axis)
+
+        return DNDarray(
+            local_result,
+            gshape=out_gshape,
+            dtype=a.dtype,
+            split=a.split,
+            device=a.device,
+            comm=a.comm,
+            balanced=True,
+        )
+
+    return TakeRequest(
+        mpi_request=mpi_request,
+        finalize=finalize,
+    )
 
 def split(x: DNDarray, indices_or_sections: Iterable, axis: int = 0) -> List[DNDarray, ...]:
     """
