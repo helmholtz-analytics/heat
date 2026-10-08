@@ -380,7 +380,7 @@ class MPICommunication(Communication):
 
                 else:
                     return mpi_type, elements
-            factor = np.prod(obj.shape[1:], dtype=np.int32)
+            factor = np.prod(obj.shape[1:], dtype=np.int64)
             return (
                 mpi_type,
                 (
