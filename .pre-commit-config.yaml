@@ -20,6 +20,8 @@ repos:
         additional_dependencies:
           - torch
           - h5py
+          - netCDF4
+          - pandas
           - zarr
         pass_filenames: false
         stages: [manual]
