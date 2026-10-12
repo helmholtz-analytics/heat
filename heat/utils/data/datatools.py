@@ -285,62 +285,25 @@ def create_train_val_split(
     if seed is None:
         seed = random.randint(-0x8000_0000_0000_0000, 0xFFFF_FFFF_FFFF_FFFF)
 
-    for arr in [X, y]:
-        dset = DistributedDataset(arr)
-        _ = DistributedSampler(dset, shuffle=True, seed=seed)
+    if X.gshape[0] != y.gshape[0]:
+        raise ValueError(f"Both X and y must have same amount of rows. {X.gshape[0]=} != {y.gshape[0]=}")
+    if X.split not in [None, 0] or y.split not in [None, 0]:
+        raise ValueError(f"Split of X and y must both be either None or 0, {X.split=}, {y.split=}")
 
     train_rows = int(X.lshape[0] * p)
     val_rows = X.lshape[0] - train_rows
+
+    assert train_rows + val_rows == X.gshape[0] #sanity check
 
     perm = torch.randperm(X.lshape[0])
 
     train_idx = perm[:train_rows]
     val_idx = perm[-val_rows:]
 
-    assert len(train_idx) + len(val_idx) == X.lshape[0]
-
-    comm = MPI.COMM_WORLD
-
-    total_train_rows = comm.allreduce(train_rows, MPI.SUM)
-    total_val_rows = comm.allreduce(val_rows, MPI.SUM)
-
-    train_gshape = tuple([total_train_rows, *X.gshape[1:]])
-    val_gshape = tuple([total_val_rows, *X.gshape[1:]])
-
-    train_arr = DNDarray(
-        X.larray[train_idx],
-        train_gshape,
-        X.dtype,
-        split=0,
-        device=X.device,
-        comm=X.comm,
-        balanced=True,
-    )
-    val_arr = DNDarray(
-        X.larray[val_idx], val_gshape, X.dtype, split=0, device=X.device, comm=X.comm, balanced=True
-    )
-
-    train_labels_gshape = tuple([total_train_rows, *y.gshape[1:]])
-    val_labels_gshape = tuple([total_val_rows, *y.gshape[1:]])
-
-    train_labels_arr = DNDarray(
-        y.larray[train_idx],
-        train_labels_gshape,
-        y.dtype,
-        split=0,
-        device=y.device,
-        comm=y.comm,
-        balanced=True,
-    )
-    val_labels_arr = DNDarray(
-        y.larray[val_idx],
-        val_labels_gshape,
-        y.dtype,
-        split=0,
-        device=y.device,
-        comm=y.comm,
-        balanced=True,
-    )
+    train_arr = take(X, train_idx, axis=0)
+    train_labels_arr = take(y, train_idx, axis=0)
+    val_arr = take(X, val_idx, axis=0)
+    val_labels_arr = take(y, val_idx, axis=0)
 
     return train_arr, train_labels_arr, val_arr, val_labels_arr
 
