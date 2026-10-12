@@ -4,25 +4,18 @@ Function and classes useful for loading data into neural networks
 
 from collections import deque
 from dataclasses import dataclass
-import itertools
 import random
-import warnings
-import mpi4py
 import torch
 import torch.distributed
 from torch.utils import data as torch_data
-from typing import Any, Callable, List, Iterator, Literal, Tuple, Union, Optional, Sized
+from typing import Callable, List, Iterator, Union, Optional
 from mpi4py import MPI
-from functools import reduce
 
 import torch.utils
-import torchvision
 
 from ...core.dndarray import DNDarray
-from ...core.communication import MPICommunication, get_comm, sanitize_comm
-from ...core.random import permutation
+from ...core.communication import MPICommunication, sanitize_comm
 from ...core.manipulations import take, Itake, TakeRequest
-from ...core import sanitation
 from . import partial_dataset
 
 __all__ = [
@@ -543,34 +536,43 @@ def _batch_indices(
 
         yield batch.flatten()
 
+
 class DistributedDataset[T](torch.utils.data.Dataset):
     def __init__(
         self,
         data: DNDarray | tuple[DNDarray, ...],
         post_processing: Callable[[int, torch.Tensor], T] | None = None,
-        comm: MPICommunication | None = None
+        comm: MPICommunication | None = None,
     ) -> None:
         if post_processing is not None and not callable(post_processing):
             raise TypeError("post_processing must be a callable function or None.")
 
         self._data = _sanitize_data_input(data)
+        if self._data[0].split not in (None, 0):
+            raise ValueError("DNDarrays must be unsplit or distributed across `axis=0`.")
+
         self._comm: MPICommunication = sanitize_comm(comm)
         self._post_processing = post_processing
 
     def __getitems__(self, indices: list[int]) -> Union[torch.Tensor, T, tuple[torch.Tensor, ...], tuple[T, ...]]:
-        N = len(indices)
+        indices: torch.Tensor = torch.tensor(indices, dtype=torch.int64)
 
-        index_buffer = torch.empty(N * self._comm.size, dtype=torch.int64)
-        self._comm.Allgather(torch.tensor(indices), index_buffer)
+        if self._data[0].split == 0:
+            index_buffer = torch.empty(indices.numel() * self._comm.size, dtype=torch.int64)
+            self._comm.Allgather(indices, index_buffer)
+        else:
+            index_buffer = indices
 
         results = tuple(take(d, index_buffer, axis=0).larray for d in self._data)
 
-        if self._post_processing:
-            return tuple(self._post_processing(i, res) for i, res in enumerate(results))
-        return results
+        if self._post_processing is not None:
+            results = tuple(self._post_processing(i, result) for i, result in enumerate(results))
 
-    def __len__(self):
+        return results if len(results) > 1 else results[0]
+
+    def __len__(self) -> int:
         return self._data[0].gshape[0]
+
 
 class DistributedDataLoader[T]:
     def __init__(
@@ -592,6 +594,8 @@ class DistributedDataLoader[T]:
             raise ValueError(f"'{prefetch_factor=}' must be a non-negative integer.")
         if not isinstance(drop_last, bool):
             raise ValueError(f"'{drop_last=}' must be a bool.")
+        if not isinstance(seed, int) or isinstance(seed, bool):
+            raise ValueError(f"'{seed=}' must be an integer.")
         if post_processing is not None and not callable(post_processing):
             raise TypeError("post_processing must be a callable function or None.")
 
@@ -604,6 +608,7 @@ class DistributedDataLoader[T]:
         self._comm: MPICommunication = sanitize_comm(comm)
 
         self._seed = seed
+        self._epoch = 0
 
         self._num_elements = self._data[0].gshape[0]
 
@@ -613,15 +618,15 @@ class DistributedDataLoader[T]:
             raise ValueError("DNDarrays must be distributed across `axis=0`.")
 
     @property
-    def seed(self):
+    def seed(self) -> int:
         return self._seed
 
     @seed.setter
-    def seed(self, value):
-        if not isinstance(value, int):
+    def seed(self, value: int) -> None:
+        if not isinstance(value, int) or isinstance(value, bool):
             raise ValueError(f"Seed must be an integer not {type(value)}.")
         self._seed = value
-        self._generator = self._generator.manual_seed(self._seed)
+        self._epoch = 0
 
     def __len__(self) -> int:
         N = self._num_elements
@@ -632,7 +637,9 @@ class DistributedDataLoader[T]:
         return (N + B - 1) // B
 
     def __iter__(self) -> "_DistributedDataLoaderIter":
-        return _DistributedDataLoaderIter(self)
+        seed = self._seed + self._epoch
+        self._epoch += 1
+        return _DistributedDataLoaderIter(self, seed)
 
 
 @dataclass
@@ -645,6 +652,7 @@ class _DistributedDataLoaderIter:
     def __init__(
         self,
         loader: DistributedDataLoader,
+        seed: int,
     ) -> None:
         self._loader = loader
         self._closed = False
@@ -653,7 +661,7 @@ class _DistributedDataLoaderIter:
             comm=loader._comm,
             num_elements=loader._num_elements,
             shuffle=loader._shuffle,
-            seed=loader._seed,
+            seed=seed,
         )
 
         self._batch_iterator = _batch_indices(
