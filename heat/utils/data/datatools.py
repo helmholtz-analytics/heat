@@ -2,6 +2,8 @@
 Function and classes useful for loading data into neural networks
 """
 
+from collections import deque
+from dataclasses import dataclass
 import itertools
 import random
 import warnings
@@ -9,7 +11,7 @@ import mpi4py
 import torch
 import torch.distributed
 from torch.utils import data as torch_data
-from typing import Callable, List, Iterator, Literal, Union, Optional, Sized
+from typing import Any, Callable, List, Iterator, Literal, Tuple, Union, Optional, Sized
 from mpi4py import MPI
 from functools import reduce
 
@@ -17,8 +19,10 @@ import torch.utils
 import torchvision
 
 from ...core.dndarray import DNDarray
-from ...core.communication import GPU_AWARE_MPI, MPI_WORLD, MPICommunication
+from ...core.communication import MPICommunication, get_comm, sanitize_comm
 from ...core.random import permutation
+from ...core.manipulations import take, Itake, TakeRequest
+from ...core import sanitation
 from . import partial_dataset
 
 __all__ = [
@@ -27,8 +31,10 @@ __all__ = [
     "dataset_shuffle",
     "dataset_ishuffle",
     "DistributedDataset",
-    "DistributedSampler",
     "create_train_val_split",
+    "DistributedDataLoader",
+    "_sanitize_data_input",
+    "_create_distributed_indices",
 ]
 
 
@@ -262,324 +268,6 @@ class Dataset(torch_data.Dataset):
         if not self.test_set:
             dataset_ishuffle(dataset=self, attrs=[["data", "htdata"]])
 
-
-class DistributedDataset(torch_data.Dataset):
-    """
-    A DistributedDataset for usage in PyTorch. Saves the dndarray and the larray tensor. Uses the larray tensor
-    for the distribution and getting the items. Intented to be used with DistributedSampler.
-    """
-
-    def __init__(self, dndarray: DNDarray, transforms: torchvision.transforms.Compose = None):
-        if not isinstance(dndarray, DNDarray):
-            raise TypeError(f"Expected DNDarray but got {type(dndarray)}")
-        if dndarray.split != 0:
-            raise ValueError("DistributedDataset only works with a DNDarray split of 0")
-
-        self.dndarray = dndarray
-        self.transforms = transforms
-
-    def __len__(self) -> int:
-        return len(self.dndarray.larray)
-
-    def __getitem__(self, index):
-        item = self.dndarray.larray[index]
-        if self.transforms is not None:
-            return self.transforms(item)
-        return item
-
-    def __getitems__(self, indices):
-        if self.transforms is not None:
-            return tuple(self.transforms(self.dndarray.larray[index]) for index in indices)
-        return tuple(self.dndarray.larray[index] for index in indices)
-
-
-class DistributedSampler(torch_data.Sampler):
-    """
-    A DistributedSampler for usage in PyTorch with Heat Arrays. Uses the nature of the Heat DNDArray
-    to give the locally stored data on the larray. Shuffling is done by shuffling the indices.
-    The given Indices corrospond to the index of the larray tensor.
-    Works only with DNDarray that are split on axis 0
-    """
-
-    def __init__(
-        self,
-        dataset: DistributedDataset,
-        shuffle: bool = False,
-        seed: Optional[int] = None,
-        shuffle_type: Literal["global"] | Literal["local"] = "global",
-        correction: bool = False,
-    ) -> None:
-        """
-        Parameters
-        ----------
-        dataset : DistributedDataset
-            Dataset to be shuffled
-        shuffle : bool, optional
-            If the underlying DNDarray should be shuffled, by default False
-        seed : int, optional
-            seed for shuffling, by default None
-        shuffle_type : Literal[&quot;global&quot;] | Literal[&quot;local&quot;], optional
-            Wether to shuffle process local or get new data using by shuffling globally across all processes, by default "global"
-        correction : bool, optional
-            If index correction is wanted after an global shuffle, by default False
-        """
-        if not isinstance(dataset, DistributedDataset):
-            raise TypeError(f"Expected DistributedDataset for dataset not {type(dataset)}")
-        if not isinstance(shuffle, bool):
-            raise TypeError(f"Expected bool for shuffle not {type(shuffle)}")
-        if not isinstance(seed, int) and seed is not None:
-            raise TypeError(f"Expected int or None for seed not {type(shuffle)}")
-        if not isinstance(shuffle_type, str):
-            raise TypeError("Shuffle Type needs to be an string")
-        if not isinstance(correction, bool):
-            raise TypeError("Correction Parameter needs to be an bool")
-
-        self.dataset = dataset
-        self.dndarray = dataset.dndarray
-        self.shuffle = shuffle
-        self.linked_sampler = None
-        self.correction = correction
-        self.set_shuffle_type(shuffle_type)
-        self.set_seed(seed)
-
-        if self.dndarray.split != 0:
-            raise ValueError("DistributedSampler only works with a DNDarray split of 0")
-
-    @staticmethod
-    def _in_slice(idx: int, a_slice: slice) -> bool:
-        """Check if the given index is inside the given slice
-
-        Parameters
-        ----------
-        idx : int
-            Index to check
-        a_slice : slice
-            Slice to check
-
-        Returns
-        -------
-        bool
-            Wether index is in slice
-        """
-        if idx < a_slice.start or idx >= a_slice.stop:
-            return False
-        step = a_slice.step if a_slice.step else 1
-        if (idx - a_slice.start) % step == 0:
-            return True
-        else:
-            return False
-
-    def _shuffle(self) -> None:
-        """Shuffles the given dndarray at creation across processes."""
-        if self.shuffle_type == "local":
-            rand_perm = torch.randperm(self.dndarray.larray.shape[0])
-            self.dndarray.larray = self.dndarray.larray[rand_perm]
-        elif self.shuffle_type == "global":
-            # TODO: Find out which implementation is better
-            # self.dndarray = permutation(self.dndarray)
-            # self.dataset.dndarray = self.dndarray
-            self._alltoall_shuffle()
-        else:
-            raise ValueError(f"Shuffle type is {self.shuffle_type} is not 'local' nor 'global'")
-
-    def _alltoall_shuffle(self) -> None:
-        # Exchanges the data using Indexed data types and  i iaj
-        dtype = self.dndarray.dtype.torch_type()
-        comm: MPICommunication = self.dndarray.comm
-        rank: int = comm.rank
-        world_size: int = comm.size
-        N: int = self.dndarray.gshape[0]
-        mpi_type: mpi4py.MPI.Datatype = comm._MPICommunication__mpi_type_mappings[dtype]
-
-        if rank == 0:
-            indices = torch.randperm(N, dtype=torch.int64)
-        else:
-            indices = torch.empty(N, dtype=torch.int64)
-        mpi4py.MPI.COMM_WORLD.Bcast(indices, root=0)
-
-        indice_buffers: List[List[int]] = [list() for _ in range(world_size)]
-        rank_slices: List[slice] = [
-            comm.chunk((N,), split=0, rank=i)[-1][0] for i in range(world_size)
-        ]
-
-        block_length: int = reduce(lambda a, b: a * b, self.dndarray.gshape[1:], 1)
-        local_slice: slice = rank_slices[rank]
-        local_displacement: int = self.dndarray.counts_displs()[1][rank] * block_length
-
-        # Now figure out which rank needs to send what to each rank and what this rank will receive
-        for i, idx in enumerate(indices):
-            idx = idx.item()
-            for data_send_rank, tslice in enumerate(rank_slices):
-                if not self._in_slice(idx, tslice):
-                    continue
-                break
-            for data_recv_rank, tslice in enumerate(rank_slices):
-                if not self._in_slice(i, tslice):
-                    continue
-                break
-            if data_recv_rank == rank:
-                indice_buffers[rank].append(idx)
-            elif data_send_rank == rank:
-                indice_buffers[data_recv_rank].append(idx)
-
-        # print("RECV BUFFER creating...", flush=True)
-        send_elems_dtype: List[mpi4py.MPI.Datatype] = list()
-        local_recv_buffer: torch.Tensor = torch.empty(self.dndarray.larray.shape, dtype=dtype)
-
-        for current_rank in range(world_size):
-            if current_rank == rank:
-                send_indice = [
-                    idx for idx in indice_buffers[current_rank] if self._in_slice(idx, local_slice)
-                ]
-            else:
-                send_indice = indice_buffers[current_rank]
-            displacements = [
-                mpi_type.Get_size() * (disp * block_length - local_displacement)
-                for disp in send_indice
-            ]
-            block_lengths = [block_length] * len(displacements)
-            send_type = mpi_type.Create_struct(
-                blocklengths=block_lengths,
-                displacements=displacements,
-                datatypes=[mpi_type] * len(displacements),
-            )
-            send_type.Commit()
-            send_elems_dtype.append(send_type)
-
-        recv_counts = torch.zeros(world_size, dtype=torch.int64)
-        for idx in indice_buffers[rank]:
-            for i, tslice in enumerate(rank_slices):
-                if not self._in_slice(idx, tslice):
-                    continue
-                recv_counts[i] += 1
-                break
-
-        send_elems = self.dndarray.larray
-        send_elems = send_elems if GPU_AWARE_MPI else send_elems.cpu()
-
-        recv_types: List[mpi4py.MPI.Datatype] = []
-
-        total_displ = 0
-
-        for i in range(world_size):
-            if recv_counts[i] == 0:
-                recv_type = mpi_type.Create_contiguous(0)
-            else:
-                types = [mpi_type.Create_contiguous(block_length) for _ in range(recv_counts[i])]
-
-                displ = torch.zeros(len(types), dtype=torch.int64)
-                displ[1:] = torch.cumsum(torch.tensor([t.Get_size() for t in types])[:-1], 0)
-                displ += total_displ
-
-                recv_type = mpi_type.Create_struct(
-                    blocklengths=[1] * len(types), displacements=displ.tolist(), datatypes=types
-                )
-                total_displ += sum([t.Get_size() for t in types])
-
-            recv_type.Commit()
-            recv_types.append(recv_type)
-
-        mpi4py.MPI.COMM_WORLD.Alltoallw(
-            (send_elems, send_elems_dtype),
-            (local_recv_buffer, recv_types),
-        )
-
-        for elem in itertools.chain(recv_types, send_elems_dtype):
-            elem.Free()
-
-        # As MPI indirectly sorts the data according to the rank we need
-        # to change that to represent the permutation
-        if self.correction:
-
-            def get_from_rank(idx):
-                for i, rslice in enumerate(rank_slices):
-                    if self._in_slice(idx, rslice):
-                        return i
-                raise RuntimeError("IDX not found in slices")
-
-            idx_to_rank_map = [get_from_rank(idx) for idx in indices[local_slice]]
-
-            sort_idx = torch.argsort(torch.tensor(idx_to_rank_map), stable=True)
-            local_slices_sorted = indices[local_slice][sort_idx]
-
-            reverse_index = {idx.item(): i for i, idx in enumerate(indices[local_slice])}
-            idxmap = {i: reverse_index[idx.item()] for i, idx in enumerate(local_slices_sorted)}
-
-            for i, dest in idxmap.items():
-                self.dndarray.larray[dest] = local_recv_buffer[i].to(self.dndarray.larray.device)
-        else:
-            self.dndarray.larray = local_recv_buffer.to(self.dndarray.larray.device)
-
-    def set_shuffle_type(self, shuffle_type: Literal["global"] | Literal["local"]) -> None:
-        """Sets the Shuffle type for the Sampler.
-
-        Parameters
-        ----------
-        shuffle_type : Literal[&quot;global&quot;] | Literal[&quot;local&quot;]
-            - Local Shuffle means the shuffle of the larray only.
-            - Global Shuffle means the shuffle across all processes
-
-        Raises
-        ------
-        TypeError
-            Shuffle type needs to be a string
-        ValueError
-            Only Global/Local shuffle types exist
-        """
-        if not isinstance(shuffle_type, str):
-            raise TypeError("Shuffle type needs to be an string")
-        if not (shuffle_type == "global" or shuffle_type == "local"):
-            raise ValueError("only 'global' or 'local' allowed as shuffle type")
-
-        self.shuffle_type: Literal["global"] | Literal["local"] = shuffle_type
-
-        if self.linked_sampler is not None:
-            self.linked_sampler.set_shuffle_type(shuffle_type)
-
-    def set_seed(self, value: int | None) -> None:
-        """Sets the seed for the torch.randperm
-
-        Parameters
-        ----------
-        value : int
-            seed to set
-        """
-        self._seed = value
-        if value is not None:
-            torch.manual_seed(value)
-        if self.shuffle:
-            self._shuffle()
-
-        if self.linked_sampler is not None:
-            self.linked_sampler.set_seed(value)
-
-    def link(self, sampler: "DistributedSampler") -> None:
-        """
-        Links another DistributedSampler to this one, to automatically sets the seed/shuffle_type of this and the linked one,
-        rather than manually setting both seperately. Usefull when one Sampler contains training data and the
-        linked one the label data.
-        """
-        if not isinstance(sampler, DistributedSampler):
-            raise TypeError(f"Sampler of type {type(sampler)} needs to be an DistributedSampler")
-        self.linked_sampler = sampler
-
-    def unlink(self) -> None:
-        """
-        Removes an established link. For more info view :link: function
-        """
-        self.linked_sampler = None
-
-    def __iter__(self) -> Iterator[int]:
-        if self.shuffle_type == "local":
-            self.indices = torch.randperm(len(self.dndarray.larray)).tolist()
-        else:
-            self.indices = list(range(len(self.dndarray.larray)))
-        return iter(self.indices)
-
-    def __len__(self) -> int:
-        return len(self.dndarray.larray)
-
-
 def create_train_val_split(
     X: DNDarray, y: DNDarray, p: float = 0.95, seed: int | None = None
 ) -> tuple[DNDarray, DNDarray, DNDarray, DNDarray]:
@@ -795,3 +483,311 @@ def dataset_irecv(dataset: Union[Dataset, torch_data.Dataset]):
             # shuffle all of the data around
             shuffled = getattr(dataset, rcv[0][0])[prm]
             setattr(dataset, rcv[0][0], shuffled[dataset._cut_slice])
+
+def _sanitize_data_input(data: DNDarray | tuple[DNDarray, ...]) -> tuple[DNDarray, ...]:
+    if isinstance(data, DNDarray):
+        arrays = (data,)
+    elif isinstance(data, tuple):
+        arrays = data
+    else:
+        raise TypeError("'data' must be a DNDarray or a tuple of DNDarrays.")
+
+    if not arrays:
+        raise ValueError("'data' cannot be an empty tuple.")
+
+    if not all(isinstance(x, DNDarray) for x in arrays):
+        raise TypeError("Every element of 'data' must be a DNDarray.")
+
+    if any(x.ndim == 0 for x in arrays):
+        raise ValueError("Data must have at least one dimension.")
+
+    if len({x.split for x in arrays}) != 1:
+        raise ValueError("All DNDarrays must have the same split axis.")
+
+    if len({x.gshape[0] for x in arrays}) != 1:
+        raise ValueError("All DNDarrays must have the same global length on axis=0.")
+
+    return arrays
+
+def _create_distributed_indices(
+    comm: MPICommunication,
+    num_elements: int,
+    shuffle: bool,
+    seed: int,
+) -> torch.Tensor:
+    N = num_elements
+    P = comm.size
+
+    if not shuffle:
+        return torch.arange(N, dtype=torch.int64).expand(P, N)
+
+    idx = torch.randperm(N, generator=torch.Generator().manual_seed(seed))
+    indices = torch.empty(comm.size * N, dtype=torch.int64)
+    comm.Allgather(idx, indices)
+    indices = indices.reshape(comm.size, N).contiguous()
+
+    return indices
+
+def _batch_indices(
+    indices: torch.Tensor,
+    batch_size: int,
+    drop_last: bool,
+) -> Iterator[torch.Tensor]:
+    N = indices.shape[1]
+
+    for start in range(0, N, batch_size):
+        batch = indices[:, start:start + batch_size]
+
+        if drop_last and batch.shape[1] < batch_size:
+            break
+
+        yield batch.flatten()
+
+class DistributedDataset[T](torch.utils.data.Dataset):
+    def __init__(
+        self,
+        data: DNDarray | tuple[DNDarray, ...],
+        post_processing: Callable[[int, torch.Tensor], T] | None = None,
+        comm: MPICommunication | None = None
+    ) -> None:
+        if post_processing is not None and not callable(post_processing):
+            raise TypeError("post_processing must be a callable function or None.")
+
+        self._data = _sanitize_data_input(data)
+        self._comm: MPICommunication = sanitize_comm(comm)
+        self._post_processing = post_processing
+
+    def __getitems__(self, indices: list[int]) -> Union[torch.Tensor, T, tuple[torch.Tensor, ...], tuple[T, ...]]:
+        N = len(indices)
+
+        index_buffer = torch.empty(N * self._comm.size, dtype=torch.int64)
+        self._comm.Allgather(torch.tensor(indices), index_buffer)
+
+        results = tuple(take(d, index_buffer, axis=0).larray for d in self._data)
+
+        if self._post_processing:
+            return tuple(self._post_processing(i, res) for i, res in enumerate(results))
+        return results
+
+    def __len__(self):
+        return self._data[0].gshape[0]
+
+class DistributedDataLoader[T]:
+    def __init__(
+        self,
+        data: DNDarray | tuple[DNDarray, ...],
+        batch_size: int,
+        shuffle: bool = False,
+        drop_last: bool = False,
+        prefetch_factor: int = 0,
+        seed: int = 0,
+        post_processing: Callable[[int, torch.Tensor], T] | None = None,
+        comm: MPICommunication | None = None,
+    ) -> None:
+        if not isinstance(batch_size, int) or isinstance(batch_size, bool) or batch_size <= 0:
+            raise ValueError("Value must be a positive integer.")
+        if not isinstance(batch_size, int) or batch_size <= 0:
+            raise ValueError(f"'{batch_size=}' must be a positive integer.")
+        if not isinstance(prefetch_factor, int) or prefetch_factor < 0:
+            raise ValueError(f"'{prefetch_factor=}' must be a non-negative integer.")
+        if not isinstance(drop_last, bool):
+            raise ValueError(f"'{drop_last=}' must be a bool.")
+        if post_processing is not None and not callable(post_processing):
+            raise TypeError("post_processing must be a callable function or None.")
+
+        self._data = _sanitize_data_input(data)
+        self._batch_size = batch_size
+        self._shuffle = shuffle
+        self._drop_last = drop_last
+        self._prefetch_factor = prefetch_factor
+        self._post_processing = post_processing
+        self._comm: MPICommunication = sanitize_comm(comm)
+
+        self._seed = seed
+
+        self._num_elements = self._data[0].gshape[0]
+
+        if self._data[0].split is None:
+            raise ValueError("DNDarrays are not distributed. Please use: `DistributedDataset` instead.")
+        if self._data[0].split != 0:
+            raise ValueError("DNDarrays must be distributed across `axis=0`.")
+
+    @property
+    def seed(self):
+        return self._seed
+
+    @seed.setter
+    def seed(self, value):
+        if not isinstance(value, int):
+            raise ValueError(f"Seed must be an integer not {type(value)}.")
+        self._seed = value
+        self._generator = self._generator.manual_seed(self._seed)
+
+    def __len__(self) -> int:
+        N = self._num_elements
+        B = self._batch_size
+
+        if self._drop_last:
+            return N // B
+        return (N + B - 1) // B
+
+    def __iter__(self) -> "_DistributedDataLoaderIter":
+        return _DistributedDataLoaderIter(self)
+
+
+@dataclass
+class _PendingBatch:
+    indices: tuple[torch.Tensor, ...]
+    requests: tuple[TakeRequest, ...]
+
+
+class _DistributedDataLoaderIter:
+    def __init__(
+        self,
+        loader: DistributedDataLoader,
+    ) -> None:
+        self._loader = loader
+        self._closed = False
+
+        self._indices = _create_distributed_indices(
+            comm=loader._comm,
+            num_elements=loader._num_elements,
+            shuffle=loader._shuffle,
+            seed=loader._seed,
+        )
+
+        self._batch_iterator = _batch_indices(
+            indices=self._indices,
+            batch_size=loader._batch_size,
+            drop_last=loader._drop_last,
+        )
+
+        self._pending: deque[_PendingBatch] = deque()
+
+        self._capacity = loader._prefetch_factor + 1
+
+        try:
+            self._fill_queue()
+        except BaseException:
+            self.close()
+            raise
+
+    def __iter__(self):
+        return self
+
+    def _start_batch(self, indices: torch.Tensor) -> _PendingBatch:
+        requests = []
+        indices_by_device = {}
+
+        try:
+            # Itake normally handles the transfer of the index tensor, but this saves some unnecessary copies.
+            for array in self._loader._data:
+                device = array.larray.device
+
+                if device not in indices_by_device:
+                    indices_by_device[device] = indices.to(device)
+
+                device_indices = indices_by_device[device]
+
+                requests.append(
+                    Itake(array, device_indices, axis=0)
+                )
+
+        except BaseException:
+            # When one of the request fail, wait for the MPI comms to finish
+            for request in requests:
+                request.Wait()
+            raise
+
+        return _PendingBatch(
+            indices=tuple(indices_by_device.values()),
+            requests=tuple(requests),
+        )
+
+    def _fill_queue(self) -> None:
+        while len(self._pending) < self._capacity:
+            try:
+                indices = next(self._batch_iterator)
+            except StopIteration:
+                break
+
+            self._pending.append(self._start_batch(indices))
+
+    def _finish_batch(
+        self,
+        pending: _PendingBatch,
+    ) -> tuple[torch.Tensor, ...]:
+        results = []
+        error = None
+
+        for request in pending.requests:
+            try:
+                results.append(request.Wait())
+            except Exception as exc:
+                if error is None:
+                    error = exc
+
+        if error is not None:
+            raise error
+
+        return tuple(result.larray for result in results)
+
+    def __next__(self) -> torch.Tensor | tuple[torch.Tensor, ...]:
+        if self._closed:
+            raise StopIteration
+
+        if not self._pending:
+            self.close()
+            raise StopIteration
+
+        pending = self._pending.popleft()
+
+        try:
+            batch = self._finish_batch(pending)
+
+            self._fill_queue()
+
+            if self._loader._post_processing is not None:
+                batch = tuple(self._loader._post_processing(i, tensor) for i, tensor in enumerate(batch))
+
+            return batch if len(batch) > 1 else batch[0]
+
+        except BaseException:
+            self.close()
+            raise
+
+    def close(self) -> None:
+        """
+        Drain all outstanding Itake requests.
+
+        All participating ranks must close their iterators
+        consistently to avoid incomplete MPI collectives.
+        """
+        if self._closed:
+            return
+
+        self._closed = True
+        error = None
+
+        while self._pending:
+            pending = self._pending.popleft()
+
+            for request in pending.requests:
+                try:
+                    request.Wait()
+                except Exception as exc:
+                    if error is None:
+                        error = exc
+
+        self._batch_iterator.close()
+        self._indices = None
+
+        if error is not None:
+            raise error
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.close()
+
