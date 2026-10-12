@@ -1,0 +1,23 @@
+name: "Auto-label PRs Backport"
+on:
+  pull_request_target:
+    types: [opened, synchronize]
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  label:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Add backport label to all PRs
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                labels: ['backport stable'],
+            });
