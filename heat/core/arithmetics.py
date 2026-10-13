@@ -39,6 +39,7 @@ __all__ = [
     "cumprod",
     "cumproduct",
     "cumsum",
+    "cumulative_prod",
     "diff",
     "div",
     "divide",
@@ -780,6 +781,80 @@ def cumprod(a: DNDarray, axis: int, dtype: datatype = None, out=None) -> DNDarra
 # Alias support
 cumproduct = cumprod
 """Alias for :py:func:`cumprod`"""
+
+
+def cumulative_prod(
+    x: DNDarray,
+    /,
+    *,
+    axis: Optional[int] = None,
+    dtype: Optional[datatype] = None,
+    include_initial: bool = False,
+) -> DNDarray:
+    """
+    Calculate the cumulative product of elements along a given axis. Array API compatible
+    version of :func:`cumprod`.
+
+    Parameters
+    ----------
+    x : DNDarray
+        Input array.
+    axis : int, optional
+        Axis along which the cumulative product is computed. If ``x`` is one-dimensional,
+        ``axis`` may be omitted; for arrays with more than one dimension it is required.
+    dtype : datatype, optional
+        Type of the returned array, as well as of the accumulator in which the elements are
+        multiplied. If ``dtype`` is not specified, it defaults to the datatype of ``x``, unless
+        ``x`` has an integer dtype with a precision less than that of the default platform
+        integer. In that case, the default platform integer is used instead.
+    include_initial : bool, optional
+        Whether to include the initial value (the multiplicative identity, one) as the first
+        element along ``axis``. If ``True``, the returned array has one more element along
+        ``axis`` than ``x``. Default: ``False``.
+
+    Raises
+    ------
+    ValueError
+        If ``axis`` is ``None`` and ``x`` has more than one dimension.
+
+    See Also
+    --------
+    :func:`cumprod`
+        NumPy-style cumulative product.
+
+    Examples
+    --------
+    >>> a = ht.full((3, 3), 2)
+    >>> ht.cumulative_prod(a, axis=0)
+    DNDarray([[2., 2., 2.],
+              [4., 4., 4.],
+              [8., 8., 8.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> ht.cumulative_prod(ht.array([2, 3, 4]), include_initial=True)
+    DNDarray([ 1,  2,  6, 24], dtype=ht.int64, device=cpu:0, split=None)
+    """
+    sanitation.sanitize_in(x)
+    if axis is None:
+        if x.ndim != 1:
+            raise ValueError(
+                "axis must be specified for arrays with more than one dimension, "
+                f"got an array of {x.ndim} dimensions"
+            )
+        axis = 0
+
+    result = _operations.__cum_op(x, torch.cumprod, MPI.PROD, torch.mul, 1, axis, dtype)
+    if not include_initial:
+        return result
+
+    initial_shape = list(result.shape)
+    initial_shape[axis] = 1
+    initial = factories.ones(
+        initial_shape,
+        dtype=result.dtype,
+        split=result.split,
+        device=result.device,
+        comm=result.comm,
+    )
+    return manipulations.concatenate((initial, result), axis=axis)
 
 
 def cumprod_(t: DNDarray, axis: int) -> DNDarray:
