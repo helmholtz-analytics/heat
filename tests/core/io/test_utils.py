@@ -65,6 +65,8 @@ class TestIOUtils(TestCase):
 
     def test_sanitize_extension(self):
         self.assertEqual(utils.sanitize_extension("d.h5", {".h5", ".hdf5"}, "HDF5"), "d.h5")
+        self.assertEqual(utils.sanitize_extension("path/to/store.zarr", {".zarr"}, "Zarr"), "path/to/store.zarr")
+        self.assertEqual(utils.sanitize_extension("path/to/store.zarr/", {".zarr"}, "Zarr"), "path/to/store.zarr/")
         with self.assertRaises(ValueError):
             utils.sanitize_extension("d.nc", {".h5", ".hdf5"}, "HDF5")
 

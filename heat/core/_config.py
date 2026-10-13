@@ -159,7 +159,7 @@ def is_installed(name: str) -> bool:
     This is a cheap presence check based on :func:`importlib.util.find_spec`; it locates
     the module without importing it, so it does not pay the cost of pulling in a heavy
     library. A module can be present but fail to import (a broken build, an ABI mismatch
-    against a system library); use :func:`has_dependency` when that distinction matters.
+    against a system library).
 
     Parameters
     ----------
@@ -207,18 +207,6 @@ def optional_import(name: str) -> Optional[ModuleType]:
     return _import_optional(name)[0]
 
 
-def has_dependency(name: str) -> bool:
-    """
-    Returns ``True`` if the optional module ``name`` is installed and imports cleanly.
-
-    Parameters
-    ----------
-    name : str
-        Import name of the module, e.g. ``"h5py"``.
-    """
-    return optional_import(name) is not None
-
-
 def require_dependency(name: str) -> ModuleType:
     """
     Imports and returns the optional module ``name``, raising if it is unavailable.
@@ -259,7 +247,7 @@ def netcdf_has_parallel() -> bool:
     if netcdf is None:
         return False
     return bool(
-        netcdf.__dict__.get("__has_parallel4_support__", False)
-        or netcdf.__dict__.get("__has_pnetcdf_support__", False)
-        or netcdf.__dict__.get("__has_nc_par__", False)
+        getattr(netcdf, "__has_parallel4_support__", False)
+        or getattr(netcdf, "__has_pnetcdf_support__", False)
+        or getattr(netcdf, "__has_nc_par__", False)
     )

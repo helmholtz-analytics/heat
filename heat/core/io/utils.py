@@ -108,7 +108,8 @@ def extension_of(path: str) -> str:
     path : str
         The path to inspect.
     """
-    return os.path.splitext(path)[-1].strip().lower()
+    clean_path = os.path.normpath(path)
+    return os.path.splitext(clean_path)[-1].strip().lower()
 
 
 def sanitize_extension(path: str, extensions: Iterable[str], format_name: str) -> str:
@@ -346,7 +347,7 @@ def load_from_folder(
     device : str, optional
         The device id on which to place the data, defaults to the globally set default.
     comm : Communication, optional
-        The communication to use, defaults to ``heat.MPI_WORLD``.
+        The communicator to pass to the DNDTensor factory method.
 
     Raises
     ------
@@ -361,16 +362,18 @@ def load_from_folder(
     if split is not None and not isinstance(split, int):
         raise TypeError(f"split must be None or int, not {type(split)}")
 
+    array_comm = sanitize_comm(comm)
+
     # sort, because os.listdir does not guarantee the same order on every process
     file_list = sorted(file for file in os.listdir(path) if fnmatch.fnmatch(file, pattern))
     n_files = len(file_list)
     if n_files == 0:
         raise ValueError(f"No {format_name} files were found")
-    if n_files < MPI_WORLD.size and MPI_WORLD.size > 1:
+    if n_files < array_comm.size and array_comm.size > 1:
         raise RuntimeError("Number of processes can't exceed number of files")
 
-    idx, n_for_procs = split_file_indices(n_files, MPI_WORLD.rank, MPI_WORLD.size)
+    idx, n_for_procs = split_file_indices(n_files, array_comm.rank, array_comm.size)
     array_list = [reader(os.path.join(path, file)) for file in file_list[idx : idx + n_for_procs]]
 
     larray = torch.from_numpy(np.concatenate(array_list, split))
-    return factories.array(larray, dtype=dtype, device=device, is_split=split, comm=comm)
+    return factories.array(larray, dtype=dtype, device=device, is_split=split, comm=array_comm)

@@ -267,7 +267,6 @@ def save_csv(
     sep: str = ",",
     decimals: int = -1,
     encoding: str = "utf-8",
-    comm: Optional[Communication] = None,
     truncate: bool = True,
 ):
     """

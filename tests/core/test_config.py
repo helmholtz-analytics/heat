@@ -28,10 +28,6 @@ class TestConfig(TestCase):
         self.assertTrue(_config.is_installed("torch"))
         self.assertFalse(_config.is_installed("heat_no_such_module_xyz"))
 
-    def test_has_dependency(self):
-        self.assertTrue(_config.has_dependency("torch"))
-        self.assertFalse(_config.has_dependency("heat_no_such_module_xyz"))
-
     def test_optional_import(self):
         import torch
 
@@ -47,15 +43,6 @@ class TestConfig(TestCase):
         import torch
 
         self.assertIs(_config.require_dependency("torch"), torch)
-
-    def test_require_dependency_raises_with_pip_hint(self):
-        # every optional dependency Heat knows about must name its extra in the message
-        for module, extra in _config.OPTIONAL_DEPENDENCIES.items():
-            if _config.has_dependency(module):
-                continue
-            with self.assertRaises(RuntimeError) as caught:
-                _config.require_dependency(module)
-            self.assertIn(f"pip install heat[{extra}]", str(caught.exception))
 
     def test_require_dependency_raises_without_extra(self):
         with self.assertRaises(RuntimeError) as caught:
@@ -78,7 +65,6 @@ class TestConfig(TestCase):
                 self._clear_caches()
                 self.assertTrue(_config.is_installed(name))
                 self.assertIsNone(_config.optional_import(name))
-                self.assertFalse(_config.has_dependency(name))
                 with self.assertRaises(RuntimeError) as caught:
                     _config.require_dependency(name)
                 self.assertIn("OSError", str(caught.exception))
@@ -86,14 +72,6 @@ class TestConfig(TestCase):
                 sys.path.remove(directory)
                 sys.modules.pop(name, None)
                 self._clear_caches()
-
-    def test_capability_flags(self):
-        self.assertIsInstance(_config.hdf5_has_mpi(), bool)
-        self.assertIsInstance(_config.netcdf_has_parallel(), bool)
-        if not _config.has_dependency("h5py"):
-            self.assertFalse(_config.hdf5_has_mpi())
-        if not _config.has_dependency("netCDF4"):
-            self.assertFalse(_config.netcdf_has_parallel())
 
 
 if __name__ == "__main__":

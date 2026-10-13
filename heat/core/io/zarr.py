@@ -88,6 +88,13 @@ if _AVAILABLE:
             Load only a slice of the array instead of everything
         **kwargs : Any
             extra Arguments to pass to zarr.open
+
+        Raises
+        ------
+        ValueError
+            If a wildcard is passed as a `variable` without defining a split axis.
+        NotImplementedError
+            If the `slices` argument is used in conjuction with a wildcard `variable` argument.
         """
         zarr = require_dependency("zarr")
         # sanitize inputs
@@ -135,7 +142,7 @@ if _AVAILABLE:
             # each rank reads data from its assigned directories and concatenates locally
 
             # determine which directories to open on rank
-            dummy_array = factories.empty((len(base_paths),), dtype=types.float32)
+            dummy_array = factories.empty((len(base_paths),), dtype=types.float32, comm=comm)
             _, _, local_dir_slice = dummy_array.comm.chunk(
                 dummy_array.shape, rank=dummy_array.comm.rank, split=0
             )

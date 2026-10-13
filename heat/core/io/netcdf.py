@@ -17,7 +17,7 @@ from ..dndarray import DNDarray
 from ..stride_tricks import sanitize_axis
 from ..types import datatype
 from ._registry import register_format
-from .utils import propagate_failure, sanitize_write_mode, serialized_write
+from .utils import propagate_failure, sanitize_extension, sanitize_write_mode, serialized_write
 
 __all__ = ["supports_netcdf"]
 
@@ -119,6 +119,7 @@ if _AVAILABLE:
         if split is not None and not isinstance(split, int):
             raise TypeError(f"split must be None or int, not {type(split)}")
 
+        path = sanitize_extension(path, EXTENSIONS, "netcdf")
         # infer the canonical heat datatype
         dtype = types.canonical_heat_type(dtype)
         # determine the device and comm the data will be placed on
@@ -219,6 +220,7 @@ if _AVAILABLE:
             raise ValueError(f"{len(dimension_names)} names given for {len(data.shape)} dimensions")
 
         # we only support a subset of possible modes
+        path = sanitize_extension(path, EXTENSIONS, "netcdf")
         sanitize_write_mode(mode)
 
         failed = 0

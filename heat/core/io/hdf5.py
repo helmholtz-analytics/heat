@@ -19,7 +19,7 @@ from ..dndarray import DNDarray
 from ..stride_tricks import sanitize_axis
 from ..types import datatype
 from ._registry import register_format
-from .utils import sanitize_write_mode, serialized_write, size_from_slice
+from .utils import sanitize_extension, sanitize_write_mode, serialized_write, size_from_slice
 
 __all__ = ["supports_hdf5"]
 
@@ -168,7 +168,6 @@ if _AVAILABLE:
                [14, ]]
         """
         h5py = require_dependency("h5py")
-        _warn_if_serial()
         if not isinstance(path, str):
             raise TypeError(f"path must be str, not {type(path)}")
         elif not isinstance(dataset, str):
@@ -177,6 +176,7 @@ if _AVAILABLE:
             raise TypeError(f"split must be None or int, not {type(split)}")
 
         # determine the comm and device the data will be placed on
+        path = sanitize_extension(path, EXTENSIONS, "HDF5")
         device = devices.sanitize_device(device)
         comm = sanitize_comm(comm)
 
@@ -285,6 +285,7 @@ if _AVAILABLE:
         if not isinstance(dataset, str):
             raise TypeError(f"dataset must be str, not {type(path)}")
 
+        path = sanitize_extension(path, EXTENSIONS, "HDF5")
         sanitize_write_mode(mode)
 
         # chunk the data, if no split is set maximize parallel I/O and chunk first axis
