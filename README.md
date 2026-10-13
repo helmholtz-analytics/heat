@@ -6,7 +6,6 @@
 
 # Project Status
 
-[![CPU/CUDA/ROCm tests](https://codebase.helmholtz.cloud/helmholtz-analytics/ci/badges/heat/base/pipeline.svg)](https://codebase.helmholtz.cloud/helmholtz-analytics/ci/-/commits/heat/base)
 [![Documentation Status](https://readthedocs.org/projects/heat/badge/?version=latest)](https://heat.readthedocs.io/en/latest/?badge=latest)
 [![coverage](https://codecov.io/gh/helmholtz-analytics/heat/branch/main/graph/badge.svg)](https://codecov.io/gh/helmholtz-analytics/heat)
 [![license: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
@@ -33,14 +32,14 @@ Heat is a distributed tensor framework built on **PyTorch** and **mpi4py**. It p
 * **Hardware-agnostic:** Supports CPUs and GPUs (CUDA, ROCm, Apple MPS).
 * **Efficient scaling:** Exploit the entire, cumulative RAM of your cluster for memory-intensive operations.
 
-[![Jupyter4NFDI](https://nfdi-jupyter.de/images/jupyter4nfdi_badge.svg)](https://hub.nfdi-jupyter.de/v2/gh/helmholtz-analytics/heat/jupyter4nfdi?labpath=tutorials%2FJupyter4NFDI_landing_notebook.ipynb&system=deNBI-Cloud&flavor=l1&localstoragepath=%2Fhome%2Fjovyan%2Fwork)
+[![Jupyter4NFDI](https://nfdi-jupyter.de/images/jupyter4nfdi_badge.svg)](https://hub.nfdi-jupyter.de/share/BJYT-w5DPNo)
 :point_left: Try Heat right in your browser without any installations!
 
 
 ### Requirements
-* **Python:** >= 3.11
+* **Python:** >= 3.12
 * **MPI:** OpenMPI, MPICH, or Intel MPI
-* **Frameworks:** mpi4py >= 3.1, pytorch >= 2.3
+* **Frameworks:** mpi4py >= 3.1, pytorch >= 2.6
 
 ### Installation
 ```bash
@@ -60,7 +59,7 @@ spack install py-heat
 ### Distributed Example
 Heat handles inter-node communication automatically. Define how your data is partitioned across the cluster using the [`DNDarray.split`](https://heat.readthedocs.io/en/stable/autoapi/heat/core/dndarray/index.html) attribute. Push computations to your GPUs with the [`DNDarray.device`](https://heat.readthedocs.io/en/stable/autoapi/heat/core/dndarray/index.html) attribute. Heat will take care of the rest, ensuring efficient data movement and synchronization across nodes.
 
-Here an example from our [Linear Algebra tutorial](https://github.com/helmholtz-analytics/heat/tree/main/doc/source/tutorials/notebooks/Linear_Algebra.ipynb):
+Here an example from our [Linear Algebra tutorial](https://github.com/helmholtz-analytics/heat/tree/main/doc/source/tutorials/notebooks/Linear_algebra.ipynb):
 
 <details>
 <summary><b>View Distributed Example (mpirun / srun)</b></summary>
@@ -70,8 +69,8 @@ Here an example from our [Linear Algebra tutorial](https://github.com/helmholtz-
 ```python
 import heat as ht
 
-split_A=0
-split_B=1
+split_A = 0
+split_B = 1
 M = 10000
 N = 10000
 K = 10000
@@ -79,7 +78,6 @@ A = ht.random.randn(M, N, split=split_A, device="gpu")
 B = ht.random.randn(N, K, split=split_B, device="gpu")
 C = ht.matmul(A, B)
 print(C)
-
 ```
 **2. Run with MPI:**
 

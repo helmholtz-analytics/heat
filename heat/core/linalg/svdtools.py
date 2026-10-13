@@ -297,7 +297,7 @@ def hsvd(
         transposeflag = True
         A = A.T
 
-    no_procs = A.comm.Get_size()
+    no_procs = A.comm.size
 
     Anorm = vector_norm(A)
 

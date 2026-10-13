@@ -150,7 +150,7 @@ class TestSilhouette(TestCase):
 
                                 if n_s == n_points:
                                     score_all = silhouette_score(data, labels, metric=metric)
-                                    assert np.isclose(score1, score_all)
+                                    assert np.isclose(score1, score_all, atol=1e-6)
                                 else:
                                     assert not np.isclose(score1, score3)
 

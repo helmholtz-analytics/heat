@@ -32,7 +32,15 @@ def copy(x: DNDarray) -> DNDarray:
     DNDarray([1, 2, 3], dtype=ht.int64, device=cpu:0, split=None)
     """
     sanitation.sanitize_in(x)
-    return DNDarray(x.larray.clone(), x.shape, x.dtype, x.split, x.device, x.comm, x.balanced)
+    return DNDarray(
+        x.larray.clone(),
+        gshape=x.gshape,
+        dtype=x.dtype,
+        split=x.split,
+        device=x.device,
+        comm=x.comm,
+        balanced=x.balanced,
+    )
 
 
 DNDarray.copy = lambda self: copy(self)

@@ -37,6 +37,7 @@ __all__ = [
     "matmul",
     "matrix_norm",
     "matrix_exp",
+    "matrix_transpose",
     "expm",
     "norm",
     "outer",
@@ -396,12 +397,12 @@ def dot(a: DNDarray, b: DNDarray, out: Optional[DNDarray] = None) -> Union[DNDar
             asl = bsl = sl
             # st = 0
         else:  # at least one of them is split
-            # todo: scale this by the starting index of the vector and do a lloc getitem
+            # todo: scale this by the starting index of the vector and do a local getitem
             st, _, sl = a.comm.chunk(a.shape, a.split if a.split is not None else b.split)
             asl = sl if a.split is None else slice(sl[0].start - st, sl[0].stop - st)
             bsl = sl if b.split is None else slice(sl[0].start - st, sl[0].stop - st)
 
-        ret = torch.dot(a.lloc[asl], b.lloc[bsl])
+        ret = torch.dot(a.larray[asl], b.larray[bsl])
         if a.is_distributed() or b.is_distributed():
             a.comm.Allreduce(MPI.IN_PLACE, ret, MPI.SUM)
 
@@ -1100,6 +1101,24 @@ def matrix_exp(A: DNDarray) -> DNDarray:
 
 expm = matrix_exp  # provide alias with name of scipy equivalent
 """Alias for :py:func:`matrix_exp`"""
+
+
+def matrix_transpose(x: DNDarray):
+    """
+    Transposes a matrix (or a stack of matrices) ``x``.
+
+    Parameters
+    ----------
+    x : DNDarray
+        Input array having shape ``(..., M, N)`` and whose innermost two
+        dimensions form ``MxN`` matrices.
+    """
+    if x.ndim < 2:
+        raise ValueError("x must be at least 2-dimensional.")
+    return manipulations.swapaxes(x, -1, -2)
+
+
+DNDarray.mT = property(matrix_transpose, doc="Transposes a matrix (or a stack of matrices).")
 
 
 def norm(
@@ -1878,12 +1897,12 @@ def transpose(a: DNDarray, axes: Optional[List[int]] = None) -> DNDarray:
 
         return DNDarray(
             transposed_data,
-            transposed_shape,
-            a.dtype,
-            transposed_split,
-            a.device,
-            a.comm,
-            a.balanced,
+            gshape=transposed_shape,
+            dtype=a.dtype,
+            split=transposed_split,
+            device=a.device,
+            comm=a.comm,
+            balanced=a.balanced,
         )
     # if not possible re- raise any torch exception as ValueError
     except (RuntimeError, IndexError) as exception:
@@ -1895,7 +1914,7 @@ DNDarray.transpose: Callable[[DNDarray, List[int]], DNDarray] = lambda self, axe
 )
 DNDarray.transpose.__doc__ = transpose.__doc__
 
-DNDarray.T = property(transpose)
+DNDarray.T = property(transpose, doc="Permute the dimensions of an array.")
 
 # statically allocated index slices for non-iterable dimensions in triangular operations
 __index_base = (slice(None), slice(None))
