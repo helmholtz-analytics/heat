@@ -470,19 +470,29 @@ def _create_distributed_indices(
     num_elements: int,
     shuffle: bool,
     seed: int,
+    *,
+    distributed: bool = True,
 ) -> torch.Tensor:
     N = num_elements
     P = comm.size
 
+    if shuffle:
+        idx = torch.randperm(
+            num_elements,
+            generator=torch.Generator().manual_seed(seed),
+        )
+    else:
+        idx = torch.arange(num_elements, dtype=torch.int64)
+
+    if not distributed:
+        return idx.unsqueeze(0)
+
     if not shuffle:
-        return torch.arange(N, dtype=torch.int64).expand(P, N)
+        return idx.expand(P, N)
 
-    idx = torch.randperm(N, generator=torch.Generator().manual_seed(seed))
-    indices = torch.empty(comm.size * N, dtype=torch.int64)
+    indices = torch.empty(P * N, dtype=torch.int64)
     comm.Allgather(idx, indices)
-    indices = indices.reshape(comm.size, N).contiguous()
-
-    return indices
+    return indices.reshape(P, N).contiguous()
 
 def _batch_indices(
     indices: torch.Tensor,
@@ -503,7 +513,7 @@ def _batch_indices(
 class DistributedDataset[T](torch.utils.data.Dataset):
     def __init__(
         self,
-        data: DNDarray | tuple[DNDarray, ...],
+        *data: DNDarray,
         post_processing: Callable[[int, torch.Tensor], T] | None = None,
         comm: MPICommunication | None = None,
     ) -> None:
@@ -512,7 +522,7 @@ class DistributedDataset[T](torch.utils.data.Dataset):
 
         self._data = _sanitize_data_input(data)
         if self._data[0].split not in (None, 0):
-            raise ValueError("DNDarrays must be unsplit or distributed across `axis=0`.")
+            raise ValueError(f"DNDarrays must be unsplit or distributed across `axis=0`, is {self._data[0].split=}")
 
         self._comm: MPICommunication = sanitize_comm(comm)
         self._post_processing = post_processing
@@ -540,7 +550,7 @@ class DistributedDataset[T](torch.utils.data.Dataset):
 class DistributedDataLoader[T]:
     def __init__(
         self,
-        data: DNDarray | tuple[DNDarray, ...],
+        *data: DNDarray,
         batch_size: int,
         shuffle: bool = False,
         drop_last: bool = False,
@@ -575,10 +585,9 @@ class DistributedDataLoader[T]:
 
         self._num_elements = self._data[0].gshape[0]
 
-        if self._data[0].split is None:
-            raise ValueError("DNDarrays are not distributed. Please use: `DistributedDataset` instead.")
-        if self._data[0].split != 0:
-            raise ValueError("DNDarrays must be distributed across `axis=0`.")
+        if self._data[0].split not in (None, 0):
+            raise ValueError("DNDarrays must be distributed across `None` or `0`.")
+
 
     @property
     def seed(self) -> int:
@@ -625,6 +634,7 @@ class _DistributedDataLoaderIter:
             num_elements=loader._num_elements,
             shuffle=loader._shuffle,
             seed=seed,
+            distributed=loader._data[0].is_distributed()
         )
 
         self._batch_iterator = _batch_indices(
