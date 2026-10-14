@@ -514,7 +514,7 @@ class TestLinalgBasics(TestCase):
             self.assertTrue(ht.equal(ret00, ret_comp00))
             self.assertIsInstance(ret00, ht.DNDarray)
             self.assertEqual(ret00.shape, (n, k))
-            self.assertEqual(ret00.dtype, ret_comp00.dtype)
+            self.assertEqual(ret00.dtype, ht.float64)
             self.assertEqual(ret00.split, 0)
 
             # splits 01
@@ -526,7 +526,7 @@ class TestLinalgBasics(TestCase):
             self.assertTrue(ht.equal(ret00, ret_comp01))
             self.assertIsInstance(ret00, ht.DNDarray)
             self.assertEqual(ret00.shape, (n, k))
-            self.assertEqual(ret00.dtype, ret_comp01.dtype)
+            self.assertEqual(ret00.dtype, ht.float64)
             self.assertEqual(ret00.split, 0)
 
             # splits 10
