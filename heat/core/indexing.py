@@ -150,8 +150,9 @@ def where(
 ) -> DNDarray:
     """
     Return a :class:`~heat.core.dndarray.DNDarray` containing elements chosen from ``x`` or ``y`` depending on condition.
-    Result is a :class:`~heat.core.dndarray.DNDarray` with elements from ``x`` where cond is ``True``,
-    and elements from ``y`` elsewhere (``False``).
+    Result is a :class:`~heat.core.dndarray.DNDarray` with elements from ``x`` where ``cond`` is True, and from ``y`` elsewhere.
+
+    If only ``cond`` is provided, this function acts as a shorthand for :func:`nonzero`.
 
     Parameters
     ----------

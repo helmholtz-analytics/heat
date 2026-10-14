@@ -19,6 +19,13 @@ def kmedoids(data):
     kmeans = ht.cluster.KMedoids(n_clusters=4, init="kmedoids++")
     kmeans.fit(data)
 
+@monitor()
+def spectralclustering(data):
+    spectral = ht.cluster.Spectral(
+        n_clusters=4, gamma=1.0, metric="rbf", laplacian="fully_connected", eigen_solver="randomized", reigh_rank=10
+    )
+    spectral.fit(data)
+
 
 @monitor()
 def spectralclustering(data):
