@@ -105,14 +105,96 @@ class TestDatatools:
             assert torch.allclose(label_batch, indices)
             assert torch.allclose(feature_batch, features_torch[indices.flatten()])
 
-    def test_distributed_dataset_params(self):
-        ...
+    def test_distributed_dataset_params(self) -> None:
+        data = ht.arange(8)
+        tensor = torch.arange(8)
+        scalar = ht.array(1)
+        distributed = ht.arange(8, split=0)
+        shorter = ht.arange(7)
+        unsupported_split = ht.zeros((8, 2), split=1)
 
-    def test_distributed_dataloader_params(self):
-        ...
+        with pytest.raises(ValueError):
+            DistributedDataset()
+        with pytest.raises(TypeError):
+            DistributedDataset(tensor)
+        with pytest.raises(TypeError):
+            DistributedDataset(data, tensor)
+        with pytest.raises(ValueError):
+            DistributedDataset(scalar)
+        with pytest.raises(ValueError):
+            DistributedDataset(data, distributed)
+        with pytest.raises(ValueError):
+            DistributedDataset(data, shorter)
+        with pytest.raises(ValueError):
+            DistributedDataset(unsupported_split)
+        with pytest.raises(TypeError):
+            DistributedDataset(data, post_processing="invalid")
+        with pytest.raises(TypeError):
+            DistributedDataset(data, comm="invalid")
 
-    def test_batch_indices(self):
-        ...
+    def test_distributed_dataloader_params(self) -> None:
+        data = ht.arange(8)
+        tensor = torch.arange(8)
+        scalar = ht.array(1)
+        distributed = ht.arange(8, split=0)
+        shorter = ht.arange(7)
+        unsupported_split = ht.zeros((8, 2), split=1)
 
-    def test_create_distributed_indices(self):
-        ...
+        with pytest.raises(ValueError):
+            DistributedDataLoader(batch_size=2)
+        with pytest.raises(TypeError):
+            DistributedDataLoader(tensor, batch_size=2)
+        with pytest.raises(TypeError):
+            DistributedDataLoader(data, tensor, batch_size=2)
+        with pytest.raises(ValueError):
+            DistributedDataLoader(scalar, batch_size=2)
+        with pytest.raises(ValueError):
+            DistributedDataLoader(data, distributed, batch_size=2)
+        with pytest.raises(ValueError):
+            DistributedDataLoader(data, shorter, batch_size=2)
+        with pytest.raises(ValueError):
+            DistributedDataLoader(unsupported_split, batch_size=2)
+        with pytest.raises(TypeError):
+            DistributedDataLoader(data, batch_size=2, post_processing="invalid")
+        with pytest.raises(TypeError):
+            DistributedDataLoader(data, batch_size=2, comm="invalid")
+
+        for batch_size in (0, -1, 1.5, "invalid", None, True):
+            with pytest.raises(ValueError):
+                DistributedDataLoader(data, batch_size=batch_size)
+
+        for prefetch_factor in (-1, 1.5, "invalid", None):
+            with pytest.raises(ValueError):
+                DistributedDataLoader(data, batch_size=2, prefetch_factor=prefetch_factor)
+
+        for drop_last in (0, "invalid", None):
+            with pytest.raises(ValueError):
+                DistributedDataLoader(data, batch_size=2, drop_last=drop_last)
+
+        loader = DistributedDataLoader(data, batch_size=2)
+        for seed in (1.5, "invalid", None, True):
+            with pytest.raises(ValueError):
+                DistributedDataLoader(data, batch_size=2, seed=seed)
+            with pytest.raises(ValueError):
+                loader.seed = seed
+
+    def test_batch_indices(self) -> None:
+        for indices in (torch.tensor(0), torch.arange(8)):
+            with pytest.raises(IndexError):
+                list(_batch_indices(indices, batch_size=2, drop_last=False))
+
+        indices = torch.arange(8).reshape(1, 8)
+        with pytest.raises(ValueError):
+            list(_batch_indices(indices, batch_size=0, drop_last=False))
+        with pytest.raises(TypeError):
+            list(_batch_indices(indices, batch_size=1.5, drop_last=False))
+
+    def test_create_distributed_indices(self) -> None:
+        for shuffle in (False, True):
+            with pytest.raises(RuntimeError):
+                _create_distributed_indices(ht.MPI_WORLD, num_elements=-1, shuffle=shuffle, seed=0, distributed=False)
+
+        with pytest.raises(RuntimeError):
+            _create_distributed_indices(ht.MPI_WORLD, num_elements=8, shuffle=True, seed="invalid", distributed=False)
+        with pytest.raises(AttributeError):
+            _create_distributed_indices(object(), num_elements=8, shuffle=False, seed=0, distributed=False)
