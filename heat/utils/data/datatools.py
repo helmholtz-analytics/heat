@@ -649,6 +649,25 @@ class DistributedDataset[T](torch.utils.data.Dataset):
         self._post_processing = post_processing
 
     def __getitems__(self, indices: list[int]) -> Union[torch.Tensor, T, tuple[torch.Tensor, ...], tuple[T, ...]]:
+        """
+        Get a local batch of samples from each input array.
+
+        Parameters
+        ----------
+        indices : list of int
+            Global sample indices requested by this process along axis 0.
+
+        Returns
+        -------
+        torch.Tensor or tuple of torch.Tensor or T or tuple of T
+            The local batch for each input array, after post-processing if given. A single
+            input returns one batch; multiple inputs return a tuple in their original order.
+
+        Notes
+        -----
+        If the arrays are split along axis 0, all processes must call this method with
+        the same number of indices so that the gathered samples can be distributed evenly.
+        """
         indices: torch.Tensor = torch.tensor(indices, dtype=torch.int64)
 
         if self._data[0].split == 0:
