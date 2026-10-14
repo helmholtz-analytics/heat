@@ -78,7 +78,7 @@ class TestLinalgBasics(TestCase):
         self.assertTrue(est.item() >= xnpsvals.max() / xnpsvals.min())
 
         # split = 1, float64
-        dtype = np.float32 if self.is_mps else np.float64
+        dtype = ht.float32 if self.is_mps else ht.float64
         x = ht.random.randn(
             25 * ht.MPI_WORLD.size + 2, 25 * ht.MPI_WORLD.size + 1, split=1, dtype=dtype
         )
@@ -299,7 +299,7 @@ class TestLinalgBasics(TestCase):
         b1d = ht.array(data1d, dtype=ht.float32, split=0)
         self.assertEqual(ht.dot(a1d, b1d), np.dot(data1d, data1d))
 
-        dtype = np.float32 if self.is_mps else np.float64
+        dtype = ht.float32 if self.is_mps else ht.float64
         data1d = data1d.astype(dtype)
         data2d = data2d.astype(dtype)
         data3d = data3d.astype(dtype)
