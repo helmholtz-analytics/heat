@@ -4,15 +4,15 @@ Thank you for your interest in contributing. To maintain project quality and sup
 
 ## Project Governance and Roles
 
-As a project hosted under Linux Foundation Europe, Heat's technical oversight is managed by a Technical Steering Committee (TSC)[cite: 6]. The TSC has the authority to define and amend community roles as long as they are publicly documented here in the CONTRIBUTING file[cite: 6].
+As a project hosted under Linux Foundation Europe, Heat's technical oversight is managed by a Technical Steering Committee (TSC). The TSC has the authority to define and amend community roles as long as they are publicly documented here in the CONTRIBUTING file.
 
 ### Maintainers
 
-For the Heat project, we use the title **Maintainer** to represent the "Committer" role defined in the project's Technical Charter[cite: 6].
+For the Heat project, we use the title **Maintainer** to represent the "Committer" role defined in the project's Technical Charter.
 
-* **Definition:** Maintainers are Contributors who have earned the ability to modify ("commit") source code, documentation, and other technical artifacts directly within the project's repository[cite: 6]. The Maintainers also serve as the voting members of the TSC[cite: 6].
-* **Becoming a Maintainer:** Participation is open to anyone who abides by the project charter[cite: 6]. A Contributor may be promoted to a Maintainer through a majority approval vote by the existing Maintainers[cite: 6].
-* **Removal:** If necessary, a Maintainer may be removed from their role by a majority approval vote of the other existing Maintainers[cite: 6].
+* **Definition:** Maintainers are Contributors who have earned the ability to modify ("commit") source code, documentation, and other technical artifacts directly within the project's repository. The Maintainers also serve as the voting members of the TSC.
+* **Becoming a Maintainer:** Participation is open to anyone who abides by the project charter. A Contributor may be promoted to a Maintainer through a majority approval vote by the existing Maintainers.
+* **Removal:** If necessary, a Maintainer may be removed from their role by a majority approval vote of the other existing Maintainers.
 
 ## Legal and Intellectual Property Requirements
 
