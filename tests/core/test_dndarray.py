@@ -2938,6 +2938,6 @@ class TestDNDarray(TestCase):
             _, _, slices = arr.comm.chunk(arr.shape, split, rank)
 
             for row, data in enumerate(arr):
-                expected_tensor = arr_torch[row][slices[1:]]
+                expected_tensor = arr_torch[row, slices[1:]]
                 self.assertEqual(expected_local_data.shape, tuple(data.larray.shape))
                 self.assertTrue(torch.isclose(expected_tensor, data.larray).all())
