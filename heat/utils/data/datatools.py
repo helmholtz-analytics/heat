@@ -441,6 +441,28 @@ def dataset_irecv(dataset: Union[Dataset, torch_data.Dataset]):
             setattr(dataset, rcv[0][0], shuffled[dataset._cut_slice])
 
 def _sanitize_data_input(data: DNDarray | tuple[DNDarray, ...]) -> tuple[DNDarray, ...]:
+    """
+    Check the input arrays and return them as a tuple.
+
+    Parameters
+    ----------
+    data : DNDarray or tuple of DNDarray
+        One or more arrays with at least one dimension. All arrays must have the same split
+        axis and the same global length along axis 0.
+
+    Returns
+    -------
+    tuple of DNDarray
+        The input arrays in their original order.
+
+    Raises
+    ------
+    TypeError
+        If ``data`` is not a DNDarray or a tuple of DNDarrays.
+    ValueError
+        If the tuple is empty, an array has no dimensions, or the arrays have different
+        split axes or global lengths along axis 0.
+    """
     if isinstance(data, DNDarray):
         arrays = (data,)
     elif isinstance(data, tuple):
@@ -473,6 +495,37 @@ def _create_distributed_indices(
     *,
     distributed: bool = True,
 ) -> torch.Tensor:
+    """
+    Create sample indices for each process.
+
+    Parameters
+    ----------
+    comm : MPICommunication
+        Communication object used to gather the indices from each process.
+    num_elements : int
+        Number of samples in the global dataset. Must be non-negative.
+    shuffle : bool
+        If ``True``, create a random permutation of the sample indices. Otherwise, return
+        the indices in increasing order.
+    seed : int
+        Seed of the local torch random number generator. Only used if ``shuffle`` is ``True``.
+    distributed : bool, optional
+        If ``True``, return one row of indices for each process. Otherwise, return only the
+        local indices in a single row. Default is ``True``.
+
+    Returns
+    -------
+    torch.Tensor
+        A CPU tensor of dtype ``torch.int64`` and shape ``(comm.size, num_elements)`` if
+        ``distributed`` is ``True``, or ``(1, num_elements)`` otherwise. Each row contains
+        the sample indices for the corresponding process.
+
+    Notes
+    -----
+    Shuffled indices are gathered in rank order if ``distributed`` is ``True``. All processes
+    in ``comm`` must participate with the same ``num_elements``. Equal seeds produce equal
+    permutations. No communication is needed for unshuffled or non-distributed indices.
+    """
     N = num_elements
     P = comm.size
 
@@ -496,6 +549,27 @@ def _batch_indices(
     batch_size: int,
     drop_last: bool,
 ) -> Iterator[torch.Tensor]:
+    """
+    Generate batches from the sample indices of each process.
+
+    Parameters
+    ----------
+    indices : torch.Tensor
+        Two-dimensional tensor of shape ``(P, N)``, where each row contains the sample
+        indices for one process.
+    batch_size : int
+        Number of samples per process in each batch. Must be positive.
+    drop_last : bool
+        If ``True``, skip the last batch if it contains fewer than ``batch_size`` samples
+        per process.
+
+    Yields
+    ------
+    torch.Tensor
+        A one-dimensional tensor containing the indices of a batch. The indices of each
+        process are kept together in row order. A full batch contains ``P * batch_size``
+        indices; the last batch may contain fewer if ``drop_last`` is ``False``.
+    """
     N = indices.shape[1]
 
     for start in range(0, N, batch_size):
@@ -508,6 +582,56 @@ def _batch_indices(
 
 
 class DistributedDataset[T](torch.utils.data.Dataset):
+    """
+    Create a PyTorch dataset from one or more DNDarrays.
+
+    Samples are retrieved in batches along axis 0. For distributed arrays, the requested
+    indices are gathered from each process and the selected samples are distributed back
+    to the processes. Unsplit arrays are indexed locally.
+
+    Parameters
+    ----------
+    data : DNDarray
+        One or more arrays passed as positional arguments. The arrays must have at least
+        one dimension, the same global length along axis 0, and the same split axis.
+        Only ``split=None`` and ``split=0`` are supported.
+    post_processing : Callable, optional
+        Function called for each local batch with the position of the input array and the
+        corresponding torch tensor, i.e. ``post_processing(i, batch)``. Its return value
+        replaces that batch. Default is ``None``.
+    comm : MPICommunication, optional
+        Communication object used to gather sample indices. Defaults to the globally set
+        communicator and must match the communicator of the input arrays.
+
+    Raises
+    ------
+    TypeError
+        If an input is not a DNDarray, ``post_processing`` is not callable or ``None``,
+        or ``comm`` is not a supported communicator.
+    ValueError
+        If no arrays are given, an array has no dimensions, the sample counts or split
+        axes differ, or an array is split along an axis other than 0.
+
+    Notes
+    -----
+    Batch retrieval returns a tensor for one input array and a tuple for multiple arrays.
+    If ``post_processing`` is given, the returned batches have the type produced by that
+    function.
+
+    Use a torch DataLoader with ``num_workers=0`` and an identity ``collate_fn``, as this
+    dataset already returns assembled batches. For distributed arrays, all processes must
+    retrieve batches in the same order and request the same number of samples in each batch.
+
+    Examples
+    --------
+    >>> import heat as ht
+    >>> from torch.utils.data import DataLoader
+    >>> data = ht.arange(8, split=0)
+    >>> dataset = ht.utils.data.DistributedDataset(data)
+    >>> loader = DataLoader(dataset, batch_size=2, num_workers=0, collate_fn=lambda batch: batch)
+    >>> batches = list(loader)
+    """
+
     def __init__(
         self,
         *data: DNDarray,
@@ -545,6 +669,80 @@ class DistributedDataset[T](torch.utils.data.Dataset):
 
 
 class DistributedDataLoader[T]:
+    """
+    Create an iterable over batches from one or more DNDarrays.
+
+    Each process iterates over the global dataset, receiving ``batch_size`` samples in a
+    full batch. Distributed arrays are accessed using non-blocking :func:`Itake
+    <heat.core.manipulations.Itake>` requests. Unsplit arrays are indexed locally.
+
+    Parameters
+    ----------
+    data : DNDarray
+        One or more arrays passed as positional arguments. The arrays must have at least
+        one dimension, the same global length along axis 0, and the same split axis.
+        Only ``split=None`` and ``split=0`` are supported.
+    batch_size : int
+        Number of samples per process in each batch. Must be a positive integer.
+    shuffle : bool, optional
+        If ``True``, shuffle the global sample indices before each iteration.
+        Default is ``False``.
+    drop_last : bool, optional
+        If ``True``, drop the last incomplete batch. Otherwise, the last batch may contain
+        fewer than ``batch_size`` samples per process. Default is ``False``.
+    prefetch_factor : int, optional
+        Number of additional batches to queue beyond the current batch. Must be non-negative.
+        The queue holds at most ``prefetch_factor + 1`` batches. Default is 0.
+    seed : int, optional
+        Base seed used to shuffle the sample indices. Each new iterator uses ``seed + epoch``
+        and increments the epoch counter, which starts at 0. Default is 0.
+    post_processing : Callable, optional
+        Function called for each local batch with the position of the input array and the
+        corresponding torch tensor, i.e. ``post_processing(i, batch)``. Its return value
+        replaces that batch. Default is ``None``.
+    comm : MPICommunication, optional
+        Communication object used to gather sample indices. Defaults to the globally set
+        communicator and must match the communicator of the input arrays.
+
+    Attributes
+    ----------
+    seed : int
+        Base seed for shuffling. Assigning a new value resets the epoch counter to 0.
+
+    Raises
+    ------
+    TypeError
+        If an input is not a DNDarray, ``post_processing`` is not callable or ``None``,
+        or ``comm`` is not a supported communicator.
+    ValueError
+        If the arrays are missing, scalar, or have different sample counts or split axes,
+        or if an array is split along an axis other than 0. Also raised if ``batch_size``
+        is not a positive integer, ``prefetch_factor`` is not a non-negative integer,
+        ``drop_last`` is not a bool, or ``seed`` is not an integer. Boolean values are not
+        accepted for ``batch_size`` or ``seed``.
+
+    Notes
+    -----
+    One input array returns a tensor per batch; multiple arrays return a tuple in their
+    original order. If ``post_processing`` is given, the returned batches have the type
+    produced by that function. The length of the loader is the number of batches per process.
+
+    All processes holding distributed parts of the arrays must iterate together and use
+    matching batch sizes and iteration counts. Equal seeds produce equal sample orders on
+    each process. If an iteration is stopped early, close the iterator on all participating
+    processes, or use it as a context manager to finish outstanding requests.
+
+    Examples
+    --------
+    >>> import heat as ht
+    >>> data = ht.arange(8, split=0)
+    >>> labels = ht.arange(8, split=0)
+    >>> loader = ht.utils.data.DistributedDataLoader(data, labels, batch_size=2, shuffle=True)
+    >>> with iter(loader) as batches:
+    ...     for data_batch, label_batch in batches:
+    ...         pass
+    """
+
     def __init__(
         self,
         *data: DNDarray,
@@ -592,6 +790,19 @@ class DistributedDataLoader[T]:
 
     @seed.setter
     def seed(self, value: int) -> None:
+        """
+        Set the base seed and reset the epoch counter.
+
+        Parameters
+        ----------
+        value : int
+            Seed used for the next iterator. Boolean values are not accepted.
+
+        Raises
+        ------
+        ValueError
+            If ``value`` is not an integer or is a bool.
+        """
         if not isinstance(value, int) or isinstance(value, bool):
             raise ValueError(f"Seed must be an integer not {type(value)}.")
         self._seed = value
@@ -606,6 +817,11 @@ class DistributedDataLoader[T]:
         return (N + B - 1) // B
 
     def __iter__(self) -> "_DistributedDataLoaderIter":
+        """
+        Create a new iterator using the base seed and the current epoch counter.
+        Creating the iterator increments the epoch.
+        """
+
         seed = self._seed + self._epoch
         self._epoch += 1
         return _DistributedDataLoaderIter(self, seed)
@@ -613,11 +829,40 @@ class DistributedDataLoader[T]:
 
 @dataclass
 class _PendingBatch:
+    """
+    Store the index tensors and requests for a batch being loaded.
+
+    Attributes
+    ----------
+    indices : tuple of torch.Tensor
+        Index tensors kept alive until the requests are finished, one for each input device.
+    requests : tuple of TakeRequest
+        Pending :func:`Itake <heat.core.manipulations.Itake>` requests in input array order.
+    """
+
     indices: tuple[torch.Tensor, ...]
     requests: tuple[TakeRequest, ...]
 
 
 class _DistributedDataLoaderIter:
+    """
+    Iterate over local batches while queuing requests for upcoming batches.
+
+    Parameters
+    ----------
+    loader : DistributedDataLoader
+        Loader holding the input arrays, communicator, and batch loading parameters.
+    seed : int
+        Seed used to create the sample indices for this iteration.
+
+    Notes
+    -----
+    The iterator holds at most ``loader._prefetch_factor + 1`` pending batches. Each batch
+    contains one request per input array. Use :meth:`close` or a context manager to finish
+    pending requests when iteration is stopped early. All participating processes must
+    close their iterators consistently.
+    """
+
     def __init__(
         self,
         loader: DistributedDataLoader,
@@ -654,6 +899,20 @@ class _DistributedDataLoaderIter:
         return self
 
     def _start_batch(self, indices: torch.Tensor) -> _PendingBatch:
+        """
+        Start a sample selection request for each input array.
+
+        Parameters
+        ----------
+        indices : torch.Tensor
+            One-dimensional tensor of sample indices for the batch, grouped by process.
+
+        Returns
+        -------
+        _PendingBatch
+            The requests and the index tensors copied to the input devices. If starting a
+            request fails, previously started requests are finished before the error is raised.
+        """
         requests = []
         indices_by_device = {}
 
@@ -695,6 +954,24 @@ class _DistributedDataLoaderIter:
         self,
         pending: _PendingBatch,
     ) -> tuple[torch.Tensor, ...]:
+        """
+        Wait for all requests of a batch and return the local tensors.
+
+        Parameters
+        ----------
+        pending : _PendingBatch
+            Batch containing the requests to finish.
+
+        Returns
+        -------
+        tuple of torch.Tensor
+            Local samples in input array order, before post-processing.
+
+        Notes
+        -----
+        If a request fails, the remaining requests are waited on before the first error
+        is raised.
+        """
         results = []
         error = None
 
@@ -711,6 +988,25 @@ class _DistributedDataLoaderIter:
         return tuple(result.larray for result in results)
 
     def __next__(self) -> torch.Tensor | tuple[torch.Tensor, ...]:
+        """
+        Finish the next batch, refill the queue, and apply post-processing.
+
+        Returns
+        -------
+        torch.Tensor or tuple of torch.Tensor or T or tuple of T
+            Local batch for one input array, or a tuple of local batches for multiple arrays.
+            If post-processing is given, return its results in input array order.
+
+        Raises
+        ------
+        StopIteration
+            If the iterator is closed or no batches remain.
+
+        Notes
+        -----
+        If loading or post-processing fails, the iterator is closed to finish pending requests
+        before the error is raised.
+        """
         if self._closed:
             raise StopIteration
 
