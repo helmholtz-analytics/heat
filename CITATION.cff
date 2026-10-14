@@ -7,33 +7,35 @@ message: 'If you use this software, please cite it as below.'
 type: software
 authors:
 # release highlights
-  - family-names: Hoppe
-    given-names: Fabian
-  - family-names: Gutiérrez Hermosillo Muriedas
-    given-names: Juan Pedro
-  - family-names: Palazoglu
-    given-names: Berkant
-  - family-names: Fischer
-    given-names: Carola
-  - family-names: Akdag
-    given-names: Hakan
   - family-names: Comito
     given-names: Claudia
-# active contributors in alphabetic order
-  - family-names: Hees
-    given-names: Jörn
-  - family-names: Jindra
-    given-names: Marc
-  - family-names: Korten
-    given-names: Till
-  - family-names: Krajsek
-    given-names: Kai
-  - family-names: Lemmen
-    given-names: Jonas
-  - family-names: Scheib
-    given-names: Lukas
+  - family-names: Fischer
+    given-names: Carola
   - family-names: Tarnawa
     given-names: Michael
+  - family-names: Palazoglu
+    given-names: Berkant
+  - family-names: Saupe
+    given-names: Thomas
+  - family-names: Gutiérrez Hermosillo Muriedas
+    given-names: Juan Pedro
+# active contributors in alphabetic order
+  - family-names: Akdag
+    given-names: Hakan
+  - family-names: Hoppe
+    given-names: Fabian
+  - family-names: Jindra
+    given-names: Marc
+  - family-names: Kämmerling
+    given-names: Leon
+  - family-names: Liesenfeld
+    given-names: Matthias
+  - family-names: Pederiva
+    given-names: Giovanni
+  - family-names: Shabasovich
+    given-names: Sofya
+  - family-names: Singh
+    given-names: Raunak
 # historic core team
   - family-names: Coquelin
     given-names: Daniel
@@ -43,6 +45,8 @@ authors:
     given-names: Björn
   - family-names: Knechtges
     given-names: Philipp
+  - family-names: Krajsek
+    given-names: Kai
   - family-names: Rüttgers
     given-names: Alexander
   - family-names: Götz

@@ -76,7 +76,7 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
         ----------
         x : DNDarray
             Training set, where n_samples is the number of samples
-            and n_features is the number of features.  Shape = (n_classes, n_features)
+            and n_features is the number of features.  Shape = (n_samples, n_features)
         y : DNDarray
             Labels for training set. Shape = (n_samples, )
         sample_weight : DNDarray, optional
@@ -94,8 +94,6 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
                 f"sample_weight needs to be a ht.DNDarray, but was {type(sample_weight)}"
             )
         classes = ht.unique(y, sorted=True)
-        if classes.split is not None:
-            classes = ht.resplit(classes, axis=None)
 
         return self.__partial_fit(x, y, classes, _refit=True, sample_weight=sample_weight)
 
@@ -113,15 +111,13 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
         elif classes is not None:
             unique_labels = classes
             if getattr(self, "classes_", None) is None:
-                self.classes_ = unique_labels
                 # This is the first call to partial_fit
                 return True
             if not ht.equal(self.classes_, unique_labels):
                 raise ValueError(
                     f"`classes={classes}` is not the same as on last call to partial_fit, was: {self.classes_}"
                 )
-        # classes is None and self.classes_ has already previously been set:
-        # nothing to do
+        # classes is None or self.classes_ has already previously been set
         return False
 
     @staticmethod
@@ -282,12 +278,13 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
         # deviation of the largest dimension.
         self.epsilon_ = self.var_smoothing * ht.var(x, axis=0).max()
 
-        if _refit:
-            self.classes_ = None
+        if classes is not None and classes.is_distributed():
+            classes = ht.resplit(classes, axis=None)
 
-        if self.__check_partial_fit_first_call(classes):
+        if self.__check_partial_fit_first_call(classes) or _refit:
             # This is the first call to partial_fit:
             # initialize various cumulative counters
+            self.classes_ = classes
             n_features = x.shape[1]
             n_classes = len(self.classes_)
             self.theta_ = ht.zeros((n_classes, n_features), dtype=x.dtype, device=x.device)
@@ -298,7 +295,7 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
             else:
                 class_count_dtype = ht.types.promote_types(x.dtype, ht.float)
             self.class_count_ = ht.zeros(
-                (x.comm.size, n_classes), dtype=class_count_dtype, device=x.device, split=0
+                (n_classes), dtype=class_count_dtype, device=x.device, split=None
             )
             # Initialise the class prior
             # Take into account the priors
@@ -342,17 +339,13 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
         # from now on: extract torch tensors for local operations
         # DNDarrays for distributed operations only
         for y_i in unique_y.larray:
-            # assuming classes.split is None
-            if y_i in classes.larray:
-                i = torch.where(classes.larray == y_i)[0].item()
-            else:
-                classes_ext = torch.cat((classes.larray, y_i.larray.unsqueeze(0)))
-                i = torch.argsort(classes_ext)[-1].item()
-            where_y_i = torch.where(y.larray == y_i)[0]
-            X_i = x[where_y_i, :]
+            assert not classes.is_distributed()
+            i = torch.where(classes.larray == y_i)[0].item()
+            eq_y_i = y == y_i.item()
+            X_i = x[eq_y_i, :]
 
             if sample_weight is not None:
-                sw_i = sample_weight[where_y_i]
+                sw_i = sample_weight[eq_y_i]
                 if 0 not in sw_i.shape:
                     N_i = sw_i.sum().item()
                 else:
@@ -363,7 +356,7 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
                 N_i = X_i.shape[0]
 
             new_theta, new_sigma = self.__update_mean_variance(
-                self.class_count_.larray[:, i].item(),
+                self.class_count_.larray[i].item(),
                 self.theta_[i, :],
                 self.sigma_[i, :],
                 X_i,
@@ -371,16 +364,14 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
             )
             self.theta_[i, :] = new_theta
             self.sigma_[i, :] = new_sigma
-            self.class_count_.larray[:, i] += N_i
+            self.class_count_.larray[i] += N_i
 
         self.sigma_[:, :] += self.epsilon_
 
         # Update only if no priors are provided
         if self.priors is None:
-            # distributed class_count_: sum along distribution axis
-            self.class_count_ = self.class_count_.sum(axis=0, keepdims=True)
             # Empirical prior, with sample_weight taken into account
-            self.class_prior_ = (self.class_count_ / self.class_count_.sum()).squeeze(0)
+            self.class_prior_ = self.class_count_ / self.class_count_.sum()
 
         return self
 

@@ -16,7 +16,6 @@ from ..random import randn
 from ..devices import Device
 from ..manipulations import vstack, hstack, concatenate, diag, balance
 from .. import statistics
-from mpi4py import MPI
 from ..sanitation import sanitize_in_nd_realfloating
 
 
@@ -37,7 +36,7 @@ def _subspaceiteration(
     via polar decomposition; cf. Ref. 2 below. The algorithm for subspace iteration itself is taken from Ref. 1,
     Algorithm 3 in Sect. 5.1.
 
-    Given a symmetric matrix ``A`` and and a matrix ``C`` that is the orthogonal projection onto an invariant
+    Given a symmetric matrix ``A`` and a matrix ``C`` that is the orthogonal projection onto an invariant
     subspace of A, this function computes and returns an orthogonal matrix ``Q`` such that Q = [V_1 V_2] with
     C = V_1 V_1.T. Moreover, the dimension of the invariant subspace, i.e., the number of column of V_1 is
     returned as well.
@@ -75,26 +74,27 @@ def _subspaceiteration(
             device=columnnorms.device,
         )
         * statistics.percentile(columnnorms, 100.0 * (1 - (k + safetyparam) / columnnorms.shape[0]))
-    )
+    )[0]
     X = C[:, idx].balance()
 
     # actual subspace iteration
     it = 1
     while it < maxit + 1:
         # enrich X by additional random columns to get a full orthonormal basis by QR
-        X = hstack(
-            [
-                X,
-                randn(
-                    X.shape[0],
-                    X.shape[0] - X.shape[1],
-                    dtype=X.dtype,
-                    device=X.device,
-                    comm=X.comm,
-                    split=X.split,
-                ),
-            ]
-        )
+        if X.shape[0] > X.shape[1]:
+            X = hstack(
+                [
+                    X,
+                    randn(
+                        X.shape[0],
+                        X.shape[0] - X.shape[1],
+                        dtype=X.dtype,
+                        device=X.device,
+                        comm=X.comm,
+                        split=X.split,
+                    ),
+                ]
+            )
         Q, _ = qr(X)
         Q_k = Q[:, :k].balance()
         Q_k_orth = Q[:, k:].balance()
@@ -139,7 +139,7 @@ def _eigh(
     """
     n = A.shape[0]
     global_comm = A.comm
-    nprocs = global_comm.Get_size()
+    nprocs = global_comm.size
     rank = global_comm.rank
 
     # direct solution in torch if the problem is small enough

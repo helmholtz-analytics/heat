@@ -3,6 +3,7 @@
 import numpy as np
 import torch
 import warnings
+from packaging.version import Version
 
 from typing import Callable, Iterable, Optional, Sequence, Tuple, Type, Union, List
 
@@ -24,6 +25,7 @@ __all__ = [
     "empty",
     "empty_like",
     "eye",
+    "from_dlpack",
     "from_partitioned",
     "from_partition_dict",
     "full",
@@ -39,11 +41,15 @@ __all__ = [
 
 
 def arange(
-    *args: Union[int, float],
-    dtype: Optional[Type[datatype]] = None,
-    split: Optional[int] = None,
-    device: Optional[Union[str, Device]] = None,
-    comm: Optional[Communication] = None,
+    start: int | float,
+    /,
+    stop: int | float | None = None,
+    step: int | float = 1,
+    *,
+    dtype: datatype | None = None,
+    split: int | None = None,
+    device: str | Device | None = None,
+    comm: Communication | None = None,
 ) -> DNDarray:
     """
     Return evenly spaced values within a given interval.
@@ -59,12 +65,13 @@ def arange(
 
     Parameters
     ----------
-    *args : int or float, optional
-        Positional arguments defining the interval. Can be:
-        - A single argument: interpreted as `stop`, with `start=0` and `step=1`.
-        - Two arguments: interpreted as `start` and `stop`, with `step=1`.
-        - Three arguments: interpreted as `start`, `stop`, and `step`.
-        The function raises a `TypeError` if more than three arguments are provided.
+    start : int or float
+        if ``stop`` is specified, the start of the interval (inclusive); otherwise, the end of the interval (exclusive).
+        If ``stop`` is not specified, the default starting value is ``0``.
+    stop : int or float, optional
+        the end of the interval. Default: None.
+    step : int or float, optional
+        the distance between two adjacent elements (``out[i+1] - out[i]``). Default: ``1``.
     dtype : datatype, optional
         The type of the output array.  If `dtype` is not given, it is automatically inferred from the other input
         arguments.
@@ -90,42 +97,42 @@ def arange(
     >>> ht.arange(3, 7, 2)
     DNDarray([3, 5], dtype=ht.int32, device=cpu:0, split=None)
     """
-    num_of_param = len(args)
+    if not isinstance(start, (int, float)):
+        raise TypeError(f"'start' must be int or float. Got {type(start)}")
 
-    # check if all positional arguments are integers
-    all_ints = all([isinstance(_, int) for _ in args])
+    # set start and stop if no stop is specified
+    if stop is None:
+        start, stop = 0, start
 
-    # set start, stop, step, num according to *args
-    if num_of_param == 1:
-        if dtype is None:
-            # use int32 as default instead of int64 used in numpy
-            dtype = types.int32 if all_ints else types.float32
-        start = 0
-        stop = int(np.ceil(args[0]))
-        step = 1
-        num = stop
-    elif num_of_param == 2:
-        if dtype is None:
-            dtype = types.int32 if all_ints else types.float32
-        start = args[0]
-        stop = args[1]
-        step = 1
-        num = int(np.ceil(stop - start))
-    elif num_of_param == 3:
-        if dtype is None:
-            dtype = types.int32 if all_ints else types.float32
-        start = args[0]
-        stop = args[1]
-        step = args[2]
-        num = int(np.ceil((stop - start) / step))
-    else:
-        raise TypeError(
-            f"function takes minimum one and at most 3 positional arguments ({num_of_param} given)"
-        )
+    if not isinstance(stop, (int, float)):
+        raise TypeError(f"'stop' must be int or float. Got {type(stop)}")
+
+    if not isinstance(step, (int, float)):
+        raise TypeError(f"'step' must be int or float. Got {type(step)}")
+
+    if step == 0:
+        raise ValueError("'step' cannot be 0.")
 
     # sanitize device and comm
     device = devices.sanitize_device(device)
     comm = sanitize_comm(comm)
+
+    if dtype is None:
+        dtype = types.float32 if float in (type(start), type(stop), type(step)) else types.int64
+
+    dtype = types.canonical_heat_type(dtype)
+
+    num = int(np.ceil((stop - start) / step))
+    if np.sign(num) < 1:
+        return DNDarray(
+            torch.tensor([], dtype=dtype.torch_type(), device=device.torch_device),
+            gshape=(0,),
+            dtype=dtype,
+            split=split,
+            device=device,
+            comm=comm,
+            balanced=True,
+        )
 
     gshape = (num,)
     split = sanitize_axis(gshape, split)
@@ -135,14 +142,16 @@ def arange(
     # compose the local tensor
     start += offset * step
     stop = start + lshape[0] * step
-    htype = types.canonical_heat_type(dtype)
-    if types.issubdtype(htype, types.floating):
-        data = torch.arange(start, stop, step, dtype=htype.torch_type(), device=device.torch_device)
+
+    if types.issubdtype(dtype, types.floating):
+        data = torch.arange(start, stop, step, dtype=dtype.torch_type(), device=device.torch_device)
     else:
         data = torch.arange(start, stop, step, device=device.torch_device)
-        data = data.type(htype.torch_type())
+        data = data.type(dtype.torch_type())
 
-    return DNDarray(data, gshape, htype, split, device, comm, balanced)
+    return DNDarray(
+        data, gshape=gshape, dtype=dtype, split=split, device=device, comm=comm, balanced=balanced
+    )
 
 
 def array(
@@ -292,6 +301,10 @@ def array(
     else:
         dtype = types.canonical_heat_type(dtype)
         torch_dtype = dtype.torch_type()
+
+    # use device of obj if obj is a torch tensor
+    if device is None and isinstance(obj, torch.Tensor):
+        device = obj.device.type
 
     # sanitize device
     if device is not None:
@@ -476,7 +489,15 @@ def array(
         if gmatch != comm.size:
             balanced = False
 
-    return DNDarray(obj, tuple(gshape), dtype, split, device, comm, balanced)
+    return DNDarray(
+        obj,
+        gshape=tuple(gshape),
+        dtype=dtype,
+        split=split,
+        device=device,
+        comm=comm,
+        balanced=balanced,
+    )
 
 
 def asarray(
@@ -721,7 +742,13 @@ def eye(
     data = sanitize_memory_layout(data, order=order)
 
     return DNDarray(
-        data, gshape, types.canonical_heat_type(data.dtype), split, device, comm, balanced
+        data,
+        gshape=gshape,
+        dtype=types.canonical_heat_type(data.dtype),
+        split=split,
+        device=device,
+        comm=comm,
+        balanced=balanced,
     )
 
 
@@ -776,7 +803,9 @@ def __factory(
     data = local_factory(local_shape, dtype=dtype.torch_type(), device=device.torch_device)
     data = sanitize_memory_layout(data, order=order)
 
-    return DNDarray(data, shape, dtype, split, device, comm, balanced=True)
+    return DNDarray(
+        data, gshape=shape, dtype=dtype, split=split, device=device, comm=comm, balanced=True
+    )
 
 
 def __factory_like(
@@ -855,6 +884,40 @@ def __factory_like(
     comm = sanitize_comm(comm)
 
     return factory(shape, dtype=dtype, split=split, device=device, comm=comm, order=order, **kwargs)
+
+
+def from_dlpack(
+    x: object, /, *, device: Device | None = None, copy: bool | None = None
+) -> DNDarray:
+    """
+    Returns a new array containing the data from another (array) object with a
+    ``__dlpack__`` method.
+
+    Parameters
+    ----------
+    x : object
+        Input (array) object.
+    device: Device, optional
+        device on which to place the created array. Default: None.
+    copy: bool, optional
+        boolean indicating whether or not to copy the input. Default: None.
+    """
+    # TODO: Remove below if block when minimum torch version is newer than 2.8
+    if Version(torch.__version__) < Version("2.9"):
+        if device is not None:
+            warnings.warn(
+                f"Argument {device=} is ignored in `heat.from_dlpack` with {torch.__version__=}. Upgrade your torch version past 2.8 to use it."
+            )
+        if copy is not None:
+            warnings.warn(
+                f"Argument {copy=} is ignored in `heat.from_dlpack` with {torch.__version__=}. Upgrade your torch version past 2.8 to use it."
+            )
+        return array(torch.from_dlpack(x))
+
+    if device is not None:
+        device = torch.device(device.torch_device)
+
+    return array(torch.from_dlpack(x, device=device, copy=copy))
 
 
 def from_partitioned(x, comm: Optional[Communication] = None) -> DNDarray:
@@ -1000,7 +1063,13 @@ def __from_partition_dict_helper(parted: dict, comm: Communication):
     balanced = all(x[0][0] == x[1][0] for x in expected.values())
 
     ret = DNDarray(
-        data, gshape, htype, split, devices.sanitize_device(None), sanitize_comm(comm), balanced
+        data,
+        gshape=gshape,
+        dtype=htype,
+        split=split,
+        device=devices.sanitize_device(None),
+        comm=sanitize_comm(comm),
+        balanced=balanced,
     )
     ret.__partitions_dict__ = parted
 
@@ -1203,7 +1272,13 @@ def linspace(
 
     # construct the resulting global tensor
     ht_tensor = DNDarray(
-        data, gshape, types.canonical_heat_type(data.dtype), split, device, comm, balanced
+        data,
+        gshape=gshape,
+        dtype=types.canonical_heat_type(data.dtype),
+        split=split,
+        device=device,
+        comm=comm,
+        balanced=balanced,
     )
 
     if retstep:
@@ -1282,7 +1357,7 @@ def meshgrid(*arrays: Sequence[DNDarray], indexing: str = "xy") -> List[DNDarray
     ----------
     arrays : Sequence[ DNDarray ]
         one-dimensional arrays representing grid coordinates. If exactly one vector is distributed, the returned matrices will
-        be distributed along the axis equal to the index of this vector in the input list.
+        reflect this distribution.
     indexing : str, optional
         Cartesian ‘xy’ or matrix ‘ij’ indexing of output. It is ignored if zero or one one-dimensional arrays are provided. Default: 'xy' .
 
@@ -1299,15 +1374,33 @@ def meshgrid(*arrays: Sequence[DNDarray], indexing: str = "xy") -> List[DNDarray
     >>> y = ht.arange(3)
     >>> xx, yy = ht.meshgrid(x, y)
     >>> xx
-    DNDarray([[0, 1, 2, 3],
+    DNDarray(MPI-rank: 0, Shape: [3, 4], Split: None, Local Shape: (3, 4), Device: cpu:0, Dtype: int32, Data:
+         [[0, 1, 2, 3],
           [0, 1, 2, 3],
-          [0, 1, 2, 3]], dtype=ht.int32, device=cpu:0, split=None)
+          [0, 1, 2, 3]])
     >>> yy
-    DNDarray([[0, 0, 0, 0],
+    DNDarray(MPI-rank: 0, Shape: [3, 4], Split: None, Local Shape: (3, 4), Device: cpu:0, Dtype: int32, Data:
+         [[0, 0, 0, 0],
           [1, 1, 1, 1],
-          [2, 2, 2, 2]], dtype=ht.int32, device=cpu:0, split=None)
+          [2, 2, 2, 2]])
+
+    >>> x = ht.arange(4, split=0)
+    >>> xx, yy = ht.meshgrid(x, y)
+    >>> xx
+    DNDarray(MPI-rank: 0, Shape: [3, 4], Split: 1, Local Shape: (3, 4), Device: cpu:0, Dtype: int32, Data:
+         [[0, 1, 2, 3],
+          [0, 1, 2, 3],
+          [0, 1, 2, 3]])
+
+    >>> xx, yy = ht.meshgrid(x, y, indexing="ij")
+    >>> xx
+    DNDarray(MPI-rank: 0, Shape: (4, 3), Split: 0, Local Shape: (4, 3), Device: cpu:0, Dtype: int32, Data:
+         [[0, 0, 0],
+          [1, 1, 1],
+          [2, 2, 2],
+          [3, 3, 3]])
     """
-    splitted = None
+    split = None
 
     if indexing not in ["xy", "ij"]:
         raise ValueError("Valid values for `indexing` are 'xy' and 'ij'.")
@@ -1320,35 +1413,27 @@ def meshgrid(*arrays: Sequence[DNDarray], indexing: str = "xy") -> List[DNDarray
     for idx, array in enumerate(arrays):
         sanitize_in(array)
         if array.split is not None:
-            if splitted is not None:
-                raise ValueError("split != None are not supported.")
-            splitted = idx
+            if split is not None:
+                raise ValueError("Only one input array can be distributed!")
+            split = idx
 
-    # pytorch does not support the indexing keyword: switch vectors
-    if indexing == "xy" and len(arrays) > 1:
-        arrays[0], arrays[1] = arrays[1], arrays[0]
-        if splitted == 0:
-            arrays[0] = arrays[0].resplit(0)
-            arrays[1] = arrays[1].resplit(None)
-        elif splitted == 1:
-            arrays[0] = arrays[0].resplit(None)
-            arrays[1] = arrays[1].resplit(0)
-
-    grids = torch.meshgrid(*(array.larray for array in arrays))
-
-    # pytorch does not support indexing keyword: switch back
-    if indexing == "xy" and len(arrays) > 1:
-        grids = list(grids)
-        grids[0], grids[1] = grids[1], grids[0]
+    grids = torch.meshgrid(*(array.larray for array in arrays), indexing=indexing)
 
     shape = tuple(array.size for array in arrays)
+    if indexing == "xy" and len(shape) > 1:
+        shape = list(shape)
+        shape[0], shape[1] = shape[1], shape[0]
+        if split == 0:
+            split = 1
+        elif split == 1:
+            split = 0
 
     return [
         DNDarray(
             array=grid,
             gshape=shape,
             dtype=types.heat_type_of(grid),
-            split=splitted,
+            split=split,
             device=devices.sanitize_device(grid.device.type),
             comm=sanitize_comm(None),
             balanced=True,

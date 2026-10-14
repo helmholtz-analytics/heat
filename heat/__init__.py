@@ -9,6 +9,7 @@ from .core import __version__
 from . import core
 from . import classification
 from . import cluster
+from . import decomposition
 from . import fft
 from . import graph
 from . import naive_bayes
@@ -19,3 +20,7 @@ from . import sparse
 from . import spatial
 from . import utils
 from . import preprocessing
+
+__array_api_version__ = "2025.12"
+
+from ._array_api_inspection import __array_namespace_info__
