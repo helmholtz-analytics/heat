@@ -3,7 +3,7 @@ import heat as ht
 import numpy as np
 
 from heat.classification.localoutlierfactor import LocalOutlierFactor
-from heat.core.tests.test_suites.basic_test import TestCase
+from heat.testing.basic_test import TestCase
 
 
 class TestLOF(TestCase):
