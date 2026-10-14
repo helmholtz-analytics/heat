@@ -2927,7 +2927,7 @@ class TestDNDarray(TestCase):
 
 
         arr = ht.random.randn(10, 10, 10, 10)
-        arr_np = arr.numpy()
+        arr_torch = ht.resplit(arr, None).larray
 
         comm = arr.comm
         rank = comm.rank
@@ -2938,8 +2938,6 @@ class TestDNDarray(TestCase):
             _, _, slices = arr.comm.chunk(arr.shape, split, rank)
 
             for row, data in enumerate(arr):
-                expected_local_data = arr_np[row][slices[1:]]
+                expected_tensor = arr_torch[row][slices[1:]]
                 self.assertEqual(expected_local_data.shape, tuple(data.larray.shape))
-
-                expected_tensor = torch.from_numpy(expected_local_data)
                 self.assertTrue(torch.isclose(expected_tensor, data.larray).all())
