@@ -261,6 +261,7 @@ class Dataset(torch_data.Dataset):
         if not self.test_set:
             dataset_ishuffle(dataset=self, attrs=[["data", "htdata"]])
 
+
 def create_train_val_split(
     X: DNDarray, y: DNDarray, p: float = 0.95, seed: int | None = None
 ) -> tuple[DNDarray, DNDarray, DNDarray, DNDarray]:
@@ -286,14 +287,16 @@ def create_train_val_split(
         seed = random.randint(-0x8000_0000_0000_0000, 0xFFFF_FFFF_FFFF_FFFF)
 
     if X.gshape[0] != y.gshape[0]:
-        raise ValueError(f"Both X and y must have same amount of rows. {X.gshape[0]=} != {y.gshape[0]=}")
+        raise ValueError(
+            f"Both X and y must have same amount of rows. {X.gshape[0]=} != {y.gshape[0]=}"
+        )
     if X.split not in [None, 0] or y.split not in [None, 0]:
         raise ValueError(f"Split of X and y must both be either None or 0, {X.split=}, {y.split=}")
 
     train_rows = int(X.lshape[0] * p)
     val_rows = X.lshape[0] - train_rows
 
-    assert train_rows + val_rows == X.gshape[0] #sanity check
+    assert train_rows + val_rows == X.gshape[0]  # sanity check
 
     perm = torch.randperm(X.lshape[0])
 
@@ -440,6 +443,7 @@ def dataset_irecv(dataset: Union[Dataset, torch_data.Dataset]):
             shuffled = getattr(dataset, rcv[0][0])[prm]
             setattr(dataset, rcv[0][0], shuffled[dataset._cut_slice])
 
+
 def _sanitize_data_input(data: DNDarray | tuple[DNDarray, ...]) -> tuple[DNDarray, ...]:
     """
     Check the input arrays and return them as a tuple.
@@ -486,6 +490,7 @@ def _sanitize_data_input(data: DNDarray | tuple[DNDarray, ...]) -> tuple[DNDarra
         raise ValueError("All DNDarrays must have the same global length on axis=0.")
 
     return arrays
+
 
 def _create_distributed_indices(
     comm: MPICommunication,
@@ -544,6 +549,7 @@ def _create_distributed_indices(
     comm.Allgather(idx, indices)
     return indices.reshape(P, N).contiguous()
 
+
 def _batch_indices(
     indices: torch.Tensor,
     batch_size: int,
@@ -573,7 +579,7 @@ def _batch_indices(
     N = indices.shape[1]
 
     for start in range(0, N, batch_size):
-        batch = indices[:, start:start + batch_size]
+        batch = indices[:, start : start + batch_size]
 
         if drop_last and batch.shape[1] < batch_size:
             break
@@ -643,12 +649,16 @@ class DistributedDataset[T](torch.utils.data.Dataset):
 
         self._data = _sanitize_data_input(data)
         if self._data[0].split not in (None, 0):
-            raise ValueError(f"DNDarrays must be unsplit or distributed across `axis=0`, is {self._data[0].split=}")
+            raise ValueError(
+                f"DNDarrays must be unsplit or distributed across `axis=0`, is {self._data[0].split=}"
+            )
 
         self._comm: MPICommunication = sanitize_comm(comm)
         self._post_processing = post_processing
 
-    def __getitems__(self, indices: list[int]) -> Union[torch.Tensor, T, tuple[torch.Tensor, ...], tuple[T, ...]]:
+    def __getitems__(
+        self, indices: list[int]
+    ) -> Union[torch.Tensor, T, tuple[torch.Tensor, ...], tuple[T, ...]]:
         """
         Get a local batch of samples from each input array.
 
@@ -802,7 +812,6 @@ class DistributedDataLoader[T]:
         if self._data[0].split not in (None, 0):
             raise ValueError("DNDarrays must be distributed across `None` or `0`.")
 
-
     @property
     def seed(self) -> int:
         return self._seed
@@ -840,7 +849,6 @@ class DistributedDataLoader[T]:
         Create a new iterator using the base seed and the current epoch counter.
         Creating the iterator increments the epoch.
         """
-
         seed = self._seed + self._epoch
         self._epoch += 1
         return _DistributedDataLoaderIter(self, seed)
@@ -895,7 +903,7 @@ class _DistributedDataLoaderIter:
             num_elements=loader._num_elements,
             shuffle=loader._shuffle,
             seed=seed,
-            distributed=loader._data[0].is_distributed()
+            distributed=loader._data[0].is_distributed(),
         )
 
         self._batch_iterator = _batch_indices(
@@ -945,9 +953,7 @@ class _DistributedDataLoaderIter:
 
                 device_indices = indices_by_device[device]
 
-                requests.append(
-                    Itake(array, device_indices, axis=0)
-                )
+                requests.append(Itake(array, device_indices, axis=0))
 
         except BaseException:
             # When one of the request fail, wait for the MPI comms to finish
@@ -1041,7 +1047,9 @@ class _DistributedDataLoaderIter:
             self._fill_queue()
 
             if self._loader._post_processing is not None:
-                batch = tuple(self._loader._post_processing(i, tensor) for i, tensor in enumerate(batch))
+                batch = tuple(
+                    self._loader._post_processing(i, tensor) for i, tensor in enumerate(batch)
+                )
 
             return batch if len(batch) > 1 else batch[0]
 
@@ -1083,4 +1091,3 @@ class _DistributedDataLoaderIter:
 
     def __exit__(self, exc_type, exc_value, traceback):
         self.close()
-

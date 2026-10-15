@@ -69,7 +69,7 @@ __all__ = [
     "vsplit",
     "vstack",
     "TakeRequest",
-    "Itake"
+    "Itake",
 ]
 
 
@@ -3221,6 +3221,7 @@ def take(
     """
     return Itake(a, indices, axis).Wait()
 
+
 class TakeRequest:
     def __init__(self, mpi_request=None, finalize=None, result=None):
         assert mpi_request is None or finalize is not None
@@ -3259,6 +3260,7 @@ class TakeRequest:
             self._done = True
 
         return finished
+
 
 def Itake(
     a: DNDarray,
@@ -3405,6 +3407,7 @@ def Itake(
         mpi_request=mpi_request,
         finalize=finalize,
     )
+
 
 def split(x: DNDarray, indices_or_sections: Iterable, axis: int = 0) -> List[DNDarray, ...]:
     """
