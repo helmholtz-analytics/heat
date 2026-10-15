@@ -1,7 +1,7 @@
 name: "Auto-label PRs Backport"
 on:
   pull_request_target:
-    types: [opened, synchronize]
+    types: opened
     branches: main
 
 permissions:
