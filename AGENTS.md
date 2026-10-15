@@ -1,9 +1,9 @@
 # Heat Development
 
 ## Environment Setup
-- Python 3.11+
+- Python 3.12+
 - MPI: OpenMPI, MPICH, or Intel MP
-- Dependencies: mpi4py >= 3.1, pytorch >= 2.4
+- Dependencies: mpi4py >= 3.1, pytorch >= 2.6
 - create conda environment: `conda env create -f scripts/heat_dev.yml && conda activate heat_dev`
 - create pip environment: `python -m venv heat_venv && source heat_venv/bin/activate`
 - install: `pip install -e '.[dev]'`
@@ -25,7 +25,6 @@
 - Do not install missing dependencies and do not edit any files by yourself. First check whether an environment is active. If not load the environment and try the tests again. Otherwise ask for permission.
 
 ## Project Structure
-- `heat/array_api` - Additional module following Python array API standard. Only look when asked for the module explicitly.
 - `heat/classification` - Classification models like kneighbours
 - `heat/cluster` - Clustering models like kmeans, kmedians, kmediods, and spectral clustering
 - `heat/core` - DNDarray class and numeric functions
@@ -49,4 +48,4 @@
 - General guidelines in `CONTRIBUTING.md`
 - Title format: [component] Brief description
 - Fill out the template `.github/PULL_REQUEST_TEMPLATE.md` for the description. If a part is unsure, ask the user.
-- Write `AI Support 🦾` at the end of the description after a newline
+- Write `AI Support 🦾` at the end of the description after a blank line.

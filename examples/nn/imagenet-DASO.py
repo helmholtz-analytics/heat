@@ -62,18 +62,18 @@ def parse():
         help="path(s) to validation datasets (TFRecords)",
     )
     parser.add_argument(
-        "--train_indexes",
-        metavar="DIR",
-        default="/p/project/haf/data/imagenet/train-idx/",
-        nargs="*",
-        help="path(s) to training indexes dataset (see ht.utils.data._utils.tfrecords2idx)",
+         "--train_indexes",
+         metavar="DIR",
+         default="/p/project/haf/data/imagenet/train-idx/",
+         nargs="*",
+         help="path(s) to pre-generated DALI TFRecord index files",
     )
     parser.add_argument(
-        "--validate_indexes",
-        metavar="DIR",
-        default="/p/project/haf/data/imagenet/val-idx/",
-        nargs="*",
-        help="path(s) to validation indexes dataset (see ht.utils.data._utils.tfrecords2idx)",
+         "--validate_indexes",
+         metavar="DIR",
+         default="/p/project/haf/data/imagenet/val-idx/",
+         nargs="*",
+         help="path(s) to pre-generated DALI TFRecord index files",
     )
     parser.add_argument(
         "--arch",

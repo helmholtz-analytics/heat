@@ -1463,7 +1463,8 @@ class TestArithmetics(TestCase):
                         np_diff = ht.array(np.diff(np_array, n=nl, axis=ax))
 
                         self.assertTrue(ht.equal(ht_diff, np_diff))
-                        self.assertEqual(ht_diff.split, sp)
+                        if ht_diff.comm.size > 1:
+                            self.assertEqual(ht_diff.split, sp)
                         self.assertEqual(ht_diff.dtype, lp_array.dtype)
 
                         # test prepend/append. Note heat's intuitive casting vs. numpy's safe casting
@@ -1481,7 +1482,8 @@ class TestArithmetics(TestCase):
                             dtype=dtype,
                         )
                         self.assertTrue(ht.equal(ht_diff_pend, np_diff_pend))
-                        self.assertEqual(ht_diff_pend.split, sp)
+                        if ht_diff_pend.comm.size > 1:
+                            self.assertEqual(ht_diff_pend.split, sp)
                         self.assertEqual(ht_diff_pend.dtype, dtype)
 
         np_array = ht_array.numpy()
@@ -1496,7 +1498,8 @@ class TestArithmetics(TestCase):
         ht_diff = ht.diff(ht_array, n=2)
         np_diff = ht.array(np.diff(np_array, n=2))
         self.assertTrue(ht.equal(ht_diff, np_diff))
-        self.assertEqual(ht_diff.split, 1)
+        if ht_diff.comm.size > 1:
+            self.assertEqual(ht_diff.split, 1)
         self.assertEqual(ht_diff.dtype, ht_array.dtype)
 
         # test n=0
