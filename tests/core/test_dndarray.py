@@ -1269,6 +1269,66 @@ class TestDNDarray(TestCase):
         self.assertEqual(res_col_ht.split, 0)
         self.assert_array_equal(res_col_ht, res_col_np)
 
+    def test_advanced_indexing_split0_distr_multidim_key(self):
+        if self.comm.size < 2:
+            self.skipTest(
+                "Testing distributed split axis recalculation requires at least 2 processes"
+            )
+
+        # ------------------------------------------------------------------
+        # 1) 1D array indexed with a 2D distributed key (split=0)
+        # ------------------------------------------------------------------
+        x_np = np.arange(24)
+        x = ht.array(x_np, split=0)
+
+        # 2D key distributed along axis 0
+        idx_np = np.array(
+            [
+                [0, 5],
+                [10, 15],
+                [2, 7],
+                [12, 17],
+                [4, 9],
+                [14, 19],
+            ],
+            dtype=np.int64,
+        )
+        idx = ht.array(idx_np, split=0, dtype=ht.int64)
+
+        res_ht = x[idx]
+        res_np = x_np[idx_np]
+
+        # Output must inherit split axis directly from the distributed key
+        self.assertEqual(res_ht.split, idx.split)
+        self.assertEqual(res_ht.shape, idx_np.shape)
+        self.assert_array_equal(res_ht, res_np)
+
+        # ------------------------------------------------------------------
+        # 2) 2D array indexed along axis 0 with a 2D distributed key (split=0)
+        # ------------------------------------------------------------------
+        x_2d_np = np.arange(24).reshape(6, 4)
+        x_2d = ht.array(x_2d_np, split=0)
+
+        idx_2d_np = np.array(
+            [
+                [5, 0],
+                [2, 3],
+                [1, 4],
+                [0, 2],
+            ],
+            dtype=np.int64,
+        )
+        idx_2d = ht.array(idx_2d_np, split=0, dtype=ht.int64)
+
+        res_2d_ht = x_2d[idx_2d]
+        res_2d_np = x_2d_np[idx_2d_np]
+
+        # Result shape expands axis 0 to key shape: (4, 2) + (4,) -> (4, 2, 4)
+        self.assertEqual(res_2d_ht.split, idx_2d.split)
+        self.assertEqual(res_2d_ht.shape, (4, 2, 4))
+        self.assert_array_equal(res_2d_ht, res_2d_np)
+
+
     def test_resolve_indexing_state_nd_torch_key_non_distributed(self):
         from heat.core.dndarray import _resolve_indexing_state
 
