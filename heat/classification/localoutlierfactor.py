@@ -143,12 +143,7 @@ class LocalOutlierFactor:
         self.idx_n_neighbors = idx_neighbors
 
         k_dist_neighbors = self._advanced_indexing(k_dist, idx_neighbors)
-        print(
-            f"DEBUGGING: k_dist_neighbors.split: {k_dist_neighbors.split}, k_dist_neighbors.lshape: {k_dist_neighbors.lshape}, k_dist_neighbors.gshape: {k_dist_neighbors.gshape}"
-        )
-        print(
-            f"DEBUGGING: dist.split: {dist.split}, dist.lshape: {dist.lshape}, dist.gshape: {dist.gshape}"
-        )
+
         # Compute the reachability distance for each point
         reachability_dist = ht.maximum(k_dist_neighbors, dist[:, 1 : self.n_neighbors + 1])
 
@@ -201,21 +196,20 @@ class LocalOutlierFactor:
             The result of advanced indexing on the input array.
         """
         # Using heat's advanced indexing for large data set
-        # if self.fully_distributed is True:
-        # print(f"DEBUGGING: idx.shape: {idx.shape}, idx.ndim: {idx.ndim}, idx.split: {idx.split}, idx data: {idx.larray.shape}")
-        indexed_A = A[idx]
-        # # Use local arrays, i.e., torch.tensors, to reduce runtime while indexing
-        # # (only possible if all local arrays defined below fit into memory)
-        # else:
-        #     split = A.split
-        #     type = A.dtype
-        #     # Use none-split arrays to reduce communication overhead
-        #     A_ = A.resplit_(None).larray.contiguous()
-        #     idx_ = idx.resplit_(None).larray.contiguous()
-        #     # Apply standard advanced indexing
-        #     indexed_A_ = A_[idx_]
-        #     # Convert the result back to a distributed DNDarray
-        #     indexed_A = ht.array(indexed_A_, split=split, dtype=type)
+        if self.fully_distributed is True:
+            indexed_A = A[idx]
+        # Use local arrays, i.e., torch.tensors, to reduce runtime while indexing
+        # (only possible if all local arrays defined below fit into memory)
+        else:
+            split = A.split
+            type = A.dtype
+            # Use none-split arrays to reduce communication overhead
+            A_ = A.resplit_(None).larray.contiguous()
+            idx_ = idx.resplit_(None).larray.contiguous()
+            # Apply standard advanced indexing
+            indexed_A_ = A_[idx_]
+            # Convert the result back to a distributed DNDarray
+            indexed_A = ht.array(indexed_A_, split=split, dtype=type)
         return indexed_A
 
     def _map_idx_to_proc(self, idx, comm):
