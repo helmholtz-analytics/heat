@@ -829,21 +829,27 @@ def _resolve_indexing_state(
                     out_is_balanced = arr.balanced
                 else:
                     # split axis is affected
-                    if key.ndim > 1:
-                        key_numel = key.numel()
-                        if key_numel == arr.shape[0]:
-                            new_split = tuple(key.shape).index(arr.shape[0])
-                        else:
-                            new_split = key.ndim - 1
-                    else:
-                        new_split = 0
-
                     key_is_dist = isinstance(key, DNDarray) and key.is_distributed()
-                    if isinstance(key, DNDarray):
+
+                    if key_is_dist:
+                        # output inherits distribution scheme of the distributed indexer
+                        new_split = key.split
                         out_is_balanced = key.balanced
                         key = key.larray
                     else:
-                        out_is_balanced = True
+                        if isinstance(key, DNDarray):
+                            out_is_balanced = key.balanced
+                            key = key.larray
+                        else:
+                            out_is_balanced = True
+
+                        if key.ndim > 1:
+                            if key.numel() == arr.shape[0] and arr.shape[0] in key.shape:
+                                new_split = tuple(key.shape).index(arr.shape[0])
+                            else:
+                                new_split = key.ndim - 1
+                        else:
+                            new_split = 0
 
                     # normalize negative indices
                     if key.dtype in (torch.int8, torch.int16, torch.int32, torch.int64):
