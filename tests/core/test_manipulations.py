@@ -8,6 +8,7 @@ from heat.testing.basic_test import TestCase
 
 IN_GITHUB_ACTIONS = os.getenv("GITHUB_ACTIONS") == "true"
 
+
 class TestManipulations(TestCase):
     def test_broadcast_arrays(self):
         a = ht.array([[1], [2]])
