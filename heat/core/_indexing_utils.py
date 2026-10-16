@@ -845,7 +845,7 @@ def _resolve_indexing_state(
                             else:
                                 new_split = key.ndim - 1
                         else:
-                            new_split = 0
+                            new_split = arr.split
 
                     # normalize negative indices
                     if key.dtype in (torch.int8, torch.int16, torch.int32, torch.int64):
