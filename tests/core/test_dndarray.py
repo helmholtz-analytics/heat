@@ -1275,9 +1275,7 @@ class TestDNDarray(TestCase):
                 "Testing distributed split axis recalculation requires at least 2 processes"
             )
 
-        # ------------------------------------------------------------------
         # 1) 1D array indexed with a 2D distributed key (split=0)
-        # ------------------------------------------------------------------
         x_np = np.arange(24)
         x = ht.array(x_np, split=0)
 
@@ -1303,9 +1301,7 @@ class TestDNDarray(TestCase):
         self.assertEqual(res_ht.shape, idx_np.shape)
         self.assert_array_equal(res_ht, res_np)
 
-        # ------------------------------------------------------------------
         # 2) 2D array indexed along axis 0 with a 2D distributed key (split=0)
-        # ------------------------------------------------------------------
         x_2d_np = np.arange(24).reshape(6, 4)
         x_2d = ht.array(x_2d_np, split=0)
 
