@@ -837,11 +837,7 @@ def _resolve_indexing_state(
                         out_is_balanced = key.balanced
                         key = key.larray
                     else:
-                        if isinstance(key, DNDarray):
-                            out_is_balanced = key.balanced
-                            key = key.larray
-                        else:
-                            out_is_balanced = True
+                        out_is_balanced = True
 
                         if key.ndim > 1:
                             if key.numel() == arr.shape[0] and arr.shape[0] in key.shape:
