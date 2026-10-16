@@ -162,20 +162,20 @@ class TestLOF(TestCase):
         self.assertTrue(condition)
 
 
-    def _test_utility_runtime_efficient(self):
+    def test_utility_runtime_efficient(self):
         """
         Tests LocalOutlierFactor with a runtime efficient implementation.
         """
         n_neighbors = 10
-        self._test_utility(self, fully_distributed=False, n_neighbors=n_neighbors)
+        self._test_utility(fully_distributed=False, n_neighbors=n_neighbors)
 
 
-    def _test_utility_memory_efficient(self):
+    def test_utility_memory_efficient(self):
         """
         Tests LocalOutlierFactor with a memory efficient implementation.
         """
         n_neighbors = 10
-        self._test_utility(self, fully_distributed=True, n_neighbors=n_neighbors)
+        self._test_utility(fully_distributed=True, n_neighbors=n_neighbors)
 
     def test_map_idx_to_proc(self):
         lof = LocalOutlierFactor()
