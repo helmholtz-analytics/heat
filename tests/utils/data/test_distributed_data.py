@@ -31,6 +31,53 @@ class TestDatatools:
     def setup_class(cls):
         TestCase.setUpClass()
 
+    @pytest.mark.parametrize("N", [0, 1, 11])
+    @pytest.mark.parametrize("split", [None, 0])
+    @pytest.mark.parametrize("p", [0.0, 0.6, 0.95, 1.0])
+    @pytest.mark.parametrize("seed", [None, 42])
+    def test_create_train_val_split(
+        self, N: int, split: int | None, p: float, seed: int | None
+    ) -> None:
+        features = torch.arange(N * 3).reshape(N, 3)
+        labels = torch.arange(N)
+
+        X = ht.array(features, split=split)
+        y = ht.array(labels, split=split)
+
+        rng_state = torch.random.get_rng_state()
+        result = ht.utils.data.create_train_val_split(X, y, p=p, seed=seed)
+        assert torch.equal(torch.random.get_rng_state(), rng_state)
+
+        X_train, X_val, y_train, y_val = result
+        n_train = int(N * p)
+        n_val = N - n_train
+
+        assert X_train.gshape == (n_train, 3)
+        assert X_val.gshape == (n_val, 3)
+        assert y_train.gshape == (n_train,)
+        assert y_val.gshape == (n_val,)
+
+        for output, original in zip(result, (X, X, y, y)):
+            assert output.split == original.split
+            assert output.dtype == original.dtype
+            assert output.device == original.device
+
+        train_X, val_X, train_y, val_y = (ht.resplit(array, None).larray for array in result)
+
+        assert torch.equal(train_X, features[train_y])
+        assert torch.equal(val_X, features[val_y])
+
+        combined = torch.cat((train_y, val_y))
+        assert torch.equal(combined.sort().values, labels)
+
+        orders = ht.MPI_WORLD.handle.allgather((train_y.tolist(), val_y.tolist()))
+        assert all(order == orders[0] for order in orders)
+
+        if seed is not None:
+            repeated = ht.utils.data.create_train_val_split(X, y, p=p, seed=seed)
+            for first, second in zip(result, repeated):
+                assert torch.equal(first.larray, second.larray)
+
     @pytest.mark.parametrize("N", [20])
     @pytest.mark.parametrize("split", [None, 0])
     @pytest.mark.parametrize("shuffle", [False, True])
