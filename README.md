@@ -6,7 +6,6 @@
 
 # Project Status
 
-[![CPU/CUDA/ROCm tests](https://codebase.helmholtz.cloud/helmholtz-analytics/ci/badges/heat/base/pipeline.svg)](https://codebase.helmholtz.cloud/helmholtz-analytics/ci/-/commits/heat/base)
 [![Documentation Status](https://readthedocs.org/projects/heat/badge/?version=latest)](https://heat.readthedocs.io/en/latest/?badge=latest)
 [![coverage](https://codecov.io/gh/helmholtz-analytics/heat/branch/main/graph/badge.svg)](https://codecov.io/gh/helmholtz-analytics/heat)
 [![license: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
@@ -38,9 +37,9 @@ Heat is a distributed tensor framework built on **PyTorch** and **mpi4py**. It p
 
 
 ### Requirements
-* **Python:** >= 3.11
+* **Python:** >= 3.12
 * **MPI:** OpenMPI, MPICH, or Intel MPI
-* **Frameworks:** mpi4py >= 3.1, pytorch >= 2.4
+* **Frameworks:** mpi4py >= 3.1, pytorch >= 2.6
 
 ### Installation
 ```bash
@@ -60,7 +59,7 @@ spack install py-heat
 ### Distributed Example
 Heat handles inter-node communication automatically. Define how your data is partitioned across the cluster using the [`DNDarray.split`](https://heat.readthedocs.io/en/stable/autoapi/heat/core/dndarray/index.html) attribute. Push computations to your GPUs with the [`DNDarray.device`](https://heat.readthedocs.io/en/stable/autoapi/heat/core/dndarray/index.html) attribute. Heat will take care of the rest, ensuring efficient data movement and synchronization across nodes.
 
-Here an example from our [Linear Algebra tutorial](https://github.com/helmholtz-analytics/heat/tree/main/doc/source/tutorials/notebooks/Linear_Algebra.ipynb):
+Here an example from our [Linear Algebra tutorial](https://github.com/helmholtz-analytics/heat/tree/main/doc/source/tutorials/notebooks/Linear_algebra.ipynb):
 
 <details>
 <summary><b>View Distributed Example (mpirun / srun)</b></summary>

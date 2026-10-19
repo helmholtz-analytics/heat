@@ -9,9 +9,6 @@ on:
       - 'tests/**'
       - 'pyproject.toml'
 
-concurrency:
-  group: main-ci
-  cancel-in-progress: true
 
 jobs:
   codebase-test-and-bench-main:
@@ -20,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
         with:
           egress-policy: audit
       - name: Checkout code
@@ -32,27 +29,25 @@ jobs:
           branch: "main"
           sha: ${{ github.sha}}
           trigger_token: ${{ secrets.CX_TRIGGER_TOKEN }}
-      - uses: ./.github/actions/trigger_codebase_benchmarks
-        with:
-          branch: "main"
-          sha: ${{ github.sha}}
-          author: 'heat_team'
-          trigger_token: ${{ secrets.CX_TRIGGER_TOKEN }}
+      # - uses: ./.github/actions/trigger_codebase_benchmarks
+      #   with:
+      #     branch: "main"
+      #     sha: ${{ github.sha}}
+      #     author: 'heat_team'
+      #     trigger_token: ${{ secrets.CX_TRIGGER_TOKEN }}
   gh-matrix-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     strategy:
       fail-fast: false
+      max-parallel: ${{ fromJSON(vars.MATRIX_MAX_PARALLEL) }}
       matrix:
         py-version:
-          - '3.11'
           - '3.12'
           - '3.13'
           - '3.14'
         mpi: [ 'mpich' ]
         pytorch-version:
-          - 'torch==2.4.1 torchvision==0.19.1 torchaudio==2.4.1'
-          - 'torch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1'
           - 'torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0'
           - 'torch==2.7.1 torchvision==0.22.1 torchaudio==2.7.1'
           - 'torch==2.8.0 torchvision==0.23.0 torchaudio==2.8.0'
@@ -61,26 +56,21 @@ jobs:
           - 'torch==2.11.0 torchvision==0.26.0 torchaudio==2.11.0'
           - 'torch==2.12.1 torchvision==0.27.1'
           - 'torch==2.13.0 torchvision==0.28.0'
+          - 'torch==2.14.0 torchvision==0.29.0'
         exclude:
-          - py-version: '3.14'
-            pytorch-version: 'torch==2.4.1 torchvision==0.19.1 torchaudio==2.4.1'
-          - py-version: '3.14'
-            pytorch-version: 'torch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1'
           - py-version: '3.14'
             pytorch-version: 'torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0'
           - py-version: '3.14'
             pytorch-version: 'torch==2.7.1 torchvision==0.22.1 torchaudio==2.7.1'
           - py-version: '3.14'
             pytorch-version: 'torch==2.8.0 torchvision==0.23.0 torchaudio==2.8.0'
-          - py-version: '3.13'
-            pytorch-version: 'torch==2.4.1 torchvision==0.19.1 torchaudio==2.4.1'
-          - py-version: '3.13'
-            pytorch-version: 'torch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1'
+          - py-version: '3.14'
+            pytorch-version: 'torch==2.9.1 torchvision==0.24.1 torchaudio==2.9.1'
 
     name: Python ${{ matrix.py-version }} with ${{ matrix.pytorch-version }}
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
         with:
           egress-policy: audit
       - name: Checkout code
@@ -99,7 +89,7 @@ jobs:
     name: Check REUSE compliance
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
         with:
           egress-policy: audit
 

@@ -7,7 +7,7 @@ import unittest
 
 class SeedEnviroment:
     """
-    Class to be used in a `with` Enviroment.
+    Class to be used in a `with` Environment.
     Changes the torch seed to the given and then resets it to the previous one when exiting.
     """
 
@@ -26,7 +26,6 @@ class SeedEnviroment:
 
 class TestDistbributedData(unittest.TestCase):
     def test_dataset_and_sampler(self) -> bool:
-
         reference = ht.arange(100, dtype=torch.int32).reshape(20, 5)
 
         heat_array = ht.copy(reference).resplit_(0)
@@ -45,6 +44,36 @@ class TestDistbributedData(unittest.TestCase):
 
         self.assertTrue(ht.equal(col_sum, ref_col_sum))
         self.assertFalse(ht.equal(reference, dset.dndarray))
+
+    def test_sampler_correction(self):
+        """Test global all-to-all shuffle with index correction enabled."""
+        reference = ht.arange(100, dtype=torch.int32).reshape(20, 5)
+        heat_array = ht.copy(reference).resplit_(0)
+        dset = DistributedDataset(heat_array)
+
+        # Triggers _alltoall_shuffle with self.correction=True and get_from_rank
+        dsampler = DistributedSampler(dset, shuffle=True, seed=42, correction=True)
+
+        self.assertEqual(dset.dndarray.size, reference.size)
+        self.assertEqual(dset.dndarray.shape, reference.shape)
+        self.assertTrue(dset.dndarray.balanced)
+
+        # All data elements must be preserved
+        ref_col_sum = reference.sum(0)
+        col_sum = dset.dndarray.sum(0)
+        self.assertTrue(ht.equal(col_sum, ref_col_sum))
+        self.assertFalse(ht.equal(reference, dset.dndarray))
+
+        # Reconstruct the expected permutation locally to verify exact permutation ordering
+        torch.manual_seed(42)
+        n_samples = reference.gshape[0]
+        expected_perm = torch.randperm(n_samples, dtype=torch.int64)
+
+        ref_global = ht.resplit(reference, axis=None)
+        expected_global_tensor = ref_global.larray[expected_perm]
+
+        shuffled_global = ht.resplit(dset.dndarray, axis=None)
+        self.assertTrue(torch.equal(shuffled_global.larray, expected_global_tensor))
 
     def test_batches(self) -> bool:
         reference = ht.array(
@@ -90,3 +119,9 @@ class TestDistbributedData(unittest.TestCase):
             DistributedSampler(DistributedDataset(ht.zeros(2, split=0)), shuffle="")
         with self.assertRaises(TypeError):
             DistributedSampler(DistributedDataset(ht.zeros(2, split=0)), shuffle=True, seed="")
+        with self.assertRaises(TypeError):
+            DistributedSampler(DistributedDataset(ht.zeros(2, split=0)), shuffle_type=123)
+        with self.assertRaises(ValueError):
+            DistributedSampler(DistributedDataset(ht.zeros(2, split=0)), shuffle_type="invalid")
+        with self.assertRaises(TypeError):
+            DistributedSampler(DistributedDataset(ht.zeros(2, split=0)), correction="invalid")

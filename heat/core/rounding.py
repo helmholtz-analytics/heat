@@ -65,6 +65,9 @@ DNDarray.abs: Callable[[DNDarray, Optional[DNDarray], Optional[datatype]], DNDar
 )
 DNDarray.abs.__doc__ = abs.__doc__
 
+DNDarray.__abs__ = lambda self: abs(self)
+DNDarray.__abs__.__doc__ = abs.__doc__
+
 
 def absolute(
     x: DNDarray, out: Optional[DNDarray] = None, dtype: Optional[Type[datatype]] = None
