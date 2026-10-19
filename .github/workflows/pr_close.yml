@@ -14,12 +14,12 @@ jobs:
     if: ${{ github.event.pull_request.merged && !github.event.repository.fork }}
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
         with:
           egress-policy: audit
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Create backport pull requests
-        uses: korthout/backport-action@6b65649031ac6d18ffdfd0c0820e9436f3fde22b # v4.6.1
+        uses: korthout/backport-action@8560fb503c275d433c56f05a2f64850093baa9f7 # v4.7.0
         with:
           merge_commits: 'skip'
