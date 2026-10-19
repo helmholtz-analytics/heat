@@ -102,7 +102,6 @@ class TestDatatools:
             torch_data = list(TorchDataloader(torch_dataset, batch_size, shuffle=shuffle, drop_last=drop_last))
 
         for ht_batch, (torch_batch, ) in zip(ht_data, torch_data):
-            print(type(ht_batch), type(torch_batch))
             assert torch.allclose(ht_batch, torch_batch)
 
         dataset = DistributedDataset(features, labels)
