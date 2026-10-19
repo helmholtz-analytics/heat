@@ -3217,7 +3217,7 @@ def take(
     Returns
     -------
     DNDarray
-        The reordered array.
+        The returned array.
     """
     return Itake(a, indices, axis).Wait()
 
