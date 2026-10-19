@@ -3210,7 +3210,7 @@ def take(
     a : DNDarray
         The source array
     indices : torch.Tensor
-        A 1D tensor of length `a.gshape[axis]` defining the new global order.
+        A 1D tensor of length `a.gshape[axis]` with the indices of the values to extract.
     axis : int, optional
         The axis along which to permute. Default is -1.
 
