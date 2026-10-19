@@ -262,55 +262,6 @@ class Dataset(torch_data.Dataset):
             dataset_ishuffle(dataset=self, attrs=[["data", "htdata"]])
 
 
-def create_train_val_split(
-    X: DNDarray, y: DNDarray, p: float = 0.95, seed: int | None = None
-) -> tuple[DNDarray, DNDarray, DNDarray, DNDarray]:
-    """Shuffles the data and then creates the train val split.
-
-    Parameters
-    ----------
-    X : DNDarray
-        Training Data
-    y : DNDarray
-        Training Labels
-    p : float, optional
-        How much the training should contain, by default 0.95
-    seed : int | None, optional
-        Random Seed to be used, by default None
-
-    Returns
-    -------
-    tuple[DNDarray, DNDarray, DNDarray, DNDarray]
-        returns tuple of (train_arr, train_labels_arr, val_arr, val_labels_arr)
-    """
-    if seed is None:
-        seed = random.randint(-0x8000_0000_0000_0000, 0xFFFF_FFFF_FFFF_FFFF)
-
-    if X.gshape[0] != y.gshape[0]:
-        raise ValueError(
-            f"Both X and y must have same amount of rows. {X.gshape[0]=} != {y.gshape[0]=}"
-        )
-    if X.split not in [None, 0] or y.split not in [None, 0]:
-        raise ValueError(f"Split of X and y must both be either None or 0, {X.split=}, {y.split=}")
-
-    train_rows = int(X.lshape[0] * p)
-    val_rows = X.lshape[0] - train_rows
-
-    assert train_rows + val_rows == X.gshape[0]  # sanity check
-
-    perm = torch.randperm(X.lshape[0])
-
-    train_idx = perm[:train_rows]
-    val_idx = perm[-val_rows:]
-
-    train_arr = take(X, train_idx, axis=0)
-    train_labels_arr = take(y, train_idx, axis=0)
-    val_arr = take(X, val_idx, axis=0)
-    val_labels_arr = take(y, val_idx, axis=0)
-
-    return train_arr, train_labels_arr, val_arr, val_labels_arr
-
-
 def dataset_shuffle(dataset: Union[Dataset, torch_data.Dataset], attrs: List[list]):
     """
     Shuffle the given attributes of a dataset across multiple processes. This will send half of the data to rank + 1.
@@ -442,6 +393,84 @@ def dataset_irecv(dataset: Union[Dataset, torch_data.Dataset]):
             # shuffle all of the data around
             shuffled = getattr(dataset, rcv[0][0])[prm]
             setattr(dataset, rcv[0][0], shuffled[dataset._cut_slice])
+
+
+def create_train_val_split(
+    *data: DNDarray, p: float = 0.95, seed: int | None = None, comm = None
+) -> tuple[DNDarray, ...]:
+    """Shuffle aligned arrays and split each into training and validation sets.
+
+    Parameters
+    ----------
+    *data : DNDarray
+        One or more arrays with at least one dimension, matching global lengths
+        along axis 0, and the same split axis, which must be None or 0. The same
+        permutation is applied to every array to preserve alignment.
+    p : float, optional
+        Fraction of rows assigned to training, in the interval [0, 1]. Default
+        is 0.95. For N input rows, the training set contains ``int(N * p)`` rows
+        and the validation set contains the remaining rows. Either set may be empty.
+    seed : int or None, optional
+        Seed for the local PyTorch generator. Equal seeds produce equal permutations
+        without modifying the global PyTorch random state. If None, a random seed
+        from rank 0 is broadcast using ``comm``. Default is None.
+    comm : MPICommunication or None, optional
+        Communicator used to broadcast the seed when ``seed`` is None. Defaults to
+        the globally configured communicator. For arrays on a custom communicator,
+        pass their communicator explicitly. Ignored when ``seed`` is provided.
+
+    Returns
+    -------
+    tuple of DNDarray
+        Training and validation arrays for each input, in input order:
+        ``(data0_train, data0_val, data1_train, data1_val, ...)``. Each output
+        preserves the corresponding input's dtype, device, and split axis.
+
+    Raises
+    ------
+    TypeError
+        If an input is not a DNDarray, or ``comm`` is invalid when ``seed`` is None.
+    ValueError
+        If no arrays are given, an input has no dimensions, the global row counts
+        or split axes differ, the split axis is neither None nor 0, or ``p`` is
+        outside [0, 1].
+
+    Notes
+    -----
+    All processes holding distributed parts of the arrays must call this function
+    with matching parameters. Explicit seeds must be equal across these processes.
+    When ``seed`` is None, all processes in ``comm`` must participate in the call,
+    including when the input arrays are unsplit.
+    """
+    _sanitize_data_input(data)
+    if data[0].split not in (None, 0):
+        raise ValueError("DNDarrays must be distributed across `None` or `0`.")
+
+    if not 0 <= p <= 1:
+        raise ValueError(f"{p=} must be within [0, 1]")
+
+    if seed is None:
+        comm = sanitize_comm(comm)
+        seed = random.randint(-0x8000_0000_0000_0000, 0xFFFF_FFFF_FFFF_FFFF)
+        seed = comm.bcast(seed, root=0)
+
+    train_rows = int(data[0].gshape[0] * p)
+    val_rows = data[0].gshape[0] - train_rows
+
+    assert train_rows + val_rows == data[0].gshape[0]  # sanity check
+
+    generator = None if seed is None else torch.Generator().manual_seed(seed)
+
+    perm = torch.randperm(data[0].gshape[0], generator=generator)
+
+    train_idx = perm[:train_rows]
+    val_idx = perm[train_rows:]
+
+    return tuple(
+        part
+        for arr in data
+        for part in (take(arr, train_idx, axis=0), take(arr, val_idx, axis=0))
+    )
 
 
 def _sanitize_data_input(data: DNDarray | tuple[DNDarray, ...]) -> tuple[DNDarray, ...]:
@@ -814,7 +843,17 @@ class DistributedDataLoader[T]:
 
     @property
     def seed(self) -> int:
+        """
+        Returns the base seed used. Independent of the epoch counter.
+        """
         return self._seed
+
+    @property
+    def epoch(self) -> int:
+        """
+        Returns the epoch counter.
+        """
+        return self._epoch
 
     @seed.setter
     def seed(self, value: int) -> None:
