@@ -396,7 +396,7 @@ def dataset_irecv(dataset: Union[Dataset, torch_data.Dataset]):
 
 
 def create_train_val_split(
-    *data: DNDarray, p: float = 0.95, seed: int | None = None, comm = None
+    *data: DNDarray, p: float = 0.95, seed: int | None = None, comm=None
 ) -> tuple[DNDarray, ...]:
     """Shuffle aligned arrays and split each into training and validation sets.
 
@@ -467,9 +467,7 @@ def create_train_val_split(
     val_idx = perm[train_rows:]
 
     return tuple(
-        part
-        for arr in data
-        for part in (take(arr, train_idx, axis=0), take(arr, val_idx, axis=0))
+        part for arr in data for part in (take(arr, train_idx, axis=0), take(arr, val_idx, axis=0))
     )
 
 
