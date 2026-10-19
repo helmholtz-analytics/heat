@@ -3208,7 +3208,7 @@ def take(
     Parameters
     ----------
     a : DNDarray
-        The array whose slices along `axis` are to be rearranged.
+        The source array
     indices : torch.Tensor
         A 1D tensor of length `a.gshape[axis]` defining the new global order.
     axis : int, optional
