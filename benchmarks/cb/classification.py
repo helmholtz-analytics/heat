@@ -19,16 +19,16 @@ def lof_distributed_indexing(data, n_neighbors):
 
 def run_classification_benchmarks():
     # Setup distributed dataset partitioned along samples (axis 0)
-    n_samples = 4000
+    n_samples = 20000
     n_features = 32
     n_neighbors = 20
 
     data = ht.random.random((n_samples, n_features), split=0, dtype=ht.float64)
 
-    # Benchmark runtime-efficient path (replicated A)
-    lof_replicated_indexing(data, n_neighbors)
-
     # Benchmark memory-efficient path (MPI Alltoallv advanced indexing)
     lof_distributed_indexing(data, n_neighbors)
+
+    # Benchmark runtime-efficient path (replicated A)
+    lof_replicated_indexing(data, n_neighbors)
 
     del data
