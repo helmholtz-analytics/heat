@@ -42,8 +42,13 @@ def supports_zarr() -> bool:
     """
     Returns ``True`` if zarr is installed, ``False`` otherwise.
 
-    .. deprecated::
+    .. deprecated:: 1.10.0
         Use :func:`heat.io.supports` instead, e.g. ``ht.io.supports("zarr")``.
+
+    Returns
+    -------
+    bool
+        Whether zarr is installed.
     """
     warnings.warn(
         "supports_zarr() is deprecated and will be removed in a future release; "
@@ -67,14 +72,20 @@ if _AVAILABLE:
         **kwargs,
     ) -> DNDarray:
         """
-        Loads data from a zarr store into DNDarray. `path` can either point to a single zarr array or a zarr group. In the latter case, `variable` must be provided to specify which array in the group to load. If `variable` contains a wildcard pattern (e.g. `RECEIVER_*/DATA`), all matching arrays will be loaded and concatenated along the specified `split` axis.
+        Loads data from a Zarr store into a DNDarray.
+
+        ``path`` can either point to a single Zarr array or a Zarr group. In the latter
+        case, ``variable`` must be provided to specify which array in the group to load. If
+        ``variable`` contains a wildcard pattern (e.g. ``RECEIVER_*/DATA``), all matching
+        arrays are loaded and concatenated along the ``split`` axis, in sorted order of their
+        paths. Each process then reads only its own arrays.
 
         Parameters
         ----------
         path : str
-            Path to the directory in which a .zarr-file is located.
+            Path to the Zarr store, ending in ``.zarr``.
         variable : str, optional
-            If the zarr store is a group, the variable (or path to variable) to load from the group.
+            If the Zarr store is a group, the variable (or path to variable) to load from the group.
             Can contain a wildcard pattern to load and concatenate arrays stored in slices in different directories.
         split : int, optional
             Along which axis the resulting array should be split. Defaults to ``None``,
@@ -83,18 +94,59 @@ if _AVAILABLE:
         device : str, optional
             The device id on which to place the data, defaults to globally set default device.
         comm : Communication, optional
-            The communication to use for the data distribution, default is 'heat.MPI_WORLD'
-        slices: Union[None, slice, Iterable[Union[slice, None]]]
-            Load only a slice of the array instead of everything
-        **kwargs : Any
-            extra Arguments to pass to zarr.open
+            The communication to use for the data distribution, defaults to global default.
+        slices : slice or Iterable[slice or None], optional
+            Load only the specified slices of the array, one per leading axis, instead of
+            everything. ``None`` selects a whole axis.
+        **kwargs : dict, optional
+            Additional arguments passed to :func:`zarr.open_array`. Not used when loading
+            with a wildcard ``variable``.
+
+        Returns
+        -------
+        DNDarray
+            The data read from the store.
 
         Raises
         ------
+        TypeError
+            If ``path`` is not a string, or ``slices`` is neither a slice nor an iterable of
+            slices.
         ValueError
-            If a wildcard is passed as a `variable` without defining a split axis.
+            If ``path`` does not have a ``.zarr`` extension, ``slices`` has more entries than
+            the array has dimensions, or a wildcard ``variable`` is given without a split axis.
+        FileNotFoundError
+            If a wildcard ``variable`` matches no arrays.
         NotImplementedError
-            If the `slices` argument is used in conjuction with a wildcard `variable` argument.
+            If the ``slices`` argument is used in conjunction with a wildcard ``variable`` argument.
+
+        See Also
+        --------
+        :func:`save_zarr` : Saves data to a Zarr store.
+
+        Examples
+        --------
+        >>> x = ht.arange(20).reshape((10, 2))
+        >>> ht.save_zarr(x, "data.zarr")
+        >>> a = ht.load_zarr("data.zarr", split=0)
+        >>> a.lshape
+        [0/1] (5, 2)
+        [1/1] (5, 2)
+        >>> b = ht.load_zarr("data.zarr", split=0, slices=slice(2, 8))
+        >>> b.shape
+        [0/1] (6, 2)
+        [1/1] (6, 2)
+        >>> b.lshape
+        [0/1] (3, 2)
+        [1/1] (3, 2)
+
+        Loading and concatenating the arrays ``RECEIVER_1/DATA``, ``RECEIVER_2/DATA``, ... of
+        a group, each of shape ``(1, 5)``:
+
+        >>> ht.load_zarr("my_data.zarr", variable="RECEIVER_*/DATA", split=0)
+        DNDarray([[ 1.0000,  2.7183,  7.3891, 20.0855, 54.5981],
+                  [ 1.0000,  2.7183,  7.3891, 20.0855, 54.5981],
+                  [ 1.0000,  2.7183,  7.3891, 20.0855, 54.5981]], dtype=ht.float32, device=cpu:0, split=0)
         """
         zarr = require_dependency("zarr")
         # sanitize inputs
@@ -280,58 +332,75 @@ if _AVAILABLE:
 
     def save_zarr(dndarray: DNDarray, path: str, overwrite: bool = False, **kwargs) -> None:
         """
-        Writes the DNDArray into the zarr-format.
+        Saves a DNDarray to a Zarr store.
+
+        All processes write their part of the data in parallel; see the Notes for how the
+        chunks of the store are chosen.
 
         Parameters
         ----------
         dndarray : DNDarray
-            DNDArray to save.
+            DNDarray to save.
         path : str
-            path to save to.
-        overwrite : bool
-            Wether to overwrite an existing array.
-        **kwargs : Any
-            extra Arguments to pass to zarr.open and zarr.create
+            Path to the Zarr store to be written, ending in ``.zarr``.
+        overwrite : bool, optional
+            Whether to overwrite an existing array.
+        **kwargs : dict, optional
+            Additional arguments passed to :func:`zarr.create` and :func:`zarr.open`.
 
         Raises
         ------
         TypeError
-            - If given parameters do not match or have conflicting information.
-            - If it already exists and no overwrite is specified.
+            If ``path`` is not a string.
+        ValueError
+            If ``path`` does not have a ``.zarr`` extension.
+        RuntimeError
+            If ``path`` already exists and ``overwrite`` is False.
+
+        See Also
+        --------
+        :func:`load_zarr` : Loads data from a Zarr store.
 
         Notes
         -----
-        Zarr functions by chunking the data, were a chunk is a file inside the store.
-        The problem ist that only one process writes to it at a time. Therefore when two
+        Zarr functions by chunking the data, where a chunk is a file inside the store.
+        The problem is that only one process writes to it at a time. Therefore when two
         processes try to write to the same chunk one will fail, unless the other finishes before
         the other starts.
 
         To alleviate it we can define the chunk sizes ourselves. To do this we just get the lowest size of
         the distributed axis, ex: split=0 with a (4,4) shape with a worldsize of 4 you would chunk it with (1,4).
 
-        A problem arises when a process gets a bigger chunk and interferes with another process. Example:
-        N_PROCS = 4
-        SHAPE = (9,10)
-        SPLIT = 0
-        CHUNKS => (2,10)
+        A problem arises when a process gets a bigger chunk and interferes with another process. Example::
+
+            N_PROCS = 4
+            SHAPE = (9,10)
+            SPLIT = 0
+            CHUNKS => (2,10)
 
         In this problem one process will have a write region of 3 rows and therefore be able to either not write
         or overwrite what another process does therefore destroying the parallel write as it would at the end load
         2 chunks to write 3 rows.
-        To counter act this we just set the chunk size in the split axis to 1. This allows for no overwrites but can
+        To counteract this we just set the chunk size in the split axis to 1. This allows for no overwrites but can
         cripple write speeds and or even speed it up.
 
-        Another Problem with this approach is that we tell zarr have full chunks, i.e if array has shape (10_000, 10_000)
-        and we split it at axis=0 with 4 processes we have chunks of (2_500, 10_000). Zarr will load the whole chunk into
-        memory making it memory intensive and probably inefficient. Better approach would be to have a smaller chunk size
-        for example half of it but that cannot be determined at all times so the current approach is a compromise.
+        Another problem with this approach is that we tell zarr to have full chunks, i.e. if the array has shape
+        (10_000, 10_000) and we split it at axis=0 with 4 processes we have chunks of (2_500, 10_000). Zarr will
+        load the whole chunk into memory making it memory intensive and probably inefficient. A better approach
+        would be to have a smaller chunk size, for example half of it, but that cannot be determined at all times
+        so the current approach is a compromise. Chunks are, however, halved along the split axis while they
+        exceed the 2 GiB limit of the Zarr codecs.
 
-        Another Problem is the split=None scenario. In this case every processs has the same data, so only one needs to write
-        so we ignore chunking and let zarr decide the chunk size and let only one process, aka rank=0 write.
+        Another problem is the split=None scenario. In this case every process has the same data, so only one needs
+        to write, so we ignore chunking, let zarr decide the chunk size and let only one process, i.e. rank 0, write.
 
-        To avoid errors when using NumPy arrays as chunk shape, the chunks argument is only passed to zarr.create if it is
-        not None. This prevents issues with ambiguous truth values or attribute errors on None.
-
+        Examples
+        --------
+        >>> x = ht.arange(20, split=0).reshape((10, 2), new_split=0)
+        >>> ht.save_zarr(x, "data.zarr", overwrite=True)
+        >>> ht.load_zarr("data.zarr", split=0).lshape
+        [0/1] (5, 2)
+        [1/1] (5, 2)
         """
         zarr = require_dependency("zarr")
         if not isinstance(path, str):
@@ -385,6 +454,7 @@ if _AVAILABLE:
                 **kwargs,
             }
 
+            # let zarr choose the chunks itself when none were computed above
             if chunks is not None:
                 zarr_create_kwargs["chunks"] = chunks.tolist()
 

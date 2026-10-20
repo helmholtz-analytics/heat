@@ -45,37 +45,51 @@ def load_csv(
     comm: Optional[Communication] = None,
 ) -> DNDarray:
     """
-    Loads data from a CSV file. The data will be distributed along the axis 0.
+    Loads data from a CSV file.
+
+    The data may be distributed among multiple processing nodes via the ``split`` flag.
+    With ``split=0`` every process reads only its own portion of the file.
 
     Parameters
     ----------
     path : str
         Path to the CSV file to be read.
     header_lines : int, optional
-        The number of columns at the beginning of the file that should not be considered as data.
+        The number of lines at the beginning of the file that should not be considered as data.
     sep : str, optional
         The single ``char`` or ``str`` that separates the values in each row.
     dtype : datatype, optional
         Data type of the resulting array.
     encoding : str, optional
         The type of encoding which will be used to interpret the lines of the csv file as strings.
-    split : int or None : optional
-        Along which axis the resulting array should be split.
+    split : int or None, optional
+        Along which axis the resulting array should be split, one of ``None``, 0 or 1.
         Default is ``None`` which means each node will have the full array.
     device : str, optional
         The device id on which to place the data, defaults to globally set default device.
     comm : Communication, optional
-        The communication to use for the data distribution, defaults to global default
+        The communication to use for the data distribution, defaults to global default.
+
+    Returns
+    -------
+    DNDarray
+        The data read from the file.
 
     Raises
     ------
     TypeError
         If any of the input parameters are not of correct type.
+    ValueError
+        If ``split`` is not one of ``None``, 0 or 1.
+
+    See Also
+    --------
+    :func:`save_csv` : Saves data to a CSV file.
+    :func:`load_csv_from_folder` : Loads multiple .csv files into one DNDarray.
 
     Examples
     --------
-    >>> import heat as ht
-    >>> a = ht.load_csv("data.csv")
+    >>> a = ht.load_csv("heat/datasets/iris.csv", sep=";", split=0)
     >>> a.shape
     [0/3] (150, 4)
     [1/3] (150, 4)
@@ -86,7 +100,7 @@ def load_csv(
     [1/3] (38, 4)
     [2/3] (37, 4)
     [3/3] (37, 4)
-    >>> b = ht.load_csv("data.csv", header_lines=10)
+    >>> b = ht.load_csv("heat/datasets/iris.csv", sep=";", header_lines=10, split=0)
     >>> b.shape
     [0/3] (140, 4)
     [1/3] (140, 4)
@@ -270,29 +284,52 @@ def save_csv(
     truncate: bool = True,
 ):
     """
-    Saves data to CSV files. Only 2D data, all split axes.
+    Saves data to a CSV file.
+
+    Only 1D and 2D data is supported, with any split axis. All processes write their part
+    of the data to the file in parallel through MPI-IO.
 
     Parameters
     ----------
     data : DNDarray
         The DNDarray to be saved to CSV.
     path : str
-        The path as a string.
-    header_lines : Iterable[str]
-        Optional iterable of str to prepend at the beginning of the file. No
-        pound sign or any other comment marker will be inserted.
-    sep : str
+        Path to the CSV file to be written.
+    header_lines : Iterable[str], optional
+        Lines to prepend at the beginning of the file. No pound sign or any other comment
+        marker will be inserted.
+    sep : str, optional
         The separator character used in this CSV.
-    decimals: int
-        Number of digits after decimal point.
-    encoding : str
-        The encoding to be used in this CSV.
-    comm : Optional[Communication]
-        An optional object of type Communication to be used.
-    truncate : bool
+    decimals : int, optional
+        Number of digits after the decimal point. Ignored for integer data. The default,
+        -1, writes 7 digits for ``float32`` and 15 digits for ``float64``.
+    encoding : str, optional
+        The encoding used to write the header lines.
+    truncate : bool, optional
         Whether to truncate an existing file before writing, i.e. fully overwrite it.
         The sane default is True. Setting it to False will not shorten files if
         needed and thus may leave garbage at the end of existing files.
+
+    Raises
+    ------
+    TypeError
+        If any of the input parameters are not of correct type.
+    ValueError
+        If the split axis of ``data`` is not one of ``None``, 0 or 1.
+
+    See Also
+    --------
+    :func:`load_csv` : Loads data from a CSV file.
+
+    Examples
+    --------
+    >>> x = ht.arange(6, split=0).reshape((3, 2), new_split=0)
+    >>> ht.save_csv(x, "data.csv", header_lines=["a,b"])
+    >>> print(open("data.csv").read(), end="")
+    a,b
+    0,1
+    2,3
+    4,5
     """
     if not isinstance(path, str):
         raise TypeError(f"path must be str, not {type(path)}")
@@ -400,8 +437,13 @@ def supports_pandas() -> bool:
     """
     Returns ``True`` if pandas is installed, ``False`` otherwise.
 
-    .. deprecated::
+    .. deprecated:: 1.10.0
         Use :func:`heat.io.supports` instead, e.g. ``ht.io.supports("pandas")``.
+
+    Returns
+    -------
+    bool
+        Whether pandas is installed.
     """
     warnings.warn(
         "supports_pandas() is deprecated and will be removed in a future release; "
@@ -424,22 +466,62 @@ if _AVAILABLE:
         func: Optional[callable] = None,
     ) -> DNDarray:
         """
-        Loads multiple .csv files into one DNDarray which will be returned. The data will be concatenated along the split axis provided as input.
+        Loads all ``.csv`` files in a directory into one DNDarray.
+
+        The files are sorted by name and distributed over the processes, so every process
+        reads only its own files with :func:`pandas.read_csv`. The arrays are then
+        concatenated along ``split``, which is also the split axis of the result. Requires
+        pandas.
 
         Parameters
         ----------
         path : str
-            Path to the directory in which .csv-files are located.
+            Path to the directory in which the ``.csv`` files are located.
         dtype : datatype, optional
-            Data type of the resulting array.
-        split : int
-            Along which axis the loaded arrays should be concatenated.
+            Data type of the resulting array. Default is ``ht.int32``.
+        split : int, optional
+            Axis along which the loaded arrays are concatenated and distributed. Default is 0.
         device : str, optional
             The device id on which to place the data, defaults to globally set default device.
         comm : Communication, optional
-            The communication to use for the data distribution, default is 'heat.MPI_WORLD'
-        func : pandas.DataFrame, optional
-            The function the files have to go through before being added to the array.
+            The communication to use for the data distribution, defaults to global default.
+        func : callable, optional
+            Applied to the :class:`pandas.DataFrame` read from each file before it is added
+            to the array; must return a ``DataFrame``.
+
+        Returns
+        -------
+        DNDarray
+            The concatenated data, split along ``split``.
+
+        Raises
+        ------
+        TypeError
+            If ``func`` is not callable, ``path`` is not a string or ``split`` is not an
+            integer.
+        ValueError
+            If ``path`` contains no ``.csv`` files.
+        RuntimeError
+            If there are more processes than files.
+
+        See Also
+        --------
+        :func:`load_csv` : Loads data from a single CSV file.
+        :func:`load_npy_from_path` : Loads multiple .npy files into one DNDarray.
+
+        Examples
+        --------
+        Assuming ``csv_dir`` holds four files, each with a header line ``a,b`` and three
+        rows of data:
+
+        >>> a = ht.load_csv_from_folder("csv_dir", split=0)
+        >>> a.shape
+        [0/1] (12, 2)
+        [1/1] (12, 2)
+        >>> b = ht.load_csv_from_folder("csv_dir", split=0, func=lambda df: df[["b"]])
+        >>> b.shape
+        [0/1] (12, 1)
+        [1/1] (12, 1)
         """
         if (func is not None) and not callable(func):
             raise TypeError("func needs to be a callable function or None")

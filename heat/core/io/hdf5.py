@@ -34,8 +34,13 @@ def supports_hdf5() -> bool:
     """
     Returns ``True`` if Heat supports reading from and writing to HDF5 files, ``False`` otherwise.
 
-    .. deprecated::
+    .. deprecated:: 1.10.0
         Use :func:`heat.io.supports` instead, e.g. ``ht.io.supports("hdf5")``.
+
+    Returns
+    -------
+    bool
+        Whether h5py is installed.
     """
     warnings.warn(
         "supports_hdf5() is deprecated and will be removed in a future release; "
@@ -71,7 +76,9 @@ if _AVAILABLE:
         comm: Optional[Communication] = None,
     ) -> DNDarray:
         """
-        Loads data from an HDF5 file. The data may be distributed among multiple processing nodes via the split flag.
+        Loads data from an HDF5 file.
+
+        The data may be distributed among multiple processing nodes via the ``split`` flag.
 
         Parameters
         ----------
@@ -81,91 +88,104 @@ if _AVAILABLE:
             Name of the dataset to be read.
         dtype : datatype, optional
             Data type of the resulting array, defaults to the loaded datasets type.
-        slices : tuple of slice objects, optional
-            Load only the specified slices of the dataset.
+        slices : tuple of slice, optional
+            Load only the specified slices of the dataset, one per leading axis. Only slices
+            with a step of 1 are supported.
         split : int or None, optional
             The axis along which the data is distributed among the processing cores.
         device : str, optional
             The device id on which to place the data, defaults to globally set default device.
         comm : Communication, optional
-            The communication to use for the data distribution.
+            The communication to use for the data distribution, defaults to global default.
+
+        Returns
+        -------
+        DNDarray
+            The data read from the dataset.
 
         Raises
         ------
         TypeError
-            If any of the input parameters are not of correct type
+            If any of the input parameters are not of correct type.
+        ValueError
+            If ``path`` does not have an HDF5 extension, or a slice has a step other than 1.
+
+        See Also
+        --------
+        :func:`save_hdf5` : Saves data to an HDF5 file.
+        :func:`load_multiple_hdf5` : Loads multiple HDF5 files into one DNDarray.
 
         Examples
         --------
         >>> a = ht.load_hdf5("data.h5", dataset="DATA")
         >>> a.shape
-        [0/2] (5,)
-        [1/2] (5,)
+        [0/1] (5,)
+        [1/1] (5,)
         >>> a.lshape
-        [0/2] (5,)
-        [1/2] (5,)
+        [0/1] (5,)
+        [1/1] (5,)
         >>> b = ht.load_hdf5("data.h5", dataset="DATA", split=0)
         >>> b.shape
-        [0/2] (5,)
-        [1/2] (5,)
+        [0/1] (5,)
+        [1/1] (5,)
         >>> b.lshape
-        [0/2] (3,)
-        [1/2] (2,)
+        [0/1] (3,)
+        [1/1] (2,)
 
         Using the slicing argument:
+
         >>> not_sliced = ht.load_hdf5("other_data.h5", dataset="DATA", split=0)
         >>> not_sliced.shape
-        [0/2] (10,2)
-        [1/2] (10,2)
+        [0/1] (10, 2)
+        [1/1] (10, 2)
         >>> not_sliced.lshape
-        [0/2] (5,2)
-        [1/2] (5,2)
+        [0/1] (5, 2)
+        [1/1] (5, 2)
         >>> not_sliced.larray
-        [0/2] [[ 0,  1],
-               [ 2,  3],
-               [ 4,  5],
-               [ 6,  7],
-               [ 8,  9]]
-        [1/2] [[10, 11],
-               [12, 13],
-               [14, 15],
-               [16, 17],
-               [18, 19]]
+        [0/1] tensor([[0, 1],
+        [0/1]         [2, 3],
+        [0/1]         [4, 5],
+        [0/1]         [6, 7],
+        [0/1]         [8, 9]])
+        [1/1] tensor([[10, 11],
+        [1/1]         [12, 13],
+        [1/1]         [14, 15],
+        [1/1]         [16, 17],
+        [1/1]         [18, 19]])
 
         >>> sliced = ht.load_hdf5("other_data.h5", dataset="DATA", split=0, slices=[slice(8)])
         >>> sliced.shape
-        [0/2] (8,2)
-        [1/2] (8,2)
+        [0/1] (8, 2)
+        [1/1] (8, 2)
         >>> sliced.lshape
-        [0/2] (4,2)
-        [1/2] (4,2)
+        [0/1] (4, 2)
+        [1/1] (4, 2)
         >>> sliced.larray
-        [0/2] [[ 0,  1],
-               [ 2,  3],
-               [ 4,  5],
-               [ 6,  7]]
-        [1/2] [[ 8,  9],
-               [10, 11],
-               [12, 13],
-               [14, 15],
-               [16, 17]]
+        [0/1] tensor([[0, 1],
+        [0/1]         [2, 3],
+        [0/1]         [4, 5],
+        [0/1]         [6, 7]])
+        [1/1] tensor([[ 8,  9],
+        [1/1]         [10, 11],
+        [1/1]         [12, 13],
+        [1/1]         [14, 15]])
 
         >>> sliced = ht.load_hdf5(
         ...     "other_data.h5", dataset="DATA", split=0, slices=[slice(2, 8), slice(0, 1)]
         ... )
         >>> sliced.shape
-        [0/2] (6,1)
-        [1/2] (6,1)
+        [0/1] (6, 1)
+        [1/1] (6, 1)
         >>> sliced.lshape
-        [0/2] (3,1)
-        [1/2] (3,1)
+        [0/1] (3, 1)
+        [1/1] (3, 1)
         >>> sliced.larray
-        [0/2] [[ 4, ],
-               [ 6, ],
-               [ 8, ]]
-        [1/2] [[10, ],
-               [12, ],
-               [14, ]]
+        [0/1] tensor([[4],
+        [0/1]         [6],
+        [0/1]         [8]])
+        [1/1] tensor([[10],
+        [1/1]         [12],
+        [1/1]         [14]])
         """
         h5py = require_dependency("h5py")
         if not isinstance(path, str):
@@ -247,7 +267,10 @@ if _AVAILABLE:
         **kwargs: Dict[str, object],
     ):
         """
-        Saves ``data`` to an HDF5 file. Attempts to utilize parallel I/O if possible.
+        Saves ``data`` to an HDF5 file.
+
+        Uses parallel I/O if h5py was built with MPI support, otherwise the processes write
+        one after another.
 
         Parameters
         ----------
@@ -258,18 +281,22 @@ if _AVAILABLE:
         dataset : str
             Name of the dataset the data is saved to.
         mode : str, optional
-            File access mode, one of ``'w', 'a', 'r+'``
+            File access mode, one of ``'w'``, ``'a'``, ``'r+'``.
         dtype : datatype, optional
-            Data type of the saved data
-        kwargs : dict, optional
-            Additional arguments passed to the created dataset.
+            Data type of the saved data, defaults to the data type of ``data``.
+        **kwargs : dict, optional
+            Additional arguments passed to :meth:`h5py.Group.create_dataset`.
 
         Raises
         ------
         TypeError
             If any of the input parameters are not of correct type.
         ValueError
-            If the access mode is not understood.
+            If ``path`` does not have an HDF5 extension, or the access mode is not understood.
+
+        See Also
+        --------
+        :func:`load_hdf5` : Loads data from an HDF5 file.
 
         Examples
         --------
@@ -329,20 +356,56 @@ if _AVAILABLE:
         dtype=None,
         sorting_func: Callable[[list[Path]], list[Path]] | None = None,
     ) -> DNDarray:
-        """Loads all .hdf5 or .h5 files inside the given folder into a single DNDarray that is split along axis 0; the arrays
-        from the different files are concatenated along axis 0.
-        The files are sorted by the sorting_func, if given, or by the default sorted function.
+        """
+        Loads all ``.h5`` and ``.hdf5`` files in a directory into one DNDarray.
+
+        The arrays from the different files are concatenated along axis 0, which is also the
+        split axis of the result, so all files must agree on every other axis. The files are
+        concatenated in the order given by ``sorting_func``, or in sorted order by default.
+        There is no ``comm`` or ``device`` argument; the result uses the global defaults.
 
         Parameters
         ----------
-        folder : str | Path
-            folder containing all .h5 or .hdf5 files
+        folder : str or Path
+            Directory containing the ``.h5`` or ``.hdf5`` files.
         dataset : str
-            dataset to load
-        dtype : _type_, optional
-            dtype to create array with, by default None
-        sorting_func : Callable[[list[Path]], list[Path]] | None, optional
-            how to sort the files, by default None, ie the sorted function
+            Name of the dataset to load from each file.
+        dtype : datatype, optional
+            Data type of the resulting array. By default, the largest data type found across
+            all files is used.
+        sorting_func : Callable[[list[Path]], list[Path]], optional
+            Orders the files before they are concatenated. Defaults to :func:`sorted`.
+
+        Returns
+        -------
+        DNDarray
+            The concatenated data, split along axis 0.
+
+        Raises
+        ------
+        TypeError
+            If any of the input parameters are not of correct type.
+        ValueError
+            If ``folder`` is not a directory or holds no HDF5 files, or if the datasets
+            differ in their number of dimensions or in the size of any axis other than 0.
+
+        See Also
+        --------
+        :func:`load_hdf5` : Loads data from a single HDF5 file.
+        :func:`load_npy_from_path` : Loads multiple .npy files into one DNDarray.
+
+        Examples
+        --------
+        Assuming ``h5_dir`` holds four files, each with a dataset ``"DATA"`` of shape
+        ``(3, 2)``:
+
+        >>> a = ht.load_multiple_hdf5("h5_dir", dataset="DATA", dtype=ht.float32)
+        >>> a.lshape
+        [0/1] (6, 2)
+        [1/1] (6, 2)
+        >>> a.split
+        [0/1] 0
+        [1/1] 0
         """
         h5py = require_dependency("h5py")
         if not isinstance(folder, (str, Path)):

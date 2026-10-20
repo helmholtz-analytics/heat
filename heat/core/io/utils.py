@@ -28,7 +28,7 @@ def size_from_slice(size: int, s: slice) -> Tuple[int, int]:
 
     Parameters
     ----------
-    size: int
+    size : int
         The size of the array the slice object is applied to.
     s : slice
         The slice object to determine the size of.
@@ -61,6 +61,11 @@ def compose_slices(outer: slice, inner: slice, length: int) -> slice:
         The slice applied second, relative to the result of ``outer``.
     length : int
         Length of the axis ``outer`` applies to.
+
+    Returns
+    -------
+    slice
+        The composed slice.
     """
     start, stop, step = outer.indices(length)
     inner_start, inner_stop, inner_step = inner.indices(len(range(start, stop, step)))
@@ -89,6 +94,11 @@ def sanitize_path(path: Any, argname: str = "path") -> str:
     argname : str, optional
         Name of the argument to use in the error message.
 
+    Returns
+    -------
+    str
+        The validated path.
+
     Raises
     ------
     TypeError
@@ -107,6 +117,11 @@ def extension_of(path: str) -> str:
     ----------
     path : str
         The path to inspect.
+
+    Returns
+    -------
+    str
+        The lower-case extension including the leading dot, or ``""`` if there is none.
     """
     clean_path = os.path.normpath(path)
     return os.path.splitext(clean_path)[-1].strip().lower()
@@ -124,6 +139,11 @@ def sanitize_extension(path: str, extensions: Iterable[str], format_name: str) -
         The accepted extensions, including the leading dot.
     format_name : str
         Human-readable name of the file format, used in the error message.
+
+    Returns
+    -------
+    str
+        The validated path.
 
     Raises
     ------
@@ -143,6 +163,11 @@ def sanitize_write_mode(mode: str) -> str:
     ----------
     mode : str
         File access mode, one of ``'w'``, ``'a'``, ``'r+'``.
+
+    Returns
+    -------
+    str
+        The validated mode.
 
     Raises
     ------
@@ -166,6 +191,13 @@ def resolve_device_comm(
         The device id on which to place the data, defaults to the globally set default.
     comm : Communication, optional
         The communication to use, defaults to the global default.
+
+    Returns
+    -------
+    Device
+        The sanitized device.
+    Communication
+        The sanitized communicator.
     """
     return devices.sanitize_device(device), sanitize_comm(comm)
 
@@ -181,6 +213,13 @@ def local_write_slices(data: DNDarray) -> Tuple[bool, Tuple[slice, ...]]:
     ----------
     data : DNDarray
         The array about to be written.
+
+    Returns
+    -------
+    bool
+        Whether ``data`` is split.
+    Tuple[slice, ...]
+        The region of ``data`` assigned to this process.
     """
     is_split = data.split is not None
     _, _, slices = data.comm.chunk(data.gshape, data.split if is_split else 0)
@@ -197,6 +236,11 @@ def local_write_payload(data: DNDarray, slices: Tuple[slice, ...]) -> torch.Tens
         The array about to be written.
     slices : Tuple[slice, ...]
         The region assigned to this process, as returned by :func:`local_write_slices`.
+
+    Returns
+    -------
+    torch.Tensor
+        The data this process is to write.
     """
     is_split = data.split is not None
     return data.larray.cpu() if is_split else data.larray[slices].cpu()
@@ -305,6 +349,13 @@ def split_file_indices(n_files: int, rank: int, size: int) -> Tuple[int, int]:
         Rank of the calling process.
     size : int
         Number of processes to distribute over.
+
+    Returns
+    -------
+    int
+        Index of this process' first file.
+    int
+        Number of files this process is to read.
     """
     remainder = n_files % size
     if rank < remainder:
@@ -347,7 +398,12 @@ def load_from_folder(
     device : str, optional
         The device id on which to place the data, defaults to the globally set default.
     comm : Communication, optional
-        The communicator to pass to the DNDTensor factory method.
+        The communication to use for the data distribution, defaults to the global default.
+
+    Returns
+    -------
+    DNDarray
+        The concatenated data, split along ``split``.
 
     Raises
     ------

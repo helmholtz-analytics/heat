@@ -35,8 +35,13 @@ def supports_netcdf() -> bool:
     """
     Returns ``True`` if Heat supports reading from and writing to netCDF4 files, ``False`` otherwise.
 
-    .. deprecated::
+    .. deprecated:: 1.10.0
         Use :func:`heat.io.supports` instead, e.g. ``ht.io.supports("netcdf")``.
+
+    Returns
+    -------
+    bool
+        Whether netCDF4 is installed.
     """
     warnings.warn(
         "supports_netcdf() is deprecated and will be removed in a future release; "
@@ -71,7 +76,9 @@ if _AVAILABLE:
         comm: Optional[Communication] = None,
     ) -> DNDarray:
         """
-        Loads data from a NetCDF4 file. The data may be distributed among multiple processing nodes via the split flag.
+        Loads data from a NetCDF4 file.
+
+        The data may be distributed among multiple processing nodes via the ``split`` flag.
 
         Parameters
         ----------
@@ -80,35 +87,46 @@ if _AVAILABLE:
         variable : str
             Name of the variable to be read.
         dtype : datatype, optional
-            Data type of the resulting array
+            Data type of the resulting array.
         split : int or None, optional
             The axis along which the data is distributed among the processing cores.
-        comm : Communication, optional
-            The communication to use for the data distribution. Defaults to MPI_COMM_WORLD.
         device : str, optional
             The device id on which to place the data, defaults to globally set default device.
+        comm : Communication, optional
+            The communication to use for the data distribution, defaults to global default.
+
+        Returns
+        -------
+        DNDarray
+            The data read from the variable.
 
         Raises
         ------
         TypeError
             If any of the input parameters are not of correct type.
+        ValueError
+            If ``path`` does not have a netCDF extension.
+
+        See Also
+        --------
+        :func:`save_netcdf` : Saves data to a NetCDF4 file.
 
         Examples
         --------
         >>> a = ht.load_netcdf("data.nc", variable="DATA")
         >>> a.shape
-        [0/2] (5,)
-        [1/2] (5,)
+        [0/1] (5,)
+        [1/1] (5,)
         >>> a.lshape
-        [0/2] (5,)
-        [1/2] (5,)
+        [0/1] (5,)
+        [1/1] (5,)
         >>> b = ht.load_netcdf("data.nc", variable="DATA", split=0)
         >>> b.shape
-        [0/2] (5,)
-        [1/2] (5,)
+        [0/1] (5,)
+        [1/1] (5,)
         >>> b.lshape
-        [0/2] (3,)
-        [1/2] (2,)
+        [0/1] (3,)
+        [1/1] (2,)
         """
         nc = require_dependency("netCDF4")
         _warn_if_serial()
@@ -159,7 +177,10 @@ if _AVAILABLE:
         **kwargs: Dict[str, object],
     ):
         """
-        Saves data to a netCDF4 file. Attempts to utilize parallel I/O if possible.
+        Saves data to a netCDF4 file.
+
+        Uses parallel I/O if netCDF4 was built with parallel support, otherwise the
+        processes write one after another.
 
         Parameters
         ----------
@@ -170,29 +191,36 @@ if _AVAILABLE:
         variable : str
             Name of the variable the data is saved to.
         mode : str, optional
-            File access mode, one of ``'w', 'a', 'r+'``.
-        dimension_names : list or tuple or string
+            File access mode, one of ``'w'``, ``'a'``, ``'r+'``.
+        dimension_names : list or tuple or str, optional
             Specifies the netCDF Dimensions used by the variable. Ignored if Variable already exists.
+            Defaults to ``"<variable>_dim_<axis>"`` for every axis.
         is_unlimited : bool, optional
             If True, every dimension created for this variable (i.e. doesn't already exist) is unlimited. Already
             existing limited dimensions cannot be changed to unlimited and vice versa.
-        file_slices : integer iterable, slice, ellipsis or bool
-            Keys used to slice the netCDF Variable, as given in the nc.utils._StartCountStride method.
-        kwargs : dict, optional
-            additional arguments passed to the created dataset.
+        file_slices : int, Iterable[int], slice, Ellipsis or bool, optional
+            Keys used to slice the netCDF Variable, i.e. the region of the variable ``data`` is
+            written to. Any key accepted by :class:`netCDF4.Variable` indexing can be used.
+            Defaults to the whole variable.
+        **kwargs : dict, optional
+            Additional arguments passed to :meth:`netCDF4.Dataset.createVariable`.
 
         Raises
         ------
         TypeError
             If any of the input parameters are not of correct type.
         ValueError
-            If the access mode is not understood or if the number of dimension names does not match the number of
-            dimensions.
+            If ``path`` does not have a netCDF extension, the access mode is not understood, or
+            the number of dimension names does not match the number of dimensions.
+
+        See Also
+        --------
+        :func:`load_netcdf` : Loads data from a NetCDF4 file.
 
         Examples
         --------
         >>> x = ht.arange(100, split=0)
-        >>> ht.save_netcdf(x, "data.nc", dataset="DATA")
+        >>> ht.save_netcdf(x, "data.nc", variable="DATA")
         """
         nc = require_dependency("netCDF4")
         _warn_if_serial()
@@ -243,7 +271,12 @@ if _AVAILABLE:
             expanded_shape : tuple[int]
                 Shape of hypothetical expanded DNDarray.
             split : int or None
-                split-axis of dndarray.
+                Split axis of the DNDarray.
+
+            Returns
+            -------
+            int or None
+                The split axis in ``expanded_shape``.
 
             Raises
             ------
@@ -313,8 +346,14 @@ if _AVAILABLE:
                 Keys to pass to the set-operator.
             data : DNDarray
                 Data to be saved.
-            data_slices: tuple[int, slice]
-                As returned by the data.comm.chunk method.
+            data_slices : tuple[int, slice], optional
+                As returned by the ``data.comm.chunk`` method. Computed if not given.
+
+            Returns
+            -------
+            tuple[int or slice]
+                The keys that write the local chunk of ``data`` with a single
+                ``var.__setitem__`` call.
             """
             slices = data_slices
             if slices is None:

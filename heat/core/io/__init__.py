@@ -34,6 +34,13 @@ def _bind_save_method(format_name: str, saver) -> None:
 
     Generated rather than written by hand so that every registered format gets a method,
     and so that no argument can be dropped on the way through.
+
+    Parameters
+    ----------
+    format_name : str
+        Name of the registered format, used in the method name.
+    saver : Callable
+        The format's saver, whose docstring the method inherits.
     """
 
     def method(self, path, *args, **kwargs):

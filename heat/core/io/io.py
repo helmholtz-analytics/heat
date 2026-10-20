@@ -22,25 +22,44 @@ def load(
     path: str, *args: Optional[List[object]], **kwargs: Optional[Dict[str, object]]
 ) -> DNDarray:
     """
-    Attempts to load data from a file stored on disk. Attempts to auto-detect the file format by determining the
-    extension. Supports at least CSV files, HDF5 and netCDF4 are additionally possible if the corresponding libraries
-    are installed.
+    Loads data from a file, choosing the file format from its extension.
+
+    The extension is looked up in the format registry, see
+    :func:`~heat.core.io.available_formats`. CSV is always available; HDF5, netCDF4 and
+    Zarr require their optional dependency to be installed.
 
     Parameters
     ----------
     path : str
         Path to the file to be read.
-    args : list, optional
-        Additional options passed to the particular functions.
-    kwargs : dict, optional
-        Additional options passed to the particular functions.
+    *args : list, optional
+        Additional positional arguments passed to the format-specific loader.
+    **kwargs : dict, optional
+        Additional keyword arguments passed to the format-specific loader.
+
+    Returns
+    -------
+    DNDarray
+        The data read from ``path``.
 
     Raises
     ------
+    TypeError
+        If ``path`` is not a string.
     ValueError
         If the file extension is not understood or known.
     RuntimeError
         If the optional dependency for a file extension is not available.
+
+    See Also
+    --------
+    :func:`load_csv` : Loads data from a CSV file.
+    :func:`load_csv_from_folder` : Loads multiple .csv files into one DNDarray.
+    :func:`load_hdf5` : Loads data from an HDF5 file.
+    :func:`load_multiple_hdf5` : Loads multiple HDF5 files into one DNDarray.
+    :func:`load_netcdf` : Loads data from a NetCDF4 file.
+    :func:`load_npy_from_path` : Loads multiple .npy files into one DNDarray.
+    :func:`load_zarr` : Loads data from a Zarr store.
 
     Examples
     --------
@@ -49,21 +68,11 @@ def load(
     >>> ht.load("data.nc", variable="DATA")
     DNDarray([ 1.0000,  2.7183,  7.3891, 20.0855, 54.5981], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.load("my_data.zarr", variable="RECEIVER_1/DATA")
-    DNDarray([ 1.0000,  2.7183,  7.3891, 20.0855, 54.5981], dtype=ht.float32, device=cpu:0, split=0)
-    >>> ht.load("my_data.zarr", variable="RECEIVER_*/DATA")
+    DNDarray([[ 1.0000,  2.7183,  7.3891, 20.0855, 54.5981]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> ht.load("my_data.zarr", variable="RECEIVER_*/DATA", split=0)
     DNDarray([[ 1.0000,  2.7183,  7.3891, 20.0855, 54.5981],
-                [ 1.0000,  2.7183,  7.3891, 20.0855, 54.5981],
-                [ 1.0000,  2.7183,  7.3891, 20.0855, 54.5981]], dtype=ht.float32, device=cpu:0, split=0)
-
-    See Also
-    --------
-    :func:`load_csv` : Loads data from a CSV file.
-    :func:`load_csv_from_folder` : Loads multiple .csv files into one DNDarray which will be returned.
-    :func:`load_hdf5` : Loads data from an HDF5 file.
-    :func:`load_netcdf` : Loads data from a NetCDF4 file.
-    :func:`load_npy_from_path` : Loads multiple .npy files into one DNDarray which will be returned.
-    :func:`load_zarr` : Loads zarr-Format into DNDarray which will be returned.
-
+              [ 1.0000,  2.7183,  7.3891, 20.0855, 54.5981],
+              [ 1.0000,  2.7183,  7.3891, 20.0855, 54.5981]], dtype=ht.float32, device=cpu:0, split=0)
     """
     path = sanitize_path(path)
     return loader_for_path(path)(path, *args, **kwargs)
@@ -73,26 +82,42 @@ def save(
     data: DNDarray, path: str, *args: Optional[List[object]], **kwargs: Optional[Dict[str, object]]
 ):
     """
-    Attempts to save data from a :class:`~heat.core.dndarray.DNDarray` to disk. An auto-detection based on the file
-    format extension is performed.
+    Saves a ``DNDarray`` to a file, choosing the file format from its extension.
+
+    The extension is looked up in the format registry, see
+    :func:`~heat.core.io.available_formats`.
 
     Parameters
     ----------
     data : DNDarray
-        The array holding the data to be stored
+        The array holding the data to be stored.
     path : str
         Path to the file to be stored.
-    args : list, optional
-        Additional options passed to the particular functions.
-    kwargs : dict, optional
-        Additional options passed to the particular functions.
+    *args : list, optional
+        Additional positional arguments passed to the format-specific saver.
+    **kwargs : dict, optional
+        Additional keyword arguments passed to the format-specific saver.
+
+    Returns
+    -------
+    object
+        Whatever the format-specific saver returns, ``None`` for the built-in formats.
 
     Raises
     ------
+    TypeError
+        If ``path`` is not a string.
     ValueError
         If the file extension is not understood or known.
     RuntimeError
         If the optional dependency for a file extension is not available.
+
+    See Also
+    --------
+    :func:`save_csv` : Saves data to a CSV file.
+    :func:`save_hdf5` : Saves data to an HDF5 file.
+    :func:`save_netcdf` : Saves data to a NetCDF4 file.
+    :func:`save_zarr` : Saves data to a Zarr store.
 
     Examples
     --------
