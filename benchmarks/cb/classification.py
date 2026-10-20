@@ -17,12 +17,18 @@ def lof_distributed_indexing(data, n_neighbors):
     lof.fit(data)
 
 
+@monitor()
+def lof_non_distributed(data, n_neighbors):
+    lof = LocalOutlierFactor(n_neighbors=n_neighbors)
+    lof.fit(data)
+
+
 def run_classification_benchmarks():
-    # Setup distributed dataset partitioned along samples (axis 0)
     n_samples = 20000
     n_features = 32
     n_neighbors = 20
 
+    # Setup distributed dataset partitioned along samples (axis 0)
     data = ht.random.random((n_samples, n_features), split=0, dtype=ht.float64)
 
     # Benchmark memory-efficient path (MPI Alltoallv advanced indexing)
@@ -32,3 +38,11 @@ def run_classification_benchmarks():
     lof_replicated_indexing(data, n_neighbors)
 
     del data
+
+    # Setup non-distributed dataset (replicated across all processes)
+    data_non_dist = ht.random.random((n_samples, n_features), split=None, dtype=ht.float64)
+
+    # Benchmark fully non-distributed execution
+    lof_non_distributed(data_non_dist, n_neighbors)
+
+    del data_non_dist
