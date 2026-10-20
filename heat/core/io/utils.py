@@ -4,19 +4,19 @@ from __future__ import annotations
 
 import fnmatch
 import os
-from typing import Any, Callable, Iterable, Optional, Tuple
+from typing import Any, Callable, Iterable, List, Optional, Tuple, Type, Union
 
 import numpy as np
 import torch
 
 from .. import devices
 from .. import factories
-from ..communication import Communication, MPI, MPI_WORLD, sanitize_comm
+from ..communication import Communication, MPI, MPI_WORLD, MPICommunication, sanitize_comm
 from ..devices import Device
 from ..dndarray import DNDarray
 from ..types import datatype
 
-__all__ = []
+__all__: List[str] = []
 
 #: File access modes accepted by the writing functions.
 VALID_WRITE_MODES = frozenset(["w", "a", "r+"])
@@ -76,8 +76,8 @@ def compose_slices(outer: slice, inner: slice, length: int) -> slice:
 
     composed_step = step * inner_step
     composed_start = start + inner_start * step
-    composed_stop = composed_start + count * composed_step
-    if composed_stop < 0:
+    composed_stop: Optional[int] = composed_start + count * composed_step
+    if composed_stop is not None and composed_stop < 0:
         # a negative stop would wrap around to the end; the walk runs off the front
         composed_stop = None
     return slice(composed_start, composed_stop, composed_step)
@@ -180,14 +180,14 @@ def sanitize_write_mode(mode: str) -> str:
 
 
 def resolve_device_comm(
-    device: Optional[str], comm: Optional[Communication]
+    device: Optional[Union[str, Device]], comm: Optional[Communication]
 ) -> Tuple[Device, Communication]:
     """
     Resolves the device and communicator a loaded array will be placed on.
 
     Parameters
     ----------
-    device : str, optional
+    device : str or Device, optional
         The device id on which to place the data, defaults to the globally set default.
     comm : Communication, optional
         The communication to use, defaults to the global default.
@@ -247,7 +247,7 @@ def local_write_payload(data: DNDarray, slices: Tuple[slice, ...]) -> torch.Tens
 
 
 def serialized_write(
-    comm: Communication,
+    comm: MPICommunication,
     is_split: bool,
     write_root: Callable[[], None],
     write_other: Callable[[], None],
@@ -261,7 +261,7 @@ def serialized_write(
 
     Parameters
     ----------
-    comm : Communication
+    comm : MPICommunication
         The communicator whose processes participate in the write.
     is_split : bool
         Whether the data is distributed. If it is not, only rank 0 writes anything.
@@ -304,14 +304,14 @@ def serialized_write(
 
 
 def propagate_failure(
-    comm: Communication, failed: int, error: Optional[BaseException] = None
+    comm: MPICommunication, failed: int, error: Optional[BaseException] = None
 ) -> None:
     """
     Re-raises ``error`` on every process if any process reported a failure.
 
     Parameters
     ----------
-    comm : Communication
+    comm : MPICommunication
         The communicator whose processes participate.
     failed : int
         ``0`` if this process succeeded, otherwise its rank plus one.
@@ -327,6 +327,8 @@ def propagate_failure(
     if not failed:
         return
     if failed - 1 == comm.rank:
+        # the failing process always passes the error it caught
+        assert error is not None
         comm.bcast(error, root=failed - 1)
         raise error
     error = comm.bcast(error, root=failed - 1)
@@ -370,9 +372,9 @@ def load_from_folder(
     pattern: str,
     reader: Callable[[str], np.ndarray],
     format_name: str,
-    dtype: datatype,
+    dtype: Type[datatype],
     split: int = 0,
-    device: Optional[str] = None,
+    device: Optional[Union[str, Device]] = None,
     comm: Optional[Communication] = None,
 ) -> DNDarray:
     """
@@ -395,7 +397,7 @@ def load_from_folder(
         Data type of the resulting array.
     split : int
         Along which axis the loaded arrays should be concatenated.
-    device : str, optional
+    device : str or Device, optional
         The device id on which to place the data, defaults to the globally set default.
     comm : Communication, optional
         The communication to use for the data distribution, defaults to the global default.
@@ -432,4 +434,10 @@ def load_from_folder(
     array_list = [reader(os.path.join(path, file)) for file in file_list[idx : idx + n_for_procs]]
 
     larray = torch.from_numpy(np.concatenate(array_list, split))
-    return factories.array(larray, dtype=dtype, device=device, is_split=split, comm=array_comm)
+    return factories.array(
+        larray,
+        dtype=dtype,
+        device=devices.sanitize_device(device),
+        is_split=split,
+        comm=array_comm,
+    )

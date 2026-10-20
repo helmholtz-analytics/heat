@@ -1,5 +1,7 @@
 """Enables parallel I/O with data on disk."""
 
+from typing import Any, Callable
+
 from . import csv, hdf5, io, netcdf, npy, utils, zarr  # noqa: F401
 from ._registry import (  # noqa: F401
     FormatSpec,
@@ -28,7 +30,7 @@ for _module in (csv, hdf5, netcdf, zarr):
 del _module
 
 
-def _bind_save_method(format_name: str, saver) -> None:
+def _bind_save_method(format_name: str, saver: Callable[..., None]) -> None:
     """
     Attaches ``DNDarray.save_<format_name>`` as a thin forwarder to ``saver``.
 
@@ -39,12 +41,12 @@ def _bind_save_method(format_name: str, saver) -> None:
     ----------
     format_name : str
         Name of the registered format, used in the method name.
-    saver : Callable
+    saver : Callable[..., None]
         The format's saver, whose docstring the method inherits.
     """
 
-    def method(self, path, *args, **kwargs):
-        return saver(self, path, *args, **kwargs)
+    def method(self: DNDarray, path: str, *args: Any, **kwargs: Any) -> None:
+        saver(self, path, *args, **kwargs)
 
     method.__doc__ = saver.__doc__
     method.__name__ = f"save_{format_name}"

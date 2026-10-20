@@ -13,7 +13,7 @@ import glob
 import operator
 import warnings
 from functools import reduce
-from typing import Iterable, List, Optional, Tuple, Union
+from typing import Any, Iterable, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
@@ -23,6 +23,7 @@ from .. import factories
 from .. import types
 from .._config import is_installed, require_dependency
 from ..communication import Communication, MPI, MPI_WORLD, sanitize_comm
+from ..devices import Device
 from ..dndarray import DNDarray
 from ..stride_tricks import sanitize_axis
 from ..types import datatype
@@ -64,12 +65,12 @@ if _AVAILABLE:
 
     def load_zarr(
         path: str,
-        variable: str = None,
+        variable: Optional[str] = None,
         split: Optional[int] = None,
-        device: Optional[str] = None,
+        device: Optional[Union[str, Device]] = None,
         comm: Optional[Communication] = None,
         slices: Union[None, slice, Iterable[Union[slice, None]]] = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> DNDarray:
         """
         Loads data from a Zarr store into a DNDarray.
@@ -91,14 +92,14 @@ if _AVAILABLE:
             Along which axis the resulting array should be split. Defaults to ``None``,
             meaning every process holds the whole array. Loading with a wildcard
             ``variable`` concatenates across files and therefore requires an axis.
-        device : str, optional
+        device : str or Device, optional
             The device id on which to place the data, defaults to globally set default device.
         comm : Communication, optional
             The communication to use for the data distribution, defaults to global default.
         slices : slice or Iterable[slice or None], optional
             Load only the specified slices of the array, one per leading axis, instead of
             everything. ``None`` selects a whole axis.
-        **kwargs : dict, optional
+        **kwargs : Any
             Additional arguments passed to :func:`zarr.open_array`. Not used when loading
             with a wildcard ``variable``.
 
@@ -217,8 +218,9 @@ if _AVAILABLE:
                 # broadcast shape of first local tensor to allow sanitation on empty ranks
                 target_ndims = torch.tensor(local_tensors[0].ndim, dtype=torch.int32)
             dummy_array.comm.Bcast(target_ndims, root=0)
+            n_dims = int(target_ndims.item())
             # sanitize split axis
-            proxy_shape = (1,) * target_ndims.item()
+            proxy_shape = (1,) * n_dims
             split = sanitize_axis(proxy_shape, axis=split)
 
             # prepare sorted list of all heat datatypes to convert them to integer for communication with MPI
@@ -246,24 +248,16 @@ if _AVAILABLE:
             if empty_ranks.item() > 0:
                 # fix local shape and dtype of empty tensors, otherwise DNDarray construction will fail
                 # Rank 0 broadcasts the info to all other ranks
-                target_shape = torch.zeros(
-                    (
-                        1,
-                        target_ndims.item() + 1,
-                    ),
-                    dtype=torch.int64,
-                )
+                target_shape = torch.zeros((1, n_dims + 1), dtype=torch.int64)
                 if local_tensor.numel() > 0:
                     target_shape[0, :-1] = torch.tensor(local_tensor.shape, dtype=torch.int64)
                 # encode dtype as last entry
                 target_shape[0, -1] = ht_type_code
                 # share info about target shape and dtype
-                target_shapes = torch.zeros(
-                    (dummy_array.comm.size, target_ndims.item() + 1), dtype=torch.int64
-                )
+                target_shapes = torch.zeros((dummy_array.comm.size, n_dims + 1), dtype=torch.int64)
                 dummy_array.comm.Allgather(target_shape, target_shapes)
                 if local_tensor.numel() == 0:
-                    ht_type_code = target_shapes[0, -1].item()
+                    ht_type_code = int(target_shapes[0, -1].item())
                     target_shape = target_shapes[0, :-1].clone()
                     target_shape[split] = 0
                     ht_type = getattr(types, all_heat_type_names[ht_type_code])
@@ -294,43 +288,41 @@ if _AVAILABLE:
             return dndarray
 
         # standard single zarr array
-        arr: zarr.Array = zarr.open_array(store=store_path, **kwargs)
-        shape = arr.shape
+        arr = zarr.open_array(store=store_path, **kwargs)
+        stored_shape: Tuple[int, ...] = arr.shape
 
-        if isinstance(slices, slice) or slices is None:
-            slices = [slices]
+        requested: List[Optional[slice]] = (
+            [slices] if isinstance(slices, slice) or slices is None else list(slices)
+        )
 
-        if len(shape) < len(slices):
+        if len(stored_shape) < len(requested):
             raise ValueError(
-                f"slices Argument has more arguments than the length of the shape of the array. {len(shape)} < {len(slices)}"
+                f"slices Argument has more arguments than the length of the shape of the array. {len(stored_shape)} < {len(requested)}"
             )
 
-        slices = [elem if elem is not None else slice(None) for elem in slices]
-        slices.extend([slice(None) for _ in range(abs(len(slices) - len(shape)))])
+        user_slices = [elem if elem is not None else slice(None) for elem in requested]
+        user_slices.extend([slice(None) for _ in range(abs(len(user_slices) - len(stored_shape)))])
 
         dtype = types.canonical_heat_type(arr.dtype)
-        split = sanitize_axis(shape, axis=split)
+        split = sanitize_axis(stored_shape, axis=split)
 
-        # slices = tuple(slice(*tslice.indices(length)) for length, tslice in zip(shape, slices))
-        slices = tuple(slices)
-        stored_shape = shape
-        shape = [
-            len(range(*tslice.indices(length))) for length, tslice in zip(stored_shape, slices)
-        ]
+        shape = tuple(
+            len(range(*tslice.indices(length))) for length, tslice in zip(stored_shape, user_slices)
+        )
         offset, local_shape, local_slices = comm.chunk(shape, split)
 
         # compose the user's slices with this process' chunk, so that only the local
         # region is read from disk rather than the whole array on every process
         read_slices = tuple(
             compose_slices(user_slice, local_slice, length)
-            for user_slice, local_slice, length in zip(slices, local_slices, stored_shape)
+            for user_slice, local_slice, length in zip(user_slices, local_slices, stored_shape)
         )
 
         return factories.array(
             arr[read_slices], dtype=dtype, is_split=split, device=device, comm=comm
         )
 
-    def save_zarr(dndarray: DNDarray, path: str, overwrite: bool = False, **kwargs) -> None:
+    def save_zarr(dndarray: DNDarray, path: str, overwrite: bool = False, **kwargs: Any) -> None:
         """
         Saves a DNDarray to a Zarr store.
 
@@ -345,7 +337,7 @@ if _AVAILABLE:
             Path to the Zarr store to be written, ending in ``.zarr``.
         overwrite : bool, optional
             Whether to overwrite an existing array.
-        **kwargs : dict, optional
+        **kwargs : Any
             Additional arguments passed to :func:`zarr.create` and :func:`zarr.open`.
 
         Raises

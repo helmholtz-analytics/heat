@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import functools
 import warnings
-from typing import Dict, Iterable, List, Optional, Tuple, Union
+from types import EllipsisType
+from typing import Any, Iterable, List, Optional, Tuple, Type, Union
 
 import numpy as np
 import torch
@@ -13,6 +14,7 @@ from .. import devices
 from .. import types
 from .._config import is_installed, netcdf_has_parallel, require_dependency
 from ..communication import Communication, MPI, MPI_WORLD, sanitize_comm
+from ..devices import Device
 from ..dndarray import DNDarray
 from ..stride_tricks import sanitize_axis
 from ..types import datatype
@@ -26,6 +28,9 @@ EXTENSIONS = frozenset([".nc", ".nc4"])
 
 #: Template for the names given to dimensions Heat has to create itself.
 DIM_TEMPLATE = "{}_dim_{}"
+
+#: Keys accepted for indexing a ``netCDF4.Variable``.
+NetCDFKey = Union[int, slice, EllipsisType, bool, Iterable[Union[int, slice]]]
 
 
 _AVAILABLE = is_installed("netCDF4")
@@ -70,9 +75,9 @@ if _AVAILABLE:
     def load_netcdf(
         path: str,
         variable: str,
-        dtype: datatype = types.float32,
+        dtype: Type[datatype] = types.float32,
         split: Optional[int] = None,
-        device: Optional[str] = None,
+        device: Optional[Union[str, Device]] = None,
         comm: Optional[Communication] = None,
     ) -> DNDarray:
         """
@@ -90,7 +95,7 @@ if _AVAILABLE:
             Data type of the resulting array.
         split : int or None, optional
             The axis along which the data is distributed among the processing cores.
-        device : str, optional
+        device : str or Device, optional
             The device id on which to place the data, defaults to globally set default device.
         comm : Communication, optional
             The communication to use for the data distribution, defaults to global default.
@@ -171,11 +176,11 @@ if _AVAILABLE:
         path: str,
         variable: str,
         mode: str = "w",
-        dimension_names: Union[list, tuple, str] = None,
+        dimension_names: Optional[Union[List[str], Tuple[str, ...], str]] = None,
         is_unlimited: bool = False,
-        file_slices: Union[Iterable[int], slice, bool] = slice(None),
-        **kwargs: Dict[str, object],
-    ):
+        file_slices: NetCDFKey = slice(None),
+        **kwargs: Any,
+    ) -> None:
         """
         Saves data to a netCDF4 file.
 
@@ -198,11 +203,11 @@ if _AVAILABLE:
         is_unlimited : bool, optional
             If True, every dimension created for this variable (i.e. doesn't already exist) is unlimited. Already
             existing limited dimensions cannot be changed to unlimited and vice versa.
-        file_slices : int, Iterable[int], slice, Ellipsis or bool, optional
+        file_slices : int, slice, Ellipsis, bool or Iterable[int or slice], optional
             Keys used to slice the netCDF Variable, i.e. the region of the variable ``data`` is
             written to. Any key accepted by :class:`netCDF4.Variable` indexing can be used.
             Defaults to the whole variable.
-        **kwargs : dict, optional
+        **kwargs : Any
             Additional arguments passed to :meth:`netCDF4.Dataset.createVariable`.
 
         Raises
@@ -252,23 +257,23 @@ if _AVAILABLE:
         sanitize_write_mode(mode)
 
         failed = 0
-        excep = None
+        excep: Optional[Exception] = None
         # chunk the data, if no split is set maximize parallel I/O and chunk first axis
         is_split = data.split is not None
         _, _, slices = data.comm.chunk(data.gshape, data.split if is_split else 0)
 
         def __get_expanded_split(
-            shape: Tuple[int], expanded_shape: Tuple[int], split: Optional[int]
-        ) -> int:
+            shape: Tuple[int, ...], expanded_shape: Tuple[int, ...], split: Optional[int]
+        ) -> Optional[int]:
             """
             Returns the hypothetical split-axis of a dndarray of shape=shape and
             split=split if it was expanded to expandedShape by adding empty dimensions.
 
             Parameters
             ----------
-            shape : tuple[int]
+            shape : tuple[int, ...]
                 Shape of a DNDarray.
-            expanded_shape : tuple[int]
+            expanded_shape : tuple[int, ...]
                 Shape of hypothetical expanded DNDarray.
             split : int or None
                 Split axis of the DNDarray.
@@ -302,7 +307,7 @@ if _AVAILABLE:
                 )
             if split in ind_nonempty:  # split along non-empty dimension
                 split_sq = ind_nonempty.index(split)  # split-axis in squeezed shape
-                return ex_ind_nonempty[split_sq]
+                return int(ex_ind_nonempty[split_sq])
             # split along empty dimension: split doesnt matter, only one process contains data
             # return the last empty dimension (in expanded shape) before (the first nonempty dimension after split)
             # number of nonempty elems before split
@@ -317,11 +322,11 @@ if _AVAILABLE:
             )
 
         def __merge_slices(
-            var: nc.Variable,
-            var_slices: Tuple[int, slice],
+            var: Any,
+            var_slices: NetCDFKey,
             data: DNDarray,
-            data_slices: Optional[Tuple[int, slice]] = None,
-        ) -> Tuple[Union[int, slice]]:
+            data_slices: Optional[Tuple[slice, ...]] = None,
+        ) -> Tuple[Union[slice, np.ndarray], ...]:
             """
             Allows replacing:
                 ``var[var_slices][data_slices] = data``
@@ -340,18 +345,18 @@ if _AVAILABLE:
 
             Parameters
             ----------
-            var : nc.Variable
+            var : netCDF4.Variable
                 Variable to which data is to be saved.
-            var_slices : tuple[int, slice]
+            var_slices : int, slice, Ellipsis, bool or Iterable[int or slice]
                 Keys to pass to the set-operator.
             data : DNDarray
                 Data to be saved.
-            data_slices : tuple[int, slice], optional
+            data_slices : tuple[slice, ...], optional
                 As returned by the ``data.comm.chunk`` method. Computed if not given.
 
             Returns
             -------
-            tuple[int or slice]
+            tuple[slice or numpy.ndarray, ...]
                 The keys that write the local chunk of ``data`` with a single
                 ``var.__setitem__`` call.
             """
@@ -371,7 +376,7 @@ if _AVAILABLE:
 
             start, count, stride = start.T, count.T, stride.T  # transpose for iteration
             stop = start + stride * count
-            new_slices = []
+            new_slices: List[Union[slice, np.ndarray]] = []
             for begin, end, step in zip(start, stop, stride):
                 if begin.size == 1:
                     begin, end, step = begin.item(), end.item(), step.item()
@@ -386,23 +391,21 @@ if _AVAILABLE:
                             )
                         ]
                     )
-            if out_split is not None:  # add split-slice
-                if isinstance(new_slices[out_split], slice):
-                    start, stop, step = (
-                        new_slices[out_split].start,
-                        new_slices[out_split].stop,
-                        new_slices[out_split].step,
-                    )
+            if out_split is not None and data.split is not None:  # add split-slice
+                split_slice = new_slices[out_split]
+                if isinstance(split_slice, slice):
+                    start, stop, step = split_slice.start, split_slice.stop, split_slice.step
                     sliced = range(start, stop, step)[slices[data.split]]
-                    a, b, c = sliced.start, sliced.stop, sliced.step
-                    a = None if a < 0 else a
-                    b = None if b < 0 else b
-                    new_slices[out_split] = slice(a, b, c)
+                    new_slices[out_split] = slice(
+                        None if sliced.start < 0 else sliced.start,
+                        None if sliced.stop < 0 else sliced.stop,
+                        sliced.step,
+                    )
                     # new_slices[out_split] = sliced
-                elif isinstance(new_slices[out_split], np.ndarray):
-                    new_slices[out_split] = new_slices[out_split][slices[data.split]]
+                elif isinstance(split_slice, np.ndarray):
+                    new_slices[out_split] = split_slice[slices[data.split]]
                 else:
-                    new_slices[out_split] = np.r_[new_slices[out_split]][slices[data.split]]
+                    new_slices[out_split] = np.r_[split_slice][slices[data.split]]
             return tuple(new_slices)
 
         # attempt to perform parallel I/O if possible

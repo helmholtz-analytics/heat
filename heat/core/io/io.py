@@ -6,7 +6,7 @@ formats themselves live in the sibling modules of this package.
 
 from __future__ import annotations
 
-from typing import Dict, List, Optional
+from typing import Any
 
 from ..dndarray import DNDarray
 from ._registry import loader_for_path, saver_for_path
@@ -18,9 +18,7 @@ __all__ = [
 ]
 
 
-def load(
-    path: str, *args: Optional[List[object]], **kwargs: Optional[Dict[str, object]]
-) -> DNDarray:
+def load(path: str, *args: Any, **kwargs: Any) -> DNDarray:
     """
     Loads data from a file, choosing the file format from its extension.
 
@@ -32,9 +30,9 @@ def load(
     ----------
     path : str
         Path to the file to be read.
-    *args : list, optional
+    *args : Any
         Additional positional arguments passed to the format-specific loader.
-    **kwargs : dict, optional
+    **kwargs : Any
         Additional keyword arguments passed to the format-specific loader.
 
     Returns
@@ -78,9 +76,7 @@ def load(
     return loader_for_path(path)(path, *args, **kwargs)
 
 
-def save(
-    data: DNDarray, path: str, *args: Optional[List[object]], **kwargs: Optional[Dict[str, object]]
-):
+def save(data: DNDarray, path: str, *args: Any, **kwargs: Any) -> None:
     """
     Saves a ``DNDarray`` to a file, choosing the file format from its extension.
 
@@ -93,15 +89,10 @@ def save(
         The array holding the data to be stored.
     path : str
         Path to the file to be stored.
-    *args : list, optional
+    *args : Any
         Additional positional arguments passed to the format-specific saver.
-    **kwargs : dict, optional
+    **kwargs : Any
         Additional keyword arguments passed to the format-specific saver.
-
-    Returns
-    -------
-    object
-        Whatever the format-specific saver returns, ``None`` for the built-in formats.
 
     Raises
     ------
@@ -125,11 +116,16 @@ def save(
     >>> ht.save(x, "data.h5", "DATA", mode="a")
     """
     path = sanitize_path(path)
-    return saver_for_path(path)(data, path, *args, **kwargs)
+    saver_for_path(path)(data, path, *args, **kwargs)
 
 
-DNDarray.save = lambda self, path, *args, **kwargs: save(self, path, *args, **kwargs)
-DNDarray.save.__doc__ = save.__doc__
+def _save_method(self: DNDarray, path: str, *args: Any, **kwargs: Any) -> None:
+    # exposed as `DNDarray.save`, with the docstring of `save`
+    save(self, path, *args, **kwargs)
+
+
+_save_method.__doc__ = save.__doc__
+setattr(DNDarray, "save", _save_method)
 
 
 # --------------------------------------------------------------------------------------

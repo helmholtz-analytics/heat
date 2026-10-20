@@ -5,7 +5,7 @@ from __future__ import annotations
 import functools
 import warnings
 from pathlib import Path
-from typing import Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, List, Optional, Sequence, Tuple, Type, Union
 
 import numpy as np
 import torch
@@ -15,6 +15,7 @@ from .. import factories
 from .. import types
 from .._config import hdf5_has_mpi, is_installed, require_dependency
 from ..communication import Communication, MPI, MPI_WORLD, sanitize_comm
+from ..devices import Device
 from ..dndarray import DNDarray
 from ..stride_tricks import sanitize_axis
 from ..types import datatype
@@ -69,10 +70,10 @@ if _AVAILABLE:
     def load_hdf5(
         path: str,
         dataset: str,
-        dtype: Optional[datatype] = None,
-        slices: Optional[Tuple[Optional[slice], ...]] = None,
+        dtype: Optional[Type[datatype]] = None,
+        slices: Optional[Sequence[Optional[slice]]] = None,
         split: Optional[int] = None,
-        device: Optional[str] = None,
+        device: Optional[Union[str, Device]] = None,
         comm: Optional[Communication] = None,
     ) -> DNDarray:
         """
@@ -88,12 +89,12 @@ if _AVAILABLE:
             Name of the dataset to be read.
         dtype : datatype, optional
             Data type of the resulting array, defaults to the loaded datasets type.
-        slices : tuple of slice, optional
-            Load only the specified slices of the dataset, one per leading axis. Only slices
-            with a step of 1 are supported.
+        slices : Sequence[slice or None], optional
+            Load only the specified slices of the dataset, one per leading axis. ``None``
+            selects a whole axis. Only slices with a step of 1 are supported.
         split : int or None, optional
             The axis along which the data is distributed among the processing cores.
-        device : str, optional
+        device : str or Device, optional
             The device id on which to place the data, defaults to globally set default device.
         comm : Communication, optional
             The communication to use for the data distribution, defaults to global default.
@@ -204,15 +205,13 @@ if _AVAILABLE:
         with h5py.File(path, "r") as handle:
             data = handle[dataset]
             gshape = data.shape
-            new_gshape = tuple()
+            new_gshape: Tuple[int, ...] = tuple()
             offsets = [0] * len(gshape)
-            if dtype is None:
-                dtype = data.dtype
-            dtype = types.canonical_heat_type(dtype)
+            dtype = types.canonical_heat_type(data.dtype if dtype is None else dtype)
             if slices is not None:
                 for i in range(len(gshape)):
-                    if i < len(slices) and slices[i]:
-                        s = slices[i]
+                    s = slices[i] if i < len(slices) else None
+                    if s is not None:
                         if s.step is not None and s.step != 1:
                             raise ValueError("Slices with step != 1 are not supported")
                         new_axis_size, offset = size_from_slice(gshape[i], s)
@@ -229,7 +228,7 @@ if _AVAILABLE:
             _, _, indices = comm.chunk(gshape, split)
 
             if slices is not None:
-                new_indices = tuple()
+                new_indices: Tuple[slice, ...] = tuple()
                 for offset, index in zip(offsets, indices):
                     new_indices += (slice(index.start + offset, index.stop + offset),)
                 indices = new_indices
@@ -263,9 +262,9 @@ if _AVAILABLE:
         path: str,
         dataset: str,
         mode: str = "w",
-        dtype: Optional[datatype] = None,
-        **kwargs: Dict[str, object],
-    ):
+        dtype: Optional[Union[str, torch.dtype, Type[datatype]]] = None,
+        **kwargs: Any,
+    ) -> None:
         """
         Saves ``data`` to an HDF5 file.
 
@@ -282,9 +281,9 @@ if _AVAILABLE:
             Name of the dataset the data is saved to.
         mode : str, optional
             File access mode, one of ``'w'``, ``'a'``, ``'r+'``.
-        dtype : datatype, optional
+        dtype : datatype or torch.dtype or str, optional
             Data type of the saved data, defaults to the data type of ``data``.
-        **kwargs : dict, optional
+        **kwargs : Any
             Additional arguments passed to :meth:`h5py.Group.create_dataset`.
 
         Raises
@@ -321,15 +320,17 @@ if _AVAILABLE:
 
         if dtype is None:
             dtype = data.dtype
-        elif type(dtype) == torch.dtype:
-            dtype = str(dtype).split(".")[-1]
-        if type(dtype) is not str:
-            dtype = dtype.__name__
+        if isinstance(dtype, torch.dtype):
+            dtype_name = str(dtype).split(".")[-1]
+        elif isinstance(dtype, str):
+            dtype_name = dtype
+        else:
+            dtype_name = dtype.__name__
 
         # attempt to perform parallel I/O if possible
         if hdf5_has_mpi():
             with h5py.File(path, mode, driver="mpio", comm=data.comm.handle) as handle:
-                dset = handle.create_dataset(dataset, data.shape, dtype=dtype, **kwargs)
+                dset = handle.create_dataset(dataset, data.shape, dtype=dtype_name, **kwargs)
                 dset[slices] = data.larray.cpu() if is_split else data.larray[slices].cpu()
 
         # otherwise the writes have to be serialized: rank 0 creates the file and writes
@@ -338,7 +339,7 @@ if _AVAILABLE:
 
             def write_root() -> None:
                 with h5py.File(path, mode) as handle:
-                    dset = handle.create_dataset(dataset, data.shape, dtype=dtype, **kwargs)
+                    dset = handle.create_dataset(dataset, data.shape, dtype=dtype_name, **kwargs)
                     if is_split:
                         dset[slices] = data.larray.cpu()
                     else:
@@ -353,7 +354,7 @@ if _AVAILABLE:
     def load_multiple_hdf5(
         folder: str | Path,
         dataset: str,
-        dtype=None,
+        dtype: Optional[Type[datatype]] = None,
         sorting_func: Callable[[list[Path]], list[Path]] | None = None,
     ) -> DNDarray:
         """
@@ -412,7 +413,7 @@ if _AVAILABLE:
             raise TypeError(f"path must be an String or Path, not {type(folder)}")
         if not isinstance(dataset, str):
             raise TypeError(f"dataset must be a string not, {type(dataset)}")
-        if not isinstance(sorting_func, Callable) and sorting_func is not None:
+        if not callable(sorting_func) and sorting_func is not None:
             raise TypeError(f"sorting_func must be None or Callable, not {type(sorting_func)}")
         if not Path(folder).is_dir():
             raise ValueError("Path must be a Folder")
@@ -420,12 +421,12 @@ if _AVAILABLE:
         files: list[Path] = list(
             filter(lambda x: x.suffix == ".h5" or x.suffix == ".hdf5", Path(folder).iterdir())
         )
-        files: list[Path] = sorted(files) if sorting_func is None else sorting_func(files)
+        files = sorted(files) if sorting_func is None else sorting_func(files)
 
         if len(files) == 0:
             raise ValueError("No files inside the directory.")
 
-        h5_files: list[h5py.File] = [h5py.File(x) for x in files]
+        h5_files = [h5py.File(x) for x in files]
         shapes: list[tuple[int, ...]] = [x[dataset].shape for x in h5_files]
         dtypes: list[np.dtype] = [x[dataset].dtype for x in h5_files]
         bytes: list[int] = [x[dataset].dtype.itemsize for x in h5_files]
@@ -435,17 +436,17 @@ if _AVAILABLE:
 
         if dtype is None:
             warnings.warn("No explicit dtype given, will use biggest dtype across all files")
-            dtype = dtypes[np.argmax(bytes)]
+            dtype = types.canonical_heat_type(dtypes[np.argmax(bytes)])
 
         shapes_arr = np.array(shapes, dtype=int)
-        gshape = np.zeros(shapes_arr.shape[1], dtype=int)
+        gshape_arr = np.zeros(shapes_arr.shape[1], dtype=int)
 
-        for i in range(1, len(gshape)):  # rows can be diffrent
+        for i in range(1, len(gshape_arr)):  # rows can be diffrent
             if len(set(shapes_arr[:, i])) != 1:
                 raise ValueError(f"Dimension missmatch on ndim {i + 1}")
-            gshape[i] = shapes_arr[0][i]
-        gshape[0] = shapes_arr[:, 0].sum()
-        gshape = tuple(gshape.astype(int))
+            gshape_arr[i] = shapes_arr[0][i]
+        gshape_arr[0] = shapes_arr[:, 0].sum()
+        gshape = tuple(int(n) for n in gshape_arr)
 
         ranges: list[tuple[int, int]] = list()
 
@@ -481,8 +482,8 @@ if _AVAILABLE:
                 start_index = start_h5_index
             else:
                 start_index = 0
-            h5_file: h5py.File = h5_files[idx]
-            rows: int = shapes[idx][0] - start_index
+            h5_file = h5_files[idx]
+            rows = shapes[idx][0] - start_index
 
             diff = n + rows - min(n + rows, max_n)  # amount of overshoot
 

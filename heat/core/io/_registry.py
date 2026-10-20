@@ -10,12 +10,17 @@ extension reports the missing dependency rather than claiming the extension is u
 from __future__ import annotations
 
 import dataclasses
-from typing import Callable, Dict, FrozenSet, Iterable, Optional
+from typing import Callable, Dict, FrozenSet, Iterable, List, NoReturn, Optional
 
 from .._config import OPTIONAL_DEPENDENCIES, is_installed, require_dependency
+from ..dndarray import DNDarray
 from .utils import extension_of
 
-__all__ = []
+
+Loader = Callable[..., DNDarray]
+Saver = Callable[..., None]
+
+__all__: List[str] = []
 
 
 @dataclasses.dataclass(frozen=True)
@@ -31,10 +36,10 @@ class FormatSpec:
         File extensions claimed by this format, including the leading dot.
     dependency : str, optional
         Import name of the third-party package the format needs, if any.
-    loader : Callable, optional
+    loader : Callable[..., DNDarray], optional
         Reads a file of this format. ``None`` if the format cannot be read, or if its
         dependency is unavailable.
-    saver : Callable, optional
+    saver : Callable[..., None], optional
         Writes a file of this format. ``None`` if the format cannot be written, or if its
         dependency is unavailable.
 
@@ -50,8 +55,8 @@ class FormatSpec:
     name: str
     extensions: FrozenSet[str]
     dependency: Optional[str] = None
-    loader: Optional[Callable] = None
-    saver: Optional[Callable] = None
+    loader: Optional[Loader] = None
+    saver: Optional[Saver] = None
 
 
 _REGISTRY: Dict[str, FormatSpec] = {}
@@ -61,8 +66,8 @@ def register_format(
     name: str,
     extensions: Iterable[str],
     dependency: Optional[str] = None,
-    loader: Optional[Callable] = None,
-    saver: Optional[Callable] = None,
+    loader: Optional[Loader] = None,
+    saver: Optional[Saver] = None,
 ) -> FormatSpec:
     """
     Registers a file format, and returns the resulting specification.
@@ -75,9 +80,9 @@ def register_format(
         File extensions claimed by this format, including the leading dot.
     dependency : str, optional
         Import name of the third-party package the format needs, if any.
-    loader : Callable, optional
+    loader : Callable[..., DNDarray], optional
         Reads a file of this format.
-    saver : Callable, optional
+    saver : Callable[..., None], optional
         Writes a file of this format.
 
     Returns
@@ -234,43 +239,30 @@ def spec_for_path(path: str) -> FormatSpec:
     raise ValueError(f"Unsupported file extension {extension}")
 
 
-def _resolve(path: str, attribute: str, verb: str) -> Callable:
+def _raise_unavailable(spec: FormatSpec, verb: str) -> NoReturn:
     """
-    Returns the loader or saver for ``path``, raising if it is unavailable.
+    Raises the error explaining why ``spec`` cannot be used for ``verb``.
 
     Parameters
     ----------
-    path : str
-        Path whose extension selects the format.
-    attribute : str
-        Either ``"loader"`` or ``"saver"``.
+    spec : FormatSpec
+        The format that lacks the requested loader or saver.
     verb : str
         Either ``"loading"`` or ``"saving"``, used in the error message.
-
-    Returns
-    -------
-    Callable
-        The loader or saver of the format.
 
     Raises
     ------
     ValueError
-        If no registered format claims the extension, or the format does not support
-        the requested direction.
+        If the format does not support the requested direction.
     RuntimeError
         If the format's optional dependency is unavailable.
     """
-    spec = spec_for_path(path)
-    function = getattr(spec, attribute)
-    if function is None:
-        if spec.dependency is not None:
-            # raises RuntimeError naming the package and the pip extra providing it
-            require_dependency(spec.dependency)
-        raise ValueError(f"the {spec.name} format does not support {verb}")
-    return function
+    if spec.dependency is not None:
+        require_dependency(spec.dependency)
+    raise ValueError(f"the {spec.name} format does not support {verb}")
 
 
-def loader_for_path(path: str) -> Callable:
+def loader_for_path(path: str) -> Loader:
     """
     Returns the function that loads files with the extension of ``path``.
 
@@ -281,7 +273,7 @@ def loader_for_path(path: str) -> Callable:
 
     Returns
     -------
-    Callable
+    Callable[..., DNDarray]
         The loader of the format.
 
     Raises
@@ -291,10 +283,13 @@ def loader_for_path(path: str) -> Callable:
     RuntimeError
         If the format's optional dependency is unavailable.
     """
-    return _resolve(path, "loader", "loading")
+    spec = spec_for_path(path)
+    if spec.loader is None:
+        _raise_unavailable(spec, "loading")
+    return spec.loader
 
 
-def saver_for_path(path: str) -> Callable:
+def saver_for_path(path: str) -> Saver:
     """
     Returns the function that saves files with the extension of ``path``.
 
@@ -305,7 +300,7 @@ def saver_for_path(path: str) -> Callable:
 
     Returns
     -------
-    Callable
+    Callable[..., None]
         The saver of the format.
 
     Raises
@@ -315,4 +310,7 @@ def saver_for_path(path: str) -> Callable:
     RuntimeError
         If the format's optional dependency is unavailable.
     """
-    return _resolve(path, "saver", "saving")
+    spec = spec_for_path(path)
+    if spec.saver is None:
+        _raise_unavailable(spec, "saving")
+    return spec.saver

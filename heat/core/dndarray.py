@@ -53,7 +53,7 @@ class DNDarray:
         self,
         array: torch.Tensor,
         gshape: tuple[int, ...],
-        dtype: datatype,
+        dtype: type[datatype],
         split: int | None,
         device: Device,
         comm: Communication,
@@ -111,7 +111,7 @@ class DNDarray:
         return self.__device
 
     @property
-    def dtype(self) -> datatype:
+    def dtype(self) -> type[datatype]:
         """
         The :class:`~heat.core.types.datatype` of the ``DNDarray``
         """

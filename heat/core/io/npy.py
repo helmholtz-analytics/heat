@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
-from typing import Optional
+from typing import Optional, Type, Union
 
 import numpy as np
 
 from .. import types
 from ..communication import Communication
+from ..devices import Device
 from ..dndarray import DNDarray
 from ..types import datatype
 from .utils import load_from_folder
@@ -17,9 +18,9 @@ __all__ = ["load_npy_from_path"]
 
 def load_npy_from_path(
     path: str,
-    dtype: datatype = types.int32,
+    dtype: Type[datatype] = types.int32,
     split: int = 0,
-    device: Optional[str] = None,
+    device: Optional[Union[str, Device]] = None,
     comm: Optional[Communication] = None,
 ) -> DNDarray:
     """
@@ -37,7 +38,7 @@ def load_npy_from_path(
         Data type of the resulting array. Default is ``ht.int32``.
     split : int, optional
         Axis along which the loaded arrays are concatenated and distributed. Default is 0.
-    device : str, optional
+    device : str or Device, optional
         The device id on which to place the data, defaults to globally set default device.
     comm : Communication, optional
         The communication to use for the data distribution, defaults to global default.

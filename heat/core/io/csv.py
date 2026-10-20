@@ -12,7 +12,7 @@ import warnings
 import os
 from functools import reduce
 from math import log10
-from typing import Dict, Iterable, Optional
+from typing import Any, Callable, Iterable, List, Optional, Type, Union
 
 import numpy as np
 import torch
@@ -22,6 +22,7 @@ from .. import factories
 from .. import types
 from .._config import is_installed, require_dependency
 from ..communication import Communication, MPI, sanitize_comm
+from ..devices import Device
 from ..dndarray import DNDarray
 from ..statistics import max as smax, min as smin
 from ..types import datatype
@@ -38,10 +39,10 @@ def load_csv(
     path: str,
     header_lines: int = 0,
     sep: str = ",",
-    dtype: datatype = types.float32,
+    dtype: Type[datatype] = types.float32,
     encoding: str = "utf-8",
     split: Optional[int] = None,
-    device: Optional[str] = None,
+    device: Optional[Union[str, Device]] = None,
     comm: Optional[Communication] = None,
 ) -> DNDarray:
     """
@@ -65,7 +66,7 @@ def load_csv(
     split : int or None, optional
         Along which axis the resulting array should be split, one of ``None``, 0 or 1.
         Default is ``None`` which means each node will have the full array.
-    device : str, optional
+    device : str or Device, optional
         The device id on which to place the data, defaults to globally set default device.
     comm : Communication, optional
         The communication to use for the data distribution, defaults to global default.
@@ -135,11 +136,10 @@ def load_csv(
         with open(path) as f:
             data = f.readlines()
             data = data[header_lines:]
-            result = []
+            result: List[List[float]] = []
             for line in data:
                 values = line.replace("\n", "").replace("\r", "").split(sep)
-                values = [float(val) for val in values]
-                result.append(values)
+                result.append([float(val) for val in values])
             resulting_tensor = factories.array(
                 result, dtype=dtype, split=split, device=device, comm=comm
             )
@@ -151,14 +151,14 @@ def load_csv(
         # Read a chunk of bytes and count the linebreaks
         with open(path, "rb") as f:
             f.seek(displs[rank], 0)
-            line_starts = []
+            line_starts: List[int] = []
             r = f.read(counts[rank])
-            for pos, line in enumerate(r):
-                if chr(line) == "\n":
+            for pos, byte in enumerate(r):
+                if chr(byte) == "\n":
                     # Check if it is part of '\r\n'
                     if chr(r[pos - 1]) != "\r":
                         line_starts.append(pos + 1)
-                elif chr(line) == "\r":
+                elif chr(byte) == "\r":
                     # check if file line is terminated by '\r\n'
                     if pos + 1 < len(r) and chr(r[pos + 1]) == "\n":
                         line_starts.append(pos + 2)
@@ -190,25 +190,26 @@ def load_csv(
             else:
                 columns = 0
 
-            columns = torch.tensor([columns], dtype=torch.int32)
-            comm.Allreduce(MPI.IN_PLACE, columns, MPI.MAX)
+            max_columns = torch.tensor([columns], dtype=torch.int32)
+            comm.Allreduce(MPI.IN_PLACE, max_columns, MPI.MAX)
+            columns = int(max_columns.item())
 
             # Share how far the processes need to reed in their last line
             last_line = file_size
             if size - start > 1:
                 if rank == start:
-                    last_line = torch.empty(1, dtype=torch.int32)
-                    comm.Recv(last_line, source=rank + 1)
-                    last_line = last_line.item()
+                    next_first_line = torch.empty(1, dtype=torch.int32)
+                    comm.Recv(next_first_line, source=rank + 1)
+                    last_line = int(next_first_line.item())
                 elif rank == size - 1:
                     first_line = torch.tensor(displs[rank] + line_starts[0] - 1, dtype=torch.int32)
                     comm.Send(first_line, dest=rank - 1)
                 elif start < rank < size - 1:
-                    last_line = torch.empty(1, dtype=torch.int32)
+                    next_first_line = torch.empty(1, dtype=torch.int32)
                     first_line = torch.tensor(displs[rank] + line_starts[0] - 1, dtype=torch.int32)
                     comm.Send(first_line, dest=rank - 1)
-                    comm.Recv(last_line, source=rank + 1)
-                    last_line = last_line.item()
+                    comm.Recv(next_first_line, source=rank + 1)
+                    last_line = int(next_first_line.item())
 
             # Create empty tensor and iteratively fill it with the values
             local_shape = (len(line_starts), columns)
@@ -220,11 +221,11 @@ def load_csv(
             for ind, start in enumerate(line_starts):
                 if ind == len(line_starts) - 1:
                     f.seek(displs[rank] + start, 0)
-                    line = f.read(last_line - displs[rank] - start)
+                    raw_line = f.read(last_line - displs[rank] - start)
                 else:
-                    line = r[start : line_starts[ind + 1] - lineter_len]
+                    raw_line = r[start : line_starts[ind + 1] - lineter_len]
                 # Decode byte array
-                line = line.decode(encoding)
+                line = raw_line.decode(encoding)
                 if len(line) > 0:
                     sep_values = [float(val) for val in line.split(sep)]
                     local_tensor[actual_length] = torch.tensor(sep_values, dtype=dtype.torch_type())
@@ -238,7 +239,7 @@ def load_csv(
         )
         comm.Allreduce(MPI.IN_PLACE, total_actual_lines, MPI.SUM)
 
-        gshape = (total_actual_lines.item(), columns[0].item())
+        gshape = (int(total_actual_lines.item()), columns)
 
         resulting_tensor = DNDarray(
             local_tensor,
@@ -252,24 +253,24 @@ def load_csv(
         resulting_tensor.balance_()
 
     elif split == 1:
-        data = []
+        local_rows: List[List[float]] = []
 
         with open(path) as f:
             for i in range(header_lines):
                 f.readline()
             line = f.readline()
-            values = line.replace("\n", "").replace("\r", "").split(sep)
-            values = [float(val) for val in values]
-            rows = len(values)
+            row = [float(val) for val in line.replace("\n", "").replace("\r", "").split(sep)]
+            rows = len(row)
 
             chunk, displs, _ = comm.counts_displs_shape((1, rows), 1)
-            data.append(values[displs[rank] : displs[rank] + chunk[rank]])
+            local_rows.append(row[displs[rank] : displs[rank] + chunk[rank]])
             # Read file line by line till EOF reached
             for line in iter(f.readline, ""):
-                values = line.replace("\n", "").replace("\r", "").split(sep)
-                values = [float(val) for val in values]
-                data.append(values[displs[rank] : displs[rank] + chunk[rank]])
-        resulting_tensor = factories.array(data, dtype=dtype, is_split=1, device=device, comm=comm)
+                row = [float(val) for val in line.replace("\n", "").replace("\r", "").split(sep)]
+                local_rows.append(row[displs[rank] : displs[rank] + chunk[rank]])
+        resulting_tensor = factories.array(
+            local_rows, dtype=dtype, is_split=1, device=device, comm=comm
+        )
 
     return resulting_tensor
 
@@ -277,12 +278,12 @@ def load_csv(
 def save_csv(
     data: DNDarray,
     path: str,
-    header_lines: Iterable[str] = None,
+    header_lines: Optional[Iterable[str]] = None,
     sep: str = ",",
     decimals: int = -1,
     encoding: str = "utf-8",
     truncate: bool = True,
-):
+) -> None:
     """
     Saves data to a CSV file.
 
@@ -459,11 +460,11 @@ if _AVAILABLE:
 
     def load_csv_from_folder(
         path: str,
-        dtype: datatype = types.int32,
+        dtype: Type[datatype] = types.int32,
         split: int = 0,
-        device: Optional[str] = None,
+        device: Optional[Union[str, Device]] = None,
         comm: Optional[Communication] = None,
-        func: Optional[callable] = None,
+        func: Optional[Callable[[Any], Any]] = None,
     ) -> DNDarray:
         """
         Loads all ``.csv`` files in a directory into one DNDarray.
@@ -481,11 +482,11 @@ if _AVAILABLE:
             Data type of the resulting array. Default is ``ht.int32``.
         split : int, optional
             Axis along which the loaded arrays are concatenated and distributed. Default is 0.
-        device : str, optional
+        device : str or Device, optional
             The device id on which to place the data, defaults to globally set default device.
         comm : Communication, optional
             The communication to use for the data distribution, defaults to global default.
-        func : callable, optional
+        func : Callable, optional
             Applied to the :class:`pandas.DataFrame` read from each file before it is added
             to the array; must return a ``DataFrame``.
 
@@ -530,7 +531,7 @@ if _AVAILABLE:
 
         def reader(file_path: str) -> np.ndarray:
             frame = pandas.read_csv(file_path)
-            return (func(frame) if func is not None else frame).to_numpy()
+            return np.asarray(func(frame) if func is not None else frame)
 
         return load_from_folder(
             path,
