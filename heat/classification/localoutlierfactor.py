@@ -208,25 +208,30 @@ class LocalOutlierFactor:
 
     def _advanced_indexing(self, A: DNDarray, idx: DNDarray) -> DNDarray:
         """
-        Perform advanced indexing on a distributed DNDarray, allowing for optional runtime optimization.
+        Perform advanced indexing of neighbor values on a 1D array using a 2D index matrix.
 
-        This function handles advanced indexing for distributed DNDarrays. It supports two modes:
-        1. Fully distributed mode (`fully_distributed=True`): handles indexing in a completely distributed manner.
-           This mode is memory safe but rather slow.
-        2. Local mode (`fully_distributed=False`):uses local arrays (torch tensors) to perform indexing
-           efficiently, assuming that local arrays of dimension (A.shape[0], `n_neighbors`) fit into memory.
+        Supports two execution modes controlled by ``fully_distributed``:
+        1. Fully distributed mode (``fully_distributed=True``): executes native Heat distributed
+           indexing (``A[idx]``) via MPI all-to-all communication. This path is memory-safe when
+           replicating ``A`` would exceed device memory.
+        2. Replicated target mode (``fully_distributed=False``): replicates only the 1D vector ``A``
+           across processes while keeping ``idx`` partitioned along axis 0. Indexing is performed
+           locally on device tensors without all-to-all communication, and the output ``DNDarray``
+           is instantiated directly using known distribution metadata.
 
         Parameters
         ----------
         A : DNDarray
-            The input DNDarray to be indexed.
+            1D array of values to be indexed (e.g., ``k_dist`` or ``lrd``).
         idx : DNDarray
-            The indices used for advanced indexing.
+            2D array of neighbor indices with shape ``(n_samples, n_neighbors)``, partitioned
+            along axis 0.
 
         Returns
         -------
         indexed_A : DNDarray
-            The result of advanced indexing on the input array.
+            2D array with indexed neighbor values, having shape ``(n_samples, n_neighbors)``
+            and inheriting the partition layout of ``idx``.
         """
         if self.fully_distributed:
             return A[idx]
