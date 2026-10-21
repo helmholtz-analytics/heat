@@ -124,7 +124,7 @@ class LocalOutlierFactor:
         # Compute the distance matrix for the n_neighbors nearest neighbors of each point and the corresponding indices
         # (only these are needed for the LOF computation).
 
-        min_local_rows = min(s[0] for s in X.lshape_map) if X.split is not None else length
+        min_local_rows = X.lshape_map[-1, X.split] if X.split is not None else length
 
         if self.n_neighbors + 1 > min_local_rows:
             dist, idx = ht.topk(cdist(X), k=self.n_neighbors + 1, sorted=True, largest=False)
