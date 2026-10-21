@@ -961,6 +961,9 @@ def mean(x: DNDarray, axis: Optional[Union[int, Tuple[int, ...]]] = None) -> DND
     >>> ht.mean(a, (0, 1))
     DNDarray(0.1342, dtype=ht.float32, device=cpu:0, split=None)
     """
+    # the merge below closes over ``axis``, so it has to be canonical before that closure is
+    # defined: __moment_w_axis normalizes its own copy only
+    axis = __sanitize_moment_axis(x.shape, axis)
 
     def reduce_means_elementwise(output_shape_i: torch.Tensor) -> DNDarray:
         """
@@ -1025,7 +1028,7 @@ def mean(x: DNDarray, axis: Optional[Union[int, Tuple[int, ...]]] = None) -> DND
             mu_in = torch.mean(x.larray)
             if torch.isnan(mu_in):
                 mu_in = 0.0
-            n = x.lnumel
+            n = x.larray.numel()
             mu_tot = factories.zeros((x.comm.size, 2), device=x.device)
             mu_proc = factories.zeros((x.comm.size, 2), device=x.device)
             mu_proc[x.comm.rank] = mu_in, float(n)
@@ -1091,13 +1094,12 @@ DNDarray.median: Callable[[DNDarray, int, bool, bool, float], DNDarray] = (
 DNDarray.median.__doc__ = median.__doc__
 
 
-def __merge_moments(
-    m1: torch.Tensor, m2: torch.Tensor, correction: bool = True
-) -> Tuple[torch.Tensor, ...]:
+def __merge_moments(m1: Tuple, m2: Tuple) -> Tuple[torch.Tensor, ...]:
     """
     Merge two statistical moments.
-    If the length of ``m1`` and ``m2`` (must be equal) is ``==3`` then the second moment (variance)
-    is merged. This function can be expanded to merge other moments according to Reference [1] as well.
+    If the length of ``m1`` and ``m2`` (must be equal) is ``==3`` then the second moment (sum of squared
+    differences between sample data and estimated mean) is merged. This function can be expanded to merge
+    other moments according to Reference [1] as well.
     Note: all arrays must be either the same size or individual values
 
     Parameters
@@ -1108,8 +1110,6 @@ def __merge_moments(
     m2 : Tuple
         Tuple of the moments to merge together, the 0th element is the moment to be merged. The tuple must be
         sorted in descending order of moments
-    correction : bool
-        Flag for the use of unbiased estimators (when available)
 
     References
     ----------
@@ -1120,6 +1120,8 @@ def __merge_moments(
     if len(m1) != len(m2):
         raise ValueError(f"m1 and m2 must be same length, currently {len(m1)} and {len(m2)}")
     n1, n2 = m1[-1], m2[-1]
+    if n2.sum() == 0:
+        return m1
     mu1, mu2 = m1[-2], m2[-2]
     n = n1 + n2
     delta = mu2 - mu1
@@ -1127,14 +1129,12 @@ def __merge_moments(
     if len(m1) == 2:  # merge means
         return mu, n
 
-    var1, var2 = m1[-3], m2[-3]
-    if correction:
-        var_m = (var1 * (n1 - 1) + var2 * (n2 - 1) + (delta**2) * n1 * n2 / n) / (n - 1)
-    else:
-        var_m = (var1 * n1 + var2 * n2 + (delta**2) * n1 * n2 / n) / n
+    M2_1, M2_2 = m1[-3], m2[-3]
+    # this is formula (II.4) in [1]:
+    M2 = M2_1 + M2_2 + (delta**2) * n1 * n2 / n
 
-    if len(m1) == 3:  # merge vars
-        return var_m, mu, n
+    if len(m1) == 3:  # merge second moments
+        return M2, mu, n
 
     # TODO: This code block can be added if skew or kurtosis support multiple axes:
     # sk1, sk2 = m1[-4], m2[-4]
@@ -1274,6 +1274,39 @@ def minimum(x1: DNDarray, x2: DNDarray, out: Optional[DNDarray] = None) -> DNDar
     return _operations.__binary_op(torch.min, x1, x2, out)
 
 
+def __sanitize_moment_axis(
+    shape: Tuple[int, ...],
+    axis: Union[int, Tuple[int, ...], List[int], torch.Tensor, None],
+) -> Union[int, Tuple[int, ...], List[int], torch.Tensor, None]:
+    """
+    Bring the ``axis`` argument of a moment function into its canonical form: an iterable of ints,
+    or an integer ``torch.Tensor``, becomes a tuple of non-negative ints. Only then can an axis be
+    compared with ``x.split``, used to index ``x.lshape``, or handed to ``numpy``, which the
+    functions merging the moments across processes and the shortcuts for local data rely on.
+
+    A malformed axis is returned unchanged, so that :func:`__moment_w_axis` still raises for it.
+    That includes a float tensor, as produced by the ``torch.Tensor`` constructor rather than by
+    ``torch.tensor``: ``torch.Tensor([0, 2])`` holds ``[0.0, 2.0]`` and is no valid axis.
+
+    Parameters
+    ----------
+    shape : Tuple[int, ...]
+        Shape of the array the moment is calculated for
+    axis : None or int or iterable or torch.Tensor
+        Axis/axes to calculate the moment along
+    """
+    if isinstance(axis, torch.Tensor):
+        axis = axis.tolist()
+    if axis is None or len(shape) == 0:
+        # scalars are handled like the whole array, cf. stride_tricks.sanitize_axis
+        return axis
+    if isinstance(axis, int):
+        return stride_tricks.sanitize_axis(shape, axis)
+    if isinstance(axis, (list, tuple)) and all(isinstance(a, int) for a in axis):
+        return tuple(stride_tricks.sanitize_axis(shape, a) for a in axis)
+    return axis
+
+
 def __moment_w_axis(
     function: Callable,
     x: DNDarray,
@@ -1300,18 +1333,25 @@ def __moment_w_axis(
     fischer : bool
         if the Fischer correction is to be applied (only used in skew and Kurtosis)
     """
-    # helper for calculating a statistical moment with a given axis
-    kwargs = {"dim": axis}
+    # helper for calculating a statistical moment with a given axis. ``dim`` is only added to
+    # ``kwargs`` once the axis has been brought into its canonical form below, so that the local
+    # torch call and the merge across processes always see the same representation of it.
+    kwargs = {}
     if correction is not None:
         kwargs["correction"] = correction
     if fischer is not None:
         kwargs["fischer"] = fischer
+
+    # convert a tensor axis first, so that a 0-dimensional one is treated like an int
+    if isinstance(axis, torch.Tensor):
+        axis = axis.tolist()
 
     output_shape = list(x.shape)
     if isinstance(axis, int):
         if axis >= len(x.shape):
             raise ValueError(f"axis must be < {len(x.shape)}, currently is {axis}")
         axis = stride_tricks.sanitize_axis(x.shape, axis)
+        kwargs["dim"] = axis
         # only one axis given
         output_shape = [output_shape[it] for it in range(len(output_shape)) if it != axis]
         output_shape = output_shape if output_shape else (1,)
@@ -1339,14 +1379,11 @@ def __moment_w_axis(
             comm=x.comm,
             copy=False,
         )
-    elif not isinstance(axis, (list, tuple, torch.Tensor)):
+    elif not isinstance(axis, (list, tuple)):
         raise TypeError(
             f"axis must be an int, tuple, list, or torch.Tensor; currently it is {type(axis)}."
         )
     # else:
-    if isinstance(axis, torch.Tensor):
-        axis = axis.tolist()
-
     if isinstance(axis, (list, tuple)) and len(set(axis)) != len(axis):  # most common case
         raise ValueError("duplicate value in axis")
     if any(not isinstance(j, int) for j in axis):
@@ -1358,6 +1395,7 @@ def __moment_w_axis(
         axis = [stride_tricks.sanitize_axis(x.shape, j) for j in axis]
     if any(d > len(x.shape) for d in axis):
         raise ValueError(f"axes (axis) must be < {len(x.shape)}, currently are {axis}")
+    kwargs["dim"] = axis
 
     output_shape = [output_shape[it] for it in range(len(output_shape)) if it not in axis]
     # multiple dimensions
@@ -2021,6 +2059,8 @@ def std(
         else:
             correction = bool(ddof)
         ddof = 1 if correction else ddof
+    # numpy does not accept a list or a tensor as an axis, unlike the rest of heat
+    axis = __sanitize_moment_axis(x.shape, axis)
     if not x.is_distributed() and str(x.device).startswith("cpu"):
         loc = np.std(x.larray.numpy(), axis=axis, ddof=ddof)
         if loc.size == 1:
@@ -2188,6 +2228,10 @@ def var(
     correction = kwargs.get("bessel", correction)
     correction = bool(correction)
 
+    # the merge below closes over ``axis``, so it has to be canonical before that closure is
+    # defined: __moment_w_axis normalizes its own copy only
+    axis = __sanitize_moment_axis(x.shape, axis)
+
     def reduce_vars_elementwise(output_shape_i: torch.Tensor) -> DNDarray:
         """
         Function to combine the calculated vars together. This does an element-wise update of the
@@ -2199,28 +2243,37 @@ def var(
         output_shape_i : iterable
             Iterable with the dimensions of the output of the var function.
         """
+        # number of elements reduced into one output element on this process: the local extent
+        # along the split axis times the (undistributed) extents of the other reduced axes.
+        # ``correction`` must be applied to this count, not to the extent of the split axis alone.
+        reduced_axes = [axis] if isinstance(axis, int) else list(axis)
+        n = float(x.lshape[x.split])
+        for ax in reduced_axes:
+            if ax != x.split:
+                n *= x.lshape[ax]
+
         if x.lshape[x.split] != 0:
             mu = torch.mean(x.larray, dim=axis)
-            var = torch.var(x.larray, dim=axis, correction=correction)
+            M2 = torch.var(x.larray, dim=axis, correction=False) * n
         else:
             mu = factories.zeros(output_shape_i, dtype=x.dtype, device=x.device)
-            var = factories.zeros(output_shape_i, dtype=x.dtype, device=x.device)
+            M2 = factories.zeros(output_shape_i, dtype=x.dtype, device=x.device)
 
-        var_shape = list(var.shape) if list(var.shape) else [1]
+        var_shape = list(M2.shape) if list(M2.shape) else [1]
 
-        var_tot = factories.zeros(([x.comm.size, 3] + var_shape), dtype=x.dtype, device=x.device)
-        var_tot[x.comm.rank, 0, :] = var
-        var_tot[x.comm.rank, 1, :] = mu
-        var_tot[x.comm.rank, 2, :] = float(x.lshape[x.split])
-        x.comm.Allreduce(MPI.IN_PLACE, var_tot, MPI.SUM)
+        M2_tot = factories.zeros(([x.comm.size, 3] + var_shape), dtype=x.dtype, device=x.device)
+        M2_tot[x.comm.rank, 0, :] = M2
+        M2_tot[x.comm.rank, 1, :] = mu
+        M2_tot[x.comm.rank, 2, :] = n
+        x.comm.Allreduce(MPI.IN_PLACE, M2_tot, MPI.SUM)
 
         for i in range(1, x.comm.size):
-            var_tot[0, 0, :], var_tot[0, 1, :], var_tot[0, 2, :] = __merge_moments(
-                (var_tot[0, 0, :], var_tot[0, 1, :], var_tot[0, 2, :]),
-                (var_tot[i, 0, :], var_tot[i, 1, :], var_tot[i, 2, :]),
-                correction=correction,
+            M2_tot[0, 0, :], M2_tot[0, 1, :], M2_tot[0, 2, :] = __merge_moments(
+                (M2_tot[0, 0, :], M2_tot[0, 1, :], M2_tot[0, 2, :]),
+                (M2_tot[i, 0, :], M2_tot[i, 1, :], M2_tot[i, 2, :]),
             )
-        return var_tot[0, 0, :][0] if var_tot[0, 0, :].size == 1 else var_tot[0, 0, :]
+        var = M2_tot[0, 0, :] / (M2_tot[0, 2, :] - int(correction))
+        return var[0] if var.size == 1 else var
 
     # ----------------------------------------------------------------------------------------------
     if axis is None:  # no axis given
@@ -2231,27 +2284,26 @@ def var(
             )
 
         else:  # case for full matrix calculation (axis is None)
+            n = x.larray.numel()
             mu_in = torch.mean(x.larray)
-            var_in = torch.var(x.larray, correction=correction)
-            # Nan is returned when local tensor is empty
-            if torch.isnan(var_in):
-                var_in = 0.0
+            M2_in = torch.var(x.larray, correction=False) * n
+            # NaN is returned when local tensor is empty
+            if torch.isnan(M2_in):
+                M2_in = 0.0
             if torch.isnan(mu_in):
                 mu_in = 0.0
 
-            n = x.lnumel
-            var_tot = factories.zeros((x.comm.size, 3), dtype=x.dtype, device=x.device)
+            M2_tot = factories.zeros((x.comm.size, 3), dtype=x.dtype, device=x.device)
             var_proc = factories.zeros((x.comm.size, 3), dtype=x.dtype, device=x.device)
-            var_proc[x.comm.rank] = var_in, mu_in, float(n)
-            x.comm.Allreduce(var_proc, var_tot, MPI.SUM)
+            var_proc[x.comm.rank] = M2_in, mu_in, float(n)
+            x.comm.Allreduce(var_proc, M2_tot, MPI.SUM)
 
             for i in range(1, x.comm.size):
-                var_tot[0, 0], var_tot[0, 1], var_tot[0, 2] = __merge_moments(
-                    (var_tot[0, 0], var_tot[0, 1], var_tot[0, 2]),
-                    (var_tot[i, 0], var_tot[i, 1], var_tot[i, 2]),
-                    correction=correction,
+                M2_tot[0, 0], M2_tot[0, 1], M2_tot[0, 2] = __merge_moments(
+                    (M2_tot[0, 0], M2_tot[0, 1], M2_tot[0, 2]),
+                    (M2_tot[i, 0], M2_tot[i, 1], M2_tot[i, 2]),
                 )
-            return var_tot[0][0]
+            return M2_tot[0][0] / (M2_tot[0][2] - int(correction))
 
     else:  # axis is given
         return __moment_w_axis(torch.var, x, axis, reduce_vars_elementwise, correction)
