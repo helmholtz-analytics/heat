@@ -136,21 +136,40 @@ class LocalOutlierFactor:
                 X, X, metric=self.metric, n_smallest=self.n_neighbors + 1, chunks=self.chunks
             )  # cdist_small stores also the distance of each point to itself, therefore use n_neighbors+1
 
-        # Extract the k-distance and the indices of the k-nearest neighbors
-        k_dist = dist[:, -1]
-        idx_neighbors = idx[:, 1 : self.n_neighbors + 1]
+        # Local views on axis 1 (column 0 is self-distance, 1: are the neighbors)
+        dist_neighbors_l = dist.larray[:, 1:]
+        k_dist_l = dist_neighbors_l[:, -1]
+
+        # Direct instantiation with known metadata
+        k_dist = DNDarray(
+            k_dist_l,
+            gshape=(length,),
+            dtype=dist.dtype,
+            split=dist.split,
+            device=dist.device,
+            comm=dist.comm,
+            balanced=dist.balanced,
+        )
+        idx_neighbors = DNDarray(
+            idx.larray[:, 1:],
+            gshape=(length, self.n_neighbors),
+            dtype=idx.dtype,
+            split=idx.split,
+            device=idx.device,
+            comm=idx.comm,
+            balanced=idx.balanced,
+        )
         self.idx_n_neighbors = idx_neighbors
 
         k_dist_neighbors = self._advanced_indexing(k_dist, idx_neighbors)
 
-        # all local operations along axis 1
-        dist_neighbors_l = dist.larray[:, 1 : self.n_neighbors + 1]
+        # calculate reachability distance on local tensors
         reachability_dist_l = torch.maximum(k_dist_neighbors.larray, dist_neighbors_l)
 
-        # Compute local reachability density (lrd) locally on device
+        # calculate local reachability density (lrd)
         lrd_l = 1.0 / (reachability_dist_l.mean(dim=1) + 1e-10)
 
-        # Wrap lrd with known metadata to pass to indexing without collective calls
+        # wrap lrd with known metadata to pass to indexing without collective calls
         lrd = DNDarray(
             lrd_l,
             gshape=(length,),
@@ -161,10 +180,10 @@ class LocalOutlierFactor:
             balanced=dist.balanced,
         )
 
-        # Calculate neighbor density
+        # calculate neighbor density
         lrd_neighbors = self._advanced_indexing(lrd, idx_neighbors)
 
-        # Compute final LOF scores locally on device
+        # compute final LOF scores locally on device
         lof_l = lrd_neighbors.larray.mean(dim=1) / lrd_l
 
         self.lof_scores = DNDarray(
