@@ -3274,16 +3274,16 @@ def Itake(
     Parameters
     ----------
     a : DNDarray
-        The array whose slices along `axis` are to be rearranged.
+        The source array
     indices : torch.Tensor
-        A 1D tensor of length `a.gshape[axis]` defining the new global order.
+        A 1D tensor of length `a.gshape[axis]` with the indices of the values to extract.
     axis : int, optional
-        The axis along which to permute. Default is -1.
+        The axis over which to select values. Default is None.
 
     Returns
     -------
     DNDarray
-        The reordered array.
+        The returned array.
     """
     sanitation.sanitize_in(a)
 

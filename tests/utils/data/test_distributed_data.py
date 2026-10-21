@@ -12,7 +12,7 @@ import pytest
 from heat.testing.basic_test import TestCase
 
 
-class SeedEnviroment:
+class SeedEnvironment:
     """
     Class to be used in a `with` Environment.
     Changes the torch seed to the given and then resets it to the previous one when exiting.
@@ -103,7 +103,7 @@ class TestDatatools:
 
         comm = ht.get_comm()
 
-        with SeedEnviroment(seed):
+        with SeedEnvironment(seed):
             ht_data = list(
                 TorchDataloader(
                     dataset,
@@ -112,7 +112,7 @@ class TestDatatools:
                     sampler=TorchDistributedSampler(dataset, num_replicas=comm.size, rank=comm.rank, drop_last=drop_last, shuffle=shuffle)
                 )
             )
-        with SeedEnviroment(seed):
+        with SeedEnvironment(seed):
             torch_data = list(
                 TorchDataloader(
                     torch_dataset,
@@ -127,7 +127,7 @@ class TestDatatools:
         dataset = DistributedDataset(features, labels)
         torch_dataset = TensorDataset(features_torch, labels_torch)
 
-        with SeedEnviroment(seed):
+        with SeedEnvironment(seed):
             ht_data = list(
                 TorchDataloader(
                     dataset,
@@ -136,7 +136,7 @@ class TestDatatools:
                     sampler=TorchDistributedSampler(dataset, num_replicas=comm.size, rank=comm.rank, drop_last=drop_last, shuffle=shuffle)
                 )
             )
-        with SeedEnviroment(seed):
+        with SeedEnvironment(seed):
             torch_data = list(
                 TorchDataloader(
                     torch_dataset,
@@ -146,7 +146,6 @@ class TestDatatools:
             )
 
         for (ht_features, ht_labels), (torch_features, torch_labels) in zip(ht_data, torch_data):
-            print(type(ht_batch), type(torch_batch))
             assert torch.allclose(ht_features, torch_features)
             assert torch.allclose(ht_labels, torch_labels)
 
