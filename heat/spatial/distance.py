@@ -301,6 +301,7 @@ def cdist_small(
     if not isinstance(X, DNDarray) or not isinstance(Y, DNDarray):
         raise ValueError(f"Inputs must be DNDarrays, but got X = {type(X)} and Y = {type(Y)}")
 
+    # if both X and Y are not distributed, we can use the standard torch.topk() function
     if not X.is_distributed() and not Y.is_distributed():
         current_dist, current_idx = _chunk_wise_topk(
             X.larray,
@@ -310,11 +311,13 @@ def cdist_small(
             chunks=chunks,
             device=X.device.torch_device,
         )
-        return ht.array(current_dist, split=None), ht.array(current_idx, split=None)
+        return ht.array(current_dist, split=None, device=X.device), ht.array(
+            current_idx, split=None, device=X.device
+        )
 
     if X.split != 0 or Y.split != 0:
         raise NotImplementedError(
-            "Currently, only split axis 0 is supported, "
+            "Currently, only distribution along axis 0 is supported, "
             f"but got X.split = {X.split} and Y.split = {Y.split}"
         )
     if X.shape[1] != Y.shape[1]:
