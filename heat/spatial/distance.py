@@ -210,13 +210,13 @@ def manhattan(X: DNDarray, Y: DNDarray = None, expand: bool = False):
 
 
 def _chunk_wise_topk(
-    x_: torch.tensor,
-    y_: torch.tensor,
+    x_: torch.Tensor,
+    y_: torch.Tensor,
     k: int = 10,
     metric: Callable = _euclidian,
     chunks: int = 1,
     device: torch.device = None,
-) -> DNDarray:
+) -> tuple[torch.Tensor, torch.Tensor]:
     """
     Helper function to calculate the topk pairwise distances between two torch.tensors in a chunk-wise fashion,
     i.e., the top k distance matrix are calculated iteratively in chunks and then appended to the final matrix
@@ -224,9 +224,9 @@ def _chunk_wise_topk(
 
     Parameters
     ----------
-    x_ : torch.tensor
+    x_ : torch.Tensor
         2D array of size :math: `m \\times f`
-    y_ : torch.tensor
+    y_ : torch.Tensor
         2D array of size :math: `n \\times f`
     k : int
         Number of top k distances to be calculated
@@ -235,34 +235,41 @@ def _chunk_wise_topk(
     chunks: int
         Compute the distance matrix iteratively in chunks to reduce memory consumption.
         For ``chunks``= 2: first compute one half of the distance matrix and then the second half.
-    device: torch.device
-        The device on which the computation is performed. If None, the default device of the input tensors is used.
+    device: torch.device, optional
+        The device on which the computation is performed. If None, the device of ``x_`` is used.
     """
+    m = x_.shape[0]
+
     # input sanitation
-    if chunks > x_.shape[0]:
-        chunks = x_.shape[0]
+    if chunks > m:
+        chunks = m
         warnings.warn(
-            f"The parameter chunks should not be larger than the number of elements of x_ in each process. The value of chunks has been set to {chunks}."
+            f"The parameter chunks should not be larger than the number of elements of x_ in each process. "
+            f"The value of chunks has been set to {chunks}."
         )
+    chunks = max(1, chunks)
 
-    # initialize empty tensors that will be filled iteratively with the respective chunks
-    dist = torch.empty((0, k), dtype=torch.float32, device=device)
-    idx = torch.empty((0, k), dtype=torch.long, device=device)
-
-    block_size = (x_.shape[0] + chunks - 1) // chunks
-
+    # Fast path for single chunk: compute directly without extra pre-allocations
     if chunks == 1:
-        dist = metric(x_, y_)
-        dist, idx = torch.topk(dist, k, largest=False, sorted=True)
-    # compute the top k entries of the distance matrix iteratively in chunks and append results to dist and idx
-    else:
-        for start in range(0, x_.shape[0], block_size):
-            end = min(start + block_size, x_.shape[0])
-            x_batch = x_[start:end]
-            batched_dist = metric(x_batch, y_)
-            batched_dist, batched_idx = torch.topk(batched_dist, k, largest=False, sorted=True)
-            dist = torch.cat((dist, batched_dist), dim=0)
-            idx = torch.cat((idx, batched_idx), dim=0)
+        d = metric(x_, y_)
+        return torch.topk(d, k, largest=False, sorted=True)
+
+    target_device = x_.device if device is None else device
+
+    # Pre-allocate output buffers once to avoid repeated torch.cat reallocations
+    dist = torch.empty((m, k), dtype=x_.dtype, device=target_device)
+    idx = torch.empty((m, k), dtype=torch.int64, device=target_device)
+
+    block_size = (m + chunks - 1) // chunks
+
+    for start in range(0, m, block_size):
+        end = min(start + block_size, m)
+        batched_dist = metric(x_[start:end], y_)
+        b_dist, b_idx = torch.topk(batched_dist, k, largest=False, sorted=True)
+
+        dist[start:end] = b_dist
+        idx[start:end] = b_idx
+
     return dist, idx
 
 
