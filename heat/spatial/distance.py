@@ -300,6 +300,18 @@ def cdist_small(
     # input sanitation
     if not isinstance(X, DNDarray) or not isinstance(Y, DNDarray):
         raise ValueError(f"Inputs must be DNDarrays, but got X = {type(X)} and Y = {type(Y)}")
+
+    if not X.is_distributed() and not Y.is_distributed():
+        current_dist, current_idx = _chunk_wise_topk(
+            X.larray,
+            Y.larray,
+            n_smallest,
+            metric=metric,
+            chunks=chunks,
+            device=X.device.torch_device,
+        )
+        return ht.array(current_dist, split=None), ht.array(current_idx, split=None)
+
     if X.split != 0 or Y.split != 0:
         raise NotImplementedError(
             "Currently, only split axis 0 is supported, "
