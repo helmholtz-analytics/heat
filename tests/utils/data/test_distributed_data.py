@@ -1,11 +1,16 @@
 import heat as ht
-from heat.utils.data.datatools import DistributedDataset, DistributedDataLoader, _batch_indices, _create_distributed_indices
+from heat.utils.data.datatools import (
+    DistributedDataset,
+    DistributedDataLoader,
+    _batch_indices,
+    _create_distributed_indices,
+)
 import torch
-import torch
-from torch.utils.data import TensorDataset, DataLoader as TorchDataloader
+from torch.utils.data import TensorDataset, DataLoader as TorchDataloader, DistributedSampler as TorchDistributedSampler
 import pytest
 
 from heat.testing.basic_test import TestCase
+
 
 class SeedEnviroment:
     """
@@ -96,60 +101,206 @@ class TestDatatools:
 
         seed = torch.Generator().initial_seed()
 
-        with SeedEnviroment(seed):
-            ht_data = list(TorchDataloader(dataset, batch_size, shuffle=shuffle, collate_fn=lambda x: x, drop_last=drop_last))
-        with SeedEnviroment(seed):
-            torch_data = list(TorchDataloader(torch_dataset, batch_size, shuffle=shuffle, drop_last=drop_last))
+        comm = ht.get_comm()
 
-        for ht_batch, (torch_batch, ) in zip(ht_data, torch_data):
+        with SeedEnviroment(seed):
+            ht_data = list(
+                TorchDataloader(
+                    dataset,
+                    batch_size,
+                    collate_fn=lambda x: x,
+                    sampler=TorchDistributedSampler(dataset, num_replicas=comm.size, rank=comm.rank, drop_last=drop_last, shuffle=shuffle)
+                )
+            )
+        with SeedEnviroment(seed):
+            torch_data = list(
+                TorchDataloader(
+                    torch_dataset,
+                    batch_size,
+                    sampler=TorchDistributedSampler(dataset, num_replicas=comm.size, rank=comm.rank, drop_last=drop_last, shuffle=shuffle)
+                )
+            )
+
+        for ht_batch, (torch_batch,) in zip(ht_data, torch_data):
             assert torch.allclose(ht_batch, torch_batch)
 
         dataset = DistributedDataset(features, labels)
         torch_dataset = TensorDataset(features_torch, labels_torch)
 
-
         with SeedEnviroment(seed):
-            ht_data = list(TorchDataloader(dataset, batch_size, shuffle=shuffle, collate_fn=lambda x: x, drop_last=drop_last))
+            ht_data = list(
+                TorchDataloader(
+                    dataset,
+                    batch_size,
+                    collate_fn=lambda x: x,
+                    sampler=TorchDistributedSampler(dataset, num_replicas=comm.size, rank=comm.rank, drop_last=drop_last, shuffle=shuffle)
+                )
+            )
         with SeedEnviroment(seed):
-            torch_data = list(TorchDataloader(torch_dataset, batch_size, shuffle=shuffle, drop_last=drop_last))
+            torch_data = list(
+                TorchDataloader(
+                    torch_dataset,
+                    batch_size,
+                    sampler=TorchDistributedSampler(dataset, num_replicas=comm.size, rank=comm.rank, drop_last=drop_last, shuffle=shuffle)
+                )
+            )
 
         for (ht_features, ht_labels), (torch_features, torch_labels) in zip(ht_data, torch_data):
             print(type(ht_batch), type(torch_batch))
             assert torch.allclose(ht_features, torch_features)
             assert torch.allclose(ht_labels, torch_labels)
 
-    @pytest.mark.parametrize("N", [20])
+    @pytest.mark.parametrize("N", [0, 1, 11, 24])
     @pytest.mark.parametrize("split", [None, 0])
     @pytest.mark.parametrize("shuffle", [False, True])
     @pytest.mark.parametrize("batch_size", [3])
     @pytest.mark.parametrize("drop_last", [False, True])
     @pytest.mark.parametrize("prefetch_factor", [0, 1, 2])
     def test_distributed_dataloader(self, N, split, shuffle, batch_size, drop_last, prefetch_factor):
-        features = ht.random.randn(N, 3, 244, 244, dtype=ht.float32, split=split)
-        labels = ht.arange(N, split=split).reshape(N, 1)
+        comm = ht.get_comm()
+        features_torch = torch.arange(N * 3, dtype=torch.float32).reshape(N, 3)
+        labels_torch = torch.arange(N)
+        features = ht.array(features_torch, split=split)
+        labels = ht.array(labels_torch, split=split)
+        seed = 42
 
-        features_torch = ht.resplit(features, None).larray
-        labels_torch = ht.resplit(labels, None).larray
+        order = (
+            torch.randperm(N, generator=torch.Generator().manual_seed(seed)).tolist()
+            if shuffle
+            else list(range(N))
+        )
+        if split == 0:
+            samples_per_rank = N // comm.size if drop_last else -(-N // comm.size)
+            order = [order[i % N] for i in range(samples_per_rank * comm.size)]
+            start = comm.rank * samples_per_rank
+            order = order[start : start + samples_per_rank]
 
-        feature_data = list(TorchDataloader(TensorDataset(features_torch), batch_size, shuffle=False, drop_last=drop_last))
-        labels_data = list(TorchDataloader(TensorDataset(labels_torch), batch_size, shuffle=False, drop_last=drop_last))
+        reference = list(
+            TorchDataloader(
+                TensorDataset(features_torch[order], labels_torch[order]),
+                batch_size=batch_size,
+                drop_last=drop_last,
+            )
+        )
+        kwargs = dict(
+            batch_size=batch_size,
+            shuffle=shuffle,
+            drop_last=drop_last,
+            prefetch_factor=prefetch_factor,
+            seed=seed,
+        )
+        feature_loader = DistributedDataLoader(features, **kwargs)
+        label_loader = DistributedDataLoader(labels, **kwargs)
+        double_loader = DistributedDataLoader(features, labels, **kwargs)
 
-        feature_ht_data = list(DistributedDataLoader(features, batch_size=batch_size, shuffle=False, drop_last=drop_last, prefetch_factor=prefetch_factor, seed=0))
-        labels_ht_data = list(DistributedDataLoader(labels, batch_size=batch_size, shuffle=False, drop_last=drop_last, prefetch_factor=prefetch_factor, seed=0))
+        rng_state = torch.random.get_rng_state()
+        feature_batches = list(feature_loader)
+        label_batches = list(label_loader)
+        double_batches = list(double_loader)
+        assert torch.equal(torch.random.get_rng_state(), rng_state)
+        assert len(feature_loader) == len(feature_batches) == len(reference)
+        assert len(label_loader) == len(label_batches) == len(reference)
+        assert len(double_loader) == len(double_batches) == len(reference)
 
-        for feature_batch, (torch_batch,) in zip(feature_ht_data, feature_data):
-            assert torch.allclose(feature_batch, torch_batch)
+        for features_batch, labels_batch, pair, expected in zip(
+            feature_batches, label_batches, double_batches, reference
+        ):
+            assert torch.equal(features_batch, expected[0])
+            assert torch.equal(labels_batch, expected[1])
+            assert torch.equal(pair[0], expected[0])
+            assert torch.equal(pair[1], expected[1])
 
-        for labels_batch, (torch_batch,) in zip(labels_ht_data, labels_data):
-            assert torch.allclose(labels_batch, torch_batch)
+        local_labels = torch.cat(label_batches).tolist() if label_batches else []
+        rank_labels = comm.allgather(local_labels)
+        assert all(len(indices) == len(local_labels) for indices in rank_labels)
+        if split == 0:
+            combined = [label for indices in rank_labels for label in indices]
+            if drop_last:
+                assert len(combined) == len(set(combined))
+            else:
+                assert set(combined) == set(range(N))
+                assert len(combined) == samples_per_rank * comm.size
 
-        seed = torch.Generator().initial_seed()
-        labels_ht_data = list(DistributedDataLoader(labels, batch_size=batch_size, shuffle=shuffle, drop_last=drop_last, prefetch_factor=prefetch_factor, seed=seed))
-        double_loader = DistributedDataLoader(features, labels, batch_size=batch_size, shuffle=shuffle, drop_last=drop_last, prefetch_factor=prefetch_factor, seed=seed)
+    @pytest.mark.parametrize("split", [None, 0])
+    @pytest.mark.parametrize("prefetch_factor", [0, 2])
+    def test_distributed_dataloader_epochs(self, split, prefetch_factor):
+        comm = ht.get_comm()
+        data = ht.arange(48, split=split)
+        seed = 42 + comm.rank
 
-        for (feature_batch, label_batch), indices in zip(double_loader, labels_ht_data):
-            assert torch.allclose(label_batch, indices)
-            assert torch.allclose(feature_batch, features_torch[indices.flatten()])
+        def make_loader():
+            return DistributedDataLoader(
+                data,
+                batch_size=3,
+                shuffle=True,
+                seed=seed,
+                prefetch_factor=prefetch_factor,
+            )
+
+        loader = make_loader()
+        rng_state = torch.random.get_rng_state()
+        first = torch.cat(list(loader))
+        second = torch.cat(list(loader))
+        assert loader.epoch == 2
+        assert not torch.equal(first, second)
+        assert torch.equal(first, torch.cat(list(make_loader())))
+
+        reference_seed = 42 if data.is_distributed() else seed
+        expected = torch.randperm(48, generator=torch.Generator().manual_seed(reference_seed))
+        if data.is_distributed():
+            expected = expected.chunk(comm.size)[comm.rank]
+        assert torch.equal(first, expected)
+
+        loader.seed = seed
+        assert loader.epoch == 0
+        assert torch.equal(first, torch.cat(list(loader)))
+        assert loader.epoch == 1
+
+        with iter(loader) as batches:
+            next(batches)
+        assert loader.epoch == 2
+        assert torch.equal(torch.random.get_rng_state(), rng_state)
+
+    @pytest.mark.parametrize("N", [0, 1, 11, 24])
+    @pytest.mark.parametrize("distributed", [False, True])
+    @pytest.mark.parametrize("shuffle", [False, True])
+    @pytest.mark.parametrize("drop_last", [False, True])
+    def test_distributed_indices_partition(self, N, distributed, shuffle, drop_last):
+        comm = ht.get_comm()
+        seed = 42 + comm.rank
+        rng_state = torch.random.get_rng_state()
+        indices = _create_distributed_indices(
+            comm, N, shuffle, seed, distributed=distributed, drop_last=drop_last
+        )
+        assert torch.equal(torch.random.get_rng_state(), rng_state)
+        assert indices.dtype == torch.int64
+        assert indices.device.type == "cpu"
+        assert indices.is_contiguous()
+
+        reference_seed = 42 if distributed else seed
+        expected = (
+            torch.randperm(N, generator=torch.Generator().manual_seed(reference_seed))
+            if shuffle
+            else torch.arange(N)
+        )
+        if not distributed:
+            assert indices.shape == (1, N)
+            assert torch.equal(indices[0], expected)
+            return
+
+        orders = comm.allgather(indices.tolist())
+        assert all(order == orders[0] for order in orders)
+        count = N // comm.size if drop_last else -(-N // comm.size)
+        assert indices.shape == (comm.size, count)
+        flat = indices.flatten()
+        if drop_last:
+            assert torch.equal(flat, expected[: count * comm.size])
+            assert flat.unique().numel() == flat.numel()
+        else:
+            assert torch.equal(flat[:N], expected)
+            assert flat.unique().numel() == N
+            if N:
+                assert torch.equal(flat, expected[torch.arange(flat.numel()) % N])
 
     def test_distributed_dataset_params(self) -> None:
         data = ht.arange(8)
@@ -238,9 +389,15 @@ class TestDatatools:
     def test_create_distributed_indices(self) -> None:
         for shuffle in (False, True):
             with pytest.raises(RuntimeError):
-                _create_distributed_indices(ht.MPI_WORLD, num_elements=-1, shuffle=shuffle, seed=0, distributed=False)
+                _create_distributed_indices(
+                    ht.MPI_WORLD, num_elements=-1, shuffle=shuffle, seed=0, distributed=False
+                )
 
         with pytest.raises(RuntimeError):
-            _create_distributed_indices(ht.MPI_WORLD, num_elements=8, shuffle=True, seed="invalid", distributed=False)
+            _create_distributed_indices(
+                ht.MPI_WORLD, num_elements=8, shuffle=True, seed="invalid", distributed=False
+            )
         with pytest.raises(AttributeError):
-            _create_distributed_indices(object(), num_elements=8, shuffle=False, seed=0, distributed=False)
+            _create_distributed_indices(
+                object(), num_elements=8, shuffle=False, seed=0, distributed=False
+            )

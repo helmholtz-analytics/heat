@@ -526,6 +526,7 @@ def _create_distributed_indices(
     seed: int,
     *,
     distributed: bool = True,
+    drop_last: bool = False,
 ) -> torch.Tensor:
     """
     Create sample indices for each process.
@@ -533,48 +534,67 @@ def _create_distributed_indices(
     Parameters
     ----------
     comm : MPICommunication
-        Communication object used to gather the indices from each process.
+        Communication object used to broadcast the global indices from rank 0.
     num_elements : int
         Number of samples in the global dataset. Must be non-negative.
     shuffle : bool
         If ``True``, create a random permutation of the sample indices. Otherwise, return
         the indices in increasing order.
     seed : int
-        Seed of the local torch random number generator. Only used if ``shuffle`` is ``True``.
+        Seed of a dedicated torch random number generator. Only used if ``shuffle`` is
+        ``True``. For distributed indices, rank 0's seed determines the global order.
     distributed : bool, optional
         If ``True``, return one row of indices for each process. Otherwise, return only the
         local indices in a single row. Default is ``True``.
+    drop_last : bool, optional
+        If ``True``, truncate the global indices to a multiple of the number of processes.
+        Otherwise, repeat indices from the beginning to reach the next multiple. Only
+        applies to distributed indices. Default is ``False``.
 
     Returns
     -------
     torch.Tensor
-        A CPU tensor of dtype ``torch.int64`` and shape ``(comm.size, num_elements)`` if
-        ``distributed`` is ``True``, or ``(1, num_elements)`` otherwise. Each row contains
-        the sample indices for the corresponding process.
+        A CPU tensor of dtype ``torch.int64`` and shape ``(comm.size, samples_per_rank)``
+        if ``distributed`` is ``True``, or ``(1, num_elements)`` otherwise. Each row
+        contains a contiguous portion of the global sample order for that process.
 
     Notes
     -----
-    Shuffled indices are gathered in rank order if ``distributed`` is ``True``. All processes
-    in ``comm`` must participate with the same ``num_elements``. Equal seeds produce equal
-    permutations. No communication is needed for unshuffled or non-distributed indices.
+    For distributed indices, rank 0 creates the global order and broadcasts it to all
+    processes before partitioning. All processes in ``comm`` must participate with the
+    same ``num_elements`` and ``drop_last``. No communication is needed for non-distributed
+    indices. The global torch random number generator state is unchanged.
     """
     N = num_elements
     P = comm.size
 
-    if shuffle:
-        idx = torch.randperm(N, generator=torch.Generator().manual_seed(seed))
+    if not distributed or comm.rank == 0:
+        if shuffle:
+            idx = torch.randperm(N, generator=torch.Generator().manual_seed(seed))
+        else:
+            idx = torch.arange(N, dtype=torch.int64)
     else:
-        idx = torch.arange(N, dtype=torch.int64)
+        idx = torch.empty(N, dtype=torch.int64)
 
     if not distributed:
         return idx.unsqueeze(0)
 
-    if not shuffle:
-        return idx.expand(P, N)
+    if N == 0:
+        return idx.reshape(P, 0)
 
-    indices = torch.empty(P * N, dtype=torch.int64)
-    comm.Allgather(idx, indices)
-    return indices.reshape(P, N).contiguous()
+    if P > 1:
+        comm.Bcast(idx, root=0)
+
+    if drop_last:
+        idx = idx[: N // P * P]
+    else:
+        total_size = (N + P - 1) // P * P
+        padding_size = total_size - N
+        if padding_size:
+            padding = idx.repeat((padding_size + N - 1) // N)[:padding_size]
+            idx = torch.cat((idx, padding))
+
+    return idx.reshape(P, -1).contiguous()
 
 
 def _batch_indices(
@@ -663,6 +683,30 @@ class DistributedDataset[T](torch.utils.data.Dataset):
     >>> dataset = ht.utils.data.DistributedDataset(data)
     >>> loader = DataLoader(dataset, batch_size=2, num_workers=0, collate_fn=lambda batch: batch)
     >>> batches = list(loader)
+
+    To assign each process a subset of the global dataset, use PyTorch's
+    ``DistributedSampler`` as the DataLoader's ``sampler`` argument with the MPI
+    communicator's size and rank. Use the same seed on all processes. For multiple epochs,
+    call ``loader.sampler.set_epoch(epoch)`` before iterating the loader to change the
+    shuffle order. By default, the sampler repeats some indices when the sample count is not
+    divisible by the number of processes; use ``drop_last=True`` on the sampler to drop
+    the remainder instead.
+
+    >>> from torch.utils.data import DistributedSampler
+    >>> loader = DataLoader(
+    ...     dataset,
+    ...     batch_size=2,
+    ...     sampler=DistributedSampler(
+    ...         dataset,
+    ...         num_replicas=data.comm.size,
+    ...         rank=data.comm.rank,
+    ...         shuffle=True,
+    ...         seed=0,
+    ...     ),
+    ...     num_workers=0,
+    ...     collate_fn=lambda batch: batch,
+    ... )
+    >>> batches = list(loader)
     """
 
     def __init__(
@@ -728,9 +772,10 @@ class DistributedDataLoader[T]:
     """
     Create an iterable over batches from one or more DNDarrays.
 
-    Each process iterates over the global dataset, receiving ``batch_size`` samples in a
-    full batch. Distributed arrays are accessed using non-blocking :func:`Itake
-    <heat.core.manipulations.Itake>` requests. Unsplit arrays are indexed locally.
+    For distributed arrays, each process iterates over a portion of a shared global sample
+    order, receiving ``batch_size`` samples in a full batch. Arrays are accessed using
+    non-blocking :func:`Itake <heat.core.manipulations.Itake>` requests. Unsplit arrays
+    are indexed locally, and each process traverses their complete sample order.
 
     Parameters
     ----------
@@ -744,20 +789,24 @@ class DistributedDataLoader[T]:
         If ``True``, shuffle the global sample indices before each iteration.
         Default is ``False``.
     drop_last : bool, optional
-        If ``True``, drop the last incomplete batch. Otherwise, the last batch may contain
-        fewer than ``batch_size`` samples per process. Default is ``False``.
+        If ``True``, truncate distributed sample indices to give every process the same
+        number of samples, then drop the last incomplete local batch. Otherwise, pad
+        distributed indices by repeating samples from the beginning of the global order;
+        the last batch may contain fewer than ``batch_size`` samples per process.
+        Default is ``False``.
     prefetch_factor : int, optional
         Number of additional batches to queue beyond the current batch. Must be non-negative.
         The queue holds at most ``prefetch_factor + 1`` batches. Default is 0.
     seed : int, optional
         Base seed used to shuffle the sample indices. Each new iterator uses ``seed + epoch``
-        and increments the epoch counter, which starts at 0. Default is 0.
+        and increments the epoch counter, which starts at 0. For distributed arrays,
+        rank 0's seed and epoch determine the shared global order. Default is 0.
     post_processing : Callable, optional
         Function called for each local batch with the position of the input array and the
         corresponding torch tensor, i.e. ``post_processing(i, batch)``. Its return value
         replaces that batch. Default is ``None``.
     comm : MPICommunication, optional
-        Communication object used to gather sample indices. Defaults to the globally set
+        Communication object used to broadcast sample indices. Defaults to the globally set
         communicator and must match the communicator of the input arrays.
 
     Attributes
@@ -784,9 +833,10 @@ class DistributedDataLoader[T]:
     produced by that function. The length of the loader is the number of batches per process.
 
     All processes holding distributed parts of the arrays must iterate together and use
-    matching batch sizes and iteration counts. Equal seeds produce equal sample orders on
-    each process. If an iteration is stopped early, close the iterator on all participating
-    processes, or use it as a context manager to finish outstanding requests.
+    matching batch sizes, remainder policies, and iteration counts. Each process receives
+    a contiguous portion of the shared global sample order. If an iteration is stopped
+    early, close the iterator on all participating processes, or use it as a context
+    manager to finish outstanding requests.
 
     Examples
     --------
@@ -877,6 +927,10 @@ class DistributedDataLoader[T]:
         N = self._num_elements
         B = self._batch_size
 
+        if self._data[0].is_distributed():
+            P = self._comm.size
+            N = N // P if self._drop_last else (N + P - 1) // P
+
         if self._drop_last:
             return N // B
         return (N + B - 1) // B
@@ -941,6 +995,7 @@ class _DistributedDataLoaderIter:
             shuffle=loader._shuffle,
             seed=seed,
             distributed=loader._data[0].is_distributed(),
+            drop_last=loader._drop_last,
         )
 
         self._batch_iterator = _batch_indices(
