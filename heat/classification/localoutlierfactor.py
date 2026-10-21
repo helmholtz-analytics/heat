@@ -123,19 +123,15 @@ class LocalOutlierFactor:
 
         # Compute the distance matrix for the n_neighbors nearest neighbors of each point and the corresponding indices
         # (only these are needed for the LOF computation).
-        size = X.comm.Get_size()
 
-        # If the amount of chosen neighbors is larger than the number of samples per process, one can use the classic cdist function
-        if self.n_neighbors + 1 > length // size:
-            dist, idx = ht.topk(
-                cdist(X), k=self.n_neighbors + 1, sorted=True, largest=False
-            )  # cdist stores also the distance of each point to itself, therefore use n_neighbors+1
+        min_local_rows = min(s[0] for s in X.lshape_map) if X.split is not None else length
+
+        if self.n_neighbors + 1 > min_local_rows:
+            dist, idx = ht.topk(cdist(X), k=self.n_neighbors + 1, sorted=True, largest=False)
         else:
-            # Note that cdist_small sorts from the lowest to the highest distance
             dist, idx = cdist_small(
                 X, X, metric=self.metric, n_smallest=self.n_neighbors + 1, chunks=self.chunks
-            )  # cdist_small stores also the distance of each point to itself, therefore use n_neighbors+1
-
+            )
         # Local views on axis 1 (column 0 is self-distance, 1: are the neighbors)
         dist_neighbors_l = dist.larray[:, 1:]
         k_dist_l = dist_neighbors_l[:, -1]
