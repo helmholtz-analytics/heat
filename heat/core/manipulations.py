@@ -3223,6 +3223,21 @@ def take(
 
 
 class TakeRequest:
+    """
+    Represent a pending or completed :func:`Itake` operation.
+
+    Parameters
+    ----------
+    mpi_request : MPIRequest or MPI.Request, optional
+        Pending MPI communication request. Default is ``None``.
+    finalize : Callable[[], DNDarray], optional
+        Callback that assembles the result after communication completes. Required when
+        ``mpi_request`` is provided or no completed ``result`` is supplied.
+    result : DNDarray, optional
+        Already available result. If provided, the request is marked as completed.
+        Default is ``None``.
+    """
+
     def __init__(self, mpi_request=None, finalize=None, result=None):
         assert mpi_request is None or finalize is not None
 
@@ -3232,6 +3247,25 @@ class TakeRequest:
         self._done = result is not None
 
     def Wait(self, status=None):
+        """
+        Wait for communication to complete and return the selected array.
+
+        Parameters
+        ----------
+        status : MPI.Status, optional
+            Status object passed to the underlying MPI request when waiting for pending
+            communication. Default is ``None``.
+
+        Returns
+        -------
+        DNDarray
+            Result of the :func:`Itake` operation.
+
+        Notes
+        -----
+        The result is finalized once and cached. Subsequent calls return the cached array
+        without repeating communication or finalization.
+        """
         if self._done:
             return self._result
 
@@ -3245,6 +3279,26 @@ class TakeRequest:
         return self._result
 
     def Test(self, status=None):
+        """
+        Check whether communication has completed without waiting for it.
+
+        Parameters
+        ----------
+        status : MPI.Status, optional
+            Status object passed to the underlying MPI request when testing pending
+            communication. Default is ``None``.
+
+        Returns
+        -------
+        bool
+            ``True`` if the request is complete, otherwise ``False``. When communication
+            is complete, the result is finalized and cached before returning ``True``.
+
+        Notes
+        -----
+        Retrieve the completed array with :meth:`Wait`. Requests without pending MPI
+        communication are finalized immediately if necessary and return ``True``.
+        """
         if self._done:
             return True
 
