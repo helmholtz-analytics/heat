@@ -139,25 +139,43 @@ class LocalOutlierFactor:
         # Extract the k-distance and the indices of the k-nearest neighbors
         k_dist = dist[:, -1]
         idx_neighbors = idx[:, 1 : self.n_neighbors + 1]
-        # Make the indices of the n-nearest neighbors available for a use outside this function
         self.idx_n_neighbors = idx_neighbors
 
         k_dist_neighbors = self._advanced_indexing(k_dist, idx_neighbors)
 
-        # Compute the reachability distance for each point
-        reachability_dist = ht.maximum(k_dist_neighbors, dist[:, 1 : self.n_neighbors + 1])
+        # all local operations along axis 1
+        dist_neighbors_l = dist.larray[:, 1 : self.n_neighbors + 1]
+        reachability_dist_l = torch.maximum(k_dist_neighbors.larray, dist_neighbors_l)
 
-        # Compute the local reachability density (lrd) for each point
-        lrd = 1 / (
-            ht.mean(reachability_dist, axis=1) + 1e-10
-        )  # add 1e-10 to avoid division by zero (important for many duplicates in data)
+        # Compute local reachability density (lrd) locally on device
+        lrd_l = 1.0 / (reachability_dist_l.mean(dim=1) + 1e-10)
 
-        # Calculate the local reachability distance for each point's neighbors
-        lrd_neighbors = self._advanced_indexing(lrd, idx[:, 1 : self.n_neighbors + 1])
+        # Wrap lrd with known metadata to pass to indexing without collective calls
+        lrd = DNDarray(
+            lrd_l,
+            gshape=(length,),
+            dtype=dist.dtype,
+            split=dist.split,
+            device=dist.device,
+            comm=dist.comm,
+            balanced=dist.balanced,
+        )
 
-        lof = ht.mean(lrd_neighbors, axis=1) / lrd
+        # Calculate neighbor density
+        lrd_neighbors = self._advanced_indexing(lrd, idx_neighbors)
 
-        self.lof_scores = lof
+        # Compute final LOF scores locally on device
+        lof_l = lrd_neighbors.larray.mean(dim=1) / lrd_l
+
+        self.lof_scores = DNDarray(
+            lof_l,
+            gshape=(length,),
+            dtype=dist.dtype,
+            split=dist.split,
+            device=dist.device,
+            comm=dist.comm,
+            balanced=dist.balanced,
+        )
 
     def _binary_classifier(self):
         """
