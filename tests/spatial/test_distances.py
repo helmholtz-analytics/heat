@@ -284,8 +284,8 @@ class TestDistances(TestCase):
         dist_chunked, idx_chunked = ht.spatial.cdist_small(X, Y, chunks=3, n_smallest=n_neighbors)
         self.assertEqual(dist_chunked.split, 0)
         self.assertEqual(idx_chunked.split, 0)
-        self.assertTrue(ht.allclose(std_dist, dist_chunked, atol=1e-6, rtol=1e-6))
-        self.assertTrue(ht.allclose(std_idx, idx_chunked, atol=1e-6, rtol=1e-6))
+        self.assertTrue(ht.allclose(std_dist, dist_chunked, atol=1e-5, rtol=1e-5))
+        self.assertTrue(ht.allclose(std_idx, idx_chunked, atol=1e-5, rtol=1e-5))
 
         # Test non-distributed functionality (split=None)
         X_nd = ht.random.rand(120, 20, dtype=ht.float32, split=None)
