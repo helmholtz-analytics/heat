@@ -195,22 +195,23 @@ class LocalOutlierFactor:
         indexed_A : DNDarray
             The result of advanced indexing on the input array.
         """
-        # Using heat's advanced indexing for large data set
-        if self.fully_distributed is True:
-            indexed_A = A[idx]
-        # Use local arrays, i.e., torch.tensors, to reduce runtime while indexing
-        # (only possible if all local arrays defined below fit into memory)
-        else:
-            split = A.split
-            type = A.dtype
-            # Use none-split arrays to reduce communication overhead
-            A_ = A.resplit_(None).larray.contiguous()
-            idx_ = idx.resplit_(None).larray.contiguous()
-            # Apply standard advanced indexing
-            indexed_A_ = A_[idx_]
-            # Convert the result back to a distributed DNDarray
-            indexed_A = ht.array(indexed_A_, split=split, dtype=type)
-        return indexed_A
+        if self.fully_distributed:
+            return A[idx]
+
+        # Replicate only 1D vector A; keep idx partitioned
+        A_replicated = A.resplit(None) if A.is_distributed() else A
+        local_result = A_replicated.larray[idx.larray]
+
+        # Zero collective calls: reuse known metadata from idx
+        return DNDarray(
+            local_result,
+            gshape=idx.shape,
+            dtype=A.dtype,
+            split=idx.split,
+            device=A.device,
+            comm=A.comm,
+            balanced=idx.balanced,
+        )
 
     def _map_idx_to_proc(self, idx, comm):
         """
