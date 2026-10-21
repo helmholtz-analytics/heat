@@ -1,8 +1,6 @@
 import unittest
 import os
-
 import torch
-
 import heat as ht
 import numpy as np
 import math
@@ -272,37 +270,62 @@ class TestDistances(TestCase):
         X = ht.random.rand(1000, 100, dtype=ht.float32, split=0)
         Y = ht.random.rand(1500, 100, dtype=ht.float32, split=0)
 
-        # Test functionality
+        # Test distributed functionality
         d = ht.spatial.cdist(X, Y, quadratic_expansion=False)
         std_dist, std_idx = ht.topk(d, k=n_neighbors, dim=1, largest=False)
         dist, idx = ht.spatial.cdist_small(X, Y, n_smallest=n_neighbors)
 
+        self.assertEqual(dist.split, 0)
+        self.assertEqual(idx.split, 0)
         self.assertTrue(ht.allclose(std_dist, dist, atol=1e-6, rtol=1e-6))
-        # Note: if some distances in the same row of the distance matrix are the same,
-        # the respective indices in this comarison may differ (randomly ordered)
         self.assertTrue(ht.allclose(std_idx, idx, atol=1e-6, rtol=1e-6))
 
-        # Test functionality with chunk-wise computation
-        dist_chunked, idx_chunked = ht.spatial.cdist_small(X, Y, chunks=1, n_smallest=n_neighbors)
+        # Test distributed functionality with multi-chunk computation
+        dist_chunked, idx_chunked = ht.spatial.cdist_small(X, Y, chunks=3, n_smallest=n_neighbors)
+        self.assertEqual(dist_chunked.split, 0)
+        self.assertEqual(idx_chunked.split, 0)
         self.assertTrue(ht.allclose(std_dist, dist_chunked, atol=1e-6, rtol=1e-6))
         self.assertTrue(ht.allclose(std_idx, idx_chunked, atol=1e-6, rtol=1e-6))
 
-        # Splitting
-        X = ht.random.rand(1000, 100, dtype=ht.float32, split=None)
-        Y = ht.random.rand(1500, 100, dtype=ht.float32, split=0)
-        Z = ht.random.rand(2000, 100, dtype=ht.float32, split=1)
-        with self.assertRaises(NotImplementedError):
-            ht.spatial.cdist_small(X, Y)
-        with self.assertRaises(NotImplementedError):
-            ht.spatial.cdist_small(Y, X)
-        with self.assertRaises(NotImplementedError):
-            ht.spatial.cdist_small(X, Z)
-        with self.assertRaises(NotImplementedError):
-            ht.spatial.cdist_small(Z, X)
-        with self.assertRaises(NotImplementedError):
-            ht.spatial.cdist_small(Y, Z)
-        with self.assertRaises(NotImplementedError):
-            ht.spatial.cdist_small(Z, Y)
+        # Test non-distributed functionality (split=None)
+        X_nd = ht.random.rand(120, 20, dtype=ht.float32, split=None)
+        Y_nd = ht.random.rand(150, 20, dtype=ht.float32, split=None)
+        d_nd = ht.spatial.cdist(X_nd, Y_nd, quadratic_expansion=False)
+        std_dist_nd, std_idx_nd = ht.topk(d_nd, k=n_neighbors, dim=1, largest=False)
+
+        dist_nd, idx_nd = ht.spatial.cdist_small(X_nd, Y_nd, n_smallest=n_neighbors)
+        self.assertIsNone(dist_nd.split)
+        self.assertIsNone(idx_nd.split)
+        self.assertTrue(ht.allclose(std_dist_nd, dist_nd, atol=1e-6, rtol=1e-6))
+        self.assertTrue(ht.allclose(std_idx_nd, idx_nd, atol=1e-6, rtol=1e-6))
+
+        # Test non-distributed functionality with multi-chunk computation
+        dist_nd_chunked, idx_nd_chunked = ht.spatial.cdist_small(
+            X_nd, Y_nd, chunks=3, n_smallest=n_neighbors
+        )
+        self.assertIsNone(dist_nd_chunked.split)
+        self.assertIsNone(idx_nd_chunked.split)
+        self.assertTrue(ht.allclose(std_dist_nd, dist_nd_chunked, atol=1e-6, rtol=1e-6))
+        self.assertTrue(ht.allclose(std_idx_nd, idx_nd_chunked, atol=1e-6, rtol=1e-6))
+
+        # Splitting restrictions in multi-process environments
+        if self.comm.size > 1:
+            X_s_none = ht.random.rand(1000, 100, dtype=ht.float32, split=None)
+            Y_s0 = ht.random.rand(1500, 100, dtype=ht.float32, split=0)
+            Z_s1 = ht.random.rand(2000, 100, dtype=ht.float32, split=1)
+
+            with self.assertRaises(NotImplementedError):
+                ht.spatial.cdist_small(X_s_none, Y_s0)
+            with self.assertRaises(NotImplementedError):
+                ht.spatial.cdist_small(Y_s0, X_s_none)
+            with self.assertRaises(NotImplementedError):
+                ht.spatial.cdist_small(X_s_none, Z_s1)
+            with self.assertRaises(NotImplementedError):
+                ht.spatial.cdist_small(Z_s1, X_s_none)
+            with self.assertRaises(NotImplementedError):
+                ht.spatial.cdist_small(Y_s0, Z_s1)
+            with self.assertRaises(NotImplementedError):
+                ht.spatial.cdist_small(Z_s1, Y_s0)
 
         # Non-matching shape[1]
         X = ht.random.rand(1000, 100, dtype=ht.float32, split=0)
@@ -320,7 +343,7 @@ class TestDistances(TestCase):
     def test_chunk_wise_topk(self):
         torch.manual_seed(1234)
 
-        # random sample data
+        # Random sample data (float32)
         x = torch.randn(11, 3, dtype=torch.float32, device="cpu")
         y = torch.randn(7, 3, dtype=torch.float32, device="cpu")
         k = 5
@@ -348,6 +371,19 @@ class TestDistances(TestCase):
             # Distances must be sorted in ascending order per row
             self.assertTrue(torch.all(dist_c[:, :-1] <= dist_c[:, 1:]).item())
 
+        # Verify dtype and device preservation with default device=None (float64)
+        x_f64 = torch.randn(13, 4, dtype=torch.float64, device="cpu")
+        y_f64 = torch.randn(9, 4, dtype=torch.float64, device="cpu")
+        ref_f64_dist, ref_f64_idx = torch.topk(_euclidian(x_f64, y_f64), k, largest=False, sorted=True)
+
+        dist_f64, idx_f64 = _chunk_wise_topk(x_f64, y_f64, k=k, metric=_euclidian, chunks=3)
+        self.assertEqual(dist_f64.dtype, torch.float64)
+        self.assertEqual(idx_f64.dtype, torch.int64)
+        self.assertEqual(dist_f64.device, x_f64.device)
+        self.assertTrue(torch.allclose(dist_f64, ref_f64_dist, atol=0.0, rtol=0.0))
+        self.assertTrue(torch.equal(idx_f64, ref_f64_idx))
+
+        # Check warning when chunks exceed row count
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
             dist_w, idx_w = _chunk_wise_topk(
