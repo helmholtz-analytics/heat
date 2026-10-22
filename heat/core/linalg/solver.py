@@ -13,7 +13,15 @@ import torch
 __all__ = ["cg", "lanczos", "solve", "solve_triangular"]
 
 
-def cg(A: DNDarray, b: DNDarray, x0: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
+def cg(
+    A: DNDarray,
+    b: DNDarray,
+    x0: DNDarray,
+    out: Optional[DNDarray] = None,
+    rtol=1e-5,
+    atol=0.0,
+    maxiter=None,
+) -> DNDarray:
     """
     Conjugate gradients method for solving a system of linear equations :math: `Ax = b`
 
@@ -27,6 +35,11 @@ def cg(A: DNDarray, b: DNDarray, x0: DNDarray, out: Optional[DNDarray] = None) -
         Arbitrary 1D starting vector
     out : DNDarray, optional
         Output Vector
+    rtol, atol : float, optional
+        Paramteters for the convergence test. For convergence, `norm(b - A @ x) <= max(rtol*norm(b), atol)` should be satisfied. The default is `atol=0` and `rtol=1e-5`.
+    maxiter : int, optional
+        Maximum number of iterations.  Iteration will stop after maxiter
+        steps even if the specified tolerance has not been achieved.
     """
     if not isinstance(A, DNDarray) or not isinstance(b, DNDarray) or not isinstance(x0, DNDarray):
         raise TypeError(
@@ -39,24 +52,32 @@ def cg(A: DNDarray, b: DNDarray, x0: DNDarray, out: Optional[DNDarray] = None) -
         raise RuntimeError("b needs to be a 1D vector")
     if x0.ndim != 1:
         raise RuntimeError("c needs to be a 1D vector")
+    if not isinstance(atol, (float, int)):
+        raise ValueError(f"Please supply a float to atol, not {type(atol)}")
+    if not isinstance(rtol, (float, int)):
+        raise ValueError(f"Please supply a float to rtol, not {type(rtol)}")
+    if maxiter is not None and not isinstance(maxiter, int):
+        raise ValueError(f"Please supply a int to maxiter, not {type(maxiter)}")
 
     r = b - ht.matmul(A, x0)
     p = r
     rsold = ht.matmul(r, r)
     x = x0
 
-    for i in range(len(b)):
+    tol = atol
+    if rtol > 0:
+        tol = max([rtol * ht.linalg.norm(b).item(), atol])
+
+    maxiter = len(b) * 10 if maxiter is None else maxiter  # this is the choice that scipy make
+    for i in range(maxiter):
         Ap = ht.matmul(A, p)
         alpha = rsold / ht.matmul(p, Ap)
         x = x + alpha * p
         r = r - alpha * Ap
         rsnew = ht.matmul(r, r)
-        if ht.sqrt(rsnew).item() < 1e-10:
-            print(f"Residual reaches tolerance in it = {i}")
-            if out is not None:
-                out = x
-                return out
-            return x
+        if ht.sqrt(rsnew).item() < tol:
+            # print(f"Residual reaches tolerance in it = {i}")
+            break
         p = r + ((rsnew / rsold) * p)
         rsold = rsnew
 
