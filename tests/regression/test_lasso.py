@@ -30,7 +30,7 @@ class TestLasso(TestCase):
         with self.assertRaises(ValueError):
             ht.regression.Lasso().set_params(foo="bar")
 
-    if ht.io.supports_hdf5():
+    if ht.io.supports("hdf5"):
 
         def test_lasso(self):
             # ToDo: add additional tests
