@@ -568,13 +568,10 @@ def _create_distributed_indices(
     N = num_elements
     P = comm.size
 
-    if not distributed or comm.rank == 0:
-        if shuffle:
-            idx = torch.randperm(N, generator=torch.Generator().manual_seed(seed))
-        else:
-            idx = torch.arange(N, dtype=torch.int64)
+    if shuffle:
+        idx = torch.randperm(N, generator=torch.Generator().manual_seed(seed))
     else:
-        idx = torch.empty(N, dtype=torch.int64)
+        idx = torch.arange(N, dtype=torch.int64)
 
     if not distributed:
         return idx.unsqueeze(0)

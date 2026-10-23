@@ -225,7 +225,8 @@ class TestDatatools:
     def test_distributed_dataloader_epochs(self, split, prefetch_factor):
         comm = ht.get_comm()
         data = ht.arange(48, split=split)
-        seed = 42 + comm.rank
+        reference_seed = 42
+        seed = reference_seed + comm.rank
 
         def make_loader():
             return DistributedDataLoader(
@@ -244,8 +245,8 @@ class TestDatatools:
         assert not torch.equal(first, second)
         assert torch.equal(first, torch.cat(list(make_loader())))
 
-        reference_seed = 42 if data.is_distributed() else seed
-        expected = torch.randperm(48, generator=torch.Generator().manual_seed(reference_seed))
+        expected_seed = reference_seed if data.is_distributed() else seed
+        expected = torch.randperm(48, generator=torch.Generator().manual_seed(expected_seed))
         if data.is_distributed():
             expected = expected.chunk(comm.size)[comm.rank]
         assert torch.equal(first, expected)
@@ -266,7 +267,8 @@ class TestDatatools:
     @pytest.mark.parametrize("drop_last", [False, True])
     def test_distributed_indices_partition(self, N, distributed, shuffle, drop_last):
         comm = ht.get_comm()
-        seed = 42 + comm.rank
+        reference_seed = 42
+        seed = reference_seed + comm.rank
         rng_state = torch.random.get_rng_state()
         indices = _create_distributed_indices(
             comm, N, shuffle, seed, distributed=distributed, drop_last=drop_last
@@ -276,9 +278,9 @@ class TestDatatools:
         assert indices.device.type == "cpu"
         assert indices.is_contiguous()
 
-        reference_seed = 42 if distributed else seed
+        expected_seed = reference_seed if distributed else seed
         expected = (
-            torch.randperm(N, generator=torch.Generator().manual_seed(reference_seed))
+            torch.randperm(N, generator=torch.Generator().manual_seed(expected_seed))
             if shuffle
             else torch.arange(N)
         )
