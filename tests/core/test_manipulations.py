@@ -8,6 +8,7 @@ from heat.testing.basic_test import TestCase
 
 IN_GITHUB_ACTIONS = os.getenv("GITHUB_ACTIONS") == "true"
 
+
 class TestManipulations(TestCase):
     def test_resplit_non_contiguous(self):
         # Only works for world size >= 4
