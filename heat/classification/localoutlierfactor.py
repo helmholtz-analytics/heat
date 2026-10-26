@@ -119,7 +119,10 @@ class LocalOutlierFactor:
         # input sanitation
         # If n_neighbors is larger than or equal the number of samples, continue with the whole sample when evaluating the LOF
         if self.n_neighbors >= length:
-            self.n_neighbors = length - 1  # length of data is n_neighbors + the point itself
+            self.n_neighbors_ = length - 1  # length of data is n_neighbors + the point itself
+        else:
+            self.n_neighbors_ = self.n_neighbors
+
         # [1] suggests a minimum of 10 neighbors
         if length <= 10:
             raise ValueError(
@@ -128,14 +131,13 @@ class LocalOutlierFactor:
 
         # Compute the distance matrix for the n_neighbors nearest neighbors of each point and the corresponding indices
         # (only these are needed for the LOF computation).
-
         min_local_rows = X.lshape_map[:, X.split].min().item() if X.split is not None else length
 
-        if self.n_neighbors + 1 > min_local_rows:
-            dist, idx = ht.topk(cdist(X), k=self.n_neighbors + 1, sorted=True, largest=False)
+        if self.n_neighbors_ + 1 > min_local_rows:
+            dist, idx = ht.topk(cdist(X), k=self.n_neighbors_ + 1, sorted=True, largest=False)
         else:
             dist, idx = cdist_small(
-                X, X, metric=self.metric, n_smallest=self.n_neighbors + 1, chunks=self.chunks
+                X, X, metric=self._metric_fn, n_smallest=self.n_neighbors_ + 1, chunks=self.chunks
             )
         # Local views on axis 1 (column 0 is self-distance, 1: are the neighbors)
         dist_neighbors_l = dist.larray[:, 1:]
@@ -153,7 +155,7 @@ class LocalOutlierFactor:
         )
         idx_neighbors = DNDarray(
             idx.larray[:, 1:],
-            gshape=(length, self.n_neighbors),
+            gshape=(length, self.n_neighbors_),
             dtype=idx.dtype,
             split=idx.split,
             device=idx.device,
@@ -261,9 +263,11 @@ class LocalOutlierFactor:
         Check if the input parameters are valid and raise warnings or exceptions.
         """
         # check number of neighbors, [1] suggests n_neighbors >= 10
-        if self.n_neighbors < 1:
-            raise ValueError(f"n_neighbors must be great one. but was {self.n_neighbors}.")
-        if self.n_neighbors < 10 and self.n_neighbors > 100:
+        if self.n_neighbors < 1 or not isinstance(self.n_neighbors, int):
+            raise ValueError(
+                f"n_neighbors must be an integer greater than or equal to 1, but was {self.n_neighbors}."
+            )
+        if self.n_neighbors < 10 or self.n_neighbors > 100:
             warnings.warn(
                 f"For reasonable results n_neighbors is expected between 10 and 100, but was {self.n_neighbors}.",
                 UserWarning,
@@ -290,7 +294,7 @@ class LocalOutlierFactor:
                 raise ValueError("The number of top outliers should be greater than one.")
 
         if self.binary_decision == "threshold":
-            if self.threshold <= 1 or self.threshold is None:
+            if self.threshold is None or self.threshold <= 1:
                 raise ValueError("The threshold should be greater than one.")
             if self.top_n is not None:
                 warnings.warn(
@@ -299,14 +303,16 @@ class LocalOutlierFactor:
                 )
 
         # check for valid metric
-        valid_metrics = ["euclidian", "gaussian", "manhattan"]
-        if self.metric not in valid_metrics:
-            raise ValueError(f"Invalid metric '{self.metric}'. Must be one of {valid_metrics}.")
+        metric_map = {
+            "euclidian": _euclidian,
+            "euclidean": _euclidian,
+            "gaussian": _gaussian,
+            "manhattan": _manhattan,
+        }
+        if self.metric not in metric_map:
+            raise ValueError(
+                f"Invalid metric '{self.metric}'. Must be one of {list(metric_map.keys())}."
+            )
 
-        # replace the name of the metric with the corresponding function
-        if self.metric == "gaussian":
-            self.metric = _gaussian
-        elif self.metric == "manhattan":
-            self.metric = _manhattan
-        elif self.metric == "euclidian":
-            self.metric = _euclidian
+        # store the resolved callable separately without overwriting self.metric
+        self._metric_fn = metric_map[self.metric]
