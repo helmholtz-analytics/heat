@@ -207,9 +207,8 @@ class LocalOutlierFactor:
         """
         if self.binary_decision == "top_n":
             # Determine the threshold based on the top_n largest LOF scores
-            self.threshold = ht.topk(self.lof_scores, k=self.top_n, sorted=True, largest=True)[0][
-                -1
-            ]
+            top_k_val = ht.topk(self.lof_scores, k=self.top_n, sorted=True, largest=True)[0][-1]
+            self.threshold = float(top_k_val.item())
         # Classify anomalies based on the threshold value
         self.anomaly = ht.where(self.lof_scores >= self.threshold, 1, -1)
 
