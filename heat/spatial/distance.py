@@ -165,16 +165,16 @@ def rbf(
     """
     Calculate Gaussian distance between two DNDarrays:
 
-    .. math:: d(x,y) = exp(-(|x-y|^2/2\\sigma^2)
+    .. math:: d(x,y) = \\exp(-(|x-y|^2 / (2\\sigma^2)))
 
-    Returns 2D DNDarray of size :math: `m \\times n`
+    Returns 2D DNDarray of size :math:`m \\times n`
 
     Parameters
     ----------
     X : DNDarray
-        2D array of size :math: `m \\times f`
-    Y : DNDarray
-        2D array of size `n \\times f`
+        2D array of size :math:`m \\times f`
+    Y : DNDarray, optional
+        2D array of size :math:`n \\times f`
     sigma: float
         Scaling factor for gaussian kernel
     quadratic_expansion : bool
