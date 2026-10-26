@@ -3203,21 +3203,25 @@ def take(
 ) -> DNDarray:
     """
     Take elements from an array along an axis.
-    When the array is split across processes, it will automatically balance the new array.
+
+    When selecting along the split axis of a distributed array, exchange data and
+    balance the result across processes. Otherwise, select values locally. This
+    function waits for the operation to complete before returning the result.
 
     Parameters
     ----------
     a : DNDarray
-        The source array
+        The source array.
     indices : torch.Tensor
-        A 1D tensor of length `a.gshape[axis]` with the indices of the values to extract.
-    axis : int, optional
-        The axis along which to permute. Default is -1.
+        A 1D tensor with the indices of the values to extract.
+    axis : int or None, optional
+        The axis along which to select values. If ``None``, flatten the array before
+        selecting values. Default is ``None``.
 
     Returns
     -------
     DNDarray
-        The returned array.
+        The array containing the selected values.
     """
     return Itake(a, indices, axis).Wait()
 
@@ -3322,22 +3326,28 @@ def Itake(
     axis: int | None = None,
 ) -> TakeRequest:
     """
-    Take elements from an array along an axis.
-    When the array is split across processes, it will automatically balance the new array.
+    Initiate a non-blocking selection of elements from an array along an axis.
+
+    When selecting along the split axis of a distributed array, start a non-blocking
+    data exchange and balance the result across processes. Otherwise, select values
+    locally and return a completed request.
 
     Parameters
     ----------
     a : DNDarray
-        The source array
+        The source array.
     indices : torch.Tensor
-        A 1D tensor of length `a.gshape[axis]` with the indices of the values to extract.
-    axis : int, optional
-        The axis over which to select values. Default is None.
+        A 1D tensor with the indices of the values to extract.
+    axis : int or None, optional
+        The axis along which to select values. If ``None``, flatten the array before
+        selecting values. Default is ``None``.
 
     Returns
     -------
-    DNDarray
-        The returned array.
+    TakeRequest
+        Request representing the selection operation. Call its :meth:`~TakeRequest.Wait`
+        method to complete the operation and retrieve the resulting DNDarray. Its
+        :meth:`~TakeRequest.Test` method checks for completion without waiting.
     """
     sanitation.sanitize_in(a)
 
