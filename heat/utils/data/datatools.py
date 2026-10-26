@@ -516,7 +516,7 @@ def _sanitize_data_input(data: DNDarray | tuple[DNDarray, ...]) -> tuple[DNDarra
         raise ValueError("All DNDarrays must have the same global length on axis=0.")
 
     if arrays[0].split not in (None, 0):
-        raise ValueError(f"DNDarrays must be unsplit or distributed across `axis=0`")
+        raise ValueError("DNDarrays must be unsplit or distributed across `axis=0`")
 
     return arrays
 
