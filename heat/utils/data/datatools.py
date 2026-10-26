@@ -680,7 +680,7 @@ def _create_distributed_indices(
     else:
         total_size = (N + P - 1) // P * P
         padding_size = total_size - N
-        if padding_size:
+        if padding_size > 0:
             padding = idx.repeat((padding_size + N - 1) // N)[:padding_size]
             idx = torch.cat((idx, padding))
 
