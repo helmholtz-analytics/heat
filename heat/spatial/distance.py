@@ -270,6 +270,19 @@ def _chunk_wise_topk(
     return dist, idx
 
 
+def _stable_lexsort(dist: torch.Tensor, idx: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    """
+    Sort 2D distance and index tensors lexicographically along axis 1
+    (primary key: distance ascending, secondary key: index ascending)
+    using stable sorting.
+    """
+    idx_sorted, perm_idx = torch.sort(idx, dim=1, stable=True)
+    dist_reordered = torch.gather(dist, 1, perm_idx)
+    dist_sorted, perm_dist = torch.sort(dist_reordered, dim=1, stable=True)
+    idx_sorted = torch.gather(idx_sorted, 1, perm_dist)
+    return dist_sorted, idx_sorted
+
+
 def cdist_small(
     X: DNDarray,
     Y: DNDarray,
@@ -370,10 +383,7 @@ def cdist_small(
     # For size==1: keep torch.topk() tie-break behaviour to match ht.topk()
     if size > 1:
         # enforce deterministic order for the initial block: (dist asc, idx asc)
-        current_idx_sorted, perm_idx = torch.sort(current_idx, dim=1, stable=True)
-        current_dist = torch.gather(current_dist, 1, perm_idx)
-        current_dist, perm_dist = torch.sort(current_dist, dim=1, stable=True)
-        current_idx = torch.gather(current_idx_sorted, 1, perm_dist)
+        current_dist, current_idx = _stable_lexsort(current_dist, current_idx)
 
     # always keep only the first n_smallest entries
     current_dist = current_dist[:, :n_smallest]
@@ -447,16 +457,10 @@ def cdist_small(
         merged_dist = torch.cat((current_dist, new_dist), dim=1)
         merged_idx = torch.cat((current_idx, new_idx), dim=1)
 
-        # to enforce deterministic selection of the n_smallest pairs:
-        # 1) stable sort by index (ascending)
-        merged_idx_sorted, perm_idx = torch.sort(merged_idx, dim=1, stable=True)
-        merged_dist_reordered = torch.gather(merged_dist, 1, perm_idx)
+        # to enforce deterministic selection of the n_smallest pairs
+        merged_dist_sorted, merged_idx_sorted = _stable_lexsort(merged_dist, merged_idx)
 
-        # 2) stable sort by distance (ascending)
-        merged_dist_sorted, perm_dist = torch.sort(merged_dist_reordered, dim=1, stable=True)
-        merged_idx_sorted = torch.gather(merged_idx_sorted, 1, perm_dist)
-
-        # 3) keep only the first n_smallest entries
+        # keep only the first n_smallest entries
         current_dist = merged_dist_sorted[:, :n_smallest]
         current_idx = merged_idx_sorted[:, :n_smallest]
 
