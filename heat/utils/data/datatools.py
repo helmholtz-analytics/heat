@@ -815,9 +815,7 @@ class DistributedDataset[T](torch.utils.data.Dataset):
         self._data, self._sample_axes = _sanitize_data_input(data, sample_axis=sample_axis)
         self._distributed = any(array.is_distributed() for array in self._data)
 
-        comms = (d.comm for d in self._data)
-
-        self._comm: MPICommunication = _sanitize_communicators(*comms)
+        self._comm: MPICommunication = _sanitize_communicators(*(d.comm for d in self._data))
         self._post_processing = post_processing
 
     def __getitems__(
@@ -985,8 +983,7 @@ class DistributedDataLoader[T]:
         self._prefetch_factor = prefetch_factor
         self._post_processing = post_processing
 
-        comms = (d.comm for d in self._data)
-        self._comm: MPICommunication = _sanitize_communicators(*comms)
+        self._comm: MPICommunication = _sanitize_communicators(*(d.comm for d in self._data))
 
         self._seed = seed
         self._epoch = 0
