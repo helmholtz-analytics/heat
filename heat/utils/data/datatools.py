@@ -480,7 +480,7 @@ def _sanitize_data_input(data: DNDarray | tuple[DNDarray, ...]) -> tuple[DNDarra
     ----------
     data : DNDarray or tuple of DNDarray
         One or more arrays with at least one dimension. All arrays must have the same split
-        axis and the same global length along axis 0.
+        axis, either ``None`` or ``0``, and the same global length along axis 0.
 
     Returns
     -------
@@ -492,8 +492,9 @@ def _sanitize_data_input(data: DNDarray | tuple[DNDarray, ...]) -> tuple[DNDarra
     TypeError
         If ``data`` is not a DNDarray or a tuple of DNDarrays.
     ValueError
-        If the tuple is empty, an array has no dimensions, or the arrays have different
-        split axes or global lengths along axis 0.
+        If the tuple is empty, an array has no dimensions, the arrays have different
+        split axes or global lengths along axis 0, or the split axis is neither
+        ``None`` nor ``0``.
     """
     if isinstance(data, DNDarray):
         arrays = (data,)
@@ -516,6 +517,9 @@ def _sanitize_data_input(data: DNDarray | tuple[DNDarray, ...]) -> tuple[DNDarra
 
     if len({x.gshape[0] for x in arrays}) != 1:
         raise ValueError("All DNDarrays must have the same global length on axis=0.")
+
+    if arrays[0].split not in (None, 0):
+        raise ValueError(f"DNDarrays must be unsplit or distributed across `axis=0`")
 
     return arrays
 
@@ -749,10 +753,6 @@ class DistributedDataset[T](torch.utils.data.Dataset):
             raise TypeError("post_processing must be a callable function or None.")
 
         self._data = _sanitize_data_input(data)
-        if self._data[0].split not in (None, 0):
-            raise ValueError(
-                f"DNDarrays must be unsplit or distributed across `axis=0`, is {self._data[0].split=}"
-            )
 
         comms = (d.comm for d in self._data)
 
@@ -918,9 +918,6 @@ class DistributedDataLoader[T]:
         self._epoch = 0
 
         self._num_elements = self._data[0].gshape[0]
-
-        if self._data[0].split not in (None, 0):
-            raise ValueError("DNDarrays must be distributed across `None` or `0`.")
 
     @property
     def seed(self) -> int:
