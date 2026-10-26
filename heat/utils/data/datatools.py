@@ -14,7 +14,7 @@ from mpi4py import MPI
 import torch.utils
 
 from ...core.dndarray import DNDarray
-from ...core.communication import MPICommunication, sanitize_comm
+from ...core.communication import MPICommunication
 from ...core.manipulations import take, Itake, TakeRequest
 from . import partial_dataset
 
@@ -394,7 +394,7 @@ def dataset_irecv(dataset: Union[Dataset, torch_data.Dataset]):
 
 
 def create_train_val_split(
-    *data: DNDarray, p: float = 0.95, seed: int | None = None, comm=None
+    *data: DNDarray, p: float = 0.95, seed: int | None = None
 ) -> tuple[DNDarray, ...]:
     """Shuffle aligned arrays and split each into training and validation sets.
 
@@ -403,7 +403,8 @@ def create_train_val_split(
     *data : DNDarray
         One or more arrays with at least one dimension, matching global lengths
         along axis 0, and the same split axis, which must be None or 0. The same
-        permutation is applied to every array to preserve alignment.
+        permutation is applied to every array to preserve alignment. The arrays'
+        communicators must have the same rank and world size.
     p : float, optional
         Fraction of rows assigned to training, in the interval [0, 1]. Default
         is 0.95. For N input rows, the training set contains ``int(N * p)`` rows
@@ -411,11 +412,8 @@ def create_train_val_split(
     seed : int or None, optional
         Seed for the local PyTorch generator. Equal seeds produce equal permutations
         without modifying the global PyTorch random state. If None, a random seed
-        from rank 0 is broadcast using ``comm``. Default is None.
-    comm : MPICommunication or None, optional
-        Communicator used to broadcast the seed when ``seed`` is None. Defaults to
-        the globally configured communicator. For arrays on a custom communicator,
-        pass their communicator explicitly. Ignored when ``seed`` is provided.
+        from rank 0 is broadcast using the first input array's communicator.
+        Default is None.
 
     Returns
     -------
@@ -427,28 +425,26 @@ def create_train_val_split(
     Raises
     ------
     TypeError
-        If an input is not a DNDarray, or ``comm`` is invalid when ``seed`` is None.
+        If an input is not a DNDarray.
     ValueError
         If no arrays are given, an input has no dimensions, the global row counts
-        or split axes differ, the split axis is neither None nor 0, or ``p`` is
-        outside [0, 1].
+        or split axes differ, the split axis is neither None nor 0, the communicators
+        have different ranks or world sizes, or ``p`` is outside [0, 1].
 
     Notes
     -----
     All processes holding distributed parts of the arrays must call this function
     with matching parameters. Explicit seeds must be equal across these processes.
-    When ``seed`` is None, all processes in ``comm`` must participate in the call,
-    including when the input arrays are unsplit.
+    When ``seed`` is None, all processes in the first input array's communicator must
+    participate in the call, including when the input arrays are unsplit.
     """
-    _sanitize_data_input(data)
-    if data[0].split not in (None, 0):
-        raise ValueError("DNDarrays must be distributed across `None` or `0`.")
+    data = _sanitize_data_input(data)
+    comm = _sanitize_communicators(*(array.comm for array in data))
 
     if not 0 <= p <= 1:
         raise ValueError(f"{p=} must be within [0, 1]")
 
     if seed is None:
-        comm = sanitize_comm(comm)
         seed = random.randint(-0x8000_0000_0000_0000, 0xFFFF_FFFF_FFFF_FFFF)
         seed = comm.bcast(seed, root=0)
 
