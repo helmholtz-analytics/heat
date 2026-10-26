@@ -18,9 +18,9 @@ class LocalOutlierFactor:
     Parameters
     ----------
     n_neighbors : int, optional (default=20)
-        Number of neighbors used to calculate the density of points in the lof algorithm. Denoted as MinPts in [1].
-    metric : str, optional (default=_euclidian)
-        The distance metric to use for the tree.
+        Number of neighbors used to calculate the density of points in the LOF algorithm. Denoted as MinPts in [1].
+    metric : str, optional (default="euclidian")
+        The distance metric to use. Can be "euclidian", "manhattan", or "gaussian".
     binary_decision : string, optional
         Defines which classification method should be used:
         - "threshold": everything greater or equal to the specified threshold is considered an outlier.
@@ -29,7 +29,14 @@ class LocalOutlierFactor:
     threshold : float, optional
         The threshold value for the "threshold" method. Default is 1.5.
     top_n : int, optional
-        The number of top outliers for the "top_n" method. Default is 10.
+        The number of top outliers for the "top_n" method. Default is None.
+    chunks : int, optional (default=1)
+        Compute the distance matrix iteratively in chunks to reduce memory consumption (but with larger runtime).
+        For ``chunks``= 2: first compute one half of the distance matrix and then the second half.
+    fully_distributed : bool, optional (default=False)
+        Decides whether to distribute auxiliary vectors during the computation among all MPI processes.
+        Only set to True for a very large number of data points that may already cause memory issues on their own.
+        True is more memory efficient, but much slower than False due to large communication overhead.
 
     Attributes
     ----------
