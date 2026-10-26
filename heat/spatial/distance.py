@@ -56,12 +56,12 @@ def _quadratic_expand(x: torch.tensor, y: torch.tensor) -> torch.tensor:
     y : torch.Tensor
         2D tensor of size :math:`n x f`
     """
-    x_norm = (x**2).sum(1).view(-1, 1)
+    x_norm = (x**2).sum(1, keepdim=True)
     y_t = torch.transpose(y, 0, 1)
-    y_norm = (y**2).sum(1).view(1, -1)
+    y_norm = (y**2).sum(1, keepdim=True).t()
 
     dist = x_norm + y_norm - 2.0 * torch.mm(x, y_t)
-    return torch.clamp(dist, 0.0, np.inf)
+    return torch.clamp_min(dist, 0.0)
 
 
 def _gaussian(x: torch.tensor, y: torch.tensor, sigma: float = 1.0) -> torch.tensor:
