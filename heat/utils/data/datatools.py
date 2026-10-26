@@ -519,6 +519,7 @@ def _sanitize_data_input(data: DNDarray | tuple[DNDarray, ...]) -> tuple[DNDarra
 
     return arrays
 
+
 def _sanitize_communicators(*comms: MPICommunication) -> MPICommunication:
     """
     Check that communicators have the same rank and world size and return the first.
