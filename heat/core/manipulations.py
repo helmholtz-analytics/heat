@@ -3307,15 +3307,12 @@ class TakeRequest:
             return True
 
         if self._mpi_request is None:
-            self.Wait(status)
-            return True
-
-        finished = self._mpi_request.Test(status)
+            finished = True
+        else:
+            finished = self._mpi_request.Test(status)
 
         if finished:
-            self._result = self._finalize()
-            self._finalize = None
-            self._done = True
+            self.Wait()
 
         return finished
 
