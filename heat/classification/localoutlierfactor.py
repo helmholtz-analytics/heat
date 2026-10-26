@@ -4,7 +4,7 @@ import warnings
 import heat as ht
 import torch
 from heat.core.dndarray import DNDarray
-from heat.spatial.distance import _euclidian, _gaussian, _manhattan, cdist, cdist_small
+from heat.spatial.distance import _euclidian, _gaussian, _manhattan, cdist_small
 
 __all__ = ["LocalOutlierFactor"]
 
@@ -131,14 +131,10 @@ class LocalOutlierFactor:
 
         # Compute the distance matrix for the n_neighbors nearest neighbors of each point and the corresponding indices
         # (only these are needed for the LOF computation).
-        min_local_rows = X.lshape_map[:, X.split].min().item() if X.split is not None else length
+        dist, idx = cdist_small(
+            X, X, metric=self._metric_fn, n_smallest=self.n_neighbors_ + 1, chunks=self.chunks
+        )
 
-        if self.n_neighbors_ + 1 > min_local_rows:
-            dist, idx = ht.topk(cdist(X), k=self.n_neighbors_ + 1, sorted=True, largest=False)
-        else:
-            dist, idx = cdist_small(
-                X, X, metric=self._metric_fn, n_smallest=self.n_neighbors_ + 1, chunks=self.chunks
-            )
         # Local views on axis 1 (column 0 is self-distance, 1: are the neighbors)
         dist_neighbors_l = dist.larray[:, 1:]
         k_dist_l = dist_neighbors_l[:, -1]
