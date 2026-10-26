@@ -1,12 +1,10 @@
 """Implementation of the Local Outlier Factor (LOF) algorithm"""
 
+import warnings
 import heat as ht
 import torch
-import warnings
-from heat.core import types
-from mpi4py import MPI
 from heat.core.dndarray import DNDarray
-from heat.spatial.distance import cdist, cdist_small, _euclidian, _manhattan, _gaussian
+from heat.spatial.distance import _euclidian, _gaussian, _manhattan, cdist, cdist_small
 
 __all__ = ["LocalOutlierFactor"]
 

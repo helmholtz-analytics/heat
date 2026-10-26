@@ -2,16 +2,13 @@
 Module for (pairwise) distance functions
 """
 
-import heat as ht
-import torch
-import numpy as np
-from mpi4py import MPI
-from typing import Callable
 import warnings
-
-from ..core import tiling
-from ..core import factories
-from ..core import types
+from typing import Callable
+import numpy as np
+import torch
+from mpi4py import MPI
+import heat as ht
+from ..core import factories, types
 from ..core.dndarray import DNDarray
 
 __all__ = ["cdist", "cdist_small", "manhattan", "rbf"]
@@ -693,7 +690,6 @@ def _dist(X: DNDarray, Y: DNDarray = None, metric: Callable = _euclidian) -> DND
 
                 x_ = X.larray
                 stationary = Y.larray
-                # rows = (xdispl[rank], xdispl[rank + 1] if (rank + 1) != size else m)
                 cols = (ydispl[rank], ydispl[rank + 1] if (rank + 1) != size else n)
 
                 # 0th iteration, calculate diagonal
@@ -735,8 +731,4 @@ def _dist(X: DNDarray, Y: DNDarray = None, metric: Callable = _euclidian) -> DND
                     d_ij = metric(x_, moving)
                     d.larray[:, columns[0] : columns[1]] = d_ij
 
-        elif X.split == 0:
-            raise NotImplementedError(
-                f"Input splits were X.split = {X.split}, Y.split = {Y.split}. Splittings other than 0 or None currently not supported."
-            )
     return d
