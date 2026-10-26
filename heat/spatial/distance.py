@@ -460,9 +460,9 @@ def cdist_small(
         current_dist = merged_dist_sorted[:, :n_smallest]
         current_idx = merged_idx_sorted[:, :n_smallest]
 
-    # assign the local results (torch.tensor) to distributed HeAT arrays
-    dist_small = ht.array(current_dist, is_split=0)
-    indices = ht.array(current_idx, is_split=0)
+    # assign the local results (torch.tensor) to distributed Heat arrays
+    dist_small = ht.array(current_dist, is_split=0, device=X.device, comm=X.comm)
+    indices = ht.array(current_idx, is_split=0, device=X.device, comm=X.comm)
 
     return dist_small, indices
 
