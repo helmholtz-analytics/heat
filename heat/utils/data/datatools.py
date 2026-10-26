@@ -713,9 +713,7 @@ def _batch_indices(
         process are kept together in row order. A full batch contains ``P * batch_size``
         indices; the last batch may contain fewer if ``drop_last`` is ``False``.
     """
-    N = indices.shape[1]
-
-    for start in range(0, N, batch_size):
+    for start in range(0, indices.shape[1], batch_size):
         batch = indices[:, start : start + batch_size]
 
         if drop_last and batch.shape[1] < batch_size:
