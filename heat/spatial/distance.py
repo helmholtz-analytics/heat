@@ -142,14 +142,14 @@ def cdist(X: DNDarray, Y: DNDarray = None, quadratic_expansion: bool = False) ->
 
     .. math:: d(x,y) = \\sqrt{(|x-y|^2)}
 
-    Returns 2D DNDarray of size :math: `m \\times n`
+    Returns 2D DNDarray of size :math:`m \\times n`
 
     Parameters
     ----------
     X : DNDarray
-        2D array of size :math: `m \\times f`
-    Y : DNDarray
-        2D array of size :math: `n \\times f`
+        2D array of size :math:`m \\times f`
+    Y : DNDarray, optional
+        2D array of size :math:`n \\times f`
     quadratic_expansion : bool
         Whether to use quadratic expansion for :math:`\\sqrt{(|x-y|^2)}` (Might yield speed-up)
     """
