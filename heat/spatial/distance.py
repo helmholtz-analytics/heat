@@ -236,6 +236,14 @@ def _chunk_wise_topk(
         The device on which the computation is performed. If None, the device of ``x_`` is used.
     """
     m = x_.shape[0]
+    target_device = x_.device if device is None else device
+
+    # Early exit for processes with zero local rows or empty target chunk / k
+    if m == 0 or y_.shape[0] == 0 or k == 0:
+        return (
+            torch.empty((m, k), dtype=x_.dtype, device=target_device),
+            torch.empty((m, k), dtype=torch.int64, device=target_device),
+        )
 
     # input sanitation
     if chunks > m:
@@ -250,8 +258,6 @@ def _chunk_wise_topk(
     if chunks == 1:
         d = metric(x_, y_)
         return torch.topk(d, k, largest=False, sorted=True)
-
-    target_device = x_.device if device is None else device
 
     # Pre-allocate output buffers once to avoid repeated torch.cat reallocations
     dist = torch.empty((m, k), dtype=x_.dtype, device=target_device)
@@ -348,10 +354,9 @@ def cdist_small(
     valid_metrics = ["_euclidian", "_gaussian", "_manhattan"]
     if metric.__name__ not in valid_metrics:
         raise ValueError(f"Invalid metric '{metric.__name__}'. Must be one of {valid_metrics}.")
-    if n_smallest > Y.larray.shape[0]:
+    if n_smallest > Y.shape[0]:
         raise ValueError(
-            "The parameter n_smallest must be smaller than the number of elements of Y in each process."
-            "In this case, use the function cdist instead."
+            f"The parameter n_smallest ({n_smallest}) cannot be larger than the total number of samples in Y ({Y.shape[0]})."
         )
 
     # type promotion
@@ -374,14 +379,15 @@ def cdist_small(
     x_ = X.larray
     y_ = Y.larray
 
-    # distance betweeen X and Y that are currently assigned to the same process and take only the n_smallest distances
+    # distance between X and Y that are currently assigned to the same process and take only the n_smallest distances
+    k_eff = min(n_smallest, y_.shape[0])
     current_dist, current_idx = _chunk_wise_topk(
-        x_, y_, n_smallest, metric=metric, chunks=chunks, device=X.device.torch_device
+        x_, y_, k_eff, metric=metric, chunks=chunks, device=X.device.torch_device
     )
     current_idx += ydispl[rank]
 
     # For size==1: keep torch.topk() tie-break behaviour to match ht.topk()
-    if size > 1:
+    if size > 1 and current_dist.shape[1] > 0:
         # enforce deterministic order for the initial block: (dist asc, idx asc)
         current_dist, current_idx = _stable_lexsort(current_dist, current_idx)
 
@@ -391,7 +397,7 @@ def cdist_small(
 
     # Communicate the parts of Y between the processes in a circular fashion and keep parts of X fixed.
     # Reduce memory consumption of the distance matrix with the following strategy (during each communication step):
-    #   1.  Caluclate the distances between the parts of X in each process with the part of Y that is received
+    #   1.  Calculate the distances between the parts of X in each process with the part of Y that is received
     #       by the respective process. Result is stored in the local matrix `new_dist`
     #   2.  Merge `new_dist` and `current_dist` to one matrix and take only the n_smallest distances. Result is stored in `current_dist`
     #   3.  Constantly keep track of indices of the n_smallest distances.
@@ -442,10 +448,11 @@ def cdist_small(
         buffer = recv_buffer_cpu.to(X.device.torch_device)
 
         # compute distances between local X and received Y chunk
+        k_eff = min(n_smallest, buffer.shape[0])
         new_dist, new_idx = _chunk_wise_topk(
             x_,
             buffer,
-            n_smallest,
+            k_eff,
             metric=metric,
             chunks=chunks,
             device=X.device.torch_device,
@@ -458,11 +465,18 @@ def cdist_small(
         merged_idx = torch.cat((current_idx, new_idx), dim=1)
 
         # to enforce deterministic selection of the n_smallest pairs
-        merged_dist_sorted, merged_idx_sorted = _stable_lexsort(merged_dist, merged_idx)
+        if merged_dist.shape[1] > 0:
+            merged_dist_sorted, merged_idx_sorted = _stable_lexsort(merged_dist, merged_idx)
+            current_dist = merged_dist_sorted[:, :n_smallest]
+            current_idx = merged_idx_sorted[:, :n_smallest]
+        else:
+            current_dist = merged_dist
+            current_idx = merged_idx
 
-        # keep only the first n_smallest entries
-        current_dist = merged_dist_sorted[:, :n_smallest]
-        current_idx = merged_idx_sorted[:, :n_smallest]
+    # Ensure correct 2D shape (0, n_smallest) for zero-row ranks
+    if current_dist.shape[0] == 0 and current_dist.shape[1] != n_smallest:
+        current_dist = torch.empty((0, n_smallest), dtype=torch_type, device=X.device.torch_device)
+        current_idx = torch.empty((0, n_smallest), dtype=torch.int64, device=X.device.torch_device)
 
     # assign the local results (torch.tensor) to distributed Heat arrays
     dist_small = ht.array(current_dist, is_split=0, device=X.device, comm=X.comm)
