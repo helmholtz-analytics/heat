@@ -256,42 +256,6 @@ class LocalOutlierFactor:
             balanced=idx.balanced,
         )
 
-    def _map_idx_to_proc(self, idx, comm):
-        """
-        Auxiliary function to map indices to the corresponding MPI process ranks.
-
-        This function takes an array of indices and determines which MPI process
-        each index belongs to, based on the distribution of data across processes.
-        It returns an array where each index is replaced by the rank of the process
-        that contains the corresponding data.
-
-        Parameters
-        ----------
-        idx : DNDarray
-            The array of indices to be mapped to MPI process ranks. The array should
-            be distributed along the first axis (split=0).
-        comm: MPI.COMM_WORLD
-            The MPI communicator.
-
-        Returns
-        -------
-        mapped_idx : DNDarray
-            An array of the same shape as `idx`, where each index is replaced by the
-            rank of the MPI process that contains the corresponding data.
-        """
-        size = comm.Get_size()
-        _, displ, _ = comm.counts_displs_shape(idx.shape, idx.split)
-        mapped_idx = ht.zeros_like(idx)
-        for rank in range(size):
-            lower_bound = displ[rank]
-            if rank == size - 1:  # size-1 is the last rank
-                upper_bound = idx.shape[0]
-            else:
-                upper_bound = displ[rank + 1]
-            mask = (idx >= lower_bound) & (idx < upper_bound)
-            mapped_idx[mask] = rank
-        return mapped_idx
-
     def _input_sanitation(self):
         """
         Check if the input parameters are valid and raise warnings or exceptions.
