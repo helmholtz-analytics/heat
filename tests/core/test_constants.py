@@ -1,5 +1,4 @@
 import numpy as np
-
 import heat as ht
 from heat.testing.basic_test import TestCase
 
@@ -13,3 +12,4 @@ class TestConstants(TestCase):
         self.assertTrue(np.isinf(ht.inf))
         self.assertTrue(ht.pi == np.pi)
         self.assertTrue(ht.e == np.e)
+        self.assertTrue(ht.newaxis is None)
