@@ -26,9 +26,6 @@ __all__ = [
     "DistributedDataset",
     "create_train_val_split",
     "DistributedDataLoader",
-    "_sanitize_data_input",
-    "_create_distributed_indices",
-    "_sanitize_communicators",
 ]
 
 
