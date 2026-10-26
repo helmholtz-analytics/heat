@@ -192,14 +192,14 @@ def manhattan(X: DNDarray, Y: DNDarray = None, expand: bool = False):
 
     .. math:: d(x,y) = \\sum{|x_i-y_i|}
 
-    Returns 2D DNDarray of size :math: `m \\times n`
+    Returns 2D DNDarray of size :math:`m \\times n`
 
     Parameters
     ----------
     X : DNDarray
-        2D array of size :math: `m \\times f`
-    Y : DNDarray
-        2D array of size :math: `n \\times f`
+        2D array of size :math:`m \\times f`
+    Y : DNDarray, optional
+        2D array of size :math:`n \\times f`
     expand : bool
         Whether to use dimension expansion (Might yield speed-up)
     """
