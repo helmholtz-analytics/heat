@@ -957,7 +957,10 @@ class DistributedDataLoader[T]:
         if self._data[0].is_distributed():
             B *= self._comm.size
 
-        return N // B if self._drop_last else (N + B - 1) // B
+        if self._drop_last:
+            return N // B
+        else:
+            return (N + B - 1) // B
 
     def __iter__(self) -> "_DistributedDataLoaderIter":
         """
