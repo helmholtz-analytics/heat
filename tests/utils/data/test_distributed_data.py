@@ -45,7 +45,7 @@ class TestDatatools:
     def setup_class(cls):
         TestCase.setUpClass()
 
-    @pytest.mark.parametrize("N", [0, 1, 11])
+    @pytest.mark.parametrize("N", [1, 11])
     @pytest.mark.parametrize("sample_axis,feature_split,label_split", LAYOUTS)
     @pytest.mark.parametrize("p", [0.0, 0.6, 0.95, 1.0])
     @pytest.mark.parametrize("seed", [None, 42])
@@ -202,7 +202,7 @@ class TestDatatools:
         assert torch.equal(features.larray, original_features)
         assert torch.equal(labels.larray, original_labels)
 
-    @pytest.mark.parametrize("N", [0, 1, 11, 24])
+    @pytest.mark.parametrize("N", [1, 11, 24])
     @pytest.mark.parametrize("sample_axis,feature_split,label_split", LAYOUTS)
     @pytest.mark.parametrize("shuffle", [False, True])
     @pytest.mark.parametrize("batch_size", [3])
@@ -362,7 +362,7 @@ class TestDatatools:
         assert loader.epoch == 2
         assert torch.equal(torch.random.get_rng_state(), rng_state)
 
-    @pytest.mark.parametrize("N", [0, 1, 11, 24])
+    @pytest.mark.parametrize("N", [1, 11, 24])
     @pytest.mark.parametrize("distributed", [False, True])
     @pytest.mark.parametrize("shuffle", [False, True])
     @pytest.mark.parametrize("drop_last", [False, True])
@@ -504,6 +504,18 @@ class TestDatatools:
         with pytest.raises(ValueError):
             factory(ht.zeros((3, 8)), ht.arange(7), sample_axis=(1, 0), **kwargs)
 
+    @pytest.mark.parametrize(
+        "factory", [DistributedDataset, DistributedDataLoader, ht.utils.data.create_train_val_split]
+    )
+    @pytest.mark.parametrize("sample_axis,feature_split,label_split", LAYOUTS)
+    def test_empty_input(self, factory, sample_axis, feature_split, label_split):
+        """Reject zero global samples regardless of their axes or distribution."""
+        features = ht.array(torch.empty((0, 3)).movedim(0, sample_axis), split=feature_split)
+        labels = ht.arange(0, split=label_split)
+        kwargs = {"batch_size": 2} if factory is DistributedDataLoader else {}
+        with pytest.raises(ValueError, match="at least one sample"):
+            factory(features, labels, sample_axis=(sample_axis, 0), **kwargs)
+
     def test_sample_axes_custom_comm(self, monkeypatch):
         world = ht.MPI_WORLD
         comm = world.Split(world.rank % 2, key=-world.rank)
@@ -590,13 +602,22 @@ class TestDatatools:
         with pytest.raises(TypeError):
             list(_batch_indices(indices, batch_size=1.5, drop_last=False))
 
-    def test_create_distributed_indices(self) -> None:
-        for shuffle in (False, True):
-            with pytest.raises(RuntimeError):
+    @pytest.mark.parametrize("num_elements", [0, -1])
+    @pytest.mark.parametrize("shuffle", [False, True])
+    @pytest.mark.parametrize("distributed", [False, True])
+    def test_create_distributed_indices_nonpositive(self, num_elements, shuffle, distributed):
+        """Reject nonpositive counts before accessing even an invalid communicator."""
+        for comm in (ht.MPI_WORLD, object()):
+            with pytest.raises(ValueError, match="greater than 0"):
                 _create_distributed_indices(
-                    ht.MPI_WORLD, num_elements=-1, shuffle=shuffle, seed=0, distributed=False
+                    comm,
+                    num_elements=num_elements,
+                    shuffle=shuffle,
+                    seed=0,
+                    distributed=distributed,
                 )
 
+    def test_create_distributed_indices(self) -> None:
         with pytest.raises(RuntimeError):
             _create_distributed_indices(
                 ht.MPI_WORLD, num_elements=8, shuffle=True, seed="invalid", distributed=False

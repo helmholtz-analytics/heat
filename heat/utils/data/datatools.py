@@ -404,10 +404,10 @@ def create_train_val_split(
     Parameters
     ----------
     *data : DNDarray
-        One or more arrays with at least one dimension, matching global lengths
-        along their sample axes. The arrays may be split along any axis. The same
-        permutation is applied to every array to preserve alignment. The arrays'
-        communicators must have the same rank and world size.
+        One or more arrays with at least one dimension and the same positive global
+        number of samples along their sample axes. The arrays may be split along any
+        axis. The same permutation is applied to every array to preserve alignment.
+        Their communicators must have the same rank and world size.
     p : float, optional
         Fraction of samples assigned to training, in the interval [0, 1]. Default
         is 0.95. For N input samples, the training set contains ``int(N * p)`` samples
@@ -435,9 +435,10 @@ def create_train_val_split(
         If an input is not a DNDarray or a sample axis is not an integer. Boolean
         sample axes are not accepted.
     ValueError
-        If no arrays are given, an input has no dimensions, the sample counts differ,
-        a sample axis is out of range, the axis tuple has the wrong length, the
-        communicators have different ranks or world sizes, or ``p`` is outside [0, 1].
+        If no arrays are given, an input has no dimensions or no global samples, the
+        sample counts differ, a sample axis is out of range, the axis tuple has the
+        wrong length, the communicators have different ranks or world sizes, or ``p``
+        is outside [0, 1].
 
     Notes
     -----
@@ -487,8 +488,8 @@ def _sanitize_data_input(
     Parameters
     ----------
     data : DNDarray or tuple of DNDarray
-        One or more arrays with at least one dimension and the same global number of
-        samples. The arrays may be split along different axes or be unsplit.
+        One or more arrays with at least one dimension and the same positive global
+        number of samples. The arrays may be split along different axes or be unsplit.
     sample_axis : int or tuple of int, optional
         Sample axis shared by all inputs or one axis per input. Negative axes are
         supported. Default is 0.
@@ -506,8 +507,9 @@ def _sanitize_data_input(
         If ``data`` is not a DNDarray or a tuple of DNDarrays, or a sample axis is not
         an integer. Boolean sample axes are not accepted.
     ValueError
-        If the input tuple is empty, an array has no dimensions, the sample counts differ,
-        a sample axis is out of range, or the axis tuple has the wrong length.
+        If the input tuple is empty, an array has no dimensions or no global samples,
+        the sample counts differ, a sample axis is out of range, or the axis tuple has
+        the wrong length.
     """
     if isinstance(data, DNDarray):
         arrays = (data,)
@@ -542,6 +544,8 @@ def _sanitize_data_input(
     axes = tuple(axis % arr.ndim for arr, axis in zip(arrays, axes))
     if len({arr.gshape[axis] for arr, axis in zip(arrays, axes)}) != 1:
         raise ValueError("All DNDarrays must have the same global number of samples.")
+    if arrays[0].gshape[axes[0]] == 0:
+        raise ValueError("Input arrays must contain at least one sample.")
 
     return arrays, axes
 
@@ -621,7 +625,7 @@ def _create_distributed_indices(
     comm : MPICommunication
         Communication object used to broadcast the global indices from rank 0.
     num_elements : int
-        Number of samples in the global dataset. Must be non-negative.
+        Number of samples in the global dataset. Must be positive.
     shuffle : bool
         If ``True``, create a random permutation of the sample indices. Otherwise, return
         the indices in increasing order.
@@ -643,6 +647,11 @@ def _create_distributed_indices(
         if ``distributed`` is ``True``, or ``(1, num_elements)`` otherwise. Each row
         contains a contiguous portion of the global sample order for that process.
 
+    Raises
+    ------
+    ValueError
+        If ``num_elements`` is zero or negative.
+
     Notes
     -----
     For distributed indices, rank 0 creates the global order and broadcasts it to all
@@ -651,6 +660,8 @@ def _create_distributed_indices(
     indices. The global torch random number generator state is unchanged.
     """
     N = num_elements
+    if N <= 0:
+        raise ValueError("num_elements must be greater than 0.")
     P = comm.size
 
     if shuffle:
@@ -660,9 +671,6 @@ def _create_distributed_indices(
 
     if not distributed:
         return idx.unsqueeze(0)
-
-    if N == 0:
-        return idx.reshape(P, 0)
 
     if P > 1:
         comm.Bcast(idx, root=0)
@@ -729,9 +737,9 @@ class DistributedDataset[T](torch.utils.data.Dataset):
     ----------
     data : DNDarray
         One or more arrays passed as positional arguments. The arrays must have at least
-        one dimension and the same global number of samples. They may be split along
-        any axis, including different axes, or be unsplit. Their communicators must have
-        the same rank and world size.
+        one dimension and the same positive global number of samples. They may be split
+        along any axis, including different axes, or be unsplit. Their communicators must
+        have the same rank and world size.
     sample_axis : int or tuple of int, optional
         Axis containing samples in each input. An integer applies to all inputs; a tuple
         specifies one axis per input. Negative axes are supported. Default is 0.
@@ -746,9 +754,9 @@ class DistributedDataset[T](torch.utils.data.Dataset):
         If an input is not a DNDarray, ``post_processing`` is not callable or ``None``,
         or a sample axis is not an integer. Boolean sample axes are not accepted.
     ValueError
-        If no arrays are given, an array has no dimensions, the sample counts differ,
-        a sample axis is out of range, the axis tuple has the wrong length, or the
-        communicators have different ranks or world sizes.
+        If no arrays are given, an array has no dimensions or no global samples, the
+        sample counts differ, a sample axis is out of range, the axis tuple has the
+        wrong length, or the communicators have different ranks or world sizes.
 
     Notes
     -----
@@ -872,9 +880,9 @@ class DistributedDataLoader[T]:
     ----------
     data : DNDarray
         One or more arrays passed as positional arguments. The arrays must have at least
-        one dimension and the same global number of samples. They may be split along
-        any axis, including different axes, or be unsplit. Their communicators must have
-        the same rank and world size.
+        one dimension and the same positive global number of samples. They may be split
+        along any axis, including different axes, or be unsplit. Their communicators must
+        have the same rank and world size.
     batch_size : int
         Number of samples per process in each batch. Must be a positive integer.
     sample_axis : int or tuple of int, optional
@@ -912,9 +920,9 @@ class DistributedDataLoader[T]:
         If an input is not a DNDarray, ``post_processing`` is not callable or ``None``,
         or a sample axis is not an integer. Boolean sample axes are not accepted.
     ValueError
-        If the arrays are missing, scalar, or have different sample counts, a sample axis
-        is out of range, the axis tuple has the wrong length, or the communicators have
-        different ranks or world sizes. Also raised if ``batch_size``
+        If the arrays are missing, scalar, have no global samples or different sample
+        counts, a sample axis is out of range, the axis tuple has the wrong length, or
+        the communicators have different ranks or world sizes. Also raised if ``batch_size``
         is not a positive integer, ``prefetch_factor`` is not a non-negative integer,
         ``drop_last`` is not a bool, or ``seed`` is not an integer. Boolean values are not
         accepted for ``batch_size`` or ``seed``.
