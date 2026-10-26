@@ -225,9 +225,9 @@ def _chunk_wise_topk(
     Parameters
     ----------
     x_ : torch.Tensor
-        2D array of size :math: `m \\times f`
+        2D array of size :math:`m \\times f`
     y_ : torch.Tensor
-        2D array of size :math: `n \\times f`
+        2D array of size :math:`n \\times f`
     k : int
         Number of top k distances to be calculated
     metric: Callable
