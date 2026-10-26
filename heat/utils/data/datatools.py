@@ -15,7 +15,7 @@ import torch.utils
 
 from ...core.dndarray import DNDarray
 from ...core.communication import MPICommunication
-from ...core.manipulations import take, Itake, TakeRequest
+from ...core.manipulations import take, Itake, TakeRequest, moveaxis
 from . import partial_dataset
 
 __all__ = [
@@ -394,7 +394,10 @@ def dataset_irecv(dataset: Union[Dataset, torch_data.Dataset]):
 
 
 def create_train_val_split(
-    *data: DNDarray, p: float = 0.95, seed: int | None = None
+    *data: DNDarray,
+    p: float = 0.95,
+    seed: int | None = None,
+    sample_axis: int | tuple[int, ...] = 0,
 ) -> tuple[DNDarray, ...]:
     """Shuffle aligned arrays and split each into training and validation sets.
 
@@ -402,34 +405,39 @@ def create_train_val_split(
     ----------
     *data : DNDarray
         One or more arrays with at least one dimension, matching global lengths
-        along axis 0, and the same split axis, which must be None or 0. The same
+        along their sample axes. The arrays may be split along any axis. The same
         permutation is applied to every array to preserve alignment. The arrays'
         communicators must have the same rank and world size.
     p : float, optional
-        Fraction of rows assigned to training, in the interval [0, 1]. Default
-        is 0.95. For N input rows, the training set contains ``int(N * p)`` rows
-        and the validation set contains the remaining rows. Either set may be empty.
+        Fraction of samples assigned to training, in the interval [0, 1]. Default
+        is 0.95. For N input samples, the training set contains ``int(N * p)`` samples
+        and the validation set contains the remaining samples. Either set may be empty.
     seed : int or None, optional
         Seed for the local PyTorch generator. Equal seeds produce equal permutations
         without modifying the global PyTorch random state. If None, a random seed
         from rank 0 is broadcast using the first input array's communicator.
         Default is None.
+    sample_axis : int or tuple of int, optional
+        Axis containing samples in each input. An integer applies to all inputs; a tuple
+        specifies one axis per input. Negative axes are supported. Default is 0.
 
     Returns
     -------
     tuple of DNDarray
         Training and validation arrays for each input, in input order:
         ``(data0_train, data0_val, data1_train, data1_val, ...)``. Each output
-        preserves the corresponding input's dtype, device, and split axis.
+        preserves the corresponding input's axis order, dtype, device, communicator,
+        and split axis.
 
     Raises
     ------
     TypeError
-        If an input is not a DNDarray.
+        If an input is not a DNDarray or a sample axis is not an integer. Boolean
+        sample axes are not accepted.
     ValueError
-        If no arrays are given, an input has no dimensions, the global row counts
-        or split axes differ, the split axis is neither None nor 0, the communicators
-        have different ranks or world sizes, or ``p`` is outside [0, 1].
+        If no arrays are given, an input has no dimensions, the sample counts differ,
+        a sample axis is out of range, the axis tuple has the wrong length, the
+        communicators have different ranks or world sizes, or ``p`` is outside [0, 1].
 
     Notes
     -----
@@ -438,7 +446,7 @@ def create_train_val_split(
     When ``seed`` is None, all processes in the first input array's communicator must
     participate in the call, including when the input arrays are unsplit.
     """
-    data = _sanitize_data_input(data)
+    data, sample_axes = _sanitize_data_input(data, sample_axis=sample_axis)
     comm = _sanitize_communicators(*(array.comm for array in data))
 
     if not 0 <= p <= 1:
@@ -448,46 +456,58 @@ def create_train_val_split(
         seed = random.randint(-0x8000_0000_0000_0000, 0xFFFF_FFFF_FFFF_FFFF)
         seed = comm.bcast(seed, root=0)
 
-    train_rows = int(data[0].gshape[0] * p)
-    val_rows = data[0].gshape[0] - train_rows
+    num_samples = data[0].gshape[sample_axes[0]]
+    train_rows = int(num_samples * p)
+    val_rows = num_samples - train_rows
 
-    assert train_rows + val_rows == data[0].gshape[0]  # sanity check
+    assert train_rows + val_rows == num_samples  # sanity check
 
     generator = None if seed is None else torch.Generator().manual_seed(seed)
 
-    perm = torch.randperm(data[0].gshape[0], generator=generator)
+    perm = torch.randperm(num_samples, generator=generator)
 
     train_idx = perm[:train_rows]
     val_idx = perm[train_rows:]
 
     return tuple(
-        part for arr in data for part in (take(arr, train_idx, axis=0), take(arr, val_idx, axis=0))
+        part
+        for arr, axis in zip(data, sample_axes)
+        for part in (take(arr, train_idx, axis=axis), take(arr, val_idx, axis=axis))
     )
 
 
-def _sanitize_data_input(data: DNDarray | tuple[DNDarray, ...]) -> tuple[DNDarray, ...]:
+def _sanitize_data_input(
+    data: DNDarray | tuple[DNDarray, ...],
+    *,
+    sample_axis: int | tuple[int, ...] = 0,
+) -> tuple[tuple[DNDarray, ...], tuple[int, ...]]:
     """
-    Check the input arrays and return them as a tuple.
+    Check the input arrays and normalize their sample axes.
 
     Parameters
     ----------
     data : DNDarray or tuple of DNDarray
-        One or more arrays with at least one dimension. All arrays must have the same split
-        axis, either ``None`` or ``0``, and the same global length along axis 0.
+        One or more arrays with at least one dimension and the same global number of
+        samples. The arrays may be split along different axes or be unsplit.
+    sample_axis : int or tuple of int, optional
+        Sample axis shared by all inputs or one axis per input. Negative axes are
+        supported. Default is 0.
 
     Returns
     -------
-    tuple of DNDarray
-        The input arrays in their original order.
+    arrays : tuple of DNDarray
+        The input arrays in their original order, without modifying their layout or data.
+    sample_axes : tuple of int
+        Non-negative sample axes, one per input array.
 
     Raises
     ------
     TypeError
-        If ``data`` is not a DNDarray or a tuple of DNDarrays.
+        If ``data`` is not a DNDarray or a tuple of DNDarrays, or a sample axis is not
+        an integer. Boolean sample axes are not accepted.
     ValueError
-        If the tuple is empty, an array has no dimensions, the arrays have different
-        split axes or global lengths along axis 0, or the split axis is neither
-        ``None`` nor ``0``.
+        If the input tuple is empty, an array has no dimensions, the sample counts differ,
+        a sample axis is out of range, or the axis tuple has the wrong length.
     """
     if isinstance(data, DNDarray):
         arrays = (data,)
@@ -505,16 +525,50 @@ def _sanitize_data_input(data: DNDarray | tuple[DNDarray, ...]) -> tuple[DNDarra
     if any(x.ndim == 0 for x in arrays):
         raise ValueError("Data must have at least one dimension.")
 
-    if len({x.split for x in arrays}) != 1:
-        raise ValueError("All DNDarrays must have the same split axis.")
+    if isinstance(sample_axis, int):
+        axes = (sample_axis,) * len(arrays)
+    elif isinstance(sample_axis, tuple):
+        axes = sample_axis
+    else:
+        raise TypeError("'sample_axis' must be an integer or a tuple of integers.")
 
-    if len({x.gshape[0] for x in arrays}) != 1:
-        raise ValueError("All DNDarrays must have the same global length on axis=0.")
+    if len(axes) != len(arrays):
+        raise ValueError("'sample_axis' must contain one axis per input array.")
+    if any(not isinstance(axis, int) or isinstance(axis, bool) for axis in axes):
+        raise TypeError("Sample axes must be integers, not booleans.")
+    if any(not -arr.ndim <= axis < arr.ndim for arr, axis in zip(arrays, axes)):
+        raise ValueError("Each sample axis must be in range for its input array.")
 
-    if arrays[0].split not in (None, 0):
-        raise ValueError("DNDarrays must be unsplit or distributed across `axis=0`")
+    axes = tuple(axis % arr.ndim for arr, axis in zip(arrays, axes))
+    if len({arr.gshape[axis] for arr, axis in zip(arrays, axes)}) != 1:
+        raise ValueError("All DNDarrays must have the same global number of samples.")
 
-    return arrays
+    return arrays, axes
+
+
+def _local_batch(batch: DNDarray, sample_axis: int, distributed: bool) -> torch.Tensor:
+    """
+    Assemble complete local samples with the sample axis first.
+
+    Parameters
+    ----------
+    batch : DNDarray
+        Newly selected batch, with indices grouped by process when distributed.
+    sample_axis : int
+        Axis containing the selected samples.
+    distributed : bool
+        Whether to distribute the samples across processes, including for replicated inputs.
+
+    Returns
+    -------
+    torch.Tensor
+        Local samples with their remaining dimensions in their original relative order.
+    """
+    if sample_axis != 0:
+        batch = moveaxis(batch, sample_axis, 0)
+    if distributed and batch.split != 0:
+        batch.resplit_(0)
+    return batch.larray
 
 
 def _sanitize_communicators(*comms: MPICommunication) -> MPICommunication:
@@ -666,42 +720,48 @@ class DistributedDataset[T](torch.utils.data.Dataset):
     """
     Create a PyTorch dataset from one or more DNDarrays.
 
-    Samples are retrieved in batches along axis 0. For distributed arrays, the requested
-    indices are gathered from each process and the selected samples are distributed back
-    to the processes. Unsplit arrays are indexed locally.
+    Samples are retrieved along each input's sample axis and returned with samples on
+    axis 0. If any input is distributed, the requested indices are gathered from each
+    process and complete samples are distributed back to the processes. If all inputs
+    are unsplit, they are indexed locally.
 
     Parameters
     ----------
     data : DNDarray
         One or more arrays passed as positional arguments. The arrays must have at least
-        one dimension, the same global length along axis 0, and the same split axis.
-        Only ``split=None`` and ``split=0`` are supported.
+        one dimension and the same global number of samples. They may be split along
+        any axis, including different axes, or be unsplit. Their communicators must have
+        the same rank and world size.
+    sample_axis : int or tuple of int, optional
+        Axis containing samples in each input. An integer applies to all inputs; a tuple
+        specifies one axis per input. Negative axes are supported. Default is 0.
     post_processing : Callable, optional
         Function called for each local batch with the position of the input array and the
         corresponding torch tensor, i.e. ``post_processing(i, batch)``. Its return value
         replaces that batch. Default is ``None``.
-    comm : MPICommunication, optional
-        Communication object used to gather sample indices. Defaults to the globally set
-        communicator and must match the communicator of the input arrays.
 
     Raises
     ------
     TypeError
         If an input is not a DNDarray, ``post_processing`` is not callable or ``None``,
-        or ``comm`` is not a supported communicator.
+        or a sample axis is not an integer. Boolean sample axes are not accepted.
     ValueError
-        If no arrays are given, an array has no dimensions, the sample counts or split
-        axes differ, or an array is split along an axis other than 0.
+        If no arrays are given, an array has no dimensions, the sample counts differ,
+        a sample axis is out of range, the axis tuple has the wrong length, or the
+        communicators have different ranks or world sizes.
 
     Notes
     -----
     Batch retrieval returns a tensor for one input array and a tuple for multiple arrays.
     If ``post_processing`` is given, the returned batches have the type produced by that
-    function.
+    function. Before post-processing, batches have shape ``(batch_size, ...)``, with
+    the non-sample dimensions in their original relative order. Inputs retain their
+    layout and distribution; feature-split inputs are redistributed one batch at a time.
 
     Use a torch DataLoader with ``num_workers=0`` and an identity ``collate_fn``, as this
-    dataset already returns assembled batches. For distributed arrays, all processes must
-    retrieve batches in the same order and request the same number of samples in each batch.
+    dataset already returns assembled batches. If any input is distributed, all processes
+    must retrieve batches in the same order and request the same number of samples in
+    each batch, including for replicated inputs in the same call.
 
     Examples
     --------
@@ -740,12 +800,14 @@ class DistributedDataset[T](torch.utils.data.Dataset):
     def __init__(
         self,
         *data: DNDarray,
+        sample_axis: int | tuple[int, ...] = 0,
         post_processing: Callable[[int, torch.Tensor], T] | None = None,
     ) -> None:
         if post_processing is not None and not callable(post_processing):
             raise TypeError("post_processing must be a callable function or None.")
 
-        self._data = _sanitize_data_input(data)
+        self._data, self._sample_axes = _sanitize_data_input(data, sample_axis=sample_axis)
+        self._distributed = any(array.is_distributed() for array in self._data)
 
         comms = (d.comm for d in self._data)
 
@@ -761,7 +823,7 @@ class DistributedDataset[T](torch.utils.data.Dataset):
         Parameters
         ----------
         indices : list of int
-            Global sample indices requested by this process along axis 0.
+            Global indices requested by this process along each input's sample axis.
 
         Returns
         -------
@@ -771,18 +833,21 @@ class DistributedDataset[T](torch.utils.data.Dataset):
 
         Notes
         -----
-        If the arrays are split along axis 0, all processes must call this method with
-        the same number of indices so that the gathered samples can be distributed evenly.
+        If any input is distributed, all processes must call this method with the same
+        number of indices so that the gathered samples can be distributed evenly.
         """
         indices: torch.Tensor = torch.tensor(indices, dtype=torch.int64)
 
-        if self._data[0].split == 0:
+        if self._distributed:
             index_buffer = torch.empty(indices.numel() * self._comm.size, dtype=torch.int64)
             self._comm.Allgather(indices, index_buffer)
         else:
             index_buffer = indices
 
-        results = tuple(take(d, index_buffer, axis=0).larray for d in self._data)
+        results = tuple(
+            _local_batch(take(d, index_buffer, axis=axis), axis, self._distributed)
+            for d, axis in zip(self._data, self._sample_axes)
+        )
 
         if self._post_processing is not None:
             results = tuple(self._post_processing(i, result) for i, result in enumerate(results))
@@ -790,26 +855,31 @@ class DistributedDataset[T](torch.utils.data.Dataset):
         return results if len(results) > 1 else results[0]
 
     def __len__(self) -> int:
-        return self._data[0].gshape[0]
+        return self._data[0].gshape[self._sample_axes[0]]
 
 
 class DistributedDataLoader[T]:
     """
     Create an iterable over batches from one or more DNDarrays.
 
-    For distributed arrays, each process iterates over a portion of a shared global sample
-    order, receiving ``batch_size`` samples in a full batch. Arrays are accessed using
-    non-blocking :func:`Itake <heat.core.manipulations.Itake>` requests. Unsplit arrays
-    are indexed locally, and each process traverses their complete sample order.
+    If any input is distributed, each process iterates over a portion of a shared global
+    sample order, receiving ``batch_size`` complete samples in a full batch. Arrays are
+    accessed using :func:`Itake <heat.core.manipulations.Itake>` requests. If all inputs
+    are unsplit, they are indexed locally and each process traverses their complete
+    sample order. Batches have samples on axis 0.
 
     Parameters
     ----------
     data : DNDarray
         One or more arrays passed as positional arguments. The arrays must have at least
-        one dimension, the same global length along axis 0, and the same split axis.
-        Only ``split=None`` and ``split=0`` are supported.
+        one dimension and the same global number of samples. They may be split along
+        any axis, including different axes, or be unsplit. Their communicators must have
+        the same rank and world size.
     batch_size : int
         Number of samples per process in each batch. Must be a positive integer.
+    sample_axis : int or tuple of int, optional
+        Axis containing samples in each input. An integer applies to all inputs; a tuple
+        specifies one axis per input. Negative axes are supported. Default is 0.
     shuffle : bool, optional
         If ``True``, shuffle the global sample indices before each iteration.
         Default is ``False``.
@@ -830,9 +900,6 @@ class DistributedDataLoader[T]:
         Function called for each local batch with the position of the input array and the
         corresponding torch tensor, i.e. ``post_processing(i, batch)``. Its return value
         replaces that batch. Default is ``None``.
-    comm : MPICommunication, optional
-        Communication object used to broadcast sample indices. Defaults to the globally set
-        communicator and must match the communicator of the input arrays.
 
     Attributes
     ----------
@@ -843,10 +910,11 @@ class DistributedDataLoader[T]:
     ------
     TypeError
         If an input is not a DNDarray, ``post_processing`` is not callable or ``None``,
-        or ``comm`` is not a supported communicator.
+        or a sample axis is not an integer. Boolean sample axes are not accepted.
     ValueError
-        If the arrays are missing, scalar, or have different sample counts or split axes,
-        or if an array is split along an axis other than 0. Also raised if ``batch_size``
+        If the arrays are missing, scalar, or have different sample counts, a sample axis
+        is out of range, the axis tuple has the wrong length, or the communicators have
+        different ranks or world sizes. Also raised if ``batch_size``
         is not a positive integer, ``prefetch_factor`` is not a non-negative integer,
         ``drop_last`` is not a bool, or ``seed`` is not an integer. Boolean values are not
         accepted for ``batch_size`` or ``seed``.
@@ -857,7 +925,12 @@ class DistributedDataLoader[T]:
     original order. If ``post_processing`` is given, the returned batches have the type
     produced by that function. The length of the loader is the number of batches per process.
 
-    All processes holding distributed parts of the arrays must iterate together and use
+    Before post-processing, batches have shape ``(batch_size, ...)``, with the non-sample
+    dimensions in their original relative order. Inputs retain their layout and distribution.
+    Selection along a split sample axis uses non-blocking communication. Feature-split
+    inputs require additional redistribution of each selected batch when it is retrieved.
+
+    If any input is distributed, all processes in its communicator must iterate together and use
     matching batch sizes, remainder policies, and iteration counts. Each process receives
     a contiguous portion of the shared global sample order. If an iteration is stopped
     early, close the iterator on all participating processes, or use it as a context
@@ -878,6 +951,7 @@ class DistributedDataLoader[T]:
         self,
         *data: DNDarray,
         batch_size: int,
+        sample_axis: int | tuple[int, ...] = 0,
         shuffle: bool = False,
         drop_last: bool = False,
         prefetch_factor: int = 0,
@@ -897,7 +971,8 @@ class DistributedDataLoader[T]:
         if post_processing is not None and not callable(post_processing):
             raise TypeError("post_processing must be a callable function or None.")
 
-        self._data = _sanitize_data_input(data)
+        self._data, self._sample_axes = _sanitize_data_input(data, sample_axis=sample_axis)
+        self._distributed = any(array.is_distributed() for array in self._data)
         self._batch_size = batch_size
         self._shuffle = shuffle
         self._drop_last = drop_last
@@ -910,7 +985,7 @@ class DistributedDataLoader[T]:
         self._seed = seed
         self._epoch = 0
 
-        self._num_elements = self._data[0].gshape[0]
+        self._num_elements = self._data[0].gshape[self._sample_axes[0]]
 
     @property
     def seed(self) -> int:
@@ -950,7 +1025,7 @@ class DistributedDataLoader[T]:
         N = self._num_elements
         B = self._batch_size
 
-        if self._data[0].is_distributed():
+        if self._distributed:
             B *= self._comm.size
 
         if self._drop_last:
@@ -1017,7 +1092,7 @@ class _DistributedDataLoaderIter:
             num_elements=loader._num_elements,
             shuffle=loader._shuffle,
             seed=seed,
-            distributed=loader._data[0].is_distributed(),
+            distributed=loader._distributed,
             drop_last=loader._drop_last,
         )
 
@@ -1060,7 +1135,7 @@ class _DistributedDataLoaderIter:
 
         try:
             # Itake normally handles the transfer of the index tensor, but this saves some unnecessary copies.
-            for array in self._loader._data:
+            for array, axis in zip(self._loader._data, self._loader._sample_axes):
                 device = array.larray.device
 
                 if device not in indices_by_device:
@@ -1068,7 +1143,7 @@ class _DistributedDataLoaderIter:
 
                 device_indices = indices_by_device[device]
 
-                requests.append(Itake(array, device_indices, axis=0))
+                requests.append(Itake(array, device_indices, axis=axis))
 
         except BaseException:
             # When one of the request fail, wait for the MPI comms to finish
@@ -1125,7 +1200,10 @@ class _DistributedDataLoaderIter:
         if error is not None:
             raise error
 
-        return tuple(result.larray for result in results)
+        return tuple(
+            _local_batch(result, axis, self._loader._distributed)
+            for result, axis in zip(results, self._loader._sample_axes)
+        )
 
     def __next__(self) -> torch.Tensor | tuple[torch.Tensor, ...]:
         """
