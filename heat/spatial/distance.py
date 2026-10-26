@@ -472,20 +472,20 @@ def cdist_small(
 
 def _dist(X: DNDarray, Y: DNDarray = None, metric: Callable = _euclidian) -> DNDarray:
     """
-    Pairwise distance calculation between all elements along axis 0 of ``X`` and ``Y`` Returns 2D DNDarray of size :math: `m \\times n`
+    Pairwise distance calculation between all elements along axis 0 of ``X`` and ``Y``. Returns 2D DNDarray of size :math:`m \\times n`.
     ``X.split`` and ``Y.split`` can be distributed among axis 0.
-        - if neither ``X`` nor ``Y`` is split, result will also be ``split = None \n
-        - if ``X.split == 0``, result will be ``split = 0`` regardless of ``Y.split`` \n
+        - if neither ``X`` nor ``Y`` is split, result will also be ``split = None``
+        - if ``X.split == 0``, result will be ``split = 0`` regardless of ``Y.split``
     The distance matrix is calculated tile-wise with ring communication between the processes
     holding each a piece of ``X`` and/or ``Y``.
 
     Parameters
     ----------
     X : DNDarray
-        2D Array of size :math: `m \\times f`
+        2D array of size :math:`m \\times f`
     Y : DNDarray, optional
-        2D array of size `n \\times f``.
-        If `Y in None, the distances will be calculated between all elements of ``X``
+        2D array of size :math:`n \\times f`.
+        If Y is None, the distances will be calculated between all elements of ``X``
     metric: Callable
         The distance to be calculated between ``X`` and ``Y``
         If metric requires additional arguments, it must be handed over as a lambda function: ``lambda x, y: metric(x, y, **args)``
@@ -493,7 +493,6 @@ def _dist(X: DNDarray, Y: DNDarray = None, metric: Callable = _euclidian) -> DND
     Notes
     -----
     If ``X.split=None`` and ``Y.split=0``, result will be ``split=1``
-
     """
     if len(X.shape) > 2:
         raise NotImplementedError("Only 2D data matrices are currently supported")
