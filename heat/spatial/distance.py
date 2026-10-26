@@ -279,30 +279,34 @@ def cdist_small(
     n_smallest: int = 10,
     metric: Callable = _euclidian,
     chunks: int = 1,
-) -> DNDarray:
+) -> (DNDarray, DNDarray):
     """
     Calculate the pairwise distances between two DNDarrays (values sorted from smallest to largest), which has
-    an optimized memory consumption if only the ``n_smallest`` smallest distances are needed.
+    an optimized memory consumption if only the ``n_smallest`` smallest distances are needed. Returns two DNDarrays of size :math:`m \\times n_smallest` containing the smallest distances and the corresponding indices.
 
     Parameters
     ----------
     X : DNDarray
-        2D array of size :math: `m \\times f`
+        2D array of size :math:`m \\times f`
     Y : DNDarray
-        2D array of size :math: `n \\times f`
-    metric: Callable
-        The distance to be calculated between ``X`` and ``Y``
+        2D array of size :math:`n \\times f`
     n_smallest : int
         Number of smallest distances to be calculated
+    metric : Callable
+        The distance to be calculated between ``X`` and ``Y``
     chunks : int
-        Define if the distances on each process are calculated iteratively. For example, if ``chunks=2``, the
-        each processes will first compute one half of the distance matrix and then the second half.
+        Define if the distances on each process are calculated iteratively. For example, if ``chunks=2``,
+        each process will first compute one half of the distance matrix and then the second half.
 
     Notes
     -----
-    - The matrix cdist_small is not square as in the usual function cdist.
+    - The matrix cdist_small is not square as in :func:`cdist`.
     - To reduce the number of required processes, the parameter ``chunks`` enables a chunk-wise calculation of the distance
-    matrix in an iterative fashion. This allows to choose a trade-off between total memory consumption and computation time.
+      matrix in an iterative fashion. This allows to choose a trade-off between total memory consumption and computation time.
+
+    See Also
+    --------
+    - :func:`cdist`
     """
     # input sanitation
     if not isinstance(X, DNDarray) or not isinstance(Y, DNDarray):
