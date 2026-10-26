@@ -28,6 +28,7 @@ __all__ = [
     "DistributedDataLoader",
     "_sanitize_data_input",
     "_create_distributed_indices",
+    "_sanitize_communicators",
 ]
 
 
@@ -518,6 +519,38 @@ def _sanitize_data_input(data: DNDarray | tuple[DNDarray, ...]) -> tuple[DNDarra
 
     return arrays
 
+def _sanitize_communicators(*comms: MPICommunication) -> MPICommunication:
+    """
+    Check that communicators have the same rank and world size and return the first.
+
+    Parameters
+    ----------
+    *comms : MPICommunication
+        One or more communicators to validate.
+
+    Returns
+    -------
+    MPICommunication
+        The first input communicator.
+
+    Raises
+    ------
+    ValueError
+        If no communicators are provided, or if their ranks or world sizes differ.
+    """
+    if not comms:
+        raise ValueError("One or more Communicators must be passed.")
+
+    ranks = {comm.rank for comm in comms}
+    sizes = {comm.size for comm in comms}
+
+    if len(ranks) != 1:
+        raise ValueError("All communicators must have the same rank.")
+    if len(sizes) != 1:
+        raise ValueError("All communicators must have the same world size.")
+
+    return comms[0]
+
 
 def _create_distributed_indices(
     comm: MPICommunication,
@@ -710,7 +743,6 @@ class DistributedDataset[T](torch.utils.data.Dataset):
         self,
         *data: DNDarray,
         post_processing: Callable[[int, torch.Tensor], T] | None = None,
-        comm: MPICommunication | None = None,
     ) -> None:
         if post_processing is not None and not callable(post_processing):
             raise TypeError("post_processing must be a callable function or None.")
@@ -721,7 +753,9 @@ class DistributedDataset[T](torch.utils.data.Dataset):
                 f"DNDarrays must be unsplit or distributed across `axis=0`, is {self._data[0].split=}"
             )
 
-        self._comm: MPICommunication = sanitize_comm(comm)
+        comms = (d.comm for d in self._data)
+
+        self._comm: MPICommunication = _sanitize_communicators(*comms)
         self._post_processing = post_processing
 
     def __getitems__(
@@ -855,7 +889,6 @@ class DistributedDataLoader[T]:
         prefetch_factor: int = 0,
         seed: int = 0,
         post_processing: Callable[[int, torch.Tensor], T] | None = None,
-        comm: MPICommunication | None = None,
     ) -> None:
         if not isinstance(batch_size, int) or isinstance(batch_size, bool) or batch_size <= 0:
             raise ValueError("Value must be a positive integer.")
@@ -876,7 +909,9 @@ class DistributedDataLoader[T]:
         self._drop_last = drop_last
         self._prefetch_factor = prefetch_factor
         self._post_processing = post_processing
-        self._comm: MPICommunication = sanitize_comm(comm)
+
+        comms = (d.comm for d in self._data)
+        self._comm: MPICommunication = _sanitize_communicators(*comms)
 
         self._seed = seed
         self._epoch = 0

@@ -4,6 +4,7 @@ from heat.utils.data.datatools import (
     DistributedDataLoader,
     _batch_indices,
     _create_distributed_indices,
+    _sanitize_communicators,
 )
 import torch
 from torch.utils.data import TensorDataset, DataLoader as TorchDataloader, DistributedSampler as TorchDistributedSampler
@@ -156,12 +157,13 @@ class TestDatatools:
     @pytest.mark.parametrize("drop_last", [False, True])
     @pytest.mark.parametrize("prefetch_factor", [0, 1, 2])
     def test_distributed_dataloader(self, N, split, shuffle, batch_size, drop_last, prefetch_factor):
-        comm = ht.get_comm()
         features_torch = torch.arange(N * 3, dtype=torch.float32).reshape(N, 3)
         labels_torch = torch.arange(N)
         features = ht.array(features_torch, split=split)
         labels = ht.array(labels_torch, split=split)
         seed = 42
+
+        comm = _sanitize_communicators(features.comm, labels.comm)
 
         order = (
             torch.randperm(N, generator=torch.Generator().manual_seed(seed)).tolist()
@@ -223,8 +225,8 @@ class TestDatatools:
     @pytest.mark.parametrize("split", [None, 0])
     @pytest.mark.parametrize("prefetch_factor", [0, 2])
     def test_distributed_dataloader_epochs(self, split, prefetch_factor):
-        comm = ht.get_comm()
         data = ht.arange(48, split=split)
+        comm = data.comm
         reference_seed = 42
         seed = reference_seed + comm.rank
 
