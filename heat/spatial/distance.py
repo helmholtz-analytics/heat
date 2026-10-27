@@ -313,7 +313,7 @@ def cdist_small(
 ) -> tuple[DNDarray, DNDarray]:
     """
     Calculate the pairwise distances between two DNDarrays (values sorted from smallest to largest), which has
-    an optimized memory consumption if only the ``n_smallest`` smallest distances are needed. Returns two DNDarrays of size :math:`m \\times n_smallest` containing the smallest distances and the corresponding indices.
+    an optimized memory consumption if only the ``n_smallest`` smallest distances are needed. Returns two DNDarrays of size :math:`m \\times n_{\\text{smallest}}` containing the smallest distances and the corresponding indices.
 
     Parameters
     ----------
@@ -321,13 +321,14 @@ def cdist_small(
         2D array of size :math:`m \\times f`
     Y : DNDarray
         2D array of size :math:`n \\times f`
-    n_smallest : int
-        Number of smallest distances to be calculated
-    metric : Callable
-        The distance to be calculated between ``X`` and ``Y``
-    chunks : int
+    n_smallest : int, optional
+        Number of smallest distances to be calculated. Default is 10.
+    metric : Callable or str, optional
+        The distance metric to use. Can be a callable or one of {"euclidean", "euclidian", "gaussian", "manhattan"}.
+        Default is ``_euclidean``.
+    chunks : int, optional
         Define if the distances on each process are calculated iteratively. For example, if ``chunks=2``,
-        each process will first compute one half of the distance matrix and then the second half.
+        each process will first compute one half of the distance matrix and then the second half. Default is 1.
 
     Notes
     -----
@@ -622,7 +623,7 @@ def _dist(X: DNDarray, Y: DNDarray = None, metric: Callable = _euclidean) -> DND
                     comm.Recv(symmetric, source=receiver, tag=iter)
                 d.larray[:, scolumns[0] : scolumns[1]] = symmetric.transpose(0, 1)
 
-            if (size + 1) % 2 != 0:  # we need one mor iteration for the first n/2 processes
+            if (size + 1) % 2 != 0:  # we need one more iteration for the first n/2 processes
                 receiver = (rank + num_iter) % size
                 sender = (rank - num_iter) % size
                 # Case 1: only receiving
