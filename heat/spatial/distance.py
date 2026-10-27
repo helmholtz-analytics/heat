@@ -71,8 +71,8 @@ def _quadratic_expand(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
 
 def _gaussian(x: torch.Tensor, y: torch.Tensor, sigma: float = 1.0) -> torch.Tensor:
     """
-    Helper function to calculate Gaussian distance between ``torch.Tensors`` ``x`` and ``y``: :math:`exp(-(|x-y|^2/2\\sigma^2)`
-    Based on ``torch.cdist``. Returns a 2D tensor of size :math:`m x n`
+    Helper function to calculate Gaussian distance between ``torch.Tensors`` ``x`` and ``y``: :math:`\\exp(-(|x-y|^2 / (2\\sigma^2)))`
+    Based on ``torch.cdist``. Returns a 2D tensor of size :math:`m \\times n`
 
     Parameters
     ----------
@@ -91,8 +91,8 @@ def _gaussian(x: torch.Tensor, y: torch.Tensor, sigma: float = 1.0) -> torch.Ten
 
 def _gaussian_fast(x: torch.Tensor, y: torch.Tensor, sigma: float = 1.0) -> torch.Tensor:
     """
-    Helper function to calculate Gaussian distance between ``torch.Tensors`` ``x`` and ``y``: :math:`exp(-(|x-y|^2/2\\sigma^2)`
-    Uses quadratic expansion to calculate :math:`(x-y)^2`. Returns a 2D tensor of size :math:`m x n`
+    Helper function to calculate Gaussian distance between ``torch.Tensors`` ``x`` and ``y``: :math:`\\exp(-(|x-y|^2 / (2\\sigma^2)))`
+    Uses quadratic expansion to calculate :math:`(x-y)^2`. Returns a 2D tensor of size :math:`m \\times n`
 
     Parameters
     ----------
