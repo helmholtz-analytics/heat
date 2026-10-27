@@ -14,7 +14,7 @@ from ..core.dndarray import DNDarray
 __all__ = ["cdist", "cdist_small", "manhattan", "rbf"]
 
 
-def _euclidean(x: torch.tensor, y: torch.tensor) -> torch.tensor:
+def _euclidean(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
     """
     Helper function to calculate Euclidean distance between ``torch.tensors`` ``x`` and ``y``: :math:`\\sqrt(|x-y|^2)`
     Based on ``torch.cdist``. Returns 2D torch.Tensor of size :math:`m \\times n`
@@ -29,7 +29,7 @@ def _euclidean(x: torch.tensor, y: torch.tensor) -> torch.tensor:
     return torch.cdist(x, y)
 
 
-def _euclidean_fast(x: torch.tensor, y: torch.tensor) -> torch.tensor:
+def _euclidean_fast(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
     """
     Helper function to calculate Euclidean distance between ``torch.tensors`` ``x`` and ``y``: :math:`\\sqrt(|x-y|^2)`
     Uses quadratic expansion to calculate :math:`(x-y)^2`. Returns 2D torch.Tensor of size :math:`m \\times n`
@@ -49,7 +49,7 @@ _euclidian = _euclidean
 _euclidian_fast = _euclidean_fast
 
 
-def _quadratic_expand(x: torch.tensor, y: torch.tensor) -> torch.tensor:
+def _quadratic_expand(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
     """
     Helper function to calculate quadratic expansion :math:`|x-y|^2=|x|^2 + |y|^2 - 2xy`
     Returns 2D torch.Tensor of size :math:`m x n`
@@ -69,7 +69,7 @@ def _quadratic_expand(x: torch.tensor, y: torch.tensor) -> torch.tensor:
     return torch.clamp_min(dist, 0.0)
 
 
-def _gaussian(x: torch.tensor, y: torch.tensor, sigma: float = 1.0) -> torch.tensor:
+def _gaussian(x: torch.Tensor, y: torch.Tensor, sigma: float = 1.0) -> torch.Tensor:
     """
     Helper function to calculate Gaussian distance between ``torch.Tensors`` ``x`` and ``y``: :math:`exp(-(|x-y|^2/2\\sigma^2)`
     Based on ``torch.cdist``. Returns a 2D tensor of size :math:`m x n`
@@ -89,7 +89,7 @@ def _gaussian(x: torch.tensor, y: torch.tensor, sigma: float = 1.0) -> torch.ten
     return result
 
 
-def _gaussian_fast(x: torch.tensor, y: torch.tensor, sigma: float = 1.0) -> torch.tensor:
+def _gaussian_fast(x: torch.Tensor, y: torch.Tensor, sigma: float = 1.0) -> torch.Tensor:
     """
     Helper function to calculate Gaussian distance between ``torch.Tensors`` ``x`` and ``y``: :math:`exp(-(|x-y|^2/2\\sigma^2)`
     Uses quadratic expansion to calculate :math:`(x-y)^2`. Returns a 2D tensor of size :math:`m x n`
@@ -108,7 +108,7 @@ def _gaussian_fast(x: torch.tensor, y: torch.tensor, sigma: float = 1.0) -> torc
     return result
 
 
-def _manhattan(x: torch.tensor, y: torch.tensor) -> torch.tensor:
+def _manhattan(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
     """
     Helper function to calculate Manhattan distance between ``torch.Tensors`` ``x`` and ``y``: :math:`sum(|x-y|)`
     Based on ``torch.cdist``. Returns a 2D tensor of size :math:`m x n`.
@@ -198,7 +198,7 @@ def rbf(
         return _dist(X, Y, lambda x, y: _gaussian(x, y, sigma))
 
 
-def manhattan(X: DNDarray, Y: DNDarray = None, expand: bool = False):
+def manhattan(X: DNDarray, Y: DNDarray = None, expand: bool = False) -> DNDarray:
     """
     Calculate Manhattan distance between two DNDarrays:
 
