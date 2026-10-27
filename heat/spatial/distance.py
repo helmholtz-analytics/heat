@@ -295,7 +295,7 @@ def cdist_small(
     n_smallest: int = 10,
     metric: Callable = _euclidian,
     chunks: int = 1,
-) -> (DNDarray, DNDarray):
+) -> tuple[DNDarray, DNDarray]:
     """
     Calculate the pairwise distances between two DNDarrays (values sorted from smallest to largest), which has
     an optimized memory consumption if only the ``n_smallest`` smallest distances are needed. Returns two DNDarrays of size :math:`m \\times n_smallest` containing the smallest distances and the corresponding indices.
@@ -351,9 +351,22 @@ def cdist_small(
         raise ValueError(
             f"Inputs must have same shape[1], but have X.shape[1]={X.shape[1]} and Y.shape[1]={Y.shape[1]}"
         )
-    valid_metrics = ["_euclidian", "_gaussian", "_manhattan"]
-    if metric.__name__ not in valid_metrics:
-        raise ValueError(f"Invalid metric '{metric.__name__}'. Must be one of {valid_metrics}.")
+
+    metric_map = {
+        "euclidian": _euclidian,
+        "euclidean": _euclidian,
+        "gaussian": _gaussian,
+        "manhattan": _manhattan,
+    }
+    if isinstance(metric, str):
+        if metric not in metric_map:
+            raise ValueError(
+                f"Invalid metric '{metric}'. Must be one of {list(metric_map.keys())} or a callable."
+            )
+        metric = metric_map[metric]
+    elif not callable(metric):
+        raise TypeError(f"'metric' must be a callable or string, but got {type(metric)}.")
+
     if n_smallest > Y.shape[0]:
         raise ValueError(
             f"The parameter n_smallest ({n_smallest}) cannot be larger than the total number of samples in Y ({Y.shape[0]})."
