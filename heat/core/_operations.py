@@ -522,7 +522,10 @@ def __reduce_op(
     local_shapes = x.comm.allgather(list(partial.shape))
     output_shape = local_shapes[0]
     if x.split is not None and axis is not None and x.split not in axis:
-        shift = len([ax for ax in axis if ax < x.split])
+        if len(local_shapes[0]) == len(x.shape):
+            shift = 0
+        else:
+            shift = len([ax for ax in axis if ax < x.split])
         output_shape[x.split - shift] = sum(lshape[x.split - shift] for lshape in local_shapes)
     output_shape = tuple(output_shape)
 
