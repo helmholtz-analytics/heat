@@ -835,14 +835,23 @@ class DistributedDataset[T](torch.utils.data.Dataset):
             The local batch for each input array, after post-processing if given. A single
             input returns one batch; multiple inputs return a tuple in their original order.
 
+        Raises
+        ------
+        ValueError
+            If any input is distributed and processes request different numbers of indices.
+
         Notes
         -----
         If any input is distributed, all processes must call this method with the same
         number of indices so that the gathered samples can be distributed evenly.
+        The counts are checked collectively before gathering the indices.
         """
         indices: torch.Tensor = torch.tensor(indices, dtype=torch.int64)
 
         if self._distributed:
+            counts = self._comm.allgather(indices.numel())
+            if len(set(counts)) != 1:
+                raise ValueError("All processes must request the same number of sample indices.")
             index_buffer = torch.empty(indices.numel() * self._comm.size, dtype=torch.int64)
             self._comm.Allgather(indices, index_buffer)
         else:
