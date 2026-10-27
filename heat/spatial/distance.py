@@ -14,9 +14,9 @@ from ..core.dndarray import DNDarray
 __all__ = ["cdist", "cdist_small", "manhattan", "rbf"]
 
 
-def _euclidian(x: torch.tensor, y: torch.tensor) -> torch.tensor:
+def _euclidean(x: torch.tensor, y: torch.tensor) -> torch.tensor:
     """
-    Helper function to calculate Euclidian distance between ``torch.tensors`` ``x`` and ``y``: :math:`\\sqrt(|x-y|^2)`
+    Helper function to calculate Euclidean distance between ``torch.tensors`` ``x`` and ``y``: :math:`\\sqrt(|x-y|^2)`
     Based on ``torch.cdist``. Returns 2D torch.Tensor of size :math:`m \\times n`
 
     Parameters
@@ -29,9 +29,9 @@ def _euclidian(x: torch.tensor, y: torch.tensor) -> torch.tensor:
     return torch.cdist(x, y)
 
 
-def _euclidian_fast(x: torch.tensor, y: torch.tensor) -> torch.tensor:
+def _euclidean_fast(x: torch.tensor, y: torch.tensor) -> torch.tensor:
     """
-    Helper function to calculate Euclidian distance between ``torch.tensors`` ``x`` and ``y``: :math:`\\sqrt(|x-y|^2)`
+    Helper function to calculate Euclidean distance between ``torch.tensors`` ``x`` and ``y``: :math:`\\sqrt(|x-y|^2)`
     Uses quadratic expansion to calculate :math:`(x-y)^2`. Returns 2D torch.Tensor of size :math:`m \\times n`
 
     Parameters
@@ -42,6 +42,11 @@ def _euclidian_fast(x: torch.tensor, y: torch.tensor) -> torch.tensor:
         2D tensor of size :math:`n x f`
     """
     return torch.sqrt(_quadratic_expand(x, y))
+
+
+# Backward (misspelling) compatibility aliases
+_euclidian = _euclidean
+_euclidian_fast = _euclidean_fast
 
 
 def _quadratic_expand(x: torch.tensor, y: torch.tensor) -> torch.tensor:
@@ -79,7 +84,7 @@ def _gaussian(x: torch.tensor, y: torch.tensor, sigma: float = 1.0) -> torch.ten
         Scaling factor for Gaussian kernel
 
     """
-    d2 = _euclidian(x, y) ** 2
+    d2 = _euclidean(x, y) ** 2
     result = torch.exp(-d2 / (2 * sigma * sigma))
     return result
 
@@ -135,7 +140,7 @@ def _manhattan_fast(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
 
 def cdist(X: DNDarray, Y: DNDarray = None, quadratic_expansion: bool = False) -> DNDarray:
     """
-    Calculate Euclidian distance between two DNDarrays:
+    Calculate Euclidean distance between two DNDarrays:
 
     .. math:: d(x,y) = \\sqrt{(|x-y|^2)}
 
@@ -151,9 +156,9 @@ def cdist(X: DNDarray, Y: DNDarray = None, quadratic_expansion: bool = False) ->
         Whether to use quadratic expansion for :math:`\\sqrt{(|x-y|^2)}` (Might yield speed-up)
     """
     if quadratic_expansion:
-        return _dist(X, Y, _euclidian_fast)
+        return _dist(X, Y, _euclidean_fast)
     else:
-        return _dist(X, Y, _euclidian)
+        return _dist(X, Y, _euclidean)
 
 
 def rbf(
@@ -210,7 +215,7 @@ def _chunk_wise_topk(
     x_: torch.Tensor,
     y_: torch.Tensor,
     k: int = 10,
-    metric: Callable = _euclidian,
+    metric: Callable = _euclidean,
     chunks: int = 1,
     device: torch.device = None,
 ) -> tuple[torch.Tensor, torch.Tensor]:
@@ -293,7 +298,7 @@ def cdist_small(
     X: DNDarray,
     Y: DNDarray,
     n_smallest: int = 10,
-    metric: Callable = _euclidian,
+    metric: Callable = _euclidean,
     chunks: int = 1,
 ) -> tuple[DNDarray, DNDarray]:
     """
@@ -353,8 +358,8 @@ def cdist_small(
         )
 
     metric_map = {
-        "euclidian": _euclidian,
-        "euclidean": _euclidian,
+        "euclidean": _euclidean,
+        "euclidian": _euclidean,
         "gaussian": _gaussian,
         "manhattan": _manhattan,
     }
@@ -498,7 +503,7 @@ def cdist_small(
     return dist_small, indices
 
 
-def _dist(X: DNDarray, Y: DNDarray = None, metric: Callable = _euclidian) -> DNDarray:
+def _dist(X: DNDarray, Y: DNDarray = None, metric: Callable = _euclidean) -> DNDarray:
     """
     Pairwise distance calculation between all elements along axis 0 of ``X`` and ``Y``. Returns 2D DNDarray of size :math:`m \\times n`.
     ``X.split`` and ``Y.split`` can be distributed among axis 0.

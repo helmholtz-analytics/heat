@@ -4,7 +4,7 @@ import warnings
 import heat as ht
 import torch
 from heat.core.dndarray import DNDarray
-from heat.spatial.distance import _euclidian, _gaussian, _manhattan, cdist_small
+from heat.spatial.distance import _euclidean, _gaussian, _manhattan, cdist_small
 
 __all__ = ["LocalOutlierFactor"]
 
@@ -17,8 +17,8 @@ class LocalOutlierFactor:
     ----------
     n_neighbors : int, optional (default=20)
         Number of neighbors used to calculate the density of points in the LOF algorithm. Denoted as MinPts in [1].
-    metric : str, optional (default="euclidian")
-        The distance metric to use. Can be "euclidian", "manhattan", or "gaussian".
+    metric : str, optional (default="euclidean")
+        The distance metric to use. Can be "euclidean", "manhattan", or "gaussian".
     binary_decision : string, optional
         Defines which classification method should be used:
         - "threshold": everything greater or equal to the specified threshold is considered an outlier.
@@ -43,7 +43,7 @@ class LocalOutlierFactor:
     binary_decision: string
         Method that converts lof score into a binary decision of outlier and non-outlier. Can be "threshold" or "top_n".
     metric : str
-        The measure of the distance. Can be "euclidian", "manhattan", or "gaussian".
+        The measure of the distance. Can be "euclidean", "manhattan", or "gaussian".
     threshold : float
         The threshold value for the "threshold" method used for binary classification.
     top_n : int
@@ -70,7 +70,7 @@ class LocalOutlierFactor:
     def __init__(
         self,
         n_neighbors=20,
-        metric="euclidian",
+        metric="euclidean",
         binary_decision="threshold",
         threshold=1.5,
         chunks=1,
@@ -299,8 +299,8 @@ class LocalOutlierFactor:
 
         # check for valid metric
         metric_map = {
-            "euclidian": _euclidian,
-            "euclidean": _euclidian,
+            "euclidean": _euclidean,
+            "euclidian": _euclidean,
             "gaussian": _gaussian,
             "manhattan": _manhattan,
         }
