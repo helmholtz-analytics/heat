@@ -17,17 +17,16 @@ class LocalOutlierFactor:
     ----------
     n_neighbors : int, optional (default=20)
         Number of neighbors used to calculate the density of points in the LOF algorithm. Denoted as MinPts in [1].
-    metric : str, optional (default="euclidean")
-        The distance metric to use. Can be "euclidean", "manhattan", or "gaussian".
-    binary_decision : string, optional
+    metric : str or Callable, optional (default="euclidean")
+        The distance metric to use. Can be "euclidean", "manhattan", "gaussian", or a callable.
+    binary_decision : str, optional (default="threshold")
         Defines which classification method should be used:
         - "threshold": everything greater or equal to the specified threshold is considered an outlier.
         - "top_n": the data points with the ``top_n`` largest outlier scores are considered outliers.
-        Default is "threshold".
-    threshold : float, optional
-        The threshold value for the "threshold" method. Default is 1.5.
-    top_n : int, optional
-        The number of top outliers for the "top_n" method. Default is None.
+    threshold : float, optional (default=1.5)
+        The threshold value for the "threshold" method.
+    top_n : int, optional (default=None)
+        The number of top outliers for the "top_n" method.
     chunks : int, optional (default=1)
         Compute the distance matrix iteratively in chunks to reduce memory consumption (but with larger runtime).
         For ``chunks``= 2: first compute one half of the distance matrix and then the second half.
@@ -40,10 +39,12 @@ class LocalOutlierFactor:
     ----------
     n_neighbors : int
         Number of neighbors used to calculate the density of points in the lof algorithm. Denoted as MinPts in [1].
-    binary_decision: string
+    n_neighbors_ : int
+        The actual number of neighbors used for LOF computation.
+    binary_decision : str
         Method that converts lof score into a binary decision of outlier and non-outlier. Can be "threshold" or "top_n".
-    metric : str
-        The measure of the distance. Can be "euclidean", "manhattan", or "gaussian".
+    metric : str or Callable
+        The measure of the distance. Can be "euclidean", "manhattan", "gaussian", or a callable.
     threshold : float
         The threshold value for the "threshold" method used for binary classification.
     top_n : int
