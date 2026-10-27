@@ -478,22 +478,15 @@ def __reduce_op(
         partial = partial_op(partial)
         if partial.ndim > 0:
             partial = partial.reshape(-1)
-            output_shape = (1,)
-        else:
-            output_shape = ()
         balanced = True
     else:
-        output_shape = x.gshape
         for dim in axis:
             if not (
                 partial.shape.numel() == 0 and partial_op.__name__ in ("local_max", "local_min")
             ):  # no neutral element for max/min
                 partial = partial_op(partial, dim=dim, keepdim=True)
-            output_shape = output_shape[:dim] + (1,) + output_shape[dim + 1 :]
         if not keepdims and len(partial.shape) != 1:
-            gshape_losedim = tuple(x.gshape[dim] for dim in range(len(x.gshape)) if dim not in axis)
             lshape_losedim = tuple(x.lshape[dim] for dim in range(len(x.lshape)) if dim not in axis)
-            output_shape = gshape_losedim
             # Take care of special cases argmin and argmax: keep partial.shape[0]
             if 0 in axis and partial.shape[0] != 1:
                 lshape_losedim = (partial.shape[0],) + lshape_losedim
@@ -501,6 +494,7 @@ def __reduce_op(
                 lshape_losedim = (partial.shape[0],) + lshape_losedim[1:]
             if len(lshape_losedim) > 0:
                 partial = partial.reshape(lshape_losedim)
+
     # perform a reduction operation in case the tensor is distributed across the reduction axis
     if x.split is not None:
         if axis is None or (x.split in axis):
@@ -523,6 +517,14 @@ def __reduce_op(
 
     # if reduction_op is a Boolean operation, then resulting tensor is bool
     tensor_type = bool if reduction_op in __BOOLEAN_OPS else partial.dtype
+
+    # determine output shape
+    local_shapes = x.comm.allgather(list(partial.shape))
+    output_shape = local_shapes[0]
+    if x.split is not None and axis is not None and x.split not in axis:
+        shift = len([ax for ax in axis if ax < x.split])
+        output_shape[x.split - shift] = sum(lshape[x.split - shift] for lshape in local_shapes)
+    output_shape = tuple(output_shape)
 
     if out is not None:
         # sanitize out
