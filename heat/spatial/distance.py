@@ -138,6 +138,16 @@ def _manhattan_fast(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
     return torch.sum(torch.abs(x.unsqueeze(1) - y.unsqueeze(0)), dim=2)
 
 
+# Mapping supported metrics (strings) to respective callables
+# still supporting "euclidian" for backward compatibility
+METRIC_MAP = {
+    "euclidean": _euclidean,
+    "euclidian": _euclidean,
+    "gaussian": _gaussian,
+    "manhattan": _manhattan,
+}
+
+
 def cdist(X: DNDarray, Y: DNDarray = None, quadratic_expansion: bool = False) -> DNDarray:
     """
     Calculate Euclidean distance between two DNDarrays:
@@ -357,18 +367,12 @@ def cdist_small(
             f"Inputs must have same shape[1], but have X.shape[1]={X.shape[1]} and Y.shape[1]={Y.shape[1]}"
         )
 
-    metric_map = {
-        "euclidean": _euclidean,
-        "euclidian": _euclidean,
-        "gaussian": _gaussian,
-        "manhattan": _manhattan,
-    }
     if isinstance(metric, str):
-        if metric not in metric_map:
+        if metric not in METRIC_MAP:
             raise ValueError(
-                f"Invalid metric '{metric}'. Must be one of {list(metric_map.keys())} or a callable."
+                f"Invalid metric '{metric}'. Must be one of {list(METRIC_MAP.keys())} or a callable."
             )
-        metric = metric_map[metric]
+        metric = METRIC_MAP[metric]
     elif not callable(metric):
         raise TypeError(f"'metric' must be a callable or string, but got {type(metric)}.")
 

@@ -4,7 +4,7 @@ import warnings
 import heat as ht
 import torch
 from heat.core.dndarray import DNDarray
-from heat.spatial.distance import _euclidean, _gaussian, _manhattan, cdist_small
+from heat.spatial.distance import METRIC_MAP, cdist_small
 
 __all__ = ["LocalOutlierFactor"]
 
@@ -132,7 +132,7 @@ class LocalOutlierFactor:
         # Compute the distance matrix for the n_neighbors nearest neighbors of each point and the corresponding indices
         # (only these are needed for the LOF computation).
         dist, idx = cdist_small(
-            X, X, metric=self._metric_fn, n_smallest=self.n_neighbors_ + 1, chunks=self.chunks
+            X, X, metric=self.metric, n_smallest=self.n_neighbors_ + 1, chunks=self.chunks
         )
 
         # Local views on axis 1 (column 0 is self-distance, 1: are the neighbors)
@@ -298,16 +298,7 @@ class LocalOutlierFactor:
                 )
 
         # check for valid metric
-        metric_map = {
-            "euclidean": _euclidean,
-            "euclidian": _euclidean,
-            "gaussian": _gaussian,
-            "manhattan": _manhattan,
-        }
-        if self.metric not in metric_map:
+        if not (callable(self.metric) or self.metric in METRIC_MAP):
             raise ValueError(
-                f"Invalid metric '{self.metric}'. Must be one of {list(metric_map.keys())}."
+                f"Invalid metric '{self.metric}'. Must be one of {list(METRIC_MAP.keys())} or a callable."
             )
-
-        # store the resolved callable separately without overwriting self.metric
-        self._metric_fn = metric_map[self.metric]
