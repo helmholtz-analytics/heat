@@ -695,8 +695,9 @@ def _batch_indices(
     Parameters
     ----------
     indices : torch.Tensor
-        Two-dimensional tensor of shape ``(P, N)``, where each row contains the sample
-        indices for one process.
+        Two-dimensional tensor of shape ``(num_processes, samples_per_process)``, where
+        each row contains the sample indices for one process. For local indices, the
+        tensor contains one row.
     batch_size : int
         Number of samples per process in each batch. Must be positive.
     drop_last : bool
@@ -707,8 +708,9 @@ def _batch_indices(
     ------
     torch.Tensor
         A one-dimensional tensor containing the indices of a batch. The indices of each
-        process are kept together in row order. A full batch contains ``P * batch_size``
-        indices; the last batch may contain fewer if ``drop_last`` is ``False``.
+        process are kept together in row order. A full batch contains
+        ``num_processes * batch_size`` indices; the last batch may contain fewer if
+        ``drop_last`` is ``False``.
     """
     for start in range(0, indices.shape[1], batch_size):
         batch = indices[:, start : start + batch_size]
