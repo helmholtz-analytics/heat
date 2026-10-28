@@ -622,7 +622,14 @@ class TestDatatools:
             _create_distributed_indices(
                 ht.MPI_WORLD, num_elements=8, shuffle=True, seed="invalid", distributed=False
             )
+
+        # Local index creation does not access the communicator.
+        indices = _create_distributed_indices(
+            object(), num_elements=8, shuffle=False, seed=0, distributed=False
+        )
+        assert torch.equal(indices, torch.arange(8).unsqueeze(0))
+
         with pytest.raises(AttributeError):
             _create_distributed_indices(
-                object(), num_elements=8, shuffle=False, seed=0, distributed=False
+                object(), num_elements=8, shuffle=False, seed=0, distributed=True
             )
