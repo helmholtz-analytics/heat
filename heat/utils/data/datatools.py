@@ -1160,7 +1160,7 @@ class _DistributedDataLoaderIter:
             raise
 
         return _PendingBatch(
-            indices=tuple(indices_by_device.values()),
+            indices=tuple(cached_indices_by_device.values()),
             requests=tuple(requests),
         )
 
