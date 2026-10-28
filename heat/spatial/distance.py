@@ -344,6 +344,25 @@ def cdist_small(
     if not isinstance(X, DNDarray) or not isinstance(Y, DNDarray):
         raise ValueError(f"Inputs must be DNDarrays, but got X = {type(X)} and Y = {type(Y)}")
 
+    if X.shape[1] != Y.shape[1]:
+        raise ValueError(
+            f"Inputs must have same shape[1], but have X.shape[1]={X.shape[1]} and Y.shape[1]={Y.shape[1]}"
+        )
+
+    if isinstance(metric, str):
+        if metric not in METRIC_MAP:
+            raise ValueError(
+                f"Invalid metric '{metric}'. Must be one of {list(METRIC_MAP.keys())} or a callable."
+            )
+        metric = METRIC_MAP[metric]
+    elif not callable(metric):
+        raise TypeError(f"'metric' must be a callable or string, but got {type(metric)}.")
+
+    if n_smallest > Y.shape[0]:
+        raise ValueError(
+            f"The parameter n_smallest ({n_smallest}) cannot be larger than the total number of samples in Y ({Y.shape[0]})."
+        )
+
     # if both X and Y are not distributed, we can use the standard torch.topk() function
     if X.split is None and Y.split is None:
         current_dist, current_idx = _chunk_wise_topk(
@@ -362,24 +381,6 @@ def cdist_small(
         raise NotImplementedError(
             "Currently, only distribution along axis 0 is supported, "
             f"but got X.split = {X.split} and Y.split = {Y.split}"
-        )
-    if X.shape[1] != Y.shape[1]:
-        raise ValueError(
-            f"Inputs must have same shape[1], but have X.shape[1]={X.shape[1]} and Y.shape[1]={Y.shape[1]}"
-        )
-
-    if isinstance(metric, str):
-        if metric not in METRIC_MAP:
-            raise ValueError(
-                f"Invalid metric '{metric}'. Must be one of {list(METRIC_MAP.keys())} or a callable."
-            )
-        metric = METRIC_MAP[metric]
-    elif not callable(metric):
-        raise TypeError(f"'metric' must be a callable or string, but got {type(metric)}.")
-
-    if n_smallest > Y.shape[0]:
-        raise ValueError(
-            f"The parameter n_smallest ({n_smallest}) cannot be larger than the total number of samples in Y ({Y.shape[0]})."
         )
 
     # type promotion
