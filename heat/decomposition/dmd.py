@@ -30,7 +30,7 @@ class DMD(ht.RegressionMixin, ht.BaseEstimator):
     Dynamic Mode Decomposition (DMD), plain vanilla version with SVD-based implementation.
 
     The time series of which DMD shall be computed must be provided as a 2-D DNDarray of shape (n_features, n_timesteps).
-    Please, note that this deviates from Heat's convention that data sets are handeled as 2-D arrays with the feature axis being the second axis.
+    Please, note that this deviates from Heat's convention that data sets are handled as 2-D arrays with the feature axis being the second axis.
 
     Parameters
     ----------
@@ -259,7 +259,7 @@ class DMD(ht.RegressionMixin, ht.BaseEstimator):
 
     def predict(self, X: ht.DNDarray, steps: Union[int, List[int]]) -> ht.DNDarray:
         """
-        Predics and returns future states given a current state(s) and returns them all as an array of size (n_steps, n_features).
+        Predicts and returns future states given a current state(s) and returns them all as an array of size (n_steps, n_features).
 
         This function avoids a time-stepping loop (i.e., repeated calls to 'predict_next') and computes the future states in one go.
         To do so, the number of future times to predict must be of moderate size as an array of shape (n_steps, self.n_modes_, self.n_modes_) must fit into memory.
