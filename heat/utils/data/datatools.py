@@ -3,7 +3,6 @@ Function and classes useful for loading data into neural networks
 """
 
 from collections import deque
-from dataclasses import dataclass
 import random
 import torch
 import torch.distributed
@@ -1053,23 +1052,6 @@ class DistributedDataLoader[T]:
         return _DistributedDataLoaderIter(self, seed)
 
 
-@dataclass
-class _PendingBatch:
-    """
-    Store the index tensors and requests for a batch being loaded.
-
-    Attributes
-    ----------
-    indices : tuple of torch.Tensor
-        Index tensors kept alive until the requests are finished, one for each input device.
-    requests : tuple of TakeRequest
-        Pending :func:`Itake <heat.core.manipulations.Itake>` requests in input array order.
-    """
-
-    indices: tuple[torch.Tensor, ...]
-    requests: tuple[TakeRequest, ...]
-
-
 class _DistributedDataLoaderIter:
     """
     Iterate over local batches while queuing requests for upcoming batches.
@@ -1112,7 +1094,7 @@ class _DistributedDataLoaderIter:
             drop_last=loader._drop_last,
         )
 
-        self._pending: deque[_PendingBatch] = deque()
+        self._pending: deque[tuple[TakeRequest, ...]] = deque()
 
         self._capacity = loader._prefetch_factor + 1
 
@@ -1125,7 +1107,7 @@ class _DistributedDataLoaderIter:
     def __iter__(self):
         return self
 
-    def _start_batch(self, indices: torch.Tensor) -> _PendingBatch:
+    def _start_batch(self, indices: torch.Tensor) -> tuple[TakeRequest, ...]:
         """
         Start a sample selection request for each input array.
 
@@ -1136,15 +1118,15 @@ class _DistributedDataLoaderIter:
 
         Returns
         -------
-        _PendingBatch
-            The requests and the index tensors copied to the input devices. If starting a
-            request fails, previously started requests are finished before the error is raised.
+        tuple of TakeRequest
+            The sample selection requests in input array order. If starting a request fails,
+            previously started requests are finished before the error is raised.
         """
         requests = []
         cached_indices_by_device: dict[torch.device, torch.Tensor] = {}
 
         try:
-            # Itake normally handles the transfer of the index tensor, but this saves some unnecessary copies.
+            # Transfer indices at most once per device and reuse them across input arrays.
             for array, axis in zip(self._loader._data, self._loader._sample_axes):
                 device = array.larray.device
 
@@ -1159,10 +1141,7 @@ class _DistributedDataLoaderIter:
                 request.Wait()
             raise
 
-        return _PendingBatch(
-            indices=tuple(cached_indices_by_device.values()),
-            requests=tuple(requests),
-        )
+        return tuple(requests)
 
     def _fill_queue(self) -> None:
         while len(self._pending) < self._capacity:
@@ -1175,15 +1154,15 @@ class _DistributedDataLoaderIter:
 
     def _finish_batch(
         self,
-        pending: _PendingBatch,
+        pending: tuple[TakeRequest, ...],
     ) -> tuple[torch.Tensor, ...]:
         """
         Wait for all requests of a batch and return the local tensors.
 
         Parameters
         ----------
-        pending : _PendingBatch
-            Batch containing the requests to finish.
+        pending : tuple of TakeRequest
+            Requests to finish, in input array order.
 
         Returns
         -------
@@ -1198,7 +1177,7 @@ class _DistributedDataLoaderIter:
         results = []
         error = None
 
-        for request in pending.requests:
+        for request in pending:
             try:
                 results.append(request.Wait())
             except Exception as exc:
@@ -1274,7 +1253,7 @@ class _DistributedDataLoaderIter:
         while self._pending:
             pending = self._pending.popleft()
 
-            for request in pending.requests:
+            for request in pending:
                 try:
                     request.Wait()
                 except Exception as exc:
