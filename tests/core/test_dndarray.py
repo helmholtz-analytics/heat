@@ -2968,3 +2968,32 @@ class TestDNDarray(TestCase):
 
         with self.assertRaises(ValueError):
             cpu_array.to_device("cpu", stream=0)
+
+    def test_iter(self):
+        arr = ht.array(1)
+
+        with self.assertRaises(TypeError):
+            for _ in arr: pass
+
+
+        arr = ht.random.randn(10, 10, 10, split=0)
+
+        with self.assertRaises(RuntimeError):
+            for _ in arr: pass
+
+
+        arr = ht.random.randn(10, 10, 10, 10)
+        arr_torch = ht.resplit(arr, None).larray
+
+        comm = arr.comm
+        rank = comm.rank
+
+        for split in range(1, arr.ndim):
+            arr = arr.resplit_(split)
+
+            _, _, slices = arr.comm.chunk(arr.shape, split, rank)
+
+            for row, data in enumerate(arr):
+                expected_tensor = arr_torch[row][slices[1:]]
+                self.assertEqual(expected_tensor.shape, tuple(data.larray.shape))
+                self.assertTrue(torch.isclose(expected_tensor, data.larray).all())
