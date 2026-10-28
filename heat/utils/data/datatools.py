@@ -972,9 +972,7 @@ class DistributedDataLoader[T]:
         post_processing: Callable[[int, torch.Tensor], T] | None = None,
     ) -> None:
         if not isinstance(batch_size, int) or isinstance(batch_size, bool) or batch_size <= 0:
-            raise ValueError("Value must be a positive integer.")
-        if not isinstance(batch_size, int) or batch_size <= 0:
-            raise ValueError(f"'{batch_size=}' must be a positive integer.")
+            raise ValueError(f"'{batch_size=}' Value must be a positive integer.")
         if not isinstance(prefetch_factor, int) or prefetch_factor < 0:
             raise ValueError(f"'{prefetch_factor=}' must be a non-negative integer.")
         if not isinstance(drop_last, bool):
