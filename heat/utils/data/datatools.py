@@ -463,7 +463,7 @@ def create_train_val_split(
 
     assert train_rows + val_rows == num_samples  # sanity check
 
-    generator = None if seed is None else torch.Generator().manual_seed(seed)
+    generator = torch.Generator().manual_seed(seed)
 
     perm = torch.randperm(num_samples, generator=generator)
 
@@ -518,7 +518,7 @@ def _sanitize_data_input(
     else:
         raise TypeError("'data' must be a DNDarray or a tuple of DNDarrays.")
 
-    if not arrays:
+    if len(arrays) == 0:
         raise ValueError("'data' cannot be an empty tuple.")
 
     if not all(isinstance(x, DNDarray) for x in arrays):
@@ -1240,7 +1240,7 @@ class _DistributedDataLoaderIter:
         if self._closed:
             raise StopIteration
 
-        if not self._pending:
+        if len(self._pending) == 0:
             self.close()
             raise StopIteration
 
