@@ -658,32 +658,30 @@ def _create_distributed_indices(
     same ``num_elements`` and ``drop_last``. No communication is needed for non-distributed
     indices. The global torch random number generator state is unchanged.
     """
-    N = num_elements
-    if N <= 0:
+    if num_elements <= 0:
         raise ValueError("num_elements must be greater than 0.")
-    P = comm.size
 
     if shuffle:
-        idx = torch.randperm(N, generator=torch.Generator().manual_seed(seed))
+        idx = torch.randperm(num_elements, generator=torch.Generator().manual_seed(seed))
     else:
-        idx = torch.arange(N, dtype=torch.int64)
+        idx = torch.arange(num_elements, dtype=torch.int64)
 
     if not distributed:
         return idx.unsqueeze(0)
 
-    if P > 1:
+    if comm.size > 1:
         comm.Bcast(idx, root=0)
 
     if drop_last:
-        idx = idx[: N // P * P]
+        idx = idx[: num_elements // comm.size * comm.size]
     else:
-        total_size = (N + P - 1) // P * P
-        padding_size = total_size - N
+        total_size = (num_elements + comm.size - 1) // comm.size * comm.size
+        padding_size = total_size - num_elements
         if padding_size > 0:
-            padding = idx.repeat((padding_size + N - 1) // N)[:padding_size]
+            padding = idx.repeat((padding_size + num_elements - 1) // num_elements)[:padding_size]
             idx = torch.cat((idx, padding))
 
-    return idx.reshape(P, -1).contiguous()
+    return idx.reshape(comm.size, -1).contiguous()
 
 
 def _batch_indices(
