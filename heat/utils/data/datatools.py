@@ -1141,19 +1141,17 @@ class _DistributedDataLoaderIter:
             request fails, previously started requests are finished before the error is raised.
         """
         requests = []
-        indices_by_device = {}
+        cached_indices_by_device: dict[torch.device, torch.Tensor] = {}
 
         try:
             # Itake normally handles the transfer of the index tensor, but this saves some unnecessary copies.
             for array, axis in zip(self._loader._data, self._loader._sample_axes):
                 device = array.larray.device
 
-                if device not in indices_by_device:
-                    indices_by_device[device] = indices.to(device)
+                if device not in cached_indices_by_device:
+                    cached_indices_by_device[device] = indices.to(device)
 
-                device_indices = indices_by_device[device]
-
-                requests.append(Itake(array, device_indices, axis=axis))
+                requests.append(Itake(array, cached_indices_by_device[device], axis=axis))
 
         except BaseException:
             # When one of the request fail, wait for the MPI comms to finish
