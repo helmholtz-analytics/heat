@@ -75,11 +75,18 @@ def cg(
         x = x + alpha * p
         r = r - alpha * Ap
         rsnew = ht.matmul(r, r)
-        if ht.sqrt(rsnew).item() < tol:
+        if ht.sqrt(rsnew).item() <= tol:
             # print(f"Residual reaches tolerance in it = {i}")
             break
         p = r + ((rsnew / rsold) * p)
         rsold = rsnew
+    else:
+        if tol > 0:
+            import warnings
+
+            warnings.warn(
+                f"CG terminated after reaching {maxiter=} with residual {ht.sqrt(rsnew).item():.2e}>{tol=}"
+            )
 
     if out is not None:
         out = x
