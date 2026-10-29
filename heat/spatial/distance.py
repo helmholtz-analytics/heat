@@ -2,21 +2,21 @@
 Module for (pairwise) distance functions
 """
 
-import torch
-import numpy as np
-from mpi4py import MPI
+import warnings
 from typing import Callable
-
-from ..core import factories
-from ..core import types
+import numpy as np
+import torch
+from mpi4py import MPI
+import heat as ht
+from ..core import factories, types
 from ..core.dndarray import DNDarray
 
-__all__ = ["cdist", "manhattan", "rbf"]
+__all__ = ["cdist", "cdist_small", "manhattan", "rbf"]
 
 
-def _euclidian(x: torch.tensor, y: torch.tensor) -> torch.tensor:
+def _euclidean(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
     """
-    Helper function to calculate Euclidian distance between ``torch.tensors`` ``x`` and ``y``: :math:`\\sqrt(|x-y|^2)`
+    Helper function to calculate Euclidean distance between ``torch.tensors`` ``x`` and ``y``: :math:`\\sqrt(|x-y|^2)`
     Based on ``torch.cdist``. Returns 2D torch.Tensor of size :math:`m \\times n`
 
     Parameters
@@ -29,9 +29,9 @@ def _euclidian(x: torch.tensor, y: torch.tensor) -> torch.tensor:
     return torch.cdist(x, y)
 
 
-def _euclidian_fast(x: torch.tensor, y: torch.tensor) -> torch.tensor:
+def _euclidean_fast(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
     """
-    Helper function to calculate Euclidian distance between ``torch.tensors`` ``x`` and ``y``: :math:`\\sqrt(|x-y|^2)`
+    Helper function to calculate Euclidean distance between ``torch.tensors`` ``x`` and ``y``: :math:`\\sqrt(|x-y|^2)`
     Uses quadratic expansion to calculate :math:`(x-y)^2`. Returns 2D torch.Tensor of size :math:`m \\times n`
 
     Parameters
@@ -44,7 +44,12 @@ def _euclidian_fast(x: torch.tensor, y: torch.tensor) -> torch.tensor:
     return torch.sqrt(_quadratic_expand(x, y))
 
 
-def _quadratic_expand(x: torch.tensor, y: torch.tensor) -> torch.tensor:
+# Backward (misspelling) compatibility aliases
+_euclidian = _euclidean
+_euclidian_fast = _euclidean_fast
+
+
+def _quadratic_expand(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
     """
     Helper function to calculate quadratic expansion :math:`|x-y|^2=|x|^2 + |y|^2 - 2xy`
     Returns 2D torch.Tensor of size :math:`m x n`
@@ -56,18 +61,18 @@ def _quadratic_expand(x: torch.tensor, y: torch.tensor) -> torch.tensor:
     y : torch.Tensor
         2D tensor of size :math:`n x f`
     """
-    x_norm = (x**2).sum(1).view(-1, 1)
+    x_norm = (x**2).sum(1, keepdim=True)
     y_t = torch.transpose(y, 0, 1)
-    y_norm = (y**2).sum(1).view(1, -1)
+    y_norm = (y**2).sum(1, keepdim=True).t()
 
     dist = x_norm + y_norm - 2.0 * torch.mm(x, y_t)
-    return torch.clamp(dist, 0.0, np.inf)
+    return torch.clamp_min(dist, 0.0)
 
 
-def _gaussian(x: torch.tensor, y: torch.tensor, sigma: float = 1.0) -> torch.tensor:
+def _gaussian(x: torch.Tensor, y: torch.Tensor, sigma: float = 1.0) -> torch.Tensor:
     """
-    Helper function to calculate Gaussian distance between ``torch.Tensors`` ``x`` and ``y``: :math:`exp(-(|x-y|^2/2\\sigma^2)`
-    Based on ``torch.cdist``. Returns a 2D tensor of size :math:`m x n`
+    Helper function to calculate Gaussian distance between ``torch.Tensors`` ``x`` and ``y``: :math:`\\exp(-(|x-y|^2 / (2\\sigma^2)))`
+    Based on ``torch.cdist``. Returns a 2D tensor of size :math:`m \\times n`
 
     Parameters
     ----------
@@ -79,15 +84,15 @@ def _gaussian(x: torch.tensor, y: torch.tensor, sigma: float = 1.0) -> torch.ten
         Scaling factor for Gaussian kernel
 
     """
-    d2 = _euclidian(x, y) ** 2
+    d2 = _euclidean(x, y) ** 2
     result = torch.exp(-d2 / (2 * sigma * sigma))
     return result
 
 
-def _gaussian_fast(x: torch.tensor, y: torch.tensor, sigma: float = 1.0) -> torch.tensor:
+def _gaussian_fast(x: torch.Tensor, y: torch.Tensor, sigma: float = 1.0) -> torch.Tensor:
     """
-    Helper function to calculate Gaussian distance between ``torch.Tensors`` ``x`` and ``y``: :math:`exp(-(|x-y|^2/2\\sigma^2)`
-    Uses quadratic expansion to calculate :math:`(x-y)^2`. Returns a 2D tensor of size :math:`m x n`
+    Helper function to calculate Gaussian distance between ``torch.Tensors`` ``x`` and ``y``: :math:`\\exp(-(|x-y|^2 / (2\\sigma^2)))`
+    Uses quadratic expansion to calculate :math:`(x-y)^2`. Returns a 2D tensor of size :math:`m \\times n`
 
     Parameters
     ----------
@@ -103,7 +108,7 @@ def _gaussian_fast(x: torch.tensor, y: torch.tensor, sigma: float = 1.0) -> torc
     return result
 
 
-def _manhattan(x: torch.tensor, y: torch.tensor) -> torch.tensor:
+def _manhattan(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
     """
     Helper function to calculate Manhattan distance between ``torch.Tensors`` ``x`` and ``y``: :math:`sum(|x-y|)`
     Based on ``torch.cdist``. Returns a 2D tensor of size :math:`m x n`.
@@ -133,27 +138,37 @@ def _manhattan_fast(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
     return torch.sum(torch.abs(x.unsqueeze(1) - y.unsqueeze(0)), dim=2)
 
 
+# Mapping supported metrics (strings) to respective callables
+# still supporting "euclidian" for backward compatibility
+METRIC_MAP = {
+    "euclidean": _euclidean,
+    "euclidian": _euclidean,
+    "gaussian": _gaussian,
+    "manhattan": _manhattan,
+}
+
+
 def cdist(X: DNDarray, Y: DNDarray = None, quadratic_expansion: bool = False) -> DNDarray:
     """
-    Calculate Euclidian distance between two DNDarrays:
+    Calculate Euclidean distance between two DNDarrays:
 
     .. math:: d(x,y) = \\sqrt{(|x-y|^2)}
 
-    Returns 2D DNDarray of size :math: `m \\times n`
+    Returns 2D DNDarray of size :math:`m \\times n`
 
     Parameters
     ----------
     X : DNDarray
-        2D array of size :math: `m \\times f`
-    Y : DNDarray
-        2D array of size :math: `n \\times f`
+        2D array of size :math:`m \\times f`
+    Y : DNDarray, optional
+        2D array of size :math:`n \\times f`
     quadratic_expansion : bool
         Whether to use quadratic expansion for :math:`\\sqrt{(|x-y|^2)}` (Might yield speed-up)
     """
     if quadratic_expansion:
-        return _dist(X, Y, _euclidian_fast)
+        return _dist(X, Y, _euclidean_fast)
     else:
-        return _dist(X, Y, _euclidian)
+        return _dist(X, Y, _euclidean)
 
 
 def rbf(
@@ -162,16 +177,16 @@ def rbf(
     """
     Calculate Gaussian distance between two DNDarrays:
 
-    .. math:: d(x,y) = exp(-(|x-y|^2/2\\sigma^2)
+    .. math:: d(x,y) = \\exp(-(|x-y|^2 / (2\\sigma^2)))
 
-    Returns 2D DNDarray of size :math: `m \\times n`
+    Returns 2D DNDarray of size :math:`m \\times n`
 
     Parameters
     ----------
     X : DNDarray
-        2D array of size :math: `m \\times f`
-    Y : DNDarray
-        2D array of size `n \\times f`
+        2D array of size :math:`m \\times f`
+    Y : DNDarray, optional
+        2D array of size :math:`n \\times f`
     sigma: float
         Scaling factor for gaussian kernel
     quadratic_expansion : bool
@@ -183,20 +198,20 @@ def rbf(
         return _dist(X, Y, lambda x, y: _gaussian(x, y, sigma))
 
 
-def manhattan(X: DNDarray, Y: DNDarray = None, expand: bool = False):
+def manhattan(X: DNDarray, Y: DNDarray = None, expand: bool = False) -> DNDarray:
     """
     Calculate Manhattan distance between two DNDarrays:
 
     .. math:: d(x,y) = \\sum{|x_i-y_i|}
 
-    Returns 2D DNDarray of size :math: `m \\times n`
+    Returns 2D DNDarray of size :math:`m \\times n`
 
     Parameters
     ----------
     X : DNDarray
-        2D array of size :math: `m \\times f`
-    Y : DNDarray
-        2D array of size :math: `n \\times f`
+        2D array of size :math:`m \\times f`
+    Y : DNDarray, optional
+        2D array of size :math:`n \\times f`
     expand : bool
         Whether to use dimension expansion (Might yield speed-up)
     """
@@ -206,22 +221,310 @@ def manhattan(X: DNDarray, Y: DNDarray = None, expand: bool = False):
         return _dist(X, Y, lambda x, y: _manhattan(x, y))
 
 
-def _dist(X: DNDarray, Y: DNDarray = None, metric: Callable = _euclidian) -> DNDarray:
+def _chunk_wise_topk(
+    x_: torch.Tensor,
+    y_: torch.Tensor,
+    k: int = 10,
+    metric: Callable = _euclidean,
+    chunks: int = 1,
+    device: torch.device = None,
+) -> tuple[torch.Tensor, torch.Tensor]:
     """
-    Pairwise distance calculation between all elements along axis 0 of ``X`` and ``Y`` Returns 2D DNDarray of size :math: `m \\times n`
+    Helper function to calculate the topk pairwise distances between two torch.tensors in a chunk-wise fashion,
+    i.e., the top k distance matrix are calculated iteratively in chunks and then appended to the final matrix
+    in order to reduce memory consumption.
+
+    Parameters
+    ----------
+    x_ : torch.Tensor
+        2D array of size :math:`m \\times f`
+    y_ : torch.Tensor
+        2D array of size :math:`n \\times f`
+    k : int
+        Number of top k distances to be calculated
+    metric: Callable
+        The distance to be calculated between ``x_`` and ``y_``
+    chunks: int
+        Compute the distance matrix iteratively in chunks to reduce memory consumption.
+        For ``chunks``= 2: first compute one half of the distance matrix and then the second half.
+    device: torch.device, optional
+        The device on which the computation is performed. If None, the device of ``x_`` is used.
+    """
+    m = x_.shape[0]
+    target_device = x_.device if device is None else device
+
+    # Early exit for processes with zero local rows or empty target chunk / k
+    if m == 0 or y_.shape[0] == 0 or k == 0:
+        return (
+            torch.empty((m, k), dtype=x_.dtype, device=target_device),
+            torch.empty((m, k), dtype=torch.int64, device=target_device),
+        )
+
+    # input sanitation
+    if chunks > m:
+        chunks = m
+        warnings.warn(
+            f"The parameter chunks should not be larger than the number of elements of x_ in each process. "
+            f"The value of chunks has been set to {chunks}."
+        )
+    chunks = max(1, chunks)
+
+    # Fast path for single chunk: compute directly without extra pre-allocations
+    if chunks == 1:
+        d = metric(x_, y_)
+        return torch.topk(d, k, largest=False, sorted=True)
+
+    # Pre-allocate output buffers once to avoid repeated torch.cat reallocations
+    dist = torch.empty((m, k), dtype=x_.dtype, device=target_device)
+    idx = torch.empty((m, k), dtype=torch.int64, device=target_device)
+
+    block_size = (m + chunks - 1) // chunks
+
+    for start in range(0, m, block_size):
+        end = min(start + block_size, m)
+        batched_dist = metric(x_[start:end], y_)
+        b_dist, b_idx = torch.topk(batched_dist, k, largest=False, sorted=True)
+
+        dist[start:end] = b_dist
+        idx[start:end] = b_idx
+
+    return dist, idx
+
+
+def _stable_lexsort(dist: torch.Tensor, idx: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    """
+    Sort 2D distance and index tensors lexicographically along axis 1
+    (primary key: distance ascending, secondary key: index ascending)
+    using stable sorting.
+    """
+    idx_sorted, perm_idx = torch.sort(idx, dim=1, stable=True)
+    dist_reordered = torch.gather(dist, 1, perm_idx)
+    dist_sorted, perm_dist = torch.sort(dist_reordered, dim=1, stable=True)
+    idx_sorted = torch.gather(idx_sorted, 1, perm_dist)
+    return dist_sorted, idx_sorted
+
+
+def cdist_small(
+    X: DNDarray,
+    Y: DNDarray,
+    n_smallest: int = 10,
+    metric: Callable = _euclidean,
+    chunks: int = 1,
+) -> tuple[DNDarray, DNDarray]:
+    """
+    Calculate the pairwise distances between two DNDarrays (values sorted from smallest to largest), which has
+    an optimized memory consumption if only the ``n_smallest`` smallest distances are needed. Returns two DNDarrays of size :math:`m \\times n_{\\text{smallest}}` containing the smallest distances and the corresponding indices.
+
+    Parameters
+    ----------
+    X : DNDarray
+        2D array of size :math:`m \\times f`
+    Y : DNDarray
+        2D array of size :math:`n \\times f`
+    n_smallest : int, optional
+        Number of smallest distances to be calculated. Default is 10.
+    metric : Callable or str, optional
+        The distance metric to use. Can be a callable or one of {"euclidean", "euclidian", "gaussian", "manhattan"}.
+        Default is ``_euclidean``.
+    chunks : int, optional
+        Define if the distances on each process are calculated iteratively. For example, if ``chunks=2``,
+        each process will first compute one half of the distance matrix and then the second half. Default is 1.
+
+    Notes
+    -----
+    - The matrix cdist_small is not square as in :func:`cdist`.
+    - To reduce the number of required processes, the parameter ``chunks`` enables a chunk-wise calculation of the distance
+      matrix in an iterative fashion. This allows to choose a trade-off between total memory consumption and computation time.
+
+    See Also
+    --------
+    - :func:`cdist`
+    """
+    # input sanitation
+    if not isinstance(X, DNDarray) or not isinstance(Y, DNDarray):
+        raise ValueError(f"Inputs must be DNDarrays, but got X = {type(X)} and Y = {type(Y)}")
+
+    if X.shape[1] != Y.shape[1]:
+        raise ValueError(
+            f"Inputs must have same shape[1], but have X.shape[1]={X.shape[1]} and Y.shape[1]={Y.shape[1]}"
+        )
+
+    if isinstance(metric, str):
+        if metric not in METRIC_MAP:
+            raise ValueError(
+                f"Invalid metric '{metric}'. Must be one of {list(METRIC_MAP.keys())} or a callable."
+            )
+        metric = METRIC_MAP[metric]
+    elif not callable(metric):
+        raise TypeError(f"'metric' must be a callable or string, but got {type(metric)}.")
+
+    if n_smallest > Y.shape[0]:
+        raise ValueError(
+            f"The parameter n_smallest ({n_smallest}) cannot be larger than the total number of samples in Y ({Y.shape[0]})."
+        )
+
+    # if both X and Y are not distributed, we can use the standard torch.topk() function
+    if X.split is None and Y.split is None:
+        current_dist, current_idx = _chunk_wise_topk(
+            X.larray,
+            Y.larray,
+            n_smallest,
+            metric=metric,
+            chunks=chunks,
+            device=X.device.torch_device,
+        )
+        return ht.array(current_dist, split=None, device=X.device, comm=X.comm), ht.array(
+            current_idx, split=None, device=X.device, comm=X.comm
+        )
+
+    if X.split != 0 or Y.split != 0:
+        raise NotImplementedError(
+            "Currently, only distribution along axis 0 is supported, "
+            f"but got X.split = {X.split} and Y.split = {Y.split}"
+        )
+
+    # type promotion
+    promoted_type = types.promote_types(X.dtype, Y.dtype)
+    promoted_type = types.promote_types(promoted_type, types.float32)
+    X = X.astype(promoted_type)
+    Y = Y.astype(promoted_type)
+    if promoted_type == types.float32:
+        torch_type = torch.float32
+    elif promoted_type == types.float64:
+        torch_type = torch.float64
+    else:
+        raise NotImplementedError(f"Datatype {X.dtype} currently not supported as input")
+
+    # setup for MPI communication
+    comm = X.comm
+    rank = comm.Get_rank()
+    size = comm.Get_size()
+    _, ydispl, _ = Y.comm.counts_displs_shape(Y.shape, Y.split)
+    x_ = X.larray
+    y_ = Y.larray
+
+    # distance between X and Y that are currently assigned to the same process and take only the n_smallest distances
+    k_eff = min(n_smallest, y_.shape[0])
+    current_dist, current_idx = _chunk_wise_topk(
+        x_, y_, k_eff, metric=metric, chunks=chunks, device=X.device.torch_device
+    )
+    current_idx += ydispl[rank]
+
+    # For size==1: keep torch.topk() tie-break behaviour to match ht.topk()
+    if size > 1 and current_dist.shape[1] > 0:
+        # enforce deterministic order for the initial block: (dist asc, idx asc)
+        current_dist, current_idx = _stable_lexsort(current_dist, current_idx)
+
+    # always keep only the first n_smallest entries
+    current_dist = current_dist[:, :n_smallest]
+    current_idx = current_idx[:, :n_smallest]
+
+    # Communicate the parts of Y between the processes in a circular fashion and keep parts of X fixed.
+    # Reduce memory consumption of the distance matrix with the following strategy (during each communication step):
+    #   1.  Calculate the distances between the parts of X in each process with the part of Y that is received
+    #       by the respective process. Result is stored in the local matrix `new_dist`
+    #   2.  Merge `new_dist` and `current_dist` to one matrix and take only the n_smallest distances. Result is stored in `current_dist`
+    #   3.  Constantly keep track of indices of the n_smallest distances.
+
+    # To avoid issues with MPI that is not CUDA aware, ensure that the local Y chunk is on CPU for MPI communication
+    if y_.device.type == "cuda":
+        # copy once from GPU to CPU; this stays constant in all iterations
+        y_send = y_.to("cpu")
+    else:
+        # already on CPU, no copy needed
+        y_send = y_
+
+    # reusable CPU receive buffer, will be allocated / resized on demand
+    recv_buffer_cpu = None
+
+    # circular communication of the parts of Y between the processes
+    # while keeping the local part of X fixed
+    for iter in range(1, size):
+        receiver = (rank + iter) % size
+        sender = (rank - iter) % size
+
+        # shape of the Y chunk that we expect to receive from `sender`
+        recv_nrows, recv_ncols = Y.lshape_map[sender]
+
+        # (re)allocate receive buffer only if shape changed or not yet allocated
+        if (
+            recv_buffer_cpu is None
+            or recv_buffer_cpu.shape[0] != recv_nrows
+            or recv_buffer_cpu.shape[1] != recv_ncols
+        ):
+            # buffer must be on CPU for MPI
+            recv_buffer_cpu = torch.empty(
+                (recv_nrows, recv_ncols),
+                dtype=torch_type,
+                device="cpu",
+            )
+
+        # non-blocking receive into CPU buffer
+        req_recv = comm.Irecv(recv_buffer_cpu, source=sender, tag=iter)
+        # non-blocking send of our local Y chunk (also on CPU)
+        req_send = comm.Isend(y_send, dest=receiver, tag=iter)
+
+        # wait for both operations to complete
+        req_recv.wait()
+        req_send.wait()
+
+        # move the newly received Y chunk to the device of X for computation
+        buffer = recv_buffer_cpu.to(X.device.torch_device)
+
+        # compute distances between local X and received Y chunk
+        k_eff = min(n_smallest, buffer.shape[0])
+        new_dist, new_idx = _chunk_wise_topk(
+            x_,
+            buffer,
+            k_eff,
+            metric=metric,
+            chunks=chunks,
+            device=X.device.torch_device,
+        )
+        # correct global indices by displacement of the sender's Y chunk
+        new_idx += ydispl[sender]
+
+        # merge the current distances with the new ones
+        merged_dist = torch.cat((current_dist, new_dist), dim=1)
+        merged_idx = torch.cat((current_idx, new_idx), dim=1)
+
+        # to enforce deterministic selection of the n_smallest pairs
+        if merged_dist.shape[1] > 0:
+            merged_dist_sorted, merged_idx_sorted = _stable_lexsort(merged_dist, merged_idx)
+            current_dist = merged_dist_sorted[:, :n_smallest]
+            current_idx = merged_idx_sorted[:, :n_smallest]
+        else:
+            current_dist = merged_dist
+            current_idx = merged_idx
+
+    # Ensure correct 2D shape (0, n_smallest) for zero-row ranks
+    if current_dist.shape[0] == 0 and current_dist.shape[1] != n_smallest:
+        current_dist = torch.empty((0, n_smallest), dtype=torch_type, device=X.device.torch_device)
+        current_idx = torch.empty((0, n_smallest), dtype=torch.int64, device=X.device.torch_device)
+
+    # assign the local results (torch.tensor) to distributed Heat arrays
+    dist_small = ht.array(current_dist, is_split=0, device=X.device, comm=X.comm)
+    indices = ht.array(current_idx, is_split=0, device=X.device, comm=X.comm)
+
+    return dist_small, indices
+
+
+def _dist(X: DNDarray, Y: DNDarray = None, metric: Callable = _euclidean) -> DNDarray:
+    """
+    Pairwise distance calculation between all elements along axis 0 of ``X`` and ``Y``. Returns 2D DNDarray of size :math:`m \\times n`.
     ``X.split`` and ``Y.split`` can be distributed among axis 0.
-        - if neither ``X`` nor ``Y`` is split, result will also be ``split = None \n
-        - if ``X.split == 0``, result will be ``split = 0`` regardless of ``Y.split`` \n
+        - if neither ``X`` nor ``Y`` is split, result will also be ``split = None``
+        - if ``X.split == 0``, result will be ``split = 0`` regardless of ``Y.split``
     The distance matrix is calculated tile-wise with ring communication between the processes
     holding each a piece of ``X`` and/or ``Y``.
 
     Parameters
     ----------
     X : DNDarray
-        2D Array of size :math: `m \\times f`
+        2D array of size :math:`m \\times f`
     Y : DNDarray, optional
-        2D array of size `n \\times f``.
-        If `Y in None, the distances will be calculated between all elements of ``X``
+        2D array of size :math:`n \\times f`.
+        If Y is None, the distances will be calculated between all elements of ``X``
     metric: Callable
         The distance to be calculated between ``X`` and ``Y``
         If metric requires additional arguments, it must be handed over as a lambda function: ``lambda x, y: metric(x, y, **args)``
@@ -229,7 +532,6 @@ def _dist(X: DNDarray, Y: DNDarray = None, metric: Callable = _euclidian) -> DND
     Notes
     -----
     If ``X.split=None`` and ``Y.split=0``, result will be ``split=1``
-
     """
     if len(X.shape) > 2:
         raise NotImplementedError("Only 2D data matrices are currently supported")
@@ -322,7 +624,7 @@ def _dist(X: DNDarray, Y: DNDarray = None, metric: Callable = _euclidian) -> DND
                     comm.Recv(symmetric, source=receiver, tag=iter)
                 d.larray[:, scolumns[0] : scolumns[1]] = symmetric.transpose(0, 1)
 
-            if (size + 1) % 2 != 0:  # we need one mor iteration for the first n/2 processes
+            if (size + 1) % 2 != 0:  # we need one more iteration for the first n/2 processes
                 receiver = (rank + num_iter) % size
                 sender = (rank - num_iter) % size
                 # Case 1: only receiving
@@ -430,7 +732,6 @@ def _dist(X: DNDarray, Y: DNDarray = None, metric: Callable = _euclidian) -> DND
 
                 x_ = X.larray
                 stationary = Y.larray
-                # rows = (xdispl[rank], xdispl[rank + 1] if (rank + 1) != size else m)
                 cols = (ydispl[rank], ydispl[rank + 1] if (rank + 1) != size else n)
 
                 # 0th iteration, calculate diagonal
@@ -472,8 +773,4 @@ def _dist(X: DNDarray, Y: DNDarray = None, metric: Callable = _euclidian) -> DND
                     d_ij = metric(x_, moving)
                     d.larray[:, columns[0] : columns[1]] = d_ij
 
-        elif X.split == 0:
-            raise NotImplementedError(
-                f"Input splits were X.split = {X.split}, Y.split = {Y.split}. Splittings other than 0 or None currently not supported."
-            )
     return d
