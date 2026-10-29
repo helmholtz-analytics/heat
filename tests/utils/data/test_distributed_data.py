@@ -350,7 +350,7 @@ class TestDatatools:
         expected = torch.randperm(48, generator=torch.Generator().manual_seed(expected_seed))
         if data.is_distributed():
             expected = expected.chunk(comm.size)[comm.rank]
-        assert torch.equal(first, expected)
+        assert torch.equal(first.cpu(), expected)
 
         loader.seed = seed
         assert loader.epoch == 0
