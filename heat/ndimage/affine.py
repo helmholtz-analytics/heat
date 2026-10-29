@@ -126,27 +126,32 @@ def convert_matrix_space(
     input_shape = tuple(
         size - 1 for size in input_shape[1:-1]
     )  # -1: correcting for image corner in pixel center
-    if output_shape is not None:
-        output_shape = tuple(size - 1 for size in output_shape[1:-1])
+    output_shape = tuple(size - 1 for size in output_shape[1:-1])
     # construct coord space transform
-    scales = (torch.as_tensor(input_shape, device=matrix.device)) / 2.0
+    offsets = (torch.as_tensor(input_shape, device=matrix.device)) / 2.0
+    scales = torch.where(offsets == 0, 1, offsets)
     diag_scales = torch.diag(scales)
 
     dim = len(input_shape)
     conversion = torch.zeros(dim + 1, dim + 1, device=matrix.device)
     conversion[:dim, :dim] = diag_scales
     conversion[dim, dim] = 1
-    conversion[:dim, dim] = scales
+    conversion[:dim, dim] = offsets
     back_conversion = conversion.inverse()
 
     if output_shape:
+        # when either shape have 0 add one to both input and output value
+        input_shape, output_shape = zip(
+            *tuple(
+                (in_dim + 1, out_dim + 1) if in_dim == 0 or out_dim == 0 else (in_dim, out_dim)
+                for out_dim, in_dim in zip(output_shape, input_shape)
+            )
+        )
+
+        # print("for output_shape transform:")
+        # print(f"   input_shape  {input_shape}")
+        # print(f"   output_shape {output_shape}")
         out_shape = torch.as_tensor(output_shape + (1,), device=matrix.device)
-
-        # if padding_correction:
-        #     padded_sizes = tuple(size + 2 for size in input_shape)
-        # else:
-        #     padded_sizes = input_shape
-
         in_shape = torch.as_tensor(input_shape + (1,), device=matrix.device)
         shape_scaling = out_shape / in_shape
         shape_scale_matrix = torch.diag(shape_scaling)
@@ -237,57 +242,62 @@ def _prepare_matrix(
     return matrix
 
 
-def _sanitize_data(
-    input: ht.DNDarray, matrix: ht.DNDarray, offset: ht.DNDarray, output_shape: tuple
+def _prepare_data(
+    image: ht.DNDarray, matrix: ht.DNDarray, offset: ht.DNDarray, output_shape: tuple
 ):
-    ht.sanitize_in(input)
+    ht.sanitize_in(image)
     ht.sanitize_in(matrix)
-    if not isinstance(offset, float) and offset is not None:
+    if not isinstance(offset, float) and not isinstance(offset, int) and offset is not None:
         ht.sanitize_in(offset)
 
     if matrix.ndim == 1:
         matrix = ht.diag(matrix)
 
+    if not (2 <= matrix.ndim <= 3):
+        raise ValueError("affine matrix has wrong number dimensions, should be 2 or 3")
+
+    if output_shape is not None:
+        if not (image.ndim == len(output_shape)):
+            raise ValueError("outputshape must have same number of dimension as input")
+
+        if not (image.shape[-1] == output_shape[-1]):
+            raise ValueError("color dimension needs same size in input and output shape")
+    else:
+        output_shape = image.shape
+
     if isinstance(offset, float) and offset != 0.0:
-        offset_array = ht.repeat(offset, matrix.shape[-2])
+        offset_array: DNDarray = ht.array((offset,), dtype=matrix.dtype, device=image.device)
+        if matrix.ndim == 2:
+            offset_array = ht.tile(offset_array, matrix.shape[-2])
+        elif matrix.ndim == 3:
+            offset_array = ht.tile(offset_array, (matrix.shape[0], matrix.shape[-2]))
+        print(offset_array.shape)
     elif isinstance(offset, float) and offset == 0.0:
         offset_array = None
     else:
         offset_array = offset
 
-    if matrix.ndim > 3:
-        raise ValueError("affine matrix has too many dimensions")
-
-    if output_shape is not None:
-        if not (input.ndim == len(output_shape)):
-            raise ValueError("outputshape must have same number of dimension as input")
-
-        if not (input.shape[-1] == output_shape[-1]):
-            raise ValueError("color dimension needs same size in input and output shape")
-    else:
-        output_shape = input.shape
-
     # input has no bulk axis, give everything a bulk axis with length 1 to treat it as if it has a bulk axis
     if matrix.ndim == 2:
         matrix = ht.expand_dims(matrix, 0)
-        input = ht.expand_dims(input, 0)
+        image = ht.expand_dims(image, 0)
         if offset_array is not None:
             offset_array = ht.expand_dims(offset_array, 0)
         output_shape = (1,) + output_shape
 
-    is_2d_input = input.ndim == 4 and 3 <= matrix.shape[-2] <= matrix.shape[-1] <= 4
-    is_3d_input = input.ndim == 5 and 4 <= matrix.shape[-2] <= matrix.shape[-1] <= 5
+    is_2d_input = image.ndim == 4 and 3 <= matrix.shape[-2] <= matrix.shape[-1] <= 4
+    is_3d_input = image.ndim == 5 and 4 <= matrix.shape[-2] <= matrix.shape[-1] <= 5
     if not (is_2d_input or is_3d_input):
         raise ValueError(
-            f"matrix with shape {matrix.shape} does not fit to input shape {input.shape} or not supported dimension count"
+            f"matrix with shape {matrix.shape} does not fit to input shape {image.shape} or not supported dimension count"
         )
 
-    if not (input.shape[0] == output_shape[0]):
+    if not (image.shape[0] == output_shape[0]):
         raise ValueError("bulk dimension needs same size in input and output shape")
 
     # offset exists and matrix is no affine matrix
     if offset_array is not None:
-        if matrix.shape[-1] >= input.ndim:
+        if matrix.shape[-1] >= image.ndim:
             offset_array = None
             import warnings
 
@@ -299,7 +309,7 @@ def _sanitize_data(
         else:
             if offset_array.ndim != matrix.ndim - 1:
                 raise ValueError(f"""offset vector has wrong number of dimensions compared to the matrix.
-                expected {matrix.ndim - 1} dimensions but got {offset_array.ndim}""")
+expected {matrix.ndim - 1} dimensions but got {offset_array.ndim}""")
             if offset_array.shape[-1] != matrix.shape[-2]:
                 raise ValueError(
                     f"offset vector has not the right length, expected {matrix.shape[-2]}, but got {offset_array.shape[-1]}"
@@ -311,9 +321,9 @@ def _sanitize_data(
     if matrix.split not in (0, None):
         matrix = ht.resplit(matrix, None)
 
-    if input.split not in (0, None):
+    if image.split not in (0, None):
         # transformation in direction of split is not identity
-        if not (matrix.split is None and _untouched_axes(matrix)[input.split - 1]):
+        if not (matrix.split is None and _untouched_axes(matrix)[image.split - 1]):
             raise RuntimeError(
                 "the input split axis should either be the bulk axis, or an axis left unchanged by the transform."
             )
@@ -321,32 +331,32 @@ def _sanitize_data(
         if matrix.split is not None:
             matrix = ht.resplit(matrix, None)
 
-        if output_shape[input.split] != input.shape[input.split]:
+        if output_shape[image.split] != image.shape[image.split]:
             raise RuntimeError(
                 "the output shape cannot differ form input shape along input split axis"
             )
 
     if offset_array is not None:
         if offset_array.split != matrix.split:
-            offset_array = ht.resplit(matrix.split)
+            offset_array = ht.resplit(offset_array, matrix.split)
 
-    return input, matrix, offset_array, output_shape
+    return image, matrix, offset_array, output_shape
 
 
-def _get_local_torch_views(input: DNDarray, matrix: DNDarray, output_shape: tuple[int]):
+def _get_local_torch_views(image: DNDarray, matrix: DNDarray, output_shape: tuple[int]):
     matrix_torch: torch.Tensor = matrix.larray
-    input_torch = input.larray
+    input_torch = image.larray
 
-    if matrix.split is None and input.split == 0:
+    if matrix.split is None and image.split == 0:
         _, _, corresponding_slice = matrix.comm.chunk(matrix.gshape, 0)
         matrix_torch = matrix_torch[corresponding_slice]
         out_split = 0
-    elif matrix.split == 0 and input.split is None:
-        _, _, corresponding_slice = input.comm.chunk(input.gshape, 0)
+    elif matrix.split == 0 and image.split is None:
+        _, _, corresponding_slice = image.comm.chunk(image.gshape, 0)
         input_torch = input_torch[corresponding_slice]
         out_split = 0
     else:
-        out_split = input.split
+        out_split = image.split
 
     if matrix_torch.device != input_torch.device:
         matrix_torch = matrix_torch.to(input_torch.device)
@@ -361,18 +371,18 @@ def _get_local_torch_views(input: DNDarray, matrix: DNDarray, output_shape: tupl
 #  main methods
 # ============================================================
 def affine_transform(
-    input: DNDarray,
+    image: DNDarray,
     matrix: DNDarray,
     offset: DNDarray | float | None = 0.0,
     output_shape: DNDarray | None = None,
-    order: int = 1,
+    order: int = 3,
     mode: str = "grid-constant",
     cval: float = 0.0,
 ) -> DNDarray:
     """
     Parameters
     ----------
-    input : DNDarray
+    image : DNDarray
         the image or data array to transform. Input is expected to have shape [B x] [D x] H x W x C
     matrix : DNDarray
         affine matrix used to transform input. can be of shape Bx3x4 (3x3, 4x4 also valid) for 2d data,
@@ -389,7 +399,7 @@ def affine_transform(
     order :
         type of interpolation that is used, linear to cubic allowed
     mode :
-        The mode parameter determines how the input array is extended beyond its boundaries. Default is ‘constant-grid’. Behavior for each valid value is as follows
+        The mode parameter determines how the input array is extended beyond its boundaries. Default is `constant-grid`. Behavior for each valid value is as follows
         `grid-constant`
             the pixel beyond the boundary are filled with a constant value. The value is defined by the cval parameter
         `nearest`
@@ -415,11 +425,11 @@ def affine_transform(
         sample_padding = _sanitize_key_string(mode, MODE_TO_PADDING, "mode")
     sample_mode = _sanitize_key_string(order, ORDER_TO_MODE, "order")
 
-    original_shape = input.shape
+    original_shape = image.shape
 
-    input, matrix, offset, output_shape = _sanitize_data(input, matrix, offset, output_shape)
+    image, matrix, offset, output_shape = _prepare_data(image, matrix, offset, output_shape)
 
-    linput, lmatrix, out_lshape, out_split = _get_local_torch_views(input, matrix, output_shape)
+    linput, lmatrix, out_lshape, out_split = _get_local_torch_views(image, matrix, output_shape)
     # at this point computations can all be done locally
 
     # I still don't understand why the permute below is necessary, but the affine matrix itself
@@ -427,7 +437,7 @@ def affine_transform(
     # This should switche wich axis in input data is influenced by wich row/column in the
     # affine matrix. But the result matches scipy so thats so I guess it's fine
     dimension_order = (0,) + tuple(
-        idx for idx in range(input.ndim - 1, 0, -1)
+        idx for idx in range(image.ndim - 1, 0, -1)
     )  # reversed: (0,4,3,2,1) or (0,3,2,1)
 
     loc_out_shape_permuted = tuple(out_lshape[i] for i in dimension_order)
@@ -467,10 +477,10 @@ def affine_transform(
 
     transformed_dnd: DNDarray = array(
         transformed.contiguous(),
-        dtype=input.dtype,
+        dtype=image.dtype,
         is_split=out_split,
-        device=input.device,
-        comm=input.comm,
+        device=image.device,
+        comm=image.comm,
         copy=False,
     )
 
