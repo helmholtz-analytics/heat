@@ -4,18 +4,7 @@ import numpy as np
 import heat as ht
 import heat.ndimage.affine as affine
 from heat.testing.basic_test import TestCase
-from heat.ndimage.util import (
-    create_checker,
-    root_mean_square_error,
-    visual_compare,
-    visual_compare_affine,
-)
-
-# from mpi4py.MPI import COMM_WORLD
-# import debugpy
-# debugpy.listen(3000 + COMM_WORLD.rank)
-# debugpy.wait_for_client()
-
+from heat.ndimage.util import create_checker, root_mean_square_error
 
 class TestAffine:
 
