@@ -2687,7 +2687,9 @@ def sort(
         if out is not None:
             warnings.warn("[ht.sort] `out` parameter gets ignored for complex arrays.")
 
-        return sort_complex(a, axis=axis, descending=descending, return_sort_indices=True)
+        return sort_complex(
+            a, axis=axis, descending=descending, return_sort_indices=return_sort_indices
+        )
 
     if not a.is_distributed() or axis != a.split:
         # sorting is not affected by split -> we can just sort along the axis
@@ -4313,7 +4315,9 @@ def resplit(arr: DNDarray, axis: Optional[int] = None) -> DNDarray:
             arr.shape, dtype=arr.dtype.torch_type(), device=arr.device.torch_device
         )
         counts, displs = arr.counts_displs()
-        arr.comm.Allgatherv(arr.larray, (gathered, counts, displs), recv_axis=arr.split)
+        arr.comm.Allgatherv(
+            arr.larray.contiguous(), (gathered, counts, displs), recv_axis=arr.split
+        )
         new_arr = factories.array(
             gathered, is_split=axis, device=arr.device, comm=arr.comm, dtype=arr.dtype
         )
