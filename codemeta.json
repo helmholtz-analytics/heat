@@ -331,6 +331,7 @@
             { "@type": "Person", "familyName": "Streit", "givenName": "Achim" }
         ]
     },
-    "version": "1.8.0",
+    "version": "1.9.0",
+    "dateModified": "2026-10-29",
     "issueTracker": "https://github.com/helmholtz-analytics/heat/issues"
 }
