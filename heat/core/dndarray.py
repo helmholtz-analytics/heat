@@ -59,6 +59,8 @@ class DNDarray:
         comm: Communication,
         balanced: bool,
     ):
+        dtype = types.canonical_heat_type(dtype)
+
         self.__array = array
         self.__gshape = gshape
         self.__dtype = dtype
@@ -73,8 +75,11 @@ class DNDarray:
         self.__lshape_map = None
         self.__counts_displs = None
 
-        # check for inconsistencies between torch and heat devices
+        # check for inconsistencies between local and global arrays
         assert str(array.device) == device.torch_device
+        assert dtype == types.canonical_heat_type(array.dtype), (
+            f"Local datatype {array.dtype} is incompatible with global datatype {dtype}"
+        )
 
     # ------------------------------------------------------------------
     # Properties
