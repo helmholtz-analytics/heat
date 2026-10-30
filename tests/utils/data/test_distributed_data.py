@@ -323,8 +323,9 @@ class TestDatatools:
 
     @pytest.mark.parametrize("split", [None, 0])
     @pytest.mark.parametrize("prefetch_factor", [0, 2])
-    def test_distributed_dataloader_epochs(self, split, prefetch_factor):
-        data = ht.arange(48, split=split)
+    @pytest.mark.parametrize("N", [47, 48])
+    def test_distributed_dataloader_epochs(self, split, prefetch_factor, N):
+        data = ht.arange(N, split=split)
         comm = data.comm
         reference_seed = 42
         seed = reference_seed + comm.rank
@@ -347,9 +348,17 @@ class TestDatatools:
         assert torch.equal(first, torch.cat(list(make_loader())))
 
         expected_seed = reference_seed if data.is_distributed() else seed
-        expected = torch.randperm(48, generator=torch.Generator().manual_seed(expected_seed))
+        expected = torch.randperm(N, generator=torch.Generator().manual_seed(expected_seed))
         if data.is_distributed():
-            expected = expected.chunk(comm.size)[comm.rank]
+            samples_per_rank = (N + comm.size - 1) // comm.size
+            total_samples = samples_per_rank * comm.size
+
+            positions = torch.arange(total_samples)
+            wrapped_positions = positions % N
+            expected = expected[wrapped_positions]
+
+            start = comm.rank * samples_per_rank
+            expected = expected[start : start + samples_per_rank]
         assert torch.equal(first.cpu(), expected)
 
         loader.seed = seed
