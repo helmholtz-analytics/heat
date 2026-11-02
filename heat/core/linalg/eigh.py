@@ -1,11 +1,11 @@
 """
-Implements Symmetric Eigenvalue Decomposition
+Implements symmetric and Hermitian eigenvalue decomposition.
 """
 
 import numpy as np
 import collections
 import torch
-from typing import Type, Callable, Dict, Any, TypeVar, Union, Tuple
+from typing import Type, Callable, Dict, Any, TypeVar, Union, Tuple, Optional
 
 from ..dndarray import DNDarray
 from .. import factories
@@ -16,7 +16,7 @@ from ..random import randn
 from ..devices import Device
 from ..manipulations import vstack, hstack, concatenate, diag, balance
 from .. import statistics
-from ..sanitation import sanitize_in_nd_realfloating
+from ..sanitation import sanitize_in_min_max_nd
 
 
 __all__ = ["eigh"]
@@ -27,18 +27,18 @@ def _subspaceiteration(
     C: DNDarray,
     silent: bool = True,
     safetyparam: int = 3,
-    maxit: int = None,
-    tol: float = None,
+    maxit: Optional[int] = None,
+    tol: Optional[float] = None,
     depth: int = 0,
-) -> DNDarray:
+) -> Tuple[DNDarray, int]:
     """
-    Auxiliary function that implements the subspace iteration as required for symmetric eigenvalue decomposition
+    Auxiliary function that implements the subspace iteration as required for Hermitian eigenvalue decomposition
     via polar decomposition; cf. Ref. 2 below. The algorithm for subspace iteration itself is taken from Ref. 1,
     Algorithm 3 in Sect. 5.1.
 
-    Given a symmetric matrix ``A`` and a matrix ``C`` that is the orthogonal projection onto an invariant
-    subspace of A, this function computes and returns an orthogonal matrix ``Q`` such that Q = [V_1 V_2] with
-    C = V_1 V_1.T. Moreover, the dimension of the invariant subspace, i.e., the number of column of V_1 is
+    Given a Hermitian matrix ``A`` and a matrix ``C`` that is the orthogonal projection onto an invariant
+    subspace of A, this function computes and returns a unitary matrix ``Q`` such that Q = [V_1 V_2] with
+    C = V_1 @ V_1.conj().T. Moreover, the dimension of the invariant subspace, i.e., the number of columns of V_1 is
     returned as well.
 
     References
@@ -49,15 +49,16 @@ def _subspaceiteration(
         matrix sign function in two iterations: The power of Zolotarev's functions. SIAM Review, 58(3).
     """
     # set parameters for convergence
-    if A.dtype == types.float64:
+    if A.dtype in (types.float64, types.complex128):
         maxit = 3 if maxit is None else maxit
         tol = 1e-8 if tol is None else tol
-    elif A.dtype == types.float32:
+    elif A.dtype in (types.float32, types.complex64):
         maxit = 6 if maxit is None else maxit
         tol = 1e-4 if tol is None else tol
     else:
         raise TypeError(
-            f"Input DNDarray must be of data type float32 or float64, but is of type {A.dtype}."
+            "Input DNDarray must be of data type float32, float64, complex64, or complex128, "
+            f"but is of type {A.dtype}."
         )
 
     Anorm = matrix_norm(A, ord="fro")
@@ -73,7 +74,9 @@ def _subspaceiteration(
             split=columnnorms.split,
             device=columnnorms.device,
         )
-        * statistics.percentile(columnnorms, 100.0 * (1 - (k + safetyparam) / columnnorms.shape[0]))
+        * statistics.percentile(
+            columnnorms, max(0.0, 100.0 * (1 - (k + safetyparam) / columnnorms.shape[0]))
+        )
     )[0]
     X = C[:, idx].balance()
 
@@ -82,23 +85,28 @@ def _subspaceiteration(
     while it < maxit + 1:
         # enrich X by additional random columns to get a full orthonormal basis by QR
         if X.shape[0] > X.shape[1]:
-            X = hstack(
-                [
-                    X,
-                    randn(
-                        X.shape[0],
-                        X.shape[0] - X.shape[1],
-                        dtype=X.dtype,
-                        device=X.device,
-                        comm=X.comm,
-                        split=X.split,
-                    ),
-                ]
+            extra = randn(
+                X.shape[0],
+                X.shape[0] - X.shape[1],
+                dtype=X.real.dtype,
+                device=X.device,
+                comm=X.comm,
+                split=X.split,
             )
+            if types.heat_type_is_complexfloating(X.dtype):
+                extra = extra.astype(X.dtype) + 1j * randn(
+                    X.shape[0],
+                    X.shape[0] - X.shape[1],
+                    dtype=X.real.dtype,
+                    device=X.device,
+                    comm=X.comm,
+                    split=X.split,
+                )
+            X = hstack([X, extra])
         Q, _ = qr(X)
         Q_k = Q[:, :k].balance()
         Q_k_orth = Q[:, k:].balance()
-        E = (Q_k_orth.T @ A) @ Q_k
+        E = (Q_k_orth.conj().T @ A) @ Q_k
         Enorm = matrix_norm(E, ord="fro")
         if Enorm / Anorm < tol:
             # exit if success
@@ -158,7 +166,7 @@ def _eigh(
         orig_lsize = min(A.lshape_map[:, A.split])
 
     # now we handle the main case: Zolo-PD is used to reduce the problem to two independent problems
-    sigma = statistics.median(diag(A))
+    sigma = statistics.median(diag(A).real)
 
     U = polar.polar(
         A
@@ -172,9 +180,9 @@ def _eigh(
         0.5
         * (U + factories.eye((n, n), dtype=A.dtype, device=A.device, comm=A.comm, split=A.split)),
         silent,
-        depth,
+        depth=depth,
     )
-    A = V.T @ A @ V
+    A = V.conj().T @ A @ V
 
     if A.comm.rank == 0 and not silent:
         print(
@@ -204,17 +212,19 @@ def _eigh(
             A.larray[:k, :] if rank < nprocs1 else A.larray[k:, :],
             comm=local_comm,
             is_split=A.split,
+            device=A.device,
         )
     else:
         A_local = factories.array(
             A.larray[:, :k] if rank < nprocs1 else A.larray[:, k:],
             comm=local_comm,
             is_split=A.split,
+            device=A.device,
         )
 
     Lambda_local, V_local = _eigh(A_local, r, silent, r_max, depth + 1, orig_lsize)
 
-    Lambda = factories.array(Lambda_local.larray, is_split=0, comm=A.comm)
+    Lambda = factories.array(Lambda_local.larray, is_split=0, comm=A.comm, device=A.device)
     V_local_larray = V_local.larray
     if A.split == 0:
         if rank < nprocs1:
@@ -266,16 +276,17 @@ def eigh(
     silent: bool = True,
 ) -> Tuple[DNDarray, DNDarray]:
     """
-    Computes the symmetric eigenvalue decomposition of a symmetric n x n - matrix A, provided as a DNDarray.
+    Computes the eigenvalue decomposition of a symmetric or Hermitian n x n matrix A.
 
     The function returns DNDarrays Lambda (shape (n,) with split = 0) and V (shape (n,n)) such that
-    A = V @ diag(Lambda) @ V^T, where Lambda contains the eigenvalues of A and V is an orthonormal matrix
-    containing the corresponding eigenvectors as columns.
+    A = V @ diag(Lambda) @ V.conj().T, where Lambda contains the real eigenvalues of A
+    and V is a unitary matrix containing the corresponding eigenvectors as columns.
 
     Parameters
     ----------
     A : DNDarray
-        The input matrix. Must be symmetric.
+        The input matrix. Must be symmetric (real) or Hermitian (complex), with dtype
+        float32, float64, complex64, or complex128.
     r_max_zolopd : int, optional
         This is a hyperparameter for the computation of the polar decomposition via :func:`heat.linalg.polar` which is
         applied multiple times in this function. See the documentation of :func:`heat.linalg.polar` for more details on its
@@ -286,7 +297,7 @@ def eigh(
     Notes
     -----
     Unlike the :func:`torch.linalg.eigh` function, the eigenvalues are returned in descending order.
-    Note that no check of symmetry is performed on the input matrix A; thus, applying this function to a non-symmetric matrix may
+    Note that no check of symmetry or Hermitian symmetry is performed on the input matrix A; thus, applying this function to a non-Hermitian matrix may
     result in unpredictable behaviour without a specific error message pointing to this issue.
 
     The algorithm used for the computation of the symmetric eigenvalue decomposition is based on the Zolotarev polar decomposition;
@@ -299,10 +310,16 @@ def eigh(
     --------
     :func:`heat.linalg.polar`
     """
-    sanitize_in_nd_realfloating(A, "A", [2])
+    sanitize_in_min_max_nd(A, 2, 2)
+    if A.dtype not in (types.float32, types.float64, types.complex64, types.complex128):
+        raise TypeError(
+            "Input DNDarray must be of data type float32, float64, complex64, or complex128, "
+            f"but is of type {A.dtype}."
+        )
     if A.shape[0] != A.shape[1]:
         raise ValueError(
-            f"Input matrix must be symmetric and, consequently, square, but input shape was {A.shape[0]} x {A.shape[1]}."
+            "Input matrix must be symmetric or Hermitian and, consequently, square, "
+            f"but input shape was {A.shape[0]} x {A.shape[1]}."
         )
     if not isinstance(r_max_zolopd, int) or r_max_zolopd < 1 or r_max_zolopd > 8:
         raise ValueError(

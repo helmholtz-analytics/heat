@@ -99,6 +99,22 @@ class TestLinalgBasics(TestCase):
         with self.assertRaises(ValueError):
             est = ht.linalg.condest(x, p=3)
 
+    def test_condest_complex(self):
+        rng = np.random.default_rng(42)
+        for dtype, real_dtype in ((ht.complex64, ht.float32), (ht.complex128, ht.float64)):
+            for shape in ((23, 11), (11, 23)):
+                data = rng.standard_normal(shape) + 1j * rng.standard_normal(shape)
+                for split in (None, 0, 1):
+                    with self.subTest(dtype=dtype, shape=shape, split=split):
+                        A = ht.array(data, dtype=dtype, split=split, device=self.device)
+                        est = ht.linalg.condest(A, params={"nsamples": min(shape)})
+                        self.assertEqual(est.dtype, real_dtype)
+                        self.assertEqual(est.shape, ())
+                        self.assertEqual(est.device, A.device)
+                        self.assertEqual(est.comm, A.comm)
+                        self.assertTrue(np.isfinite(est.item()))
+                        self.assertGreaterEqual(est.item(), np.linalg.cond(data))
+
     def test_cross(self):
         a = ht.eye(3)
         b = ht.array([[0, 1, 0], [0, 0, 1], [1, 0, 0]])
