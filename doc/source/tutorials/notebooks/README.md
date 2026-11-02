@@ -23,7 +23,8 @@ If you are on the Jupyter4NFDI Jupyter Hub, everything is already installed, but
 Once your cluster is running, we recommend following the tutorials in this order:
 
 ### The Fundamentals
-* **[Basics.ipynb](Basics.ipynb)**: Start here! Learn how to create `DNDarrays`, understand the `split` parameter, and perform basic operations across multiple processes.
+* **[Basics.ipynb](Basics.ipynb)**: Start your journey with Heat here! Learn how to create `DNDarrays`, understand the `split` parameter, and perform basic operations across multiple processes.
+* **[MPI_introduction.ipynb](MPI_introduction.ipynb)**: This is an optional introduction to parallel computing to give you some insight into what Heat actually implements. Skip if you're in a hurry!
 * **[Internals.ipynb](Internals.ipynb)**: A look behind the curtain for potential contributors and power users. Understand how Heat manages local shapes (`lshape`) and learn how to use `redistribute_` to manually balance data across your cluster.
 
 ### Mathematics & Machine Learning
