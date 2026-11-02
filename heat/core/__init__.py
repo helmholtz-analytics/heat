@@ -16,6 +16,7 @@ from .logical import *
 from .manipulations import *
 from .memory import *
 from ._operations import *
+from ._dtensor_utils import *
 from .printing import *
 from . import random
 from .relational import *
