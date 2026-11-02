@@ -6,9 +6,6 @@ import heat as ht
 from typing import Optional, Tuple, Union
 from ..core.linalg.svdtools import _isvd
 
-if ht.io.supports_hdf5():
-    import h5py
-
 try:
     from typing import Self
 except ImportError:
@@ -377,10 +374,13 @@ class IncrementalPCA(ht.TransformMixin, ht.BaseEstimator):
             If `chunk_size` is larger than the number of rows in the dataset.
             If the number of columns is smaller than the number of processes.
         """
-        if not ht.io.supports_hdf5():
+        if not ht.io.supports("hdf5"):
             raise RuntimeError(
                 "Computing IncrementalPCA from an HDF5 file requires HDF5 support, which is not available. Please install heat with HDF5 support."
             )
+        # imported lazily so that `import heat` does not pull in h5py
+        import h5py
+
         if path.endswith(".h5"):
             with h5py.File(path, "r") as f:
                 shape = f[dataset].shape
