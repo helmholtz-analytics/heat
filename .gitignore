@@ -312,3 +312,5 @@ docs/source/autoapi
 
 
 .DS_Store
+
+uv.lock

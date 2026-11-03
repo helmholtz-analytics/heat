@@ -100,13 +100,17 @@ jobs:
           { echo -e "# v${MAJOR}.${MINOR}.${MICRO} - ${{github.event.inputs.title}}\n${{ steps.release_drafter.outputs.body}}\n"; cat CHANGELOG.md; } > tmp.md
           mv tmp.md CHANGELOG.md
 
+          # Update version and dateModified in codemeta.json
+          TODAY=$(date '+%Y-%m-%d')
+          jq --arg v "$VERSION" --arg d "$TODAY" '.version = $v | .dateModified = $d' codemeta.json > codemeta.tmp && mv codemeta.tmp codemeta.json
+
           # Git configuration with anonymous user and email
           git config --global user.email ""
           git config --global user.name "Heat Release Bot"
 
           # Commit the changes
-          git add heat/core/version.py CHANGELOG.md
-          git commit -m "Bump version to $VERSION"
+          git add heat/core/version.py CHANGELOG.md codemeta.json
+          git commit -m "Bump version to $VERSION in code, changelog, and codemeta"
 
           # Commit Dockerfile changes
           git add docker/Dockerfile.release
@@ -126,6 +130,7 @@ jobs:
 
           TODO:
           - [x] Update version.py
+          - [x] Update codemeta.json
           - [ ] Run `python scripts/numpy_coverage_tables.py` and commit the updated `coverage_tables.md`.
           - [ ] Ensure Citation file `CITATION.cff` is up to date.
           - [ ] Ensure the Changelog is up to date.
