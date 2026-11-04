@@ -156,10 +156,11 @@ def clip(x: DNDarray, min, max, out: Optional[DNDarray] = None) -> DNDarray:
         raise ValueError("either min or max must be set")
 
     if out is None:
+        local_data = x.larray.clamp(min, max)
         return dndarray.DNDarray(
-            x.larray.clamp(min, max),
+            local_data,
             x.shape,
-            x.dtype,
+            types.canonical_heat_type(local_data.dtype),
             x.split,
             x.device,
             x.comm,
