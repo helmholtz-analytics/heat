@@ -1,10 +1,10 @@
-"""HeAT pipeline helpers for the PCA tutorial."""
+"""Heat pipeline helpers for the PCA tutorial."""
 
 import heat as ht
 
 
 class Pipeline:
-    """Chain HeAT transformers and an optional final classifier.
+    """Chain Heat transformers and an optional final classifier.
 
     Parameters
     ----------
@@ -21,7 +21,7 @@ class Pipeline:
 
     Notes
     -----
-    Estimator distribution constraints still apply. With the current HeAT
+    Estimator distribution constraints still apply. With the current Heat
     KNN, keep training labels replicated (split=None), even if X is split.
     """
 
@@ -41,9 +41,9 @@ class Pipeline:
             names.append(name)
             if index < len(self.steps) - 1:
                 if not ht.is_transformer(estimator):
-                    raise TypeError(f"Intermediate step {name!r} must be a HeAT transformer.")
+                    raise TypeError(f"Intermediate step {name!r} must be a Heat transformer.")
             elif not (ht.is_transformer(estimator) or ht.is_classifier(estimator)):
-                raise TypeError("The final step must be a HeAT transformer or classifier.")
+                raise TypeError("The final step must be a Heat transformer or classifier.")
         self.named_steps = dict(self.steps)
         self._fitted = False
 
@@ -107,7 +107,7 @@ class Pipeline:
     @staticmethod
     def _check_X(X: ht.DNDarray) -> None:
         if not isinstance(X, ht.DNDarray):
-            raise TypeError("X must be a HeAT DNDarray.")
+            raise TypeError("X must be a Heat DNDarray.")
         if X.ndim != 2:
             raise ValueError("X must have shape (n_samples, n_features).")
 
@@ -116,7 +116,7 @@ class Pipeline:
         if y is None:
             raise ValueError("Classification requires labels y.")
         if not isinstance(y, ht.DNDarray):
-            raise TypeError("y must be a HeAT DNDarray.")
+            raise TypeError("y must be a Heat DNDarray.")
         if y.ndim != 1 or y.shape[0] != X.shape[0]:
             raise ValueError("y must have shape (n_samples,) matching X.")
 
@@ -173,7 +173,7 @@ class Pipeline:
         return self.steps[-1][1].predict(self._transform_intermediate(X))
 
     def score(self, X: ht.DNDarray, y: ht.DNDarray) -> float:
-        """Return classification accuracy using a global HeAT reduction.
+        """Return classification accuracy using a global Heat reduction.
 
         Parameters
         ----------
@@ -211,7 +211,7 @@ class Pipeline:
             Ignored by transformer-only pipelines.
         """
         if not ht.is_transformer(self.steps[-1][1]):
-            raise TypeError("fit_transform() requires a final HeAT transformer.")
+            raise TypeError("fit_transform() requires a final Heat transformer.")
         self._fitted = False
         self._check_X(X)
         for _, transformer in self.steps[:-1]:
@@ -222,7 +222,7 @@ class Pipeline:
 
 
 def make_pipeline(*estimators: ht.BaseEstimator) -> Pipeline:
-    """Create a HeAT pipeline with automatic lowercase step names.
+    """Create a Heat pipeline with automatic lowercase step names.
 
     Parameters
     ----------
