@@ -286,6 +286,33 @@ class TestAffine:
             image, matrix, offset, 0.05, order=order, mode=mode, output_shape=out_shape
         )
 
+    @pytest.mark.parametrize("mode", ["grid-constant", "mirror", "nearest"])
+    def test_affine_float64(self, mode):
+        order = 1
+        image = self.image_2d_1
+        matrix = self.matrix_2d
+        offset = self.offset_2d
+
+        image = ht.array(image, dtype = ht.float64)
+        matrix = ht.array(matrix, dtype = ht.float64)
+        offset = ht.array(offset, dtype = ht.float64)
+
+        scipy_args, scipy_kwargs = TestAffine.to_scipy_input(
+            image, matrix, order=order, mode=mode, offset=offset
+        )
+        with_offset_result = affine.affine_transform(
+            image, matrix, offset=offset, order=order, mode=mode
+        )
+
+        with_offset_comparison = ndimg.affine_transform(
+            *next(scipy_args), **scipy_kwargs
+        )
+
+        #in the best comparible case of order 1 this is way better: e-5 to e-12
+        assert np.allclose(
+            with_offset_result.numpy(), with_offset_comparison, rtol=0, atol=10e-12
+        )
+
     @pytest.mark.parametrize("order", [3])
     @pytest.mark.parametrize("mode", ["grid-constant", "mirror", "nearest"])
     def test_affine_2d_rmse(self, order, mode):
