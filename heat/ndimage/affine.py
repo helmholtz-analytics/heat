@@ -128,12 +128,12 @@ def convert_matrix_space(
     )  # -1: correcting for image corner in pixel center
     output_shape = tuple(size - 1 for size in output_shape[1:-1])
     # construct coord space transform
-    offsets = (torch.as_tensor(input_shape, device=matrix.device)) / 2.0
+    offsets = (torch.as_tensor(input_shape, device=matrix.device, dtype=matrix.dtype)) / 2.0
     scales = torch.where(offsets == 0, 1, offsets)
     diag_scales = torch.diag(scales)
 
     dim = len(input_shape)
-    conversion = torch.zeros(dim + 1, dim + 1, device=matrix.device)
+    conversion = torch.zeros(dim + 1, dim + 1, device=matrix.device, dtype=matrix.dtype)
     conversion[:dim, :dim] = diag_scales
     conversion[dim, dim] = 1
     conversion[:dim, dim] = offsets
@@ -151,8 +151,8 @@ def convert_matrix_space(
         # print("for output_shape transform:")
         # print(f"   input_shape  {input_shape}")
         # print(f"   output_shape {output_shape}")
-        out_shape = torch.as_tensor(output_shape + (1,), device=matrix.device)
-        in_shape = torch.as_tensor(input_shape + (1,), device=matrix.device)
+        out_shape = torch.as_tensor(output_shape + (1,), device=matrix.device, dtype=matrix.dtype)
+        in_shape = torch.as_tensor(input_shape + (1,), device=matrix.device, dtype=matrix.dtype)
         shape_scaling = out_shape / in_shape
         shape_scale_matrix = torch.diag(shape_scaling)
         conversion = shape_scale_matrix @ conversion
