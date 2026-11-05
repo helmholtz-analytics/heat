@@ -385,7 +385,8 @@ def affine_transform(
     offset: DNDarray | float | None = 0.0,
     output_shape: DNDarray | None = None,
     order: int = 3,
-    mode: str = "grid-constant",
+    mode: str | None = "grid-constant",
+    padding_mode: str | None = None,
     cval: float = 0.0,
 ) -> DNDarray:
     """
@@ -417,21 +418,37 @@ def affine_transform(
             the pixel beyond the boundary are filled by mirroring the the input around the center of the last pixel
         `constant`, `wrap`, `grid-wrap`, `reflect`, `grid-mirror`
             Those modes are not implemented
+    padding_mode :
+        same as mode, but using the options `zeros`,`border` or `reflection`
     cval :
         value with wich the padding should be filled. This is implemented as a padding applied along all axis. This approach is not suited to provide exact results
     prefilter : bool
         if the input should be filtered before transformed, currently not because torch.sample_grid does not have this functionality
     """
-    # input conversion
-    if mode == "constant":
-        raise NotImplementedError(
-            "constant mode is not implemented, use 'grid-constant' for similar result"
-        )
-    apply_cval_padding = mode == "grid-constant" and cval != 0
+    if mode is None and padding_mode is None:
+        raise RuntimeError("either mode ore padding_mode need to be set to a value")
+    if mode is not None and padding_mode is not None:
+        raise RuntimeError("mode and padding_mode can't be set at the same time")
+
+    if mode is not None:
+        # input conversion
+        if mode == "constant":
+            raise NotImplementedError(
+                "constant mode is not implemented, use 'grid-constant' for similar result"
+            )
+        sample_padding = _sanitize_key_string(mode, MODE_TO_PADDING, "mode")
+    else:
+        valid_modes = [value for value in MODE_TO_PADDING.values() if value is not None]
+        if padding_mode not in valid_modes:
+            raise ValueError(
+                f"""the padding_mode '{padding_mode}' is not supported. valid modes are {valid_modes}"""
+            )
+        sample_padding = padding_mode
+
+    apply_cval_padding = sample_padding == "zeros" and cval != 0
     if apply_cval_padding:
         sample_padding = "border"
-    else:
-        sample_padding = _sanitize_key_string(mode, MODE_TO_PADDING, "mode")
+
     sample_mode = _sanitize_key_string(order, ORDER_TO_MODE, "order")
 
     original_shape = image.shape
@@ -464,7 +481,6 @@ def affine_transform(
             linput = torch.nn.functional.pad(linput, padding_size, "constant", cval)
 
         sample_grid: torch.Tensor = affine_grid(lmatrix, out_shape, align_corners=True)
-
         transformed: torch.Tensor = grid_sample(
             linput,
             sample_grid,
