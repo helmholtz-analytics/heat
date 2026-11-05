@@ -313,14 +313,27 @@ class TestAffine:
             with_offset_result.numpy(), with_offset_comparison, rtol=0, atol=10e-12
         )
 
+    @pytest.mark.parametrize("type_val", [ht.int8, ht.int16, ht.int32, ht.int64, ht.float16])
+    def test_affine_unsupported_types(self, type_val):
+        image = self.image_2d_1
+        matrix = self.matrix_2d
+        offset = self.offset_2d
+
+        image = ht.array(image, dtype = type_val)
+        matrix = ht.array(matrix, dtype = type_val)
+        offset = ht.array(offset, dtype = type_val)
+
+        with pytest.raises(TypeError):
+            affine.affine_transform(image, matrix)
+
     @pytest.mark.parametrize("order", [3])
     @pytest.mark.parametrize("mode", ["grid-constant", "mirror", "nearest"])
-    def test_affine_2d_rmse(self, order, mode):
+    def test_affine_2d_cubic(self, order, mode):
         image = self.image_2d_1
         matrix = self.matrix_2d
         offset = self.offset_2d
         TestAffine.rmse_testing_setup(
-            image, matrix, offset, tol=3, order=order, mode=mode
+            image, matrix, offset, tol=2.5, order=order, mode=mode
         )
 
     @pytest.mark.parametrize("split", [2, 3])

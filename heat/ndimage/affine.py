@@ -33,6 +33,7 @@ import heat as ht
 from torch.nn.functional import affine_grid, grid_sample
 from heat.core.dndarray import DNDarray
 from heat.core.factories import array
+from heat.core.sanitation import sanitize_in_nd_realfloating
 
 MODE_TO_PADDING = {
     # SciPy mode               # torch padding_mode
@@ -148,9 +149,6 @@ def convert_matrix_space(
             )
         )
 
-        # print("for output_shape transform:")
-        # print(f"   input_shape  {input_shape}")
-        # print(f"   output_shape {output_shape}")
         out_shape = torch.as_tensor(output_shape + (1,), device=matrix.device, dtype=matrix.dtype)
         in_shape = torch.as_tensor(input_shape + (1,), device=matrix.device, dtype=matrix.dtype)
         shape_scaling = out_shape / in_shape
@@ -194,8 +192,8 @@ def _sanitize_key_string(key_string: str, dictionary: dict, param_name: str):
         result = dictionary[key_string]
         if result is None:
             raise NotImplementedError(
-                f"""the {param_name} '{key_string}' is valid in scipy, but currently
-                not supported in this implementation. valid modes are {valid_modes}"""
+                f"""the {param_name} '{key_string}' is valid in scipy, but currently\
+ not supported in this implementation. valid modes are {valid_modes}"""
             )
     else:
         raise ValueError(
@@ -225,7 +223,7 @@ def _prepare_matrix(
         if offset is not None:
             # translation information missing, using offset value and adding it at the right to bring matrix
             # to reduced affine form
-            offset_torch = _remove_slice(offset.larray.float(), -1, dim=-1)
+            offset_torch = _remove_slice(offset.larray, -1, dim=-1)
 
             transformed_offset = offset_torch[..., None]
             matrix = torch.cat([matrix, transformed_offset], matrix.ndim - 1)
@@ -245,18 +243,30 @@ def _prepare_matrix(
 def _prepare_data(
     image: ht.DNDarray, matrix: ht.DNDarray, offset: ht.DNDarray, output_shape: tuple
 ):
-    ht.sanitize_in(image)
-    ht.sanitize_in(matrix)
-    if not isinstance(offset, float) and not isinstance(offset, int) and offset is not None:
-        ht.sanitize_in(offset)
-
     if matrix.ndim == 1:
         matrix = ht.diag(matrix)
 
-    if not (2 <= matrix.ndim <= 3):
-        raise ValueError("affine matrix has wrong number dimensions, should be 2 or 3")
+    sanitize_in_nd_realfloating(image, "image", [3, 4, 5])
+    if image.dtype is ht.float16:
+        raise TypeError(
+            f"Argument image needs to be a DNDarray with datatype float32 or float64, but data type is {image.dtype}."
+        )
+
+    sanitize_in_nd_realfloating(matrix, "matrix", [2, 3])
+    if image.dtype is ht.float16:
+        raise TypeError(
+            f"Argument image needs to be a DNDarray with datatype float32 or float64, but data type is {matrix.dtype}."
+        )
+
+    if not isinstance(offset, float) and not isinstance(offset, int) and offset is not None:
+        sanitize_in_nd_realfloating(offset, "offset", [1, 2])
+        if image.dtype is ht.float16:
+            raise TypeError(
+                f"Argument offset needs to be a DNDarray with datatype float32 or float64, but data type is {matrix.dtype}."
+            )
 
     if output_shape is not None:
+        ht.sanitize_sequence(output_shape)
         if not (image.ndim == len(output_shape)):
             raise ValueError("outputshape must have same number of dimension as input")
 
@@ -271,7 +281,6 @@ def _prepare_data(
             offset_array = ht.tile(offset_array, matrix.shape[-2])
         elif matrix.ndim == 3:
             offset_array = ht.tile(offset_array, (matrix.shape[0], matrix.shape[-2]))
-        print(offset_array.shape)
     elif isinstance(offset, float) and offset == 0.0:
         offset_array = None
     else:
