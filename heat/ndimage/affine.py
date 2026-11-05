@@ -460,7 +460,7 @@ def affine_transform(
 
     # I still don't understand why the permute below is necessary, but the affine matrix itself
     # does not need to be reordered.
-    # This should switche wich axis in input data is influenced by wich row/column in the
+    # This should switch wich axis in input data is influenced by wich row/column in the
     # affine matrix. But the result matches scipy so thats so I guess it's fine
     dimension_order = (0,) + tuple(
         idx for idx in range(image.ndim - 1, 0, -1)
