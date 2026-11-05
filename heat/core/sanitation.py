@@ -203,7 +203,7 @@ def sanitize_in_nd_realfloating(input: Any, inputname: str, allowed_ns: List[int
         )
     if not types.heat_type_is_realfloating(input.dtype):
         raise TypeError(
-            f"Argument {inputname} needs to be a DNDarray with datatype float32 or float64, but data type is {input.dtype}."
+            f"Argument {inputname} needs to be a DNDarray with datatype float16, float32 or float64, but data type is {input.dtype}."
         )
 
 
