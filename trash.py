@@ -11,6 +11,7 @@ from mpi4py import MPI
 
 import heat as ht
 
+
 class DistributedDataset(torch.utils.data.Dataset):
     def __init__(self, a: ht.DNDarray) -> None:
         self.__a = a
@@ -26,6 +27,7 @@ class DistributedDataset(torch.utils.data.Dataset):
     def __len__(self):
         return len(self.__a)
 
+
 @dataclass
 class _PendingBatch:
     """
@@ -39,15 +41,17 @@ class _PendingBatch:
     indices: torch.Tensor
     requests: tuple
 
+
 class AsyncDataLoader:
-    def __init__(self,
+    def __init__(
+        self,
         data: ht.DNDarray | tuple[ht.DNDarray, ...],
         batch_size: int,
         axis: int = 0,
         shuffle: bool = False,
         drop_last: bool = False,
         prefetch_factor: int = 0,
-        seed: int = 0
+        seed: int = 0,
     ) -> None:
         if isinstance(data, ht.DNDarray):
             self._arrays = (data,)
@@ -95,7 +99,9 @@ class AsyncDataLoader:
             lengths.append(array.gshape[normalized_axis])
 
         if len(set(lengths)) != 1:
-            raise ValueError(f"All DNDarrays must have the same global length along axis {axis}. Got {lengths}.")
+            raise ValueError(
+                f"All DNDarrays must have the same global length along axis {axis}. Got {lengths}."
+            )
 
         self._num_samples = lengths[0]
         self._epoch = 0
@@ -117,6 +123,7 @@ class AsyncDataLoader:
             epoch=epoch,
         )
 
+
 class _AsyncDataLoaderIter:
     def __init__(self, loader: AsyncDataLoader, epoch: int):
         self.loader = loader
@@ -127,7 +134,6 @@ class _AsyncDataLoaderIter:
         self._pending = deque()
         self._input_exhausted = False
         self._closed = False
-
 
     def _batch_indices(self) -> Iterator[torch.Tensor]:
         """
@@ -181,15 +187,11 @@ class _AsyncDataLoaderIter:
 
         return _PendingBatch(indices=indices, requests=tuple(requests))
 
-
     def _finish_batch(self, pending: _PendingBatch):
         """
         Wait for all arrays making up a batch.
         """
-        results = tuple(
-            request.Wait()
-            for request in pending.requests
-        )
+        results = tuple(request.Wait() for request in pending.requests)
 
         if self.loader._single_array:
             return results[0]
@@ -262,24 +264,22 @@ class _AsyncDataLoaderIter:
     def __exit__(self, exc_type, exc_value, traceback):
         self.close()
 
+
 def main():
     arr = ht.random.randn(1000, 10_000, split=0)
     dataset = DistributedDataset(arr)
 
     dataloader = torch.utils.data.DataLoader(
-        dataset=dataset,
-        batch_size=50,
-        shuffle=True,
-        num_workers=0,
-        collate_fn=lambda x: x
+        dataset=dataset, batch_size=50, shuffle=True, num_workers=0, collate_fn=lambda x: x
     )
 
     for batch in dataloader:
         ...
 
-
-    #dataloader = AsyncDataLoader(arr, 50, axis=0, shuffle=True, drop_last=False, prefetch_factor=0)
-    dataloader = ht.utils.data.DistributedDataLoader(data=arr, batch_size=50, shuffle=True, drop_last=False, prefetch_factor=10)
+    # dataloader = AsyncDataLoader(arr, 50, axis=0, shuffle=True, drop_last=False, prefetch_factor=0)
+    dataloader = ht.utils.data.DistributedDataLoader(
+        data=arr, batch_size=50, shuffle=True, drop_last=False, prefetch_factor=10
+    )
 
     comm: ht.MPICommunication = arr.comm
     rank = comm.rank
@@ -310,5 +310,6 @@ def main():
         print(f"{p99=}, it/s")
         print(f"{p1=}, it/s")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()
