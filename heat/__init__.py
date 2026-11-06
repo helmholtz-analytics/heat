@@ -20,6 +20,7 @@ from . import sparse
 from . import spatial
 from . import utils
 from . import preprocessing
+from .pipeline import Pipeline, make_pipeline
 
 __array_api_version__ = "2025.12"
 

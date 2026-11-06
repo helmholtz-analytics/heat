@@ -314,3 +314,7 @@ docs/source/autoapi
 .DS_Store
 
 uv.lock
+
+# Local virtual environments
+heat_dev/
+.venv/
