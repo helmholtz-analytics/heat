@@ -139,6 +139,25 @@ class ClassificationMixin:
         """
         raise NotImplementedError()
 
+    def score(self, x: DNDarray, y: DNDarray) -> float:
+        """
+        Return the classification accuracy for the given samples.
+
+        Parameters
+        ----------
+        x : DNDarray
+            Input data to predict on. Shape = (n_samples, n_features)
+        y : DNDarray
+            Ground-truth class labels. Shape = (n_samples,)
+        """
+        import heat as ht
+
+        predictions = self.predict(x)
+        if predictions.shape != y.shape:
+            y = y.reshape(predictions.shape)
+        score = ht.mean((predictions == y).astype(ht.float64))
+        return float(score.item())
+
 
 class TransformMixin:
     """
@@ -255,6 +274,30 @@ class RegressionMixin:
             Values to let the model predict. Shape = (n_samples, n_features)
         """
         raise NotImplementedError()
+
+    def score(self, x: DNDarray, y: DNDarray) -> float:
+        """
+        Return the coefficient of determination $R^2$ of the prediction.
+
+        Parameters
+        ----------
+        x : DNDarray
+            Input data to predict on. Shape = (n_samples, n_features)
+        y : DNDarray
+            Ground-truth target values. Shape = (n_samples,)
+        """
+        import heat as ht
+
+        predictions = self.predict(x)
+        if predictions.shape != y.shape:
+            y = y.reshape(predictions.shape)
+        ss_res = ht.sum((y - predictions) ** 2)
+        ss_tot = ht.sum((y - ht.mean(y)) ** 2)
+        ss_tot_value = float(ss_tot.item())
+        if ss_tot_value == 0.0:
+            return 1.0 if float(ss_res.item()) == 0.0 else 0.0
+        score = 1.0 - (float(ss_res.item()) / ss_tot_value)
+        return float(score)
 
 
 def is_classifier(estimator: object) -> bool:

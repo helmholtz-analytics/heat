@@ -135,6 +135,10 @@ class DNDarray:
         """
         return self.size
 
+    def numel(self) -> int:
+        """Return the total number of elements in the distributed array."""
+        return self.gnumel
+
     @property
     def gshape(self) -> tuple:
         """
