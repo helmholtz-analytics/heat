@@ -4,7 +4,7 @@ Constants module.
 
 import torch
 
-__all__ = ["e", "Euler", "inf", "Inf", "Infty", "Infinity", "nan", "NaN", "pi"]
+__all__ = ["e", "Euler", "inf", "Inf", "Infty", "Infinity", "nan", "NaN", "pi", "newaxis"]
 
 # infinity
 INF = float("inf")
@@ -37,3 +37,5 @@ e = E
 """Euler's number, Euler's constant (:math:`e`)."""
 Euler = E
 """Euler's number, Euler's constant (:math:`e`)."""
+newaxis = None
+"""An alias for ``None`` which is useful for indexing arrays."""

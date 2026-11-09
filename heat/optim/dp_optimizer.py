@@ -683,7 +683,7 @@ class DASO:
 
     @staticmethod
     @torch.no_grad()
-    @torch.jit.script
+    @torch.compile
     def __pack_data(
         jtparams: torch.Tensor, iter_dict: Dict[str, torch.Tensor], cast: int
     ) -> torch.Tensor:

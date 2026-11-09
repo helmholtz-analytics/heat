@@ -8,9 +8,9 @@ import numpy as np
 import torch
 import warnings
 
-from typing import Any, Iterable, Type, List, Callable, Union, Tuple, Sequence, Optional
+from typing import Any, Iterable, Type, List, Callable, Union, Tuple, Sequence, Optional, NamedTuple
 
-from .communication import MPI, Communication
+from .communication import MPI, Communication, MPI_SELF
 from .dndarray import DNDarray
 
 from . import arithmetics
@@ -53,6 +53,9 @@ __all__ = [
     "row_stack",
     "shape",
     "sort",
+    "sort_complex",
+    "vectorized_sort",
+    "take",
     "split",
     "squeeze",
     "stack",
@@ -61,8 +64,12 @@ __all__ = [
     "topk",
     "unfold",
     "unique",
+    "unique_inverse",
+    "unique_values",
     "vsplit",
     "vstack",
+    "TakeRequest",
+    "Itake",
 ]
 
 
@@ -148,7 +155,7 @@ DNDarray.balance = lambda self, copy=False: balance(self, copy)
 DNDarray.balance.__doc__ = balance.__doc__
 
 
-def broadcast_arrays(*arrays: DNDarray) -> List[DNDarray]:
+def broadcast_arrays(*arrays: DNDarray) -> tuple[DNDarray, ...]:
     """
     Broadcasts one or more arrays against one another. Returns the broadcasted arrays, distributed along the split dimension of the first array in the list. If the first array is not distributed, the output will not be distributed.
 
@@ -214,24 +221,23 @@ def broadcast_arrays(*arrays: DNDarray) -> List[DNDarray]:
     # broadcast the local torch tensors: this is a view of the original data
     broadcasted = torch.broadcast_tensors(*t_arrays)
 
-    out = []
-    for i in range(len(broadcasted)):
-        out.append(
-            DNDarray(
-                broadcasted[i],
-                gshape=output_shape,
-                dtype=arrays[i].dtype,
-                split=output_split,
-                device=arrays[i].device,
-                comm=output_comm,
-                balanced=output_balanced,
-            )
+    out = tuple(
+        DNDarray(
+            broadcasted[i],
+            gshape=output_shape,
+            dtype=arrays[i].dtype,
+            split=output_split,
+            device=arrays[i].device,
+            comm=output_comm,
+            balanced=output_balanced,
         )
+        for i in range(len(broadcasted))
+    )
 
     return out
 
 
-def broadcast_to(x: DNDarray, shape: Tuple[int, ...]) -> DNDarray:
+def broadcast_to(x: DNDarray, /, shape: tuple[int, ...]) -> DNDarray:
     """
     Broadcasts an array to a specified shape. Returns a view of ``x`` if ``x`` is not distributed, otherwise it returns a broadcasted, distributed, load-balanced copy of ``x``.
 
@@ -2616,7 +2622,9 @@ def sort(
     The sorting is not stable which means that equal elements in the result may have a different ordering than in the
     original array.
     Sorting with `axis==a.split` needs a lot of communication between the processes of MPI.
-    Returns a tuple `(values, indices)` with the sorted local results and the indices of the elements in the original data
+    Returns a tuple `(values, indices)` with the sorted local results and the indices of the elements in the original data.
+
+    Sorting complex arrays is stable and does not support `out` parameter.
 
     Parameters
     ----------
@@ -2676,6 +2684,14 @@ def sort(
         axis = 0
 
     descending = descending or False
+
+    if types.heat_type_is_complexfloating(a.dtype):
+        if out is not None:
+            warnings.warn("[ht.sort] `out` parameter gets ignored for complex arrays.")
+
+        return sort_complex(
+            a, axis=axis, descending=descending, return_sort_indices=return_sort_indices
+        )
 
     if not a.is_distributed() or axis != a.split:
         # sorting is not affected by split -> we can just sort along the axis
@@ -2897,6 +2913,561 @@ def sort(
         if return_sort_indices:
             return tensor, return_indices
         return tensor
+
+
+def sort_complex(
+    a: DNDarray,
+    axis: int = -1,
+    descending: bool = False,
+    resplit_result: bool = True,
+    return_sort_indices: bool = False,
+) -> DNDarray | tuple[DNDarray, DNDarray]:
+    """
+    Stable complex sorting for DNDarrays.
+
+    Parameters
+    ----------
+    a : DNDarray
+        The array to be sorted.
+    axis : int, optional
+        The axis along which to sort. If the split dimension matches the axis,
+        the array is resplit to another axis.
+    descending : bool, optional
+        Whether to sort in descending order. Default is False.
+    resplit_result : bool, optional
+        Whether to resplit the final sorted array back to the original split
+        axis of the input array after sorting. Default is True.
+    return_sort_indices : bool, optional
+        If True, and the array is one dimensional returns also the global sort indices.
+        If the array has more than one dimension, gives the local indices on the sorting axis.
+        Default is False.
+
+    Returns
+    -------
+    DNDarray
+        The sorted DNDarray or the sorted DNDarray and sort indices.
+    """
+    sanitation.sanitize_in(a)
+
+    if not isinstance(axis, int):
+        raise ValueError(f"'axis' must be integer, not {type(axis)}.")
+    if not isinstance(descending, bool):
+        raise ValueError(f"'descending' must be bool, not {type(descending)}.")
+    if not isinstance(resplit_result, bool):
+        raise ValueError(f"'resplit_result' must be bool, not {type(resplit_result)}.")
+    if not isinstance(return_sort_indices, bool):
+        raise ValueError(f"'return_sort_indices' must be bool, not {type(return_sort_indices)}.")
+    if a.ndim == 0:
+        raise ValueError("dndarray must have at least one dimension.")
+    if not (-a.ndim <= axis < a.ndim):
+        raise ValueError(f"{axis=} does not exist for array with {a.ndim} dimensions.")
+    if not types.heat_type_is_complexfloating(a.dtype):
+        raise ValueError(f"{a.dtype=} is not a complex type.")
+
+    if axis < 0:
+        axis += a.ndim
+
+    if a.ndim == 1:
+        view = torch.view_as_real(a.larray)
+        shape = a.gshape + (2,)
+        temp = DNDarray(
+            view,
+            gshape=shape,
+            dtype=types.canonical_heat_type(view.dtype),
+            split=a.split,
+            device=a.device,
+            comm=a.comm,
+            balanced=a.balanced,
+        )
+
+        idx = vectorized_sort(
+            temp,
+            axis=0,
+            descending=descending,
+            resplit_result=resplit_result,
+            return_sort_indices_instead=True,
+        )
+
+        assert not idx.is_distributed()
+
+        res = take(a, idx.larray)
+        if return_sort_indices:
+            return res, resplit(idx, res.split)
+        return res
+
+    # for nD arrays with n > 1, we must not split along the axis we sort along.
+    needs_resplit = a.split == axis and a.is_distributed()
+    if needs_resplit:
+        orthogonal_axis = (axis + 1) % a.ndim
+        a = resplit(a, orthogonal_axis)
+
+    larr = a.larray.transpose(axis, 0)
+    original_shape = larr.shape
+
+    larr_2d = larr.reshape(larr.shape[0], -1).clone()
+
+    if return_sort_indices:
+        larr_2d_idxs = torch.empty(larr_2d.shape, dtype=torch.int64, device=a.device.torch_device)
+
+    for i in range(larr_2d.shape[1]):
+        col = torch.view_as_real(larr_2d[:, i])
+
+        temp = factories.array(col, split=None, device=a.device, comm=MPI_SELF)
+        idx = vectorized_sort(
+            temp,
+            axis=0,
+            descending=descending,
+            resplit_result=False,
+            return_sort_indices_instead=True,
+        )
+
+        assert not idx.is_distributed()
+
+        if return_sort_indices:
+            larr_2d_idxs[:, i] = idx.larray
+        larr_2d[:, i] = larr_2d[idx.larray, i]
+
+    if return_sort_indices:
+        larr_idx = larr_2d_idxs.reshape(original_shape)
+
+        res_dnd_idx = factories.array(
+            larr_idx.transpose(0, axis).contiguous(), is_split=a.split, device=a.device, comm=a.comm
+        )
+
+    larr = larr_2d.reshape(original_shape)
+
+    res_dnd = DNDarray(
+        larr.transpose(0, axis).contiguous(),
+        gshape=a.gshape,
+        dtype=a.dtype,
+        split=a.split,
+        device=a.device,
+        comm=a.comm,
+        balanced=a.balanced,
+    )
+
+    if needs_resplit and resplit_result:
+        res_dnd = resplit(res_dnd, axis)
+
+        if return_sort_indices:
+            res_dnd_idx = resplit(res_dnd_idx, axis)
+
+    if return_sort_indices:
+        return res_dnd, res_dnd_idx
+    return res_dnd
+
+
+def vectorized_sort(
+    a: DNDarray,
+    axis: int = -1,
+    descending: bool = False,
+    resplit_result: bool = True,
+    return_sort_indices_instead: bool = False,
+) -> DNDarray:
+    """
+    Performs a stable lexicographical sort along the specified axis.
+
+    The array is transposed into an MxN matrix, where M is the
+    number of elements along the target `axis`, and N is the product of all
+    remaining dimensions. The lexicographical sorting prioritizes the leftmost
+    columns first, which acts as the primary sort key, with subsequent
+    columns acting as secondary, tertiary, etc., keys.
+
+    Parameters
+    ----------
+    a : DNDarray
+        The array to be sorted.
+    axis : int, optional
+        The axis along which to sort. If the split dimension of the array does
+        not match this axis, the array is resplit.
+        Default is -1 (last axis).
+    descending : bool, optional
+        Whether to sort in descending order. Default is False.
+    resplit_result : bool, optional
+        Whether to resplit the final sorted array back to the original split
+        axis of the input array after rows are distributed. Default is True.
+    return_sort_indices_instead : bool, optional
+        If True, bypasses the row exchange and returns only the global sort indices. Default is False.
+
+    Returns
+    -------
+    DNDarray
+        Either the final sorted array, or if `return_sort_indices_instead` is True, the global sort indices.
+    """
+    sanitation.sanitize_in(a)
+
+    if not isinstance(axis, int):
+        raise ValueError(f"'axis' must be integer, not {type(axis)}.")
+    if not isinstance(descending, bool):
+        raise ValueError(f"'descending' must be bool, not {type(descending)}.")
+    if not isinstance(resplit_result, bool):
+        raise ValueError(f"'resplit_result' must be bool, not {type(resplit_result)}.")
+    if not isinstance(return_sort_indices_instead, bool):
+        raise ValueError(
+            f"'return_sort_indices_instead' must be bool, not {type(return_sort_indices_instead)}."
+        )
+
+    if a.ndim == 0:
+        raise ValueError("dndarray must have at least one dimension.")
+
+    if not (-a.ndim <= axis < a.ndim):
+        raise ValueError(f"{axis=} does not exist for array with {a.ndim} dimensions.")
+
+    def _permute_indices(data, idx):
+        sort_idx = torch.argsort(data[idx], stable=True, descending=descending)
+        return idx[sort_idx]
+
+    # early out for non-distributed input
+    if not a.is_distributed():
+        local_data = a.larray.transpose(axis, 0)
+        shape = local_data.shape
+
+        local_data = local_data.reshape(shape[0], -1)
+        indices = torch.arange(0, local_data.shape[0]).to(local_data.device)
+        for i in range(local_data.shape[-1] - 1, -1, -1):
+            indices = _permute_indices(local_data[:, i], indices)
+
+        if return_sort_indices_instead:
+            return factories.array(indices, split=None, device=a.device, comm=a.comm)
+
+        local_data = local_data.reshape(shape)[indices].transpose(axis, 0)
+        return factories.array(local_data, split=a.split, device=a.device, comm=a.comm)
+
+    # distributed vectorized sort
+    original_split = a.split
+    original_a = a
+    if axis != a.split:
+        a = resplit(a, axis)
+
+    comm = a.comm
+    rank = comm.rank
+    size = comm.size
+
+    local_data = a.larray.transpose(axis, 0)
+
+    is_1d = local_data.ndim == 1
+    if is_1d:
+        local_data = local_data.reshape(-1, 1)
+
+    original_shape = local_data.shape
+    inner_shape = original_shape[1:]
+
+    local_count = local_data.shape[0]
+    total_rows = a.gshape[axis]
+    block_length = np.prod(inner_shape)
+
+    send_buf = torch.tensor([local_count], dtype=torch.int64, device=local_data.device)
+    local_counts = torch.empty(size, dtype=torch.int64)
+    comm.Gather(send_buf, local_counts, root=0)
+
+    if rank == 0:
+        send_counts = local_counts.numpy()
+        send_displ = np.insert(np.cumsum(send_counts)[:-1], 0, 0)
+
+        buffer = torch.empty((total_rows,), dtype=local_data.dtype, device=local_data.device)
+        recv_args = (buffer, send_counts, send_displ)
+    else:
+        buffer = None
+        recv_args = (torch.empty(0, dtype=torch.int64), None, None)
+
+    def _gather_column(flat_idx: int):
+        idx = np.unravel_index(flat_idx, inner_shape)
+        slice_tuple = (slice(None),) + tuple(idx)
+
+        local_col = local_data[slice_tuple].contiguous()
+        comm.Gatherv(local_col, recv_args, root=0)
+        return buffer
+
+    indices = torch.arange(0, total_rows, dtype=torch.int64, device=local_data.device)
+
+    for i in range(block_length - 1, -1, -1):
+        buffer = _gather_column(i)
+        if rank == 0:
+            indices = _permute_indices(buffer, indices)
+
+    comm.Bcast(indices, root=0)
+
+    if return_sort_indices_instead:
+        return factories.array(indices, split=None, device=a.device, comm=a.comm)
+
+    res = take(original_a, indices, axis=axis)
+    if res.split != original_split and resplit_result:
+        return resplit(res, original_split)
+    return res
+
+
+def take(
+    a: DNDarray,
+    indices: torch.Tensor,
+    axis: int | None = None,
+) -> DNDarray:
+    """
+    Take elements from an array along an axis.
+
+    When selecting along the split axis of a distributed array, exchange data and
+    balance the result across processes. Otherwise, select values locally. This
+    function waits for the operation to complete before returning the result.
+
+    Parameters
+    ----------
+    a : DNDarray
+        The source array.
+    indices : torch.Tensor
+        A 1D tensor with the indices of the values to extract.
+    axis : int or None, optional
+        The axis along which to select values. If ``None``, flatten the array before
+        selecting values. Default is ``None``.
+
+    Returns
+    -------
+    DNDarray
+        The array containing the selected values.
+    """
+    return Itake(a, indices, axis).Wait()
+
+
+class TakeRequest:
+    """
+    Represent a pending or completed :func:`Itake` operation.
+
+    Parameters
+    ----------
+    mpi_request : MPIRequest or MPI.Request, optional
+        Pending MPI communication request. Default is ``None``.
+    finalize : Callable[[], DNDarray], optional
+        Callback that assembles the result after communication completes. Required when
+        ``mpi_request`` is provided or no completed ``result`` is supplied.
+    result : DNDarray, optional
+        Already available result. If provided, the request is marked as completed.
+        Default is ``None``.
+    """
+
+    def __init__(self, mpi_request=None, finalize=None, result=None):
+        assert mpi_request is None or finalize is not None
+
+        self._mpi_request = mpi_request
+        self._finalize = finalize
+        self._result = result
+        self._done = result is not None
+
+    def Wait(self, status=None):
+        """
+        Wait for communication to complete and return the selected array.
+
+        Parameters
+        ----------
+        status : MPI.Status, optional
+            Status object passed to the underlying MPI request when waiting for pending
+            communication. Default is ``None``.
+
+        Returns
+        -------
+        DNDarray
+            Result of the :func:`Itake` operation.
+
+        Notes
+        -----
+        The result is finalized once and cached. Subsequent calls return the cached array
+        without repeating communication or finalization.
+        """
+        if self._done:
+            return self._result
+
+        if self._mpi_request is not None:
+            self._mpi_request.Wait(status)
+
+        self._result = self._finalize()
+        self._finalize = None
+        self._done = True
+
+        return self._result
+
+    def Test(self, status=None):
+        """
+        Check whether communication has completed without waiting for it.
+
+        Parameters
+        ----------
+        status : MPI.Status, optional
+            Status object passed to the underlying MPI request when testing pending
+            communication. Default is ``None``.
+
+        Returns
+        -------
+        bool
+            ``True`` if the request is complete, otherwise ``False``. When communication
+            is complete, the result is finalized and cached before returning ``True``.
+
+        Notes
+        -----
+        Retrieve the completed array with :meth:`Wait`. Requests without pending MPI
+        communication are finalized immediately if necessary and return ``True``.
+        """
+        if self._done:
+            return True
+
+        if self._mpi_request is None:
+            finished = True
+        else:
+            finished = self._mpi_request.Test(status)
+
+        if finished:
+            self.Wait()
+
+        return finished
+
+
+def Itake(
+    a: DNDarray,
+    indices: torch.Tensor,
+    axis: int | None = None,
+) -> TakeRequest:
+    """
+    Initiate a non-blocking selection of elements from an array along an axis.
+
+    When selecting along the split axis of a distributed array, start a non-blocking
+    data exchange and balance the result across processes. Otherwise, select values
+    locally and return a completed request.
+
+    Parameters
+    ----------
+    a : DNDarray
+        The source array.
+    indices : torch.Tensor
+        A 1D tensor with the indices of the values to extract.
+    axis : int or None, optional
+        The axis along which to select values. If ``None``, flatten the array before
+        selecting values. Default is ``None``.
+
+    Returns
+    -------
+    TakeRequest
+        Request representing the selection operation. Call its :meth:`~TakeRequest.Wait`
+        method to complete the operation and retrieve the resulting DNDarray. Its
+        :meth:`~TakeRequest.Test` method checks for completion without waiting.
+    """
+    sanitation.sanitize_in(a)
+
+    if not isinstance(axis, int) and axis is not None:
+        raise ValueError(f"'axis' must be integer or None, not {type(axis)}.")
+    if axis is not None and not (-a.ndim <= axis < a.ndim):
+        raise ValueError(f"{axis=} does not exist for array with {a.ndim} dimensions.")
+    if not isinstance(indices, torch.Tensor):
+        raise ValueError(f"'indices' must be a PyTorch Tensor, not {type(indices)}.")
+    if indices.ndim == 0:
+        raise ValueError("The index Tensor cannot have 0 dimensions.")
+    if indices.ndim > 1:
+        raise NotImplementedError("'indices' must be one dimensional.")
+
+    if axis is None:
+        a = a.flatten()
+        axis = 0
+    elif axis < 0:
+        axis += a.ndim
+
+    indices = indices.to(a.larray.device)
+
+    out_gshape = list(a.gshape)
+    out_gshape[axis] = indices.numel()
+    out_gshape = tuple(out_gshape)
+
+    if not a.is_distributed() or axis != a.split:
+        local_data = torch.index_select(a.larray, axis, indices)
+
+        result = DNDarray(
+            local_data,
+            gshape=out_gshape,
+            dtype=a.dtype,
+            split=a.split,
+            device=a.device,
+            comm=a.comm,
+            balanced=a.balanced,
+        )
+
+        return TakeRequest(result=result)
+
+    assert axis == a.split  # any other cases should have been handled earlier
+
+    comm = a.comm
+    rank = comm.rank
+    size = comm.size
+
+    local_data = a.larray.transpose(axis, 0)
+    original_shape = local_data.shape
+    inner_shape = original_shape[1:]
+    block_length = np.prod(inner_shape, dtype=np.int64)
+
+    out_total = indices.numel()
+    out_bounds = [comm.chunk((out_total,), split=0, rank=i)[0] for i in range(size)]
+    out_bounds.append(out_total)
+
+    in_total = a.gshape[axis]
+    in_bounds = [comm.chunk((in_total,), split=0, rank=i)[0] for i in range(size)]
+    in_bounds.append(in_total)
+    in_bounds_tensor = torch.tensor(in_bounds, device=indices.device, dtype=torch.int64)
+
+    local_start = in_bounds[rank]
+    local_stop = in_bounds[rank + 1]
+
+    local_out_start = out_bounds[rank]
+    local_out_stop = out_bounds[rank + 1]
+
+    needed_indices = indices[local_out_start:local_out_stop]
+
+    send_counts_tensor = torch.zeros(size, dtype=torch.int64, device=indices.device)
+    send_indices_list = []
+
+    for r in range(size):
+        r_wants = indices[out_bounds[r] : out_bounds[r + 1]]
+        mask = (r_wants >= local_start) & (r_wants < local_stop)
+
+        send_counts_tensor[r] = mask.sum()
+        send_indices_list.append(r_wants[mask] - local_start)
+
+    send_indices_tensor = torch.cat(send_indices_list)
+
+    src_ranks = torch.bucketize(needed_indices, in_bounds_tensor, right=True) - 1
+    recv_counts_tensor = torch.bincount(src_ranks, minlength=size)
+
+    send_counts = (send_counts_tensor * block_length).cpu().numpy().astype(np.int64)
+    recv_counts = (recv_counts_tensor * block_length).cpu().numpy().astype(np.int64)
+
+    send_displ = np.insert(np.cumsum(send_counts, dtype=np.int64)[:-1], 0, 0)
+    recv_displ = np.insert(np.cumsum(recv_counts, dtype=np.int64)[:-1], 0, 0)
+
+    send_data = local_data[send_indices_tensor].reshape(-1).contiguous()
+    recv_buf = torch.empty(
+        (recv_counts.sum().item(),), dtype=local_data.dtype, device=local_data.device
+    )
+
+    mpi_request = comm.Ialltoallv(
+        (send_data, send_counts, send_displ),
+        (recv_buf, recv_counts, recv_displ),
+    )
+
+    sort_idx = torch.argsort(src_ranks, stable=True)
+    inv_sort_idx = torch.empty_like(sort_idx)
+    inv_sort_idx[sort_idx] = torch.arange(sort_idx.size(0), device=sort_idx.device)
+
+    def finalize():
+        ordered = recv_buf.view(-1, *inner_shape)[inv_sort_idx]
+
+        local_result = ordered.transpose(0, axis)
+
+        return DNDarray(
+            local_result,
+            gshape=out_gshape,
+            dtype=a.dtype,
+            split=a.split,
+            device=a.device,
+            comm=a.comm,
+            balanced=True,
+        )
+
+    return TakeRequest(
+        mpi_request=mpi_request,
+        finalize=finalize,
+    )
 
 
 def split(x: DNDarray, indices_or_sections: Iterable, axis: int = 0) -> List[DNDarray, ...]:
@@ -3642,6 +4213,52 @@ DNDarray.unique: Callable[[DNDarray, bool, bool, int], Tuple[DNDarray, torch.ten
 DNDarray.unique.__doc__ = unique.__doc__
 
 
+def unique_inverse(x: DNDarray, /) -> Tuple[DNDarray, DNDarray]:
+    """
+    Returns the unique elements of an input array ``x`` and the indices from the
+    set of unique elements that reconstruct ``x``.
+
+    Parameters
+    ----------
+    x : Array
+        Input array. If ``x`` has more than one dimension, the function flattens ``x``
+        and returns the unique elements of the flattened array.
+
+    See Also
+    --------
+    :func:`unique`
+
+    Examples
+    --------
+    >>> x = ht.array([[3, 2], [1, 3]])
+    >>> uniq = ht.unique_inverse(x)
+    >>> uniq.values
+    DNDarray(MPI-rank: 0, Shape: (3,), Split: None, Local Shape: (3,), Device: cpu:0, Dtype: int64, Data:
+         [1, 2, 3])
+    >>> uniq.inverse_indices
+    DNDarray(MPI-rank: 0, Shape: (2, 2), Split: None, Local Shape: (2, 2), Device: cpu:0, Dtype: int64, Data:
+         [[2, 1],
+          [0, 2]])
+    """
+    result = unique(x, return_inverse=True)
+    return NamedTuple("UniqueInverseResult", [("values", DNDarray), ("inverse_indices", DNDarray)])(
+        *result
+    )
+
+
+def unique_values(x: DNDarray, /) -> DNDarray:
+    """
+    Returns the unique elements of an input array ``x``.
+
+    Parameters
+    ----------
+    x : DNDarray
+        Input array. If ``x`` has more than one dimension, the function flattens ``x``
+        and returns the unique elements of the flattened array.
+    """
+    return unique(x)
+
+
 def unfold(a: DNDarray, axis: int, size: int, step: int = 1):
     """
     Returns a DNDarray which contains all slices of size `size` in the axis `axis`.
@@ -3859,7 +4476,9 @@ def resplit(arr: DNDarray, axis: Optional[int] = None) -> DNDarray:
             arr.shape, dtype=arr.dtype.torch_type(), device=arr.device.torch_device
         )
         counts, displs = arr.counts_displs()
-        arr.comm.Allgatherv(arr.larray, (gathered, counts, displs), recv_axis=arr.split)
+        arr.comm.Allgatherv(
+            arr.larray.contiguous(), (gathered, counts, displs), recv_axis=arr.split
+        )
         new_arr = factories.array(
             gathered, is_split=axis, device=arr.device, comm=arr.comm, dtype=arr.dtype
         )

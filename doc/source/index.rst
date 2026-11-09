@@ -129,7 +129,7 @@ Getting started
 
       For Spack, EasyBuild, and containerized setups, refer to our comprehensive deployment guide.
 
-      .. button-link:: /quick_start.html
+      .. button-link:: quick_start.html
          :color: primary
          :class: sd-btn-primary sd-btn-block mt-3
 

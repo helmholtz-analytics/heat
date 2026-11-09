@@ -26,14 +26,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
         with:
           egress-policy: audit
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.inputs.base_branch }}
-      - uses: release-drafter/release-drafter@eada3c96a64734dd381cfbda23511034e328ddb0 # v7.6.0
+      - uses: release-drafter/release-drafter@978bb0b30c5ee8cdd332ced253758157150d43f0 # v7.10.0
         id: release_drafter
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -100,13 +100,17 @@ jobs:
           { echo -e "# v${MAJOR}.${MINOR}.${MICRO} - ${{github.event.inputs.title}}\n${{ steps.release_drafter.outputs.body}}\n"; cat CHANGELOG.md; } > tmp.md
           mv tmp.md CHANGELOG.md
 
+          # Update version and dateModified in codemeta.json
+          TODAY=$(date '+%Y-%m-%d')
+          jq --arg v "$VERSION" --arg d "$TODAY" '.version = $v | .dateModified = $d' codemeta.json > codemeta.tmp && mv codemeta.tmp codemeta.json
+
           # Git configuration with anonymous user and email
           git config --global user.email ""
           git config --global user.name "Heat Release Bot"
 
           # Commit the changes
-          git add heat/core/version.py CHANGELOG.md
-          git commit -m "Bump version to $VERSION"
+          git add heat/core/version.py CHANGELOG.md codemeta.json
+          git commit -m "Bump version to $VERSION in code, changelog, and codemeta"
 
           # Commit Dockerfile changes
           git add docker/Dockerfile.release
@@ -126,6 +130,8 @@ jobs:
 
           TODO:
           - [x] Update version.py
+          - [x] Update codemeta.json
+          - [ ] Run `python scripts/numpy_coverage_tables.py` and commit the updated `coverage_tables.md`.
           - [ ] Ensure Citation file `CITATION.cff` is up to date.
           - [ ] Ensure the Changelog is up to date.
 

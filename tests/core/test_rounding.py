@@ -97,6 +97,18 @@ class TestRounding(TestCase):
         self.assertEqual(float32_unsplit_absolute_values_fabs.sum(), 110.5)
         self.assertEqual(float32_unsplit_absolute_values_fabs.dtype, ht.float32)
 
+    def test_abs_dunder(self):
+        for dtype in (ht.int32, ht.float32):
+            for split in (None, 0):
+                values = ht.array([-2, -1, 0, 1, 2], dtype=dtype, split=split)
+                result = abs(values)
+                values_numpy = values.numpy()
+                expected = abs(values_numpy)
+
+                self.assert_array_equal(result, expected)
+                self.assertEqual(result.dtype, dtype)
+                self.assertEqual(result.split, split)
+
     def test_ceil(self):
         start, end, step = -5.0, 5.0, 1.4
         float_dtype = torch.float32 if self.is_mps else torch.float64
