@@ -5,7 +5,7 @@ Implements polar decomposition (PD)
 import numpy as np
 import collections
 import torch
-from typing import Type, Callable, Dict, Any, TypeVar, Union, Tuple
+from typing import Type, Callable, Dict, Any, TypeVar, Union, Tuple, Optional
 
 from ..communication import MPI
 from ..dndarray import DNDarray
@@ -121,7 +121,7 @@ def _in_place_qr_with_q_only(A: DNDarray, procs_to_merge: int = 2) -> None:
 
                 if A.comm.rank > i:
                     # subtract the contribution of the current block of columns from the remaining columns
-                    R_loc = torch.transpose(Q_buf, -2, -1) @ A.larray
+                    R_loc = Q_buf.mH @ A.larray
                     A.larray -= Q_buf @ R_loc
                     del R_loc, Q_buf
 
@@ -132,27 +132,30 @@ def _in_place_qr_with_q_only(A: DNDarray, procs_to_merge: int = 2) -> None:
 
 def polar(
     A: DNDarray,
-    r: int = None,
+    r: Optional[int] = None,
     calcH: bool = True,
     condition_estimate: float = 1.0e16,
     silent: bool = True,
     r_max: int = 8,
-) -> Tuple[DNDarray, DNDarray]:
+) -> Union[DNDarray, Tuple[DNDarray, DNDarray]]:
     """
-    Computes the so-called polar decomposition of the input 2D DNDarray ``A``, i.e., it returns the orthogonal matrix ``U`` and the symmetric, positive definite
-    matrix ``H`` such that ``A = U @ H``.
+    Computes the polar decomposition of the input 2D DNDarray ``A`` such that ``A = U @ H``.
+    The columns of ``U`` are orthonormal (unitary if square), and ``H`` is Hermitian
+    positive semidefinite. If ``A`` has full column rank, ``H`` is positive definite.
 
     Input
     -----
     A : ht.DNDarray,
         The input matrix for which the polar decomposition is computed;
-        must be two-dimensional, of data type float32 or float64, and must have at least as many rows as columns.
+        must be two-dimensional, of data type float32, float64, complex64, or complex128,
+        and must have at least as many rows as columns.
     r : int, optional, default: None
         The parameter r used in the Zolotarev-PD algorithm; if provided, must be an integer between 1 and 8 that divides the number of MPI processes.
         Higher values of r lead to faster convergence, but memory consumption is proportional to r.
         If not provided, the largest 1 <= r <= r_max that divides the number of MPI processes is chosen.
     calcH : bool, optional, default: True
-        If True, the function returns the symmetric, positive definite matrix H. If False, only the orthogonal matrix U is returned.
+        If True, the function also returns the Hermitian positive semidefinite matrix H.
+        If False, only U is returned.
     condition_estimate : float, optional, default: 1.e16.
         This argument allows to provide an estimate for the condition number of the input matrix ``A``, if such estimate is already known.
         If a positive number greater than 1., this value is used as an estimate for the condition number of A.
@@ -183,14 +186,17 @@ def polar(
             f"Input ``A`` must have at least as many rows as columns, but has shape {A.shape}."
         )
 
-    # check if A is a real floating point matrix and choose tolerances tol accordingly
-    if A.dtype == types.float32:
+    # Use the corresponding real precision for tolerances and iteration coefficients.
+    if A.dtype in (types.float32, types.complex64):
         tol = 1.19e-7
-    elif A.dtype == types.float64:
+        real_dtype = types.float32
+    elif A.dtype in (types.float64, types.complex128):
         tol = 2.22e-16
+        real_dtype = types.float64
     else:
         raise TypeError(
-            f"Input ``A`` must be of data type float32 or float64 but has data type {A.dtype}"
+            "Input ``A`` must be of data type float32, float64, complex64, or complex128 "
+            f"but has data type {A.dtype}"
         )
 
     # check if input for r is reasonable
@@ -226,13 +232,13 @@ def polar(
     if not A.is_distributed():
         U, s, vh = torch.linalg.svd(A.larray, full_matrices=False)
         U @= vh
-        H = vh.T @ torch.diag(s) @ vh
         if calcH:
-            return factories.array(U, is_split=None, comm=A.comm), factories.array(
-                H, is_split=None, comm=A.comm
+            H = (vh.mH * s) @ vh
+            return factories.array(U, is_split=None, comm=A.comm, device=A.device), factories.array(
+                H, is_split=None, comm=A.comm, device=A.device
             )
         else:
-            return factories.array(U, is_split=None, comm=A.comm)
+            return factories.array(U, is_split=None, comm=A.comm, device=A.device)
 
     alpha = _estimate_largest_singularvalue(A).item()
 
@@ -276,7 +282,7 @@ def polar(
 
     # parameters and coefficients, see Ref. [1] for their meaning
     ell = 1.0 / kappa
-    c, a, Mhat = _compute_zolotarev_coefficients(r, ell, A.device, dtype=A.dtype)
+    c, a, Mhat = _compute_zolotarev_coefficients(r, ell, A.device, dtype=real_dtype)
 
     itmax = _zolopd_n_iterations(r, kappa)
     while it < itmax:
@@ -294,7 +300,7 @@ def polar(
             Q, R = qr(X)
             del R
             Q1 = Q[: A.shape[0], :].balance()
-            Q2 = Q[A.shape[0] :, :].transpose().balance()
+            Q2 = Q[A.shape[0] :, :].conj().transpose().balance()
             Q1Q2 = matmul(Q1, Q2)
             del Q1, Q2
             X = X[: A.shape[0], :].balance()
@@ -302,7 +308,7 @@ def polar(
         else:
             _in_place_qr_with_q_only(X)
             Q1 = X[: A.shape[0], :].balance()
-            Q2 = X[A.shape[0] :, :].transpose().balance()
+            Q2 = X[A.shape[0] :, :].conj().transpose().balance()
             del X
             Q1Q2 = matmul(Q1, Q2)
             del Q1, Q2
@@ -330,7 +336,7 @@ def polar(
             ell *= Mhat.item() * ellold
             if ell >= 1.0:
                 ell = 1.0 - tol
-            c, a, Mhat = _compute_zolotarev_coefficients(r, ell, A.device, dtype=A.dtype)
+            c, a, Mhat = _compute_zolotarev_coefficients(r, ell, A.device, dtype=real_dtype)
         else:
             if not silent:
                 if A.comm.rank == 0:
@@ -363,8 +369,8 @@ def polar(
 
     # postprocessing: compute H if requested
     if calcH:
-        H = matmul(U.T, A)
-        H = 0.5 * (H + H.T.resplit(H.split))
+        H = matmul(U.conj().T, A)
+        H = 0.5 * (H + H.conj().T.resplit(H.split))
         return U, H.resplit(A.split)
     else:
         return U
