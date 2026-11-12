@@ -13,16 +13,19 @@ class TestAffine:
         TestCase.setUpClass()
 
         BULK = 5
-        ht.random.seed = 149156
+
         # matrix needs identity on color axis. color is last dimension
+
         # cls.offset_2d = ht.random.random((3), dtype=ht.float32) * 10 - 5
         # cls.offset_2d[2] = 0
         cls.offset_2d = ht.array([4.4599, -1.9924, 0.0000], dtype=ht.float32)
+
         # cls.offset_3d = ht.random.random((4), dtype=ht.float32) * 10 - 5
         # cls.offset_3d[3] = 0
         cls.offset_3d = ht.array([4.9231, -2.4895, -3.5396, 0.0000], dtype=ht.float32)
-        cls.offset_3d_bulk = ht.random.random((BULK, 4), dtype=ht.float32) * 10 - 5
-        cls.offset_3d_bulk[:, 3] = 0
+
+        # cls.offset_3d_bulk = ht.random.random((BULK, 4), dtype=ht.float32) * 10 - 5
+        # cls.offset_3d_bulk[:, 3] = 0
         cls.offset_3d_bulk = ht.array(
             [
                 [-0.89095, -0.22055, 1.23815, 0.0000],
@@ -34,10 +37,10 @@ class TestAffine:
             dtype=ht.float32,
         )
 
-        cls.image_2d_1 = create_checker((64, 64), 8, min_value=50, max_value=200)
-        cls.image_2d_2 = create_checker((64, 64), 4, min_value=50, max_value=200)
-        cls.image_3d_1 = create_checker((32, 64, 64), 8, min_value=50, max_value=200)
-        cls.image_3d_2 = create_checker((32, 64, 64), 4, min_value=50, max_value=200)
+        cls.image_2d_1 = create_checker((64, 64), 8, min_value=50, max_value=200, dtype=ht.float32)
+        cls.image_2d_2 = create_checker((64, 64), 4, min_value=50, max_value=200, dtype=ht.float32)
+        cls.image_3d_1 = create_checker((32, 64, 64), 8, min_value=50, max_value=200, dtype=ht.float32)
+        cls.image_3d_2 = create_checker((32, 64, 64), 4, min_value=50, max_value=200, dtype=ht.float32)
         cls.image_3d_bulk = create_checker(
             (BULK, 32, 32, 64), 8, min_value=50, max_value=200
         )
@@ -54,6 +57,8 @@ class TestAffine:
             dtype=ht.float32,
         )
 
+        cls.matrix_2d_offset = ht.hstack((cls.matrix_2d, cls.offset_2d[:, None]))
+
         # cls.matrix_3d = ht.random.random((4, 4), dtype=ht.float32) * 4 - 2
         # cls.matrix_3d[:, 3] = ht.array([0, 0, 0, 1], dtype=ht.float32)
         # cls.matrix_3d[3, :] = ht.array([0, 0, 0, 1], dtype=ht.float32)
@@ -66,6 +71,8 @@ class TestAffine:
             ],
             dtype=ht.float32,
         )
+
+        cls.matrix_3d_offset = ht.hstack((cls.matrix_3d, cls.offset_3d[:, None]))
 
         # cls.matrix_3d_bulk = ht.random.random((BULK, 4, 4), dtype=ht.float32) * 4 - 2
         # cls.matrix_3d_bulk[:, :, 3] = ht.array([0, 0, 0, 1], dtype=ht.float32)
@@ -104,6 +111,11 @@ class TestAffine:
                 ],
             ],
             dtype=ht.float32,
+        )
+
+        offset_stack = ht.expand_dims(cls.offset_3d_bulk, cls.offset_3d_bulk.ndim)
+        cls.matrix_3d_bulk_offset = ht.concatenate(
+            [cls.matrix_3d_bulk, offset_stack], axis=(cls.matrix_3d_bulk.ndim - 1)
         )
 
         # expected results for splits for the specific matrix used:
@@ -169,67 +181,41 @@ class TestAffine:
         return zip(new_images, new_matrices, new_offsets, new_output_shapes), new_kwargs
 
     @staticmethod
-    def default_testing_setup(image, matrix, offset, tol, **kwargs):
+    def default_testing_setup(image, matrix, tol, **kwargs):
         scipy_args, scipy_kwargs = TestAffine.to_scipy_input(
-            image, matrix, **kwargs, offset=offset
+            image, matrix, **kwargs
         )
-        with_offset_result = affine.affine_transform(
-            image, matrix, offset=offset, **kwargs
-        )
-
-        with_offset_comparison = ndimg.affine_transform(
-            *next(scipy_args), **scipy_kwargs
-        )
-
-        assert np.allclose(
-            with_offset_result.numpy(), with_offset_comparison, rtol=0, atol=tol
-        )
-
-        if not (offset is None or isinstance(offset, float)):
-            matrix_affine = ht.hstack((matrix, offset[:, None]))
-            combined_result: ht.DNDarray = affine.affine_transform(
-                image, matrix_affine, **kwargs
-            )
-            scipy_args, scipy_kwargs = TestAffine.to_scipy_input(
-                image, matrix_affine, **kwargs
-            )
-            combined_comparison = ndimg.affine_transform(
-                *next(scipy_args), **scipy_kwargs
-            )
-
-            assert ht.equal(with_offset_result, combined_result)
-            assert np.allclose(
-                combined_result.numpy(), combined_comparison, rtol=0, atol=tol
-            )
+        result = affine.affine_transform(image, matrix, **kwargs)
+        comparison = ndimg.affine_transform(*next(scipy_args), **scipy_kwargs)
+        # visual_compare(result, comparison, has_bulk=False)
+        assert np.allclose(result.numpy(), comparison, rtol=0, atol=tol)
 
     @staticmethod
-    def rmse_testing_setup(image, matrix, offset, tol, **kwargs):
-        matrix_affine = ht.hstack((matrix, offset[:, None]))
-
-        result: ht.DNDarray = affine.affine_transform(image, matrix_affine, **kwargs)
-        comparison = ndimg.affine_transform(
-            image.numpy(), matrix.numpy(), offset=offset.numpy(), **kwargs
+    def rmse_testing_setup(image, matrix, tol, **kwargs):
+        scipy_args, scipy_kwargs = TestAffine.to_scipy_input(
+            image, matrix, **kwargs
         )
+        result: ht.DNDarray = affine.affine_transform(image, matrix, **kwargs)
+        comparison = ndimg.affine_transform(*next(scipy_args), **scipy_kwargs)
+
         error = root_mean_square_error(result.numpy(), comparison)
-        assert error < tol
+        assert error <= tol
 
     @staticmethod
-    def bulk_testing_setup(image, matrix, offset, tol, **kwargs):
-        with_offset_result: ht.DNDarray = affine.affine_transform(
-            image, matrix, offset=offset, **kwargs
+    def bulk_testing_setup(image, matrix, tol, **kwargs):
+        scipy_args, scipy_kwargs = TestAffine.to_scipy_input(
+            image, matrix, **kwargs
         )
 
-        scipy_args, scipy_kwargs = TestAffine.to_scipy_input(
-            image, matrix, **kwargs, offset=offset
-        )
-        with_offset_comparison = [
+        result: ht.DNDarray = affine.affine_transform(image, matrix, **kwargs)
+        comparison = [
             ndimg.affine_transform(*args, **scipy_kwargs) for args in scipy_args
         ]
 
-        for i in range(0, with_offset_result.shape[0]):
+        for i in range(0, result.shape[0]):
             assert np.allclose(
-                with_offset_result[i].numpy(),
-                with_offset_comparison[i],
+                result[i].numpy(),
+                comparison[i],
                 rtol=0,
                 atol=tol,
             )
@@ -259,20 +245,18 @@ class TestAffine:
     @pytest.mark.parametrize("mode", ["grid-constant", "mirror", "nearest"])
     def test_affine_2d(self, order, mode, out_shape):
         image = self.image_2d_1
-        matrix = self.matrix_2d
-        offset = self.offset_2d
+        matrix = self.matrix_2d_offset
         TestAffine.default_testing_setup(
-            image, matrix, offset, 0.05, order=order, mode=mode, output_shape=out_shape
+            image, matrix, 0.05, order=order, mode=mode, output_shape=out_shape
         )
 
     @pytest.mark.parametrize("order", [0, 1])
     @pytest.mark.parametrize("mode", ["grid-constant", "mirror", "nearest"])
     def test_affine_3d(self, order, mode):
         image = self.image_3d_1
-        matrix = self.matrix_3d
-        offset = self.offset_3d
+        matrix = self.matrix_3d_offset
         TestAffine.default_testing_setup(
-            image, matrix, offset, 0.05, order=order, mode=mode
+            image, matrix, 0.05, order=order, mode=mode
         )
 
     @pytest.mark.parametrize("out_shape", [None, (5, 16, 64, 128, 3)])
@@ -280,10 +264,9 @@ class TestAffine:
     @pytest.mark.parametrize("mode", ["grid-constant", "mirror", "nearest"])
     def test_affine_3d_bulk(self, order, mode, out_shape):
         image = self.image_3d_bulk
-        matrix = self.matrix_3d_bulk
-        offset = self.offset_3d_bulk
+        matrix = self.matrix_3d_bulk_offset
         TestAffine.bulk_testing_setup(
-            image, matrix, offset, 0.05, order=order, mode=mode, output_shape=out_shape
+            image, matrix, 0.05, order=order, mode=mode, output_shape=out_shape
         )
 
     @pytest.mark.parametrize("mode", ["grid-constant", "mirror", "nearest"])
@@ -330,10 +313,9 @@ class TestAffine:
     @pytest.mark.parametrize("mode", ["grid-constant", "mirror", "nearest"])
     def test_affine_2d_cubic(self, order, mode):
         image = self.image_2d_1
-        matrix = self.matrix_2d
-        offset = self.offset_2d
+        matrix = self.matrix_2d_offset
         TestAffine.rmse_testing_setup(
-            image, matrix, offset, tol=2.5, order=order, mode=mode
+            image, matrix, tol=2.5, order=order, mode=mode
         )
 
     @pytest.mark.parametrize("split", [2, 3])
@@ -369,19 +351,14 @@ class TestAffine:
     @pytest.mark.parametrize("cval", [128, 255])
     def test_cval(self, order, cval):
         image = self.image_2d_1
-        matrix = self.matrix_2d
-        offset = self.offset_2d
+        matrix = self.matrix_2d_offset
 
         mode = "grid-constant"  # cval only has effect in this mode
-        TestAffine.rmse_testing_setup(
-            image, matrix, offset, 0.005, cval=cval, mode=mode, order=order
-        )
         TestAffine.default_testing_setup(
-            image, matrix, offset, 0.005, cval=cval, mode=mode, order=order
+            image, matrix, tol=0.005, cval=cval, mode=mode, order=order
         )
 
     def test_split_edge_cases(self):
-
         # should not throw error, because matrix gets resplit to None
         image = create_checker((10, 10), 2, dtype=ht.float32)
         matrix = ht.array(
@@ -444,9 +421,33 @@ class TestAffine:
         with pytest.raises(ValueError):
             affine.affine_transform(image, matrix, order=8)
 
-    @pytest.mark.parametrize("order", [0, 1])
+    @pytest.mark.parametrize("order", [0, 1, 3])
     @pytest.mark.parametrize("mode", ["grid-constant", "mirror", "nearest"])
     def test_offset(self, order, mode):
+        image = self.image_2d_1
+        matrix = self.matrix_2d
+        matrix_offset = self.matrix_2d_offset
+        offset = self.offset_2d
+
+        result_external_offset = affine.affine_transform(image, matrix, offset=offset, order=order, mode=mode)
+        result_internal_offset = affine.affine_transform(image, matrix_offset, order=order, mode=mode)
+        assert ht.equal(result_external_offset, result_internal_offset)
+
+    @pytest.mark.parametrize("order", [0, 1])
+    @pytest.mark.parametrize("mode", ["grid-constant"])
+    def test_offset_bulk(self, order, mode):
+        image = self.image_3d_bulk
+        matrix = self.matrix_3d_bulk
+        matrix_offset = self.matrix_3d_bulk_offset
+        offset = self.offset_3d_bulk
+
+        result_external_offset = affine.affine_transform(image, matrix, offset=offset, order=order, mode=mode)
+        result_internal_offset = affine.affine_transform(image, matrix_offset, order=order, mode=mode)
+        assert ht.equal(result_external_offset, result_internal_offset)
+
+    @pytest.mark.parametrize("order", [0, 1])
+    @pytest.mark.parametrize("mode", ["grid-constant", "mirror", "nearest"])
+    def test_offset_special_cases(self, order, mode):
         # invalid offset shape
         image = ht.empty((10, 10, 3), dtype=ht.float32)
         matrix = ht.empty((3, 3), dtype=ht.float32)
