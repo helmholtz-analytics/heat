@@ -1190,6 +1190,65 @@ class TestArithmetics(TestCase):
         with self.assertRaises(ValueError):
             ht.cumprod(ht.ones((2, 2)), 2)
 
+    def test_cumulative_prod(self):
+        # 1D, axis may be omitted
+        a = ht.array([2, 3, 4], dtype=ht.int64)
+        result = ht.array([2, 6, 24], dtype=ht.int64)
+        self.assertTrue(ht.equal(ht.cumulative_prod(a), result))
+        self.assertTrue(ht.equal(ht.cumulative_prod(a, axis=0), result))
+
+        # include_initial prepends the multiplicative identity
+        result = ht.array([1, 2, 6, 24], dtype=ht.int64)
+        cumulative_prod = ht.cumulative_prod(a, include_initial=True)
+        self.assertEqual(cumulative_prod.shape, (4,))
+        self.assertTrue(ht.equal(cumulative_prod, result))
+
+        # split = None, axis = 1
+        a = ht.full((2, 4), 2, dtype=ht.int32)
+        result = ht.array([[2, 4, 8, 16], [2, 4, 8, 16]], dtype=ht.int32)
+        self.assertTrue(ht.equal(ht.cumulative_prod(a, axis=1), result))
+
+        # negative axis
+        self.assertTrue(ht.equal(ht.cumulative_prod(a, axis=-1), result))
+
+        # split along the cumulative axis, with initial value
+        a = ht.full((4, 2), 2, dtype=ht.int64, split=0)
+        result = ht.array([[2, 2], [4, 4], [8, 8], [16, 16]], dtype=ht.int64, split=0)
+        cumulative_prod = ht.cumulative_prod(a, axis=0)
+        self.assertEqual(cumulative_prod.split, 0)
+        self.assertTrue(ht.equal(cumulative_prod, result))
+
+        result = ht.array([[1, 1], [2, 2], [4, 4], [8, 8], [16, 16]], dtype=ht.int64, split=0)
+        cumulative_prod = ht.cumulative_prod(a, axis=0, include_initial=True)
+        self.assertEqual(cumulative_prod.shape, (5, 2))
+        self.assertEqual(cumulative_prod.split, 0)
+        self.assertEqual(cumulative_prod.dtype, ht.int64)
+        self.assertTrue(ht.equal(cumulative_prod, result))
+
+        # 3D, split != axis, explicit dtype
+        a = ht.full((2, 2, 2), 2, dtype=ht.int32, split=1)
+        result = ht.array([[[2, 2], [4, 4]], [[2, 2], [4, 4]]], dtype=ht.float64, split=1)
+        cumulative_prod = ht.cumulative_prod(a, axis=1, dtype=ht.float64)
+        self.assertEqual(cumulative_prod.dtype, ht.float64)
+        self.assertTrue(ht.equal(cumulative_prod, result))
+
+        a = ht.full((2, 2, 2), 2, dtype=ht.float32, split=2)
+        result = ht.array([[[1, 2, 4], [1, 2, 4]], [[1, 2, 4], [1, 2, 4]]], dtype=ht.float32, split=2)
+        cumulative_prod = ht.cumulative_prod(a, axis=2, include_initial=True)
+        self.assertEqual(cumulative_prod.shape, (2, 2, 3))
+        self.assertEqual(cumulative_prod.split, 2)
+        self.assertTrue(ht.equal(cumulative_prod, result))
+
+        # exceptions
+        with self.assertRaises(ValueError):
+            ht.cumulative_prod(ht.ones((2, 2)))
+        with self.assertRaises(ValueError):
+            ht.cumulative_prod(ht.ones((2, 2)), axis=2)
+        with self.assertRaises(TypeError):
+            ht.cumulative_prod(ht.ones((2, 2)), axis="1")
+        with self.assertRaises(TypeError):
+            ht.cumulative_prod([2, 3, 4])
+
     def test_cumprod_(self):
         # Copies of class variables for the in-place operations
         a_scalar = self.a_scalar
