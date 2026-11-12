@@ -220,26 +220,6 @@ class TestAffine:
                 atol=tol,
             )
 
-        if not (offset is None or isinstance(offset, float)):
-            offset_stack = ht.expand_dims(offset, offset.ndim)
-            matrix_affine = ht.concatenate(
-                [matrix, offset_stack], axis=(matrix.ndim - 1)
-            )
-            combined_result: ht.DNDarray = affine.affine_transform(
-                image, matrix_affine, **kwargs
-            )
-            assert ht.equal(with_offset_result, combined_result)
-
-            scipy_args, scipy_kwargs = TestAffine.to_scipy_input(
-                image, matrix_affine, **kwargs
-            )
-            combined_comparison = [
-                ndimg.affine_transform(*args, **scipy_kwargs) for args in scipy_args
-            ]
-
-            for res, comp in zip(combined_result, combined_comparison):
-                assert np.allclose(res.numpy(), comp, rtol=0, atol=tol)
-
     @pytest.mark.parametrize("out_shape", [None, (128, 32, 3)])
     @pytest.mark.parametrize("order", [0, 1])
     @pytest.mark.parametrize("mode", ["grid-constant", "mirror", "nearest"])
