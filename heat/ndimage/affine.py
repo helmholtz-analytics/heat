@@ -30,10 +30,11 @@ Distributed arrays:
 
 import torch
 import heat as ht
+import heat.core.types as types
 from torch.nn.functional import affine_grid, grid_sample
 from heat.core.dndarray import DNDarray
 from heat.core.factories import array
-from heat.core.sanitation import sanitize_in_nd_realfloating
+from heat.core.sanitation import sanitize_in_min_max_nd
 
 MODE_TO_PADDING = {
     # SciPy mode               # torch padding_mode
@@ -202,6 +203,23 @@ def _sanitize_key_string(key_string: str, dictionary: dict, param_name: str):
     return result
 
 
+def _promote_to_type(goal_type: ht.datatype, *arrays: DNDarray | None):
+    """
+    Promotes every array in arrays to type if it is possible, else throw an error.
+    None Values in arrays do not get touched and get returnd in same order
+    """
+    promoted_type = goal_type
+    for a in arrays:
+        if a is not None:
+            promoted_type = types.promote_types(promoted_type, a.dtype)
+    if promoted_type is not goal_type:
+        raise TypeError(
+            "arrays cant be promoted to goal_type, bacause they contain\
+ a Type that is higher in promotion order than the goal type"
+        )
+    return tuple(promoted_type(a) if a is not None else None for a in arrays)
+
+
 def _prepare_matrix(
     matrix: torch.Tensor,
     offset: torch.Tensor,
@@ -246,24 +264,36 @@ def _prepare_data(
     if matrix.ndim == 1:
         matrix = ht.diag(matrix)
 
-    sanitize_in_nd_realfloating(image, "image", [3, 4, 5])
-    if image.dtype is ht.float16:
+    sanitize_in_min_max_nd(image, 3, 5)
+    if image.dtype not in [ht.float32, ht.float64]:
         raise TypeError(
             f"Argument image needs to be a DNDarray with datatype float32 or float64, but data type is {image.dtype}."
         )
 
-    sanitize_in_nd_realfloating(matrix, "matrix", [2, 3])
-    if image.dtype is ht.float16:
-        raise TypeError(
-            f"Argument image needs to be a DNDarray with datatype float32 or float64, but data type is {matrix.dtype}."
-        )
+    sanitize_in_min_max_nd(matrix, 2, 3)
 
-    if not isinstance(offset, float) and not isinstance(offset, int) and offset is not None:
-        sanitize_in_nd_realfloating(offset, "offset", [1, 2])
-        if image.dtype is ht.float16:
-            raise TypeError(
-                f"Argument offset needs to be a DNDarray with datatype float32 or float64, but data type is {matrix.dtype}."
-            )
+    if type(offset) in [float, int]:
+        if offset == 0:
+            offset_array = None
+        else:
+            offset_array: DNDarray = ht.array((offset,), dtype=matrix.dtype, device=image.device)
+            if matrix.ndim == 2:
+                offset_array = ht.tile(offset_array, matrix.shape[-2])
+            elif matrix.ndim == 3:
+                offset_array = ht.tile(offset_array, (matrix.shape[0], matrix.shape[-2]))
+    else:
+        if offset is not None:
+            sanitize_in_min_max_nd(offset, 1, 2)
+        offset_array = offset
+
+    # type promotion: image type should not be changed, matrix and offset type can be promoted to image type
+    # because image can be big and should not be copied implicetly
+    try:
+        matrix, offset_array = _promote_to_type(image.dtype, matrix, offset_array)
+    except TypeError as exc:
+        raise TypeError(
+            "offset or array have a type that can not be converted in the image type without losses"
+        ) from exc
 
     if output_shape is not None:
         ht.sanitize_sequence(output_shape)
@@ -274,17 +304,6 @@ def _prepare_data(
             raise ValueError("color dimension needs same size in input and output shape")
     else:
         output_shape = image.shape
-
-    if isinstance(offset, float) and offset != 0.0:
-        offset_array: DNDarray = ht.array((offset,), dtype=matrix.dtype, device=image.device)
-        if matrix.ndim == 2:
-            offset_array = ht.tile(offset_array, matrix.shape[-2])
-        elif matrix.ndim == 3:
-            offset_array = ht.tile(offset_array, (matrix.shape[0], matrix.shape[-2]))
-    elif isinstance(offset, float) and offset == 0.0:
-        offset_array = None
-    else:
-        offset_array = offset
 
     # input has no bulk axis, give everything a bulk axis with length 1 to treat it as if it has a bulk axis
     if matrix.ndim == 2:
@@ -304,8 +323,8 @@ def _prepare_data(
     if not (image.shape[0] == output_shape[0]):
         raise ValueError("bulk dimension needs same size in input and output shape")
 
-    # offset exists and matrix is no affine matrix
     if offset_array is not None:
+        # offset exists and matrix is no affine matrix
         if matrix.shape[-1] >= image.ndim:
             offset_array = None
             import warnings

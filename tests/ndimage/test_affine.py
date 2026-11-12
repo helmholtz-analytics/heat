@@ -276,6 +276,28 @@ class TestAffine:
             with_offset_result.numpy(), with_offset_comparison, rtol=0, atol=10e-12
         )
 
+    def test_affine_type_promotion(self):
+        order = 1
+        mode = "grid-constant"
+
+        image = ht.array(self.image_2d_1, dtype = ht.float32)
+        matrix = ht.array(self.matrix_2d, dtype = ht.float16)
+        offset = ht.array(self.offset_2d, dtype = ht.int8)
+
+        TestAffine.default_testing_setup(image, matrix, 0.05, offset=offset, order=order, mode=mode)
+
+        image = ht.array(self.image_2d_1, dtype = ht.float64)
+        matrix =  matrix = ht.array(
+                    [[0, 1, 0, 0], [-1, 0, 0, 32], [0, 0, 1, 0]], dtype=ht.int16, split=0
+                )
+        TestAffine.default_testing_setup(image, matrix, 10e-12, order=order, mode=mode)
+
+        image = ht.array(self.image_2d_1, dtype = ht.float32)
+        matrix = ht.array(self.matrix_2d_offset, dtype = ht.float64)
+
+        with pytest.raises(TypeError):
+            affine.affine_transform(image, matrix)
+
     @pytest.mark.parametrize("type_val", [ht.int8, ht.int16, ht.int32, ht.int64, ht.float16])
     def test_affine_unsupported_types(self, type_val):
         image = self.image_2d_1
