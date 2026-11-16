@@ -1087,28 +1087,30 @@ def result_type(
     >>> ht.result_type("i8", "f4")
     ht.float64
     """
-    # Split into two lists as scalars have lower priority regarding byte length
-    scalar_list = [
+    builtins_types = builtins.bool | builtins.int | builtins.float | builtins.complex
+
+    # Split into two lists as builtins have lower priority than tensors and dtypes regarding byte length
+    builtins_list = [
         x
         for x in arrays_and_types
-        if isinstance(x, builtins.bool | builtins.int | builtins.float | builtins.complex)
+        if isinstance(x, builtins_types)
     ]
-    type_list = [
+    arraytype_list = [
         x
         for x in arrays_and_types
-        if not isinstance(x, builtins.bool | builtins.int | builtins.float | builtins.complex)
+        if not isinstance(x, builtins_types)
     ]
 
-    scalar_dtype = reduce(promote_types, map(heat_type_of, scalar_list), bool_)
-    type_dtype = reduce(promote_types, map(heat_type_of, type_list), bool_)
+    builtins_dtype = reduce(promote_types, map(heat_type_of, builtins_list), bool_)
+    arraytype_dtype = reduce(promote_types, map(heat_type_of, arraytype_list), bool_)
 
     # different parent type: bool < int < float < complex
     dtype_priority_order = [bool, integer, floating, complex]
 
-    scalar_dtype_priority = [
+    builtins_dtype_priority = [
         issubdtype(scalar_dtype, dtype) for dtype in dtype_priority_order
     ].index(True)
-    type_dtype_priority = [issubdtype(type_dtype, dtype) for dtype in dtype_priority_order].index(
+    arraytype_dtype_priority = [issubdtype(type_dtype, dtype) for dtype in dtype_priority_order].index(
         True
     )
 
