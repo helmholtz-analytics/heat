@@ -821,7 +821,7 @@ def heat_type_of(
         return canonical_heat_type(obj)
     except TypeError:
         pass
-    
+
     raise TypeError(f"data type of {obj} is not understood")
 
 
