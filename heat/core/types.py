@@ -1090,16 +1090,8 @@ def result_type(
     builtins_types = builtins.bool | builtins.int | builtins.float | builtins.complex
 
     # Split into two lists as builtins have lower priority than tensors and dtypes regarding byte length
-    builtins_list = [
-        x
-        for x in arrays_and_types
-        if isinstance(x, builtins_types)
-    ]
-    arraytype_list = [
-        x
-        for x in arrays_and_types
-        if not isinstance(x, builtins_types)
-    ]
+    builtins_list = [x for x in arrays_and_types if isinstance(x, builtins_types)]
+    arraytype_list = [x for x in arrays_and_types if not isinstance(x, builtins_types)]
 
     builtins_dtype = reduce(promote_types, map(heat_type_of, builtins_list), bool_)
     arraytype_dtype = reduce(promote_types, map(heat_type_of, arraytype_list), bool_)
@@ -1110,9 +1102,9 @@ def result_type(
     builtins_dtype_priority = [
         issubdtype(builtins_dtype, dtype) for dtype in dtype_priority_order
     ].index(True)
-    arraytype_dtype_priority = [issubdtype(arraytype_dtype, dtype) for dtype in dtype_priority_order].index(
-        True
-    )
+    arraytype_dtype_priority = [
+        issubdtype(arraytype_dtype, dtype) for dtype in dtype_priority_order
+    ].index(True)
 
     # Only return the dtype of the scalars if it has a higher type priority
     if builtins_dtype_priority > arraytype_dtype_priority:
