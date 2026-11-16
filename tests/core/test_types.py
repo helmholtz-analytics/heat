@@ -408,6 +408,7 @@ class TestTypeConversion(TestCase):
         self.assertEqual(ht.result_type(ht.uint8, ht.int8), ht.int16)
         self.assertEqual(ht.result_type("b", "f4"), ht.float32)
         self.assertEqual(ht.result_type("f2", "f4", ht.int8), ht.float32)
+        self.assertEqual(ht.result_type(ht.array(1, dtype=ht.int32), ht.array([1], dtype=ht.int8)), ht.int32)
         if not self.is_mps:
             self.assertEqual(ht.result_type(ht.array([1], dtype=ht.float64), "f4"), ht.float64)
             self.assertEqual(
