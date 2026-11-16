@@ -125,7 +125,7 @@ class datatype:
 
         # check whether there are too many arguments
         if value_count >= 2:
-            raise TypeError(f"function takes at most 1 argument ({value_count} given)")
+            raise TypeError(f"function takes at most 1 positional argument ({value_count} given)")
         elif value_count == 0:
             value = ((0,),)
 
