@@ -1108,17 +1108,17 @@ def result_type(
     dtype_priority_order = [bool, integer, floating, complex]
 
     builtins_dtype_priority = [
-        issubdtype(scalar_dtype, dtype) for dtype in dtype_priority_order
+        issubdtype(builtins_dtype, dtype) for dtype in dtype_priority_order
     ].index(True)
-    arraytype_dtype_priority = [issubdtype(type_dtype, dtype) for dtype in dtype_priority_order].index(
+    arraytype_dtype_priority = [issubdtype(arraytype_dtype, dtype) for dtype in dtype_priority_order].index(
         True
     )
 
     # Only return the dtype of the scalars if it has a higher type priority
-    if scalar_dtype_priority > type_dtype_priority:
-        return scalar_dtype
+    if builtins_dtype_priority > arraytype_dtype_priority:
+        return builtins_dtype
 
-    return type_dtype
+    return arraytype_dtype
 
 
 class finfo:
