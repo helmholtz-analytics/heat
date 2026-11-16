@@ -811,7 +811,7 @@ def heat_type_of(
     except TypeError:
         pass
 
-    # last resort, type of the object at first position
+    # type of the object at first position
     try:
         return canonical_heat_type(type(obj[0]))
     except (KeyError, IndexError, TypeError):
@@ -820,7 +820,9 @@ def heat_type_of(
     try:
         return canonical_heat_type(obj)
     except TypeError:
-        raise TypeError(f"data type of {obj} is not understood")
+        pass
+    
+    raise TypeError(f"data type of {obj} is not understood")
 
 
 def can_cast(
