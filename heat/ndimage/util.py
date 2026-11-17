@@ -7,7 +7,7 @@ import numpy as np
 import heat as ht
 
 
-def center_transform(affine_matrix: ht.DNDarray, image_dims: tuple[int, ...]) -> ht.DNDarray:
+def center_transform(affine_matrix: ht.DNDarray, image_dims: Iterable[int]) -> ht.DNDarray:
     """
     Take an [Bx]NxN transformation matrix and create an [Bx]xNxN+1 reduced affine matrix out of it,
     that centers the transformation in the image. This is convenient because in scipy convention the

@@ -15,6 +15,7 @@ Handling of Distributed arrays:
   transform does not change anything along that axis
 """
 
+from typing import Sequence
 import torch
 from torch.nn.functional import affine_grid, grid_sample
 import heat as ht
@@ -251,7 +252,7 @@ def _prepare_matrix(
 
 
 def _prepare_data(
-    image: DNDarray, matrix: DNDarray, offset: DNDarray, output_shape: tuple[int, ...] | None
+    image: DNDarray, matrix: DNDarray, offset: DNDarray, output_shape: Sequence[int] | None
 ) -> tuple[DNDarray, DNDarray, DNDarray, tuple[int, ...]]:
     if matrix.ndim == 1:
         matrix = ht.diag(matrix)
@@ -278,6 +279,17 @@ def _prepare_data(
             sanitize_in_min_max_nd(offset, 1, 2)
         offset_array = offset
 
+    if output_shape is not None:
+        ht.sanitize_sequence(output_shape)
+        out_shape = tuple(output_shape)
+        if not (image.ndim == len(out_shape)):
+            raise ValueError("outputshape must have same number of dimension as input")
+
+        if not (image.shape[-1] == out_shape[-1]):
+            raise ValueError("color dimension needs same size in input and output shape")
+    else:
+        out_shape = image.shape
+
     # type promotion: image type should not be changed, matrix and offset type can be promoted to image type
     # because image can be big and should not be copied implicetly
     try:
@@ -285,23 +297,13 @@ def _prepare_data(
     except TypeError as exc:
         raise TypeError("not all types can be converted to the image type without losses") from exc
 
-    if output_shape is not None:
-        ht.sanitize_sequence(output_shape)
-        if not (image.ndim == len(output_shape)):
-            raise ValueError("outputshape must have same number of dimension as input")
-
-        if not (image.shape[-1] == output_shape[-1]):
-            raise ValueError("color dimension needs same size in input and output shape")
-    else:
-        output_shape = image.shape
-
     # input has no bulk axis, give everything a bulk axis with length 1 to treat it as if it has a bulk axis
     if matrix.ndim == 2:
         matrix = ht.expand_dims(matrix, 0)
         image = ht.expand_dims(image, 0)
         if offset_array is not None:
             offset_array = ht.expand_dims(offset_array, 0)
-        output_shape = (1,) + output_shape
+        out_shape = (1,) + out_shape
 
     is_2d_input = image.ndim == 4 and 3 <= matrix.shape[-2] <= matrix.shape[-1] <= 4
     is_3d_input = image.ndim == 5 and 4 <= matrix.shape[-2] <= matrix.shape[-1] <= 5
@@ -310,7 +312,7 @@ def _prepare_data(
             f"matrix with shape {matrix.shape} does not fit to input shape {image.shape} or not supported dimension count"
         )
 
-    if not (image.shape[0] == output_shape[0]):
+    if not (image.shape[0] == out_shape[0]):
         raise ValueError("bulk dimension needs same size in input and output shape")
 
     if offset_array is not None:
@@ -433,7 +435,7 @@ def affine_transform(
     image: DNDarray,
     matrix: DNDarray,
     offset: DNDarray | float | None = 0.0,
-    output_shape: tuple[int, ...] | None = None,
+    output_shape: Sequence[int] | None = None,
     order: int = 3,
     mode: str | None = None,
     padding_mode: str | None = None,
