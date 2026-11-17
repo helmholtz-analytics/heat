@@ -9,7 +9,7 @@ jobs:
     strategy:
       max-parallel: ${{ fromJSON(vars.MATRIX_MAX_PARALLEL) }}
       matrix:
-        python-version: ['3.12', '3.13', '3.14']
+        python-version: ['3.12', '3.13', '3.14', '3.15']
         mpi: [ 'mpich' ]
 
     steps:

@@ -22,13 +22,13 @@ jobs:
       matrix:
         py-version:
           - '3.12' # Oldest supported
-          - '3.14' # Latest stable
+          - '3.15' # Latest stable
         mpi: [ 'mpich' ]
         pytorch-version:
           - 'torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0'   # Oldest supported
           - 'torch==2.14.1 torchvision==0.29.1' # Latest stable
         exclude:
-          - py-version: '3.14'
+          - py-version: '3.15'
             pytorch-version: 'torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0'
     name: "Quick Tests - Py${{ matrix.py-version }} with ${{ matrix.pytorch-version }}"
     steps:
