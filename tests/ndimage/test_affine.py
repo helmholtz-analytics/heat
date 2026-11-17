@@ -154,7 +154,7 @@ class TestAffine:
         else:
             new_offset = offset
 
-        if matrix.ndim == 2 or matrix.ndim == 1:
+        if matrix.ndim in (1,2):
             new_images = [image.numpy()]
             new_matrices = [matrix.numpy()]
             new_offsets = [new_offset]
@@ -180,6 +180,7 @@ class TestAffine:
             del new_kwargs["output_shape"]
         return zip(new_images, new_matrices, new_offsets, new_output_shapes), new_kwargs
 
+
     @staticmethod
     def default_testing_setup(image, matrix, tol, **kwargs):
         scipy_args, scipy_kwargs = TestAffine.to_scipy_input(
@@ -189,6 +190,7 @@ class TestAffine:
         comparison = ndimg.affine_transform(*next(scipy_args), **scipy_kwargs)
         # visual_compare(result, comparison, has_bulk=False)
         assert np.allclose(result.numpy(), comparison, rtol=0, atol=tol)
+
 
     @staticmethod
     def rmse_testing_setup(image, matrix, tol, **kwargs):
@@ -200,6 +202,7 @@ class TestAffine:
 
         error = root_mean_square_error(result.numpy(), comparison)
         assert error <= tol
+
 
     @staticmethod
     def bulk_testing_setup(image, matrix, tol, **kwargs):
@@ -220,6 +223,7 @@ class TestAffine:
                 atol=tol,
             )
 
+
     @pytest.mark.parametrize("out_shape", [None, (128, 32, 3)])
     @pytest.mark.parametrize("order", [0, 1])
     @pytest.mark.parametrize("mode", ["grid-constant", "mirror", "nearest"])
@@ -230,6 +234,7 @@ class TestAffine:
             image, matrix, 0.05, order=order, mode=mode, output_shape=out_shape
         )
 
+
     @pytest.mark.parametrize("order", [0, 1])
     @pytest.mark.parametrize("mode", ["grid-constant", "mirror", "nearest"])
     def test_affine_3d(self, order, mode):
@@ -238,6 +243,7 @@ class TestAffine:
         TestAffine.default_testing_setup(
             image, matrix, 0.05, order=order, mode=mode
         )
+
 
     @pytest.mark.parametrize("out_shape", [None, (5, 16, 64, 128, 3)])
     @pytest.mark.parametrize("order", [0, 1])
@@ -248,6 +254,7 @@ class TestAffine:
         TestAffine.bulk_testing_setup(
             image, matrix, 0.05, order=order, mode=mode, output_shape=out_shape
         )
+
 
     @pytest.mark.parametrize("mode", ["grid-constant", "mirror", "nearest"])
     def test_affine_float64(self, mode):
@@ -276,6 +283,7 @@ class TestAffine:
             with_offset_result.numpy(), with_offset_comparison, rtol=0, atol=10e-12
         )
 
+
     def test_affine_type_promotion(self):
         order = 1
         mode = "grid-constant"
@@ -298,6 +306,7 @@ class TestAffine:
         with pytest.raises(TypeError):
             affine.affine_transform(image, matrix)
 
+
     @pytest.mark.parametrize("type_val", [ht.int8, ht.int16, ht.int32, ht.int64, ht.float16])
     def test_affine_unsupported_types(self, type_val):
         image = self.image_2d_1
@@ -311,6 +320,7 @@ class TestAffine:
         with pytest.raises(TypeError):
             affine.affine_transform(image, matrix)
 
+
     @pytest.mark.parametrize("order", [3])
     @pytest.mark.parametrize("mode", ["grid-constant", "mirror", "nearest"])
     def test_affine_2d_cubic(self, order, mode):
@@ -320,11 +330,11 @@ class TestAffine:
             image, matrix, tol=2.5, order=order, mode=mode
         )
 
+
     @pytest.mark.parametrize("split", [2, 3])
     @pytest.mark.parametrize("order", [0, 1])
     @pytest.mark.parametrize("mode", ["grid-constant"])
     def test_affine_split_invalid(self, order, mode, split):
-
         matrix = self.matrix_test_split
         img_split_none = self.image_test_split
 
@@ -332,11 +342,11 @@ class TestAffine:
         with pytest.raises(RuntimeError):
             affine.affine_transform(img_split, matrix, order=order, mode=mode)
 
+
     @pytest.mark.parametrize("split", [0, 1, 4])
     @pytest.mark.parametrize("order", [0, 1])
     @pytest.mark.parametrize("mode", ["grid-constant"])
     def test_affine_split_valid(self, order, mode, split):
-
         matrix = self.matrix_test_split
         img_split_none = self.image_test_split
 
@@ -349,6 +359,7 @@ class TestAffine:
         )
         assert np.allclose(split_none.numpy(), split_result.numpy(), rtol=0, atol=0.001)
 
+
     @pytest.mark.parametrize("order", [0, 1])
     @pytest.mark.parametrize("cval", [128, 255])
     def test_cval(self, order, cval):
@@ -359,6 +370,7 @@ class TestAffine:
         TestAffine.default_testing_setup(
             image, matrix, tol=0.005, cval=cval, mode=mode, order=order
         )
+
 
     def test_split_edge_cases(self):
         # should not throw error, because matrix gets resplit to None
@@ -379,6 +391,7 @@ class TestAffine:
             [[[0, 1, 0, 0], [-1, 0, 0, 9], [0, 0, 1, 0]]], dtype=ht.float32, split=0
         )
         TestAffine.bulk_testing_setup(image, matrix, offset=None, tol=0.005)
+
 
     def test_unsupported_shapes(self):
         # shape missmatch - matrix has bulk, input not
@@ -408,7 +421,8 @@ class TestAffine:
         with pytest.raises(ValueError):
             affine.affine_transform(image, matrix)
 
-    def test_unsupported_modes_order(self):
+
+    def test_unsupported_modes_and_order(self):
         # invalid mode
         image = ht.empty((1, 10, 10, 3), dtype=ht.float32)
         matrix = ht.empty((1, 3, 4), dtype=ht.float32)
@@ -425,6 +439,7 @@ class TestAffine:
         with pytest.raises(ValueError):
             affine.affine_transform(image, matrix, order=8)
 
+
     @pytest.mark.parametrize("order", [0, 1, 3])
     @pytest.mark.parametrize("mode", ["grid-constant", "mirror", "nearest"])
     def test_offset(self, order, mode):
@@ -437,6 +452,7 @@ class TestAffine:
         result_internal_offset = affine.affine_transform(image, matrix_offset, order=order, mode=mode)
         assert ht.equal(result_external_offset, result_internal_offset)
 
+
     @pytest.mark.parametrize("order", [0, 1])
     @pytest.mark.parametrize("mode", ["grid-constant"])
     def test_offset_bulk(self, order, mode):
@@ -448,6 +464,7 @@ class TestAffine:
         result_external_offset = affine.affine_transform(image, matrix, offset=offset, order=order, mode=mode)
         result_internal_offset = affine.affine_transform(image, matrix_offset, order=order, mode=mode)
         assert ht.equal(result_external_offset, result_internal_offset)
+
 
     @pytest.mark.parametrize("order", [0, 1])
     @pytest.mark.parametrize("mode", ["grid-constant", "mirror", "nearest"])
@@ -522,6 +539,7 @@ offset information in its rightmost column"
         # I am not sure why this one is not as close
         assert np.allclose(result2[0].numpy(), compare, rtol=0, atol=10e-4)
 
+
     def test_invalid_output_shape(self):
         # invalid output_shape
         image = ht.empty((1, 10, 10, 3), dtype=ht.float32)
@@ -543,6 +561,7 @@ offset information in its rightmost column"
         matrix = ht.empty((3, 4), dtype=ht.float32, split=0)
         with pytest.raises(RuntimeError):
             affine.affine_transform(image, matrix, output_shape=(15, 10, 3))
+
 
     def test_matrix_edge_cases(self):
         # provide matrix as diagonal value list
