@@ -16,9 +16,9 @@ Handling of Distributed arrays:
 """
 
 import torch
-import heat as ht
-import heat.core.types as types
 from torch.nn.functional import affine_grid, grid_sample
+import heat as ht
+from heat.core import types
 from heat.core.dndarray import DNDarray
 from heat.core.factories import array
 from heat.core.sanitation import sanitize_in_min_max_nd
@@ -75,7 +75,7 @@ def _remove_slice(tensor: torch.Tensor, idx: int, dim: int) -> torch.Tensor:
     return tensor.index_select(dim, rows_before)
 
 
-def _to_full_affine(matrix: torch.Tensor):
+def _to_full_affine(matrix: torch.Tensor) -> torch.Tensor:
     # TODO: rewrite this to to_reduced_affine(M) because affine_grid() expects reduced form and this is just converting it to full and back to reduced form
     """
     Convert reduced affine matrices to full homogeneous form.
@@ -104,8 +104,11 @@ def _to_full_affine(matrix: torch.Tensor):
 
 
 def convert_matrix_space(
-    matrix: torch.Tensor, input_shape, padding_correction: bool, output_shape: tuple[int] | None
-):
+    matrix: torch.Tensor,
+    input_shape: tuple[int, ...],
+    padding_correction: bool,
+    output_shape: tuple[int] | None,
+) -> torch.Tensor:
     """
     Takes a full scipy affine matrix and converts the space to normalized coordinates used by affine_grid.
     scipy uses pixel coordinate space with origin in the top left,
@@ -157,7 +160,7 @@ def convert_matrix_space(
     return result[:, :dim, :]
 
 
-def _untouched_axes(matrices: DNDarray):
+def _untouched_axes(matrices: DNDarray) -> DNDarray:
     """
     Tests if the provided (affine) has influence on the possible axes of the input
     """
@@ -248,8 +251,8 @@ def _prepare_matrix(
 
 
 def _prepare_data(
-    image: ht.DNDarray, matrix: ht.DNDarray, offset: ht.DNDarray, output_shape: tuple
-):
+    image: DNDarray, matrix: DNDarray, offset: DNDarray, output_shape: tuple[int, ...] | None
+) -> tuple[DNDarray, DNDarray, DNDarray, tuple[int, ...]]:
     if matrix.ndim == 1:
         matrix = ht.diag(matrix)
 
@@ -329,16 +332,25 @@ expected {matrix.ndim - 1} dimensions but got {offset_array.ndim}""")
                 raise ValueError(
                     f"offset vector has not the right length, expected {matrix.shape[-2]}, but got {offset_array.shape[-1]}"
                 )
+    return image, matrix, offset_array, output_shape
 
+
+def _handle_splitting(
+    image_split: int,
+    image_shape: tuple[int, ...],
+    matrix: DNDarray,
+    offset: DNDarray,
+    output_shape: tuple[int, ...],
+) -> tuple[DNDarray, DNDarray, tuple[int, ...]]:
     # determening the split axis
     # if axis is not the bulk axis or constant axis -> abort
     # should be fine because matrix should always be small compared to image input
     if matrix.split not in (0, None):
         matrix = ht.resplit(matrix, None)
 
-    if image.split not in (0, None):
+    if image_split not in (0, None):
         # transformation in direction of split is not identity
-        if not (matrix.split is None and _untouched_axes(matrix)[image.split - 1]):
+        if not (matrix.split is None and _untouched_axes(matrix)[image_split - 1]):
             raise RuntimeError(
                 "the input split axis should either be the bulk axis, or an axis left unchanged by the transform."
             )
@@ -346,19 +358,21 @@ expected {matrix.ndim - 1} dimensions but got {offset_array.ndim}""")
         if matrix.split is not None:
             matrix = ht.resplit(matrix, None)
 
-        if output_shape[image.split] != image.shape[image.split]:
+        if output_shape[image_split] != image_shape[image_split]:
             raise RuntimeError(
                 "the output shape cannot differ form input shape along input split axis"
             )
 
-    if offset_array is not None:
-        if offset_array.split != matrix.split:
-            offset_array = ht.resplit(offset_array, matrix.split)
+    if offset is not None:
+        if offset.split != matrix.split:
+            offset = ht.resplit(offset, matrix.split)
 
-    return image, matrix, offset_array, output_shape
+    return matrix, offset, output_shape
 
 
-def _get_local_torch_views(image: DNDarray, matrix: DNDarray, output_shape: tuple[int]):
+def _get_local_torch_views(
+    image: DNDarray, matrix: DNDarray, output_shape: tuple[int]
+) -> tuple[torch.Tensor, torch.tensor, tuple[int, ...], int]:
     matrix_torch: torch.Tensor = matrix.larray
     input_torch = image.larray
 
@@ -382,6 +396,33 @@ def _get_local_torch_views(image: DNDarray, matrix: DNDarray, output_shape: tupl
     return input_torch, matrix_torch, output_shape, out_split
 
 
+def _sanitize_padding(mode: str, padding_mode: str, cval: float) -> tuple[str, bool]:
+    """
+    Unify redundant inputs mode and padding_mode, include behaviour of cval into padding_mode
+    """
+    if mode is None and padding_mode is None:
+        raise RuntimeError("either mode ore padding_mode need to be set to a value")
+    if mode is not None and padding_mode is not None:
+        raise RuntimeError("mode and padding_mode can't be set at the same time")
+
+    if mode is not None:
+        padding_input = mode
+    else:
+        padding_input = padding_mode
+
+    if padding_input == "constant":
+        raise NotImplementedError(
+            "constant mode is not implemented, use 'grid-constant' for similar result"
+        )
+    sample_padding = _sanitize_key_string(padding_input, MODE_TO_PADDING, "mode or padding_mode")
+
+    apply_cval_padding = sample_padding == "zeros" and cval != 0
+    if apply_cval_padding:
+        sample_padding = "border"
+
+    return sample_padding, apply_cval_padding
+
+
 # ============================================================
 #  main methods
 # ============================================================
@@ -389,7 +430,7 @@ def affine_transform(
     image: DNDarray,
     matrix: DNDarray,
     offset: DNDarray | float | None = 0.0,
-    output_shape: DNDarray | None = None,
+    output_shape: tuple[int, ...] | None = None,
     order: int = 3,
     mode: str | None = "grid-constant",
     padding_mode: str | None = None,
@@ -433,40 +474,31 @@ def affine_transform(
         same as mode, but using the options `zeros`,`border` or `reflection`. Only one of 'padding_mode' or 'mode' can be provided
     cval :
         value with wich the padding should be filled. This is implemented as a padding applied along all axis. This approach is not suited to provide exact results
-    prefilter : bool
-        if the input should be filtered before transformed, currently not because torch.sample_grid does not have this functionality
+
+    Notes
+    -----
+    - image, matrix and offset cannot be broadcasted because their shapes are needed to determine if a bulk axis has been provided and if matrix is provided as affine,
+      reduced affine or linear transformation matrix.
+    - 'image' is required to have dtpype 'float32' or 'float64'. The types of 'matrix' and 'offset' can be of a type that is convertible into the type of 'image', but need
+      to be lower in promotion order, e.g. 'image' of type 'float32' and 'matrix' of type 'float64' would be not allowed.
+    - This function does work with distributed arrays, but it will not do any distributed computation. So a transformation that does not need any information
+    from any other distributed slice would work as intended and in parallel.
+    - The function uses a backwarts warping affine transform, wich means the matrix transforms the coordinate system and not the image itself. To get  the behaviour of
+      a forward warping affine transfrom, invert your affine matrix.
     """
-    if mode is None and padding_mode is None:
-        raise RuntimeError("either mode ore padding_mode need to be set to a value")
-    if mode is not None and padding_mode is not None:
-        raise RuntimeError("mode and padding_mode can't be set at the same time")
-
-    if mode is not None:
-        # input conversion
-        if mode == "constant":
-            raise NotImplementedError(
-                "constant mode is not implemented, use 'grid-constant' for similar result"
-            )
-        sample_padding = _sanitize_key_string(mode, MODE_TO_PADDING, "mode")
-    else:
-        valid_modes = [value for value in MODE_TO_PADDING.values() if value is not None]
-        if padding_mode not in valid_modes:
-            raise ValueError(
-                f"""the padding_mode '{padding_mode}' is not supported. valid modes are {valid_modes}"""
-            )
-        sample_padding = padding_mode
-
-    apply_cval_padding = sample_padding == "zeros" and cval != 0
-    if apply_cval_padding:
-        sample_padding = "border"
-
+    padding_mode, apply_cval_padding = _sanitize_padding(mode, padding_mode, cval)
     sample_mode = _sanitize_key_string(order, ORDER_TO_MODE, "order")
 
     original_shape = image.shape
 
     image, matrix, offset, output_shape = _prepare_data(image, matrix, offset, output_shape)
 
+    matrix, offset, output_shape = _handle_splitting(
+        image.split, image.shape, matrix, offset, output_shape
+    )
+
     linput, lmatrix, out_lshape, out_split = _get_local_torch_views(image, matrix, output_shape)
+
     # at this point computations can all be done locally
 
     # I still don't understand why the permute below is necessary, but the affine matrix itself
@@ -495,7 +527,7 @@ def affine_transform(
         transformed: torch.Tensor = grid_sample(
             linput,
             sample_grid,
-            padding_mode=sample_padding,
+            padding_mode=padding_mode,
             mode=sample_mode,
             align_corners=True,
         )
