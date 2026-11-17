@@ -6,6 +6,12 @@ Thank you for your interest in contributing. To maintain project quality and sup
 
 As a project hosted under Linux Foundation Europe, Heat's technical oversight is managed by a Technical Steering Committee (TSC). The TSC has the authority to define and amend community roles as long as they are publicly documented here in the CONTRIBUTING file.
 
+Participation in Heat is open to any individual or organization that abides by the Technical Charter and project policies, regardless of competitive interests. The project operates in an open, transparent, and non-discriminatory manner.
+
+### Contributors
+
+**Contributors** include anyone in the technical community who contributes code, documentation, issue reports, reviews, or other technical artifacts to the project.
+
 ### Maintainers
 
 For the Heat project, we use the title **Maintainer** to represent the "Committer" role defined in the project's Technical Charter.
