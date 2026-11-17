@@ -447,44 +447,61 @@ def affine_transform(
         the image or data array to transform. Input is expected to have shape [B x ][ D x ]H x W x C
     matrix : DNDarray
         affine matrix used to transform input
-        Should be of shape [Bx]N+1xN+1, [Bx]NxN+1 or [Bx]NxN for affine, reduced affine or linear transform without axis information.
-        B is an optional bulk axis and has to match image bulk axis.
-        Per scipy convention, the matrix has a row and column for the color axis (bottom row and rightmost column). As a Tradeoff for compatibility  with scipy
-        they are required to be there, but are **ignored** right now. This is based on the assumtion that transforming of the color axis is rarely desired.
-        If your input is a 2D image you can add a singleton dimension to the end of the matrix to treat the color axis as a spacial axis: H x W x C -> H x W x C x 1
-        The Transformation is centered on the top left corner of the image and the image is considered to have the size [ D x ]H x W
+        Should be of shape [Bx]N+1xN+1, [Bx]NxN+1 or [Bx]NxN for affine, reduced affine or linear transform
+        without axis information. B is an optional bulk axis and has to match image bulk axis.
+        Per scipy convention, the matrix has a row and column for the color axis (bottom row and rightmost
+        column). As a Tradeoff for compatibility with scipy they are required to be there, but are **ignored**
+        right now. This is based on the assumtion that transforming of the color axis is rarely desired, and
+        most implementations using scipy cab be switched without differing output.
+        If your input is a 2D image you can add a singleton dimension to the end of the matrix to treat the
+        color axis as a spacial axis: H x W x C -> H x W x C x 1
+        The Transformation is centered on the top left corner of the image and the image is considered to
+        have the size [ D x ]H x W by the transform
     offset : DNDarray | float | None
-        offset vector that can be used instead of adding offset into affine matrix directly. This is only used when the matrix
-        given is of shape [Bx]NxN and has no offset information baked in.
+        offset vector that can be used instead of adding offset into affine matrix directly. This is only used
+        when the matrix given is of shape [Bx]NxN and has no column for offset information.
     output_shape : tuple[int, ...]
-        shape of the output the function will produce. It should have the same dimension count as the input, only the size of spacial dimensions can be varied,
-        color and bulk axis need to stay the same.
+        shape of the output the function will produce. It should have the same dimension count as the input,
+        only the size of spacial dimensions can be varied, color and bulk axis need to stay the same.
     order :
-        type of interpolation that is used, linear(1) or cubic(3) are valid values. Cubic interpolation does only work with 2d Images
+        type of interpolation that is used, linear(1) or cubic(3) are valid values. Cubic interpolation does
+        only work with 2d Images
     mode : str
-        Determines how the input array is extended beyond its boundaries. Default is `constant-grid`, wich is not the same as the defaul in the scipy method.
+        Determines how the input array is extended beyond its boundaries. Default value is `constant-grid`.
+        `constant`, the default value used by scipy is not supported and will throw an error.
         Behavior for each valid value is as follows:
-        `grid-constant`
-            the pixel beyond the boundary are filled with a constant value. The value is defined by the cval parameter
-        `nearest`
+        - `grid-constant`
+            the pixel beyond the boundary are filled with a constant value. The value is defined by the cval
+            parameter. Border pixels are also interpolated.
+        - `nearest`
             the pixel beyond the boundary are filled by replicating the pixel on the nearest border
-        `mirror`
-            the pixel beyond the boundary are filled by mirroring the the input around the center of the last pixel
+        - `mirror`
+            the pixel beyond the boundary are filled by mirroring the the input around the center of the last
+            pixel
+        - `zeros`
+            same as `grid-constant`, alias using torch semantics
+        - `border`
+            same as `nearest`, alias using torch semantics
+        - `reflection`
+            same as `mirror`, alias using torch semantics
     padding_mode :
-        same as mode, but using the options `zeros`,`border` or `reflection`. Only one of 'padding_mode' or 'mode' can be provided
+        same as mode, alias using torch semantics. Either mode or padding_mode can be provided, not both
     cval :
-        value with wich the padding should be filled. This is implemented as a padding applied along all axis. This approach is not suited to provide exact results
+        value with wich the padding should be filled. This is implemented as a padding applied along all axis.
 
     Notes
     -----
-    - image, matrix and offset cannot be broadcasted because their shapes are needed to determine if a bulk axis has been provided and if matrix is provided as affine,
-      reduced affine or linear transformation matrix.
-    - 'image' is required to have dtpype 'float32' or 'float64'. The types of 'matrix' and 'offset' can be of a type that is convertible into the type of 'image', but need
-      to be lower in promotion order, e.g. 'image' of type 'float32' and 'matrix' of type 'float64' would be not allowed.
-    - This function does work with distributed arrays, but it will not do any distributed computation. So a transformation that does not need any information
-    from any other distributed slice would work as intended and in parallel.
-    - The function uses a backwarts warping affine transform, wich means the matrix transforms the coordinate system and not the image itself. To get  the behaviour of
-      a forward warping affine transfrom, invert your affine matrix.
+    - image, matrix and offset cannot be broadcasted because their shapes are needed to determine if a bulk axis
+      has been provided and if matrix is provided as affine, reduced affine or linear transformation matrix.
+    - 'image' is required to have dtpype 'float32' or 'float64'. The types of 'matrix' and 'offset' can be of a
+      type that is convertible into the type of 'image', but need to be lower in promotion order, e.g. 'image'
+      of type 'float32' and 'matrix' of type 'float64' would be not allowed.
+    - This function does work with distributed arrays, but it will not do any distributed computation. So a
+      transformation that does not need any information from any other distributed slice would work as intended
+      and in parallel.
+    - The function uses a backwarts warping affine transform, wich means the matrix transforms the coordinate
+      system and not the image itself. To get  the behaviour of a forward warping affine transfrom, invert
+      your affine matrix.
     """
     padding_mode, apply_cval_padding = _sanitize_padding(mode, padding_mode, cval)
     sample_mode = _sanitize_key_string(order, ORDER_TO_MODE, "order")
