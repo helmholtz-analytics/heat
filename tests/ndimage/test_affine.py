@@ -136,6 +136,7 @@ class TestAffine:
             ht.random.random((2, 32, 32, 16, 3), dtype=ht.float32, split=None) * 255
         )
 
+
     @staticmethod
     def to_scipy_input(image, matrix, **kwargs):
         new_kwargs = kwargs.copy()
