@@ -125,7 +125,7 @@ class datatype:
 
         # check whether there are too many arguments
         if value_count >= 2:
-            raise TypeError(f"function takes at most 1 argument ({value_count} given)")
+            raise TypeError(f"function takes at most 1 positional argument ({value_count} given)")
         elif value_count == 0:
             value = ((0,),)
 
@@ -743,7 +743,7 @@ def heat_type_is_inexact(ht_dtype: Type[datatype]) -> bool:
 
 def heat_type_is_realfloating(ht_dtype: Type[datatype]) -> bool:
     """
-    Check if Heat type is a real floating point number, i.e float32 or float64
+    Check if Heat type is a real floating point number, e.g. float16, float32, or float64
 
     Parameters
     ----------
