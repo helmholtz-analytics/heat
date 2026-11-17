@@ -60,15 +60,15 @@ At project inception under Linux Foundation Europe, the voting members of the TS
 
 All Contributors, Maintainers, and community participants must adhere to the [Heat Code of Conduct](https://heat.readthedocs.io/en/stable/CODE_OF_CONDUCT.html) as well as applicable [Linux Foundation Europe policies](https://linuxfoundation.eu/policies/).
 
-## Legal and Intellectual Property Requirements
+## Legal and intellectual property requirements
 
 To comply with the Heat Technical Charter under Linux Foundation Europe, all contributions to the Project are subject to the following policies:
 
-* **Copyright Retention:** The copyright in all new contributions will be retained by the copyright holder as independent works of authorship. No contributor or copyright holder will be required to assign copyrights to the Project.
-* **Code Licensing:** All new inbound code contributions to the Project must be made using the MIT License.
-* **Developer Certificate of Origin (DCO):** All new inbound code contributions must also be accompanied by a Developer Certificate of Origin (http://developercertificate.org) sign-off in the source code system. This binds the authorized contributor and, if not self-employed, their employer to the applicable license.
-* **Documentation Licensing:** Documentation will be received and made available by the Project under the Creative Commons Attribution 4.0 International License.
-* **Trademarks:** LF Europe holds title to all Project Trademarks. Any use of Project Trademarks by Collaborators in the Project must be in accordance with the license from LF Europe.
+- **Copyright retention:** The copyright in all new contributions is retained by the copyright holder as independent works of authorship; no copyright assignment is required.
+- **Code licensing:** All new inbound code contributions must be made under the MIT License, and contributed source files should include an `SPDX-License-Identifier: MIT` header.
+- **Developer Certificate of Origin (DCO):** All new inbound code contributions must include a [Developer Certificate of Origin](http://developercertificate.org) sign-off (`Signed-off-by`), binding the contributor and, if applicable, their employer to the license.
+- **Documentation licensing:** Documentation is received and made available under the Creative Commons Attribution 4.0 International (CC-BY-4.0) License.
+- **Trademarks:** LF Europe holds title to all Project Trademarks, and any use by Collaborators must follow LF Europe's trademark guidelines.
 
 ---
 
@@ -115,6 +115,10 @@ Follow the [Quick Start](https://heat.readthedocs.io/en/stable/quick_start.html)
 If you add new functionality, you also have to add a test for this.
 Keep in mind that the code must run on diverse hardware including GPUs. Don't worry if you don't have the resources to test on all necessary devices, this will happen in the continuous integration pipeline once you open the pull request and potential failures can be fixed at that time. If you do have GPUs available, use `HEAT_TEST_USE_DEVICE="gpu" mpirun -n <PROCESSES> pytest` to run the tests there.
 * **Stay synchronized:** Make sure to keep your local repository / fork synchronized with the upstream main! Regularly run `git fetch upstream; git merge upstream` if working on your fork or `git pull; git merge main` if working directly on the main repository. This way you can resolve merge conflicts early on and save a lot of work later.
+* **Commit sign-off (DCO):** Every commit must include a `Signed-off-by` trailer matching your real name and email address. Use the `-s` flag when committing:
+```bash
+  git commit -s -m "Your descriptive commit message"
+```
 
 * **Review process:** All contributions will be reviewed and must receive approval before being merged. In order to ensure a smooth merge process, please make your PR easy to review by (1) coding expressively with well chosen names or comments (2) describing the changes you are proposing in sufficient detail and (3) keeping the diff as small as possible, potentially by splitting up the PR if it contains multiple separable features.
 
@@ -124,6 +128,7 @@ Keep in mind that the code must run on diverse hardware including GPUs. Don't wo
 * **Python Standards:** The pre-commit hook will enforce [PEP 8](https://www.python.org/dev/peps/pep-0008/) compliance.
 * **Imports:** Use `import heat as ht` and `import numpy as np`.
 * **Documentation:** All public functions must follow the [Heat docstring standard](https://heat.readthedocs.io/en/stable/documentation_howto.html).
+* **License Headers:** Include `# SPDX-License-Identifier: MIT` at the top of newly created source files.
 
 ## LLM and AI Usage
 
