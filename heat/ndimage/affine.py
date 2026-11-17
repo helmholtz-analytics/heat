@@ -437,9 +437,10 @@ def affine_transform(
     cval: float = 0.0,
 ) -> DNDarray:
     """
-    Implementation of an affine transform following the signature of the scipy version with the same name. Additionally the Option of an
-    additional bulk axis is added. Because the function exclusively uses the torch functions affine_grid and grid_sample, several limitations
-    apply. The limitations for each parameter are mentioned in their discription
+    Implementation of an affine transform following the signature of the scipy version with the same name.
+    Additionally the Option of an additional bulk axis is added. Because the function exclusively uses the
+    torch functions affine_grid and grid_sample, several limitations apply. The limitations for each
+    parameter are mentioned in their discription
 
     Parameters
     ----------
