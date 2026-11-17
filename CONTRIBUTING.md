@@ -20,6 +20,16 @@ For the Heat project, we use the title **Maintainer** to represent the "Committe
 * **Becoming a Maintainer:** Participation is open to anyone who abides by the project charter. A Contributor may be promoted to a Maintainer through a majority approval vote by the existing Maintainers.
 * **Removal:** If necessary, a Maintainer may be removed from their role by a majority approval vote of the other existing Maintainers.
 
+#### Initial maintainers
+
+At project inception under Linux Foundation Europe, the voting members of the TSC are:
+
+| Name | GitHub handle | Affiliation |
+| :--- | :--- | :--- |
+| *[Name 1]* | `@[handle1]` | *[Affiliation]* |
+| *[Name 2]* | `@[handle2]` | *[Affiliation]* |
+| *[Name 3]* | `@[handle3]` | *[Affiliation]* |
+
 ## Legal and Intellectual Property Requirements
 
 To comply with the Heat Technical Charter under Linux Foundation Europe, all contributions to the Project are subject to the following policies:
