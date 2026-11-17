@@ -3,26 +3,13 @@ Affine transformations for N-dimensional Heat arrays.
 
 This module implements backward-warping affine transformations
 (translation, rotation, scaling) for 2D and 3D data stored as
-Heat DNDarrays, using a PyTorch backend.
-
-The affine matrix M is interpreted as a *b* transform
-in affine (x, y [, z]) coordinates:
-
-    out = A @ inp + b
-
-where M = [A | b] has shape (ND, ND+1).
-
-Internally, the torch functions affine_grid and grid_sample are used
+Heat DNDarrays, using a PyTorch backend relying on affine_grid and grid_sample from torch.nn.functional.
 
 Spatial axis conventions in Heat:
 - 2D arrays: (H, W)  == (y, x)
 - 3D arrays: (D, H, W) == (z, y, x)
 
-Interpolation and boundary handling:
-- order=0: nearest-neighbor
-- order=1: bilinear (2D only; 3D falls back to nearest)
-
-Distributed arrays:
+Handling of Distributed arrays:
 - Non-spatial splits are handled locally without communication.
 - spatial splits are also hanled locally in case that the affine
   transform does not change anything along that axis
@@ -37,12 +24,13 @@ from heat.core.factories import array
 from heat.core.sanitation import sanitize_in_min_max_nd
 
 MODE_TO_PADDING = {
-    # SciPy mode               # torch padding_mode
-    "grid-constant": "zeros",
+    # scipy mode : torch padding_mode
+    "grid-constant": "zeros",  # fill with black
+    "zeros": "zeros",
     "mirror": "reflection",  # reflect at the middle of the border pixel
-    "reflection": "reflection",  # reflect at the middle of the border pixel
+    "reflection": "reflection",  # allow also torch identifier directly
     "nearest": "border",  # replicate the edge pixel
-    "border": "border",  # replicate the edge pixel
+    "border": "border",  # allow also torch identifier directly
     # The following SciPy modes have no exact Torch counterpart.
     "constant": None,
     "wrap": None,
@@ -52,10 +40,11 @@ MODE_TO_PADDING = {
 }
 
 ORDER_TO_MODE = {
-    0: "nearest",  # order‑0 → nearest‑neighbour
-    1: "bilinear",  # order‑1 → bilinear or trilinear (linear) sampling
-    3: "bicubic",  # order‑3 → bicubic sampling
-    # SciPy supports orders 2,4,5 as well – they have no direct Torch counterpart.
+    # scipy order : torch (interpolation)mode
+    0: "nearest",  # nearest‑neighbour
+    1: "bilinear",  # can also mean trilinear depending on image dimension count
+    3: "bicubic",  # tricubic not supported by torch
+    # SciPy supports orders 2,4,5 as well, but they have no direct Torch counterpart.
     2: None,
     4: None,
     5: None,
@@ -291,9 +280,7 @@ def _prepare_data(
     try:
         matrix, offset_array = _promote_to_type(image.dtype, matrix, offset_array)
     except TypeError as exc:
-        raise TypeError(
-            "offset or array have a type that can not be converted in the image type without losses"
-        ) from exc
+        raise TypeError("not all types can be converted to the image type without losses") from exc
 
     if output_shape is not None:
         ht.sanitize_sequence(output_shape)
@@ -409,36 +396,41 @@ def affine_transform(
     cval: float = 0.0,
 ) -> DNDarray:
     """
+    Implementation of an affine transform following the signature of the scipy version with the same name. Additionally the Option of an
+    additional bulk axis is added. Because the function exclusively uses the torch functions affine_grid and grid_sample, several limitations
+    apply. The limitations for each parameter are mentioned in their discription
+
     Parameters
     ----------
     image : DNDarray
-        the image or data array to transform. Input is expected to have shape [B x] [D x] H x W x C
+        the image or data array to transform. Input is expected to have shape [B x ][ D x ]H x W x C
     matrix : DNDarray
-        affine matrix used to transform input. can be of shape Bx3x4 (3x3, 4x4 also valid) for 2d data,
-        or should be of shape Bx4x5 (4x4, 5x5 also valid) for 3d data
-        B stands for the Bulk axis and can be ommited
-        The row and column corresponding with Transformation of the Color-Axis (the last row and column) are required to be there, but is ignored right now!,
-        This is done as tradeof between compatibility with scipy.affine_transform based on the assumtion that transforming of the color axis is rarely desired.
+        affine matrix used to transform input
+        Should be of shape [Bx]N+1xN+1, [Bx]NxN+1 or [Bx]NxN for affine, reduced affine or linear transform without axis information.
+        B is an optional bulk axis and has to match image bulk axis.
+        Per scipy convention, the matrix has a row and column for the color axis (bottom row and rightmost column). As a Tradeoff for compatibility  with scipy
+        they are required to be there, but are **ignored** right now. This is based on the assumtion that transforming of the color axis is rarely desired.
         If your input is a 2D image you can add a singleton dimension to the end of the matrix to treat the color axis as a spacial axis: H x W x C -> H x W x C x 1
-    offset : DNDarray
-        offset vector that can be used instead of adding offset into affine matrix directly. only in effect when the matrix
-        given has no transform vector
-    output_shape :
-        shape of the given output. It should map the pattern [B x] [D x] H x W x C wich is the same as the input. D, H, W can have different values than the input
+        The Transformation is centered on the top left corner of the image and the image is considered to have the size [ D x ]H x W
+    offset : DNDarray | float | None
+        offset vector that can be used instead of adding offset into affine matrix directly. This is only used when the matrix
+        given is of shape [Bx]NxN and has no offset information baked in.
+    output_shape : tuple[int, ...]
+        shape of the output the function will produce. It should have the same dimension count as the input, only the size of spacial dimensions can be varied,
+        color and bulk axis need to stay the same.
     order :
-        type of interpolation that is used, linear to cubic allowed
-    mode :
-        The mode parameter determines how the input array is extended beyond its boundaries. Default is `constant-grid`. Behavior for each valid value is as follows
+        type of interpolation that is used, linear(1) or cubic(3) are valid values. Cubic interpolation does only work with 2d Images
+    mode : str
+        Determines how the input array is extended beyond its boundaries. Default is `constant-grid`, wich is not the same as the defaul in the scipy method.
+        Behavior for each valid value is as follows:
         `grid-constant`
             the pixel beyond the boundary are filled with a constant value. The value is defined by the cval parameter
         `nearest`
             the pixel beyond the boundary are filled by replicating the pixel on the nearest border
         `mirror`
             the pixel beyond the boundary are filled by mirroring the the input around the center of the last pixel
-        `constant`, `wrap`, `grid-wrap`, `reflect`, `grid-mirror`
-            Those modes are not implemented
     padding_mode :
-        same as mode, but using the options `zeros`,`border` or `reflection`
+        same as mode, but using the options `zeros`,`border` or `reflection`. Only one of 'padding_mode' or 'mode' can be provided
     cval :
         value with wich the padding should be filled. This is implemented as a padding applied along all axis. This approach is not suited to provide exact results
     prefilter : bool
@@ -508,9 +500,7 @@ def affine_transform(
             align_corners=True,
         )
     else:
-        transformed = torch.empty(
-            out_shape, dtype=linput.dtype, device=linput.device
-        )  # device=input.larray.device, dtype=input.larray.dtype)
+        transformed = torch.empty(out_shape, dtype=linput.dtype, device=linput.device)
 
     transformed = transformed.permute(dimension_order)
 
