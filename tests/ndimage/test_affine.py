@@ -416,6 +416,8 @@ class TestAffine:
             affine.affine_transform(image, matrix, mode="test")
         with pytest.raises(NotImplementedError):
             affine.affine_transform(image, matrix, mode="constant")
+        with pytest.raises(ValueError):
+            affine.affine_transform(image, matrix, mode="grid-constant", padding_mode="border")
 
         # invalid order
         with pytest.raises(NotImplementedError):

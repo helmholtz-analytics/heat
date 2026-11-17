@@ -401,20 +401,23 @@ def _sanitize_padding(mode: str, padding_mode: str, cval: float) -> tuple[str, b
     Unify redundant inputs mode and padding_mode, include behaviour of cval into padding_mode
     """
     if mode is None and padding_mode is None:
-        raise RuntimeError("either mode ore padding_mode need to be set to a value")
-    if mode is not None and padding_mode is not None:
-        raise RuntimeError("mode and padding_mode can't be set at the same time")
-
-    if mode is not None:
-        padding_input = mode
+        sample_padding = "zeros"  # default value
     else:
-        padding_input = padding_mode
+        if mode is not None and padding_mode is not None:
+            raise ValueError("mode and padding_mode can't be set at the same time")
 
-    if padding_input == "constant":
-        raise NotImplementedError(
-            "constant mode is not implemented, use 'grid-constant' for similar result"
+        if mode is not None:
+            padding_input = mode
+        else:
+            padding_input = padding_mode
+
+        if padding_input == "constant":
+            raise NotImplementedError(
+                "constant mode is not implemented, use 'grid-constant' for similar result"
+            )
+        sample_padding = _sanitize_key_string(
+            padding_input, MODE_TO_PADDING, "mode or padding_mode"
         )
-    sample_padding = _sanitize_key_string(padding_input, MODE_TO_PADDING, "mode or padding_mode")
 
     apply_cval_padding = sample_padding == "zeros" and cval != 0
     if apply_cval_padding:
@@ -432,7 +435,7 @@ def affine_transform(
     offset: DNDarray | float | None = 0.0,
     output_shape: tuple[int, ...] | None = None,
     order: int = 3,
-    mode: str | None = "grid-constant",
+    mode: str | None = None,
     padding_mode: str | None = None,
     cval: float = 0.0,
 ) -> DNDarray:
