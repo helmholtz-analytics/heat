@@ -7,7 +7,7 @@ import numpy as np
 import heat as ht
 
 
-def center_transform(affine_matrix, image_dims: tuple[int]) -> ht.DNDarray:
+def center_transform(affine_matrix: ht.DNDarray, image_dims: tuple[int, ...]) -> ht.DNDarray:
     """
     Take an [Bx]NxN transformation matrix and create an [Bx]xNxN+1 reduced affine matrix out of it,
     that centers the transformation in the image. This is convenient because in scipy convention the
@@ -45,9 +45,9 @@ def create_checker(
     shape: Iterable[int],
     checker_size: int,
     min_value: int = 0,
-    max_value: int = 256,
+    max_value: int = 255,
     dtype: ht.types.datatype = ht.float32,
-) -> np.ndarray:
+) -> ht.DNDarray:
     """
     Parameters
     ----------
