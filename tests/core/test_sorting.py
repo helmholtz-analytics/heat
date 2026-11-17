@@ -136,6 +136,8 @@ class TestSorting:
         else:
             kwargs = dict()
 
+        res_only = ht.sort(a, axis=axis, return_sort_indices=False, **kwargs)
+
         res, res_idx = ht.sort(a, axis=axis, return_sort_indices=True, **kwargs)
         exp_res = np.sort(arr, axis=axis, stable=True, **kwargs)
         exp_res_idx = np.argsort(arr, axis=axis, stable=True, **kwargs)
@@ -148,6 +150,46 @@ class TestSorting:
 
         assert res.split == a.split
         assert res_idx.split == a.split
+
+        assert ht.allclose(res, res_only)
+
+    @pytest.mark.parametrize("resplit_result", [True, False])
+    @pytest.mark.parametrize("return_sort_indices", [True, False])
+    def test_sort_complex_resplit_result(self, resplit_result, return_sort_indices):
+        axis = 0
+        shape = (8, 10)
+        b = ht.random.randn(*shape, dtype=ht.float64, split=axis)
+        c = ht.random.randn(*shape, dtype=ht.float64, split=axis)
+        a = b + c * 1j
+        arr = a.numpy()
+
+        out = ht.sort_complex(
+            a,
+            axis=axis,
+            resplit_result=resplit_result,
+            return_sort_indices=return_sort_indices,
+        )
+
+        if return_sort_indices:
+            res, res_idx = out
+        else:
+            res, res_idx = out, None
+
+        exp_res = np.sort(arr, axis=axis, stable=True)
+        assert np.isclose(res.numpy(), exp_res).all()
+        assert a.device == res.device
+
+        if a.split == axis and a.is_distributed():
+            expected_split = axis if resplit_result else (axis + 1) % res.ndim
+        else:
+            expected_split = a.split
+
+        assert res.split == expected_split
+
+        if res_idx is not None:
+            exp_idx = np.argsort(arr, axis=axis, stable=True)
+            assert (res_idx.numpy() == exp_idx).all()
+            assert res_idx.split == expected_split
 
     @staticmethod
     def _generate_take_params():
@@ -201,3 +243,82 @@ class TestSorting:
             assert res.split == (0 if a.split is not None else None)
         else:
             assert res.split == a.split
+
+    def test_take_parameters(self):
+        a = ht.random.randn(10, 10, 10)
+        idx = torch.arange(10)
+
+        # input is not a DNDarray
+        with pytest.raises(TypeError):
+            ht.take(a.numpy(), indices=idx)
+        with pytest.raises(TypeError):
+            ht.take([1, 2, 3], indices=idx)
+
+        # 'axis' must be integer or None
+        with pytest.raises(ValueError):
+            ht.take(a, indices=idx, axis=0.5)
+        with pytest.raises(ValueError):
+            ht.take(a, indices=idx, axis="0")
+
+        # axis does not exist for array
+        with pytest.raises(ValueError):
+            ht.take(a, indices=idx, axis=3)
+        with pytest.raises(ValueError):
+            ht.take(a, indices=idx, axis=-4)
+
+        # 'indices' must be a PyTorch Tensor
+        with pytest.raises(ValueError):
+            ht.take(a, indices=np.arange(10))
+        with pytest.raises(ValueError):
+            ht.take(a, indices=[0, 1, 2])
+
+        # index Tensor cannot have 0 dimensions
+        with pytest.raises(ValueError):
+            ht.take(a, indices=torch.tensor(5))
+
+        # indices must be one dimensional
+        with pytest.raises(NotImplementedError):
+            ht.take(a, indices=torch.arange(10).reshape(2, 5))
+
+    def test_sort_complex_parameters(self):
+        a = ht.random.randn(10, 10, 10)
+        b = ht.random.randn(10, 10, 10)
+        cplx = a + b * 1j
+
+        # input is not a DNDarray
+        with pytest.raises(TypeError):
+            ht.sort_complex(a.numpy())
+        with pytest.raises(TypeError):
+            ht.sort_complex([1 + 1j, 2 + 2j])
+
+        # 'axis' must be integer
+        with pytest.raises(ValueError):
+            ht.sort_complex(cplx, axis=0.5)
+        with pytest.raises(ValueError):
+            ht.sort_complex(cplx, axis="0")
+
+        # 'descending' must be bool
+        with pytest.raises(ValueError):
+            ht.sort_complex(cplx, descending=1)
+
+        # 'resplit_result' must be bool
+        with pytest.raises(ValueError):
+            ht.sort_complex(cplx, resplit_result=1)
+
+        # 'return_sort_indices' must be bool
+        with pytest.raises(ValueError):
+            ht.sort_complex(cplx, return_sort_indices=1)
+
+        # dndarray must have at least one dimension
+        with pytest.raises(ValueError):
+            ht.sort_complex(ht.array(1 + 1j))
+
+        # axis does not exist for array
+        with pytest.raises(ValueError):
+            ht.sort_complex(cplx, axis=3)
+        with pytest.raises(ValueError):
+            ht.sort_complex(cplx, axis=-4)
+
+        # not a complex type
+        with pytest.raises(ValueError):
+            ht.sort_complex(a)

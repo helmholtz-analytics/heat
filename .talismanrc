@@ -1,3 +1,8 @@
 threshold: medium
 allowed_patterns:
 - 'uses: [A-Za-z0-9-\/]+@[\w\d]+'
+
+fileignoreconfig:
+- filename: CHANGELOG.md
+  checksum: 48612f941de9e1dc20830b1251f8ef0166b39d5bad1da3bb91d504ec42068266
+version: "1.0"

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 module --force purge
-module load Stages/2025
+module load Stages/2026
 module load GCC
 module load Python
 module load jupyter-server  # provides ipykernel

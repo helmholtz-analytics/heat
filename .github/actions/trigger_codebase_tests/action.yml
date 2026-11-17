@@ -33,5 +33,5 @@ runs:
           -F "variables[BRANCH]=$BRANCH" \
           -F "variables[PR]=$PR_NUMBER" \
           -F "variables[SHA]=${{ inputs.sha }}" \
-          -F "variables[TORCH_PACKAGES]=torch==2.14.0 torchvision==0.29.0" \
+          -F "variables[TORCH_PACKAGES]=torch==2.14.1 torchvision==0.29.1" \
           https://codebase.helmholtz.cloud/api/v4/projects/20697/trigger/pipeline
