@@ -4,8 +4,16 @@ import torch
 import numpy as np
 import heat as ht
 import heat.ndimage.affine as affine
+from mpi4py import MPI
 from heat.testing.basic_test import TestCase
 from heat.ndimage.util import create_checker, root_mean_square_error
+
+COMM = MPI.COMM_WORLD
+
+requires_ranks = pytest.mark.skipif(
+    COMM.Get_size() < 2,
+    reason=f"requires >= 4 MPI ranks (have {COMM.Get_size()})",
+)
 
 class TestAffine:
 
@@ -376,6 +384,7 @@ class TestAffine:
         )
         TestAffine.bulk_testing_setup(image, matrix, offset=None, tol=0.005)
 
+    @requires_ranks
     def test_unbalanced_distribution(self):
         image: ht.DNDarray = ht.random.random((5, 2, 2, 3), dtype=ht.float32, split=None) * 128
         image.resplit_(0)
