@@ -77,7 +77,6 @@ def _remove_slice(tensor: torch.Tensor, idx: int, dim: int) -> torch.Tensor:
 
 
 def _to_full_affine(matrix: torch.Tensor) -> torch.Tensor:
-    # TODO: rewrite this to to_reduced_affine(M) because affine_grid() expects reduced form and this is just converting it to full and back to reduced form
     """
     Convert reduced affine matrices to full homogeneous form.
     Treats last 2 dimensions as matrix dimensions, the others are treated as batch dimensions
@@ -535,7 +534,6 @@ def affine_transform(
 
         linput = linput.permute(dimension_order)
 
-        # TODO exclude padding at rank boundaries, should never be neccessary
         if apply_cval_padding:
             padding_size = tuple(1 for _ in range((linput.ndim - 2) * 2))
             linput = torch.nn.functional.pad(linput, padding_size, "constant", cval)

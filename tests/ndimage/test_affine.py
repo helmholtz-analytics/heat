@@ -16,16 +16,8 @@ class TestAffine:
 
         # matrix needs identity on color axis. color is last dimension
 
-        # cls.offset_2d = ht.random.random((3), dtype=ht.float32) * 10 - 5
-        # cls.offset_2d[2] = 0
         cls.offset_2d = ht.array([4.4599, -1.9924, 0.0000], dtype=ht.float32)
-
-        # cls.offset_3d = ht.random.random((4), dtype=ht.float32) * 10 - 5
-        # cls.offset_3d[3] = 0
         cls.offset_3d = ht.array([4.9231, -2.4895, -3.5396, 0.0000], dtype=ht.float32)
-
-        # cls.offset_3d_bulk = ht.random.random((BULK, 4), dtype=ht.float32) * 10 - 5
-        # cls.offset_3d_bulk[:, 3] = 0
         cls.offset_3d_bulk = ht.array(
             [
                 [-0.89095, -0.22055, 1.23815, 0.0000],
@@ -45,9 +37,6 @@ class TestAffine:
             (BULK, 32, 32, 64), 8, min_value=50, max_value=200
         )
 
-        # cls.matrix_2d = ht.random.random((3, 3), dtype=ht.float32) * 4 - 2
-        # cls.matrix_2d[:, 2] = ht.array([0, 0, 1], dtype=ht.float32)
-        # cls.matrix_2d[2, :] = ht.array([0, 0, 1], dtype=ht.float32)
         cls.matrix_2d = ht.array(
             [
                 [0.6564, 0.9997, 0.0000],
@@ -59,9 +48,6 @@ class TestAffine:
 
         cls.matrix_2d_offset = ht.hstack((cls.matrix_2d, cls.offset_2d[:, None]))
 
-        # cls.matrix_3d = ht.random.random((4, 4), dtype=ht.float32) * 4 - 2
-        # cls.matrix_3d[:, 3] = ht.array([0, 0, 0, 1], dtype=ht.float32)
-        # cls.matrix_3d[3, :] = ht.array([0, 0, 0, 1], dtype=ht.float32)
         cls.matrix_3d = ht.array(
             [
                 [1.2317, 1.5504, -1.2923, 0.0000],
@@ -74,9 +60,6 @@ class TestAffine:
 
         cls.matrix_3d_offset = ht.hstack((cls.matrix_3d, cls.offset_3d[:, None]))
 
-        # cls.matrix_3d_bulk = ht.random.random((BULK, 4, 4), dtype=ht.float32) * 4 - 2
-        # cls.matrix_3d_bulk[:, :, 3] = ht.array([0, 0, 0, 1], dtype=ht.float32)
-        # cls.matrix_3d_bulk[:, 3, :] = ht.array([0, 0, 0, 1], dtype=ht.float32)
         cls.matrix_3d_bulk = ht.array(
             [
                 [
@@ -189,7 +172,6 @@ class TestAffine:
         )
         result = affine.affine_transform(image, matrix, **kwargs)
         comparison = ndimg.affine_transform(*next(scipy_args), **scipy_kwargs)
-        # visual_compare(result, comparison, has_bulk=False)
         assert np.allclose(result.numpy(), comparison, rtol=0, atol=tol)
 
 
