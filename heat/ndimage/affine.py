@@ -15,6 +15,7 @@ Handling of Distributed arrays:
   transform does not change anything along that axis
 """
 
+import warnings
 from typing import Sequence
 import torch
 from torch.nn.functional import affine_grid, grid_sample
@@ -23,6 +24,7 @@ from heat.core import types
 from heat.core.dndarray import DNDarray
 from heat.core.factories import array
 from heat.core.sanitation import sanitize_in_min_max_nd
+from heat.core.communication import Communication
 
 MODE_TO_PADDING = {
     # scipy mode : torch padding_mode
@@ -106,8 +108,8 @@ def _to_full_affine(matrix: torch.Tensor) -> torch.Tensor:
 def convert_matrix_space(
     matrix: torch.Tensor,
     input_shape: tuple[int, ...],
+    output_shape: tuple[int, ...],
     padding_correction: bool,
-    output_shape: tuple[int] | None,
 ) -> torch.Tensor:
     """
     Takes a full scipy affine matrix and converts the space to normalized coordinates used by affine_grid.
@@ -133,7 +135,7 @@ def convert_matrix_space(
     conversion[:dim, dim] = offsets
     back_conversion = conversion.inverse()
 
-    if output_shape:
+    if output_shape != input_shape:
         # when either shape have 0 add one to both input and output value
         input_shape, output_shape = zip(
             *tuple(
@@ -153,7 +155,9 @@ def convert_matrix_space(
     # reversing effect the padding has on the transform because it changes aspect ratio
     if padding_correction:
         pad_factors = scales / (scales + 1)
-        pad_factors = torch.cat([pad_factors, torch.tensor([1], device=matrix.device)])
+        pad_factors = torch.cat(
+            [pad_factors, torch.ones(1, device=matrix.device, dtype=matrix.dtype)]
+        )
         pad_matrix = torch.diag(pad_factors)
         result = pad_matrix @ result
 
@@ -166,8 +170,8 @@ def _untouched_axes(matrices: DNDarray) -> DNDarray:
     """
     identity = ht.eye((matrices.shape[-2:]), dtype=matrices.dtype, device=matrices.device)
     comparison = ht.eq(matrices, identity)
-    result_row = ht.all(comparison, -1)
-    result_column = ht.all(comparison, -2)
+    result_row = ht.all(comparison, axis=-1)
+    result_column = ht.all(comparison, axis=-2)
 
     if result_column.shape[-1] > result_row.shape[-1]:
         result = ht.logical_and(result_row, result_column[..., : result_row.shape[-1]])
@@ -185,20 +189,20 @@ def _sanitize_key_string(key_string: str, dictionary: dict, param_name: str):
         result = dictionary[key_string]
         if result is None:
             raise NotImplementedError(
-                f"""the {param_name} '{key_string}' is valid in scipy, but currently\
- not supported in this implementation. valid modes are {valid_modes}"""
+                f"the {param_name} '{key_string}' is valid in scipy, but currently"
+                f"not supported in this implementation. valid modes are {valid_modes}"
             )
     else:
         raise ValueError(
-            f"given {param_name} '{key_string}' is not a valid valaue. valid modes are {valid_modes}"
+            f"given {param_name} '{key_string}' is not a valid value. valid modes are {valid_modes}"
         )
     return result
 
 
-def _promote_to_type(goal_type: ht.datatype, *arrays: DNDarray | None):
+def _promote_to_type(goal_type: types.datatype, *arrays: DNDarray | None):
     """
     Promotes every array in arrays to type if it is possible, else throw an error.
-    None Values in arrays do not get touched and get returnd in same order
+    None Values in arrays do not get touched and get returned in the same order
     """
     promoted_type = goal_type
     for a in arrays:
@@ -206,17 +210,20 @@ def _promote_to_type(goal_type: ht.datatype, *arrays: DNDarray | None):
             promoted_type = types.promote_types(promoted_type, a.dtype)
     if promoted_type is not goal_type:
         raise TypeError(
-            "arrays cant be promoted to goal_type, bacause they contain\
- a Type that is higher in promotion order than the goal type"
+            "arrays cant be promoted to goal_type, bacause they contain"
+            "a Type that is higher in promotion order than the goal type"
         )
-    return tuple(promoted_type(a) if a is not None else None for a in arrays)
+    return tuple(
+        None if a is None else (a if a.dtype == promoted_type else a.astype(promoted_type))
+        for a in arrays
+    )
 
 
 def _prepare_matrix(
     matrix: torch.Tensor,
     offset: torch.Tensor,
-    input_shape: tuple[int],
-    output_shape: tuple[int],
+    input_shape: tuple[int, ...],
+    output_shape: tuple[int, ...],
     is_padded: bool,
 ) -> torch.Tensor:
 
@@ -244,8 +251,8 @@ def _prepare_matrix(
     matrix = convert_matrix_space(
         matrix,
         input_shape=input_shape,
-        padding_correction=is_padded,
         output_shape=output_shape,
+        padding_correction=is_padded,
     )
     return matrix
 
@@ -264,7 +271,7 @@ def _prepare_data(
 
     sanitize_in_min_max_nd(matrix, 2, 3)
 
-    if type(offset) in [float, int]:
+    if isinstance(offset, (float, int)):
         if offset == 0:
             offset_array = None
         else:
@@ -318,8 +325,6 @@ def _prepare_data(
         # offset exists and matrix is no affine matrix
         if matrix.shape[-1] >= image.ndim:
             offset_array = None
-            import warnings
-
             warnings.warn(
                 UserWarning(
                     "offset is not used, since matrix provides offset information in its rightmost column"
@@ -331,16 +336,17 @@ def _prepare_data(
 expected {matrix.ndim - 1} dimensions but got {offset_array.ndim}""")
             if offset_array.shape[-1] != matrix.shape[-2]:
                 raise ValueError(
-                    f"offset vector has not the right length, expected {matrix.shape[-2]}, but got {offset_array.shape[-1]}"
+                    f"offset vector has not the right length, expected {matrix.shape[-2]},"
+                    f"but got {offset_array.shape[-1]}"
                 )
     return image, matrix, offset_array, out_shape
 
 
 def _sanitize_and_update_splitting(
-    image_split: int,
+    image_split: int | None,
     matrix: DNDarray,
-    offset: DNDarray,
-) -> tuple[DNDarray, DNDarray, tuple[int, ...]]:
+    offset: DNDarray | None,
+) -> tuple[DNDarray, DNDarray | None]:
     # determening the split axis
     # if axis is not the bulk axis or constant axis -> abort
     # should be fine because matrix should always be small compared to image input
@@ -357,37 +363,39 @@ def _sanitize_and_update_splitting(
         if matrix.split is not None:
             matrix = ht.resplit(matrix, None)
 
-    if offset is not None:
-        if offset.split != matrix.split:
-            offset = ht.resplit(offset, matrix.split)
+    if offset is not None and offset.split != matrix.split:
+        offset = ht.resplit(offset, matrix.split)
 
     return matrix, offset
 
 
 def _get_local_torch_views(
-    image: DNDarray, matrix: DNDarray, output_shape: tuple[int]
-) -> tuple[torch.Tensor, torch.tensor, tuple[int, ...], int]:
+    image: DNDarray, matrix: DNDarray, output_shape: tuple[int, ...]
+) -> tuple[torch.Tensor, torch.Tensor, tuple[int, ...], int, Communication]:
     matrix_torch: torch.Tensor = matrix.larray
     input_torch = image.larray
 
     if matrix.split is None and image.split == 0:
-        _, _, corresponding_slice = matrix.comm.chunk(matrix.gshape, 0)
+        _, _, corresponding_slice = image.comm.chunk(matrix.gshape, 0)
         matrix_torch = matrix_torch[corresponding_slice]
         out_split = 0
+        out_comm = image.comm
     elif matrix.split == 0 and image.split is None:
-        _, _, corresponding_slice = image.comm.chunk(image.gshape, 0)
+        _, _, corresponding_slice = matrix.comm.chunk(image.gshape, 0)
         input_torch = input_torch[corresponding_slice]
         out_split = 0
+        out_comm = matrix.comm
     else:
         out_split = image.split
+        out_comm = image.comm
 
     if matrix_torch.device != input_torch.device:
         matrix_torch = matrix_torch.to(input_torch.device)
 
     if out_split is not None:
-        _, output_shape, _ = matrix.comm.chunk(output_shape, out_split)
+        _, output_shape, _ = out_comm.chunk(output_shape, out_split)
 
-    return input_torch, matrix_torch, output_shape, out_split
+    return input_torch, matrix_torch, output_shape, out_split, out_comm
 
 
 def _sanitize_padding(mode: str, padding_mode: str, cval: float) -> tuple[str, bool]:
@@ -457,7 +465,9 @@ def affine_transform(
         have the size [ D x ]H x W by the transform
     offset : DNDarray | float | None
         offset vector that can be used instead of adding offset into affine matrix directly. This is only used
-        when the matrix given is of shape [Bx]NxN and has no column for offset information.
+        when the matrix given is of shape [Bx]NxN and has no column for offset information. instead of a vector,
+        offset can also be a float, wich then gets applied to all axis of the input. Different to scipy, the
+        color axis remains untouched.
     output_shape : tuple[int, ...]
         shape of the output the function will produce. It should have the same dimension count as the input,
         only the size of spacial dimensions can be varied, color and bulk axis need to stay the same.
@@ -467,7 +477,7 @@ def affine_transform(
     mode : str
         Determines how the input array is extended beyond its boundaries. Default value is `constant-grid`.
         `constant`, the default value used by scipy is not supported and will throw an error.
-        Behavior for each valid value is as follows:
+        Behavior for each valid value is as follows
         - `grid-constant`
             the pixel beyond the boundary are filled with a constant value. The value is defined by the cval
             parameter. Border pixels are also interpolated.
@@ -483,7 +493,7 @@ def affine_transform(
         - `reflection`
             same as `mirror`, alias using torch semantics
     padding_mode :
-        same as mode, alias using torch semantics. Either mode or padding_mode can be provided, not both
+        alias for 'mode' with same behaviour. Either 'mode' or 'padding_mode' can be provided, not both
     cval :
         value with wich the padding should be filled. This is implemented as a padding applied along all axis.
 
@@ -513,14 +523,16 @@ def affine_transform(
     if image.split is not None and out_shape[image.split] != image.shape[image.split]:
         raise RuntimeError("the output shape cannot differ form input shape along input split axis")
 
-    linput, lmatrix, out_lshape, out_split = _get_local_torch_views(image, matrix, out_shape)
+    linput, lmatrix, out_lshape, out_split, out_comm = _get_local_torch_views(
+        image, matrix, out_shape
+    )
 
     # at this point computations can all be done locally
 
     # I still don't understand why the permute below is necessary, but the affine matrix itself
     # does not need to be reordered.
     # This should switch wich axis in input data is influenced by wich row/column in the
-    # affine matrix. But the result matches scipy so thats so I guess it's fine
+    # affine matrix. But the result matches scipy so I guess it's fine
     dimension_order = (0,) + tuple(
         idx for idx in range(image.ndim - 1, 0, -1)
     )  # reversed: (0,4,3,2,1) or (0,3,2,1)
@@ -561,7 +573,7 @@ def affine_transform(
         dtype=image.dtype,
         is_split=out_split,
         device=image.device,
-        comm=image.comm,
+        comm=out_comm,
         copy=False,
     )
 
