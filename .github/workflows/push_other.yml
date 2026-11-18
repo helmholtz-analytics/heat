@@ -41,7 +41,7 @@ jobs:
         pytorch-version:
           - 'torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0'   # Oldest supported
           - 'torch==2.9.1 torchvision==0.24.1 torchaudio==2.9.1'   # JSC Stage 2026
-          - 'torch==2.15.0 torchvision==0.30.0' # Latest stable
+          - 'torch==2.15.0 torchvision==0.29.2' # Latest stable
         exclude:
           - py-version: '3.14'
             pytorch-version: 'torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0'
