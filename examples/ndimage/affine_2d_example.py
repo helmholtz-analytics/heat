@@ -20,21 +20,24 @@ ROTATE = np.deg2rad(30)
 TRANSLATE = (100, 50)
 
 PADDING_VALUE=0.0
-OFFSET = ht.array((30, 0, 0))
+OFFSET = ht.array((30, 0, 0), dtype=ht.float32)
 ORDER = 1
 MODE="grid-constant"
 
 # image tensor is interpreded as Height x Width x Color
 img_heat: ht.DNDarray = create_checker(SIZE, 32)
 
-img_np = img_heat.numpy()
-dims = img_np.shape
+dims = img_heat.shape
 
 fig, axs = plt.subplots(5, 2, figsize=(10, 16))
 axs = axs.ravel()
 
-
-def apply(affine_matrix: ht.DNDarray, title, row_idx):
+def apply_affine(affine_matrix: ht.DNDarray, title, row_idx):
+    """
+    use heat and scipy side by side to apply the same affine transform
+    and display the results next to each other. This function is
+    dependant on the subplots specified in line 33
+    """
     idx = row_idx * 2
 
     result = affine_transform(
@@ -47,7 +50,7 @@ def apply(affine_matrix: ht.DNDarray, title, row_idx):
     )
 
     compare = ndimg.affine_transform(
-        img_np,
+        img_heat.numpy(),
         affine_matrix.numpy(),
         order=ORDER,
         mode=MODE,
@@ -66,14 +69,14 @@ def apply(affine_matrix: ht.DNDarray, title, row_idx):
 # ------------------------------------------------------------
 # Identity
 # ------------------------------------------------------------
-apply(ht.eye((3, 4), dtype=ht.float32), "Identity", 0)
+apply_affine(ht.eye((3, 4), dtype=ht.float32), "Identity", 0)
 
 # ------------------------------------------------------------
 # Translation
 # ------------------------------------------------------------
 M_TR = ht.eye((3, 4), dtype=ht.float32)
 M_TR[:, 3] = [TRANSLATE[0], TRANSLATE[1], 0]  # (tx, ty, tz)
-apply(M_TR, f"Translate {TRANSLATE}", 1)
+apply_affine(M_TR, f"Translate {TRANSLATE}", 1)
 
 # ------------------------------------------------------------
 # Rotate 30° around center (in x,y coords)
@@ -87,23 +90,23 @@ A_ROT = ht.array(
     ],
     dtype=ht.float32,
 )
-apply(A_ROT, f"Rotate {ROTATE} with seperate offset vector", 2)
+apply_affine(A_ROT, f"Rotate {ROTATE} with seperate offset vector", 2)
 
 # ------------------------------------------------------------
 # Scaling
 # ------------------------------------------------------------
 A_SCALE = ht.array([[SCALE[0], 0, 0], [0, SCALE[1], 0], [0, 0, 1]], dtype=ht.float32)
-apply(center_transform(A_SCALE, dims), f"Scale {SCALE}", 3)
+apply_affine(center_transform(A_SCALE, dims), f"Scale {SCALE}", 3)
 
 # ------------------------------------------------------------
-# Combo: centered (scale→rotate) + then translate (tx,ty)
+# Combo: centered (scale @ rotate) + then translate (tx,ty)
 # ------------------------------------------------------------
 a_combo = A_ROT @ A_SCALE
 t = ht.array([100, -50, 0], dtype=ht.float32)  # (tx, ty)
 img_center = ht.array(dims) / 2
 b_combo = img_center - a_combo @ img_center + t
 m_combo = ht.hstack([a_combo, b_combo[:, None]]).astype(np.float32)
-apply(m_combo, "Combo", 4)
+apply_affine(m_combo, "Combo", 4)
 
 plt.tight_layout()
 plt.show()
