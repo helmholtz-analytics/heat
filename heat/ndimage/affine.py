@@ -505,13 +505,13 @@ def affine_transform(
     padding_mode, apply_cval_padding = _sanitize_padding(mode, padding_mode, cval)
     sample_mode = _sanitize_key_string(order, ORDER_TO_MODE, "order")
 
-    input_gshape = image.shape
+    in_gshape = image.shape
 
     image, matrix, offset, out_shape = _prepare_data(image, matrix, offset, output_shape)
 
     matrix, offset = _sanitize_and_update_splitting(image.split, matrix, offset)
 
-    if output_shape[image.split] != image.shape[image.split]:
+    if image.split is not None and out_shape[image.split] != image.shape[image.split]:
         raise RuntimeError("the output shape cannot differ form input shape along input split axis")
 
     linput, lmatrix, out_lshape, out_split = _get_local_torch_views(image, matrix, out_shape)
@@ -553,7 +553,7 @@ def affine_transform(
 
     transformed = transformed.permute(dimension_order)
 
-    if transformed.ndim != len(input_gshape):  # had no bulk axis originally
+    if transformed.ndim != len(in_gshape):  # had no bulk axis originally
         transformed = transformed.squeeze(0)
         if out_split is not None:
             out_split -= 1
