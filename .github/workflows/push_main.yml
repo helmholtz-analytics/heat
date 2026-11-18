@@ -46,6 +46,7 @@ jobs:
           - '3.12'
           - '3.13'
           - '3.14'
+          - '3.15'
         mpi: [ 'mpich' ]
         pytorch-version:
           - 'torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0'
@@ -65,6 +66,14 @@ jobs:
           - py-version: '3.14'
             pytorch-version: 'torch==2.8.0 torchvision==0.23.0 torchaudio==2.8.0'
           - py-version: '3.14'
+            pytorch-version: 'torch==2.9.1 torchvision==0.24.1 torchaudio==2.9.1'
+          - py-version: '3.15'
+            pytorch-version: 'torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0'
+          - py-version: '3.15'
+            pytorch-version: 'torch==2.7.1 torchvision==0.22.1 torchaudio==2.7.1'
+          - py-version: '3.15'
+            pytorch-version: 'torch==2.8.0 torchvision==0.23.0 torchaudio==2.8.0'
+          - py-version: '3.15'
             pytorch-version: 'torch==2.9.1 torchvision==0.24.1 torchaudio==2.9.1'
 
     name: Python ${{ matrix.py-version }} with ${{ matrix.pytorch-version }}
@@ -99,7 +108,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
-          python-version: '3.14'
+          python-version: '3.15'
           architecture: x64
 
       - name: Install REUSE
