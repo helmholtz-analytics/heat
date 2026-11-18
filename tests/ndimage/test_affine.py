@@ -1,5 +1,6 @@
 import pytest
 import scipy.ndimage as ndimg
+import torch
 import numpy as np
 import heat as ht
 import heat.ndimage.affine as affine
@@ -374,6 +375,40 @@ class TestAffine:
             [[[0, 1, 0, 0], [-1, 0, 0, 9], [0, 0, 1, 0]]], dtype=ht.float32, split=0
         )
         TestAffine.bulk_testing_setup(image, matrix, offset=None, tol=0.005)
+
+    def test_unbalanced_distribution(self):
+        image: ht.DNDarray = ht.random.random((5, 2, 2, 3), dtype=ht.float32, split=None) * 128
+        image.resplit_(0)
+        lshape_map = torch.zeros(
+            (image.comm.size, image.ndim), dtype=torch.int64, device=image.device.torch_device
+        )
+        lshape_map[0:2,...] = torch.asarray(((2, 2, 2, 3),(3, 2, 2, 3)),dtype=torch.int64, device=image.device.torch_device)
+        lshape_map[2:,...] = torch.asarray((0, 2, 2, 3),dtype=torch.int64, device=image.device.torch_device)
+        image.redistribute_(target_map=lshape_map)
+        print(image.larray)
+        output_shape = (5, 5, 10, 3)
+        matrix = ht.array(
+            [[[2.0, 0, 0], [0, 1.0, 0], [0, 0, 1.0]],
+                [[2.0, 0, 0], [0, 1.0, 0], [0, 0, 1.0]],
+                [[2.0, 0, 0], [0, 1.0, 0], [0, 0, 1.0]],
+                [[2.0, 0, 0], [0, 1.0, 0], [0, 0, 1.0]],
+                [[2.0, 0, 0], [0, 1.0, 0], [0, 0, 1.0]]],
+            dtype=ht.float32
+        )
+        matrix.resplit_(None)
+        TestAffine.bulk_testing_setup(image, matrix, offset=None, tol=0.005, order=1, output_shape=output_shape)
+
+        image.resplit_(None)
+        matrix.resplit_(0)
+        lshape_map = torch.zeros(
+            (matrix.comm.size, matrix.ndim), dtype=torch.int64, device=matrix.device.torch_device
+        )
+        lshape_map[0:2,...] = torch.asarray(((2, 3, 3),(3, 3, 3)),dtype=torch.int64, device=image.device.torch_device)
+        lshape_map[2:,...] = torch.asarray((0, 3, 3),dtype=torch.int64, device=image.device.torch_device)
+        matrix.redistribute_(target_map=lshape_map)
+        print(matrix.larray)
+        output_shape = (5, 5, 10, 3)
+        TestAffine.bulk_testing_setup(image, matrix, offset=None, tol=0.005, order=1, output_shape=output_shape)
 
 
     def test_unsupported_shapes(self):

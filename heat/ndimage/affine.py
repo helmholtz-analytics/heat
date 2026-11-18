@@ -221,7 +221,6 @@ def _promote_to_type(goal_type: types.datatype, *arrays: DNDarray | None):
 
 def _prepare_matrix(
     matrix: torch.Tensor,
-    offset: torch.Tensor,
     input_shape: tuple[int, ...],
     output_shape: tuple[int, ...],
     is_padded: bool,
@@ -232,18 +231,6 @@ def _prepare_matrix(
     # torch affine_grid does not support transforming color dimension
     matrix = _remove_slice(matrix, idx=num_transform_dims, dim=-2)
     matrix = _remove_slice(matrix, idx=num_transform_dims, dim=-1)
-
-    if matrix.shape[1:] == (
-        num_transform_dims,
-        num_transform_dims,
-    ):
-        if offset is not None:
-            # translation information missing, using offset value and adding it at the right to bring matrix
-            # to reduced affine form
-            offset_torch = _remove_slice(offset.larray, -1, dim=-1)
-
-            transformed_offset = offset_torch[..., None]
-            matrix = torch.cat([matrix, transformed_offset], matrix.ndim - 1)
 
     if matrix.shape[1:] != (num_transform_dims + 1, num_transform_dims + 1):
         matrix = _to_full_affine(matrix)
@@ -332,20 +319,25 @@ def _prepare_data(
             )
         else:
             if offset_array.ndim != matrix.ndim - 1:
-                raise ValueError(f"""offset vector has wrong number of dimensions compared to the matrix.
-expected {matrix.ndim - 1} dimensions but got {offset_array.ndim}""")
+                raise ValueError(
+                    f"offset vector has wrong number of dimensions compared to the matrix."
+                    f"expected {matrix.ndim - 1} dimensions but got {offset_array.ndim}"
+                )
             if offset_array.shape[-1] != matrix.shape[-2]:
                 raise ValueError(
                     f"offset vector has not the right length, expected {matrix.shape[-2]},"
                     f"but got {offset_array.shape[-1]}"
                 )
-    return image, matrix, offset_array, out_shape
+
+            offset_array = ht.expand_dims(offset_array, offset_array.ndim)
+            matrix = ht.concatenate([matrix, offset_array], axis=(matrix.ndim - 1))
+
+    return image, matrix, out_shape
 
 
 def _sanitize_and_update_splitting(
     image_split: int | None,
     matrix: DNDarray,
-    offset: DNDarray | None,
 ) -> tuple[DNDarray, DNDarray | None]:
     # determening the split axis
     # if axis is not the bulk axis or constant axis -> abort
@@ -363,39 +355,72 @@ def _sanitize_and_update_splitting(
         if matrix.split is not None:
             matrix = ht.resplit(matrix, None)
 
-    if offset is not None and offset.split != matrix.split:
-        offset = ht.resplit(offset, matrix.split)
+    return matrix
 
-    return matrix, offset
+
+def _handle_distribution_balance(
+    image: DNDarray,
+    matrix: DNDarray,
+):
+    if image.is_balanced() and matrix.is_balanced():
+        matrix.resplit_(None)
+    elif (
+        image.is_balanced()
+        and not matrix.is_balanced()
+        or not image.is_balanced()
+        and matrix.is_balanced()
+    ):
+        matrix.resplit_(None)
+    elif not image.is_balanced() and not matrix.is_balanced():
+        im_counts, _ = image.counts_displs()
+        ma_counts, _ = matrix.counts_displs()
+        if im_counts != ma_counts:
+            matrix.resplit_(None)
+    else:
+        return
 
 
 def _get_local_torch_views(
     image: DNDarray, matrix: DNDarray, output_shape: tuple[int, ...]
-) -> tuple[torch.Tensor, torch.Tensor, tuple[int, ...], int, Communication]:
+) -> tuple[torch.Tensor, torch.Tensor, tuple[int, ...], int, Communication, bool]:
     matrix_torch: torch.Tensor = matrix.larray
-    input_torch = image.larray
+    image_torch = image.larray
 
     if matrix.split is None and image.split == 0:
-        _, _, corresponding_slice = image.comm.chunk(matrix.gshape, 0)
-        matrix_torch = matrix_torch[corresponding_slice]
+        counts, displ = image.counts_displs()
+        start_index = displ[image.comm.rank]
+        end_index = start_index + counts[image.comm.rank]
+        matrix_torch = matrix_torch[start_index:end_index]
         out_split = 0
         out_comm = image.comm
+        balanced = image.is_balanced()
     elif matrix.split == 0 and image.split is None:
-        _, _, corresponding_slice = matrix.comm.chunk(image.gshape, 0)
-        input_torch = input_torch[corresponding_slice]
+        counts, displ = matrix.counts_displs()
+        start_index = displ[matrix.comm.rank]
+        end_index = start_index + counts[matrix.comm.rank]
+        image_torch = image_torch[start_index:end_index]
         out_split = 0
         out_comm = matrix.comm
+        balanced = matrix.is_balanced()
     else:
+        # split should be the same between matrix and image
         out_split = image.split
         out_comm = image.comm
+        balanced = image.is_balanced()
 
-    if matrix_torch.device != input_torch.device:
-        matrix_torch = matrix_torch.to(input_torch.device)
+    if matrix_torch.device != image_torch.device:
+        matrix_torch = matrix_torch.to(image_torch.device)
 
     if out_split is not None:
-        _, output_shape, _ = out_comm.chunk(output_shape, out_split)
+        out_lshape = (
+            output_shape[0:out_split]
+            + (image_torch.shape[out_split],)
+            + output_shape[out_split + 1 :]
+        )
+    else:
+        out_lshape = output_shape
 
-    return input_torch, matrix_torch, output_shape, out_split, out_comm
+    return image_torch, matrix_torch, out_lshape, out_split, out_comm, balanced
 
 
 def _sanitize_padding(mode: str, padding_mode: str, cval: float) -> tuple[str, bool]:
@@ -516,14 +541,15 @@ def affine_transform(
 
     in_gshape = image.shape
 
-    image, matrix, offset, out_shape = _prepare_data(image, matrix, offset, output_shape)
+    image, matrix, out_shape = _prepare_data(image, matrix, offset, output_shape)
 
-    matrix, offset = _sanitize_and_update_splitting(image.split, matrix, offset)
+    matrix = _sanitize_and_update_splitting(image.split, matrix)
 
     if image.split is not None and out_shape[image.split] != image.shape[image.split]:
         raise RuntimeError("the output shape cannot differ form input shape along input split axis")
 
-    linput, lmatrix, out_lshape, out_split, out_comm = _get_local_torch_views(
+    _handle_distribution_balance(image, matrix)
+    linput, lmatrix, out_lshape, out_split, out_comm, out_balanced = _get_local_torch_views(
         image, matrix, out_shape
     )
 
@@ -538,11 +564,11 @@ def affine_transform(
     )  # reversed: (0,4,3,2,1) or (0,3,2,1)
 
     loc_out_shape_permuted = tuple(out_lshape[i] for i in dimension_order)
-    out_shape = torch.Size(loc_out_shape_permuted)
+    out_lshape_size = torch.Size(loc_out_shape_permuted)
 
     # skip computation if this rank has no data
     if linput.numel() > 0:
-        lmatrix = _prepare_matrix(lmatrix, offset, linput.shape, out_lshape, apply_cval_padding)
+        lmatrix = _prepare_matrix(lmatrix, linput.shape, out_lshape, apply_cval_padding)
 
         linput = linput.permute(dimension_order)
 
@@ -550,7 +576,7 @@ def affine_transform(
             padding_size = tuple(1 for _ in range((linput.ndim - 2) * 2))
             linput = torch.nn.functional.pad(linput, padding_size, "constant", cval)
 
-        sample_grid: torch.Tensor = affine_grid(lmatrix, out_shape, align_corners=True)
+        sample_grid: torch.Tensor = affine_grid(lmatrix, out_lshape_size, align_corners=True)
         transformed: torch.Tensor = grid_sample(
             linput,
             sample_grid,
@@ -559,7 +585,7 @@ def affine_transform(
             align_corners=True,
         )
     else:
-        transformed = torch.empty(out_shape, dtype=linput.dtype, device=linput.device)
+        transformed = torch.empty(out_lshape_size, dtype=linput.dtype, device=linput.device)
 
     transformed = transformed.permute(dimension_order)
 
@@ -567,14 +593,16 @@ def affine_transform(
         transformed = transformed.squeeze(0)
         if out_split is not None:
             out_split -= 1
+        out_shape = out_shape[1:]
 
-    transformed_dnd: DNDarray = array(
+    transformed_dnd: DNDarray = DNDarray(
         transformed.contiguous(),
         dtype=image.dtype,
-        is_split=out_split,
+        gshape=out_shape,
+        split=out_split,
         device=image.device,
         comm=out_comm,
-        copy=False,
+        balanced=out_balanced,
     )
 
     return transformed_dnd
