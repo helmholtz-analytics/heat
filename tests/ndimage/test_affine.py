@@ -4,11 +4,10 @@ import torch
 import numpy as np
 import heat as ht
 import heat.ndimage.affine as affine
-from mpi4py import MPI
 from heat.testing.basic_test import TestCase
 from heat.ndimage.util import create_checker, root_mean_square_error
 
-COMM = MPI.COMM_WORLD
+COMM = ht.MPI_WORLD
 
 requires_ranks = pytest.mark.skipif(
     COMM.Get_size() < 2,
@@ -352,18 +351,6 @@ class TestAffine:
         assert np.allclose(split_none.numpy(), split_result.numpy(), rtol=0, atol=0.001)
 
 
-    @pytest.mark.parametrize("order", [0, 1])
-    @pytest.mark.parametrize("cval", [128, 255])
-    def test_cval(self, order, cval):
-        image = self.image_2d_1
-        matrix = self.matrix_2d_offset
-
-        mode = "grid-constant"  # cval only has effect in this mode
-        TestAffine.default_testing_setup(
-            image, matrix, tol=0.005, cval=cval, mode=mode, order=order
-        )
-
-
     def test_split_edge_cases(self):
         # should not throw error, because matrix gets resplit to None
         image = create_checker((10, 10), 2, dtype=ht.float32)
@@ -386,38 +373,51 @@ class TestAffine:
 
     @requires_ranks
     def test_unbalanced_distribution(self):
-        image: ht.DNDarray = ht.random.random((5, 2, 2, 3), dtype=ht.float32, split=None) * 128
-        image.resplit_(0)
+        image_no_split: ht.DNDarray = ht.random.random((5, 2, 2, 3), dtype=ht.float32, split=None) * 128
+        image_0_split = ht.resplit(image_no_split, 0)
         lshape_map = torch.zeros(
-            (image.comm.size, image.ndim), dtype=torch.int64, device=image.device.torch_device
+            (image_0_split.comm.size, image_0_split.ndim), dtype=torch.int64, device=image_0_split.device.torch_device
         )
-        lshape_map[0:2,...] = torch.asarray(((2, 2, 2, 3),(3, 2, 2, 3)),dtype=torch.int64, device=image.device.torch_device)
-        lshape_map[2:,...] = torch.asarray((0, 2, 2, 3),dtype=torch.int64, device=image.device.torch_device)
-        image.redistribute_(target_map=lshape_map)
-        print(image.larray)
+        lshape_map[0:2,...] = torch.asarray(((2, 2, 2, 3),(3, 2, 2, 3)),dtype=torch.int64, device=image_0_split.device.torch_device)
+        lshape_map[2:,...] = torch.asarray((0, 2, 2, 3),dtype=torch.int64, device=image_0_split.device.torch_device)
+        unbalanced_image = ht.redistribute(image_0_split, target_map=lshape_map)
         output_shape = (5, 5, 10, 3)
-        matrix = ht.array(
+        matrix_not_split = ht.array(
             [[[2.0, 0, 0], [0, 1.0, 0], [0, 0, 1.0]],
                 [[2.0, 0, 0], [0, 1.0, 0], [0, 0, 1.0]],
                 [[2.0, 0, 0], [0, 1.0, 0], [0, 0, 1.0]],
                 [[2.0, 0, 0], [0, 1.0, 0], [0, 0, 1.0]],
                 [[2.0, 0, 0], [0, 1.0, 0], [0, 0, 1.0]]],
-            dtype=ht.float32
+            dtype=ht.float32,
+            split=None
         )
-        matrix.resplit_(None)
-        TestAffine.bulk_testing_setup(image, matrix, offset=None, tol=0.005, order=1, output_shape=output_shape)
-
-        image.resplit_(None)
-        matrix.resplit_(0)
+        matrix_0_split = ht.resplit(matrix_not_split, 0)
         lshape_map = torch.zeros(
-            (matrix.comm.size, matrix.ndim), dtype=torch.int64, device=matrix.device.torch_device
+            (matrix_0_split.comm.size, matrix_0_split.ndim), dtype=torch.int64, device=matrix_not_split.device.torch_device
         )
-        lshape_map[0:2,...] = torch.asarray(((2, 3, 3),(3, 3, 3)),dtype=torch.int64, device=image.device.torch_device)
-        lshape_map[2:,...] = torch.asarray((0, 3, 3),dtype=torch.int64, device=image.device.torch_device)
-        matrix.redistribute_(target_map=lshape_map)
-        print(matrix.larray)
+        lshape_map[0:2,...] = torch.asarray(((2, 3, 3),(3, 3, 3)),dtype=torch.int64, device=matrix_0_split.device.torch_device)
+        lshape_map[2:,...] = torch.asarray((0, 3, 3),dtype=torch.int64, device=matrix_0_split.device.torch_device)
+        unbalanced_matrix = ht.redistribute(matrix_not_split, target_map=lshape_map)
+
         output_shape = (5, 5, 10, 3)
-        TestAffine.bulk_testing_setup(image, matrix, offset=None, tol=0.005, order=1, output_shape=output_shape)
+
+        TestAffine.bulk_testing_setup(unbalanced_image, matrix_not_split,  offset=None, tol=0.005, order=1, output_shape=output_shape)
+        TestAffine.bulk_testing_setup(unbalanced_image, matrix_0_split,    offset=None, tol=0.005, order=1, output_shape=output_shape)
+        TestAffine.bulk_testing_setup(image_no_split,   unbalanced_matrix, offset=None, tol=0.005, order=1, output_shape=output_shape)
+        TestAffine.bulk_testing_setup(image_0_split,    unbalanced_matrix, offset=None, tol=0.005, order=1, output_shape=output_shape)
+        TestAffine.bulk_testing_setup(unbalanced_image, unbalanced_matrix, offset=None, tol=0.005, order=1, output_shape=output_shape)
+
+
+    @pytest.mark.parametrize("order", [0, 1])
+    @pytest.mark.parametrize("cval", [128, 255])
+    def test_cval(self, order, cval):
+        image = self.image_2d_1
+        matrix = self.matrix_2d_offset
+
+        mode = "grid-constant"  # cval only has effect in this mode
+        TestAffine.default_testing_setup(
+            image, matrix, tol=0.005, cval=cval, mode=mode, order=order
+        )
 
 
     def test_unsupported_shapes(self):
@@ -447,6 +447,17 @@ class TestAffine:
         matrix = ht.empty((3, 4), dtype=ht.float32)
         with pytest.raises(ValueError):
             affine.affine_transform(image, matrix)
+
+
+    @pytest.mark.parametrize("out_shape", [None, (128, 32, 3)])
+    @pytest.mark.parametrize("order", [0, 1])
+    @pytest.mark.parametrize("mode", ["grid-constant", "mirror", "nearest", "zeros", "border", "reflection", ])
+    def test_padding_mode(self, order, mode, out_shape):
+        image = self.image_2d_1
+        matrix = self.matrix_2d_offset
+        result1 = affine.affine_transform(image, matrix, order=order, padding_mode=mode, output_shape=out_shape)
+        result2 = affine.affine_transform(image, matrix, order=order, mode=mode, output_shape=out_shape)
+        assert ht.equal(result1, result2)
 
 
     def test_unsupported_modes_and_order(self):
@@ -500,6 +511,13 @@ class TestAffine:
         image = ht.empty((10, 10, 3), dtype=ht.float32)
         matrix = ht.empty((3, 3), dtype=ht.float32)
         offset = ht.empty((2,), dtype=ht.float32)
+        with pytest.raises(ValueError):
+            affine.affine_transform(image, matrix, offset=offset)
+
+        # invalid offset shape
+        image = ht.empty((10, 10, 3), dtype=ht.float32)
+        matrix = ht.empty((3, 3), dtype=ht.float32)
+        offset = ht.empty((2, 3), dtype=ht.float32)
         with pytest.raises(ValueError):
             affine.affine_transform(image, matrix, offset=offset)
 
@@ -584,10 +602,10 @@ offset information in its rightmost column"
             affine.affine_transform(image, matrix, output_shape=(17, 1, 10, 10, 3))
 
         # output_shape differs from input_shape along split axis
-        image = ht.empty((10, 10, 3), dtype=ht.float32, split=0)
-        matrix = ht.empty((3, 4), dtype=ht.float32, split=0)
+        matrix = self.matrix_test_split
+        img_split_1 = self.image_test_split.resplit_(1)
         with pytest.raises(RuntimeError):
-            affine.affine_transform(image, matrix, output_shape=(15, 10, 3))
+            affine.affine_transform(img_split_1, matrix, output_shape=(2, 24, 32, 16, 3))
 
 
     def test_matrix_edge_cases(self):

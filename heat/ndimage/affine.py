@@ -364,11 +364,8 @@ def _handle_distribution_balance(
 ):
     if image.is_balanced() and matrix.is_balanced():
         matrix.resplit_(None)
-    elif (
-        image.is_balanced()
-        and not matrix.is_balanced()
-        or not image.is_balanced()
-        and matrix.is_balanced()
+    elif (image.is_balanced() and not matrix.is_balanced()) or (
+        not image.is_balanced() and matrix.is_balanced()
     ):
         matrix.resplit_(None)
     elif not image.is_balanced() and not matrix.is_balanced():
