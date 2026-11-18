@@ -334,15 +334,13 @@ expected {matrix.ndim - 1} dimensions but got {offset_array.ndim}""")
                 raise ValueError(
                     f"offset vector has not the right length, expected {matrix.shape[-2]}, but got {offset_array.shape[-1]}"
                 )
-    return image, matrix, offset_array, output_shape
+    return image, matrix, offset_array, out_shape
 
 
-def _handle_splitting(
+def _sanitize_and_update_splitting(
     image_split: int,
-    image_shape: tuple[int, ...],
     matrix: DNDarray,
     offset: DNDarray,
-    output_shape: tuple[int, ...],
 ) -> tuple[DNDarray, DNDarray, tuple[int, ...]]:
     # determening the split axis
     # if axis is not the bulk axis or constant axis -> abort
@@ -360,16 +358,11 @@ def _handle_splitting(
         if matrix.split is not None:
             matrix = ht.resplit(matrix, None)
 
-        if output_shape[image_split] != image_shape[image_split]:
-            raise RuntimeError(
-                "the output shape cannot differ form input shape along input split axis"
-            )
-
     if offset is not None:
         if offset.split != matrix.split:
             offset = ht.resplit(offset, matrix.split)
 
-    return matrix, offset, output_shape
+    return matrix, offset
 
 
 def _get_local_torch_views(
@@ -512,15 +505,16 @@ def affine_transform(
     padding_mode, apply_cval_padding = _sanitize_padding(mode, padding_mode, cval)
     sample_mode = _sanitize_key_string(order, ORDER_TO_MODE, "order")
 
-    original_shape = image.shape
+    input_gshape = image.shape
 
-    image, matrix, offset, output_shape = _prepare_data(image, matrix, offset, output_shape)
+    image, matrix, offset, out_shape = _prepare_data(image, matrix, offset, output_shape)
 
-    matrix, offset, output_shape = _handle_splitting(
-        image.split, image.shape, matrix, offset, output_shape
-    )
+    matrix, offset = _sanitize_and_update_splitting(image.split, matrix, offset)
 
-    linput, lmatrix, out_lshape, out_split = _get_local_torch_views(image, matrix, output_shape)
+    if output_shape[image.split] != image.shape[image.split]:
+        raise RuntimeError("the output shape cannot differ form input shape along input split axis")
+
+    linput, lmatrix, out_lshape, out_split = _get_local_torch_views(image, matrix, out_shape)
 
     # at this point computations can all be done locally
 
@@ -559,7 +553,7 @@ def affine_transform(
 
     transformed = transformed.permute(dimension_order)
 
-    if transformed.ndim != len(original_shape):  # had no bulk axis originally
+    if transformed.ndim != len(input_gshape):  # had no bulk axis originally
         transformed = transformed.squeeze(0)
         if out_split is not None:
             out_split -= 1
