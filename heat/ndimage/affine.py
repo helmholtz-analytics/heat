@@ -2,7 +2,7 @@
 Affine transformations for N-dimensional Heat arrays.
 
 This module implements backward-warping affine transformations
-(translation, rotation, scaling) for 2D and 3D data stored as
+(translation, rotation, scale, shear) for 2D and 3D data stored as
 Heat DNDarrays, using a PyTorch backend relying on affine_grid and grid_sample from torch.nn.functional.
 
 Spatial axis conventions in Heat:
