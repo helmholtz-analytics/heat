@@ -1,6 +1,6 @@
 # Project Governance
 
-As a project hosted under Linux Foundation Europe, Heat's technical oversight is managed by a Technical Steering Committee (TSC). The TSC has the authority to define and amend community roles as long as they are publicly documented here in the CONTRIBUTING file.
+As a project hosted under Linux Foundation Europe, Heat's technical oversight is managed by a Technical Steering Committee (TSC). The TSC has the authority to define and amend community roles as long as they are publicly documented here in the GOVERNANCE.md file.
 
 Participation in Heat is open to any individual or organization that abides by the Technical Charter and project policies, regardless of competitive interests. The project operates in an open, transparent, and non-discriminatory manner.
 
@@ -62,6 +62,6 @@ To comply with the Heat Technical Charter under Linux Foundation Europe, all con
 
 - **Copyright retention:** The copyright in all new contributions is retained by the copyright holder as independent works of authorship; no copyright assignment is required.
 - **Code licensing:** All new inbound code contributions must be made under the MIT License, and contributed source files should include an `SPDX-License-Identifier: MIT` header.
-- **Developer Certificate of Origin (DCO):** All new inbound code contributions must include a [Developer Certificate of Origin](http://developercertificate.org) sign-off (`Signed-off-by`), binding the contributor and, if applicable, their employer to the license.
+- **Developer Certificate of Origin (DCO):** All new inbound code contributions must include a [Developer Certificate of Origin](https://developercertificate.org/) sign-off (`Signed-off-by`), binding the contributor and, if applicable, their employer to the license.
 - **Documentation licensing:** Documentation is received and made available under the Creative Commons Attribution 4.0 International (CC-BY-4.0) License.
 - **Trademarks:** LF Europe holds title to all Project Trademarks, and any use by Collaborators must follow LF Europe's trademark guidelines.
