@@ -20,16 +20,46 @@ class TestZolopolar(TestCase):
         A_np = A.numpy()
         U_np = U.numpy()
         H_np = H.numpy()
-        # U orthogonal
+        # U has orthonormal columns
         self.assertTrue(
-            np.allclose(U_np.T @ U_np, np.eye(U_np.shape[1]), atol=dtypetol, rtol=dtypetol)
+            np.allclose(U_np.conj().T @ U_np, np.eye(U_np.shape[1]), atol=dtypetol, rtol=dtypetol)
         )
-        # H symmetric
-        self.assertTrue(np.allclose(H_np.T, H_np, atol=dtypetol, rtol=dtypetol))
+        # H Hermitian
+        self.assertTrue(np.allclose(H_np.conj().T, H_np, atol=dtypetol, rtol=dtypetol))
         # H positive definite, i.e., eigenvalues > 0
         self.assertTrue((np.linalg.eigvalsh(H_np) > 0).all())
         # A = U H
         self.assertTrue(np.allclose(A_np, U_np @ H_np, atol=dtypetol, rtol=dtypetol))
+
+    def test_polar_complex(self):
+        rng = np.random.default_rng(42)
+        for dtype, tol in ((ht.complex64, 1e-4), (ht.complex128, 1e-7)):
+            for shape in ((23, 11), (11, 11)):
+                data = rng.standard_normal(shape) + 1j * rng.standard_normal(shape)
+                for split in (None, 0, 1):
+                    A = ht.array(data, dtype=dtype, split=split, device=self.device)
+                    for r in (None, 1):
+                        for condition_estimate in (1.0e16, 0.0):
+                            with self.subTest(
+                                dtype=dtype,
+                                shape=shape,
+                                split=split,
+                                r=r,
+                                condition_estimate=condition_estimate,
+                            ):
+                                U, H = ht.polar(A, r=r, condition_estimate=condition_estimate)
+                                self._check_polar(A, U, H, tol)
+                                self.assertEqual(U.device, A.device)
+                                self.assertEqual(H.device, A.device)
+                                self.assertEqual(U.comm, A.comm)
+                                self.assertEqual(H.comm, A.comm)
+
+                                U_only = ht.polar(
+                                    A, r=r, calcH=False, condition_estimate=condition_estimate
+                                )
+                                H_from_U = U_only.conj().T @ A
+                                self._check_polar(A, U_only, H_from_U, tol)
+                                np.testing.assert_allclose(A.numpy(), data, atol=tol, rtol=tol)
 
     def test_catch_wrong_inputs(self):
         # if A is not a DNDarray
