@@ -86,10 +86,6 @@ def _to_full_affine(matrix: torch.Tensor) -> torch.Tensor:
         - [...]DxD+1 -> D+1xD+1
     """
     target_shape = list(matrix.shape)
-    if len(target_shape) < 2:
-        raise ValueError(
-            f"Expected affine transformation matrix to be tensor with at leas 2 dimensions, got {matrix.dim()}"
-        )
 
     if target_shape[-1] == target_shape[-2]:  # square matrix
         target_shape[-1] += 1
@@ -358,23 +354,23 @@ def _sanitize_and_update_splitting(
     return matrix
 
 
-def _handle_distribution_balance(
+def _is_distribution_equal(
     image: DNDarray,
     matrix: DNDarray,
-):
-    if image.is_balanced() and matrix.is_balanced():
-        matrix.resplit_(None)
-    elif (image.is_balanced() and not matrix.is_balanced()) or (
-        not image.is_balanced() and matrix.is_balanced()
-    ):
-        matrix.resplit_(None)
-    elif not image.is_balanced() and not matrix.is_balanced():
+) -> bool:
+    img_bal = image.is_balanced()
+    mat_bal = matrix.is_balanced()
+
+    if (img_bal and not mat_bal) or (not img_bal and mat_bal):
+        return False
+
+    if not img_bal and not mat_bal:
         im_counts, _ = image.counts_displs()
         ma_counts, _ = matrix.counts_displs()
         if im_counts != ma_counts:
-            matrix.resplit_(None)
-    else:
-        return
+            return False
+
+    return True
 
 
 def _get_local_torch_views(
@@ -543,9 +539,15 @@ def affine_transform(
     matrix = _sanitize_and_update_splitting(image.split, matrix)
 
     if image.split is not None and out_shape[image.split] != image.shape[image.split]:
-        raise RuntimeError("the output shape cannot differ form input shape along input split axis")
+        raise RuntimeError("the output shape cannot differ from input shape along input split axis")
 
-    _handle_distribution_balance(image, matrix)
+    if (
+        image.is_distributed()
+        and matrix.is_distributed()
+        and not _is_distribution_equal(image, matrix)
+    ):
+        matrix = ht.resplit(matrix, None)
+
     linput, lmatrix, out_lshape, out_split, out_comm, out_balanced = _get_local_torch_views(
         image, matrix, out_shape
     )

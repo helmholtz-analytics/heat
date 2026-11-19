@@ -10,7 +10,7 @@ from heat.ndimage.util import create_checker, root_mean_square_error
 COMM = ht.MPI_WORLD
 
 requires_ranks = pytest.mark.skipif(
-    COMM.Get_size() < 2,
+    COMM.Get_size() < 3,
     reason=f"requires >= 4 MPI ranks (have {COMM.Get_size()})",
 )
 
@@ -174,17 +174,25 @@ class TestAffine:
 
 
     @staticmethod
-    def default_testing_setup(image, matrix, tol, **kwargs):
+    def default_testing_setup(image_in, matrix_in, tol, **kwargs):
+        image = ht.array(image_in, copy=True)
+        matrix = ht.array(matrix_in, copy=True)
+
         scipy_args, scipy_kwargs = TestAffine.to_scipy_input(
             image, matrix, **kwargs
         )
         result = affine.affine_transform(image, matrix, **kwargs)
         comparison = ndimg.affine_transform(*next(scipy_args), **scipy_kwargs)
         assert np.allclose(result.numpy(), comparison, rtol=0, atol=tol)
+        assert ht.equal(image_in, image)
+        assert ht.equal(matrix_in, matrix)
 
 
     @staticmethod
-    def rmse_testing_setup(image, matrix, tol, **kwargs):
+    def rmse_testing_setup(image_in, matrix_in, tol, **kwargs):
+        image = ht.array(image_in, copy=True)
+        matrix = ht.array(matrix_in, copy=True)
+
         scipy_args, scipy_kwargs = TestAffine.to_scipy_input(
             image, matrix, **kwargs
         )
@@ -193,10 +201,15 @@ class TestAffine:
 
         error = root_mean_square_error(result.numpy(), comparison)
         assert error <= tol
+        assert ht.equal(image_in, image)
+        assert ht.equal(matrix_in, matrix)
 
 
     @staticmethod
-    def bulk_testing_setup(image, matrix, tol, **kwargs):
+    def bulk_testing_setup(image_in, matrix_in, tol, **kwargs):
+        image = ht.array(image_in, copy=True)
+        matrix = ht.array(matrix_in, copy=True)
+
         scipy_args, scipy_kwargs = TestAffine.to_scipy_input(
             image, matrix, **kwargs
         )
@@ -213,6 +226,8 @@ class TestAffine:
                 rtol=0,
                 atol=tol,
             )
+        assert ht.equal(image_in, image)
+        assert ht.equal(matrix_in, matrix)
 
 
     @pytest.mark.parametrize("out_shape", [None, (128, 32, 3)])
@@ -397,15 +412,15 @@ class TestAffine:
         )
         lshape_map[0:2,...] = torch.asarray(((2, 3, 3),(3, 3, 3)),dtype=torch.int64, device=matrix_0_split.device.torch_device)
         lshape_map[2:,...] = torch.asarray((0, 3, 3),dtype=torch.int64, device=matrix_0_split.device.torch_device)
-        unbalanced_matrix = ht.redistribute(matrix_not_split, target_map=lshape_map)
+        unbalanced_matrix = ht.redistribute(matrix_0_split, target_map=lshape_map)
 
         output_shape = (5, 5, 10, 3)
 
-        TestAffine.bulk_testing_setup(unbalanced_image, matrix_not_split,  offset=None, tol=0.005, order=1, output_shape=output_shape)
-        TestAffine.bulk_testing_setup(unbalanced_image, matrix_0_split,    offset=None, tol=0.005, order=1, output_shape=output_shape)
-        TestAffine.bulk_testing_setup(image_no_split,   unbalanced_matrix, offset=None, tol=0.005, order=1, output_shape=output_shape)
-        TestAffine.bulk_testing_setup(image_0_split,    unbalanced_matrix, offset=None, tol=0.005, order=1, output_shape=output_shape)
-        TestAffine.bulk_testing_setup(unbalanced_image, unbalanced_matrix, offset=None, tol=0.005, order=1, output_shape=output_shape)
+        TestAffine.bulk_testing_setup(unbalanced_image, matrix_not_split,  tol=0.005, output_shape=output_shape)
+        TestAffine.bulk_testing_setup(unbalanced_image, matrix_0_split,    tol=0.005, output_shape=output_shape)
+        TestAffine.bulk_testing_setup(image_no_split,   unbalanced_matrix, tol=0.005, output_shape=output_shape)
+        TestAffine.bulk_testing_setup(image_0_split,    unbalanced_matrix, tol=0.005, output_shape=output_shape)
+        TestAffine.bulk_testing_setup(unbalanced_image, unbalanced_matrix, tol=0.005, output_shape=output_shape)
 
 
     @pytest.mark.parametrize("order", [0, 1])
