@@ -5,7 +5,7 @@ Module for Spectral Clustering, a graph-based machine learning algorithm
 import heat as ht
 import math
 import torch
-from typing import Tuple, Union
+from typing import Callable, Union
 from heat.core.dndarray import DNDarray
 from heat.core.linalg import reigh
 
@@ -28,11 +28,12 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
         Random seed for reproducibility. If None, no random seed is set.
     gamma : float, default=1.0
         Kernel coefficient sigma for 'rbf', ignored for affinity='euclidean'
-    affinity : str, default='rbf'
+    affinity : str or callable, default='rbf'
         How to construct the similarity (affinity) matrix.
             - 'rbf' : construct the similarity matrix using a radial basis function (RBF) kernel.
             - 'euclidean' : construct the similarity matrix as euclidean distance.
             - 'precomputed' : interpret ``X`` as precomputed affinity matrix.
+            - callable : a function that takes a data matrix of shape (n_samples, n_features) and returns an affinity matrix of shape (n_samples, n_samples).
     laplacian : str, default='fully_connected'
         How to calculate the graph laplacian (affinity)
         Currently supported : 'fully_connected', 'eNeighbour'
@@ -67,7 +68,7 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
         n_components: Union[int, None] = None,
         random_state: Union[int, None] = None,
         gamma: float = 1.0,
-        affinity: str = "rbf",
+        affinity: Union[str, Callable] = "rbf",
         laplacian: str = "fully_connected",
         threshold: float = 1.0,
         boundary: str = "upper",
@@ -80,10 +81,8 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
     ):
         self.n_clusters = n_clusters
         self.eigen_solver = eigen_solver
-        self.n_components = n_components if n_components is not None else n_clusters
+        self.n_components = n_components
         self.random_state = random_state
-        if self.random_state is not None:
-            ht.random.seed(self.random_state)
         self.gamma = gamma
         self.affinity = affinity
         self.laplacian = laplacian
@@ -125,6 +124,14 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
         elif affinity == "precomputed":
             self._laplacian = ht.graph.Laplacian(
                 lambda x: x,
+                definition="norm_sym",
+                mode=laplacian,
+                threshold_key=boundary,
+                threshold_value=threshold,
+            )
+        elif callable(affinity):
+            self._laplacian = ht.graph.Laplacian(
+                affinity,
                 definition="norm_sym",
                 mode=laplacian,
                 threshold_key=boundary,
@@ -283,7 +290,7 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
             return embedding[1:n_select].T
         return embedding[:n_select].T
 
-    def fit(self, x: DNDarray):
+    def fit(self, x: DNDarray, y=None):
         """
         Clusters dataset X via spectral embedding.
         Computes the low-dim representation by calculation of the spectral embedding (eigenvectors corresponding to the lowest `n_clusters` eigenvalues) of the
@@ -296,6 +303,8 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
         ----------
         x : DNDarray
             Training instances to cluster. Shape = (n_samples, n_features)
+        y : Ignored
+            Not used, present for API consistency by convention.
 
         See Also
         --------
@@ -304,8 +313,16 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
         # input sanitation
         if not isinstance(x, DNDarray):
             raise ValueError(f"input needs to be a ht.DNDarray, but was {type(x)}")
+        if x.ndim != 2:
+            raise ValueError(f"Expected 2D array, got {x.ndim}D array instead.")
+        if self.affinity == "precomputed" and x.shape[0] != x.shape[1]:
+            raise ValueError(f"Precomputed affinity matrix must be square, got shape {x.shape}.")
         if x.is_distributed() and x.split != 0:
             raise NotImplementedError(f"Distribution along axis {x.split} is not supported yet.")
+        if self.affinity != "precomputed":
+            self.n_features_in_ = x.shape[1]
+        if self.random_state is not None:
+            ht.random.seed(self.random_state)
         # Embed dataset into lower-dimensional eigenvector space
         components = self.__spectral_embedding(
             x, n_components=self.n_components, eigen_solver=self.eigen_solver
@@ -320,7 +337,7 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
 
         return self
 
-    def fit_predict(self, x: DNDarray) -> DNDarray:
+    def fit_predict(self, x: DNDarray, y=None) -> DNDarray:
         """
         Fit the model to the data and return the labels.
 
@@ -328,13 +345,15 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
         ----------
         x : DNDarray
             Training instances to cluster. Shape = (n_samples, n_features)
+        y : Ignored
+            Not used, present for API consistency by convention.
 
         Returns
         -------
         DNDarray
             Labels of each point.
         """
-        self.fit(x)
+        self.fit(x, y=y)
         return self.labels_
 
     def predict(self, x: DNDarray) -> DNDarray:
