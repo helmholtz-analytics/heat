@@ -7,7 +7,6 @@ import torch
 from typing import Tuple
 
 from ..dndarray import DNDarray
-from ..manipulations import concatenate
 from .. import factories
 from .. import communication
 from ..types import float32, float64, complex64, complex128
@@ -107,18 +106,15 @@ def qr(
 
     QR = collections.namedtuple("QR", "Q, R")
 
-    if A.ndim == 3:
-        single_proc_qr = torch.vmap(torch.linalg.qr, in_dims=0, out_dims=0)
-    else:
-        single_proc_qr = torch.linalg.qr
+    single_proc_qr = torch.linalg.qr
 
     if not A.is_distributed() or A.split < A.ndim - 2:
         # handle the case of a single process or split=None: just PyTorch QR
         Q, R = single_proc_qr(A.larray, mode=mode)
 
-        R = factories.array(R, is_split=A.split, device=A.device)
+        R = factories.array(R, is_split=A.split, device=A.device, comm=A.comm)
         if mode == "reduced":
-            Q = factories.array(Q, is_split=A.split, device=A.device)
+            Q = factories.array(Q, is_split=A.split, device=A.device, comm=A.comm)
         else:
             Q = None
         return QR(Q, R)
@@ -131,12 +127,13 @@ def qr(
         lshapes = A.lshape_map[:, -1]
         lshapes_cum = torch.cumsum(lshapes, 0)
         nprocs = A.comm.size
+        rank = A.comm.rank
 
         if A.shape[-2] >= A.shape[-1]:
-            last_row_reached = nprocs
+            last_rank = nprocs - 1
             k = A.shape[-1]
         else:
-            last_row_reached = min(torch.argwhere(lshapes_cum >= A.shape[-2]))[0]
+            last_rank = int(torch.searchsorted(lshapes_cum, A.shape[-2], right=False).item())
             k = A.shape[-2]
 
         if mode == "reduced":
@@ -158,35 +155,35 @@ def qr(
             ]
         )
 
-        A_columns = A.larray.clone()
+        A_columns = A.larray.clone() if rank > 0 else A.larray
 
-        for i in range(last_row_reached + 1):
+        for i in range(last_rank + 1):
             # this loop goes through all the column-blocks (i.e. local arrays) of the matrix
             # this corresponds to the loop over all columns in classical Gram-Schmidt
 
-            if i < nprocs - 1:
-                k_loc_i = min(A.shape[-2], A.lshape_map[i, -1])
-                Q_buf = torch.zeros(
+            if rank == i:
+                # orthogonalize the current block of columns by utilizing PyTorch QR
+                Q_curr, R_loc = single_proc_qr(A_columns, mode="reduced")
+                if mode == "reduced":
+                    Q.larray = Q_curr
+                r_size = R.larray[..., R_shapes[i] : R_shapes[i + 1], :].shape[-2]
+                R.larray[..., R_shapes[i] : R_shapes[i + 1], :] = R_loc[..., :r_size, :]
+                if i < nprocs - 1:
+                    Q_buf = Q_curr.contiguous()
+                del A_columns
+            elif i < nprocs - 1:
+                k_loc_i = min(A.shape[-2], int(lshapes[i].item()))
+                Q_buf = torch.empty(
                     (*A.shape[:-1], k_loc_i),
                     dtype=A.larray.dtype,
                     device=A.device.torch_device,
                 )
 
-            if A.comm.rank == i:
-                # orthogonalize the current block of columns by utilizing PyTorch QR
-                Q_curr, R_loc = single_proc_qr(A_columns, mode="reduced")
-                if i < nprocs - 1:
-                    Q_buf = Q_curr.contiguous()
-                if mode == "reduced":
-                    Q.larray = Q_curr
-                r_size = R.larray[..., R_shapes[i] : R_shapes[i + 1], :].shape[-2]
-                R.larray[..., R_shapes[i] : R_shapes[i + 1], :] = R_loc[..., :r_size, :]
-
             if i < nprocs - 1:
                 # broadcast the orthogonalized block of columns to all other processes
                 A.comm.Bcast(Q_buf, root=i)
 
-            if A.comm.rank > i:
+            if rank > i:
                 # subtract the contribution of the current block of columns from the remaining columns
                 R_loc = torch.transpose(torch.conj(Q_buf), -2, -1) @ A_columns
                 A_columns -= Q_buf @ R_loc
@@ -194,7 +191,7 @@ def qr(
                 R.larray[..., R_shapes[i] : R_shapes[i + 1], :] = R_loc[..., :r_size, :]
 
         if mode == "reduced":
-            Q = Q[..., :, :k].balance()
+            Q = (Q[..., :, :k] if k < A.shape[-1] else Q).balance()
         else:
             Q = None
 
@@ -215,58 +212,64 @@ def qr(
                 )
             )
             A_copy = A.copy()
-            R = A.copy()
+            R = factories.zeros_like(A)
+            k_total = min(A.shape[-2], A.shape[-1])
+            if mode == "reduced":
+                Q_larray = torch.empty(
+                    (*A.lshape[:-1], k_total),
+                    dtype=A.larray.dtype,
+                    device=A.device.torch_device,
+                )
+
             # Block-wise Gram-Schmidt orthogonalization, applied to groups of columns
             offset = 1 if A.shape[-1] <= A.shape[-2] else 2
             for k in range(len(column_idx) - offset):
+                c_start = int(column_idx[k].item())
+                c_end = int(column_idx[k + 1].item())
                 # since we only consider a group of columns, TS QR is applied to a tall-skinny matrix
                 Qnew, Rnew = qr(
-                    A_copy[..., :, column_idx[k] : column_idx[k + 1]],
+                    A_copy[..., :, c_start:c_end],
                     mode="reduced",
                     procs_to_merge=procs_to_merge,
                 )
 
                 # usual update of the remaining columns
                 if R.comm.rank == k:
-                    R.larray[
-                        ...,
-                        : (column_idx[k + 1] - column_idx[k]),
-                        column_idx[k] : column_idx[k + 1],
-                    ] = Rnew.larray
-                if R.comm.rank > k:
-                    R.larray[..., :, column_idx[k] : column_idx[k + 1]] *= 0
+                    R.larray[..., : (c_end - c_start), c_start:c_end] = Rnew.larray
                 if k < len(column_idx) - 2:
                     coeffs = (
                         torch.transpose(torch.conj(Qnew.larray), -2, -1)
-                        @ A_copy.larray[..., :, column_idx[k + 1] :]
+                        @ A_copy.larray[..., :, c_end:]
                     )
                     R.comm.Allreduce(communication.MPI.IN_PLACE, coeffs)
                     if R.comm.rank == k:
-                        R.larray[..., :, column_idx[k + 1] :] = coeffs
-                    A_copy.larray[..., :, column_idx[k + 1] :] -= Qnew.larray @ coeffs
+                        R.larray[..., :, c_end:] = coeffs
+                    A_copy.larray[..., :, c_end:] -= Qnew.larray @ coeffs
                 if mode == "reduced":
-                    Q = Qnew if k == 0 else concatenate((Q, Qnew), axis=-1)
+                    Q_larray[..., :, c_start:c_end] = Qnew.larray
+            del A_copy
             if A.shape[-1] < A.shape[-2]:
                 R = R[..., : A.shape[-1], :].balance()
             if mode == "reduced":
+                Q = factories.array(Q_larray, is_split=A.split, device=A.device, comm=A.comm)
                 return QR(Q, R)
-            else:
-                return QR(None, R)
+            return QR(None, R)
 
         else:
             # in this case the input is tall-skinny and we apply the TS-QR algorithm
             # it follows the implementation of TS-QR for split = 0
-            current_procs = [i for i in range(A.comm.size)]
+            nprocs = A.comm.size
+            rank = A.comm.rank
+            current_procs = list(range(nprocs))
             current_comm = A.comm
-            local_comm = current_comm.Split(current_comm.rank // procs_to_merge, A.comm.rank)
+            local_comm = current_comm.Split(current_comm.rank // procs_to_merge, rank)
             Q_loc, R_loc = single_proc_qr(A.larray, mode=mode)
             R_loc = R_loc.contiguous()
-            if mode == "reduced":
-                leave_comm = current_comm.Split(current_comm.rank, A.comm.rank)
 
             level = 1
             while len(current_procs) > 1:
-                if A.comm.rank in current_procs and local_comm.size > 1:
+                scattered_Q_buf = None
+                if rank in current_procs and local_comm.size > 1:
                     # create array to collect the R_loc's from all processes of the process group of at most n_procs_to_merge processes
                     shapes_R_loc = local_comm.gather(R_loc.shape[-2], root=0)
                     if local_comm.rank == 0:
@@ -306,45 +309,56 @@ def qr(
                         )
                     del gathered_R_loc, Q_buf
 
+                if rank in current_procs:
+                    local_comm.Free()
+
                 # for each process in the current processes, broadcast the scattered_Q_buf of this process
                 # to all leaves (i.e. all original processes that merge to the current process)
-                if mode == "reduced" and leave_comm.size > 1:
-                    try:
-                        scattered_Q_buf_shape = scattered_Q_buf.shape
-                    except UnboundLocalError:
-                        scattered_Q_buf_shape = None
-                    scattered_Q_buf_shape = leave_comm.bcast(scattered_Q_buf_shape, root=0)
-                    if scattered_Q_buf_shape is not None:
-                        # this is needed to ensure that only those Q_loc get updates that are actually part of the current process group
-                        if leave_comm.rank != 0:
-                            scattered_Q_buf = torch.empty(
-                                scattered_Q_buf_shape, device=Q_loc.device, dtype=Q_loc.dtype
-                            )
-                        leave_comm.Bcast(scattered_Q_buf, root=0)
+                if mode == "reduced":
+                    step = procs_to_merge ** (level - 1)
+                    if step > 1:
+                        leave_comm = A.comm.Split(rank // step, rank)
+                        root_rank = (rank // step) * step
+                        group_step = procs_to_merge * step
+                        group_start = (root_rank // group_step) * group_step
+                        if leave_comm.size > 1 and (group_start + step) < nprocs:
+                            if leave_comm.rank != 0:
+                                k_cols = A.shape[-1]
+                                leaf_end = min(root_rank + step, nprocs)
+                                n_rows_root = min(
+                                    int(A.lshape_map[root_rank:leaf_end, -2].sum().item()),
+                                    k_cols,
+                                )
+                                scattered_Q_buf = torch.empty(
+                                    (*A.shape[:-2], n_rows_root, k_cols),
+                                    device=Q_loc.device,
+                                    dtype=Q_loc.dtype,
+                                )
+                            leave_comm.Bcast(scattered_Q_buf, root=0)
+                        leave_comm.Free()
+
                     # update the local Q_loc by multiplying it with the scattered_Q_buf
-                try:
-                    Q_loc = Q_loc @ scattered_Q_buf
-                    del scattered_Q_buf
-                except UnboundLocalError:
-                    pass
+                    if scattered_Q_buf is not None:
+                        Q_loc = Q_loc @ scattered_Q_buf
+                        del scattered_Q_buf
 
                 # update: determine processes to be active at next "merging" level, create new communicator and split it into groups for gathering
-                current_procs = [
-                    current_procs[i] for i in range(len(current_procs)) if i % procs_to_merge == 0
-                ]
+                prev_procs = current_procs
+                current_procs = current_procs[::procs_to_merge]
+                if current_comm is not A.comm and rank in prev_procs:
+                    current_comm.Free()
                 if len(current_procs) > 1:
                     new_group = A.comm.group.Incl(current_procs)
                     current_comm = A.comm.Create_group(new_group)
-                    if A.comm.rank in current_procs:
+                    new_group.Free()
+                    if rank in current_procs:
                         local_comm = communication.MPICommunication(
-                            current_comm.Split(current_comm.rank // procs_to_merge, A.comm.rank)
+                            current_comm.Split(current_comm.rank // procs_to_merge, rank)
                         )
-                    if mode == "reduced":
-                        leave_comm = A.comm.Split(A.comm.rank // procs_to_merge**level, A.comm.rank)
                 level += 1
             # broadcast the final R_loc to all processes
             R_gshape = (*A.shape[:-2], A.shape[-1], A.shape[-1])
-            if A.comm.rank != 0:
+            if rank != 0:
                 R_loc = torch.empty(R_gshape, dtype=R_loc.dtype, device=R_loc.device)
             A.comm.Bcast(R_loc, root=0)
             R = DNDarray(
