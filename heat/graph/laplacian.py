@@ -4,7 +4,7 @@ Module for graph-based classes
 
 from __future__ import annotations
 
-from typing import Callable
+from typing import Callable, Tuple, Union
 import torch
 import heat as ht
 from heat.core.dndarray import DNDarray
@@ -71,7 +71,7 @@ class Laplacian:
 
         self.neighbours = neighbours
 
-    def _normalized_symmetric_L(self, A: DNDarray) -> DNDarray:
+    def _normalized_symmetric_L(self, A: DNDarray, return_diag: bool = False) -> DNDarray:
         """
         Helper function to calculate the normalized symmetric Laplacian
 
@@ -81,21 +81,23 @@ class Laplacian:
         ----------
         A : DNDarray
             The adjacency matrix of the graph
+        return_diag : bool, default=False
+            If True, also return the square root of the node degrees :math:`D^{1/2}`.
         """
         degree = ht.sum(A, axis=1)
         degree.resplit_(axis=None)
         # Find stand-alone vertices with no connections
-        temp = torch.ones(
-            degree.shape, dtype=degree.larray.dtype, device=degree.device.torch_device
-        )
-        degree.larray = torch.where(degree.larray == 0, temp, degree.larray)
-        L = A / ht.sqrt(ht.expand_dims(degree, axis=1))
-        L = L / ht.sqrt(ht.expand_dims(degree, axis=0))
-        L = L * (-1.0)
+        degree.larray = torch.where(degree.larray == 0, 1.0, degree.larray)
+        dd = ht.sqrt(degree)
+        inv_dd = 1.0 / dd
+        L = A * (-ht.expand_dims(inv_dd, axis=1))
+        L *= ht.expand_dims(inv_dd, axis=0)
         L.fill_diagonal(1.0)
+        if return_diag:
+            return L, dd
         return L
 
-    def _simple_L(self, A: DNDarray):
+    def _simple_L(self, A: DNDarray, return_diag: bool = False):
         """
         Helper function to calculate the simple graph Laplacian
 
@@ -105,12 +107,18 @@ class Laplacian:
         ----------
         A : DNDarray
             The Adjacency Matrix of the graph
+        return_diag : bool, default=False
+            If True, also return the node degrees.
         """
         degree = ht.sum(A, axis=1)
         L = ht.diag(degree) - A
+        if return_diag:
+            return L, degree
         return L
 
-    def construct(self, X: DNDarray) -> DNDarray:
+    def construct(
+        self, X: DNDarray, return_diag: bool = False, return_affinity: bool = False
+    ) -> Union[DNDarray, Tuple[DNDarray, ...]]:
         """
         Callable to get the Laplacian matrix from the dataset ``X`` according to the specified Laplacian
 
@@ -118,6 +126,10 @@ class Laplacian:
         ----------
         X : DNDarray
             The data matrix, Shape = (n_samples, n_features)
+        return_diag : bool, default=False
+            If True, also return the square root of the node degrees :math:`D^{1/2}` (or node degrees for ``'simple'``).
+        return_affinity : bool, default=False
+            If True, also return the affinity (adjacency) matrix :math:`A`.
         """
         S = self.similarity_metric(X)
         S.fill_diagonal(0.0)
@@ -135,8 +147,12 @@ class Laplacian:
                     S = ht.int(S > self.epsilon[1])
 
         if self.definition == "simple":
-            L = self._simple_L(S)
+            res = self._simple_L(S, return_diag=return_diag)
         elif self.definition == "norm_sym":
-            L = self._normalized_symmetric_L(S)
+            res = self._normalized_symmetric_L(S, return_diag=return_diag)
 
-        return L
+        if return_affinity:
+            if return_diag:
+                return (*res, S)
+            return res, S
+        return res
