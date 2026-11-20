@@ -298,6 +298,9 @@ tags
 .vscode
 .history
 
+### Claude Code ###
+.claude/
+
 
 # End of https://www.gitignore.io/api/vim,cmake,emacs,python,pycharm+all,intellij+all,visualstudiocode
 

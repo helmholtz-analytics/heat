@@ -78,13 +78,14 @@ class TestLinalgBasics(TestCase):
         self.assertTrue(est.item() >= xnpsvals.max() / xnpsvals.min())
 
         # split = 1, float64
+        dtype = ht.float32 if self.is_mps else ht.float64
         x = ht.random.randn(
-            25 * ht.MPI_WORLD.size + 2, 25 * ht.MPI_WORLD.size + 1, split=1, dtype=ht.float64
+            25 * ht.MPI_WORLD.size + 2, 25 * ht.MPI_WORLD.size + 1, split=1, dtype=dtype
         )
         est = ht.linalg.condest(x, algorithm="randomized", params={"nsamples": 15})
         self.assertEqual(est.shape, ())
         self.assertEqual(est.device, x.device)
-        self.assertTrue(est.dtype, ht.float64)
+        self.assertTrue(est.dtype, dtype)
         self.assertTrue(est.item() >= np.linalg.svd(x.numpy(), compute_uv=False).max())
 
         # catch wrong inputs
