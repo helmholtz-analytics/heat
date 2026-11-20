@@ -5,7 +5,7 @@ Module for Spectral Clustering, a graph-based machine learning algorithm
 import heat as ht
 import math
 import torch
-from typing import Callable, Union
+from typing import Callable, Tuple, Union
 from heat.core.dndarray import DNDarray
 from heat.core.linalg import reigh
 
@@ -57,6 +57,8 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
         number of Lanczos iterations for Eigenvalue decomposition. Only used if eigen_solver='lanczos'.
     assign_labels: str, default='kmeans'
          The strategy to use to assign labels in the embedding space.
+    affinity_matrix_ : DNDarray of shape (n_samples, n_samples)
+        Affinity matrix used for clustering. Available only after calling ``fit``.
     **params: dict
           Parameter dictionary for the assign_labels estimator
     """
@@ -173,7 +175,8 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
         eigen_solver: str = "randomized",
         norm_laplacian: bool = True,
         drop_first: bool = True,
-    ) -> DNDarray:
+        return_affinity: bool = False,
+    ) -> Union[DNDarray, Tuple[DNDarray, DNDarray]]:
         """
         Returns the embedding (eigenvectors) of the graph's Laplacian matrix.
 
@@ -188,14 +191,21 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
         norm_laplacian : bool, default=True
             Whether to use the normalized Laplacian
         drop_first : bool, default=True
-            Whether to drop the the smallest eigenvalue and corresponding eigenvector.
+            Whether to drop the smallest eigenvalue and corresponding eigenvector.
+        return_affinity : bool, default=False
+            If True, also return the affinity matrix constructed from ``x``.
 
         See Also
         --------
         :func:`heat.linalg.lanczos`
         :func:`heat.linalg.reigh`
         """
-        L, dd = self._laplacian.construct(x, return_diag=True)
+        if return_affinity:
+            L, dd, affinity_matrix = self._laplacian.construct(
+                x, return_diag=True, return_affinity=True
+            )
+        else:
+            L, dd = self._laplacian.construct(x, return_diag=True)
 
         # After sklearn.manifold._spectral_embedding.py
         # https://github.com/scikit-learn/scikit-learn/blob/main/sklearn/manifold/_spectral_embedding.py#L295
@@ -287,8 +297,13 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
         embedding = self.__deterministic_vector_sign_flip(embedding)
 
         if drop_first:
-            return embedding[1:n_select].T
-        return embedding[:n_select].T
+            out = embedding[1:n_select].T
+        else:
+            out = embedding[:n_select].T
+
+        if return_affinity:
+            return out, affinity_matrix
+        return out
 
     def fit(self, x: DNDarray, y=None):
         """
@@ -324,8 +339,11 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
         if self.random_state is not None:
             ht.random.seed(self.random_state)
         # Embed dataset into lower-dimensional eigenvector space
-        components = self.__spectral_embedding(
-            x, n_components=self.n_components, eigen_solver=self.eigen_solver
+        components, self.affinity_matrix_ = self.__spectral_embedding(
+            x,
+            n_components=self.n_components,
+            eigen_solver=self.eigen_solver,
+            return_affinity=True,
         )
 
         params = self._cluster.get_params()
