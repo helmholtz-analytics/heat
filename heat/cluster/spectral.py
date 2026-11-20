@@ -91,7 +91,6 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
         self.boundary = boundary
         self.lanczos_n_iter = lanczos_n_iter
         self.assign_labels = assign_labels
-        self.eigen_solver = eigen_solver
         self.reigh_n_oversamples = reigh_n_oversamples
         self.reigh_power_iter = reigh_power_iter
         self.reigh_rank = reigh_rank
@@ -151,20 +150,6 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
         """
         return self._labels
 
-    def __set_diag(self, x: DNDarray, value: Union[int, float], norm_laplacian: bool) -> DNDarray:
-        """
-        Set the diagonal of the matrix to a specific value.
-        Modified for dense PyTorch tensors from scikit-learn.manifold._spectral_embedding._set_diag
-        https://github.com/scikit-learn/scikit-learn/blob/031d2f83b7c9d1027d1477abb2bf34652621d603/sklearn/manifold/_spectral_embedding.py#L108
-        """
-        n_nodes = x.shape[0]
-        # we assume that the matrix is dense
-        if norm_laplacian:
-            # set diagonal to `value`
-            # NB: tensor.view(-1) == ndarray.flat
-            x.larray.view(-1)[:: n_nodes + 1] = value
-        return x
-
     def __spectral_embedding(
         self,
         x: DNDarray,
@@ -194,17 +179,13 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
         :func:`heat.linalg.lanczos`
         :func:`heat.linalg.reigh`
         """
-        L = self._laplacian.construct(x)
+        L, dd = self._laplacian.construct(x, return_diag=True)
 
         # After sklearn.manifold._spectral_embedding.py
         # https://github.com/scikit-learn/scikit-learn/blob/main/sklearn/manifold/_spectral_embedding.py#L295
 
         # Eigenvalue and -vector calculation
         if eigen_solver == "randomized":
-            L = self.__set_diag(L, 1, norm_laplacian)
-            # extract the diagonal
-            dd = L.diagonal()
-
             # determine how many eigenvalues to request from reigh
             if n_components is None and self.n_clusters is not None:
                 n_components = self.n_clusters
@@ -240,34 +221,6 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
             # Drop smallest component if requested
             if drop_first:
                 embedding = embedding[:-1]
-
-            # # assess n_components = n_clusters if not specified by user
-            # if self.n_clusters is None:
-            #     # set n_clusters to spectral gap
-            #     diff = eval[1:] - eval[:-1]
-            #     tmp = ht.argmax(diff).item()
-            #     self.n_clusters = tmp + 1
-            # if n_components is None:
-            #     n_components = self.n_clusters
-            # if drop_first:
-            #     n_components += 1
-
-            # # compute the randomized eigenvalue decomposition
-            # # NB:  ht.linalg.reigh returns the eigenvalues in descending order
-            # eval, evec = reigh(
-            #     L,
-            #     n_eigenvalues=n_components,
-            #     n_oversamples=self.reigh_n_oversamples,
-            #     power_iter=self.reigh_power_iter,
-            # )
-
-            # # select the largest n_components
-            # embedding = evec.T[:n_components]
-            # if norm_laplacian:
-            #     embedding = embedding / dd
-            # # Drop smallest component if requested
-            # if drop_first:
-            #     embedding = embedding[:-1]
 
         #  Lanczos Algorithm
         elif eigen_solver == "lanczos":
