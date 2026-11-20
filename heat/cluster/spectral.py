@@ -222,17 +222,17 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
             if n_eigenvalues is None:
                 n_eigenvalues = min(self.reigh_rank, L.shape[0])
 
-            # Shift L_sym (spectrum in [0, 2]) to 2I - L_sym so reigh computes
-            # the smallest eigenvalues of L_sym first
-            shifted_L = -L
+            # Shift L_sym (spectrum in [0, 2]) to 2I - L_sym in-place so reigh computes
+            # the smallest eigenvalues of L_sym first without allocating a copy of L
+            L *= -1.0
             if norm_laplacian:
-                shifted_L.fill_diagonal(1.0)
+                L.fill_diagonal(1.0)
 
             # compute the randomized eigenvalue decomposition
             # NB: ht.linalg.reigh returns eigenvalues in descending order,
             # so 2.0 - eval recovers the smallest eigenvalues of L in ascending order
             eval, evec = reigh(
-                shifted_L,
+                L,
                 n_eigenvalues=n_eigenvalues,
                 n_oversamples=self.reigh_n_oversamples,
                 power_iter=self.reigh_power_iter,
@@ -262,18 +262,10 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
             )
             V, T = ht.lanczos(L, self.lanczos_n_iter, v0)
 
-            # Calculate and sort eigenvalues and eigenvectors of tridiagonal matrix T
-            # T is non-distributed
-            eval, evec = torch.linalg.eig(T.larray)
+            # Calculate eigenvalues and eigenvectors of symmetric tridiagonal matrix T
+            # T and V are replicated (split=None), and eigh returns eigenvalues in ascending order
+            eval, evec = torch.linalg.eigh(T.larray)
 
-            # If x is an Eigenvector of T, then y = V@x is the corresponding Eigenvector of L
-            # sort local eval, and evec accordingly
-            eval, idx = torch.sort(eval.real, dim=0)
-            evec = evec[:, idx]
-            # Calculate global eigenvectors of L
-            eigenvectors = ht.matmul(V, ht.array(evec))
-            # transpose to have the eigenvectors as rows
-            eigenvectors = eigenvectors.T
             # Set n_clusters to spectral gap, if it is not defined by the user
             if self.n_clusters is None:
                 diff = eval[1:] - eval[:-1]
@@ -283,8 +275,9 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
             if n_components is None:
                 n_components = self.n_clusters
             n_select = (n_components + 1) if drop_first else n_components
-            # the Laplacian is symmetric and the eigenvectors are real
-            embedding = eigenvectors[:n_select].real
+
+            # Project only the selected eigenvectors back to the original space: y = V @ evec[:, :n_select]
+            embedding = ht.array((V.larray @ evec[:, :n_select]).T, device=L.device, comm=L.comm)
         else:
             raise NotImplementedError(
                 f"Eigenvalue decomposition method {eigen_solver} is not supported. Supported methods are 'randomized' and 'lanczos'."
@@ -397,9 +390,7 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
         if x.is_distributed() and x.split != 0:
             raise NotImplementedError(f"Distribution along axis {x.split} is not supported yet.")
 
-        # TODO is copy necessary?
         components = self.__spectral_embedding(
             x, n_components=self.n_components, eigen_solver=self.eigen_solver
-        ).copy()
-
+        )
         return self._cluster.predict(components)
