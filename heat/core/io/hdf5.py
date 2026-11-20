@@ -1,0 +1,503 @@
+"""Reading and writing Heat arrays in the HDF5 format."""
+
+from __future__ import annotations
+
+import functools
+import warnings
+from pathlib import Path
+from typing import Any, Callable, List, Optional, Sequence, Tuple, Type, Union
+
+import numpy as np
+import torch
+
+from .. import devices
+from .. import factories
+from .. import types
+from .._config import hdf5_has_mpi, is_installed, require_dependency
+from ..communication import Communication, MPI, MPI_WORLD, sanitize_comm
+from ..devices import Device
+from ..dndarray import DNDarray
+from ..stride_tricks import sanitize_axis
+from ..types import datatype
+from ._registry import register_format
+from .utils import sanitize_extension, sanitize_write_mode, serialized_write, size_from_slice
+
+__all__ = ["supports_hdf5"]
+
+#: File extensions handled by this module.
+EXTENSIONS = frozenset([".h5", ".hdf5"])
+
+
+_AVAILABLE = is_installed("h5py")
+
+
+def supports_hdf5() -> bool:
+    """
+    Returns ``True`` if Heat supports reading from and writing to HDF5 files, ``False`` otherwise.
+
+    .. deprecated:: 1.10.0
+        Use :func:`heat.io.supports` instead, e.g. ``ht.io.supports("hdf5")``.
+
+    Returns
+    -------
+    bool
+        Whether h5py is installed.
+    """
+    warnings.warn(
+        "supports_hdf5() is deprecated and will be removed in a future release; "
+        "use ht.io.supports('hdf5') instead",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return _AVAILABLE
+
+
+@functools.lru_cache(maxsize=None)
+def _warn_if_serial() -> None:
+    """
+    Warns once, on rank 0, if the installed h5py cannot do parallel I/O.
+    """
+    if not hdf5_has_mpi() and MPI_WORLD.rank == 0:
+        warnings.warn(
+            "h5py does not support parallel I/O, falling back to slower serial I/O",
+            ImportWarning,
+        )
+
+
+if _AVAILABLE:
+    __all__.extend(["load_hdf5", "save_hdf5", "load_multiple_hdf5"])
+
+    def load_hdf5(
+        path: str,
+        dataset: str,
+        dtype: Optional[Type[datatype]] = None,
+        slices: Optional[Sequence[Optional[slice]]] = None,
+        split: Optional[int] = None,
+        device: Optional[Union[str, Device]] = None,
+        comm: Optional[Communication] = None,
+    ) -> DNDarray:
+        """
+        Loads data from an HDF5 file.
+
+        The data may be distributed among multiple processing nodes via the ``split`` flag.
+
+        Parameters
+        ----------
+        path : str
+            Path to the HDF5 file to be read.
+        dataset : str
+            Name of the dataset to be read.
+        dtype : datatype, optional
+            Data type of the resulting array, defaults to the loaded datasets type.
+        slices : Sequence[slice or None], optional
+            Load only the specified slices of the dataset, one per leading axis. ``None``
+            selects a whole axis. Only slices with a step of 1 are supported.
+        split : int or None, optional
+            The axis along which the data is distributed among the processing cores.
+        device : str or Device, optional
+            The device id on which to place the data, defaults to globally set default device.
+        comm : Communication, optional
+            The communication to use for the data distribution, defaults to global default.
+
+        Returns
+        -------
+        DNDarray
+            The data read from the dataset.
+
+        Raises
+        ------
+        TypeError
+            If any of the input parameters are not of correct type.
+        ValueError
+            If ``path`` does not have an HDF5 extension, or a slice has a step other than 1.
+
+        See Also
+        --------
+        :func:`save_hdf5` : Saves data to an HDF5 file.
+        :func:`load_multiple_hdf5` : Loads multiple HDF5 files into one DNDarray.
+
+        Examples
+        --------
+        >>> a = ht.load_hdf5("data.h5", dataset="DATA")
+        >>> a.shape
+        [0/1] (5,)
+        [1/1] (5,)
+        >>> a.lshape
+        [0/1] (5,)
+        [1/1] (5,)
+        >>> b = ht.load_hdf5("data.h5", dataset="DATA", split=0)
+        >>> b.shape
+        [0/1] (5,)
+        [1/1] (5,)
+        >>> b.lshape
+        [0/1] (3,)
+        [1/1] (2,)
+
+        Using the slicing argument:
+
+        >>> not_sliced = ht.load_hdf5("other_data.h5", dataset="DATA", split=0)
+        >>> not_sliced.shape
+        [0/1] (10, 2)
+        [1/1] (10, 2)
+        >>> not_sliced.lshape
+        [0/1] (5, 2)
+        [1/1] (5, 2)
+        >>> not_sliced.larray
+        [0/1] tensor([[0, 1],
+        [0/1]         [2, 3],
+        [0/1]         [4, 5],
+        [0/1]         [6, 7],
+        [0/1]         [8, 9]])
+        [1/1] tensor([[10, 11],
+        [1/1]         [12, 13],
+        [1/1]         [14, 15],
+        [1/1]         [16, 17],
+        [1/1]         [18, 19]])
+
+        >>> sliced = ht.load_hdf5("other_data.h5", dataset="DATA", split=0, slices=[slice(8)])
+        >>> sliced.shape
+        [0/1] (8, 2)
+        [1/1] (8, 2)
+        >>> sliced.lshape
+        [0/1] (4, 2)
+        [1/1] (4, 2)
+        >>> sliced.larray
+        [0/1] tensor([[0, 1],
+        [0/1]         [2, 3],
+        [0/1]         [4, 5],
+        [0/1]         [6, 7]])
+        [1/1] tensor([[ 8,  9],
+        [1/1]         [10, 11],
+        [1/1]         [12, 13],
+        [1/1]         [14, 15]])
+
+        >>> sliced = ht.load_hdf5(
+        ...     "other_data.h5", dataset="DATA", split=0, slices=[slice(2, 8), slice(0, 1)]
+        ... )
+        >>> sliced.shape
+        [0/1] (6, 1)
+        [1/1] (6, 1)
+        >>> sliced.lshape
+        [0/1] (3, 1)
+        [1/1] (3, 1)
+        >>> sliced.larray
+        [0/1] tensor([[4],
+        [0/1]         [6],
+        [0/1]         [8]])
+        [1/1] tensor([[10],
+        [1/1]         [12],
+        [1/1]         [14]])
+        """
+        h5py = require_dependency("h5py")
+        if not isinstance(path, str):
+            raise TypeError(f"path must be str, not {type(path)}")
+        elif not isinstance(dataset, str):
+            raise TypeError(f"dataset must be str, not {type(dataset)}")
+        elif split is not None and not isinstance(split, int):
+            raise TypeError(f"split must be None or int, not {type(split)}")
+
+        # determine the comm and device the data will be placed on
+        path = sanitize_extension(path, EXTENSIONS, "HDF5")
+        device = devices.sanitize_device(device)
+        comm = sanitize_comm(comm)
+
+        # actually load the data from the HDF5 file
+        with h5py.File(path, "r") as handle:
+            data = handle[dataset]
+            gshape = data.shape
+            new_gshape: Tuple[int, ...] = tuple()
+            offsets = [0] * len(gshape)
+            dtype = types.canonical_heat_type(data.dtype if dtype is None else dtype)
+            if slices is not None:
+                for i in range(len(gshape)):
+                    s = slices[i] if i < len(slices) else None
+                    if s is not None:
+                        if s.step is not None and s.step != 1:
+                            raise ValueError("Slices with step != 1 are not supported")
+                        new_axis_size, offset = size_from_slice(gshape[i], s)
+                        new_gshape += (new_axis_size,)
+                        offsets[i] = offset
+                    else:
+                        new_gshape += (gshape[i],)
+                        offsets[i] = 0
+
+                gshape = new_gshape
+
+            dims = len(gshape)
+            split = sanitize_axis(gshape, split)
+            _, _, indices = comm.chunk(gshape, split)
+
+            if slices is not None:
+                new_indices: Tuple[slice, ...] = tuple()
+                for offset, index in zip(offsets, indices):
+                    new_indices += (slice(index.start + offset, index.stop + offset),)
+                indices = new_indices
+
+            balanced = True
+            if split is None:
+                data = torch.tensor(
+                    data[indices], dtype=dtype.torch_type(), device=device.torch_device
+                )
+            elif indices[split].stop > indices[split].start:
+                data = torch.tensor(
+                    data[indices], dtype=dtype.torch_type(), device=device.torch_device
+                )
+            else:
+                warnings.warn("More MPI ranks are used then the length of splitting dimension!")
+                slice1 = tuple(
+                    slice(0, gshape[i]) if i != split else slice(0, 1) for i in range(dims)
+                )
+                slice2 = tuple(
+                    slice(0, gshape[i]) if i != split else slice(0, 0) for i in range(dims)
+                )
+                data = torch.tensor(
+                    data[slice1], dtype=dtype.torch_type(), device=device.torch_device
+                )
+                data = data[slice2]
+
+            return DNDarray(data, gshape, dtype, split, device, comm, balanced)
+
+    def save_hdf5(
+        data: DNDarray,
+        path: str,
+        dataset: str,
+        mode: str = "w",
+        dtype: Optional[Union[str, torch.dtype, Type[datatype]]] = None,
+        **kwargs: Any,
+    ) -> None:
+        """
+        Saves ``data`` to an HDF5 file.
+
+        Uses parallel I/O if h5py was built with MPI support, otherwise the processes write
+        one after another.
+
+        Parameters
+        ----------
+        data : DNDarray
+            The data to be saved on disk.
+        path : str
+            Path to the HDF5 file to be written.
+        dataset : str
+            Name of the dataset the data is saved to.
+        mode : str, optional
+            File access mode, one of ``'w'``, ``'a'``, ``'r+'``.
+        dtype : datatype or torch.dtype or str, optional
+            Data type of the saved data, defaults to the data type of ``data``.
+        **kwargs : Any
+            Additional arguments passed to :meth:`h5py.Group.create_dataset`.
+
+        Raises
+        ------
+        TypeError
+            If any of the input parameters are not of correct type.
+        ValueError
+            If ``path`` does not have an HDF5 extension, or the access mode is not understood.
+
+        See Also
+        --------
+        :func:`load_hdf5` : Loads data from an HDF5 file.
+
+        Examples
+        --------
+        >>> x = ht.arange(100, split=0)
+        >>> ht.save_hdf5(x, "data.h5", dataset="DATA")
+        """
+        h5py = require_dependency("h5py")
+        _warn_if_serial()
+        if not isinstance(data, DNDarray):
+            raise TypeError(f"data must be heat tensor, not {type(data)}")
+        if not isinstance(path, str):
+            raise TypeError(f"path must be str, not {type(path)}")
+        if not isinstance(dataset, str):
+            raise TypeError(f"dataset must be str, not {type(path)}")
+
+        path = sanitize_extension(path, EXTENSIONS, "HDF5")
+        sanitize_write_mode(mode)
+
+        # chunk the data, if no split is set maximize parallel I/O and chunk first axis
+        is_split = data.split is not None
+        _, _, slices = data.comm.chunk(data.gshape, data.split if is_split else 0)
+
+        if dtype is None:
+            dtype = data.dtype
+        if isinstance(dtype, torch.dtype):
+            dtype_name = str(dtype).split(".")[-1]
+        elif isinstance(dtype, str):
+            dtype_name = dtype
+        else:
+            dtype_name = dtype.__name__
+
+        # attempt to perform parallel I/O if possible
+        if hdf5_has_mpi():
+            with h5py.File(path, mode, driver="mpio", comm=data.comm.handle) as handle:
+                dset = handle.create_dataset(dataset, data.shape, dtype=dtype_name, **kwargs)
+                dset[slices] = data.larray.cpu() if is_split else data.larray[slices].cpu()
+
+        # otherwise the writes have to be serialized: rank 0 creates the file and writes
+        # its own chunk, then hands a token around the ring
+        else:
+
+            def write_root() -> None:
+                with h5py.File(path, mode) as handle:
+                    dset = handle.create_dataset(dataset, data.shape, dtype=dtype_name, **kwargs)
+                    if is_split:
+                        dset[slices] = data.larray.cpu()
+                    else:
+                        dset[...] = data.larray.cpu()
+
+            def write_other() -> None:
+                with h5py.File(path, "r+") as handle:
+                    handle[dataset][slices] = data.larray.cpu()
+
+            serialized_write(data.comm, is_split, write_root, write_other)
+
+    def load_multiple_hdf5(
+        folder: str | Path,
+        dataset: str,
+        dtype: Optional[Type[datatype]] = None,
+        sorting_func: Callable[[list[Path]], list[Path]] | None = None,
+    ) -> DNDarray:
+        """
+        Loads all ``.h5`` and ``.hdf5`` files in a directory into one DNDarray.
+
+        The arrays from the different files are concatenated along axis 0, which is also the
+        split axis of the result, so all files must agree on every other axis. The files are
+        concatenated in the order given by ``sorting_func``, or in sorted order by default.
+        There is no ``comm`` or ``device`` argument; the result uses the global defaults.
+
+        Parameters
+        ----------
+        folder : str or Path
+            Directory containing the ``.h5`` or ``.hdf5`` files.
+        dataset : str
+            Name of the dataset to load from each file.
+        dtype : datatype, optional
+            Data type of the resulting array. By default, the largest data type found across
+            all files is used.
+        sorting_func : Callable[[list[Path]], list[Path]], optional
+            Orders the files before they are concatenated. Defaults to :func:`sorted`.
+
+        Returns
+        -------
+        DNDarray
+            The concatenated data, split along axis 0.
+
+        Raises
+        ------
+        TypeError
+            If any of the input parameters are not of correct type.
+        ValueError
+            If ``folder`` is not a directory or holds no HDF5 files, or if the datasets
+            differ in their number of dimensions or in the size of any axis other than 0.
+
+        See Also
+        --------
+        :func:`load_hdf5` : Loads data from a single HDF5 file.
+        :func:`load_npy_from_path` : Loads multiple .npy files into one DNDarray.
+
+        Examples
+        --------
+        Assuming ``h5_dir`` holds four files, each with a dataset ``"DATA"`` of shape
+        ``(3, 2)``:
+
+        >>> a = ht.load_multiple_hdf5("h5_dir", dataset="DATA", dtype=ht.float32)
+        >>> a.lshape
+        [0/1] (6, 2)
+        [1/1] (6, 2)
+        >>> a.split
+        [0/1] 0
+        [1/1] 0
+        """
+        h5py = require_dependency("h5py")
+        if not isinstance(folder, (str, Path)):
+            raise TypeError(f"path must be an String or Path, not {type(folder)}")
+        if not isinstance(dataset, str):
+            raise TypeError(f"dataset must be a string not, {type(dataset)}")
+        if not callable(sorting_func) and sorting_func is not None:
+            raise TypeError(f"sorting_func must be None or Callable, not {type(sorting_func)}")
+        if not Path(folder).is_dir():
+            raise ValueError("Path must be a Folder")
+
+        files: list[Path] = list(
+            filter(lambda x: x.suffix == ".h5" or x.suffix == ".hdf5", Path(folder).iterdir())
+        )
+        files = sorted(files) if sorting_func is None else sorting_func(files)
+
+        if len(files) == 0:
+            raise ValueError("No files inside the directory.")
+
+        h5_files = [h5py.File(x) for x in files]
+        shapes: list[tuple[int, ...]] = [x[dataset].shape for x in h5_files]
+        dtypes: list[np.dtype] = [x[dataset].dtype for x in h5_files]
+        bytes: list[int] = [x[dataset].dtype.itemsize for x in h5_files]
+
+        if len(set(len(x) for x in shapes)) != 1:
+            raise ValueError("Amount of dimensions of all hdf5 files must be the same")
+
+        if dtype is None:
+            warnings.warn("No explicit dtype given, will use biggest dtype across all files")
+            dtype = types.canonical_heat_type(dtypes[np.argmax(bytes)])
+
+        shapes_arr = np.array(shapes, dtype=int)
+        gshape_arr = np.zeros(shapes_arr.shape[1], dtype=int)
+
+        for i in range(1, len(gshape_arr)):  # rows can be diffrent
+            if len(set(shapes_arr[:, i])) != 1:
+                raise ValueError(f"Dimension missmatch on ndim {i + 1}")
+            gshape_arr[i] = shapes_arr[0][i]
+        gshape_arr[0] = shapes_arr[:, 0].sum()
+        gshape = tuple(int(n) for n in gshape_arr)
+
+        ranges: list[tuple[int, int]] = list()
+
+        n = 0
+        for i, shape in enumerate(shapes):
+            rows = shape[0]
+            ranges.append((n, n + rows))
+            n += rows
+
+        def find_file_ids_for_range(rslice: slice) -> list[int]:
+            files = list()
+            for i, (start, end) in enumerate(ranges):
+                if start <= rslice.start and rslice.start < end:
+                    files.append(i)
+                elif start < rslice.stop and rslice.stop <= end:
+                    files.append(i)
+                elif rslice.start <= start and end <= rslice.stop:
+                    files.append(i)
+            return files
+
+        _, _, slices = MPI_WORLD.chunk(gshape, split=0)
+        local_slice: slice = slices[0]  # global row slice of local rank
+
+        local_h5_file_ids: list[int] = find_file_ids_for_range(local_slice)
+
+        data: DNDarray = factories.empty(gshape, dtype=dtype, split=0)
+
+        n = 0
+        start_h5_index = local_slice.start - shapes_arr[: local_h5_file_ids[0], 0].sum()
+        max_n: int = data.larray.shape[0]
+        for i, idx in enumerate(local_h5_file_ids):
+            if i == 0:
+                start_index = start_h5_index
+            else:
+                start_index = 0
+            h5_file = h5_files[idx]
+            rows = shapes[idx][0] - start_index
+
+            diff = n + rows - min(n + rows, max_n)  # amount of overshoot
+
+            data.larray[n : (n + rows - diff)] = torch.from_numpy(
+                h5_file[dataset][start_index : (start_index + rows - diff)]
+            )
+            n += rows - diff
+        return data
+
+
+register_format(
+    "hdf5",
+    EXTENSIONS,
+    dependency="h5py",
+    loader=load_hdf5 if _AVAILABLE else None,
+    saver=save_hdf5 if _AVAILABLE else None,
+)

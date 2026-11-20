@@ -1,0 +1,316 @@
+"""Maps file extensions onto the functions that read and write them.
+
+Each format module registers itself here, so that :func:`heat.core.io.io.load` and
+:func:`heat.core.io.io.save` can dispatch on the file extension without knowing about
+any format in particular. Formats register even when the third-party library they need
+is missing -- with ``loader``/``saver`` left as ``None`` -- so that loading a recognized
+extension reports the missing dependency rather than claiming the extension is unknown.
+"""
+
+from __future__ import annotations
+
+import dataclasses
+from typing import Callable, Dict, FrozenSet, Iterable, List, NoReturn, Optional
+
+from .._config import OPTIONAL_DEPENDENCIES, is_installed, require_dependency
+from ..dndarray import DNDarray
+from .utils import extension_of
+
+
+Loader = Callable[..., DNDarray]
+Saver = Callable[..., None]
+
+__all__: List[str] = []
+
+
+@dataclasses.dataclass(frozen=True)
+class FormatSpec:
+    """
+    Describes one file format Heat can read and/or write.
+
+    Parameters
+    ----------
+    name : str
+        Short name of the format, e.g. ``"hdf5"``.
+    extensions : FrozenSet[str]
+        File extensions claimed by this format, including the leading dot.
+    dependency : str, optional
+        Import name of the third-party package the format needs, if any.
+    loader : Callable[..., DNDarray], optional
+        Reads a file of this format. ``None`` if the format cannot be read, or if its
+        dependency is unavailable.
+    saver : Callable[..., None], optional
+        Writes a file of this format. ``None`` if the format cannot be written, or if its
+        dependency is unavailable.
+
+    Examples
+    --------
+    >>> spec = ht.io.registered_formats()["hdf5"]
+    >>> spec.dependency
+    'h5py'
+    >>> sorted(spec.extensions)
+    ['.h5', '.hdf5']
+    """
+
+    name: str
+    extensions: FrozenSet[str]
+    dependency: Optional[str] = None
+    loader: Optional[Loader] = None
+    saver: Optional[Saver] = None
+
+
+_REGISTRY: Dict[str, FormatSpec] = {}
+
+
+def register_format(
+    name: str,
+    extensions: Iterable[str],
+    dependency: Optional[str] = None,
+    loader: Optional[Loader] = None,
+    saver: Optional[Saver] = None,
+) -> FormatSpec:
+    """
+    Registers a file format, and returns the resulting specification.
+
+    Parameters
+    ----------
+    name : str
+        Short name of the format, e.g. ``"hdf5"``.
+    extensions : Iterable[str]
+        File extensions claimed by this format, including the leading dot.
+    dependency : str, optional
+        Import name of the third-party package the format needs, if any.
+    loader : Callable[..., DNDarray], optional
+        Reads a file of this format.
+    saver : Callable[..., None], optional
+        Writes a file of this format.
+
+    Returns
+    -------
+    FormatSpec
+        The registered specification.
+
+    Raises
+    ------
+    ValueError
+        If one of the extensions is already claimed by a different format.
+
+    Examples
+    --------
+    Registering a loader makes the extension available to :func:`~heat.core.io.load`:
+
+    >>> import numpy as np
+    >>> def load_txt(path, **kwargs):
+    ...     return ht.array(np.loadtxt(path), **kwargs)
+    >>> spec = ht.io.register_format("txt", [".txt"], loader=load_txt)
+    >>> ht.load("data.txt", split=0)
+    DNDarray([1., 2., 3.], dtype=ht.float64, device=cpu:0, split=0)
+    """
+    spec = FormatSpec(name, frozenset(extensions), dependency, loader, saver)
+    for other in _REGISTRY.values():
+        if other.name != name and other.extensions & spec.extensions:
+            raise ValueError(
+                f"cannot register format {name!r}: extensions "
+                f"{sorted(other.extensions & spec.extensions)} are already claimed by "
+                f"format {other.name!r}"
+            )
+    _REGISTRY[name] = spec
+    return spec
+
+
+def registered_formats() -> Dict[str, FormatSpec]:
+    """
+    Returns a copy of the format registry, keyed by format name.
+
+    Returns
+    -------
+    Dict[str, FormatSpec]
+        The specification of every registered format.
+
+    Examples
+    --------
+    >>> sorted(ht.io.registered_formats())
+    ['csv', 'hdf5', 'netcdf', 'zarr']
+    """
+    return dict(_REGISTRY)
+
+
+def registered_extensions() -> FrozenSet[str]:
+    """
+    Returns every file extension claimed by a registered format.
+
+    Returns
+    -------
+    FrozenSet[str]
+        The extensions, including the leading dot.
+
+    Examples
+    --------
+    >>> sorted(ht.io.registered_extensions())
+    ['.csv', '.h5', '.hdf5', '.nc', '.nc4', '.zarr']
+    """
+    return (
+        frozenset().union(*(spec.extensions for spec in _REGISTRY.values()))
+        if _REGISTRY
+        else frozenset()
+    )
+
+
+def supports(name: str) -> bool:
+    """
+    Returns ``True`` if ``name`` is usable, ``False`` otherwise.
+
+    ``name`` is either a registered format (``"hdf5"``, ``"netcdf"``, ``"zarr"``,
+    ``"csv"``, ...) or the import name of one of Heat's optional dependencies
+    (``"h5py"``, ``"pandas"``, ...). This supersedes the per-format ``supports_*()``
+    functions.
+
+    Parameters
+    ----------
+    name : str
+        Name of a registered format or of an optional dependency.
+
+    Returns
+    -------
+    bool
+        For a format, whether it can be read or written; for a dependency, whether it is
+        installed.
+
+    Raises
+    ------
+    ValueError
+        If ``name`` is neither.
+
+    Examples
+    --------
+    >>> ht.io.supports("hdf5")
+    True
+    """
+    spec = _REGISTRY.get(name)
+    if spec is not None:
+        return spec.loader is not None or spec.saver is not None
+    if name in OPTIONAL_DEPENDENCIES:
+        return is_installed(name)
+    raise ValueError(
+        f"unknown format or dependency {name!r}; known formats are {sorted(_REGISTRY)}"
+    )
+
+
+def available_formats() -> Dict[str, bool]:
+    """
+    Returns every registered format, mapped to whether it is currently usable.
+
+    Returns
+    -------
+    Dict[str, bool]
+        Whether each registered format can be read or written, see :func:`supports`.
+
+    Examples
+    --------
+    >>> ht.io.available_formats()
+    {'csv': True, 'hdf5': True, 'netcdf': True, 'zarr': False}
+    """
+    return {name: supports(name) for name in _REGISTRY}
+
+
+def spec_for_path(path: str) -> FormatSpec:
+    """
+    Returns the format registered for the extension of ``path``.
+
+    Parameters
+    ----------
+    path : str
+        Path whose extension selects the format.
+
+    Returns
+    -------
+    FormatSpec
+        The specification of the format claiming the extension.
+
+    Raises
+    ------
+    ValueError
+        If no registered format claims the extension.
+    """
+    extension = extension_of(path)
+    for spec in _REGISTRY.values():
+        if extension in spec.extensions:
+            return spec
+    raise ValueError(f"Unsupported file extension {extension}")
+
+
+def _raise_unavailable(spec: FormatSpec, verb: str) -> NoReturn:
+    """
+    Raises the error explaining why ``spec`` cannot be used for ``verb``.
+
+    Parameters
+    ----------
+    spec : FormatSpec
+        The format that lacks the requested loader or saver.
+    verb : str
+        Either ``"loading"`` or ``"saving"``, used in the error message.
+
+    Raises
+    ------
+    ValueError
+        If the format does not support the requested direction.
+    RuntimeError
+        If the format's optional dependency is unavailable.
+    """
+    if spec.dependency is not None:
+        require_dependency(spec.dependency)
+    raise ValueError(f"the {spec.name} format does not support {verb}")
+
+
+def loader_for_path(path: str) -> Loader:
+    """
+    Returns the function that loads files with the extension of ``path``.
+
+    Parameters
+    ----------
+    path : str
+        Path whose extension selects the format.
+
+    Returns
+    -------
+    Callable[..., DNDarray]
+        The loader of the format.
+
+    Raises
+    ------
+    ValueError
+        If no registered format claims the extension, or the format cannot be read.
+    RuntimeError
+        If the format's optional dependency is unavailable.
+    """
+    spec = spec_for_path(path)
+    if spec.loader is None:
+        _raise_unavailable(spec, "loading")
+    return spec.loader
+
+
+def saver_for_path(path: str) -> Saver:
+    """
+    Returns the function that saves files with the extension of ``path``.
+
+    Parameters
+    ----------
+    path : str
+        Path whose extension selects the format.
+
+    Returns
+    -------
+    Callable[..., None]
+        The saver of the format.
+
+    Raises
+    ------
+    ValueError
+        If no registered format claims the extension, or the format cannot be written.
+    RuntimeError
+        If the format's optional dependency is unavailable.
+    """
+    spec = spec_for_path(path)
+    if spec.saver is None:
+        _raise_unavailable(spec, "saving")
+    return spec.saver

@@ -13,6 +13,7 @@ from typing import Callable, List, Iterator, Union
 
 from ...core.communication import MPICommunication
 from ...core.communication import MPI_WORLD
+import heat as ht
 
 __all__ = ["PartialH5Dataset", "PartialH5DataLoaderIter"]
 
@@ -83,6 +84,11 @@ class PartialH5Dataset(torch_data.Dataset):
         initial_load: int = 7000,
         load_length: int = 1000,
     ):  # noqa: D107
+        if not ht.io.supports("hdf5"):
+            raise RuntimeError(
+                "Computing IncrementalPCA from an HDF5 file requires HDF5 support, which is not available. Please install heat with HDF5 support."
+            )
+
         import h5py
 
         super(PartialH5Dataset, self).__init__()

@@ -53,7 +53,7 @@ runs:
         OPENBLAS_NUM_THREADS: 1
         NUMEXPR_NUM_THREADS: 1
       run: |
-        mpirun -n 1 pytest -vv
+        pytest -vv
     - name: Run tests on 2 ranks
       if: ${{ inputs.mode == 'full' || inputs.mode == 'quick' }}
       shell: bash
