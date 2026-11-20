@@ -391,6 +391,8 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
             raise NotImplementedError(f"Distribution along axis {x.split} is not supported yet.")
 
         # TODO is copy necessary?
-        components = self.__spectral_embedding(x, self.eigen_solver).copy()
+        components = self.__spectral_embedding(
+            x, n_components=self.n_components, eigen_solver=self.eigen_solver
+        ).copy()
 
         return self._cluster.predict(components)
