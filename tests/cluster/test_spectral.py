@@ -7,6 +7,12 @@ import torch
 from pathlib import Path
 from heat.testing.basic_test import TestCase
 
+try:
+    import sklearn
+    from sklearn.manifold import spectral_embedding as sklearn_spectral_embedding
+except ImportError:
+    sklearn = None
+
 
 class TestSpectral(TestCase):
     @classmethod
@@ -105,3 +111,36 @@ class TestSpectral(TestCase):
             spectral = ht.cluster.SpectralClustering(eigen_solver="lanczos", lanczos_n_iter=20)
             with self.assertRaises(NotImplementedError):
                 spectral.fit(iris_split)
+
+
+    @unittest.skipIf(sklearn is None, "scikit-learn is not installed")
+    def test_against_sklearn(self):
+        if self.is_mps:
+            return
+
+        # 3 connected, asymmetric 2D clusters so the smallest eigenvalues are distinct
+        torch.manual_seed(42)
+        c0 = torch.randn(20, 2, dtype=torch.float64) + torch.tensor([0.0, 0.0])
+        c1 = torch.randn(25, 2, dtype=torch.float64) + torch.tensor([3.0, 0.0])
+        c2 = torch.randn(30, 2, dtype=torch.float64) + torch.tensor([0.0, 3.5])
+        x_torch = torch.cat([c0, c1, c2], dim=0)
+        x_ht = ht.array(x_torch, split=0)
+
+        # Compare spectral embeddings on the same zero-diagonal affinity graph
+        aff_ht = ht.spatial.rbf(x_ht, sigma=1.0, quadratic_expansion=True)
+        aff_ht.fill_diagonal(0.0)
+        aff_np = aff_ht.numpy()
+
+        spectral = ht.cluster.SpectralClustering(
+            n_clusters=3,
+            affinity="precomputed",
+            eigen_solver="randomized",
+            reigh_rank=30,
+            reigh_power_iter=20,
+            random_state=0,
+        )
+        emb_ht = spectral._SpectralClustering__spectral_embedding(aff_ht, n_components=3)
+        emb_sk = sklearn_spectral_embedding(
+            aff_np, n_components=3, eigen_solver="arpack", random_state=0, drop_first=True
+        )
+        self.assertTrue(torch.allclose(emb_ht.resplit_(None).larray, torch.tensor(emb_sk), atol=1e-4))
