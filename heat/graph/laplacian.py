@@ -71,7 +71,7 @@ class Laplacian:
 
         self.neighbours = neighbours
 
-    def _normalized_symmetric_L(self, A: DNDarray) -> DNDarray:
+    def _normalized_symmetric_L(self, A: DNDarray, return_diag: bool = False) -> DNDarray:
         """
         Helper function to calculate the normalized symmetric Laplacian
 
@@ -81,6 +81,8 @@ class Laplacian:
         ----------
         A : DNDarray
             The adjacency matrix of the graph
+        return_diag : bool, default=False
+            If True, also return the square root of the node degrees :math:`D^{1/2}`.
         """
         degree = ht.sum(A, axis=1)
         degree.resplit_(axis=None)
@@ -89,13 +91,16 @@ class Laplacian:
             degree.shape, dtype=degree.larray.dtype, device=degree.device.torch_device
         )
         degree.larray = torch.where(degree.larray == 0, temp, degree.larray)
-        L = A / ht.sqrt(ht.expand_dims(degree, axis=1))
-        L = L / ht.sqrt(ht.expand_dims(degree, axis=0))
+        dd = ht.sqrt(degree)
+        L = A / ht.expand_dims(dd, axis=1)
+        L = L / ht.expand_dims(dd, axis=0)
         L = L * (-1.0)
         L.fill_diagonal(1.0)
+        if return_diag:
+            return L, dd
         return L
 
-    def _simple_L(self, A: DNDarray):
+    def _simple_L(self, A: DNDarray, return_diag: bool = False):
         """
         Helper function to calculate the simple graph Laplacian
 
@@ -105,12 +110,16 @@ class Laplacian:
         ----------
         A : DNDarray
             The Adjacency Matrix of the graph
+        return_diag : bool, default=False
+            If True, also return the node degrees.
         """
         degree = ht.sum(A, axis=1)
         L = ht.diag(degree) - A
+        if return_diag:
+            return L, degree
         return L
 
-    def construct(self, X: DNDarray) -> DNDarray:
+    def construct(self, X: DNDarray, return_diag: bool = False) -> DNDarray:
         """
         Callable to get the Laplacian matrix from the dataset ``X`` according to the specified Laplacian
 
@@ -118,6 +127,8 @@ class Laplacian:
         ----------
         X : DNDarray
             The data matrix, Shape = (n_samples, n_features)
+        return_diag : bool, default=False
+            If True, also return the square root of the node degrees :math:`D^{1/2}`.
         """
         S = self.similarity_metric(X)
         S.fill_diagonal(0.0)
@@ -135,8 +146,6 @@ class Laplacian:
                     S = ht.int(S > self.epsilon[1])
 
         if self.definition == "simple":
-            L = self._simple_L(S)
+            return self._simple_L(S, return_diag=return_diag)
         elif self.definition == "norm_sym":
-            L = self._normalized_symmetric_L(S)
-
-        return L
+            return self._normalized_symmetric_L(S, return_diag=return_diag)
