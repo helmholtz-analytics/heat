@@ -510,6 +510,21 @@ class TestArithmetics(TestCase):
         with self.assertRaises(TypeError):
             a &= b
 
+    def test_bitwise_left_shift(self):
+        int_result = ht.array([[2, 4], [6, 8]])
+
+        self.assertTrue(ht.equal(ht.bitwise_left_shift(self.an_int_tensor, 1), int_result))
+        self.assertTrue(ht.equal(ht.bitwise_left_shift(self.a_split_int_tensor, 1), int_result))
+        self.assertTrue(
+            ht.equal(
+                ht.bitwise_left_shift(self.an_int_tensor, self.an_int_scalar),
+                ht.array([[4, 8], [12, 16]]),
+            )
+        )
+
+        with self.assertRaises(TypeError):
+            ht.bitwise_left_shift(self.a_tensor, 1)
+
     def test_bitwise_or(self):
         int_result = ht.array([[3, 2], [3, 6]])
         boolean_result = ht.array([False, True, True, True])
