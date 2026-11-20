@@ -206,25 +206,6 @@ On a technical level, Heat is inspired by the so-called `Bulk Synchronous Parall
     :align: center
     :width: 60%
 
-Distributed Interactive Interpreter
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Heat ships with a distributed interactive Python interpreter that allows you to prototype and debug distributed applications. It can be found in the Heat sources in the path `scripts/interactive.py` or you just grab it directly
-
-.. code:: bash
-
-    wget https://raw.githubusercontent.com/helmholtz-analytics/heat/master/scripts/interactive.py
-
-You can start the distributed interactive interpreter by invoking the following command.
-
-.. code:: bash
-
-    mpirun -s all -np <procs> python interactive.py
-
-.. note::
-
-    The interactive interpreter does only support a subset of all control commands.
-
 
 Parallel Performance
 --------------------

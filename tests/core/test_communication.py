@@ -1,6 +1,7 @@
 import os
 import unittest
 import platform
+import pytest
 
 import numpy as np
 import torch
@@ -2578,8 +2579,12 @@ class TestCommunication(TestCase):
         )
         self.assertTrue(torch.equal(redistributed4, comparison4.larray))
 
-        with self.assertRaises(NotImplementedError):
-            test4.comm.Alltoallv(test4.larray, redistributed4, send_axis=2, recv_axis=2)
+        if test4.comm.is_distributed():
+            with self.assertRaises(NotImplementedError):
+                test4.comm.Alltoallv(test4.larray, redistributed4, send_axis=2, recv_axis=2)
+        else:
+            with pytest.warns(UserWarning):
+                test4.comm.Alltoallv(test4.larray, redistributed4, send_axis=2, recv_axis=2)
         with self.assertRaises(NotImplementedError):
             test4.comm.Alltoallv(test4.larray, redistributed4, send_axis=None)
 

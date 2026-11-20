@@ -1,5 +1,6 @@
 import os
 import unittest
+import pytest
 
 import heat as ht
 from heat.testing.basic_test import TestCase
@@ -72,3 +73,9 @@ class TestDevices(TestCase):
             ht.use_device("fpu")
         with self.assertRaises(ValueError):
             ht.use_device(1)
+
+
+def test_unknown_device_error_message():
+    device_name = "Sauron's Eye"
+    with pytest.raises(ValueError, match=device_name):
+        ht.use_device(device_name)

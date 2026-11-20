@@ -134,7 +134,7 @@ class TestPrinting(TestCase):
             self.assertEqual(comparison, __str)
 
     def test_unbalanced(self):
-        dndarray = ht.arange(2 * 3 * 4, split=0).reshape((2, 3, 4))
+        dndarray = ht.arange(2 * 3 * 4, dtype=ht.int32, split=0).reshape((2, 3, 4))
         if dndarray.comm.size == 2:
             comparison = (
                 "DNDarray([[ 0,  1,  2,  3],\n"
@@ -146,7 +146,7 @@ class TestPrinting(TestCase):
                 self.assertEqual(comparison, __str)
 
     def test_unsplit_below_threshold(self):
-        dndarray = ht.arange(2 * 3 * 4).reshape((2, 3, 4))
+        dndarray = ht.arange(2 * 3 * 4, dtype=ht.int32).reshape((2, 3, 4))
         comparison = (
             "DNDarray([[[ 0,  1,  2,  3],\n"
             "           [ 4,  5,  6,  7],\n"
@@ -162,7 +162,7 @@ class TestPrinting(TestCase):
             self.assertEqual(comparison, __str)
 
     def test_unsplit_above_threshold(self):
-        dndarray = ht.arange(12 * 13 * 14).reshape((12, 13, 14))
+        dndarray = ht.arange(12 * 13 * 14, dtype=ht.int32).reshape((12, 13, 14))
         comparison = (
             "DNDarray([[[   0,    1,    2,  ...,   11,   12,   13],\n"
             "           [  14,   15,   16,  ...,   25,   26,   27],\n"
@@ -332,7 +332,7 @@ class TestPrinting(TestCase):
 
     def test_split_1_above_threshold(self):
         ht.set_printoptions(edgeitems=2)
-        dndarray = ht.arange(10 * 11 * 12).reshape((10, 11, 12)).resplit_(1)
+        dndarray = ht.arange(10 * 11 * 12, dtype=ht.int32).reshape((10, 11, 12)).resplit_(1)
         comparison = (
             "DNDarray([[[   0,    1,  ...,   10,   11],\n"
             "           [  12,   13,  ...,   22,   23],\n"
@@ -399,7 +399,7 @@ class TestPrinting(TestCase):
 
     def test_split_2_above_threshold(self):
         ht.set_printoptions(threshold=1)
-        dndarray = ht.arange(3 * 10 * 12).reshape((3, 10, 12)).resplit_(2)
+        dndarray = ht.arange(3 * 10 * 12, dtype=ht.int32).reshape((3, 10, 12)).resplit_(2)
         comparison = (
             "DNDarray([[[  0,   1,   2,  ...,   9,  10,  11],\n"
             "           [ 12,  13,  14,  ...,  21,  22,  23],\n"

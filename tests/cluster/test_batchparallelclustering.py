@@ -39,8 +39,42 @@ class TestAuxiliaryFunctions(TestCase):
         _kmex(X, 2, 2, init, max_iter, tol)
 
     def test_initialize_plus_plus(self):
-        X = torch.rand(100, 3)
-        _initialize_plus_plus(X, 3, 2, random_state=None, max_samples=50)
+        with self.subTest("subsampling"):
+            X = torch.rand(100, 3)
+            centers = _initialize_plus_plus(X, 3, 2, random_state=0, max_samples=50)
+            self.assertEqual(centers.shape, (3, 3))
+
+        # 2) probs.sum() <= 0 because weights are all zero -> fallback to dist -> multinomial runs
+        with self.subTest("weights_zero_fallback_to_dist"):
+            X = torch.rand(30, 3)
+            weights = torch.zeros(X.shape[0], dtype=X.dtype)
+            centers = _initialize_plus_plus(X, 3, 2, random_state=0, weights=weights)
+            self.assertEqual(centers.shape, (3, 3))
+
+        # 3) fully degenerate distances (all points identical) -> probs.sum() <= 0 twice -> candidate selection branch
+        with self.subTest("all_distances_zero_candidate_selection"):
+            X = torch.ones(10, 3)
+            weights = torch.ones(X.shape[0], dtype=X.dtype)
+            centers = _initialize_plus_plus(X, 3, 2, random_state=0, weights=weights)
+            self.assertEqual(centers.shape, (3, 3))
+
+        # 4) extreme degenerate case: only one sample, n_clusters>1 -> candidates empty branch
+        with self.subTest("single_sample_candidates_empty"):
+            X = torch.ones(1, 3)
+            centers = _initialize_plus_plus(X, 2, 2, random_state=0)
+            self.assertEqual(centers.shape, (2, 3))
+
+        # 5) NaN-handling path -> nan_to_num is exercised (should not crash)
+        with self.subTest("nan_to_num_path"):
+            X = torch.tensor(
+                [[0.0, 0.0, 0.0],
+                 [float("nan"), 0.0, 0.0],
+                 [1.0, 0.0, 0.0]],
+                dtype=torch.float32,
+            )
+            # seed chosen so first centroid is deterministic (helps avoid flakiness)
+            centers = _initialize_plus_plus(X, 2, 2, random_state=2)
+            self.assertEqual(centers.shape, (2, 3))
 
     def test_BatchParallelKClustering(self):
         with self.assertRaises(TypeError):

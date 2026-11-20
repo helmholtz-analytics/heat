@@ -4,13 +4,25 @@ updates:
     directory: /
     schedule:
       interval: "weekly"
+    cooldown:
+      default-days: 7
+    groups:
+      all-dependencies:
+        patterns:
+          - "*"
+        exclude-patterns:
+          - "mpi4py/setup-MPI"
 
   - package-ecosystem: pip
     directory: /doc
     schedule:
       interval: "weekly"
+    cooldown:
+      default-days: 7
 
   - package-ecosystem: docker
-    directory: /heat/core/tests
+    directory: /
     schedule:
       interval: "weekly"
+    cooldown:
+      default-days: 7

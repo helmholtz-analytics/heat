@@ -89,3 +89,17 @@ class TestBasicTest(TestCase):
         data_F = ht.array(data, order="F")
         with self.assertRaises(ValueError):
             self.assertTrue_memory_layout(data_F, order="K")
+
+    def test_tmpdir(self):
+        import os
+
+        # test directory creation
+        path, tmpdir = self.get_tmpdir()
+        assert os.path.exists(path), f'No directory at {path}'
+        assert os.path.isdir(path), f'No directory at {path}'
+        ht.comm.Barrier()
+
+        # test cleanup
+        del tmpdir
+        ht.comm.Barrier()
+        assert not os.path.exists(path)

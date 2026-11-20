@@ -26,14 +26,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@a90bcbc6539c36a85cdfeb73f7e2f433735f215b # v2.15.0
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
         with:
           egress-policy: audit
 
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.inputs.base_branch }}
-      - uses: release-drafter/release-drafter@6a93d829887aa2e0748befe2e808c66c0ec6e4c7 # v6.4.0
+      - uses: release-drafter/release-drafter@978bb0b30c5ee8cdd332ced253758157150d43f0 # v7.10.0
         id: release_drafter
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -100,13 +100,17 @@ jobs:
           { echo -e "# v${MAJOR}.${MINOR}.${MICRO} - ${{github.event.inputs.title}}\n${{ steps.release_drafter.outputs.body}}\n"; cat CHANGELOG.md; } > tmp.md
           mv tmp.md CHANGELOG.md
 
+          # Update version and dateModified in codemeta.json
+          TODAY=$(date '+%Y-%m-%d')
+          jq --arg v "$VERSION" --arg d "$TODAY" '.version = $v | .dateModified = $d' codemeta.json > codemeta.tmp && mv codemeta.tmp codemeta.json
+
           # Git configuration with anonymous user and email
           git config --global user.email ""
           git config --global user.name "Heat Release Bot"
 
           # Commit the changes
-          git add heat/core/version.py CHANGELOG.md
-          git commit -m "Bump version to $VERSION"
+          git add heat/core/version.py CHANGELOG.md codemeta.json
+          git commit -m "Bump version to $VERSION in code, changelog, and codemeta"
 
           # Commit Dockerfile changes
           git add docker/Dockerfile.release
@@ -126,6 +130,8 @@ jobs:
 
           TODO:
           - [x] Update version.py
+          - [x] Update codemeta.json
+          - [ ] Run `python scripts/numpy_coverage_tables.py` and commit the updated `coverage_tables.md`.
           - [ ] Ensure Citation file `CITATION.cff` is up to date.
           - [ ] Ensure the Changelog is up to date.
 

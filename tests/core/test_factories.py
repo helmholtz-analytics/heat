@@ -12,8 +12,8 @@ class TestFactories(TestCase):
         self.assertIsInstance(one_arg_arange_int, ht.DNDarray)
         self.assertEqual(one_arg_arange_int.shape, (10,))
         self.assertLessEqual(one_arg_arange_int.lshape[0], 10)
-        self.assertEqual(one_arg_arange_int.dtype, ht.int32)
-        self.assertEqual(one_arg_arange_int.larray.dtype, torch.int32)
+        self.assertEqual(one_arg_arange_int.dtype, ht.int64)
+        self.assertEqual(one_arg_arange_int.larray.dtype, torch.int64)
         self.assertEqual(one_arg_arange_int.split, None)
         # make an in direct check for the sequence, compare against the gaussian sum
         self.assertEqual(one_arg_arange_int.sum(), 45)
@@ -34,8 +34,8 @@ class TestFactories(TestCase):
         self.assertIsInstance(two_arg_arange_int, ht.DNDarray)
         self.assertEqual(two_arg_arange_int.shape, (10,))
         self.assertLessEqual(two_arg_arange_int.lshape[0], 10)
-        self.assertEqual(two_arg_arange_int.dtype, ht.int32)
-        self.assertEqual(two_arg_arange_int.larray.dtype, torch.int32)
+        self.assertEqual(two_arg_arange_int.dtype, ht.int64)
+        self.assertEqual(two_arg_arange_int.larray.dtype, torch.int64)
         self.assertEqual(two_arg_arange_int.split, None)
         # make an in direct check for the sequence, compare against the gaussian sum
         self.assertEqual(two_arg_arange_int.sum(), 45)
@@ -56,8 +56,8 @@ class TestFactories(TestCase):
         self.assertIsInstance(three_arg_arange_int, ht.DNDarray)
         self.assertEqual(three_arg_arange_int.shape, (5,))
         self.assertLessEqual(three_arg_arange_int.lshape[0], 5)
-        self.assertEqual(three_arg_arange_int.dtype, ht.int32)
-        self.assertEqual(three_arg_arange_int.larray.dtype, torch.int32)
+        self.assertEqual(three_arg_arange_int.dtype, ht.int64)
+        self.assertEqual(three_arg_arange_int.larray.dtype, torch.int64)
         self.assertEqual(three_arg_arange_int.split, None)
         # make an in direct check for the sequence, compare against the gaussian sum
         self.assertEqual(three_arg_arange_int.sum(), 20)
@@ -85,7 +85,7 @@ class TestFactories(TestCase):
         self.assertEqual(three_arg_arange_dtype_float32.sum(axis=0, keepdims=True), 20.0)
 
         # testing setting dtype to int16
-        three_arg_arange_dtype_short = ht.arange(0, 10, 2.0, dtype=torch.int16)
+        three_arg_arange_dtype_short = ht.arange(0, 10, 2.0, dtype=ht.int16)
         self.assertIsInstance(three_arg_arange_dtype_short, ht.DNDarray)
         self.assertEqual(three_arg_arange_dtype_short.shape, (5,))
         self.assertLessEqual(three_arg_arange_dtype_short.lshape[0], 5)
@@ -97,7 +97,7 @@ class TestFactories(TestCase):
 
         # testing setting dtype to float64
         if not self.is_mps:
-            three_arg_arange_dtype_float64 = ht.arange(0, 10, 2, dtype=torch.float64)
+            three_arg_arange_dtype_float64 = ht.arange(0, 10, 2, dtype=ht.float64)
             self.assertIsInstance(three_arg_arange_dtype_float64, ht.DNDarray)
             self.assertEqual(three_arg_arange_dtype_float64.shape, (5,))
             self.assertLessEqual(three_arg_arange_dtype_float64.lshape[0], 5)
@@ -110,6 +110,15 @@ class TestFactories(TestCase):
             check_precision = ht.arange(16777217.0, 16777218, 1, dtype=ht.float64)
             self.assertEqual(check_precision.sum(), 16777217)
 
+        # empty array
+        empty_array = ht.arange(5, 0, 1, dtype=ht.int32)
+        self.assertIsInstance(empty_array, ht.DNDarray)
+        self.assertEqual(empty_array.shape, (0,))
+        self.assertEqual(empty_array.dtype, ht.int32)
+        self.assertEqual(empty_array.larray.dtype, torch.int32)
+        self.assertEqual(empty_array.split, None)
+        self.assertTrue(ht.equal(empty_array, ht.array([], dtype=ht.int32)))
+
         # exceptions
         with self.assertRaises(ValueError):
             ht.arange(-5, 3, split=1)
@@ -117,6 +126,17 @@ class TestFactories(TestCase):
             ht.arange()
         with self.assertRaises(TypeError):
             ht.arange(1, 2, 3, 4)
+        with self.assertRaises(ValueError):
+            ht.arange(5, step=0)
+        with self.assertRaises(TypeError):
+            ht.arange("A")
+        with self.assertRaises(TypeError):
+            ht.arange(0, "A")
+        # non-numeric step (positional and keyword)
+        with self.assertRaises(TypeError):
+            ht.arange(0, 10, "A")
+        with self.assertRaises(TypeError):
+            ht.arange(0, 10, step=[1])
 
     def test_array(self):
         # basic array function, unsplit data
@@ -400,6 +420,23 @@ class TestFactories(TestCase):
                 dim = self.get_rank() + 1
                 ht.array([[0] * dim] * dim, is_split=0)
 
+    def test_array_implicit_device_selection(self):
+        # test implicit device selection
+        for device in ['cpu', 'cuda', 'mps']:
+            with self.subTest(f'{device=}'):
+                try:
+                    a_torch = torch.zeros(4, device=device)
+                except (RuntimeError, AssertionError, NotImplementedError):
+                    print(f'{device=} is not available')
+                    continue
+
+                a = ht.array(a_torch)
+                self.assertEqual(a.device, ht.devices.sanitize_device(a_torch.device.type))
+                b = ht.array(a)
+                self.assertEqual(a.device, b.device)
+                c = ht.array(a, device='cpu')
+                self.assertEqual(str(c.device)[:3], 'cpu')
+
     def test_asarray(self):
         # same heat array
         arr = ht.array([1, 2])
@@ -581,6 +618,56 @@ class TestFactories(TestCase):
         self.assertEqual(eye.dtype, ht.float32)
         self.assertEqual(eye.shape, shape)
         self.assertEqual(eye.split, 1)
+
+    def test_from_dlpack(self):
+        from unittest import mock
+        from packaging.version import Version
+
+        a_ht = ht.ones([4, 4])
+
+        for a in [a_ht, a_ht.numpy(), a_ht.larray]:
+            b = ht.from_dlpack(a)
+
+            self.assertIsInstance(b, ht.DNDarray)
+            self.assertEqual(b.dtype, ht.canonical_heat_type(a.dtype))
+            self.assertEqual(b.shape, a.shape)
+            self.assertIsNone(b.split)
+
+            if isinstance(a, np.ndarray):
+                self.assertEqual(b.device, ht.cpu)
+                self.assertTrue(np.all(np.equal(b.larray.numpy(), a)))
+            elif isinstance(a, torch.Tensor):
+                self.assertEqual(b.device, ht.devices.sanitize_device(a.device.type))
+                if b.device.device_type == "gpu":
+                    self.assertEqual(b.device.device_id, a.device.index)
+                self.assertTrue(torch.equal(b.larray, a))
+            else:
+                self.assertEqual(b.device, a.device)
+                self.assertTrue(torch.equal(b.larray, a.larray))
+
+        # test device parameter when torch version is >= 2.9
+        if Version(torch.__version__) >= Version("2.9"):
+            for dev in [ht.cpu, self.device]:
+                b_dev = ht.from_dlpack(a_ht, device=dev)
+                self.assertIsInstance(b_dev, ht.DNDarray)
+                self.assertEqual(b_dev.device, dev)
+                self.assertTrue(torch.equal(b_dev.larray, a_ht.larray.to(dev.torch_device)))
+        else:
+            with self.assertWarns(UserWarning):
+                _ = ht.from_dlpack(a_ht, device=ht.cpu)
+
+            # mock version >= 2.9 to guarantee coverage of the conversion branch on older torch
+            with mock.patch("heat.core.factories.Version", return_value=Version("2.9.0")), mock.patch(
+                "torch.from_dlpack", return_value=torch.ones([4, 4])
+            ) as mock_dlpack:
+                b_mock = ht.from_dlpack(a_ht, device=ht.cpu)
+                mock_dlpack.assert_called_once_with(a_ht, device=torch.device("cpu"), copy=None)
+                self.assertEqual(b_mock.device, ht.cpu)
+
+        a = ht.zeros([4, 4], split=0)
+        if a.is_distributed():
+            with self.assertRaises(BufferError):
+                b = ht.from_dlpack(a)
 
     def test_from_partitioned(self):
         a = ht.zeros((120, 120), split=0)
@@ -851,78 +938,76 @@ class TestFactories(TestCase):
         with self.assertRaises(ValueError):
             ht.logspace(-5, 3, num=-1)
 
+
     def test_meshgrid(self):
         # arrays < 2
         self.assertEqual(ht.meshgrid(), [])
         self.assertEqual(ht.meshgrid(ht.array(1)), [ht.array(1)])
 
         # 2 arrays
-        x = ht.arange(4)
-        y = ht.arange(3)
-        xx, yy = ht.meshgrid(x, y)
-        res_xx = ht.array([[0, 1, 2, 3], [0, 1, 2, 3], [0, 1, 2, 3]], dtype=ht.int32, split=None)
-        res_yy = ht.array([[0, 0, 0, 0], [1, 1, 1, 1], [2, 2, 2, 2]], dtype=ht.int32, split=None)
+        for indexing in ['xy', 'ij']:
+            for split in [None, 0]:
+                x = ht.random.random(4, split=split)
+                y = ht.random.random(3)
+                xx, yy = ht.meshgrid(x, y, indexing=indexing)
 
-        self.assertEqual(xx.shape, res_xx.shape)
-        self.assertEqual(yy.shape, res_yy.shape)
-        self.assertEqual(xx.device, res_xx.device)
-        self.assertEqual(yy.device, res_yy.device)
-        self.assertEqual(xx.dtype, x.dtype)
-        self.assertEqual(yy.dtype, y.dtype)
-        self.assertTrue(ht.equal(xx, res_xx))
-        self.assertTrue(ht.equal(yy, res_yy))
+                self.assertEqual(x.device, xx.device)
+                self.assertEqual(y.device, yy.device)
+                self.assertEqual(x.dtype, xx.dtype)
+                self.assertEqual(y.dtype, yy.dtype)
 
-        # different dtype + indexing parameter
-        x = ht.linspace(0, 4, 3)
-        y = ht.linspace(0, 4, 5)
-        xx, yy = ht.meshgrid(x, y, indexing="ij")
+                x_numpy = x.resplit(None).numpy()
+                y_numpy = y.resplit(None).numpy()
+                xx_numpy, yy_numpy = np.meshgrid(x_numpy, y_numpy, indexing=indexing)
 
-        res_xx = ht.array(
-            [[0.0, 0.0, 0.0, 0.0, 0.0], [2.0, 2.0, 2.0, 2.0, 2.0], [4.0, 4.0, 4.0, 4.0, 4.0]],
-            dtype=ht.float32,
-            split=None,
-        )
-        res_yy = ht.array(
-            [[0.0, 1.0, 2.0, 3.0, 4.0], [0.0, 1.0, 2.0, 3.0, 4.0], [0.0, 1.0, 2.0, 3.0, 4.0]],
-            dtype=ht.float32,
-            split=None,
-        )
+                self.assertTrue(ht.allclose(xx, ht.array(xx_numpy, split=xx.split)))
+                self.assertTrue(ht.allclose(yy, ht.array(yy_numpy, split=yy.split)))
+                self.assertTrue(np.allclose(xx.shape, xx_numpy.shape))
+                self.assertTrue(np.allclose(yy.shape, yy_numpy.shape))
 
-        self.assertEqual(xx.shape, res_xx.shape)
-        self.assertEqual(yy.shape, res_yy.shape)
-        self.assertEqual(xx.device, res_xx.device)
-        self.assertEqual(yy.device, res_yy.device)
-        self.assertEqual(xx.dtype, x.dtype)
-        self.assertEqual(yy.dtype, y.dtype)
-        self.assertTrue(ht.equal(xx, res_xx))
-        self.assertTrue(ht.equal(yy, res_yy))
+                if split == 0:
+                    if indexing == 'ij':
+                        self.assertEqual(xx.split, 0)
+                        self.assertEqual(yy.split, 0)
+                    else:
+                        self.assertEqual(xx.split, 1)
+                        self.assertEqual(yy.split, 1)
+                else:
+                    self.assertEqual(xx.split, None)
+                    self.assertEqual(yy.split, None)
 
         # 3 arrays
+        x = ht.linspace(0, 4, 3)
+        y = ht.linspace(0, 4, 5)
         z = ht.linspace(0, 1, 3, split=0)
 
         # split 0
         zz, xx, yy = ht.meshgrid(z, x, y)
+        if zz.comm.size == 1:
+            self.assertEqual(list(zz.shape), list(zz.larray.shape))
+            self.assertEqual(list(xx.shape), list(xx.larray.shape))
+            self.assertEqual(list(yy.shape), list(yy.larray.shape))
 
-        res_zz, res_xx, res_yy = np.meshgrid(z.numpy(), x.numpy(), y.numpy())
+        res_zz, res_xx, res_yy = np.meshgrid(z.resplit(None).numpy(), x.resplit(None).numpy(), y.resplit(None).numpy())
 
-        self.assertEqual(xx.split, 0)
-        self.assertEqual(yy.split, 0)
-        self.assertEqual(zz.split, 0)
-        self.assertTrue(ht.equal(xx, ht.array(res_xx)))
-        self.assertTrue(ht.equal(yy, ht.array(res_yy)))
-        self.assertTrue(ht.equal(zz, ht.array(res_zz)))
+        self.assertEqual(xx.split, 1)
+        self.assertEqual(yy.split, 1)
+        self.assertEqual(zz.split, 1)
+        self.assertTrue(ht.allclose(xx, ht.array(res_xx, split=xx.split)))
+        self.assertTrue(ht.allclose(yy, ht.array(res_yy, split=xx.split)))
+        self.assertTrue(ht.allclose(zz, ht.array(res_zz, split=xx.split)))
 
         # split 1
         xx, zz, yy = ht.meshgrid(x, z, y)
 
         res_xx, res_zz, res_yy = np.meshgrid(x.numpy(), z.numpy(), y.numpy())
 
-        self.assertEqual(xx.split, 1)
-        self.assertEqual(yy.split, 1)
-        self.assertEqual(zz.split, 1)
-        self.assertTrue(ht.equal(xx, ht.array(res_xx)))
-        self.assertTrue(ht.equal(yy, ht.array(res_yy)))
-        self.assertTrue(ht.equal(zz, ht.array(res_zz)))
+        self.assertEqual(xx.split, 0)
+        self.assertEqual(yy.split, 0)
+        self.assertEqual(zz.split, 0)
+        self.assertTrue(ht.allclose(xx, ht.array(res_xx, split=xx.split)))
+        self.assertTrue(ht.allclose(yy, ht.array(res_yy, split=yy.split)))
+        self.assertTrue(ht.allclose(zz, ht.array(res_zz, split=zz.split)))
 
         # split 2
         xx, yy, zz = ht.meshgrid(x, y, z)
@@ -932,9 +1017,9 @@ class TestFactories(TestCase):
         self.assertEqual(xx.split, 2)
         self.assertEqual(yy.split, 2)
         self.assertEqual(zz.split, 2)
-        self.assertTrue(ht.equal(xx, ht.array(res_xx)))
-        self.assertTrue(ht.equal(yy, ht.array(res_yy)))
-        self.assertTrue(ht.equal(zz, ht.array(res_zz)))
+        self.assertTrue(ht.allclose(xx, ht.array(res_xx, split=xx.split)))
+        self.assertTrue(ht.allclose(yy, ht.array(res_yy, split=yy.split)))
+        self.assertTrue(ht.allclose(zz, ht.array(res_zz, split=zz.split)))
 
         # exceptions
         with self.assertRaises(ValueError):

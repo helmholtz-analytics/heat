@@ -10,14 +10,30 @@ from heat.testing.basic_test import TestCase
 class TestSolver(TestCase):
     def test_cg(self):
         size = ht.communication.MPI_WORLD.size * 3
-        b = ht.arange(1, size + 1, dtype=ht.float32, split=0)
-        A = ht.manipulations.diag(b)
+        b = ht.random.random(size, dtype=ht.float64, split=0)
+
+        A = ht.random.random((size, size), dtype=b.dtype, split=b.split)
+        A = A + (A.T).resplit(A.split)
+
         x0 = ht.random.rand(size, dtype=b.dtype, split=b.split)
 
-        x = ht.ones(b.shape, dtype=b.dtype, split=b.split)
+        # check correct result with tight tolerances
+        x = ht.linalg.cg(A, b, x0, rtol=0, atol=1e-8)
+        residual = ht.linalg.norm(A@x - b).item()
+        self.assertAlmostEqual(residual, 0, 4), f'Got residual {residual}, but expected zero'
 
-        res = ht.linalg.cg(A, b, x0)
-        self.assertTrue(ht.allclose(x, res, atol=1e-3))
+        # check incorrect result with loose tolerances
+        x = ht.linalg.cg(A, b, x0, rtol=1, atol=0)
+        residual = ht.linalg.norm(A@x - b).item()
+        self.assertNotAlmostEqual(residual, 0, 4), f'Got residual {residual}, but expected non-zero'
+
+        x = ht.linalg.cg(A, b, x0, rtol=0, atol=1)
+        residual = ht.linalg.norm(A@x - b).item()
+        self.assertNotAlmostEqual(residual, 0, 4), f'Got residual {residual}, but expected non-zero'
+
+        x = ht.linalg.cg(A, b, x0, rtol=0, atol=0, maxiter=1)
+        residual = ht.linalg.norm(A@x - b).item()
+        self.assertNotAlmostEqual(residual, 0, 4), f'Got residual {residual}, but expected non-zero'
 
         b_np = np.arange(1, size + 1)
         with self.assertRaises(TypeError):
@@ -29,6 +45,10 @@ class TestSolver(TestCase):
             ht.linalg.cg(b, b, x0)
         with self.assertRaises(RuntimeError):
             ht.linalg.cg(A, b, A)
+
+        for arg in ['maxiter', 'atol', 'rtol']:
+            with self.assertRaises(ValueError):
+                ht.linalg.cg(A, b, x0, **{arg: 'Crombobulator'})
 
     def test_lanczos(self):
         # single precision tolerance for torch.inv() is pretty bad
@@ -135,6 +155,161 @@ class TestSolver(TestCase):
         with self.assertRaises(NotImplementedError):
             A = ht.random.randn(10, 10, split=1)
             V, T = ht.lanczos(A, m=3)
+
+    def test_solve(self):
+        torch.manual_seed(42 + ht.communication.MPI_WORLD.rank)
+
+        types = [ht.float32, ht.float64, ht.complex64, ht.complex128]
+        s = ht.communication.MPI_WORLD.size
+        n = s * 2
+        k = s * 3
+
+        A_shapes = [(n, n), (k, n, n), (n, n), (k, n, n), (k, n, n), (n, k, n, n)]
+        b_shapes = [(n,), (k, n), (n, k), (n,), (n, k), (n, k, n)]
+
+        for dtype in types:
+            for A_shape, b_shape in zip(A_shapes, b_shapes):
+                for split in [None] + [i for i in range(len(A_shape) - 2)]:
+                    with self.subTest(f'{dtype=} {A_shape=} {b_shape=} {split=}'):
+                        A = ht.random.randn(*A_shape, dtype=dtype, split=split)
+                        b = ht.random.randn(*b_shape, dtype=dtype, split=split if b_shape[0] == A_shape[0] else None)
+
+                        x = ht.linalg.solve(A, b)
+
+                        try:
+                            _b = A @ x
+                        except NotImplementedError:  # batched matrix-vector not implemented
+                            _x = ht.expand_dims(x, -1)
+                            _b = (A@_x)[..., 0]
+
+                        error = ht.linalg.norm(_b - b)
+                        thresh = 1e5 * ht.finfo(dtype).eps
+                        self.assertTrue(error < thresh, f'Error {float(error):.2e} > than threshold of {thresh:.2e}')
+
+                        # test that the solving works with passing output array
+                        y = ht.empty_like(x)
+                        ht.linalg.solve(A, b, out=y)
+                        self.assertTrue(ht.allclose(x, y))
+
+        # test a few additionally allowed splits
+        if ht.communication.MPI_WORLD.size > 1:
+            A = ht.random.randn(s, s, split=None)
+            b = ht.random.randn(s, 2*s, split=1)
+            x = ht.linalg.solve(A, b)
+            error = float(ht.linalg.norm(A@x - b))
+            self.assertTrue(error < 1e-3, f'Error {error}')
+
+            A = ht.random.randn(2*s, s, s, split=None)
+            b = ht.random.randn(2*s, s, 2*s, split=2)
+            x = ht.linalg.solve(A, b)
+            error = float(ht.linalg.norm(A@x - b))
+            self.assertTrue(error < 1e-3, f'Error {error}')
+
+
+        # test separately with ints
+        for dtype in [ht.int8, ht.int16, ht.int32, ht.int64]:
+            with self.subTest(f'{dtype=}'):
+                A = ht.array([[1, 2], [3, 5]], dtype=dtype)
+                b = ht.array([1, 2], dtype=dtype)
+                x = ht.linalg.solve(A, b)
+                self.assertTrue(ht.allclose(A@x, b))
+
+                out = ht.empty_like(x).astype(dtype, copy=False)
+                ht.linalg.solve(A, b, out=out)
+                self.assertTrue(ht.allclose(x, out))
+
+        # --- test catching all the things that are not supposed to work ---
+
+        # out argument is used incorrectly
+        A = ht.random.randn(2*s, s, s)
+        b = ht.random.randn(s)
+        out = ht.empty(shape = (3*s, 4*s, 5*s))
+        with self.assertRaises(ValueError):  # out has totally wrong shape
+            ht.linalg.solve(A, b, out=out)
+        out = ht.empty(shape = (2*s, s), split=1)
+        with self.assertRaises(ValueError):  # out is split incorrectly
+            ht.linalg.solve(A, b, out=out)
+        out = ht.empty_like(b)
+        with self.assertRaises(ValueError):  # need to expand out
+            ht.linalg.solve(A, b, out=out)
+        out = torch.zeros(size=(2*s, s))
+        with self.assertRaises(TypeError):  # out has wrong datatype
+            ht.linalg.solve(A, b, out=out)
+
+        # input is torch tensor instead of DNDarray
+        A = torch.ones(size=(s, s))
+        b = ht.ones(s)
+        with self.assertRaises(TypeError):
+            ht.linalg.solve(A, b)
+
+        A = ht.ones((s, s))
+        b = torch.ones(s)
+        with self.assertRaises(TypeError):
+            ht.linalg.solve(A, b)
+
+        # input has wrong shape
+        A = ht.random.randn(2*s, s)
+        b = ht.random.randn(s)
+        with self.assertRaises(RuntimeError):
+            ht.linalg.solve(A, b)
+
+        A = ht.random.randn(s, s)
+        b = ht.random.randn(2*s)
+        with self.assertRaises(ValueError):
+            ht.linalg.solve(A, b)
+
+        A = ht.random.randn(s, s)
+        b = ht.random.randn(4*s, 3*s, 2*s)
+        with self.assertRaises(ValueError):
+            ht.linalg.solve(A, b)
+
+        A = ht.random.randn(s, s)
+        b = ht.random.randn(4*s, 3*s, s)
+        with self.assertRaises(ValueError):
+            ht.linalg.solve(A, b)
+
+        if ht.communication.MPI_WORLD.size > 1:
+            # A is split in non-batched dimension
+            for split in [0, 1]:
+                A = ht.random.randn(s, s, split=split)
+                b = ht.ones(s, split=None)
+                with self.assertRaises(NotImplementedError):
+                    ht.linalg.solve(A, b)
+
+            A = ht.random.randn(2*s, s, s, split=1)
+            b = ht.ones((2*s, s), split=None)
+            with self.assertRaises(NotImplementedError):
+                ht.linalg.solve(A, b)
+
+            # b is split in non-batched dimension
+            A = ht.random.randn(s, s, split=None)
+            b = ht.ones((s,), split=0)
+            with self.assertRaises(NotImplementedError):
+                ht.linalg.solve(A, b)
+
+            A = ht.random.randn(2*s, s, s, split=0)
+            b = ht.ones((2*s, s), split=1)
+            with self.assertRaises(NotImplementedError):
+                ht.linalg.solve(A, b)
+
+            # A and b are split in incompatible fashion
+            A = ht.random.randn(3*s, s, s, split=0)
+            b = ht.ones((s, 2*s), split=1)
+            with self.assertRaises(ValueError):
+                ht.linalg.solve(A, b)
+
+        # make sure we catch errors on all tasks if any local problem is non-invertible
+        A = ht.random.randn(ht.comm.size, s, s, split=0)
+        b = ht.ones((ht.comm.size, s), split=0)
+        if ht.comm.rank == 0:
+            A.larray[...] = 0
+        with self.assertRaises(RuntimeError):
+            ht.linalg.solve(A, b)
+
+
+
+
+
 
     def test_solve_triangular(self):
         torch.manual_seed(42)

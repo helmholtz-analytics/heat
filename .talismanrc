@@ -1,10 +1,18 @@
 threshold: medium
 allowed_patterns:
-- 'uses: [A-Za-z-\/]+@[\w\d]+'
+- 'uses: [A-Za-z0-9-\/]+@[\w\d]+'
 
 fileignoreconfig:
-- filename: .github/workflows/ci.yaml
-  checksum: 3bf095a6ff388eb7aacb80e3b33ed600b377bbce6a97f01ac1579dc702024a13
-- filename: .github/workflows/ci_full.yaml
-  checksum: 54389cc7b9ddd0010ed99d1194da724dbcc51922358f739a5aa30e65e8e2c0e0
+- filename: CHANGELOG.md
+  checksum: 48612f941de9e1dc20830b1251f8ef0166b39d5bad1da3bb91d504ec42068266
+- filename: doc/source/tutorials/notebooks/MPI_introduction.ipynb
+  checksum: fd06a125a8843b363d994e233678f78ae768b48ba7eceb85c07c2135fc03943d
+- filename: doc/source/tutorials/notebooks/Dataloading.ipynb
+  checksum: 991a3d803f9c54deffc2d9021e211ae48f6e6f1bcb641cde8e170de188239cb1
+- filename: doc/source/tutorials/notebooks/Classification_and_PCA.ipynb
+  checksum: 3d3a07fe7faafc7901a047341f9e691ce9878b1bf430f78da6918a7024631241
+- filename: doc/source/tutorials/notebooks/Loading_preprocessing.ipynb
+  checksum: 6b3698eb90f7157432f43149f25e37764cfb1bf7a485cf29add40e890d29ecbe
+- filename: doc/source/tutorials/notebooks/DMD.ipynb
+  checksum: d82a164dedc135323a7af79e0b95793f92e7f4ee91c4ba9f6f696b0cd75acb08
 version: "1.0"

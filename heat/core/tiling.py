@@ -5,11 +5,9 @@ Tiling functions/classes. With these classes, you can classes you can address bl
 from __future__ import annotations
 import itertools
 import torch
-from mpi4py import MPI
 from typing import List, Tuple, Union
 
 from .dndarray import DNDarray
-from .communication import MPICommunication
 
 __all__ = ["SplitTiles", "SquareDiagTiles"]
 
@@ -1033,7 +1031,7 @@ class SquareDiagTiles:
         [1/1]         [20., 21., 22., 23., 24., 25., 26., 27., 28., 29.],
         [1/1]         [30., 31., 32., 33., 34., 35., 36., 37., 38., 39.],
         [1/1]         [40., 41., 42., 43., 44., 45., 46., 47., 48., 49.]])
-        >>> a.lloc[:] = 0
+        >>> a.larray[:] = 0
         >>> a_tiles.local_set(key=(0, 2), value=10)
         [0/1] tensor([[ 0.,  0.,  0.,  0.,  0.,  0., 10., 10.,  0.,  0.],
         [0/1]         [ 0.,  0.,  0.,  0.,  0.,  0., 10., 10.,  0.,  0.],
