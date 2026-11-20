@@ -205,33 +205,69 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
             # extract the diagonal
             dd = L.diagonal()
 
-            # assess n_components = n_clusters if not specified by user
-            if self.n_clusters is None:
-                # set n_clusters to spectral gap
-                diff = eval[1:] - eval[:-1]
-                tmp = ht.argmax(diff).item()
-                self.n_clusters = tmp + 1
-            if n_components is None:
+            # determine how many eigenvalues to request from reigh
+            if n_components is None and self.n_clusters is not None:
                 n_components = self.n_clusters
-            if drop_first:
-                n_components += 1
+
+            n_eigenvalues = (
+                (n_components + 1) if (n_components is not None and drop_first) else n_components
+            )
+            if n_eigenvalues is None:
+                n_eigenvalues = min(self.reigh_rank, L.shape[0])
 
             # compute the randomized eigenvalue decomposition
             # NB:  ht.linalg.reigh returns the eigenvalues in descending order
             eval, evec = reigh(
                 L,
-                n_eigenvalues=n_components,
+                n_eigenvalues=n_eigenvalues,
                 n_oversamples=self.reigh_n_oversamples,
                 power_iter=self.reigh_power_iter,
             )
 
-            # select the largest n_components
-            embedding = evec.T[:n_components]
+            # assess n_clusters from spectral gap if not specified by user
+            if self.n_clusters is None:
+                diff = ht.abs(eval[1:] - eval[:-1])
+                tmp = ht.argmax(diff).item()
+                self.n_clusters = tmp + 1
+            if n_components is None:
+                n_components = self.n_clusters
+
+            # select the largest n_components (plus 1 if dropping first)
+            n_select = (n_components + 1) if drop_first else n_components
+            embedding = evec.T[:n_select]
             if norm_laplacian:
                 embedding = embedding / dd
             # Drop smallest component if requested
             if drop_first:
                 embedding = embedding[:-1]
+
+            # # assess n_components = n_clusters if not specified by user
+            # if self.n_clusters is None:
+            #     # set n_clusters to spectral gap
+            #     diff = eval[1:] - eval[:-1]
+            #     tmp = ht.argmax(diff).item()
+            #     self.n_clusters = tmp + 1
+            # if n_components is None:
+            #     n_components = self.n_clusters
+            # if drop_first:
+            #     n_components += 1
+
+            # # compute the randomized eigenvalue decomposition
+            # # NB:  ht.linalg.reigh returns the eigenvalues in descending order
+            # eval, evec = reigh(
+            #     L,
+            #     n_eigenvalues=n_components,
+            #     n_oversamples=self.reigh_n_oversamples,
+            #     power_iter=self.reigh_power_iter,
+            # )
+
+            # # select the largest n_components
+            # embedding = evec.T[:n_components]
+            # if norm_laplacian:
+            #     embedding = embedding / dd
+            # # Drop smallest component if requested
+            # if drop_first:
+            #     embedding = embedding[:-1]
 
         #  Lanczos Algorithm
         elif eigen_solver == "lanczos":
