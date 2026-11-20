@@ -103,6 +103,6 @@ class TestSpectral(TestCase):
                 spectral = ht.cluster.SpectralClustering(eigen_solver="randomized", reigh_rank=2, n_clusters=5)
 
             iris_split = ht.load(self.CSV_PATH, sep=";", split=1)
-            spectral = ht.cluster.Spectral(eigen_solver="lanczos", lanczos_n_iter=20)
+            spectral = ht.cluster.SpectralClustering(eigen_solver="lanczos", lanczos_n_iter=20)
             with self.assertRaises(NotImplementedError):
                 spectral.fit(iris_split)
