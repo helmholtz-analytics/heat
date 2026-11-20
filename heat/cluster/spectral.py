@@ -135,7 +135,7 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
             raise NotImplementedError("Other kernels currently not supported")
 
         if assign_labels == "kmeans":
-            self._cluster = ht.cluster.KMeans(params)
+            self._cluster = ht.cluster.KMeans(**params)
         else:
             raise NotImplementedError(
                 "Other Label Assignment Algorithms are currently not available"

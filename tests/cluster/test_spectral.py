@@ -71,9 +71,8 @@ class TestSpectral(TestCase):
             labels = spectral.fit_predict(iris)
             self.assertIsInstance(labels, ht.DNDarray)
 
-            kmeans = {"kmeans++": "kmeans++", "max_iter": 30, "tol": -1}
             spectral = ht.cluster.SpectralClustering(
-                n_clusters=3, gamma=1.0, normalize=True, params=kmeans
+                n_clusters=3, gamma=1.0, init="kmeans++", max_iter=30, tol=0.0
             )
             labels = spectral.fit_predict(iris)
             self.assertIsInstance(labels, ht.DNDarray)
