@@ -150,6 +150,15 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
         """
         return self._labels
 
+    def __deterministic_vector_sign_flip(self, embedding: DNDarray) -> DNDarray:
+        """
+        Flip signs of each eigenvector (row) so the largest-magnitude entry is positive.
+        """
+        max_vals = ht.max(embedding, axis=1, keepdims=True)
+        min_vals = ht.min(embedding, axis=1, keepdims=True)
+        signs = (max_vals >= -min_vals).astype(embedding.dtype) * 2 - 1
+        return embedding * signs
+
     def __spectral_embedding(
         self,
         x: DNDarray,
@@ -196,31 +205,34 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
             if n_eigenvalues is None:
                 n_eigenvalues = min(self.reigh_rank, L.shape[0])
 
+            # Shift L_sym (spectrum in [0, 2]) to 2I - L_sym so reigh computes
+            # the smallest eigenvalues of L_sym first
+            shifted_L = -L
+            if norm_laplacian:
+                shifted_L.fill_diagonal(1.0)
+
             # compute the randomized eigenvalue decomposition
-            # NB:  ht.linalg.reigh returns the eigenvalues in descending order
+            # NB: ht.linalg.reigh returns eigenvalues in descending order,
+            # so 2.0 - eval recovers the smallest eigenvalues of L in ascending order
             eval, evec = reigh(
-                L,
+                shifted_L,
                 n_eigenvalues=n_eigenvalues,
                 n_oversamples=self.reigh_n_oversamples,
                 power_iter=self.reigh_power_iter,
             )
+            eval = 2.0 - eval
 
             # assess n_clusters from spectral gap if not specified by user
             if self.n_clusters is None:
-                diff = ht.abs(eval[1:] - eval[:-1])
+                diff = eval[1:] - eval[:-1]
                 tmp = ht.argmax(diff).item()
                 self.n_clusters = tmp + 1
             if n_components is None:
                 n_components = self.n_clusters
 
-            # select the largest n_components (plus 1 if dropping first)
+            # select the smallest n_components (plus 1 if dropping first)
             n_select = (n_components + 1) if drop_first else n_components
             embedding = evec.T[:n_select]
-            if norm_laplacian:
-                embedding = embedding / dd
-            # Drop smallest component if requested
-            if drop_first:
-                embedding = embedding[:-1]
 
         #  Lanczos Algorithm
         elif eigen_solver == "lanczos":
@@ -253,18 +265,23 @@ class SpectralClustering(ht.ClusteringMixin, ht.BaseEstimator):
             # n_components = n_clusters if not specified
             if n_components is None:
                 n_components = self.n_clusters
+            n_select = (n_components + 1) if drop_first else n_components
             # the Laplacian is symmetric and the eigenvectors are real
-            # TODO: check the returned order of evec, eval here
-            embedding = eigenvectors[:n_components].real
-            # Drop smallest component if requested
-            if drop_first:
-                embedding = embedding[1:]
+            embedding = eigenvectors[:n_select].real
         else:
             raise NotImplementedError(
                 f"Eigenvalue decomposition method {eigen_solver} is not supported. Supported methods are 'randomized' and 'lanczos'."
             )
-        # Return the embedding transposed back to original shape
-        return embedding.T
+
+        if norm_laplacian:
+            # recover u = D^-1/2 x from the eigenvector output x
+            embedding = embedding / dd
+
+        embedding = self.__deterministic_vector_sign_flip(embedding)
+
+        if drop_first:
+            return embedding[1:n_select].T
+        return embedding[:n_select].T
 
     def fit(self, x: DNDarray):
         """
