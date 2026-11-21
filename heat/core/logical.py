@@ -5,7 +5,7 @@ Logical functions for the DNDarrays
 import numpy as np
 import torch
 
-from typing import Callable, Optional, Tuple, Union
+from typing import Callable, Optional, Sequence, Tuple, Union
 
 from . import factories
 from . import manipulations
@@ -22,8 +22,10 @@ __all__ = [
     "all",
     "allclose",
     "any",
+    "in1d",
     "isclose",
     "isfinite",
+    "isin",
     "isinf",
     "isnan",
     "isneginf",
@@ -226,6 +228,45 @@ DNDarray.any: Callable[[DNDarray, Optional[int], Optional[DNDarray], bool], DNDa
 DNDarray.any.__doc__ = any.__doc__
 
 
+def in1d(
+    ar1: DNDarray,
+    ar2: Union[DNDarray, bool, int, float, Sequence],
+    assume_unique: bool = False,
+    invert: bool = False,
+) -> DNDarray:
+    """
+    Test whether each element of a 1-D array is also present in a second array.
+
+    Returns a boolean array the same length as ``ar1`` that is ``True`` where an element of ``ar1``
+    is in ``ar2`` and ``False`` otherwise. Returns a flattened 1-D result, see
+    :func:`heat.isin <heat.core.logical.isin>` for the version that preserves the shape of the input.
+
+    Parameters
+    ----------
+    ar1 : DNDarray
+        Input array, likely with 1 dimensions.
+    ar2 : DNDarray or array_like
+        The values against which to test each value of ``ar1``.
+    assume_unique : bool, optional
+        If ``True``, the input arrays are both assumed to be unique, which can speed up the calculation.
+    invert : bool, optional
+        If ``True``, the values in the returned array are inverted, as if calculating ``ar1 not in ar2``.
+
+    See Also
+    --------
+    :func:`heat.isin()`
+        ``isin`` works elementwise instead, i.e. it preserves the shape of the input.
+
+    Examples
+    --------
+    >>> a = ht.array([1, 2, 3, 2, 5])
+    >>> ht.in1d(a, [2, 5])
+    DNDarray([False,  True, False,  True,  True], dtype=ht.bool, device=cpu:0, split=0)
+    """
+    sanitation.sanitize_in(ar1)
+    return manipulations.flatten(isin(ar1, ar2, assume_unique=assume_unique, invert=invert))
+
+
 def isclose(
     x: DNDarray, y: DNDarray, rtol: float = 1e-05, atol: float = 1e-08, equal_nan: bool = False
 ) -> DNDarray:
@@ -300,6 +341,136 @@ def isfinite(x: DNDarray) -> DNDarray:
     DNDarray([ True, False, False, False], dtype=ht.bool, device=cpu:0, split=None)
     """
     return _operations.__local_op(torch.isfinite, x, None, no_cast=True)
+
+
+def __gather_test_values(test: DNDarray, torch_device: Optional[str] = None) -> torch.Tensor:
+    """
+    Collects all values of a, possibly distributed, ``DNDarray`` into a flat tensor that is
+    available on every process of the communicator.
+    """
+    local = test.larray.reshape(-1)
+    if torch_device is not None and local.device.type != torch.device(torch_device).type:
+        local = local.to(torch_device)
+    if not test.is_distributed():
+        return local
+
+    comm = test.comm
+    # exchange the number of local values
+    local_count = torch.tensor([local.numel()], dtype=torch.int32)
+    counts = torch.empty((comm.Get_size(),), dtype=torch.int32)
+    comm.Allgather(local_count, counts)
+    counts = counts.tolist()
+    total = sum(counts)
+    if total == 0:
+        return torch.empty((0,), dtype=local.dtype, device=torch_device)
+
+    displs = [0] + np.cumsum(counts)[:-1].tolist()
+    gathered = torch.empty((total,), dtype=local.dtype, device=torch_device)
+    comm.Allgatherv(local, (gathered, counts, displs), recv_axis=0)
+    return gathered
+
+
+def __isin_local(
+    local: torch.Tensor, test: torch.Tensor, assume_unique: bool, invert: bool
+) -> torch.Tensor:
+    """
+    Element-wise membership test on local tensors, mirroring the behavior of ``numpy.isin``.
+    ``torch.isin`` does not support boolean and complex dtypes, those are mapped to types that
+    torch can sort on: booleans to ``int8``, ``complex64`` to ``int64`` via a bitcast, and
+    ``complex128`` to a component-wise comparison (there is no 16-byte integer type to bitcast to).
+    """
+    if local.dtype == torch.bool or test.dtype == torch.bool:
+        local = local.to(torch.int8)
+        test = test.to(torch.int8)
+    elif local.dtype == torch.complex64:
+        shape = local.shape
+        local = local.reshape(-1).view(torch.int64).reshape(shape)
+        test = test.view(torch.int64)
+    elif local.dtype == torch.complex128:
+        local_real = torch.view_as_real(local.reshape(-1))
+        test_real = torch.view_as_real(test)
+        # broadcasting comparison, memory usage is O(local.numel() * test.numel())
+        result = (local_real.unsqueeze(-2) == test_real).all(dim=-1).any(dim=-1)
+        result = result.view(local.shape)
+        return torch.logical_not(result) if invert else result
+
+    result = torch.isin(local, test, assume_unique=assume_unique, invert=invert)
+    return result
+
+
+def isin(
+    element: DNDarray,
+    test_elements: Union[DNDarray, bool, int, float, Sequence],
+    assume_unique: bool = False,
+    invert: bool = False,
+) -> DNDarray:
+    """
+    Calculate ``element in test_elements``, broadcasting over the values of ``element``.
+
+    Returns a boolean ``DNDarray`` of the same shape as ``element`` that is ``True`` where
+    ``element`` is in ``test_elements`` and ``False`` otherwise. Values in ``test_elements`` are
+    considered globally, i.e. also values that reside on other processes count as members.
+
+    Parameters
+    ----------
+    element : DNDarray
+        Input array.
+    test_elements : DNDarray or array_like
+        The values against which to test each value of ``element``. May itself be distributed.
+    assume_unique : bool, optional
+        If ``True``, the input arrays are both assumed to be unique, which can speed up the calculation.
+    invert : bool, optional
+        If ``True``, the values in the returned array are inverted, as if calculating
+        ``element not in test_elements``.
+
+    Notes
+    -----
+    Each process needs access to all values of ``test_elements``, so they are collected via an
+    allgather if ``test_elements`` is distributed. This takes ``O(test_elements.numel())`` memory
+    per process; the result of ``element`` keeps the ``split`` of ``element``.
+
+    See Also
+    --------
+    :func:`heat.in1d()`
+        ``in1d`` flattens the input instead of preserving the shape of ``element``.
+
+    Examples
+    --------
+    >>> element = ht.array([1, 2, 3, 4, 3, 2, 2, 1])
+    >>> test_elements = ht.array([1, 3, 5, 7])
+    >>> ht.isin(element, test_elements)
+    DNDarray([ True, False,  True, False,  True, False, False,  True], dtype=ht.bool, device=cpu:0, split=0)
+    >>> ht.isin(element, test_elements, invert=True)
+    DNDarray([False,  True, False,  True, False,  True,  True, False], dtype=ht.bool, device=cpu:0, split=0)
+    """
+    sanitation.sanitize_in(element)
+
+    # values on other processes are valid members as well, so every process needs to know all of them
+    if isinstance(test_elements, DNDarray):
+        sanitation.sanitize_in(test_elements)
+        test_global = __gather_test_values(test_elements, element.device.torch_device)
+    else:
+        test_global = factories.array(
+            test_elements, split=None, device=element.device, comm=element.comm
+        ).larray.reshape(-1)
+
+    # match the numpy behavior of promoting the dtypes of both inputs
+    common_dtype = types.promote_types(element.dtype, types.canonical_heat_type(test_global.dtype))
+    torch_dtype = common_dtype.torch_type()
+    local = element.larray.to(torch_dtype)
+    test_global = test_global.to(torch_dtype)
+
+    result = __isin_local(local, test_global, assume_unique=assume_unique, invert=invert)
+
+    return DNDarray(
+        result,
+        gshape=element.gshape,
+        dtype=types.bool,
+        split=element.split,
+        device=element.device,
+        comm=element.comm,
+        balanced=element.is_balanced(),
+    )
 
 
 def isinf(x: DNDarray) -> DNDarray:
