@@ -133,16 +133,18 @@ def qr(
         nprocs = A.comm.size
 
         if A.shape[-2] >= A.shape[-1]:
-            last_row_reached = nprocs
+            last_row_reached = nprocs - 1
             k = A.shape[-1]
         else:
             last_row_reached = min(torch.argwhere(lshapes_cum >= A.shape[-2]))[0]
             k = A.shape[-2]
 
         if mode == "reduced":
-            Q = factories.zeros(
-                A.shape, dtype=A.dtype, split=A.ndim - 1, device=A.device, comm=A.comm
-            )
+            Q = A.copy()
+            A_columns = Q.larray
+        else:
+            Q = None
+            A_columns = A.larray.clone()
 
         R = factories.zeros(
             (*A.shape[:-2], k, A.shape[-1]),
@@ -158,33 +160,35 @@ def qr(
             ]
         )
 
-        A_columns = A.larray.clone()
-
         for i in range(last_row_reached + 1):
             # this loop goes through all the column-blocks (i.e. local arrays) of the matrix
             # this corresponds to the loop over all columns in classical Gram-Schmidt
 
             if i < nprocs - 1:
-                k_loc_i = min(A.shape[-2], A.lshape_map[i, -1])
-                Q_buf = torch.zeros(
-                    (*A.shape[:-1], k_loc_i),
-                    dtype=A.larray.dtype,
-                    device=A.device.torch_device,
-                )
-
-            if A.comm.rank == i:
-                # orthogonalize the current block of columns by utilizing PyTorch QR
-                Q_curr, R_loc = single_proc_qr(A_columns, mode="reduced")
-                if i < nprocs - 1:
+                if A.comm.rank == i:
+                    # orthogonalize the current block of columns by utilizing PyTorch QR
+                    Q_curr, R_loc = single_proc_qr(A_columns, mode="reduced")
                     Q_buf = Q_curr.contiguous()
+                    if mode == "reduced":
+                        Q.larray = Q_curr
+                    r_size = R.larray[..., R_shapes[i] : R_shapes[i + 1], :].shape[-2]
+                    R.larray[..., R_shapes[i] : R_shapes[i + 1], :] = R_loc[..., :r_size, :]
+                else:
+                    k_loc_i = min(A.shape[-2], A.lshape_map[i, -1])
+                    Q_buf = torch.empty(
+                        (*A.shape[:-1], k_loc_i),
+                        dtype=A.larray.dtype,
+                        device=A.device.torch_device,
+                    )
+
+                # broadcast the orthogonalized block of columns to all other processes
+                A.comm.Bcast(Q_buf, root=i)
+            elif A.comm.rank == i:
+                Q_curr, R_loc = single_proc_qr(A_columns, mode="reduced")
                 if mode == "reduced":
                     Q.larray = Q_curr
                 r_size = R.larray[..., R_shapes[i] : R_shapes[i + 1], :].shape[-2]
                 R.larray[..., R_shapes[i] : R_shapes[i + 1], :] = R_loc[..., :r_size, :]
-
-            if i < nprocs - 1:
-                # broadcast the orthogonalized block of columns to all other processes
-                A.comm.Bcast(Q_buf, root=i)
 
             if A.comm.rank > i:
                 # subtract the contribution of the current block of columns from the remaining columns
@@ -193,10 +197,11 @@ def qr(
                 r_size = R.larray[..., R_shapes[i] : R_shapes[i + 1], :].shape[-2]
                 R.larray[..., R_shapes[i] : R_shapes[i + 1], :] = R_loc[..., :r_size, :]
 
+            if i < nprocs - 1:
+                del Q_buf
+
         if mode == "reduced":
             Q = Q[..., :, :k].balance()
-        else:
-            Q = None
 
         return QR(Q, R)
 
