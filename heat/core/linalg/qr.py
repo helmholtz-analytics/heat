@@ -276,7 +276,7 @@ def qr(
                     # create array to collect the R_loc's from all processes of the process group of at most n_procs_to_merge processes
                     shapes_R_loc = local_comm.gather(R_loc.shape[-2], root=0)
                     if local_comm.rank == 0:
-                        gathered_R_loc = torch.zeros(
+                        gathered_R_loc = torch.empty(
                             (*R_loc.shape[:-2], sum(shapes_R_loc), R_loc.shape[-1]),
                             device=R_loc.device,
                             dtype=R_loc.dtype,
