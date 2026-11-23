@@ -399,7 +399,7 @@ def __isin_local(
 
 
 def isin(
-    element: DNDarray,
+    element: Union[DNDarray, bool, int, float, Sequence],
     test_elements: Union[DNDarray, bool, int, float, Sequence],
     assume_unique: bool = False,
     invert: bool = False,
@@ -413,8 +413,9 @@ def isin(
 
     Parameters
     ----------
-    element : DNDarray
-        Input array.
+    element : DNDarray or array_like
+        Input array. Scalars and array-likes are accepted, mirroring numpy and the Python array
+        API standard, as long as they can be converted to a :class:`~heat.core.dndarray.DNDarray`.
     test_elements : DNDarray or array_like
         The values against which to test each value of ``element``. May itself be distributed.
     assume_unique : bool, optional
@@ -446,6 +447,12 @@ def isin(
     >>> ht.isin(element, test_elements, invert=True)
     DNDarray([False,  True, False,  True, False,  True,  True, False], dtype=ht.bool, device=cpu:0, split=0)
     """
+    # numpy and the array API standard accept scalar/array-like elements
+    if not isinstance(element, DNDarray):
+        if isinstance(test_elements, DNDarray):
+            element = factories.array(element, device=test_elements.device, comm=test_elements.comm)
+        else:
+            element = factories.array(element)
     sanitation.sanitize_in(element)
 
     # values on other processes are valid members as well, so every process needs to know all of them

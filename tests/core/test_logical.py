@@ -384,6 +384,12 @@ class TestLogical(TestCase):
             self.assert_array_equal(ht.isin(elements, test, invert=True), expected_inverse)
         self.assert_array_equal(ht.isin(ht.array(ref_elements), test_split), expected)
 
+        # scalar elements, as allowed by numpy and the Python array API standard,
+        # yield zero-dimensional results
+        self.assert_array_equal(ht.isin(ref_elements[3], test_plain), np.array(True))
+        self.assert_array_equal(ht.isin(ref_elements[4], test_split), np.array(False))
+        self.assert_array_equal(ht.isin(4, test_plain, invert=True), np.array(True))
+
         # 2-D elements keep shape and split
         elements_2d = ht.reshape(ht.arange(4 * size, split=0), (2, 2 * size))
         result_2d = ht.isin(elements_2d, [0, 4 * size - 1])
