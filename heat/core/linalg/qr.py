@@ -135,7 +135,7 @@ def qr(
             last_row_reached = nprocs - 1
             k = A.shape[-1]
         else:
-            last_row_reached = min(torch.argwhere(lshapes_cum >= A.shape[-2]))[0]
+            last_row_reached = int(min(torch.argwhere(lshapes_cum >= A.shape[-2]))[0])
             k = A.shape[-2]
 
         if mode == "reduced":
@@ -152,12 +152,8 @@ def qr(
             device=A.device,
             comm=A.comm,
         )
-        R_shapes = torch.hstack(
-            [
-                torch.zeros(1, dtype=torch.int32, device=A.device.torch_device),
-                torch.cumsum(R.lshape_map[:, -1], 0),
-            ]
-        )
+        col_lshapes = lshapes.tolist()
+        R_shapes = [0] + torch.cumsum(R.lshape_map[:, -1], 0).tolist()
 
         for i in range(last_row_reached + 1):
             # this loop goes through all the column-blocks (i.e. local arrays) of the matrix
@@ -170,10 +166,10 @@ def qr(
                     Q_buf = Q_curr.contiguous()
                     if mode == "reduced":
                         Q.larray = Q_curr
-                    r_size = R.larray[..., R_shapes[i] : R_shapes[i + 1], :].shape[-2]
-                    R.larray[..., R_shapes[i] : R_shapes[i + 1], :] = R_loc[..., :r_size, :]
+                    R_size = R.larray[..., R_shapes[i] : R_shapes[i + 1], :].shape[-2]
+                    R.larray[..., R_shapes[i] : R_shapes[i + 1], :] = R_loc[..., :R_size, :]
                 else:
-                    k_loc_i = min(A.shape[-2], A.lshape_map[i, -1])
+                    k_loc_i = min(A.shape[-2], col_lshapes[i])
                     Q_buf = torch.empty(
                         (*A.shape[:-1], k_loc_i),
                         dtype=A.larray.dtype,
@@ -186,15 +182,16 @@ def qr(
                 Q_curr, R_loc = single_proc_qr(A_columns, mode="reduced")
                 if mode == "reduced":
                     Q.larray = Q_curr
-                r_size = R.larray[..., R_shapes[i] : R_shapes[i + 1], :].shape[-2]
-                R.larray[..., R_shapes[i] : R_shapes[i + 1], :] = R_loc[..., :r_size, :]
+                R_size = R.larray[..., R_shapes[i] : R_shapes[i + 1], :].shape[-2]
+                R.larray[..., R_shapes[i] : R_shapes[i + 1], :] = R_loc[..., :R_size, :]
 
             if A.comm.rank > i:
                 # subtract the contribution of the current block of columns from the remaining columns
                 R_loc = torch.transpose(torch.conj(Q_buf), -2, -1) @ A_columns
-                A_columns -= Q_buf @ R_loc
-                r_size = R.larray[..., R_shapes[i] : R_shapes[i + 1], :].shape[-2]
-                R.larray[..., R_shapes[i] : R_shapes[i + 1], :] = R_loc[..., :r_size, :]
+                if i < last_row_reached:
+                    A_columns -= Q_buf @ R_loc
+                R_size = R.larray[..., R_shapes[i] : R_shapes[i + 1], :].shape[-2]
+                R.larray[..., R_shapes[i] : R_shapes[i + 1], :] = R_loc[..., :R_size, :]
 
             if i < nprocs - 1:
                 del Q_buf
