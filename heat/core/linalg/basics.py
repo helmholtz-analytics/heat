@@ -137,23 +137,27 @@ def condest(
 
         # random samples from unit sphere
         # regarding the split: if A.split == 1, then n is probably large and we should split along an axis of size n; otherwise, both n and nsamples should be small
-        Q, R_not_used = qr(
-            randn(
+        samples = randn(
+            n,
+            nsamples,
+            dtype=A.real.dtype,
+            split=0 if A.split == 1 else None,
+            device=A.device,
+            comm=A.comm,
+        )
+        if types.heat_type_is_complexfloating(A.dtype):
+            samples = samples.astype(A.dtype) + 1j * randn(
                 n,
                 nsamples,
-                dtype=A.dtype,
+                dtype=A.real.dtype,
                 split=0 if A.split == 1 else None,
                 device=A.device,
                 comm=A.comm,
             )
-        )
+        Q, R_not_used = qr(samples)
         del R_not_used
 
-        est = (
-            matrix_norm(R @ Q)
-            * A.dtype((m / nsamples) ** 0.5, comm=A.comm)
-            * matrix_norm(solve_triangular(R, Q))
-        )
+        est = matrix_norm(R @ Q) * (m / nsamples) ** 0.5 * matrix_norm(solve_triangular(R, Q))
 
         return est.squeeze()
     else:
