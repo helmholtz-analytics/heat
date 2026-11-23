@@ -419,6 +419,9 @@ def isin(
         The values against which to test each value of ``element``. May itself be distributed.
     assume_unique : bool, optional
         If ``True``, the input arrays are both assumed to be unique, which can speed up the calculation.
+        Note that, in contrast to numpy, violating this assumption is not tolerated for
+        ``test_elements``: the underlying torch algorithm silently returns wrong results if
+        ``test_elements`` contains duplicates while ``assume_unique=True``.
     invert : bool, optional
         If ``True``, the values in the returned array are inverted, as if calculating
         ``element not in test_elements``.

@@ -423,6 +423,83 @@ class TestLogical(TestCase):
         with self.assertRaises(TypeError):
             ht.isin("?", test_plain)
 
+    def test_isin_numpy_suite(self):
+        # adapted from the isin tests in numpy's numpy/lib/tests/test_arraysetops.py
+        # (numpy is BSD-3-Clause licensed); cases relying on dtypes that heat does not
+        # support (uint16/uint64, timedelta, object, structured, strings) are skipped
+        ref_a = [5, 4, 5, 3, 4, 4, 3, 4, 3, 5, 2, 1, 5, 5]
+
+        # duplicated test elements (as in numpy's test_isin_additional); note that we
+        # deliberately do not combine this with assume_unique=True: numpy tolerates that
+        # misuse, but torch.isin's algorithm requires unique test values in that mode and
+        # would silently return wrong results
+        for mult in (1, 10):
+            a = ht.array(ref_a, split=0)
+            b = ht.array([2, 3, 4] * mult, split=0)
+            expected = np.array([v in [2, 3, 4] for v in ref_a])
+            self.assert_array_equal(ht.isin(a, b), expected)
+
+            # assume_unique with genuinely unique inputs
+            unique_b = ht.array([2, 3, 4], split=0)
+            self.assert_array_equal(ht.isin(a, unique_b, assume_unique=True), expected)
+
+            # invert is the logical negation, for integers and floats
+            self.assert_array_equal(
+                ht.isin(a, b, invert=True),
+                np.invert(expected),
+            )
+            a = ht.array(ref_a, dtype=ht.float32, split=0)
+            b = ht.array([2, 3, 4] * mult, dtype=ht.float32, split=0)
+            self.assert_array_equal(ht.isin(a, b, invert=True), np.invert(expected))
+
+        # values beyond the small-value fast path (numpy's test_isin_hit_alternate_algorithm)
+        a = ht.array([5, 4, 5, 3, 4, 4, int(1e9)], split=0)
+        b = ht.array([2, 3, 4, int(1e9)], split=0)
+        self.assert_array_equal(ht.isin(a, b), np.array([False, True, False, True, True, True, True]))
+
+        # boolean input, with and without invert
+        a = ht.array([True, False], split=0)
+        b = ht.array([False, False, False], split=0)
+        self.assert_array_equal(ht.isin(a, b), np.array([False, True]))
+        self.assert_array_equal(ht.isin(a, b, invert=True), np.array([True, False]))
+
+        # mixed integer dtypes (numpy's test_isin_mixed_dtype)
+        for dtype1, dtype2 in [
+            (ht.int8, ht.int16),
+            (ht.int16, ht.int8),
+            (ht.uint8, ht.int16),
+            (ht.int16, ht.uint8),
+            (ht.uint8, ht.int32),
+        ]:
+            vals1 = [0, 0, 1, 1]
+            vals2 = [-128, 0, 127] if dtype2 in (ht.int8, ht.int16, ht.int32, ht.int64) else [127, 0, 255]
+            a = ht.array(vals1, dtype=dtype1, split=0)
+            b = ht.array(vals2, dtype=dtype2, split=0)
+            self.assert_array_equal(ht.isin(a, b), np.isin(vals1, vals2))
+
+        # boolean against all other dtypes, both directions (numpy's test_isin_mixed_boolean)
+        for dtype in (ht.int8, ht.int32, ht.uint8, ht.float32):
+            a = ht.array([True, False, False], split=0)
+            b = ht.array([0, 0, 0, 0], dtype=dtype, split=0)
+            self.assert_array_equal(ht.isin(a, b), np.array([False, True, True]))
+            self.assert_array_equal(ht.isin(b, a), np.array([True, True, True, True]))
+
+        # multi-dimensional inputs on both sides, and zero-dimensional test elements
+        a = ht.arange(24, split=0).reshape(2, 3, 4)
+        b = ht.array([[10, 20, 30], [0, 1, 3], [11, 22, 33]], split=0)
+        ref_3d = np.arange(24).reshape(2, 3, 4)
+        self.assert_array_equal(ht.isin(a, b), np.isin(ref_3d, [[10, 20, 30], [0, 1, 3], [11, 22, 33]]))
+        self.assert_array_equal(ht.isin(a, ht.array(3)), ref_3d == 3)
+        self.assert_array_equal(ht.isin(ht.array(3), b), np.isin(3, [[10, 20, 30], [0, 1, 3], [11, 22, 33]]))
+
+        # empty arrays of various types, as element, as test elements, and both
+        for dtype, ref in [(ht.bool, [True, False, False]), (ht.int64, [10, 20, 30]), (ht.float64, [10.0, 20.0, 30.0])]:
+            empty = ht.array([], dtype=dtype, split=0)
+            full = ht.array(ref, dtype=dtype, split=0)
+            self.assert_array_equal(ht.isin(empty, full), np.array([], dtype=bool))
+            self.assert_array_equal(ht.isin(full, empty), np.array([False, False, False]))
+            self.assert_array_equal(ht.isin(empty, empty), np.array([], dtype=bool))
+
     def test_isinf(self):
         a = ht.array([1, ht.inf, -ht.inf, ht.nan])
         s = ht.array([False, True, True, False])
