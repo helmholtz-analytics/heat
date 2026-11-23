@@ -7,7 +7,6 @@ import torch
 from typing import Tuple
 
 from ..dndarray import DNDarray
-from ..manipulations import concatenate
 from .. import factories
 from .. import communication
 from ..types import float32, float64, complex64, complex128
@@ -224,9 +223,10 @@ def qr(
             # Block-wise Gram-Schmidt orthogonalization, applied to groups of columns
             offset = 1 if A.shape[-1] <= A.shape[-2] else 2
             for k in range(len(column_idx) - offset):
+                c0, c1 = int(column_idx[k]), int(column_idx[k + 1])
                 # since we only consider a group of columns, TS QR is applied to a tall-skinny matrix
                 Qnew, Rnew = qr(
-                    A_copy[..., :, column_idx[k] : column_idx[k + 1]],
+                    A_copy[..., :, c0:c1],
                     mode="reduced",
                     procs_to_merge=procs_to_merge,
                 )
@@ -235,29 +235,32 @@ def qr(
                 if R.comm.rank == k:
                     R.larray[
                         ...,
-                        : (column_idx[k + 1] - column_idx[k]),
-                        column_idx[k] : column_idx[k + 1],
+                        : (c1 - c0),
+                        c0:c1,
                     ] = Rnew.larray
                 if R.comm.rank > k:
-                    R.larray[..., :, column_idx[k] : column_idx[k + 1]] *= 0
+                    R.larray[..., :, c0:c1] *= 0
                 if k < len(column_idx) - 2:
                     coeffs = (
                         torch.transpose(torch.conj(Qnew.larray), -2, -1)
-                        @ A_copy.larray[..., :, column_idx[k + 1] :]
+                        @ A_copy.larray[..., :, c1:]
                     )
                     R.comm.Allreduce(communication.MPI.IN_PLACE, coeffs)
                     if R.comm.rank == k:
-                        R.larray[..., :, column_idx[k + 1] :] = coeffs
-                    A_copy.larray[..., :, column_idx[k + 1] :] -= Qnew.larray @ coeffs
+                        R.larray[..., :, c1:] = coeffs
+                    A_copy.larray[..., :, c1:] -= Qnew.larray @ coeffs
                 if mode == "reduced":
-                    Q = Qnew if k == 0 else concatenate((Q, Qnew), axis=-1)
+                    A_copy.larray[..., :, c0:c1] = Qnew.larray
+                del Qnew, Rnew
+
             if A.shape[-1] < A.shape[-2]:
                 R = R[..., : A.shape[-1], :].balance()
             if mode == "reduced":
+                k_out = min(A.shape[-2], A.shape[-1])
+                Q = A_copy[..., :, :k_out] if k_out < A.shape[-1] else A_copy
                 return QR(Q, R)
             else:
                 return QR(None, R)
-
         else:
             # in this case the input is tall-skinny and we apply the TS-QR algorithm
             # it follows the implementation of TS-QR for split = 0
