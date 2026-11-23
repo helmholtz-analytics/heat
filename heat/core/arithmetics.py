@@ -31,6 +31,7 @@ from .types import (
 __all__ = [
     "add",
     "bitwise_and",
+    "bitwise_left_shift",
     "bitwise_not",
     "bitwise_invert",
     "bitwise_or",
@@ -1954,8 +1955,8 @@ DNDarray.lcm_ = lcm_
 
 
 def left_shift(
-    t1: DNDarray,
-    t2: Union[DNDarray, float],
+    x1: DNDarray | int,
+    x2: DNDarray | int,
     /,
     out: Optional[DNDarray] = None,
     *,
@@ -1966,9 +1967,9 @@ def left_shift(
 
     Parameters
     ----------
-    t1: DNDarray
+    x1: DNDarray or int
         Input array
-    t2: DNDarray or float
+    x2: DNDarray or int
         Integer number of zero bits to add
     out: DNDarray, optional
         Output array for the result. Must have the same shape as the expected output. The dtype of
@@ -1986,15 +1987,15 @@ def left_shift(
     >>> ht.left_shift(ht.array([1, 2, 3]), 1)
     DNDarray([2, 4, 6], dtype=ht.int64, device=cpu:0, split=None)
     """
-    dtypes = (heat_type_of(t1), heat_type_of(t2))
-    arrs = [t1, t2]
+    dtypes = (heat_type_of(x1), heat_type_of(x2))
+    arrs = [x1, x2]
     for dt in range(2):
         if heat_type_is_inexact(dtypes[dt]):
             raise TypeError("Operation is not supported for float types")
         elif dtypes[dt] == types.bool:
             arrs[dt] = types.int(arrs[dt])
 
-    return _operations.__binary_op(torch.bitwise_left_shift, t1, t2, out, where)
+    return _operations.__binary_op(torch.bitwise_left_shift, x1, x2, out, where)
 
 
 def _lshift(self, other):
@@ -2077,6 +2078,9 @@ def left_shift_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
 
 DNDarray.__ilshift__ = left_shift_
 DNDarray.left_shift_ = left_shift_
+
+
+bitwise_left_shift = left_shift
 
 
 def mul(
