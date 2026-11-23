@@ -10,14 +10,30 @@ from heat.testing.basic_test import TestCase
 class TestSolver(TestCase):
     def test_cg(self):
         size = ht.communication.MPI_WORLD.size * 3
-        b = ht.arange(1, size + 1, dtype=ht.float32, split=0)
-        A = ht.manipulations.diag(b)
+        b = ht.random.random(size, dtype=ht.float64, split=0)
+
+        A = ht.random.random((size, size), dtype=b.dtype, split=b.split)
+        A = A + (A.T).resplit(A.split)
+
         x0 = ht.random.rand(size, dtype=b.dtype, split=b.split)
 
-        x = ht.ones(b.shape, dtype=b.dtype, split=b.split)
+        # check correct result with tight tolerances
+        x = ht.linalg.cg(A, b, x0, rtol=0, atol=1e-8)
+        residual = ht.linalg.norm(A@x - b).item()
+        self.assertAlmostEqual(residual, 0, 4), f'Got residual {residual}, but expected zero'
 
-        res = ht.linalg.cg(A, b, x0)
-        self.assertTrue(ht.allclose(x, res, atol=1e-3))
+        # check incorrect result with loose tolerances
+        x = ht.linalg.cg(A, b, x0, rtol=1, atol=0)
+        residual = ht.linalg.norm(A@x - b).item()
+        self.assertNotAlmostEqual(residual, 0, 4), f'Got residual {residual}, but expected non-zero'
+
+        x = ht.linalg.cg(A, b, x0, rtol=0, atol=1)
+        residual = ht.linalg.norm(A@x - b).item()
+        self.assertNotAlmostEqual(residual, 0, 4), f'Got residual {residual}, but expected non-zero'
+
+        x = ht.linalg.cg(A, b, x0, rtol=0, atol=0, maxiter=1)
+        residual = ht.linalg.norm(A@x - b).item()
+        self.assertNotAlmostEqual(residual, 0, 4), f'Got residual {residual}, but expected non-zero'
 
         b_np = np.arange(1, size + 1)
         with self.assertRaises(TypeError):
@@ -29,6 +45,10 @@ class TestSolver(TestCase):
             ht.linalg.cg(b, b, x0)
         with self.assertRaises(RuntimeError):
             ht.linalg.cg(A, b, A)
+
+        for arg in ['maxiter', 'atol', 'rtol']:
+            with self.assertRaises(ValueError):
+                ht.linalg.cg(A, b, x0, **{arg: 'Crombobulator'})
 
     def test_lanczos(self):
         # single precision tolerance for torch.inv() is pretty bad
