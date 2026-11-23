@@ -1293,7 +1293,9 @@ class DNDarray:
                 self.shape, dtype=self.dtype.torch_type(), device=self.device.torch_device
             )
             counts, displs = self.counts_displs()
-            self.comm.Allgatherv(self.__array, (gathered, counts, displs), recv_axis=self.split)
+            self.comm.Allgatherv(
+                self.__array.contiguous(), (gathered, counts, displs), recv_axis=self.split
+            )
             self.__array = gathered
             self.__split = axis
             self.__lshape_map = None
@@ -2456,6 +2458,18 @@ class DNDarray:
         # set local elements of `self` to corresponding elements of `value`
         self.__set(key, recv_buf)
         return self
+
+    def __iter__(self):
+        if self.ndim == 0:
+            raise TypeError("iteration over a 0-d DNDarray")
+
+        if self.split == 0:
+            raise RuntimeError(
+                f"Iterating over {self.split=} axis is not supported. Please use ht.vmap or normal indexing."
+            )
+
+        for i in range(self.shape[0]):
+            yield self[i]
 
 
 # Heat imports at the end to break cyclic dependencies

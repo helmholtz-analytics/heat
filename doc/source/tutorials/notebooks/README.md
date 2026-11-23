@@ -23,15 +23,17 @@ If you are on the Jupyter4NFDI Jupyter Hub, everything is already installed, but
 Once your cluster is running, we recommend following the tutorials in this order:
 
 ### The Fundamentals
-* **[Basics.ipynb](Basics.ipynb)**: Start here! Learn how to create `DNDarrays`, understand the `split` parameter, and perform basic operations across multiple processes.
+* **[Basics.ipynb](Basics.ipynb)**: Start your journey with Heat here! Learn how to create `DNDarrays`, understand the `split` parameter, and perform basic operations across multiple processes.
+* **[MPI_introduction.ipynb](MPI_introduction.ipynb)**: This is an optional introduction to parallel computing to give you some insight into what Heat actually implements. Skip if you're in a hurry!
 * **[Internals.ipynb](Internals.ipynb)**: A look behind the curtain for potential contributors and power users. Understand how Heat manages local shapes (`lshape`) and learn how to use `redistribute_` to manually balance data across your cluster.
 
 ### Mathematics & Machine Learning
 See Heat in action on complex mathematical operations and large-scale datasets.
 * **[Loading_preprocessing.ipynb](Loading_preprocessing.ipynb)**: Learn how to parallel-load and preprocess large datasets using Heat's distributed data structures and operations.
 * **[Linear_algebra.ipynb](Linear_algebra.ipynb)**: Explore matrix-matrix multiplications, Randomized SVD, and Hierarchical SVD.
-* **[Clustering_and_PCA.ipynb](Clustering_and_PCA.ipynb)**: Learn how to scale K-Means clustering and Principal Component Analysis (PCA) using a real-world dataset of ~1.4 million asteroids from the JPL Small Body Database.
+* **[Classification_and_PCA.ipynb](Classification_and_PCA.ipynb)**: Learn how to scale K-Means clustering and Principal Component Analysis (PCA) with a small classification example.
 * **[DMD.ipynb](DMD.ipynb)**: Dive into Dynamic Mode Decomposition (DMD) using roughly a year of 6-hourly global windspeed data from ERA5.
+* **[Dataloading.ipynb](Dataloading.ipynb)**: Learn how to load data with Heat and plug it into PyTorch for data-distributed machine learning.
 
 ### Profiling & Optimization
 * **[Profiling_with_perun.ipynb](Profiling_with_perun.ipynb)**: Learn how to track performance and measure the energy consumption (power draw) of your distributed applications using the `perun` library and its `@monitor` decorators.
