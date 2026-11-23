@@ -269,18 +269,20 @@ def qr(
         else:
             # in this case the input is tall-skinny and we apply the TS-QR algorithm
             # it follows the implementation of TS-QR for split = 0
-            current_procs = [i for i in range(A.comm.size)]
+            nprocs = A.comm.size
+            rank = A.comm.rank
+            current_procs = list(range(nprocs))
             current_comm = A.comm
-            local_comm = current_comm.Split(current_comm.rank // procs_to_merge, A.comm.rank)
+            local_comm = current_comm.Split(current_comm.rank // procs_to_merge, rank)
             Q_loc, R_loc = single_proc_qr(A.larray, mode=mode)
             R_loc = R_loc.contiguous()
-            leave_comm = None
             Q_tree = None
+            row_lshapes = A.lshape_map[:, -2].tolist()
 
             level = 1
             while len(current_procs) > 1:
                 scattered_Q_buf = None
-                if A.comm.rank in current_procs and local_comm.size > 1:
+                if rank in current_procs and local_comm.size > 1:
                     # create array to collect the R_loc's from all processes of the process group of at most n_procs_to_merge processes
                     shapes_R_loc = local_comm.gather(R_loc.shape[-2], root=0)
                     if local_comm.rank == 0:
@@ -322,23 +324,30 @@ def qr(
 
                 # for each process in the current processes, broadcast the scattered_Q_buf of this process
                 # to all leaves (i.e. all original processes that merge to the current process)
-                if mode == "reduced" and leave_comm is not None and leave_comm.size > 1:
-                    scattered_Q_buf_shape = (
-                        scattered_Q_buf.shape if scattered_Q_buf is not None else None
-                    )
-                    scattered_Q_buf_shape = leave_comm.bcast(scattered_Q_buf_shape, root=0)
-                    if scattered_Q_buf_shape is not None:
-                        # this is needed to ensure that only those Q_loc get updates that are actually part of the current process group
-                        if leave_comm.rank != 0:
-                            scattered_Q_buf = torch.empty(
-                                scattered_Q_buf_shape, device=Q_loc.device, dtype=Q_loc.dtype
-                            )
-                        leave_comm.Bcast(scattered_Q_buf, root=0)
+                if mode == "reduced":
+                    step = procs_to_merge ** (level - 1)
+                    if step > 1:
+                        leave_comm = A.comm.Split(rank // step, rank)
+                        root_rank = (rank // step) * step
+                        group_step = procs_to_merge * step
+                        group_start = (root_rank // group_step) * group_step
+                        if leave_comm.size > 1 and (group_start + step) < nprocs:
+                            if leave_comm.rank != 0:
+                                k_cols = A.shape[-1]
+                                leaf_end = min(root_rank + step, nprocs)
+                                n_rows_root = min(sum(row_lshapes[root_rank:leaf_end]), k_cols)
+                                scattered_Q_buf = torch.empty(
+                                    (*A.shape[:-2], n_rows_root, k_cols),
+                                    device=Q_loc.device,
+                                    dtype=Q_loc.dtype,
+                                )
+                            leave_comm.Bcast(scattered_Q_buf, root=0)
+                        leave_comm.Free()
 
-                # accumulate the small (N x N) orthogonal factors across tree levels
-                if mode == "reduced" and scattered_Q_buf is not None:
-                    Q_tree = scattered_Q_buf if Q_tree is None else (Q_tree @ scattered_Q_buf)
-                    del scattered_Q_buf
+                    # accumulate the small (N x N) orthogonal factors across tree levels
+                    if scattered_Q_buf is not None:
+                        Q_tree = scattered_Q_buf if Q_tree is None else (Q_tree @ scattered_Q_buf)
+                        del scattered_Q_buf
 
                 # update: determine processes to be active at next "merging" level, create new communicator and split it into groups for gathering
                 current_procs = [
@@ -347,12 +356,10 @@ def qr(
                 if len(current_procs) > 1:
                     new_group = A.comm.group.Incl(current_procs)
                     current_comm = A.comm.Create_group(new_group)
-                    if A.comm.rank in current_procs:
+                    if rank in current_procs:
                         local_comm = communication.MPICommunication(
-                            current_comm.Split(current_comm.rank // procs_to_merge, A.comm.rank)
+                            current_comm.Split(current_comm.rank // procs_to_merge, rank)
                         )
-                    if mode == "reduced":
-                        leave_comm = A.comm.Split(A.comm.rank // procs_to_merge**level, A.comm.rank)
                 level += 1
 
             if mode == "reduced" and Q_tree is not None:
