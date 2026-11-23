@@ -215,8 +215,19 @@ def qr(
                     torch.tensor([A.shape[-1]], device=column_idx.device),
                 )
             )
+            k_out = min(A.shape[-2], A.shape[-1])
             A_copy = A.copy()
-            R = A.copy()
+            R = factories.zeros(
+                (*A.shape[:-2], k_out, A.shape[-1]),
+                dtype=A.dtype,
+                split=A.split,
+                device=A.device,
+                comm=A.comm,
+            )
+            r_cum = torch.cumsum(R.lshape_map[:, -2], 0).tolist()
+            r_start = 0 if R.comm.rank == 0 else r_cum[R.comm.rank - 1]
+            r_end = r_cum[R.comm.rank]
+
             # Block-wise Gram-Schmidt orthogonalization, applied to groups of columns
             offset = 1 if A.shape[-1] <= A.shape[-2] else 2
             for k in range(len(column_idx) - offset):
@@ -228,32 +239,29 @@ def qr(
                     procs_to_merge=procs_to_merge,
                 )
 
-                # usual update of the remaining columns
-                if R.comm.rank == k:
-                    R.larray[
-                        ...,
-                        : (c1 - c0),
-                        c0:c1,
-                    ] = Rnew.larray
-                if R.comm.rank > k:
-                    R.larray[..., :, c0:c1] *= 0
+                ov_start = max(r_start, c0)
+                ov_end = min(r_end, c1)
+                has_overlap = ov_start < ov_end
+                if has_overlap:
+                    r_sl = slice(ov_start - r_start, ov_end - r_start)
+                    src_sl = slice(ov_start - c0, ov_end - c0)
+                    R.larray[..., r_sl, c0:c1] = Rnew.larray[..., src_sl, :]
+
                 if k < len(column_idx) - 2:
                     coeffs = (
                         torch.transpose(torch.conj(Qnew.larray), -2, -1)
                         @ A_copy.larray[..., :, c1:]
                     )
                     R.comm.Allreduce(communication.MPI.IN_PLACE, coeffs)
-                    if R.comm.rank == k:
-                        R.larray[..., :, c1:] = coeffs
+                    if has_overlap:
+                        R.larray[..., r_sl, c1:] = coeffs[..., src_sl, :]
                     A_copy.larray[..., :, c1:] -= Qnew.larray @ coeffs
+
                 if mode == "reduced":
                     A_copy.larray[..., :, c0:c1] = Qnew.larray
                 del Qnew, Rnew
 
-            if A.shape[-1] < A.shape[-2]:
-                R = R[..., : A.shape[-1], :].balance()
             if mode == "reduced":
-                k_out = min(A.shape[-2], A.shape[-1])
                 Q = A_copy[..., :, :k_out] if k_out < A.shape[-1] else A_copy
                 return QR(Q, R)
             else:
