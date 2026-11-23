@@ -273,6 +273,7 @@ def qr(
             rank = A.comm.rank
             current_procs = list(range(nprocs))
             current_comm = A.comm
+            base_group = A.comm.group
             local_comm = current_comm.Split(current_comm.rank // procs_to_merge, rank)
             Q_loc, R_loc = single_proc_qr(A.larray, mode=mode)
             R_loc = R_loc.contiguous()
@@ -322,6 +323,9 @@ def qr(
                         )
                     del gathered_R_loc, Q_buf
 
+                if rank in current_procs:
+                    local_comm.Free()
+
                 # for each process in the current processes, broadcast the scattered_Q_buf of this process
                 # to all leaves (i.e. all original processes that merge to the current process)
                 if mode == "reduced":
@@ -350,17 +354,23 @@ def qr(
                         del scattered_Q_buf
 
                 # update: determine processes to be active at next "merging" level, create new communicator and split it into groups for gathering
+                prev_procs = current_procs
                 current_procs = [
                     current_procs[i] for i in range(len(current_procs)) if i % procs_to_merge == 0
                 ]
+                if current_comm is not A.comm and rank in prev_procs:
+                    current_comm.Free()
                 if len(current_procs) > 1:
-                    new_group = A.comm.group.Incl(current_procs)
+                    new_group = base_group.Incl(current_procs)
                     current_comm = A.comm.Create_group(new_group)
+                    new_group.Free()
                     if rank in current_procs:
                         local_comm = communication.MPICommunication(
                             current_comm.Split(current_comm.rank // procs_to_merge, rank)
                         )
                 level += 1
+
+            base_group.Free()
 
             if mode == "reduced" and Q_tree is not None:
                 Q_loc = Q_loc @ Q_tree
