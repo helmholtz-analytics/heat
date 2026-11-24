@@ -1,6 +1,6 @@
 # Heat architecture guide
 
-Heat is a distributed tensor and scientific computing library built on top of PyTorch and MPI (`mpi4py`). Every process runs the same Python program in a Single Program, Multiple Data (SPMD) model, operating on process-local `torch.Tensor` shards via PyTorch kernels while coordinating across ranks through MPI.
+Heat distributes NumPy-, scikit-learn-, and PyTorch-like scientific computing and machine learning pipelines across multi-CPU and multi-GPU systems. Built on PyTorch and MPI (`mpi4py`), every process runs the same Python program in a Single Program, Multiple Data (SPMD) model—executing PyTorch kernels on local tensor shards while coordinating across ranks via MPI.
 
 ## Core design rule
 
