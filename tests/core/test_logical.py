@@ -380,6 +380,9 @@ class TestLogical(TestCase):
             self.assertEqual(result.shape, elements.shape)
             self.assertEqual(result.dtype, ht.bool)
             self.assertEqual(result.split, 0)
+            # per-rank shape must match the chunking of the global shape
+            _, expected_lshape, _ = ht.communication.MPI_WORLD.chunk(elements.gshape, 0)
+            self.assertEqual(result.lshape, expected_lshape)
             self.assert_array_equal(result, expected)
             self.assert_array_equal(ht.isin(elements, test, invert=True), expected_inverse)
         self.assert_array_equal(ht.isin(ht.array(ref_elements), test_split), expected)
@@ -411,8 +414,10 @@ class TestLogical(TestCase):
 
         for dtype in (ht.complex64, ht.complex128):
             complex_elements = ht.array([1 + 2j, 3 + 4j, 1 + 3j], dtype=dtype, split=0)
+            # complex128 requires replicated test elements (see assertRaises below)
+            test_split = 0 if dtype == ht.complex64 else None
             self.assert_array_equal(
-                ht.isin(complex_elements, ht.array([1 + 2j], dtype=dtype, split=0)),
+                ht.isin(complex_elements, ht.array([1 + 2j], dtype=dtype, split=test_split)),
                 np.array([True, False, False]),
             )
 
@@ -505,6 +510,36 @@ class TestLogical(TestCase):
             self.assert_array_equal(ht.isin(empty, full), np.array([], dtype=bool))
             self.assert_array_equal(ht.isin(full, empty), np.array([False, False, False]))
             self.assert_array_equal(ht.isin(empty, empty), np.array([], dtype=bool))
+
+        # unbalanced and empty local shards: arrays shorter than the rank count
+        tiny_ref = [3, 5]
+        tiny = ht.array(tiny_ref, split=0)
+        tiny_test = ht.array([3], split=0)
+        expected_tiny = np.array([v in [0, 3, 6, 9] for v in tiny_ref])
+        result_tiny = ht.isin(tiny, tiny_test)
+        self.assertEqual(result_tiny.split, 0)
+        self.assert_array_equal(result_tiny, expected_tiny)
+        self.assert_array_equal(ht.isin(tiny, tiny_test, invert=True), np.invert(expected_tiny))
+        # a distributed test with empty shards on some ranks
+        self.assert_array_equal(
+            ht.isin(ht.arange(10, split=0), tiny_test),
+            np.isin(np.arange(10), [3]),
+        )
+
+        # split axes of element and test may differ
+        elements_2d = ht.array([[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]], split=1)
+        test_2d = ht.array([[1, 12], [2, 11], [3, 10]], split=0)
+        result_2d = ht.isin(elements_2d, test_2d)
+        self.assertEqual(result_2d.split, 1)
+        self.assert_array_equal(result_2d, np.isin(np.arange(1, 13).reshape(4, 3), [[1, 12], [2, 11], [3, 10]]))
+
+        # complex128 is not supported with distributed test elements (multi-rank only)
+        if ht.communication.MPI_WORLD.size > 1:
+            with self.assertRaises(NotImplementedError):
+                ht.isin(
+                    ht.array([1 + 2j], dtype=ht.complex128, split=0),
+                    ht.array([1 + 2j], dtype=ht.complex128, split=0),
+                )
 
     def test_isinf(self):
         a = ht.array([1, ht.inf, -ht.inf, ht.nan])

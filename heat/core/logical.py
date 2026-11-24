@@ -259,7 +259,7 @@ def in1d(
 
     Examples
     --------
-    >>> a = ht.array([1, 2, 3, 2, 5])
+    >>> a = ht.array([1, 2, 3, 2, 5], split=0)
     >>> ht.in1d(a, [2, 5])
     DNDarray([False,  True, False,  True,  True], dtype=ht.bool, device=cpu:0, split=0)
     """
@@ -343,31 +343,150 @@ def isfinite(x: DNDarray) -> DNDarray:
     return _operations.__local_op(torch.isfinite, x, None, no_cast=True)
 
 
-def __gather_test_values(test: DNDarray, torch_device: Optional[str] = None) -> torch.Tensor:
+def __interval_owner(pivots: torch.Tensor, values: torch.Tensor) -> torch.Tensor:
     """
-    Collects all values of a, possibly distributed, ``DNDarray`` into a flat tensor that is
-    available on every process of the communicator.
+    Assigns each value to the rank owning its value interval: the number of pivots that are
+    not greater than the value. Duplicated values always get the same owner.
     """
-    local = test.larray.reshape(-1)
-    if torch_device is not None and local.device.type != torch.device(torch_device).type:
-        local = local.to(torch_device)
-    if not test.is_distributed():
-        return local
+    if pivots.numel() == 0:
+        return torch.zeros(values.numel(), dtype=torch.int64)
+    return torch.searchsorted(pivots, values, side="right").to(torch.int64)
 
-    comm = test.comm
-    # exchange the number of local values
-    local_count = torch.tensor([local.numel()], dtype=torch.int32)
-    counts = torch.empty((comm.Get_size(),), dtype=torch.int32)
-    comm.Allgather(local_count, counts)
-    counts_list = counts.tolist()
-    total = sum(counts_list)
-    if total == 0:
-        return torch.empty((0,), dtype=local.dtype, device=torch_device)
 
-    displs = [0] + np.cumsum(counts_list)[:-1].tolist()
-    gathered = torch.empty((total,), dtype=local.dtype, device=torch_device)
-    comm.Allgatherv(local, (gathered, counts_list, displs), recv_axis=0)
-    return gathered
+def __distributed_isin(
+    l_elem: torch.Tensor,
+    l_test: torch.Tensor,
+    comm,
+    device: str,
+    assume_unique: bool,
+    invert: bool,
+) -> torch.Tensor:
+    """
+    Membership test of flat local element values against a distributed test set, where the
+    test values are scattered across the communicator.
+
+    The global sorted test set is partitioned into per-rank value intervals: each process
+    publishes a quantile sketch of its sorted local shard, the pooled sketch yields the
+    interval pivots, and test values are exchanged once so that each process owns exactly
+    one interval. Query values are then routed to the owner of their value interval, tested
+    locally with ``torch.isin``, and the results are routed back. Per-process memory and
+    communication scale with the local shards of both inputs, never with the global inputs.
+    """
+    p = comm.Get_size()
+    l_elem = l_elem.reshape(-1)
+    l_test = l_test.reshape(-1)
+
+    # empty global test set: membership trivially reduces to ``invert``
+    total = torch.tensor([l_test.numel()], dtype=torch.int64)
+    total_buf = torch.empty_like(total)
+    comm.Allreduce(total, total_buf, op=MPI.SUM)
+    if total_buf.item() == 0:
+        return torch.full(l_elem.shape, fill_value=invert, dtype=torch.bool)
+
+    # map to a key space torch can sort on; the mapping is bijective, so set membership is preserved
+    if l_test.dtype == torch.bool:
+        l_test, l_elem = l_test.to(torch.int8), l_elem.to(torch.int8)
+    elif l_test.dtype == torch.complex64:
+        l_test, l_elem = l_test.view(torch.int64), l_elem.view(torch.int64)
+    elif l_test.dtype == torch.complex128:
+        raise NotImplementedError(
+            "isin does not support complex128 with distributed test_elements; "
+            "pass the test values with split=None instead."
+        )
+
+    # 1. quantile sketch of the sorted local shards (small, independent of shard size)
+    s = max(2, p)
+    n = l_test.numel()
+    if n == 0:
+        sample = torch.empty((0,), dtype=l_test.dtype, device=device)
+    elif n > s:
+        sample = l_test.sort().values[torch.linspace(0, n - 1, s).long()]
+    else:
+        sample = l_test
+    sample_count = torch.tensor([sample.numel()], dtype=torch.int64)
+    sample_counts = torch.empty((p,), dtype=torch.int64)
+    comm.Allgather(sample_count, sample_counts)
+    sample_counts = sample_counts.tolist()
+    pooled = torch.empty((sum(sample_counts),), dtype=l_test.dtype, device=device)
+    comm.Allgatherv(
+        sample, (pooled, sample_counts, [0] + np.cumsum(sample_counts)[:-1].tolist()), recv_axis=0
+    )
+
+    # 2. interval pivots from the pooled sketch
+    if p > 1:
+        pooled = pooled.sort().values
+        cuts = torch.round(
+            torch.arange(1, p, dtype=torch.float, device=device) * pooled.numel() / p
+        ).long()
+        pivots = pooled[torch.clamp(cuts, 0, pooled.numel() - 1)]
+    else:
+        pivots = torch.empty((0,), dtype=l_test.dtype, device=device)
+
+    # 3. exchange test values so each process owns one interval (and only that interval)
+    sorted_test = l_test.sort().values
+    send_counts = torch.bincount(__interval_owner(pivots, sorted_test), minlength=p)
+    recv_counts = torch.empty_like(send_counts)
+    comm.Alltoall(send_counts, recv_counts)
+    total_recv = recv_counts.sum().item()
+    owned = torch.empty((total_recv,), dtype=l_test.dtype, device=device)
+    comm.Alltoallv(
+        (
+            sorted_test,
+            send_counts.tolist(),
+            [0] + list(np.cumsum(send_counts.tolist())[:-1]),
+        ),
+        (owned, recv_counts.tolist(), [0] + list(np.cumsum(recv_counts.tolist())[:-1])),
+    )
+    # unique test values for the local kernel; duplicates are redundant for membership
+    owned = torch.unique(owned)
+
+    # 4. route each query value to the owner of its value interval
+    # (no early return for empty local elements: all ranks must join every collective)
+    result = torch.zeros(l_elem.shape, dtype=torch.bool, device=device)
+
+    owners = __interval_owner(pivots, l_elem)
+    send_counts = torch.bincount(owners, minlength=p)
+    recv_counts = torch.empty_like(send_counts)
+    comm.Alltoall(send_counts, recv_counts)
+
+    order = torch.argsort(owners, stable=True)
+    send_vals = l_elem[order]
+    send_pos = order.to(torch.int64)
+    total_recv = recv_counts.sum().item()
+    recv_vals = torch.empty((total_recv,), dtype=l_elem.dtype, device=device)
+    recv_pos = torch.empty((total_recv,), dtype=torch.int64, device=device)
+    send_disps = [0] + list(np.cumsum(send_counts.tolist())[:-1])
+    recv_disps = [0] + list(np.cumsum(recv_counts.tolist())[:-1])
+    comm.Alltoallv(
+        (send_vals, send_counts.tolist(), send_disps),
+        (recv_vals, recv_counts.tolist(), recv_disps),
+    )
+    comm.Alltoallv(
+        (send_pos, send_counts.tolist(), send_disps),
+        (recv_pos, recv_counts.tolist(), recv_disps),
+    )
+
+    # 5. answer the received batches with the local torch kernel
+    hits = torch.empty(total_recv, dtype=torch.bool, device=device)
+    for origin in range(p):
+        lo, hi = recv_disps[origin], recv_disps[origin] + recv_counts[origin]
+        if hi > lo:
+            hits[lo:hi] = torch.isin(recv_vals[lo:hi], owned, assume_unique=assume_unique)
+
+    # 6. route the results back; the counts are transposed in both rounds
+    ans_recv = torch.empty((send_counts.sum().item(),), dtype=torch.int8, device=device)
+    ans_pos = torch.empty((send_counts.sum().item(),), dtype=torch.int64, device=device)
+    comm.Alltoallv(
+        (hits.to(torch.int8), recv_counts.tolist(), recv_disps),
+        (ans_recv, send_counts.tolist(), send_disps),
+    )
+    comm.Alltoallv(
+        (recv_pos, recv_counts.tolist(), recv_disps),
+        (ans_pos, send_counts.tolist(), send_disps),
+    )
+    result[ans_pos] = ans_recv.to(torch.bool)
+
+    return torch.logical_not(result) if invert else result
 
 
 def __isin_local(
@@ -429,9 +548,18 @@ def isin(
 
     Notes
     -----
-    Each process needs access to all values of ``test_elements``, so they are collected via an
-    allgather if ``test_elements`` is distributed. This takes ``O(test_elements.numel())`` memory
-    per process; the result of ``element`` keeps the ``split`` of ``element``.
+    If ``test_elements`` is distributed, the test values are not gathered or replicated.
+    Instead, each process sketches its local shard, the pooled quantile samples define
+    per-rank value intervals (a small ``O(comm.size)`` sketch), the test values are exchanged
+    once so that each process owns a single interval, and every query value is routed to the
+    process owning its value interval and tested there with ``torch.isin``. Per-process
+    memory and communication scale with the local shards of both inputs; the result keeps
+    the ``split`` of ``element``.
+
+    ``complex128`` elements are not supported when ``test_elements`` is distributed; pass
+    the test values with ``split=None`` in that case. In the distributed path, each owning
+    process deduplicates its interval before the local test, so duplicated test values do
+    not affect the ``assume_unique`` contract there.
 
     See Also
     --------
@@ -440,7 +568,7 @@ def isin(
 
     Examples
     --------
-    >>> element = ht.array([1, 2, 3, 4, 3, 2, 2, 1])
+    >>> element = ht.array([1, 2, 3, 4, 3, 2, 2, 1], split=0)
     >>> test_elements = ht.array([1, 3, 5, 7])
     >>> ht.isin(element, test_elements)
     DNDarray([ True, False,  True, False,  True, False, False,  True], dtype=ht.bool, device=cpu:0, split=0)
@@ -455,25 +583,37 @@ def isin(
             element = factories.array(element)
     sanitation.sanitize_in(element)
 
-    # values on other processes are valid members as well, so every process needs to know all of them
     if isinstance(test_elements, DNDarray):
         sanitation.sanitize_in(test_elements)
-        test_global = __gather_test_values(test_elements, element.device.torch_device)
     else:
-        test_global = factories.array(
+        test_elements = factories.array(
             test_elements, split=None, device=element.device, comm=element.comm
-        ).larray.reshape(-1)
+        )
 
     # match the numpy behavior of promoting the dtypes of both inputs
-    common_dtype = types.promote_types(element.dtype, types.canonical_heat_type(test_global.dtype))
+    common_dtype = types.promote_types(element.dtype, test_elements.dtype)
     torch_dtype = common_dtype.torch_type()
-    local = element.larray.to(torch_dtype)
-    test_global = test_global.to(torch_dtype)
+    l_elem = element.larray.to(torch_dtype)
+    l_test = test_elements.larray.to(torch_dtype)
 
-    result = __isin_local(local, test_global, assume_unique=assume_unique, invert=invert)
+    if not test_elements.is_distributed() or test_elements.comm.Get_size() == 1:
+        # test values are replicated (or only one process exists): direct local kernel
+        result = __isin_local(
+            l_elem, l_test.reshape(-1), assume_unique=assume_unique, invert=invert
+        )
+    else:
+        # test values are scattered across the processes: interval-based distributed path
+        result = __distributed_isin(
+            l_elem,
+            l_test,
+            test_elements.comm,
+            element.device.torch_device,
+            assume_unique=assume_unique,
+            invert=invert,
+        )
 
     return DNDarray(
-        result,
+        result.reshape(element.lshape),
         gshape=element.gshape,
         dtype=types.bool,
         split=element.split,
