@@ -23,7 +23,7 @@
 
 ## Code style and quality
 - Use `pre-commit install` to enforce coding standards.
-- Python: Follow PEP 8, use type hints (mypy strict mode), and include `# SPDX-License-Identifier: MIT` at the top of newly created source files.
+- Python: Follow PEP 8 and use type hints (mypy strict mode).
 - Formatting: Ruff (line length 100).
 - Docstyle: NumPy convention (see Heat docstring standard).
 - Imports: Use `import heat as ht` and `import numpy as np`.
