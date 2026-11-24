@@ -359,14 +359,14 @@ def __gather_test_values(test: DNDarray, torch_device: Optional[str] = None) -> 
     local_count = torch.tensor([local.numel()], dtype=torch.int32)
     counts = torch.empty((comm.Get_size(),), dtype=torch.int32)
     comm.Allgather(local_count, counts)
-    counts = counts.tolist()
-    total = sum(counts)
+    counts_list = counts.tolist()
+    total = sum(counts_list)
     if total == 0:
         return torch.empty((0,), dtype=local.dtype, device=torch_device)
 
-    displs = [0] + np.cumsum(counts)[:-1].tolist()
+    displs = [0] + np.cumsum(counts_list)[:-1].tolist()
     gathered = torch.empty((total,), dtype=local.dtype, device=torch_device)
-    comm.Allgatherv(local, (gathered, counts, displs), recv_axis=0)
+    comm.Allgatherv(local, (gathered, counts_list, displs), recv_axis=0)
     return gathered
 
 
