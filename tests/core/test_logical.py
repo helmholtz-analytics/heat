@@ -541,6 +541,28 @@ class TestLogical(TestCase):
                     ht.array([1 + 2j], dtype=ht.complex128, split=0),
                 )
 
+    def test_isin_large(self):
+        # mid-scale deterministic check (~8 MB per operand): exercises quantile pivot
+        # selection and all-to-all query routing over non-trivial shards, with a
+        # non-empty query batch on every rank. Kept small enough for CI.
+        n = 1_000_000
+        elements = (ht.arange(n, split=0, dtype=ht.int64) * 1103515245) % (10 * n)
+        test_values = ht.arange(0, 10 * n, 10, split=0, dtype=ht.int64)
+
+        result = ht.isin(elements, test_values)
+        self.assertEqual(result.shape, (n,))
+        self.assertEqual(result.split, 0)
+        _, expected_lshape, _ = ht.communication.MPI_WORLD.chunk((n,), 0)
+        self.assertEqual(result.lshape, expected_lshape)
+
+        ref_elements = (np.arange(n, dtype=np.int64) * 1103515245) % (10 * n)
+        self.assert_array_equal(result, ref_elements % 10 == 0)
+
+        # and a variant where only ~1/7 of the queries hit
+        test_sparse = ht.arange(0, 10 * n, 70, split=0, dtype=ht.int64)
+        result_sparse = ht.isin(elements, test_sparse, invert=True)
+        self.assert_array_equal(result_sparse, ref_elements % 70 != 0)
+
     def test_isinf(self):
         a = ht.array([1, ht.inf, -ht.inf, ht.nan])
         s = ht.array([False, True, True, False])
