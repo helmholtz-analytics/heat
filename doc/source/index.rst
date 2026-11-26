@@ -304,6 +304,22 @@ How-to guides
 
    .. grid-item-card::
       :class-card: sd-card
+      :link: /tutorials/notebooks/Distributed_data_loading
+      :link-type: doc
+
+      .. image:: _static/images/tutorial_dpnn.svg
+         :alt: Distributed data loading and neural network training
+         :align: center
+         :height: 140px
+
+      .. div:: mt-3 **Distributed data loading & training** :bdg-warning:`New`
+
+      .. div:: text-muted small mt-1
+
+         **PyTorch integration:** Stream distributed arrays into PyTorch models and train across MPI ranks.
+
+   .. grid-item-card::
+      :class-card: sd-card
       :link: /tutorials/notebooks/Profiling_with_perun
       :link-type: doc
 

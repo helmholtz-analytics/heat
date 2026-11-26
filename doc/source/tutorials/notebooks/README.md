@@ -33,7 +33,7 @@ See Heat in action on complex mathematical operations and large-scale datasets.
 * **[Linear_algebra.ipynb](Linear_algebra.ipynb)**: Explore matrix-matrix multiplications, Randomized SVD, and Hierarchical SVD.
 * **[Classification_and_PCA.ipynb](Classification_and_PCA.ipynb)**: Learn how to scale K-Means clustering and Principal Component Analysis (PCA) with a small classification example.
 * **[DMD.ipynb](DMD.ipynb)**: Dive into Dynamic Mode Decomposition (DMD) using roughly a year of 6-hourly global windspeed data from ERA5.
-* **[Dataloading.ipynb](Dataloading.ipynb)**: Learn how to load data with Heat and plug it into PyTorch for data-distributed machine learning.
+* **[Distributed_data_loading.ipynb](Distributed_data_loading.ipynb)**: Learn how to load data with Heat and plug it into PyTorch for data-distributed machine learning.
 
 ### Profiling & Optimization
 * **[Profiling_with_perun.ipynb](Profiling_with_perun.ipynb)**: Learn how to track performance and measure the energy consumption (power draw) of your distributed applications using the `perun` library and its `@monitor` decorators.
