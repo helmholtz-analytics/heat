@@ -4,7 +4,7 @@
    <ul class="heat-timeline">
         <li class="timeline-item">
            <div class="timeline-date">Nov 2026</div>
-           <h4><a href="tutorials/notebooks/Distributed_data_loading.html">Training session and new distributed data loading tutorial</a></h4>
+           <h4><a href="tutorials/notebooks/Distributed_data_loading.html">New distributed data loading tutorial</a></h4>
            <p>Following our November 9 training session at JSC, we updated our tutorials and published a new guide on distributed data loading and PyTorch training. Try the new features from <code>main</code> ahead of our March 2027 release (v1.10) and report any problems on <a href="https://github.com/helmholtz-analytics/heat/issues">GitHub</a>.</p>
        </li>
        <li class="timeline-item">
