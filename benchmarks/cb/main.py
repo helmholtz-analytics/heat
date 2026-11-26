@@ -17,6 +17,7 @@ from preprocessing import run_preprocessing_benchmarks
 from decomposition import run_decomposition_benchmarks
 from heat_signal import run_signal_benchmarks
 from regression import run_regression_benchmarks
+from classification import run_classification_benchmarks
 
 run_linalg_benchmarks()
 print("Linalg finished")
@@ -32,3 +33,5 @@ run_signal_benchmarks()
 print("Signal finished")
 run_regression_benchmarks()
 print("Regression finished")
+run_classification_benchmarks()
+print("Classification finished")
