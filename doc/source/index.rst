@@ -304,7 +304,7 @@ How-to guides
 
    .. grid-item-card::
       :class-card: sd-card
-      :link: /tutorials/notebooks/Dataloading
+      :link: /tutorials/notebooks/Distributed_data_loading
       :link-type: doc
 
       .. image:: _static/images/tutorial_dpnn.svg
