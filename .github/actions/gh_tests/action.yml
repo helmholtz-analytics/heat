@@ -12,7 +12,7 @@ inputs:
   py-version:
     description: "Python version for the test run."
     required: false
-    default: "3.14"
+    default: "3.15"
   mpi:
     description: "MPI implementation to install."
     required: false
