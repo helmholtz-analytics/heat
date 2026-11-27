@@ -1,6 +1,7 @@
 import pytest
 
 import heat as ht
+from heat.core import _indexing_utils
 from heat.testing.basic_test import TestCase
 
 import torch
@@ -20,6 +21,27 @@ def compare_ht_where_to_numpy_where(ht_res, np_res):
         assert np.allclose(ht_res.shape, np_res.shape)
         assert ht.equal(ht_res, ht.array(np_res))
         assert ht_res[0].dtype == ht.types.canonical_heat_type(np_res.dtype)
+
+def test_alltoallv_routing_matches_owner_layout():
+    comm = ht.communication.MPI_WORLD
+    rank, size = comm.rank, comm.size
+    owners = torch.tensor([(2 * i + rank) % size for i in range(2 * size + rank)])
+    try:
+        prepare_routing = _indexing_utils._prepare_alltoallv_routing
+    except AttributeError:
+        pytest.fail("Missing shared Alltoallv routing helper")
+
+    order, send_counts, send_displs, recv_counts, recv_displs = prepare_routing(owners, comm)
+
+    assert torch.equal(owners[order], owners.sort().values)
+    assert torch.equal(send_counts, torch.bincount(owners, minlength=size))
+    gathered_counts = torch.empty((size, size), dtype=torch.int64)
+    comm.Allgather(send_counts, gathered_counts)
+    assert torch.equal(recv_counts, gathered_counts[:, rank])
+    for counts, displs in ((send_counts, send_displs), (recv_counts, recv_displs)):
+        expected_displs = torch.cat((torch.zeros(1, dtype=torch.int64), counts.cumsum(0)[:-1]))
+        assert torch.equal(displs, expected_displs)
+
 
 @pytest.mark.parametrize('split', [None, 0, 1])
 @pytest.mark.parametrize('cond_type', ['mean', 'max'])

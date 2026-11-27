@@ -1657,31 +1657,9 @@ class DNDarray:
         """
         displs_t = torch.tensor(displs, device=self.device.torch_device)
 
-        # map global indices to destination ranks
+        # map global indices to destination ranks and prepare the exchange
         dest_ranks = torch.searchsorted(displs_t[1:], split_key_flat, right=True).to(torch.int64)
-
-        # sort by destination rank to pack memory contiguously
-        sort_idx = torch.argsort(dest_ranks)
-        dest_ranks_sorted = dest_ranks[sort_idx]
-
-        # calculate send_counts and send_displs
-        send_counts = torch.bincount(dest_ranks_sorted, minlength=self.comm.size).to(torch.int64)
-        send_displs = torch.zeros_like(send_counts)
-        send_displs[1:] = torch.cumsum(send_counts, dim=0)[:-1]
-
-        # collect and calculate recv_counts and recv_displs
-        recv_counts = torch.empty_like(send_counts)
-        self.comm.Alltoall(send_counts, recv_counts)
-        recv_displs = torch.zeros_like(recv_counts)
-        recv_displs[1:] = recv_counts.cumsum(0)[:-1]
-
-        return (
-            sort_idx,
-            send_counts,
-            send_displs,
-            recv_counts,
-            recv_displs,
-        )
+        return _prepare_alltoallv_routing(dest_ranks, self.comm)
 
     def __getitem_scalar(self, p: ProcessedKey) -> DNDarray:
         """
@@ -2493,6 +2471,7 @@ from .types import datatype, integer, canonical_heat_type
 from .types import bool as ht_bool, uint8 as ht_uint8
 from ._indexing_utils import (
     ProcessedKey,
+    _prepare_alltoallv_routing,
     _resolve_duplicate_indices,
     _resolve_indexing_state,
     _unwrap_local_key,

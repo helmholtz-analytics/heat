@@ -5,7 +5,7 @@ Logical functions for the DNDarrays
 import numpy as np
 import torch
 
-from typing import Callable, Optional, Tuple, Union
+from typing import Callable, Optional, Sequence, Tuple, Union
 
 from . import factories
 from . import manipulations
@@ -14,6 +14,7 @@ from . import sanitation
 from . import _operations
 from . import stride_tricks
 from . import types
+from ._indexing_utils import _prepare_alltoallv_routing
 
 from .communication import MPI
 from .dndarray import DNDarray
@@ -22,8 +23,10 @@ __all__ = [
     "all",
     "allclose",
     "any",
+    "in1d",
     "isclose",
     "isfinite",
+    "isin",
     "isinf",
     "isnan",
     "isneginf",
@@ -226,6 +229,45 @@ DNDarray.any: Callable[[DNDarray, Optional[int], Optional[DNDarray], bool], DNDa
 DNDarray.any.__doc__ = any.__doc__
 
 
+def in1d(
+    ar1: DNDarray,
+    ar2: Union[DNDarray, bool, int, float, Sequence],
+    assume_unique: bool = False,
+    invert: bool = False,
+) -> DNDarray:
+    """
+    Test whether each element of a 1-D array is also present in a second array.
+
+    Returns a boolean array the same length as ``ar1`` that is ``True`` where an element of ``ar1``
+    is in ``ar2`` and ``False`` otherwise. Returns a flattened 1-D result, see
+    :func:`heat.isin <heat.core.logical.isin>` for the version that preserves the shape of the input.
+
+    Parameters
+    ----------
+    ar1 : DNDarray
+        Input array, likely with 1 dimensions.
+    ar2 : DNDarray or array_like
+        The values against which to test each value of ``ar1``.
+    assume_unique : bool, optional
+        If ``True``, the input arrays are both assumed to be unique, which can speed up the calculation.
+    invert : bool, optional
+        If ``True``, the values in the returned array are inverted, as if calculating ``ar1 not in ar2``.
+
+    See Also
+    --------
+    :func:`heat.isin()`
+        ``isin`` works elementwise instead, i.e. it preserves the shape of the input.
+
+    Examples
+    --------
+    >>> a = ht.array([1, 2, 3, 2, 5], split=0)
+    >>> ht.in1d(a, [2, 5])
+    DNDarray([False,  True, False,  True,  True], dtype=ht.bool, device=cpu:0, split=0)
+    """
+    sanitation.sanitize_in(ar1)
+    return manipulations.flatten(isin(ar1, ar2, assume_unique=assume_unique, invert=invert))
+
+
 def isclose(
     x: DNDarray, y: DNDarray, rtol: float = 1e-05, atol: float = 1e-08, equal_nan: bool = False
 ) -> DNDarray:
@@ -300,6 +342,309 @@ def isfinite(x: DNDarray) -> DNDarray:
     DNDarray([ True, False, False, False], dtype=ht.bool, device=cpu:0, split=None)
     """
     return _operations.__local_op(torch.isfinite, x, None, no_cast=True)
+
+
+def __interval_owner(pivots: torch.Tensor, values: torch.Tensor) -> torch.Tensor:
+    """
+    Assigns each value to the rank owning its value interval: the number of pivots that are
+    not greater than the value. Duplicated values always get the same owner.
+    """
+    if pivots.numel() == 0:
+        return torch.zeros(values.numel(), dtype=torch.int64, device=values.device)
+    return torch.searchsorted(pivots, values, side="right").to(torch.int64)
+
+
+def __complex64_to_key(value: torch.Tensor) -> torch.Tensor:
+    """Map complex values to integer keys with equality-compatible signed-zero handling."""
+    components = torch.view_as_real(value)
+    components = torch.where(components == 0, 0.0, components)
+    return torch.view_as_complex(components).view(torch.int64)
+
+
+def __distributed_isin(
+    l_elem: torch.Tensor,
+    l_test: torch.Tensor,
+    comm,
+    device: str,
+    assume_unique: bool,
+    invert: bool,
+) -> torch.Tensor:
+    """
+    Membership test of flat local element values against a distributed test set, where the
+    test values are scattered across the communicator.
+
+    The sorted, locally deduplicated test set is partitioned into per-rank value intervals: each
+    process publishes a quantile sketch of its local shard, the pooled sketch yields the interval
+    pivots, and test values are exchanged once so that each process owns exactly one interval.
+    Query values are then routed to the owner of their value interval, tested locally with
+    ``torch.isin``, and the results are routed back. With even test-value and query distributions,
+    per-process memory and communication scale with the local shards of both inputs. Skewed
+    distributions can concentrate data and work on individual interval owners.
+    """
+    p = comm.Get_size()
+    l_elem = l_elem.reshape(-1)
+    l_test = l_test.reshape(-1)
+
+    # empty global test set: membership trivially reduces to ``invert``
+    total = torch.tensor([l_test.numel()], dtype=torch.int64)
+    total_buf = torch.empty_like(total)
+    comm.Allreduce(total, total_buf, op=MPI.SUM)
+    if total_buf.item() == 0:
+        return torch.full(l_elem.shape, fill_value=invert, dtype=torch.bool, device=l_elem.device)
+
+    # map to a key space torch can sort on; the mapping is bijective after normalizing zeros
+    nan_elements = None
+    if l_test.dtype == torch.bool:
+        l_test, l_elem = l_test.to(torch.int8), l_elem.to(torch.int8)
+    elif l_test.dtype == torch.complex64:
+        nan_elements = torch.isnan(l_elem)
+        l_test, l_elem = __complex64_to_key(l_test), __complex64_to_key(l_elem)
+    elif l_test.dtype == torch.complex128:
+        raise NotImplementedError(
+            "isin does not support complex128 with distributed test_elements; "
+            "pass the test values with split=None instead."
+        )
+
+    # Discard duplicates locally before constructing the sketch and exchanging values. Besides
+    # shrinking communication for repeated values, this avoids concentrating redundant copies
+    # on the rank owning their interval.
+    l_test = torch.unique(l_test, sorted=True)
+
+    # 1. quantile sketch of the sorted local shards (small, independent of shard size)
+    s = max(2, p)
+    n = l_test.numel()
+    if n == 0:
+        sample = torch.empty((0,), dtype=l_test.dtype, device=device)
+    elif n > s:
+        # float64 on purpose: float32 linspace cannot represent n-1 exactly
+        # for n > 2**24 and may round the last sample index out of bounds
+        sample = l_test.sort().values[torch.linspace(0, n - 1, s, dtype=torch.float64).long()]
+    else:
+        sample = l_test
+    sample_count = torch.tensor([sample.numel()], dtype=torch.int64)
+    sample_counts = torch.empty((p,), dtype=torch.int64)
+    comm.Allgather(sample_count, sample_counts)
+    sample_counts = sample_counts.tolist()
+    pooled = torch.empty((sum(sample_counts),), dtype=l_test.dtype, device=device)
+    comm.Allgatherv(
+        sample, (pooled, sample_counts, [0] + np.cumsum(sample_counts)[:-1].tolist()), recv_axis=0
+    )
+
+    # 2. interval pivots from the pooled sketch
+    if p > 1:
+        pooled = pooled.sort().values
+        cuts = torch.round(
+            torch.arange(1, p, dtype=torch.float, device=device) * pooled.numel() / p
+        ).long()
+        pivots = pooled[torch.clamp(cuts, 0, pooled.numel() - 1)]
+    else:
+        pivots = torch.empty((0,), dtype=l_test.dtype, device=device)
+
+    # 3. exchange test values so each process owns one interval (and only that interval)
+    sorted_test = l_test.sort().values
+    send_counts = torch.bincount(__interval_owner(pivots, sorted_test), minlength=p)
+    recv_counts = torch.empty_like(send_counts)
+    comm.Alltoall(send_counts, recv_counts)
+    total_recv = recv_counts.sum().item()
+    owned = torch.empty((total_recv,), dtype=l_test.dtype, device=device)
+    comm.Alltoallv(
+        (
+            sorted_test,
+            send_counts.tolist(),
+            [0] + list(np.cumsum(send_counts.tolist())[:-1]),
+        ),
+        (owned, recv_counts.tolist(), [0] + list(np.cumsum(recv_counts.tolist())[:-1])),
+    )
+    # unique test values for the local kernel; duplicates are redundant for membership
+    owned = torch.unique(owned)
+
+    # 4. route each query value to the owner of its value interval
+    # (no early return for empty local elements: all ranks must join every collective)
+    result = torch.zeros(l_elem.shape, dtype=torch.bool, device=device)
+
+    owners = __interval_owner(pivots, l_elem)
+    order, send_counts_t, send_displs_t, recv_counts_t, recv_displs_t = _prepare_alltoallv_routing(
+        owners, comm
+    )
+    send_counts = send_counts_t.tolist()
+    send_disps = send_displs_t.tolist()
+    recv_counts = recv_counts_t.tolist()
+    recv_disps = recv_displs_t.tolist()
+
+    send_vals = l_elem[order]
+    total_recv = sum(recv_counts)
+    recv_vals = torch.empty((total_recv,), dtype=l_elem.dtype, device=device)
+    comm.Alltoallv(
+        (send_vals, send_counts, send_disps),
+        (recv_vals, recv_counts, recv_disps),
+    )
+
+    # 5. answer the received batches with the local torch kernel
+    if assume_unique:
+        # Keep origins separate: concatenating unique shards from replicated inputs can create
+        # duplicates, which would violate the precondition of torch.isin's unique algorithm.
+        hits = torch.empty(total_recv, dtype=torch.bool, device=device)
+        for origin in range(p):
+            lo, hi = recv_disps[origin], recv_disps[origin] + recv_counts[origin]
+            if hi > lo:
+                hits[lo:hi] = torch.isin(recv_vals[lo:hi], owned, assume_unique=True)
+    else:
+        hits = torch.isin(recv_vals, owned)
+
+    # 6. route the results back in the destination-blocked order of ``order``
+    answers = torch.empty(l_elem.numel(), dtype=torch.bool, device=device)
+    comm.Alltoallv(
+        (hits, recv_counts, recv_disps),
+        (answers, send_counts, send_disps),
+    )
+    result[order] = answers
+    if nan_elements is not None:
+        result[nan_elements] = False
+
+    return torch.logical_not(result) if invert else result
+
+
+def __isin_local(
+    local: torch.Tensor, test: torch.Tensor, assume_unique: bool, invert: bool
+) -> torch.Tensor:
+    """
+    Element-wise membership test on local tensors, mirroring the behavior of ``numpy.isin``.
+    ``torch.isin`` does not support boolean and complex dtypes. Booleans are mapped to ``int8``;
+    ``complex64`` values use integer keys after normalizing signed zeros, with NaNs excluded from
+    matches, while ``complex128`` uses a component-wise comparison (there is no 16-byte integer
+    type to bitcast to).
+    """
+    if local.dtype == torch.bool or test.dtype == torch.bool:
+        local = local.to(torch.int8)
+        test = test.to(torch.int8)
+    elif local.dtype == torch.complex64:
+        shape = local.shape
+        local = local.reshape(-1)
+        nan_elements = torch.isnan(local)
+        local_key = __complex64_to_key(local)
+        test_key = __complex64_to_key(test.reshape(-1))
+        result = torch.isin(local_key, test_key, assume_unique=assume_unique)
+        result[nan_elements] = False
+        result = result.view(shape)
+        return torch.logical_not(result) if invert else result
+    elif local.dtype == torch.complex128:
+        local_real = torch.view_as_real(local.reshape(-1))
+        test_real = torch.view_as_real(test)
+        # broadcasting comparison, memory usage is O(local.numel() * test.numel())
+        result = (local_real.unsqueeze(-2) == test_real).all(dim=-1).any(dim=-1)
+        result = result.view(local.shape)
+        return torch.logical_not(result) if invert else result
+
+    result = torch.isin(local, test, assume_unique=assume_unique, invert=invert)
+    return result
+
+
+def isin(
+    element: Union[DNDarray, bool, int, float, Sequence],
+    test_elements: Union[DNDarray, bool, int, float, Sequence],
+    assume_unique: bool = False,
+    invert: bool = False,
+) -> DNDarray:
+    """
+    Calculate ``element in test_elements``, broadcasting over the values of ``element``.
+
+    Returns a boolean ``DNDarray`` of the same shape as ``element`` that is ``True`` where
+    ``element`` is in ``test_elements`` and ``False`` otherwise. Values in ``test_elements`` are
+    considered globally, i.e. also values that reside on other processes count as members.
+
+    Parameters
+    ----------
+    element : DNDarray or array_like
+        Input array. Scalars and array-likes are accepted, mirroring numpy and the Python array
+        API standard, as long as they can be converted to a :class:`~heat.core.dndarray.DNDarray`.
+    test_elements : DNDarray or array_like
+        The values against which to test each value of ``element``. May itself be distributed.
+    assume_unique : bool, optional
+        If ``True``, the input arrays are both assumed to be unique, which can speed up the calculation.
+        Note that, in contrast to numpy, violating this assumption is not tolerated for
+        ``test_elements``: the underlying torch algorithm silently returns wrong results if
+        ``test_elements`` contains duplicates while ``assume_unique=True``.
+    invert : bool, optional
+        If ``True``, the values in the returned array are inverted, as if calculating
+        ``element not in test_elements``.
+
+    Notes
+    -----
+    If ``test_elements`` is distributed, the test values are not gathered or replicated.
+    Instead, each process sketches its locally deduplicated shard. The pooled sketch contains
+    ``O(comm.size)`` samples per rank, hence ``O(comm.size**2)`` samples in total, independent
+    of the input sizes. Its quantiles define per-rank value intervals, the test values are
+    exchanged once so that each process owns a single interval, and every query value is routed
+    to the process owning its value interval and tested there with ``torch.isin``. For balanced
+    value distributions, per-process memory and communication scale with the local shards of
+    both inputs; skewed test values or queries can concentrate data and work on individual
+    interval owners. The result keeps the ``split`` of ``element``.
+
+    ``complex128`` elements are not supported when ``test_elements`` is distributed; pass
+    the test values with ``split=None`` in that case. In the distributed path, each owning
+    process deduplicates its interval before the local test, so duplicated test values do
+    not affect the ``assume_unique`` contract there.
+
+    See Also
+    --------
+    :func:`heat.in1d()`
+        ``in1d`` flattens the input instead of preserving the shape of ``element``.
+
+    Examples
+    --------
+    >>> element = ht.array([1, 2, 3, 4, 3, 2, 2, 1], split=0)
+    >>> test_elements = ht.array([1, 3, 5, 7])
+    >>> ht.isin(element, test_elements)
+    DNDarray([ True, False,  True, False,  True, False, False,  True], dtype=ht.bool, device=cpu:0, split=0)
+    >>> ht.isin(element, test_elements, invert=True)
+    DNDarray([False,  True, False,  True, False,  True,  True, False], dtype=ht.bool, device=cpu:0, split=0)
+    """
+    # numpy and the array API standard accept scalar/array-like elements
+    if not isinstance(element, DNDarray):
+        if isinstance(test_elements, DNDarray):
+            element = factories.array(element, device=test_elements.device, comm=test_elements.comm)
+        else:
+            element = factories.array(element)
+    sanitation.sanitize_in(element)
+
+    if isinstance(test_elements, DNDarray):
+        sanitation.sanitize_in(test_elements)
+    else:
+        test_elements = factories.array(
+            test_elements, split=None, device=element.device, comm=element.comm
+        )
+
+    # match the numpy behavior of promoting the dtypes of both inputs
+    common_dtype = types.promote_types(element.dtype, test_elements.dtype)
+    torch_dtype = common_dtype.torch_type()
+    l_elem = element.larray.to(torch_dtype)
+    l_test = test_elements.larray.to(torch_dtype)
+
+    if not test_elements.is_distributed() or test_elements.comm.Get_size() == 1:
+        # test values are replicated (or only one process exists): direct local kernel
+        result = __isin_local(
+            l_elem, l_test.reshape(-1), assume_unique=assume_unique, invert=invert
+        )
+    else:
+        # test values are scattered across the processes: interval-based distributed path
+        result = __distributed_isin(
+            l_elem,
+            l_test,
+            test_elements.comm,
+            element.device.torch_device,
+            assume_unique=assume_unique,
+            invert=invert,
+        )
+
+    return DNDarray(
+        result.reshape(element.lshape),
+        gshape=element.gshape,
+        dtype=types.bool,
+        split=element.split,
+        device=element.device,
+        comm=element.comm,
+        balanced=element.is_balanced(),
+    )
 
 
 def isinf(x: DNDarray) -> DNDarray:

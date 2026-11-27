@@ -493,6 +493,23 @@ def _sanitize_int_indices(k: "DNDarray", dim: int, axis: int, comm: Any, device:
 # ----------------------------------------------------------------------
 
 
+def _prepare_alltoallv_routing(owners: torch.Tensor, comm: Any) -> tuple[torch.Tensor, ...]:
+    """Sort values by owning rank and calculate the corresponding Alltoallv layout."""
+    owners = owners.reshape(-1)
+    size = comm.Get_size()
+    order = torch.argsort(owners)
+    send_counts = torch.bincount(owners[order], minlength=size).to(torch.int64)
+    send_displs = torch.zeros_like(send_counts)
+    send_displs[1:] = torch.cumsum(send_counts, dim=0)[:-1]
+
+    recv_counts = torch.empty_like(send_counts)
+    comm.Alltoall(send_counts, recv_counts)
+    recv_displs = torch.zeros_like(recv_counts)
+    recv_displs[1:] = torch.cumsum(recv_counts, dim=0)[:-1]
+
+    return order, send_counts, send_displs, recv_counts, recv_displs
+
+
 def _sanitize_advanced_keys(
     arr: "DNDarray",
     key: list[Any],

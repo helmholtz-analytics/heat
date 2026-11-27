@@ -1,6 +1,8 @@
+import numpy as np
 import torch
 
 import heat as ht
+from heat.core import logical
 from heat.testing.basic_test import TestCase
 
 
@@ -270,6 +272,33 @@ class TestLogical(TestCase):
         self.assertEqual(keepdims_any.shape, (2, 1))
         self.assertEqual(keepdims_any.split, None)
 
+    def test_in1d(self):
+        size = ht.communication.MPI_WORLD.size
+        ref_ar1 = list(range(2 * size + 3))
+        ref_ar2 = [0, 3, 6, 9]
+        expected = np.array([v in ref_ar2 for v in ref_ar1])
+
+        ar1 = ht.array(ref_ar1, split=0)
+        ar2_split = ht.array(ref_ar2, split=0)
+
+        result = ht.in1d(ar1, ar2_split)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.shape, (len(ref_ar1),))
+        self.assertEqual(result.dtype, ht.bool)
+        self.assertEqual(result.split, 0)
+        self.assert_array_equal(result, expected)
+
+        # plain (replicated) and list inputs
+        self.assert_array_equal(ht.in1d(ar1, ht.array(ref_ar2)), expected)
+        self.assert_array_equal(ht.in1d(ar1, ref_ar2), expected)
+
+        # a 2-D input is flattened, in contrast to isin
+        ar1_2d = ht.reshape(ht.arange(4 * size, split=0), (2, 2 * size))
+        self.assertEqual(ht.in1d(ar1_2d, [0, 1]).shape, (4 * size,))
+
+        with self.assertRaises(TypeError):
+            ht.in1d("?", ar2_split)
+
     def test_isclose(self):
         size = ht.communication.MPI_WORLD.size
         a = ht.float32([[2, 2], [2, 2]])
@@ -332,6 +361,269 @@ class TestLogical(TestCase):
         self.assertEqual(r.dtype, s.dtype)
         self.assertEqual(r.device, s.device)
         self.assertTrue(ht.equal(r, s))
+
+    def test_isin(self):
+        size = ht.communication.MPI_WORLD.size
+        ref_elements = list(range(2 * size + 3))
+        ref_test = [0, 3, 6, 9]
+        expected = np.array([v in ref_test for v in ref_elements])
+        expected_inverse = np.array([v not in ref_test for v in ref_elements])
+
+        elements = ht.array(ref_elements, split=0)
+        test_split = ht.array(ref_test, split=0)
+        test_plain = ht.array(ref_test)
+
+        # distributed, replicated, and list test elements must yield identical results,
+        # also for unsplit elements
+        for test in (test_split, test_plain, ref_test):
+            result = ht.isin(elements, test)
+            self.assertIsInstance(result, ht.DNDarray)
+            self.assertEqual(result.shape, elements.shape)
+            self.assertEqual(result.dtype, ht.bool)
+            self.assertEqual(result.split, 0)
+            # per-rank shape must match the chunking of the global shape
+            _, expected_lshape, _ = ht.communication.MPI_WORLD.chunk(elements.gshape, 0)
+            self.assertEqual(result.lshape, expected_lshape)
+            self.assert_array_equal(result, expected)
+            self.assert_array_equal(ht.isin(elements, test, invert=True), expected_inverse)
+        self.assert_array_equal(ht.isin(ht.array(ref_elements), test_split), expected)
+
+        # scalar elements, as allowed by numpy and the Python array API standard,
+        # yield zero-dimensional results
+        self.assert_array_equal(ht.isin(ref_elements[3], test_plain), np.array(True))
+        self.assert_array_equal(ht.isin(ref_elements[4], test_split), np.array(False))
+        self.assert_array_equal(ht.isin(4, test_plain, invert=True), np.array(True))
+
+        # 2-D elements keep shape and split
+        elements_2d = ht.reshape(ht.arange(4 * size, split=0), (2, 2 * size))
+        result_2d = ht.isin(elements_2d, [0, 4 * size - 1])
+        self.assertEqual(result_2d.shape, (2, 2 * size))
+        self.assertEqual(result_2d.split, 0)
+        expected_2d = np.arange(4 * size).reshape(2, 2 * size)
+        expected_2d = np.isin(expected_2d, [0, 4 * size - 1])
+        self.assert_array_equal(result_2d, expected_2d)
+
+        # boolean and complex dtypes, which torch.isin does not support natively
+        bools = ht.array([True, False, True, False], split=0)
+        self.assert_array_equal(
+            ht.isin(bools, ht.array([True], split=0)),
+            np.array([True, False, True, False]),
+        )
+
+        mixed = ht.isin(ht.array([1, 2, 3], split=0), ht.array([1.0, 3.0], split=0))
+        self.assert_array_equal(mixed, np.array([True, False, True]))
+
+        for dtype in (ht.complex64, ht.complex128):
+            complex_elements = ht.array([1 + 2j, 3 + 4j, 1 + 3j], dtype=dtype, split=0)
+            # complex128 requires replicated test elements (see assertRaises below)
+            test_split = 0 if dtype == ht.complex64 else None
+            self.assert_array_equal(
+                ht.isin(complex_elements, ht.array([1 + 2j], dtype=dtype, split=test_split)),
+                np.array([True, False, False]),
+            )
+
+        # empty test_elements match nothing, replicated and distributed
+        self.assert_array_equal(
+            ht.isin(elements, ht.array([], dtype=ht.int64)),
+            np.zeros(len(ref_elements), dtype=bool),
+        )
+        self.assert_array_equal(
+            ht.isin(elements, ht.array([], dtype=ht.int64, split=0)),
+            np.zeros(len(ref_elements), dtype=bool),
+        )
+
+        with self.assertRaises(TypeError):
+            ht.isin("?", test_plain)
+
+    def test_isin_numpy_suite(self):
+        # adapted from the isin tests in numpy's numpy/lib/tests/test_arraysetops.py
+        # (numpy is BSD-3-Clause licensed); cases relying on dtypes that heat does not
+        # support (uint16/uint64, timedelta, object, structured, strings) are skipped
+        ref_a = [5, 4, 5, 3, 4, 4, 3, 4, 3, 5, 2, 1, 5, 5]
+
+        # duplicated test elements (as in numpy's test_isin_additional); note that we
+        # deliberately do not combine this with assume_unique=True: numpy tolerates that
+        # misuse, but torch.isin's algorithm requires unique test values in that mode and
+        # would silently return wrong results
+        for mult in (1, 10):
+            a = ht.array(ref_a, split=0)
+            b = ht.array([2, 3, 4] * mult, split=0)
+            expected = np.array([v in [2, 3, 4] for v in ref_a])
+            self.assert_array_equal(ht.isin(a, b), expected)
+
+            # assume_unique with genuinely unique inputs
+            unique_b = ht.array([2, 3, 4], split=0)
+            self.assert_array_equal(ht.isin(a, unique_b, assume_unique=True), expected)
+
+            # invert is the logical negation, for integers and floats
+            self.assert_array_equal(
+                ht.isin(a, b, invert=True),
+                np.invert(expected),
+            )
+            a = ht.array(ref_a, dtype=ht.float32, split=0)
+            b = ht.array([2, 3, 4] * mult, dtype=ht.float32, split=0)
+            self.assert_array_equal(ht.isin(a, b, invert=True), np.invert(expected))
+
+        # values beyond the small-value fast path (numpy's test_isin_hit_alternate_algorithm)
+        a = ht.array([5, 4, 5, 3, 4, 4, int(1e9)], split=0)
+        b = ht.array([2, 3, 4, int(1e9)], split=0)
+        self.assert_array_equal(
+            ht.isin(a, b), np.array([False, True, False, True, True, True, True])
+        )
+
+        # boolean input, with and without invert
+        a = ht.array([True, False], split=0)
+        b = ht.array([False, False, False], split=0)
+        self.assert_array_equal(ht.isin(a, b), np.array([False, True]))
+        self.assert_array_equal(ht.isin(a, b, invert=True), np.array([True, False]))
+
+        # mixed integer dtypes (numpy's test_isin_mixed_dtype)
+        for dtype1, dtype2 in [
+            (ht.int8, ht.int16),
+            (ht.int16, ht.int8),
+            (ht.uint8, ht.int16),
+            (ht.int16, ht.uint8),
+            (ht.uint8, ht.int32),
+        ]:
+            vals1 = [0, 0, 1, 1]
+            vals2 = (
+                [-128, 0, 127]
+                if dtype2 in (ht.int8, ht.int16, ht.int32, ht.int64)
+                else [127, 0, 255]
+            )
+            a = ht.array(vals1, dtype=dtype1, split=0)
+            b = ht.array(vals2, dtype=dtype2, split=0)
+            self.assert_array_equal(ht.isin(a, b), np.isin(vals1, vals2))
+
+        # boolean against all other dtypes, both directions (numpy's test_isin_mixed_boolean)
+        for dtype in (ht.int8, ht.int32, ht.uint8, ht.float32):
+            a = ht.array([True, False, False], split=0)
+            b = ht.array([0, 0, 0, 0], dtype=dtype, split=0)
+            self.assert_array_equal(ht.isin(a, b), np.array([False, True, True]))
+            self.assert_array_equal(ht.isin(b, a), np.array([True, True, True, True]))
+
+        # multi-dimensional inputs on both sides, and zero-dimensional test elements
+        a = ht.arange(24, split=0).reshape(2, 3, 4)
+        b = ht.array([[10, 20, 30], [0, 1, 3], [11, 22, 33]], split=0)
+        ref_3d = np.arange(24).reshape(2, 3, 4)
+        self.assert_array_equal(
+            ht.isin(a, b), np.isin(ref_3d, [[10, 20, 30], [0, 1, 3], [11, 22, 33]])
+        )
+        self.assert_array_equal(ht.isin(a, ht.array(3)), ref_3d == 3)
+        self.assert_array_equal(
+            ht.isin(ht.array(3), b), np.isin(3, [[10, 20, 30], [0, 1, 3], [11, 22, 33]])
+        )
+
+        # empty arrays of various types, as element, as test elements, and both
+        for dtype, ref in [
+            (ht.bool, [True, False, False]),
+            (ht.int64, [10, 20, 30]),
+            (ht.float64, [10.0, 20.0, 30.0]),
+        ]:
+            empty = ht.array([], dtype=dtype, split=0)
+            full = ht.array(ref, dtype=dtype, split=0)
+            self.assert_array_equal(ht.isin(empty, full), np.array([], dtype=bool))
+            self.assert_array_equal(ht.isin(full, empty), np.array([False, False, False]))
+            self.assert_array_equal(ht.isin(empty, empty), np.array([], dtype=bool))
+
+        # unbalanced and empty local shards: arrays shorter than the rank count
+        tiny_ref = [3, 5]
+        tiny = ht.array(tiny_ref, split=0)
+        tiny_test = ht.array([3], split=0)
+        expected_tiny = np.array([v in [0, 3, 6, 9] for v in tiny_ref])
+        result_tiny = ht.isin(tiny, tiny_test)
+        self.assertEqual(result_tiny.split, 0)
+        self.assert_array_equal(result_tiny, expected_tiny)
+        self.assert_array_equal(ht.isin(tiny, tiny_test, invert=True), np.invert(expected_tiny))
+        # a distributed test with empty shards on some ranks
+        self.assert_array_equal(
+            ht.isin(ht.arange(10, split=0), tiny_test),
+            np.isin(np.arange(10), [3]),
+        )
+
+        # split axes of element and test may differ
+        elements_2d = ht.array([[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]], split=1)
+        test_2d = ht.array([[1, 12], [2, 11], [3, 10]], split=0)
+        result_2d = ht.isin(elements_2d, test_2d)
+        self.assertEqual(result_2d.split, 1)
+        self.assert_array_equal(
+            result_2d, np.isin(np.arange(1, 13).reshape(4, 3), [[1, 12], [2, 11], [3, 10]])
+        )
+
+        # complex128 is not supported with distributed test elements (multi-rank only)
+        if ht.communication.MPI_WORLD.size > 1:
+            with self.assertRaises(NotImplementedError):
+                ht.isin(
+                    ht.array([1 + 2j], dtype=ht.complex128, split=0),
+                    ht.array([1 + 2j], dtype=ht.complex128, split=0),
+                )
+
+    def test_isin_empty_distributed_test_preserves_device(self):
+        class EmptyComm:
+            def Get_size(self):
+                return 2
+
+            def Allreduce(self, total, total_buf, op):
+                total_buf.zero_()
+
+        device = torch.device("meta")
+        result = getattr(logical, "__distributed_isin")(
+            torch.empty((2, 3), dtype=torch.int64, device=device),
+            torch.empty(0, dtype=torch.int64, device=device),
+            EmptyComm(),
+            "meta",
+            assume_unique=False,
+            invert=False,
+        )
+        self.assertEqual(result.device, device)
+        self.assertEqual(result.shape, (6,))
+
+    def test_interval_owner_preserves_device_without_pivots(self):
+        device = torch.device("meta")
+        owners = getattr(logical, "__interval_owner")(
+            torch.empty(0, device=device), torch.empty(3, device=device)
+        )
+        self.assertEqual(owners.device, device)
+
+    def test_isin_complex64_numeric_equality(self):
+        values = [
+            0 + 0j,
+            complex(-0.0, 0.0),
+            complex(0.0, -0.0),
+            complex(float("nan"), 0.0),
+        ]
+        tests = [complex(-0.0, -0.0), complex(float("nan"), 0.0)]
+        expected = np.isin(
+            np.array(values, dtype=np.complex64), np.array(tests, dtype=np.complex64)
+        )
+
+        elements = ht.array(values, dtype=ht.complex64, split=0)
+        for split in (None, 0):
+            test_elements = ht.array(tests, dtype=ht.complex64, split=split)
+            self.assert_array_equal(ht.isin(elements, test_elements), expected)
+            self.assert_array_equal(ht.isin(elements, test_elements, invert=True), ~expected)
+
+    def test_isin_large(self):
+        # mid-scale deterministic check (~8 MB per operand): exercises quantile pivot
+        # selection and all-to-all query routing over non-trivial shards, with a
+        # non-empty query batch on every rank. Kept small enough for CI.
+        n = 1_000_000
+        elements = (ht.arange(n, split=0, dtype=ht.int64) * 1103515245) % (10 * n)
+        test_values = ht.arange(0, 10 * n, 10, split=0, dtype=ht.int64)
+
+        result = ht.isin(elements, test_values)
+        self.assertEqual(result.shape, (n,))
+        self.assertEqual(result.split, 0)
+        _, expected_lshape, _ = ht.communication.MPI_WORLD.chunk((n,), 0)
+        self.assertEqual(result.lshape, expected_lshape)
+
+        ref_elements = (np.arange(n, dtype=np.int64) * 1103515245) % (10 * n)
+        self.assert_array_equal(result, ref_elements % 10 == 0)
+
+        # and a variant where only ~1/7 of the queries hit
+        test_sparse = ht.arange(0, 10 * n, 70, split=0, dtype=ht.int64)
+        result_sparse = ht.isin(elements, test_sparse, invert=True)
+        self.assert_array_equal(result_sparse, ref_elements % 70 != 0)
 
     def test_isinf(self):
         a = ht.array([1, ht.inf, -ht.inf, ht.nan])
