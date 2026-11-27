@@ -416,7 +416,9 @@ def __distributed_isin(
     if n == 0:
         sample = torch.empty((0,), dtype=l_test.dtype, device=device)
     elif n > s:
-        sample = l_test.sort().values[torch.linspace(0, n - 1, s).long()]
+        # float64 on purpose: float32 linspace cannot represent n-1 exactly
+        # for n > 2**24 and may round the last sample index out of bounds
+        sample = l_test.sort().values[torch.linspace(0, n - 1, s, dtype=torch.float64).long()]
     else:
         sample = l_test
     sample_count = torch.tensor([sample.numel()], dtype=torch.int64)
