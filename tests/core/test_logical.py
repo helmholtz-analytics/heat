@@ -2,6 +2,7 @@ import numpy as np
 import torch
 
 import heat as ht
+from heat.core import logical
 from heat.testing.basic_test import TestCase
 
 
@@ -466,7 +467,9 @@ class TestLogical(TestCase):
         # values beyond the small-value fast path (numpy's test_isin_hit_alternate_algorithm)
         a = ht.array([5, 4, 5, 3, 4, 4, int(1e9)], split=0)
         b = ht.array([2, 3, 4, int(1e9)], split=0)
-        self.assert_array_equal(ht.isin(a, b), np.array([False, True, False, True, True, True, True]))
+        self.assert_array_equal(
+            ht.isin(a, b), np.array([False, True, False, True, True, True, True])
+        )
 
         # boolean input, with and without invert
         a = ht.array([True, False], split=0)
@@ -483,7 +486,11 @@ class TestLogical(TestCase):
             (ht.uint8, ht.int32),
         ]:
             vals1 = [0, 0, 1, 1]
-            vals2 = [-128, 0, 127] if dtype2 in (ht.int8, ht.int16, ht.int32, ht.int64) else [127, 0, 255]
+            vals2 = (
+                [-128, 0, 127]
+                if dtype2 in (ht.int8, ht.int16, ht.int32, ht.int64)
+                else [127, 0, 255]
+            )
             a = ht.array(vals1, dtype=dtype1, split=0)
             b = ht.array(vals2, dtype=dtype2, split=0)
             self.assert_array_equal(ht.isin(a, b), np.isin(vals1, vals2))
@@ -499,12 +506,20 @@ class TestLogical(TestCase):
         a = ht.arange(24, split=0).reshape(2, 3, 4)
         b = ht.array([[10, 20, 30], [0, 1, 3], [11, 22, 33]], split=0)
         ref_3d = np.arange(24).reshape(2, 3, 4)
-        self.assert_array_equal(ht.isin(a, b), np.isin(ref_3d, [[10, 20, 30], [0, 1, 3], [11, 22, 33]]))
+        self.assert_array_equal(
+            ht.isin(a, b), np.isin(ref_3d, [[10, 20, 30], [0, 1, 3], [11, 22, 33]])
+        )
         self.assert_array_equal(ht.isin(a, ht.array(3)), ref_3d == 3)
-        self.assert_array_equal(ht.isin(ht.array(3), b), np.isin(3, [[10, 20, 30], [0, 1, 3], [11, 22, 33]]))
+        self.assert_array_equal(
+            ht.isin(ht.array(3), b), np.isin(3, [[10, 20, 30], [0, 1, 3], [11, 22, 33]])
+        )
 
         # empty arrays of various types, as element, as test elements, and both
-        for dtype, ref in [(ht.bool, [True, False, False]), (ht.int64, [10, 20, 30]), (ht.float64, [10.0, 20.0, 30.0])]:
+        for dtype, ref in [
+            (ht.bool, [True, False, False]),
+            (ht.int64, [10, 20, 30]),
+            (ht.float64, [10.0, 20.0, 30.0]),
+        ]:
             empty = ht.array([], dtype=dtype, split=0)
             full = ht.array(ref, dtype=dtype, split=0)
             self.assert_array_equal(ht.isin(empty, full), np.array([], dtype=bool))
@@ -531,7 +546,9 @@ class TestLogical(TestCase):
         test_2d = ht.array([[1, 12], [2, 11], [3, 10]], split=0)
         result_2d = ht.isin(elements_2d, test_2d)
         self.assertEqual(result_2d.split, 1)
-        self.assert_array_equal(result_2d, np.isin(np.arange(1, 13).reshape(4, 3), [[1, 12], [2, 11], [3, 10]]))
+        self.assert_array_equal(
+            result_2d, np.isin(np.arange(1, 13).reshape(4, 3), [[1, 12], [2, 11], [3, 10]])
+        )
 
         # complex128 is not supported with distributed test elements (multi-rank only)
         if ht.communication.MPI_WORLD.size > 1:
@@ -540,6 +557,51 @@ class TestLogical(TestCase):
                     ht.array([1 + 2j], dtype=ht.complex128, split=0),
                     ht.array([1 + 2j], dtype=ht.complex128, split=0),
                 )
+
+    def test_isin_empty_distributed_test_preserves_device(self):
+        class EmptyComm:
+            def Get_size(self):
+                return 2
+
+            def Allreduce(self, total, total_buf, op):
+                total_buf.zero_()
+
+        device = torch.device("meta")
+        result = getattr(logical, "__distributed_isin")(
+            torch.empty((2, 3), dtype=torch.int64, device=device),
+            torch.empty(0, dtype=torch.int64, device=device),
+            EmptyComm(),
+            "meta",
+            assume_unique=False,
+            invert=False,
+        )
+        self.assertEqual(result.device, device)
+        self.assertEqual(result.shape, (6,))
+
+    def test_interval_owner_preserves_device_without_pivots(self):
+        device = torch.device("meta")
+        owners = getattr(logical, "__interval_owner")(
+            torch.empty(0, device=device), torch.empty(3, device=device)
+        )
+        self.assertEqual(owners.device, device)
+
+    def test_isin_complex64_numeric_equality(self):
+        values = [
+            0 + 0j,
+            complex(-0.0, 0.0),
+            complex(0.0, -0.0),
+            complex(float("nan"), 0.0),
+        ]
+        tests = [complex(-0.0, -0.0), complex(float("nan"), 0.0)]
+        expected = np.isin(
+            np.array(values, dtype=np.complex64), np.array(tests, dtype=np.complex64)
+        )
+
+        elements = ht.array(values, dtype=ht.complex64, split=0)
+        for split in (None, 0):
+            test_elements = ht.array(tests, dtype=ht.complex64, split=split)
+            self.assert_array_equal(ht.isin(elements, test_elements), expected)
+            self.assert_array_equal(ht.isin(elements, test_elements, invert=True), ~expected)
 
     def test_isin_large(self):
         # mid-scale deterministic check (~8 MB per operand): exercises quantile pivot

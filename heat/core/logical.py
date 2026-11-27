@@ -14,6 +14,7 @@ from . import sanitation
 from . import _operations
 from . import stride_tricks
 from . import types
+from ._indexing_utils import _prepare_alltoallv_routing
 
 from .communication import MPI
 from .dndarray import DNDarray
@@ -349,8 +350,15 @@ def __interval_owner(pivots: torch.Tensor, values: torch.Tensor) -> torch.Tensor
     not greater than the value. Duplicated values always get the same owner.
     """
     if pivots.numel() == 0:
-        return torch.zeros(values.numel(), dtype=torch.int64)
+        return torch.zeros(values.numel(), dtype=torch.int64, device=values.device)
     return torch.searchsorted(pivots, values, side="right").to(torch.int64)
+
+
+def __complex64_to_key(value: torch.Tensor) -> torch.Tensor:
+    """Map complex values to integer keys with equality-compatible signed-zero handling."""
+    components = torch.view_as_real(value)
+    components = torch.where(components == 0, 0.0, components)
+    return torch.view_as_complex(components).view(torch.int64)
 
 
 def __distributed_isin(
@@ -365,12 +373,13 @@ def __distributed_isin(
     Membership test of flat local element values against a distributed test set, where the
     test values are scattered across the communicator.
 
-    The global sorted test set is partitioned into per-rank value intervals: each process
-    publishes a quantile sketch of its sorted local shard, the pooled sketch yields the
-    interval pivots, and test values are exchanged once so that each process owns exactly
-    one interval. Query values are then routed to the owner of their value interval, tested
-    locally with ``torch.isin``, and the results are routed back. Per-process memory and
-    communication scale with the local shards of both inputs, never with the global inputs.
+    The sorted, locally deduplicated test set is partitioned into per-rank value intervals: each
+    process publishes a quantile sketch of its local shard, the pooled sketch yields the interval
+    pivots, and test values are exchanged once so that each process owns exactly one interval.
+    Query values are then routed to the owner of their value interval, tested locally with
+    ``torch.isin``, and the results are routed back. With even test-value and query distributions,
+    per-process memory and communication scale with the local shards of both inputs. Skewed
+    distributions can concentrate data and work on individual interval owners.
     """
     p = comm.Get_size()
     l_elem = l_elem.reshape(-1)
@@ -381,18 +390,25 @@ def __distributed_isin(
     total_buf = torch.empty_like(total)
     comm.Allreduce(total, total_buf, op=MPI.SUM)
     if total_buf.item() == 0:
-        return torch.full(l_elem.shape, fill_value=invert, dtype=torch.bool)
+        return torch.full(l_elem.shape, fill_value=invert, dtype=torch.bool, device=l_elem.device)
 
-    # map to a key space torch can sort on; the mapping is bijective, so set membership is preserved
+    # map to a key space torch can sort on; the mapping is bijective after normalizing zeros
+    nan_elements = None
     if l_test.dtype == torch.bool:
         l_test, l_elem = l_test.to(torch.int8), l_elem.to(torch.int8)
     elif l_test.dtype == torch.complex64:
-        l_test, l_elem = l_test.view(torch.int64), l_elem.view(torch.int64)
+        nan_elements = torch.isnan(l_elem)
+        l_test, l_elem = __complex64_to_key(l_test), __complex64_to_key(l_elem)
     elif l_test.dtype == torch.complex128:
         raise NotImplementedError(
             "isin does not support complex128 with distributed test_elements; "
             "pass the test values with split=None instead."
         )
+
+    # Discard duplicates locally before constructing the sketch and exchanging values. Besides
+    # shrinking communication for repeated values, this avoids concentrating redundant copies
+    # on the rank owning their interval.
+    l_test = torch.unique(l_test, sorted=True)
 
     # 1. quantile sketch of the sorted local shards (small, independent of shard size)
     s = max(2, p)
@@ -445,46 +461,43 @@ def __distributed_isin(
     result = torch.zeros(l_elem.shape, dtype=torch.bool, device=device)
 
     owners = __interval_owner(pivots, l_elem)
-    send_counts = torch.bincount(owners, minlength=p)
-    recv_counts = torch.empty_like(send_counts)
-    comm.Alltoall(send_counts, recv_counts)
-
-    order = torch.argsort(owners, stable=True)
-    send_vals = l_elem[order]
-    send_pos = order.to(torch.int64)
-    total_recv = recv_counts.sum().item()
-    recv_vals = torch.empty((total_recv,), dtype=l_elem.dtype, device=device)
-    recv_pos = torch.empty((total_recv,), dtype=torch.int64, device=device)
-    send_disps = [0] + list(np.cumsum(send_counts.tolist())[:-1])
-    recv_disps = [0] + list(np.cumsum(recv_counts.tolist())[:-1])
-    comm.Alltoallv(
-        (send_vals, send_counts.tolist(), send_disps),
-        (recv_vals, recv_counts.tolist(), recv_disps),
+    order, send_counts_t, send_displs_t, recv_counts_t, recv_displs_t = _prepare_alltoallv_routing(
+        owners, comm
     )
+    send_counts = send_counts_t.tolist()
+    send_disps = send_displs_t.tolist()
+    recv_counts = recv_counts_t.tolist()
+    recv_disps = recv_displs_t.tolist()
+
+    send_vals = l_elem[order]
+    total_recv = sum(recv_counts)
+    recv_vals = torch.empty((total_recv,), dtype=l_elem.dtype, device=device)
     comm.Alltoallv(
-        (send_pos, send_counts.tolist(), send_disps),
-        (recv_pos, recv_counts.tolist(), recv_disps),
+        (send_vals, send_counts, send_disps),
+        (recv_vals, recv_counts, recv_disps),
     )
 
     # 5. answer the received batches with the local torch kernel
-    hits = torch.empty(total_recv, dtype=torch.bool, device=device)
-    for origin in range(p):
-        lo, hi = recv_disps[origin], recv_disps[origin] + recv_counts[origin]
-        if hi > lo:
-            hits[lo:hi] = torch.isin(recv_vals[lo:hi], owned, assume_unique=assume_unique)
+    if assume_unique:
+        # Keep origins separate: concatenating unique shards from replicated inputs can create
+        # duplicates, which would violate the precondition of torch.isin's unique algorithm.
+        hits = torch.empty(total_recv, dtype=torch.bool, device=device)
+        for origin in range(p):
+            lo, hi = recv_disps[origin], recv_disps[origin] + recv_counts[origin]
+            if hi > lo:
+                hits[lo:hi] = torch.isin(recv_vals[lo:hi], owned, assume_unique=True)
+    else:
+        hits = torch.isin(recv_vals, owned)
 
-    # 6. route the results back; the counts are transposed in both rounds
-    ans_recv = torch.empty((send_counts.sum().item(),), dtype=torch.int8, device=device)
-    ans_pos = torch.empty((send_counts.sum().item(),), dtype=torch.int64, device=device)
+    # 6. route the results back in the destination-blocked order of ``order``
+    answers = torch.empty(l_elem.numel(), dtype=torch.bool, device=device)
     comm.Alltoallv(
-        (hits.to(torch.int8), recv_counts.tolist(), recv_disps),
-        (ans_recv, send_counts.tolist(), send_disps),
+        (hits, recv_counts, recv_disps),
+        (answers, send_counts, send_disps),
     )
-    comm.Alltoallv(
-        (recv_pos, recv_counts.tolist(), recv_disps),
-        (ans_pos, send_counts.tolist(), send_disps),
-    )
-    result[ans_pos] = ans_recv.to(torch.bool)
+    result[order] = answers
+    if nan_elements is not None:
+        result[nan_elements] = False
 
     return torch.logical_not(result) if invert else result
 
@@ -494,17 +507,24 @@ def __isin_local(
 ) -> torch.Tensor:
     """
     Element-wise membership test on local tensors, mirroring the behavior of ``numpy.isin``.
-    ``torch.isin`` does not support boolean and complex dtypes, those are mapped to types that
-    torch can sort on: booleans to ``int8``, ``complex64`` to ``int64`` via a bitcast, and
-    ``complex128`` to a component-wise comparison (there is no 16-byte integer type to bitcast to).
+    ``torch.isin`` does not support boolean and complex dtypes. Booleans are mapped to ``int8``;
+    ``complex64`` values use integer keys after normalizing signed zeros, with NaNs excluded from
+    matches, while ``complex128`` uses a component-wise comparison (there is no 16-byte integer
+    type to bitcast to).
     """
     if local.dtype == torch.bool or test.dtype == torch.bool:
         local = local.to(torch.int8)
         test = test.to(torch.int8)
     elif local.dtype == torch.complex64:
         shape = local.shape
-        local = local.reshape(-1).view(torch.int64).reshape(shape)
-        test = test.view(torch.int64)
+        local = local.reshape(-1)
+        nan_elements = torch.isnan(local)
+        local_key = __complex64_to_key(local)
+        test_key = __complex64_to_key(test.reshape(-1))
+        result = torch.isin(local_key, test_key, assume_unique=assume_unique)
+        result[nan_elements] = False
+        result = result.view(shape)
+        return torch.logical_not(result) if invert else result
     elif local.dtype == torch.complex128:
         local_real = torch.view_as_real(local.reshape(-1))
         test_real = torch.view_as_real(test)
@@ -549,12 +569,14 @@ def isin(
     Notes
     -----
     If ``test_elements`` is distributed, the test values are not gathered or replicated.
-    Instead, each process sketches its local shard, the pooled quantile samples define
-    per-rank value intervals (a small ``O(comm.size)`` sketch), the test values are exchanged
-    once so that each process owns a single interval, and every query value is routed to the
-    process owning its value interval and tested there with ``torch.isin``. Per-process
-    memory and communication scale with the local shards of both inputs; the result keeps
-    the ``split`` of ``element``.
+    Instead, each process sketches its locally deduplicated shard. The pooled sketch contains
+    ``O(comm.size)`` samples per rank, hence ``O(comm.size**2)`` samples in total, independent
+    of the input sizes. Its quantiles define per-rank value intervals, the test values are
+    exchanged once so that each process owns a single interval, and every query value is routed
+    to the process owning its value interval and tested there with ``torch.isin``. For balanced
+    value distributions, per-process memory and communication scale with the local shards of
+    both inputs; skewed test values or queries can concentrate data and work on individual
+    interval owners. The result keeps the ``split`` of ``element``.
 
     ``complex128`` elements are not supported when ``test_elements`` is distributed; pass
     the test values with ``split=None`` in that case. In the distributed path, each owning
