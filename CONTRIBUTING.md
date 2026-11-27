@@ -59,56 +59,11 @@ Keep in mind that the code must run on diverse hardware including GPUs. Don't wo
 
 ## LLM and AI Usage
 
-We embrace the use of LLMs only if they save us time, where `total_time = development_time + review_time`.
+We embrace the use of LLMs and coding agents when they save time across the whole lifecycle, where `total_time = development_time + review_time`. You are responsible for every line you submit—unverified AI-generated code that shifts debugging onto reviewers will be closed.
 
-### Instructions for AI and Contributors
-If you are using an LLM to generate or review code for Heat, be aware of the following project-specific limitations:
-
-* **Distributed logic:** LLMs consistently struggle with memory-distributed algorithms and MPI communication primitives. Make sure the correctness tests (result comparison to equivalent numpy, scipy, scikit-learn functionality) pass in parallel as well, not just on a single process.
-* **Kernel implementation:** Do not reimplement kernels from scratch. Heat is designed to rely on **PyTorch's optimized kernels**; AI suggestions that attempt to bypass PyTorch are usually inefficient and will be rejected.
-* **Incremental reviews:** When using an LLM to incorporate PR review feedback, make sure the model does not rewrite entire functions from scratch. "Total rewrites" make follow-up reviews excruciating.
-
-But also:
-* **Go for it!** LLMs are great for things like:
-    * Code vectorization and refactoring
-    * Documentation and docstring generation
-    * Understanding and explaining the existing codebase
-    * Drafting tests, etc.
-    * creating flowcharts and diagrams to illustrate concepts, like this one:
-
-```mermaid
-    graph TD
-    %% Define Brand Style
-    classDef heatStyle fill:#FFE9D6,stroke:#F07E26,stroke-width:2px,color:#56656B;
-    classDef automation fill:#56656B,stroke:#56656B,stroke-width:2px,color:#FFFFFF;
-
-    Start(["Using an LLM for Heat?"]) --> Choice{Task Type}
-
-    %% The "Go For It" Path
-    Choice -- "Refactoring / Docs / Tests" --> Good["Go for it!"]
-    Good --> G1["Vectorization & Refactoring"]
-    Good --> G2["Docstring Generation"]
-    Good --> G3["Drafting Unit Tests"]
-    Good --> G4["Explaining Codebase"]
-
-    %% The "Caution" Path
-    Choice -- "New Logic / PR Reviews" --> Caution["Exercise Caution"]
-    Caution --> C1[["Distributed & MPI Logic"]]
-    Caution --> C2[["Process-local Pytorch ops"]]
-    Caution --> C3[["Incremental Reviews"]]
-
-    %% Constraints
-    C1 --> R1["Verify results in parallel vs. NumPy/SciPy"]
-    C2 --> R2["Do NOT reimplement ops in pure Python, use PyTorch optimized kernels!"]
-    C3 --> R3["Avoid 'Total Rewrites' after receiving feedback"]
-
-    %% Conclusion
-    R1 & R2 & R3 & G1 & G2 & G3 & G4 --> Final(["Verify & Push"])
-
-    %% Apply Classes
-    class Start,Choice,Good,Caution,G1,G2,G3,G4,C1,C2,C3,R1,R2,R3,Final heatStyle;
-    class C1,C2,C3 automation;
-```
+* **Point your tools to our agent docs:** If you use an AI assistant or coding agent, make sure it reads `AGENTS.md` and `ARCHITECTURE.md` first. These files enforce Heat's memory-scaling rules (no gathering of raw distributed inputs), PyTorch kernel usage, and incremental PR review edits.
+* **Verify in parallel:** Always run the test suite across multiple MPI ranks (including uneven counts such as `mpirun -n 3` and `mpirun -n 5`) and compare against NumPy/SciPy/PyTorch before opening a PR.
+* **Disclose AI assistance:** If AI tools were used to author or review your PR, add a blank line at the end of the PR description followed by `AI Support 🦾 (<exact model and version>)`.
 
 ## Next Steps
 
